@@ -2,5 +2,21 @@
     "extends": "./tsconfig.base.json",
     "compileOnSave": false,
     "files": [],
-    "references": []
+    "references": [
+        {
+            "path": "./apps/admin-e2e"
+        },
+        {
+            "path": "./apps/admin"
+        },
+        {
+            "path": "./apps/server-e2e"
+        },
+        {
+            "path": "./apps/server"
+        },
+        {
+            "path": "./packages/design-system"
+        }
+    ]
 }

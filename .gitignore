@@ -42,3 +42,7 @@ Thumbs.db
 .nx/workspace-data
 .claude/worktrees
 .claude/settings.local.json
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+test-output
