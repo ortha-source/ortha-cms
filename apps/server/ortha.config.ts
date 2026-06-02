@@ -15,9 +15,6 @@ export interface OrthaDatabaseConfig {
     url: string;
 }
 
-/** Identity plugin settings (env-sourced); conforms to the plugin contract. */
-export type OrthaIdentityConfig = IdentityPluginConfig;
-
 /** Root server configuration. */
 export interface OrthaConfig {
     /** Port the API listens on. Sourced from `PORT`, defaults to 3000. */
@@ -29,7 +26,7 @@ export interface OrthaConfig {
     /** Per-plugin runtime config, keyed by plugin name. */
     plugins: {
         /** Identity plugin settings. */
-        identity: OrthaIdentityConfig;
+        identity: IdentityPluginConfig;
     };
 }
 
