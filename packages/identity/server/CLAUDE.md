@@ -69,7 +69,11 @@ tokens, user management, bootstrap) each have a home.
 
 ## Not owned here
 
-- **DB connection / migrations** — receives a Drizzle client; owns neither.
+- **DB connection / migration *execution*** — receives a Drizzle client; owns
+  neither the connection nor the apply step (the host + `@ortha-cms/nx`'s
+  `db:migrate` do that). Identity **does** own its schema and migration *files*
+  (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
+  `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
   (#11).
 - **CLI** — `bootstrapFirstAdmin(...)` will be a plain method taking the DB
