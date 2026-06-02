@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/schema",
+    "version": 2,
+    "title": "db-generate",
+    "description": "Generate Drizzle migrations for a plugin's schema.",
+    "type": "object",
+    "properties": {
+        "cwd": {
+            "type": "string",
+            "description": "Plugin project root, relative to the workspace root (drizzle-kit's working directory)."
+        },
+        "config": {
+            "type": "string",
+            "description": "Path to the drizzle config, relative to cwd."
+        },
+        "name": {
+            "type": "string",
+            "description": "Optional name for the generated migration."
+        }
+    },
+    "required": ["cwd", "config"]
+}
