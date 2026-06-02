@@ -7,6 +7,8 @@
  * values come from the environment; stable tuning lives here as literals.
  */
 
+import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
+
 /** Database connection settings. */
 export interface OrthaDatabaseConfig {
     /** PostgreSQL connection string. Sourced from `DATABASE_URL`. */
@@ -21,11 +23,11 @@ export interface OrthaConfig {
     globalPrefix: string;
     /** Database connection settings. */
     database: OrthaDatabaseConfig;
-    /**
-     * Per-plugin runtime config, keyed by plugin name. Empty until a
-     * plugin needs options (e.g. `identity: { jwtSecret }`).
-     */
-    plugins: Record<string, unknown>;
+    /** Per-plugin runtime config, keyed by plugin name. */
+    plugins: {
+        /** Identity plugin settings. */
+        identity: IdentityPluginConfig;
+    };
 }
 
 const config: OrthaConfig = {
@@ -34,7 +36,29 @@ const config: OrthaConfig = {
     database: {
         url: process.env['DATABASE_URL'] ?? ''
     },
-    plugins: {}
+    plugins: {
+        identity: {
+            // SECURITY: empty default is tolerated only while no signing
+            // exists; add fail-fast validation when secrets are consumed
+            // (#8 sessions, #10 tokens).
+            sessionSecret: process.env['SESSION_SECRET'] ?? '',
+            tokenSecret: process.env['TOKEN_SECRET'] ?? '',
+            session: {
+                ttlSeconds:
+                    Number(process.env['SESSION_TTL_SECONDS']) ||
+                    60 * 60 * 24 * 7,
+                cookieSecure: process.env['NODE_ENV'] === 'production',
+                cookieSameSite: 'lax'
+            },
+            token: {
+                inviteTtlSeconds:
+                    Number(process.env['INVITE_TTL_SECONDS']) ||
+                    60 * 60 * 24 * 7,
+                resetTtlSeconds:
+                    Number(process.env['RESET_TTL_SECONDS']) || 60 * 60
+            }
+        }
+    }
 };
 
 export default config;
