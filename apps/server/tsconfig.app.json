@@ -26,6 +26,9 @@
         },
         {
             "path": "../../packages/bootstrap/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/server/tsconfig.lib.json"
         }
     ]
 }
