@@ -9,6 +9,12 @@ export interface ServerPlugin {
     name: string;
     /** NestJS module (class or configured dynamic module) the plugin provides. */
     module: Type | DynamicModule;
+    /**
+     * Optional setup hook run before the Nest app is created. Plugins
+     * run in array order — use this for one-time setup that must happen
+     * before the app boots, such as opening a database connection.
+     */
+    onPluginInit?(): void | Promise<void>;
 }
 
 /** Options for {@link createServer}. */

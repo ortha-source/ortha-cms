@@ -23,6 +23,9 @@
         },
         {
             "path": "./packages/bootstrap/admin"
+        },
+        {
+            "path": "./packages/database"
         }
     ]
 }

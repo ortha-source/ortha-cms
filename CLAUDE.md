@@ -7,9 +7,13 @@
   list of plugins into a running app
   - `@ortha-cms/bootstrap-admin` — `createAdmin({ plugins })`: mounts the React
     root, router, and plugin-contributed routes
-  - `@ortha-cms/bootstrap-server` — `createServer({ plugins })`: builds the
-    Nest app, imports each plugin's module, applies global prefix +
+  - `@ortha-cms/bootstrap-server` — `createServer({ plugins })`: runs each
+    plugin's `onPluginInit`, imports its module, applies global prefix +
     `ValidationPipe`
+- `packages/database` — `@ortha-cms/database`, the database **plugin**:
+  owns one Drizzle/`pg` connection, opens it in `onPluginInit`, and exposes
+  it via DI (`@InjectDatabase()`, global `DatabaseModule`) and plain
+  `getDatabase()`/`getPool()`. Owns no schemas or migrations.
 
 ## Package layout
 
