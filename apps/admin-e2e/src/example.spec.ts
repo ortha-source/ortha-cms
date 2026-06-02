@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-test('has title', async ({ page }) => {
-    await page.goto('/');
+test('app shell loads', async ({ page }) => {
+    const response = await page.goto('/');
 
-    // Expect h1 to contain a substring.
-    expect(await page.locator('h1').innerText()).toContain('Welcome');
+    // No plugins contribute routes yet — just assert the shell serves.
+    expect(response?.ok()).toBeTruthy();
+    await expect(page.locator('#root')).toBeAttached();
 });

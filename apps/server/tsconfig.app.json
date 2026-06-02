@@ -3,13 +3,12 @@
     "compilerOptions": {
         "outDir": "dist",
         "types": ["node"],
-        "rootDir": "src",
         "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "target": "es2021"
     },
-    "include": ["src/**/*.ts"],
+    "include": ["src/**/*.ts", "ortha.config.ts"],
     "exclude": [
         "out-tsc",
         "dist",
@@ -20,5 +19,13 @@
         "eslint.config.js",
         "eslint.config.cjs",
         "eslint.config.mjs"
+    ],
+    "references": [
+        {
+            "path": "../../packages/database/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/bootstrap/server/tsconfig.lib.json"
+        }
     ]
 }
