@@ -2,6 +2,9 @@
     "name": "@ortha-cms/admin",
     "version": "0.0.1",
     "private": true,
+    "dependencies": {
+        "@ortha-cms/bootstrap-admin": "*"
+    },
     "nx": {
         "name": "admin"
     }

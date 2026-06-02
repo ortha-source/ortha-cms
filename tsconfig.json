@@ -17,6 +17,12 @@
         },
         {
             "path": "./packages/design-system"
+        },
+        {
+            "path": "./packages/bootstrap-server"
+        },
+        {
+            "path": "./packages/bootstrap-admin"
         }
     ]
 }

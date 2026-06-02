@@ -38,6 +38,9 @@
     "references": [
         {
             "path": "../../packages/design-system/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/bootstrap-admin/tsconfig.lib.json"
         }
     ]
 }

@@ -3,7 +3,6 @@
     "compilerOptions": {
         "outDir": "dist",
         "types": ["node"],
-        "rootDir": "src",
         "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
@@ -20,5 +19,10 @@
         "eslint.config.js",
         "eslint.config.cjs",
         "eslint.config.mjs"
+    ],
+    "references": [
+        {
+            "path": "../../packages/bootstrap-server/tsconfig.lib.json"
+        }
     ]
 }

@@ -1,17 +1,7 @@
-import { StrictMode } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import * as ReactDOM from 'react-dom/client';
+import { createAdmin } from '@ortha-cms/bootstrap-admin';
 import App from './app/app';
 import './styles.css';
 
-const root = ReactDOM.createRoot(
-    document.getElementById('root') as HTMLElement
-);
-
-root.render(
-    <StrictMode>
-        <BrowserRouter>
-            <App />
-        </BrowserRouter>
-    </StrictMode>
-);
+createAdmin({
+    plugins: [{ name: 'app', routes: [{ path: '/*', element: <App /> }] }]
+});
