@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import type { IdentityPluginConfig } from '../types';
 import { IdentityModule } from '../identity.module';
@@ -33,6 +34,14 @@ export function IdentityPlugin(
     return {
         name: 'identity',
         module: IdentityModule.forRoot(config),
-        identityConfig: config
+        identityConfig: config,
+        migrations: {
+            // Lazy — only called at migrate time, never at boot. Source
+            // layout: src/lib/utils → ../../../migrations = <pkg>/migrations.
+            // When this package is BUILT/published, switch to a package-root
+            // anchor (dirname(require.resolve('@ortha-cms/identity-server/package.json'))).
+            dir: () => join(__dirname, '../../../migrations'),
+            table: '__drizzle_migrations_identity'
+        }
     };
 }

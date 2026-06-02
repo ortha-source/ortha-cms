@@ -1,0 +1,15 @@
+{
+    "$schema": "../../node_modules/nx/schemas/executors-schema.json",
+    "executors": {
+        "db-generate": {
+            "implementation": "./src/executors/db-generate/executor",
+            "schema": "./src/executors/db-generate/schema.json",
+            "description": "Generate Drizzle migrations for a plugin's schema."
+        },
+        "db-migrate": {
+            "implementation": "./src/executors/db-migrate/executor",
+            "schema": "./src/executors/db-migrate/schema.json",
+            "description": "Apply every registered plugin's migrations."
+        }
+    }
+}

@@ -85,8 +85,10 @@ Use `getDatabase()` / `getPool()` only outside Nest's DI (scripts, seeds).
 
 - **Schemas** — each feature plugin defines its own Drizzle tables; this package
   has zero schema knowledge.
-- **Migrations / schema generation** — there is no migration runner or CLI yet.
-  The plugin only opens the connection.
+- **Migrations / schema generation** — owned by `@ortha-cms/nx` (the
+  `db:generate` / `db:migrate` targets), not this plugin. Each feature plugin
+  ships its own migrations; the host applies them. This plugin only opens the
+  connection.
 
 ## Commands
 

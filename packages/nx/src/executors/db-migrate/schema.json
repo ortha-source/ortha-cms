@@ -1,0 +1,18 @@
+{
+    "$schema": "https://json-schema.org/schema",
+    "version": 2,
+    "title": "db-migrate",
+    "description": "Apply every registered plugin's migrations.",
+    "type": "object",
+    "properties": {
+        "config": {
+            "type": "string",
+            "description": "Path to the host's ortha.config.ts (relative to the workspace root)."
+        },
+        "plugins": {
+            "type": "string",
+            "description": "Path to the module exporting buildPlugins(config) (relative to the workspace root)."
+        }
+    },
+    "required": ["config", "plugins"]
+}

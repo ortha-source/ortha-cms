@@ -14,6 +14,13 @@
   owns one Drizzle/`pg` connection, opens it in `onPluginInit`, and exposes
   it via DI (`@InjectDatabase()`, global `DatabaseModule`) and plain
   `getDatabase()`/`getPool()`. Owns no schemas or migrations.
+- `packages/identity/server` — `@ortha-cms/identity-server`, the identity
+  **plugin**: owns the auth/RBAC schema (Drizzle tables in `src/lib/schema`)
+  and **ships its own migrations** (`drizzle.config.ts` + committed
+  `migrations/`). Opens no connection; the host applies its migrations.
+- `packages/nx` — `@ortha-cms/nx`, the workspace **Nx plugin**: infers and
+  implements the `db:generate` / `db:migrate` targets (Drizzle migration
+  tooling). Registered in `nx.json`.
 
 ## Package layout
 
@@ -35,6 +42,13 @@ package; the admin app's Vite transpiles the design-system source directly.
 
 - `npx nx <typecheck|build|lint|test|serve> <project>`
 - `npx nx sync` — run after changing cross-project dependencies (updates TS project references)
+- **Database / migrations** (provided by `@ortha-cms/nx`; needs a `.env` with
+  `DATABASE_URL`, and Postgres via `docker compose up -d`):
+  - `npx nx run <plugin>:db:generate --name=<name>` — generate that plugin's
+    Drizzle migration from its schema (per-plugin; commit the emitted SQL).
+    Inferred on any project with a `drizzle.config.ts`. Needs no database.
+  - `npx nx run server:db:migrate` — apply every plugin's pending migrations.
+    Inferred on the host (the project with `ortha.config.ts`).
 - Package manager: **npm workspaces** (not pnpm/yarn)
 
 ## Conventions

@@ -5,9 +5,13 @@ package: it answers *"who is this person?"* (authentication) and *"what are they
 allowed to do?"* (roles & access control). Invite-only by design — there is no
 public registration.
 
-This package is currently **scaffolding only** (epic #3, ticket #4): a no-op
-plugin that registers cleanly so later tickets (schema, roles, auth, sessions,
-tokens, user management, bootstrap) each have a home.
+It currently defines its **persistence model** — the Drizzle schema in
+`src/lib/schema` (workspaces, users, roles, permissions, memberships, sessions,
+tokens) — and **ships its migrations** (`drizzle.config.ts` + committed
+`migrations/`, applied by `@ortha-cms/nx`'s `db:migrate`). Behaviour is still
+mostly pending: the plugin registers cleanly and exposes config, while role
+seeding, auth, sessions, tokens, user management, and first-admin bootstrap land
+in later tickets (epic #3).
 
 ## Package
 
@@ -69,7 +73,11 @@ tokens, user management, bootstrap) each have a home.
 
 ## Not owned here
 
-- **DB connection / migrations** — receives a Drizzle client; owns neither.
+- **DB connection / migration *execution*** — receives a Drizzle client; owns
+  neither the connection nor the apply step (the host + `@ortha-cms/nx`'s
+  `db:migrate` do that). Identity **does** own its schema and migration *files*
+  (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
+  `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
   (#11).
 - **CLI** — `bootstrapFirstAdmin(...)` will be a plain method taking the DB

@@ -1,6 +1,7 @@
 {
-    "name": "@ortha-cms/identity-server",
+    "name": "@ortha-cms/nx",
     "version": "0.0.1",
+    "private": true,
     "main": "./src/index.ts",
     "types": "./src/index.ts",
     "exports": {
@@ -11,13 +12,13 @@
         },
         "./package.json": "./package.json"
     },
-    "files": ["src", "migrations"],
+    "executors": "./executors.json",
     "dependencies": {
-        "@nestjs/common": "^11.0.0",
+        "@nx/devkit": "22.7.5",
         "@ortha-cms/bootstrap-server": "*",
-        "drizzle-orm": "^0.36.0"
-    },
-    "devDependencies": {
-        "drizzle-kit": "^0.31.0"
+        "drizzle-kit": "^0.31.0",
+        "drizzle-orm": "^0.36.0",
+        "jiti": "^2.4.0",
+        "pg": "^8.13.0"
     }
 }

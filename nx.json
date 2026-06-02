@@ -81,7 +81,8 @@
                 "targetName": "test"
             },
             "exclude": ["apps/server-e2e/**/*"]
-        }
+        },
+        "@ortha-cms/nx"
     ],
     "targetDefaults": {
         "test": {

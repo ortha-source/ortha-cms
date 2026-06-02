@@ -15,6 +15,19 @@ export interface ServerPlugin {
      * before the app boots, such as opening a database connection.
      */
     onPluginInit?(): void | Promise<void>;
+    /**
+     * Optional migrations this plugin ships. The host applies them via the
+     * `db:migrate` target, tracking each plugin under its own `table` so
+     * plugins version independently. `dir` is a thunk so the path resolves
+     * only at migrate time (never during normal boot) — and works whether
+     * the plugin is consumed from source or installed from npm.
+     */
+    migrations?: {
+        /** Absolute path to the plugin's migrations folder, resolved lazily. */
+        dir: () => string;
+        /** Tracking table isolating this plugin's migration history. */
+        table: string;
+    };
 }
 
 /** Options for {@link createServer}. */
