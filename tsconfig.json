@@ -19,10 +19,10 @@
             "path": "./packages/design-system"
         },
         {
-            "path": "./packages/bootstrap-server"
+            "path": "./packages/bootstrap/server"
         },
         {
-            "path": "./packages/bootstrap-admin"
+            "path": "./packages/bootstrap/admin"
         }
     ]
 }
