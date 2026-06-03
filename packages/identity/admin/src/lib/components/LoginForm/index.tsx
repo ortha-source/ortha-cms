@@ -201,7 +201,7 @@ export function LoginForm({
                                 }}
                             </form.Field>
 
-                            <Field>
+                            <Field className="gap-5">
                                 <form.Subscribe
                                     selector={(state) => state.canSubmit}
                                 >
