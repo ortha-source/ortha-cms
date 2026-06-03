@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { roles } from '../schema';
-import { InjectIdentityDb } from '../identity.module';
+import { InjectIdentityDb } from '../identity.tokens';
 import { RoleNotFoundError, SystemRoleProtectedError } from './errors';
 
 /** Role operations for the identity plugin. Enforces system-role protection. */

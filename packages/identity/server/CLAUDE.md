@@ -36,16 +36,16 @@ bootstrap land in later tickets (epic #3).
 ## Key exports
 
 - `IdentityPlugin(config, deps)` — factory returning a `ServerPlugin`; register
-  it **after** `DatabasePlugin` (identity is DB-backed). `deps.getDb` supplies
-  the Drizzle client (§5). Seeds system roles in `onPluginInit`.
+  it **after** `DatabasePlugin` (identity is DB-backed). `deps.dbToken` is the
+  DI token the host's Drizzle client resolves under (§5).
 - `IdentityPluginConfig` — secrets + session/token settings (public contract)
-- `IdentityPluginDeps` — `{ getDb }`, the host-supplied client accessor
+- `IdentityPluginDeps` — `{ dbToken }`, the host-supplied client DI token
 - `IdentityServerPlugin` — the plugin shape, with `identityConfig` attached
 - `IdentityModule` — global NestJS module; provides config, the db client, and
-  `RolesService`
+  the RBAC services (`RolesService`, `SystemRolesSeeder`)
 - `SYSTEM_ROLES` / `PERMISSION_KEYS` — the v1 role↔permission matrix; the single
   source `seedSystemRoles`, `can()`, and tests all read from
-- `seedSystemRoles(db)` — idempotent seeder run from `onPluginInit`
+- `seedSystemRoles(db)` — idempotent seeder, invoked by `SystemRolesSeeder`
 - `RolesService` — role operations; rejects deletion of `isSystem` roles
 
 ## Architecture
@@ -56,13 +56,19 @@ bootstrap land in later tickets (epic #3).
   wired by the host in `apps/server/src/main.ts`.
 - **Global DI.** `IdentityModule.forRoot(config, deps)` is `global: true`, so
   identity services are injectable from any plugin module without an import. The
-  resolved config and the Drizzle client are provided under internal
-  `IDENTITY_CONFIG` / `IDENTITY_DB` tokens (kept out of the public surface until
-  a consumer outside this package injects them).
-- **Lifecycle.** `onPluginInit` idempotently seeds the system roles. It runs
-  after `DatabasePlugin.onPluginInit` (plugins run in array order), so the
-  connection is live. Idempotent first-admin bootstrap (FR-10) attaches here
-  once #16 lands.
+  config and Drizzle client are provided under internal `IDENTITY_CONFIG` /
+  `IDENTITY_DB` tokens, defined in a dependency-free `identity.tokens.ts` (so
+  services referencing the inject decorators don't form an import cycle with
+  `identity.module.ts`). `IDENTITY_DB` is bound with `useExisting: deps.dbToken`,
+  aliasing the host's db token — the client flows in through DI, never reached
+  for as a singleton.
+- **Lifecycle.** Seeding runs from `SystemRolesSeeder`, a provider implementing
+  NestJS `OnApplicationBootstrap`, so the Drizzle client is **injected** rather
+  than pulled from a pre-app hook. The hook fires inside `app.init()` — after
+  every module is wired, before the server listens — so seeding finishes before
+  any request is served and a failure aborts boot. Idempotent first-admin
+  bootstrap (FR-10) follows the same pattern once #16 lands. (`onPluginInit` is
+  intentionally unused by identity now — it predates the DI graph.)
 - **RBAC seeding.** `seedSystemRoles` writes the permission catalogue, the three
   roles, and their grants in one transaction, each via `ON CONFLICT DO NOTHING`
   — so it is idempotent and concurrency-safe across simultaneously booting
@@ -75,11 +81,12 @@ bootstrap land in later tickets (epic #3).
 
 - **DB-client acquisition (§5).** Identity depends only on the Drizzle **client
   type** (`NodePgDatabase`), never on `@ortha-cms/database`. Chosen and now
-  **implemented**: identity defines its own `IDENTITY_DB` token, and the host
-  passes a `getDb` accessor via `IdentityPluginDeps` (see
-  `apps/server/src/plugins.ts`, which supplies `() => getDatabase()`). Rejected:
-  reusing `DATABASE_TOKEN` (runtime coupling to the database *plugin*, violating
-  §5).
+  **implemented**: identity defines its own `IDENTITY_DB` token and the host
+  hands over the token its client resolves under via `IdentityPluginDeps`
+  (`apps/server/src/plugins.ts` passes `DATABASE_TOKEN`); `IdentityModule`
+  aliases the two with `useExisting`, so the value flows through DI. Rejected:
+  identity importing `DATABASE_TOKEN` itself (runtime coupling to the database
+  *plugin*, violating §5).
 - **Cross-origin cookies (deferred to #8).** Admin (`:4200`) and API (`:3000`)
   are different origins, and `createServer` configures no CORS. The
   `cookieSameSite` default (`lax`) assumes a **same-origin deployment or a dev

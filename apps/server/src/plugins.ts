@@ -1,5 +1,5 @@
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import { DatabasePlugin, getDatabase } from '@ortha-cms/database';
+import { DatabasePlugin, DATABASE_TOKEN } from '@ortha-cms/database';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
 import type { OrthaConfig } from '../ortha.config';
 
@@ -14,6 +14,6 @@ import type { OrthaConfig } from '../ortha.config';
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     return [
         DatabasePlugin({ connectionString: config.database.url }),
-        IdentityPlugin(config.plugins.identity, { getDb: () => getDatabase() })
+        IdentityPlugin(config.plugins.identity, { dbToken: DATABASE_TOKEN })
     ];
 }
