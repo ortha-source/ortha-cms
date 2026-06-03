@@ -1,3 +1,19 @@
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+
+/**
+ * Runtime dependencies the host supplies to the identity plugin. Identity
+ * depends only on the Drizzle *client type* — never on `@ortha-cms/database`
+ * (§5). The host, which owns the connection, provides the accessor.
+ */
+export interface IdentityPluginDeps {
+    /**
+     * Returns the live Drizzle client. A thunk, not the client itself, so it
+     * resolves lazily — after `DatabasePlugin.onPluginInit` opens the
+     * connection, never at plugin-construction time.
+     */
+    getDb: () => NodePgDatabase;
+}
+
 /**
  * Configuration for the identity plugin. Secrets and lifetimes are
  * supplied by the host (see `apps/server/ortha.config.ts`) — identity
