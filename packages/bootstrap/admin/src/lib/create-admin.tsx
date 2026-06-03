@@ -35,10 +35,7 @@ export function createAdmin(options: CreateAdminOptions): void {
                                 element={route.element}
                             />
                         ))}
-                        <Route
-                            path="*"
-                            element={<Navigate to="/" replace />}
-                        />
+                        <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </BrowserRouter>
             </IntlProvider>

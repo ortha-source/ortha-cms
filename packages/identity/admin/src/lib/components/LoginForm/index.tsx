@@ -109,9 +109,7 @@ export function LoginForm({
                                             messages.authFailedTitle
                                         )}
                                     </AlertTitle>
-                                    <AlertDescription>
-                                        {error}
-                                    </AlertDescription>
+                                    <AlertDescription>{error}</AlertDescription>
                                 </Alert>
                             )}
 

@@ -20,7 +20,11 @@ type LoginPageProps = {
 export function LoginPage({ onSubmit, isPending, error }: LoginPageProps) {
     return (
         <AuthLayout>
-            <LoginForm onSubmit={onSubmit} isPending={isPending} error={error} />
+            <LoginForm
+                onSubmit={onSubmit}
+                isPending={isPending}
+                error={error}
+            />
         </AuthLayout>
     );
 }
