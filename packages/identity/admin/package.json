@@ -14,7 +14,9 @@
     "files": ["src"],
     "dependencies": {
         "@ortha-cms/bootstrap-admin": "*",
-        "@ortha-cms/design-system": "*"
+        "@ortha-cms/design-system": "*",
+        "@tanstack/react-form": "^1.0.0",
+        "react-intl": "^7.0.0"
     },
     "peerDependencies": {
         "react": "^19.0.0",
