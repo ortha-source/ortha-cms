@@ -5,9 +5,9 @@
  * permission set has exactly one source of truth.
  */
 export const PERMISSION_KEYS = [
-    'workspace:read',
-    'workspace:update',
-    'workspace:delete',
+    'workspaces:read',
+    'workspaces:update',
+    'workspaces:delete',
     'users:read',
     'users:create',
     'users:update',
@@ -38,11 +38,11 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
     {
         key: 'contributor',
         name: 'Contributor',
-        permissions: ['workspace:read', 'users:read']
+        permissions: ['workspaces:read', 'users:read']
     },
     {
         key: 'viewer',
         name: 'Viewer',
-        permissions: ['workspace:read', 'users:read']
+        permissions: ['workspaces:read', 'users:read']
     }
 ] as const;
