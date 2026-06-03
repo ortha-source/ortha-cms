@@ -26,6 +26,18 @@ export const messages = defineMessages({
         id: 'identity.login.passwordPlaceholder',
         defaultMessage: '••••••••'
     },
+    emailRequired: {
+        id: 'identity.login.emailRequired',
+        defaultMessage: 'Email is required'
+    },
+    emailInvalid: {
+        id: 'identity.login.emailInvalid',
+        defaultMessage: 'Enter a valid email address'
+    },
+    passwordRequired: {
+        id: 'identity.login.passwordRequired',
+        defaultMessage: 'Password is required'
+    },
     forgotPassword: {
         id: 'identity.login.forgotPassword',
         defaultMessage: 'Forgot your password?'

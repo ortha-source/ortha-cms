@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { useIntl } from 'react-intl';
+import { z } from 'zod';
 import {
     Alert,
     AlertTitle,
@@ -13,6 +15,7 @@ import {
     Input,
     Field,
     FieldDescription,
+    FieldError,
     FieldGroup,
     FieldLabel,
     cn
@@ -51,8 +54,30 @@ export function LoginForm({
 }: LoginFormProps) {
     const intl = useIntl();
 
+    // Built from intl so validation copy is localized like the rest of the form.
+    const loginSchema = useMemo(
+        () =>
+            z.object({
+                email: z
+                    .string()
+                    .min(1, {
+                        message: intl.formatMessage(messages.emailRequired)
+                    })
+                    .pipe(
+                        z.email({
+                            message: intl.formatMessage(messages.emailInvalid)
+                        })
+                    ),
+                password: z.string().min(1, {
+                    message: intl.formatMessage(messages.passwordRequired)
+                })
+            }),
+        [intl]
+    );
+
     const form = useForm({
         defaultValues: { email: '', password: '' },
+        validators: { onChange: loginSchema },
         onSubmit: ({ value }) => onSubmit?.(value)
     });
 
@@ -69,6 +94,7 @@ export function LoginForm({
                 </CardHeader>
                 <CardContent>
                     <form
+                        noValidate
                         onSubmit={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -90,83 +116,113 @@ export function LoginForm({
                             )}
 
                             <form.Field name="email">
-                                {(field) => (
-                                    <Field>
-                                        <FieldLabel htmlFor="login-email">
-                                            {intl.formatMessage(
-                                                messages.emailLabel
+                                {(field) => {
+                                    const invalid =
+                                        field.state.meta.isTouched &&
+                                        field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={invalid}>
+                                            <FieldLabel htmlFor="login-email">
+                                                {intl.formatMessage(
+                                                    messages.emailLabel
+                                                )}
+                                            </FieldLabel>
+                                            <Input
+                                                id="login-email"
+                                                type="email"
+                                                placeholder={intl.formatMessage(
+                                                    messages.emailPlaceholder
+                                                )}
+                                                value={field.state.value}
+                                                aria-invalid={invalid}
+                                                onChange={(e) =>
+                                                    field.handleChange(
+                                                        e.target.value
+                                                    )
+                                                }
+                                                onBlur={field.handleBlur}
+                                            />
+                                            {invalid && (
+                                                <FieldError
+                                                    errors={
+                                                        field.state.meta.errors
+                                                    }
+                                                />
                                             )}
-                                        </FieldLabel>
-                                        <Input
-                                            id="login-email"
-                                            type="email"
-                                            placeholder={intl.formatMessage(
-                                                messages.emailPlaceholder
-                                            )}
-                                            value={field.state.value}
-                                            onChange={(e) =>
-                                                field.handleChange(
-                                                    e.target.value
-                                                )
-                                            }
-                                            onBlur={field.handleBlur}
-                                            required
-                                        />
-                                    </Field>
-                                )}
+                                        </Field>
+                                    );
+                                }}
                             </form.Field>
 
                             <form.Field name="password">
-                                {(field) => (
-                                    <Field>
-                                        <div className="flex items-center">
-                                            <FieldLabel htmlFor="login-password">
-                                                {intl.formatMessage(
-                                                    messages.passwordLabel
+                                {(field) => {
+                                    const invalid =
+                                        field.state.meta.isTouched &&
+                                        field.state.meta.errors.length > 0;
+                                    return (
+                                        <Field data-invalid={invalid}>
+                                            <div className="flex items-center">
+                                                <FieldLabel htmlFor="login-password">
+                                                    {intl.formatMessage(
+                                                        messages.passwordLabel
+                                                    )}
+                                                </FieldLabel>
+                                                <a
+                                                    href="#"
+                                                    className="ml-auto text-sm underline-offset-4 hover:underline"
+                                                >
+                                                    {intl.formatMessage(
+                                                        messages.forgotPassword
+                                                    )}
+                                                </a>
+                                            </div>
+                                            <Input
+                                                id="login-password"
+                                                type="password"
+                                                placeholder={intl.formatMessage(
+                                                    messages.passwordPlaceholder
                                                 )}
-                                            </FieldLabel>
-                                            <a
-                                                href="#"
-                                                className="ml-auto text-sm underline-offset-4 hover:underline"
-                                            >
-                                                {intl.formatMessage(
-                                                    messages.forgotPassword
-                                                )}
-                                            </a>
-                                        </div>
-                                        <Input
-                                            id="login-password"
-                                            type="password"
-                                            placeholder={intl.formatMessage(
-                                                messages.passwordPlaceholder
+                                                value={field.state.value}
+                                                aria-invalid={invalid}
+                                                onChange={(e) =>
+                                                    field.handleChange(
+                                                        e.target.value
+                                                    )
+                                                }
+                                                onBlur={field.handleBlur}
+                                            />
+                                            {invalid && (
+                                                <FieldError
+                                                    errors={
+                                                        field.state.meta.errors
+                                                    }
+                                                />
                                             )}
-                                            value={field.state.value}
-                                            onChange={(e) =>
-                                                field.handleChange(
-                                                    e.target.value
-                                                )
-                                            }
-                                            onBlur={field.handleBlur}
-                                            required
-                                        />
-                                    </Field>
-                                )}
+                                        </Field>
+                                    );
+                                }}
                             </form.Field>
 
                             <Field>
-                                <Button
-                                    type="submit"
-                                    className="w-full"
-                                    disabled={isPending}
+                                <form.Subscribe
+                                    selector={(state) => state.canSubmit}
                                 >
-                                    {isPending
-                                        ? intl.formatMessage(
-                                              messages.loginButtonPending
-                                          )
-                                        : intl.formatMessage(
-                                              messages.loginButton
-                                          )}
-                                </Button>
+                                    {(canSubmit) => (
+                                        <Button
+                                            type="submit"
+                                            className="w-full"
+                                            disabled={isPending || !canSubmit}
+                                        >
+                                            {isPending
+                                                ? intl.formatMessage(
+                                                      messages.loginButtonPending
+                                                  )
+                                                : intl.formatMessage(
+                                                      messages.loginButton
+                                                  )}
+                                        </Button>
+                                    )}
+                                </form.Subscribe>
                                 <FieldDescription className="text-center">
                                     {intl.formatMessage(messages.noAccount, {
                                         signUpLink: (
