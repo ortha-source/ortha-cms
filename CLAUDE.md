@@ -56,3 +56,7 @@ package; the admin app's Vite transpiles the design-system source directly.
 - Prettier: 4-space indent, single quotes
 - shadcn / design-system work is governed by the shadcn skill and
   [`packages/design-system/CLAUDE.md`](packages/design-system/CLAUDE.md)
+- Admin i18n: `react-intl` with the host's single `IntlProvider`; each
+  component **co-locates** its own `const messages = defineMessages({ … })`
+  (no shared `messages.ts`). See
+  [`packages/bootstrap/admin/CLAUDE.md`](packages/bootstrap/admin/CLAUDE.md)

@@ -23,9 +23,13 @@ screens and real authentication land in later tickets (epic #3).
 - JSX enabled (`react-jsx`), DOM types available
 - Components in `src/lib/components/<Name>/`; pages in `src/lib/pages/<Name>/`;
   the nested router in `src/lib/router/`; the plugin factory in `src/lib/utils/`;
-  intl descriptors in `src/lib/messages.ts`; types in `src/types/`
+  types in `src/types/`
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`);
-  the host provides the single `IntlProvider`
+  the host provides the single `IntlProvider`. **Each component co-locates its
+  own descriptors** — a module-level `const messages = defineMessages({ … })`
+  at the top of the component file, not a shared `messages.ts`. Keep the
+  `id`s namespaced (`identity.<area>.<key>`) so they stay globally unique
+  across components
 - Forms use `@tanstack/react-form`
 - Always import types with the `type` keyword
 
