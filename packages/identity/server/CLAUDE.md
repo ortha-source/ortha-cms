@@ -35,14 +35,13 @@ bootstrap land in later tickets (epic #3).
 
 ## Key exports
 
-- `IdentityPlugin(config, deps)` — factory returning a `ServerPlugin`; register
-  it **after** `DatabasePlugin` (identity is DB-backed). `deps.dbToken` is the
-  DI token the host's Drizzle client resolves under (§5).
+- `IdentityPlugin(config)` — factory returning a `ServerPlugin`; register it
+  **after** `DatabasePlugin` (identity injects the db from that plugin's global
+  module)
 - `IdentityPluginConfig` — secrets + session/token settings (public contract)
-- `IdentityPluginDeps` — `{ dbToken }`, the host-supplied client DI token
 - `IdentityServerPlugin` — the plugin shape, with `identityConfig` attached
-- `IdentityModule` — global NestJS module; provides config, the db client, and
-  the RBAC services (`RolesService`, `SystemRolesSeeder`)
+- `IdentityModule` — global NestJS module; provides config and the RBAC services
+  (`RolesService`, `SystemRolesSeeder`)
 - `SYSTEM_ROLES` / `PERMISSION_KEYS` — the v1 role↔permission matrix; the single
   source `seedSystemRoles`, `can()`, and tests all read from
 - `seedSystemRoles(db)` — idempotent seeder, invoked by `SystemRolesSeeder`
@@ -54,14 +53,14 @@ bootstrap land in later tickets (epic #3).
   `IdentityPlugin(config)` returning the standard
   [`ServerPlugin`](../../bootstrap/server/src/lib/types/server-plugin.ts) shape,
   wired by the host in `apps/server/src/main.ts`.
-- **Global DI.** `IdentityModule.forRoot(config, deps)` is `global: true`, so
-  identity services are injectable from any plugin module without an import. The
-  config and Drizzle client are provided under internal `IDENTITY_CONFIG` /
-  `IDENTITY_DB` tokens, defined in a dependency-free `identity.tokens.ts` (so
-  services referencing the inject decorators don't form an import cycle with
-  `identity.module.ts`). `IDENTITY_DB` is bound with `useExisting: deps.dbToken`,
-  aliasing the host's db token — the client flows in through DI, never reached
-  for as a singleton.
+- **Global DI.** `IdentityModule.forRoot(config)` is `global: true`, so identity
+  services are injectable from any plugin module without an import. The config is
+  provided under an internal `IDENTITY_CONFIG` token (in a dependency-free
+  `identity.tokens.ts`). The Drizzle client is injected straight from
+  `@ortha-cms/database`'s global `DatabaseModule` with `@InjectDatabase()` —
+  identity registers no db provider of its own. Annotate the injected client as
+  `Database` (re-exported from `@ortha-cms/database`), not `NodePgDatabase`, so a
+  dialect change stays a one-line edit in that package.
 - **Lifecycle.** Seeding runs from `SystemRolesSeeder`, a provider implementing
   NestJS `OnApplicationBootstrap`, so the Drizzle client is **injected** rather
   than pulled from a pre-app hook. The hook fires inside `app.init()` — after
@@ -79,14 +78,17 @@ bootstrap land in later tickets (epic #3).
 
 ## Decisions (recorded for the epic)
 
-- **DB-client acquisition (§5).** Identity depends only on the Drizzle **client
-  type** (`NodePgDatabase`), never on `@ortha-cms/database`. Chosen and now
-  **implemented**: identity defines its own `IDENTITY_DB` token and the host
-  hands over the token its client resolves under via `IdentityPluginDeps`
-  (`apps/server/src/plugins.ts` passes `DATABASE_TOKEN`); `IdentityModule`
-  aliases the two with `useExisting`, so the value flows through DI. Rejected:
-  identity importing `DATABASE_TOKEN` itself (runtime coupling to the database
-  *plugin*, violating §5).
+- **DB-client acquisition (§5 — superseded).** The original scaffold decided
+  identity must never import `@ortha-cms/database`, depending only on the Drizzle
+  client *type*. **Retired:** identity now depends on `@ortha-cms/database` and
+  injects the client with `@InjectDatabase()` — the consumption pattern that
+  plugin documents. Rationale for the reversal: the decoupling only paid off if
+  identity ran against a *different* db provider, which is not a goal — the
+  database plugin is the sole provider, and the ORM is fixed (Drizzle).
+  Dialect-portability is instead handled narrowly: consumers annotate with the
+  `Database` alias (owned by `@ortha-cms/database`), so a dialect change is a
+  one-line edit there, not a sweep. (Inherently dialect-bound bits remain: the
+  `pg-core` schema and pg-specific query methods like `onConflictDoNothing`.)
 - **Cross-origin cookies (deferred to #8).** Admin (`:4200`) and API (`:3000`)
   are different origins, and `createServer` configures no CORS. The
   `cookieSameSite` default (`lax`) assumes a **same-origin deployment or a dev
@@ -100,9 +102,10 @@ bootstrap land in later tickets (epic #3).
 
 ## Not owned here
 
-- **DB connection / migration *execution*** — receives a Drizzle client; owns
-  neither the connection nor the apply step (the host + `@ortha-cms/nx`'s
-  `db:migrate` do that). Identity **does** own its schema and migration *files*
+- **DB connection / migration *execution*** — injects the Drizzle client from
+  `@ortha-cms/database`; owns neither the connection nor the apply step (that
+  plugin + `@ortha-cms/nx`'s `db:migrate` do that). Identity **does** own its
+  schema and migration *files*
   (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers

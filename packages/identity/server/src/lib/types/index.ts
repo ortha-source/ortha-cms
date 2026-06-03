@@ -1,21 +1,3 @@
-import type { InjectionToken } from '@nestjs/common';
-
-/**
- * Runtime dependencies the host supplies to the identity plugin. Identity
- * depends only on the Drizzle *client type* — never on `@ortha-cms/database`
- * (§5). The host, which owns the connection, registers a provider for the
- * client and hands identity the token under which it resolves.
- */
-export interface IdentityPluginDeps {
-    /**
-     * A DI token, registered by the host, that resolves to a live
-     * `NodePgDatabase`. Identity aliases its internal `IDENTITY_DB` token to
-     * this one, so the client flows in through DI — no direct dependency on
-     * the database plugin, and no module-level singleton reach.
-     */
-    dbToken: InjectionToken;
-}
-
 /**
  * Configuration for the identity plugin. Secrets and lifetimes are
  * supplied by the host (see `apps/server/ortha.config.ts`) — identity

@@ -1,6 +1,5 @@
 export type {
     IdentityPluginConfig,
-    IdentityPluginDeps,
     IdentitySessionConfig,
     IdentityTokenConfig
 } from './lib/types';

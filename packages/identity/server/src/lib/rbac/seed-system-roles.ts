@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { Database } from '@ortha-cms/database';
 import { permissions, rolePermissions, roles } from '../schema';
 import { PERMISSION_KEYS, SYSTEM_ROLES } from './system-roles';
 
@@ -11,7 +11,7 @@ import { PERMISSION_KEYS, SYSTEM_ROLES } from './system-roles';
  * Runs in one transaction so a crash can never leave a role without its
  * grants (a privilege gap).
  */
-export async function seedSystemRoles(db: NodePgDatabase): Promise<void> {
+export async function seedSystemRoles(db: Database): Promise<void> {
     await db.transaction(async (tx) => {
         // 1. Permission catalogue.
         await tx

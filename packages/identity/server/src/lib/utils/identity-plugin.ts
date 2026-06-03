@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import type { IdentityPluginConfig, IdentityPluginDeps } from '../types';
+import type { IdentityPluginConfig } from '../types';
 import { IdentityModule } from '../identity.module';
 
 /**
@@ -14,9 +14,9 @@ export interface IdentityServerPlugin extends ServerPlugin {
 
 /**
  * Creates the identity plugin. Register it **after** `DatabasePlugin` in
- * the `plugins` array — identity is DB-backed and assumes a live
- * connection. The host passes `deps.dbToken` (the DI token its db client
- * resolves under, §5); identity never imports `@ortha-cms/database`.
+ * the `plugins` array — identity is DB-backed and injects the client from
+ * `@ortha-cms/database`'s global `DatabaseModule`, which must be wired
+ * first.
  *
  * System-role seeding (FR-6) runs from a NestJS `OnApplicationBootstrap`
  * hook in `SystemRolesSeeder`, where the client is injected via DI — not
@@ -28,18 +28,17 @@ export interface IdentityServerPlugin extends ServerPlugin {
  * createServer({
  *   plugins: [
  *     DatabasePlugin({ connectionString: config.database.url }),
- *     IdentityPlugin(config.plugins.identity, { dbToken: DATABASE_TOKEN }),
+ *     IdentityPlugin(config.plugins.identity),
  *   ],
  * });
  * ```
  */
 export function IdentityPlugin(
-    config: IdentityPluginConfig,
-    deps: IdentityPluginDeps
+    config: IdentityPluginConfig
 ): IdentityServerPlugin {
     return {
         name: 'identity',
-        module: IdentityModule.forRoot(config, deps),
+        module: IdentityModule.forRoot(config),
         identityConfig: config,
         migrations: {
             // Lazy — only called at migrate time, never at boot. Source

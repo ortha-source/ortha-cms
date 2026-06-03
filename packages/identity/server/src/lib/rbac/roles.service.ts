@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { roles } from '../schema';
-import { InjectIdentityDb } from '../identity.tokens';
 import { RoleNotFoundError, SystemRoleProtectedError } from './errors';
 
 /** Role operations for the identity plugin. Enforces system-role protection. */
 @Injectable()
 export class RolesService {
-    constructor(@InjectIdentityDb() private readonly db: NodePgDatabase) {}
+    constructor(@InjectDatabase() private readonly db: Database) {}
 
     /**
      * Deletes a non-system role by id. The guard lives in the SQL predicate

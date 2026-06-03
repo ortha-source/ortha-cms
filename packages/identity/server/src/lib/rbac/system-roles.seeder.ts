@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { InjectIdentityDb } from '../identity.tokens';
+import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { seedSystemRoles } from './seed-system-roles';
 
 /**
@@ -16,7 +15,7 @@ import { seedSystemRoles } from './seed-system-roles';
 export class SystemRolesSeeder implements OnApplicationBootstrap {
     private readonly logger = new Logger(SystemRolesSeeder.name);
 
-    constructor(@InjectIdentityDb() private readonly db: NodePgDatabase) {}
+    constructor(@InjectDatabase() private readonly db: Database) {}
 
     async onApplicationBootstrap(): Promise<void> {
         await seedSystemRoles(this.db);
