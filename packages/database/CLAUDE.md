@@ -26,6 +26,9 @@ It owns **no schemas and no migrations** — feature plugins own their own table
 - `DatabasePlugin(config)` — factory returning a `ServerPlugin`; opens the
   connection in `onPluginInit`
 - `DatabasePluginConfig` — `{ connectionString }`
+- `Database` — the Drizzle client type the plugin exposes. **Annotate injected
+  clients with this**, not the dialect-specific `NodePgDatabase`, so a dialect
+  change is a one-line edit in this package.
 - `DatabaseServerPlugin` — the plugin shape, with `databaseConfig` attached
 - `initDatabase` / `getDatabase` / `getPool` — the connection singleton
 - `DatabaseModule` — global NestJS module providing the Drizzle instance
@@ -65,13 +68,12 @@ owns:
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { InjectDatabase } from '@ortha-cms/database';
+import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { things } from '../schema';
 
 @Injectable()
 export class ThingService {
-    constructor(@InjectDatabase() private readonly db: NodePgDatabase) {}
+    constructor(@InjectDatabase() private readonly db: Database) {}
 
     findById(id: string) {
         return this.db.select().from(things).where(eq(things.id, id));

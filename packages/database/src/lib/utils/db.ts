@@ -1,9 +1,9 @@
 import { Pool } from 'pg';
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { DatabasePluginConfig } from '../types';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import type { Database, DatabasePluginConfig } from '../types';
 
 let pool: Pool | null = null;
-let database: NodePgDatabase | null = null;
+let database: Database | null = null;
 
 /**
  * Initializes the connection pool and Drizzle ORM instance.
@@ -23,7 +23,7 @@ export function initDatabase(config: DatabasePluginConfig): void {
  * Returns the initialized Drizzle ORM instance.
  * Throws if {@link initDatabase} has not been called.
  */
-export function getDatabase(): NodePgDatabase {
+export function getDatabase(): Database {
     if (!database) {
         throw new Error('Database not initialized. Call initDatabase() first.');
     }

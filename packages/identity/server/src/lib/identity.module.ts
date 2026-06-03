@@ -1,34 +1,32 @@
-import { DynamicModule, Inject, Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import type { IdentityPluginConfig } from './types';
+import { IDENTITY_CONFIG } from './identity.tokens';
+import { RolesService } from './rbac/roles.service';
+import { SystemRolesSeeder } from './rbac/system-roles.seeder';
 
 /**
- * Injection token for the resolved identity configuration. Internal for
- * now — not part of the public barrel until a consumer (auth services,
- * #5+) injects it.
- */
-export const IDENTITY_CONFIG = Symbol('IDENTITY_CONFIG');
-
-/** Parameter decorator that injects the identity configuration. */
-export const InjectIdentityConfig = (): ParameterDecorator =>
-    Inject(IDENTITY_CONFIG);
-
-/**
- * NestJS module for the identity plugin. Registered globally so future
- * identity services (auth guard, permission checks, user management) are
- * injectable from any plugin module without an explicit import.
+ * NestJS module for the identity plugin. Registered globally so identity
+ * services (permission checks, user management) are injectable from any
+ * plugin module without an explicit import.
  *
- * Scaffolding only: it provides the config and nothing else. Schema,
- * services, and controllers land in later tickets.
+ * Provides the resolved config and the RBAC services. The Drizzle client is
+ * injected straight from `@ortha-cms/database`'s global `DatabaseModule`
+ * (`@InjectDatabase()`), so identity registers no db provider of its own.
+ * Controllers land in later tickets.
  */
 @Module({})
 export class IdentityModule {
-    /** Creates the global dynamic module, exposing the identity config. */
+    /** Creates the global dynamic module: config + identity services. */
     static forRoot(config: IdentityPluginConfig): DynamicModule {
         return {
             module: IdentityModule,
             global: true,
-            providers: [{ provide: IDENTITY_CONFIG, useValue: config }],
-            exports: [IDENTITY_CONFIG]
+            providers: [
+                { provide: IDENTITY_CONFIG, useValue: config },
+                SystemRolesSeeder,
+                RolesService
+            ],
+            exports: [IDENTITY_CONFIG, RolesService]
         };
     }
 }

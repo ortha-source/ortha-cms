@@ -14,9 +14,14 @@ export interface IdentityServerPlugin extends ServerPlugin {
 
 /**
  * Creates the identity plugin. Register it **after** `DatabasePlugin` in
- * the `plugins` array — identity is DB-backed and assumes a live
- * connection. Role seeding (FR-6) and first-admin bootstrap (FR-10) will
- * attach to `onPluginInit` once those tickets (#6, #16) land.
+ * the `plugins` array — identity is DB-backed and injects the client from
+ * `@ortha-cms/database`'s global `DatabaseModule`, which must be wired
+ * first.
+ *
+ * System-role seeding (FR-6) runs from a NestJS `OnApplicationBootstrap`
+ * hook in `SystemRolesSeeder`, where the client is injected via DI — not
+ * from the pre-app `onPluginInit`. First-admin bootstrap (FR-10) follows
+ * the same pattern once #16 lands.
  *
  * @example
  * ```typescript
