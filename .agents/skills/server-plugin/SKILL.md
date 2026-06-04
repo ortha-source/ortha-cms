@@ -79,6 +79,25 @@ domains multiply — feature-folders add a sibling and leave the rest untouched.
 `src/lib/utils/` is for **package-level** functions only (the plugin factory);
 a helper used by exactly one feature lives **in that feature's folder**.
 
+### Stay flat *inside* a feature too
+
+Keep a feature's files **flat** in its folder — `auth/login.controller.ts`,
+`auth/auth.service.ts`, `auth/cookie.ts` — not re-bucketed into nested
+`auth/controllers/`, `auth/services/`, `auth/utils/`. The `*.controller.ts` /
+`*.service.ts` **suffix already encodes the type**, so nested type-folders just
+triple the redundancy (`auth/controllers/login.controller.ts`) and re-create the
+layer-grouping cost one level down. Need "all services"? `auth/*.service.ts`.
+
+- **Promotion threshold:** only add a subfolder when a *single type* in a
+  *single feature* exceeds ~5–7 files — and even then, first ask whether the
+  feature should **split** (`auth/` → `auth/`, `sessions/`, `password-reset/`,
+  each flat). A feature that large is usually several features in a trenchcoat;
+  splitting restores cohesion, type-subfoldering just shelves by kind.
+- **The one standing exception is `dto/`.** DTOs multiply fast (a request — and
+  often response — DTO per endpoint) and are a uniform, logic-free kind, so they
+  earn their own folder before services/controllers would. Keep `<feature>/dto/`
+  even at one file.
+
 ---
 
 ## Creating a new plugin — step by step
