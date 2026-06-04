@@ -20,9 +20,13 @@ export function Logo({ className, showLabel = true, ...props }: LogoProps) {
             {...props}
         >
             <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <HexagonIcon className="size-4" />
+                <HexagonIcon className="size-4" aria-hidden="true" />
             </div>
-            {showLabel && <span>Ortha CMS</span>}
+            {showLabel ? (
+                <span>Ortha CMS</span>
+            ) : (
+                <span className="sr-only">Ortha CMS</span>
+            )}
         </div>
     );
 }
