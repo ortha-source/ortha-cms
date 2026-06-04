@@ -56,3 +56,7 @@ package; the admin app's Vite transpiles the design-system source directly.
 - Prettier: 4-space indent, single quotes
 - shadcn / design-system work is governed by the shadcn skill and
   [`packages/design-system/CLAUDE.md`](packages/design-system/CLAUDE.md)
+- Authoring or extending a NestJS **server plugin** (`packages/<group>/server`)
+  is governed by the `server-plugin` skill — the `ServerPlugin` factory +
+  dynamic-module pattern, feature-folder layout, `@InjectDatabase()` DI, config
+  injection, and the Drizzle schema/migrations descriptor
