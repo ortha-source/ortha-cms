@@ -1,8 +1,8 @@
 # @ortha-cms/identity-server
 
 The identity **plugin** for the Ortha CMS server. It is the foundational
-package: it answers *"who is this person?"* (authentication) and *"what are they
-allowed to do?"* (roles & access control). Invite-only by design — there is no
+package: it answers _"who is this person?"_ (authentication) and _"what are they
+allowed to do?"_ (roles & access control). Invite-only by design — there is no
 public registration.
 
 It currently defines its **persistence model** — the Drizzle schema in
@@ -92,10 +92,10 @@ session logout/revocation, the auth guard, tokens, user management, the
 
 - **DB-client acquisition (§5 — superseded).** The original scaffold decided
   identity must never import `@ortha-cms/database`, depending only on the Drizzle
-  client *type*. **Retired:** identity now depends on `@ortha-cms/database` and
+  client _type_. **Retired:** identity now depends on `@ortha-cms/database` and
   injects the client with `@InjectDatabase()` — the consumption pattern that
   plugin documents. Rationale for the reversal: the decoupling only paid off if
-  identity ran against a *different* db provider, which is not a goal — the
+  identity ran against a _different_ db provider, which is not a goal — the
   database plugin is the sole provider, and the ORM is fixed (Drizzle).
   Dialect-portability is instead handled narrowly: consumers annotate with the
   `Database` alias (owned by `@ortha-cms/database`), so a dialect change is a
@@ -118,7 +118,7 @@ session logout/revocation, the auth guard, tokens, user management, the
   on write and on lookup; no migration — the column is still `text`).
 - **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
   (10/min, in-memory — per-instance; needs a shared store + Express `trust
-  proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
+proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   which rejects browser requests whose `Origin` is not in
   `config.allowedOrigins` (login-CSRF defense; missing-`Origin` non-browser
   clients pass). Still **deferred**: a CSRF token for higher-value mutations,
@@ -129,10 +129,10 @@ session logout/revocation, the auth guard, tokens, user management, the
 
 ## Not owned here
 
-- **DB connection / migration *execution*** — injects the Drizzle client from
+- **DB connection / migration _execution_** — injects the Drizzle client from
   `@ortha-cms/database`; owns neither the connection nor the apply step (that
   plugin + `@ortha-cms/nx`'s `db:migrate` do that). Identity **does** own its
-  schema and migration *files*
+  schema and migration _files_
   (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers

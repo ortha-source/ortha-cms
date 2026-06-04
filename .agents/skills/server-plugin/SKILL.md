@@ -14,7 +14,7 @@ features to the NestJS API. It is **not an app**: it exports a factory the host
 
 > **Reference implementation:** `packages/identity/server` is the fullest
 > worked example in the repo — when a detail here is unclear, read it. The
-> examples below use a made-up `widgets` plugin so they describe the *shape*,
+> examples below use a made-up `widgets` plugin so they describe the _shape_,
 > not any one implementation.
 
 > Plugins are consumed **from source** (`exports` → `./src/index.ts`,
@@ -83,7 +83,7 @@ domains multiply — feature-folders add a sibling and leave the rest untouched.
 `src/lib/utils/` is for **package-level** functions only (the plugin factory);
 a helper used by exactly one feature lives **in that feature's folder**.
 
-### Stay flat *inside* a feature too
+### Stay flat _inside_ a feature too
 
 Keep a feature's files **flat** in its folder — `widgets/widget.service.ts`,
 `widgets/widget.helper.ts` — not re-bucketed into nested `widgets/controllers/`,
@@ -92,8 +92,8 @@ Keep a feature's files **flat** in its folder — `widgets/widget.service.ts`,
 redundancy (`widgets/controllers/create-widget.controller.ts`) and re-create the
 layer-grouping cost one level down. Need "all services"? `widgets/*.service.ts`.
 
-- **Promotion threshold:** only add a subfolder when a *single type* in a
-  *single feature* exceeds ~5–7 files — and even then, first ask whether the
+- **Promotion threshold:** only add a subfolder when a _single type_ in a
+  _single feature_ exceeds ~5–7 files — and even then, first ask whether the
   feature should **split** into smaller feature folders, each flat. A feature
   that large is usually several features in a trenchcoat; splitting restores
   cohesion, type-subfoldering just shelves by kind.
@@ -112,25 +112,29 @@ layer-grouping cost one level down. Need "all services"? `widgets/*.service.ts`.
 
 ```jsonc
 {
-  "name": "@ortha-cms/<group>-server",
-  "version": "0.0.1",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": { "types": "./src/index.ts", "import": "./src/index.ts", "default": "./src/index.ts" },
-    "./package.json": "./package.json"
-  },
-  "files": ["src", "migrations"],          // drop "migrations" if no schema
-  "dependencies": {
-    "@nestjs/common": "^11.0.0",
-    "@ortha-cms/bootstrap-server": "*",
-    "@ortha-cms/database": "*",            // only if DB-backed
-    "drizzle-orm": "^0.36.0",             // only if DB-backed
-    "class-validator": "^0.15.1"          // only if it has DTOs
-  },
-  "devDependencies": {
-    "drizzle-kit": "^0.31.0"              // only if it owns schema
-  }
+    "name": "@ortha-cms/<group>-server",
+    "version": "0.0.1",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": ["src", "migrations"], // drop "migrations" if no schema
+    "dependencies": {
+        "@nestjs/common": "^11.0.0",
+        "@ortha-cms/bootstrap-server": "*",
+        "@ortha-cms/database": "*", // only if DB-backed
+        "drizzle-orm": "^0.36.0", // only if DB-backed
+        "class-validator": "^0.15.1" // only if it has DTOs
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.31.0" // only if it owns schema
+    }
 }
 ```
 
@@ -160,18 +164,20 @@ The host supplies the values from `apps/server/ortha.config.ts`
 // src/lib/<plugin>.module.ts
 @Module({})
 export class XModule {
-  static forRoot(config: XPluginConfig): DynamicModule {
-    return {
-      module: XModule,
-      global: true,                       // services injectable from any plugin
-      controllers: [/* feature controllers */],
-      providers: [
-        { provide: X_CONFIG, useValue: config },
-        /* feature services, OnApplicationBootstrap providers */
-      ],
-      exports: [X_CONFIG /*, services other plugins inject */],
-    };
-  }
+    static forRoot(config: XPluginConfig): DynamicModule {
+        return {
+            module: XModule,
+            global: true, // services injectable from any plugin
+            controllers: [
+                /* feature controllers */
+            ],
+            providers: [
+                { provide: X_CONFIG, useValue: config }
+                /* feature services, OnApplicationBootstrap providers */
+            ],
+            exports: [X_CONFIG /*, services other plugins inject */]
+        };
+    }
 }
 ```
 
@@ -182,19 +188,21 @@ anywhere without re-importing the module.
 
 ```ts
 // src/lib/utils/<plugin>-plugin.ts
-export interface XServerPlugin extends ServerPlugin { xConfig: XPluginConfig }
+export interface XServerPlugin extends ServerPlugin {
+    xConfig: XPluginConfig;
+}
 
 export function XPlugin(config: XPluginConfig): XServerPlugin {
-  return {
-    name: 'x',
-    module: XModule.forRoot(config),
-    xConfig: config,
-    // ONLY if the plugin owns schema — the host's db:migrate reads this:
-    migrations: {
-      dir: () => join(__dirname, '../../../migrations'),
-      table: '__drizzle_migrations_x',    // a per-plugin migrations table
-    },
-  };
+    return {
+        name: 'x',
+        module: XModule.forRoot(config),
+        xConfig: config,
+        // ONLY if the plugin owns schema — the host's db:migrate reads this:
+        migrations: {
+            dir: () => join(__dirname, '../../../migrations'),
+            table: '__drizzle_migrations_x' // a per-plugin migrations table
+        }
+    };
 }
 ```
 
@@ -210,8 +218,8 @@ out of the barrel until something external needs them.
 ```ts
 // apps/server/src/plugins.ts — order matters: DatabasePlugin first
 return [
-  DatabasePlugin({ connectionString: config.database.url }),
-  XPlugin(config.plugins.x),
+    DatabasePlugin({ connectionString: config.database.url }),
+    XPlugin(config.plugins.x)
 ];
 ```
 
@@ -236,7 +244,7 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 
 @Injectable()
 export class WidgetService {
-  constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(@InjectDatabase() private readonly db: Database) {}
 }
 ```
 
@@ -286,7 +294,7 @@ npx nx run server:db:migrate                                       # applies all
   transport-agnostic.** Express-touching glue (cookies, header parsing) belongs
   in its own injectable service (e.g. a `CookieService` that injects config and
   exposes `setSession(res, …)` / `readSession(req)`), so `AuthService` and the
-  like never see `req`/`res`. A dedicated transport service is the *right* home
+  like never see `req`/`res`. A dedicated transport service is the _right_ home
   for that glue — the "no `req`/`res`" rule is about **domain** services, not a
   ban on the concept.
 - **Reusable primitives are injectable services, not free functions.** Wrap

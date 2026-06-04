@@ -18,9 +18,7 @@ export class MeController {
     @Get('me')
     async me(@Req() req: Request): Promise<PublicUser> {
         const sessionId = this.cookies.readSession(req);
-        const user = sessionId
-            ? await this.auth.currentUser(sessionId)
-            : null;
+        const user = sessionId ? await this.auth.currentUser(sessionId) : null;
 
         if (!user) {
             throw new UnauthorizedException();

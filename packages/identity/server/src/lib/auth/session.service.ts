@@ -80,7 +80,10 @@ export class SessionService {
         const id = this.hashing.hashToken(token);
         const now = new Date();
         const [session] = await this.db
-            .select({ userId: sessions.userId, lastUsedAt: sessions.lastUsedAt })
+            .select({
+                userId: sessions.userId,
+                lastUsedAt: sessions.lastUsedAt
+            })
             .from(sessions)
             .where(
                 and(
@@ -94,7 +97,10 @@ export class SessionService {
             return null;
         }
 
-        if (now.getTime() - session.lastUsedAt.getTime() > LAST_USED_THROTTLE_MS) {
+        if (
+            now.getTime() - session.lastUsedAt.getTime() >
+            LAST_USED_THROTTLE_MS
+        ) {
             await this.db
                 .update(sessions)
                 .set({ lastUsedAt: now })

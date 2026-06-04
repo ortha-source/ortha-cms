@@ -68,7 +68,12 @@ export class AuthService {
         const hashed = user?.passwordHash ?? (await this.getDummyHash());
         const passwordOk = await this.hashing.verifyPassword(hashed, password);
 
-        if (!user || !user.passwordHash || user.status !== 'active' || !passwordOk) {
+        if (
+            !user ||
+            !user.passwordHash ||
+            user.status !== 'active' ||
+            !passwordOk
+        ) {
             throw new InvalidCredentialsError();
         }
 
