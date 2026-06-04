@@ -8,10 +8,14 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *
 # Ortha CMS server plugins
 
 A **server plugin** is a workspace package under `packages/<group>/server` (e.g.
-`packages/identity/server` → `@ortha-cms/identity-server`) that contributes
+`packages/billing/server` → `@ortha-cms/billing-server`) that contributes
 features to the NestJS API. It is **not an app**: it exports a factory the host
-(`@ortha-cms/bootstrap-server`) assembles into a running server. The reference
-implementation is **`packages/identity/server`** — when in doubt, read it.
+(`@ortha-cms/bootstrap-server`) assembles into a running server.
+
+> **Reference implementation:** `packages/identity/server` is the fullest
+> worked example in the repo — when a detail here is unclear, read it. The
+> examples below use a made-up `widgets` plugin so they describe the *shape*,
+> not any one implementation.
 
 > Plugins are consumed **from source** (`exports` → `./src/index.ts`,
 > `customConditions: ["@ortha-cms/source"]`). No build step; the host transpiles
@@ -46,28 +50,27 @@ services, DTOs, errors, **and feature-specific helpers** together:
 ```
 packages/<group>/server/
   src/
-    index.ts                  # public barrel — the package's API
+    index.ts                       # public barrel — the package's API
     lib/
-      <plugin>.module.ts      # the one dynamic module
-      <plugin>.tokens.ts      # DI tokens (dependency-free)
-      auth/                   # ← a FEATURE folder
-        auth.controller.ts
-        auth.service.ts
-        session.service.ts
-        password.ts           # feature-specific helper lives HERE
+      <plugin>.module.ts           # the one dynamic module
+      <plugin>.tokens.ts           # DI tokens (dependency-free)
+      widgets/                     # ← a FEATURE folder (flat)
+        create-widget.controller.ts
+        list-widgets.controller.ts
+        widget.service.ts
+        widget.helper.ts           # feature-specific helper lives HERE
         errors.ts
         dto/
-          login.dto.ts
-      rbac/                   # ← another feature folder
-        roles.service.ts
-        system-roles.ts
-        errors.ts
-      schema/                 # Drizzle tables + barrel
-      types/                  # shared, public type contracts
-      utils/                  # PACKAGE-LEVEL cross-cutting only
-        <plugin>-plugin.ts    # the factory — the one thing that belongs here
-  drizzle.config.ts           # only if the plugin owns schema
-  migrations/                 # committed SQL (only if it owns schema)
+          create-widget.dto.ts
+      reports/                     # ← another feature folder
+        report.service.ts
+        report.constants.ts
+      schema/                      # Drizzle tables + barrel
+      types/                       # shared, public type contracts
+      utils/                       # PACKAGE-LEVEL cross-cutting only
+        <plugin>-plugin.ts         # the factory — the one thing that belongs here
+  drizzle.config.ts                # only if the plugin owns schema
+  migrations/                      # committed SQL (only if it owns schema)
   package.json
   tsconfig.json / tsconfig.lib.json
   CLAUDE.md
@@ -81,18 +84,18 @@ a helper used by exactly one feature lives **in that feature's folder**.
 
 ### Stay flat *inside* a feature too
 
-Keep a feature's files **flat** in its folder — `auth/login.controller.ts`,
-`auth/auth.service.ts`, `auth/cookie.ts` — not re-bucketed into nested
-`auth/controllers/`, `auth/services/`, `auth/utils/`. The `*.controller.ts` /
-`*.service.ts` **suffix already encodes the type**, so nested type-folders just
-triple the redundancy (`auth/controllers/login.controller.ts`) and re-create the
-layer-grouping cost one level down. Need "all services"? `auth/*.service.ts`.
+Keep a feature's files **flat** in its folder — `widgets/widget.service.ts`,
+`widgets/widget.helper.ts` — not re-bucketed into nested `widgets/controllers/`,
+`widgets/services/`, `widgets/utils/`. The `*.controller.ts` / `*.service.ts`
+**suffix already encodes the type**, so nested type-folders just triple the
+redundancy (`widgets/controllers/create-widget.controller.ts`) and re-create the
+layer-grouping cost one level down. Need "all services"? `widgets/*.service.ts`.
 
 - **Promotion threshold:** only add a subfolder when a *single type* in a
   *single feature* exceeds ~5–7 files — and even then, first ask whether the
-  feature should **split** (`auth/` → `auth/`, `sessions/`, `password-reset/`,
-  each flat). A feature that large is usually several features in a trenchcoat;
-  splitting restores cohesion, type-subfoldering just shelves by kind.
+  feature should **split** into smaller feature folders, each flat. A feature
+  that large is usually several features in a trenchcoat; splitting restores
+  cohesion, type-subfoldering just shelves by kind.
 - **The one standing exception is `dto/`.** DTOs multiply fast (a request — and
   often response — DTO per endpoint) and are a uniform, logic-free kind, so they
   earn their own folder before services/controllers would. Keep `<feature>/dto/`
@@ -169,8 +172,8 @@ export class XModule {
 }
 ```
 
-`global: true` is the norm — identity's services are injected from anywhere
-without re-importing the module.
+`global: true` is the norm — a plugin's services are then injectable from
+anywhere without re-importing the module.
 
 ### 4. The plugin factory (the package's entry point)
 
@@ -229,7 +232,7 @@ Inject the shared Drizzle client — **never** register your own:
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 
 @Injectable()
-export class RolesService {
+export class WidgetService {
   constructor(@InjectDatabase() private readonly db: Database) {}
 }
 ```
@@ -259,7 +262,7 @@ npx nx run server:db:migrate                                       # applies all
 - **`OnApplicationBootstrap` provider** — for boot work that needs the DB client
   (seeding, idempotent bootstrap). The client is **injected** via DI; the hook
   runs inside `app.init()`, so a failure aborts boot before serving. This is the
-  default (see `SystemRolesSeeder`).
+  default (the reference plugin's seeder follows this pattern).
 - **`onPluginInit?()`** on the `ServerPlugin` — runs **before** the Nest app
   exists, for opening resources other plugins depend on at construction time
   (only `@ortha-cms/database` needs this). Most plugins leave it unused.
@@ -267,26 +270,27 @@ npx nx run server:db:migrate                                       # applies all
 ## Controllers, DTOs, validation, errors
 
 - Controllers are **thin**: parse, delegate to a service, map the result. They
-  sit under the host's global **`api`** prefix, so `@Controller('auth')` →
-  `/api/auth/...`.
+  sit under the host's global **`api`** prefix, so `@Controller('widgets')` →
+  `/api/widgets/...`.
 - **One controller per use case, not a fat resource controller.** Split when
-  endpoints diverge in purpose or dependencies — auth is `LoginController`
-  (`@Post('login')`) + `MeController` (`@Get('me')`), each sharing
-  `@Controller('auth')` (NestJS allows multiple controllers on one prefix; no
+  endpoints diverge in purpose or dependencies — e.g. a `CreateWidgetController`
+  (`@Post()`) and a `ListWidgetsController` (`@Get()`) each sharing
+  `@Controller('widgets')` (NestJS allows multiple controllers on one prefix; no
   routing conflict). Group only a genuine CRUD resource (list/get/create/delete
   of one thing) into a single controller. Register each in the module's
   `controllers: []`.
 - **Transport helpers live in the feature, not in services.** Express-touching
-  glue (e.g. cookie set/read in `auth/cookie.ts`) is a plain helper shared by
-  the controllers; services stay transport-agnostic (no `req`/`res`).
-- DTOs use `class-validator` decorators (`@IsEmail()`, `@IsString()`, ...). The
+  glue (e.g. cookie or header parsing in `widgets/widget.helper.ts`) is a plain
+  helper shared by the controllers; services stay transport-agnostic (no
+  `req`/`res`).
+- DTOs use `class-validator` decorators (`@IsString()`, `@IsInt()`, ...). The
   host already applies a strict global `ValidationPipe`
   (`whitelist` + `forbidNonWhitelisted` + `transform`) in `create-server.ts` —
   **do not** re-register a pipe; just decorate the DTO.
 - Domain errors are **transport-agnostic classes** in the feature folder (e.g.
-  `InvalidCredentialsError`); the controller maps them to HTTP
-  (`UnauthorizedException`, etc.). Keep security responses generic — no
-  user-enumeration signal.
+  a `WidgetNotFoundError`); the controller maps them to HTTP
+  (`NotFoundException`, etc.). Keep security-sensitive responses generic — no
+  enumeration signal.
 
 ---
 
@@ -299,11 +303,11 @@ npx nx run server:db:migrate                                       # applies all
 - `experimentalDecorators` + `emitDecoratorMetadata` are on.
 - Prettier: 4-space indent, single quotes.
 
-## Cross-origin / cookies
+## Cross-origin / cookies (for plugins that set cookies)
 
-Admin (`:4200`) and API (`:3000`) are different origins. The settled approach is
-a **same-origin dev proxy** — `apps/admin/vite.config.mts` proxies `/api` →
-`:3000`, keeping cookies first-party with `SameSite=lax` and no CORS. Only if a
+The admin app and API run on different origins in dev. The settled approach is a
+**same-origin dev proxy** — `apps/admin/vite.config.mts` proxies `/api` to the
+API port, keeping cookies first-party (`SameSite=lax`) with no CORS. Only if a
 plugin needs true cross-origin should a `cors` option be added to `createServer`
 (a host transport concern), never inside the plugin.
 
@@ -326,4 +330,3 @@ plugin needs true cross-origin should a `cors` option be added to `createServer`
 - [ ] A `CLAUDE.md` for the package documenting its decisions.
 - [ ] `npx nx sync` then `typecheck` + `lint` green; `nx build server` if it has
       controllers.
-```
