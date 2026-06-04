@@ -2,14 +2,15 @@ import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 /**
- * Server-side, revocable session (FR-4). `id` IS the opaque random secret
- * handed to the client — application-generated, never derived or
- * predictable.
+ * Server-side, revocable session (FR-4). `id` is the SHA-256 of the opaque
+ * random token handed to the client (application-generated, never derived or
+ * predictable). The raw token lives only in the client's cookie and is never
+ * stored, so a read-only DB/backup leak yields no usable session tokens.
  */
 export const sessions = pgTable(
     'sessions',
     {
-        /** Opaque random token. Not a uuid default — supplied by the app. */
+        /** SHA-256 (hex) of the app-generated session token. Not a uuid. */
         id: text('id').primaryKey(),
         /** References the session owner. */
         userId: uuid('user_id')

@@ -1,8 +1,8 @@
 # @ortha-cms/identity-server
 
 The identity **plugin** for the Ortha CMS server. It is the foundational
-package: it answers *"who is this person?"* (authentication) and *"what are they
-allowed to do?"* (roles & access control). Invite-only by design — there is no
+package: it answers _"who is this person?"_ (authentication) and _"what are they
+allowed to do?"_ (roles & access control). Invite-only by design — there is no
 public registration.
 
 It currently defines its **persistence model** — the Drizzle schema in
@@ -10,9 +10,12 @@ It currently defines its **persistence model** — the Drizzle schema in
 tokens) — and **ships its migrations** (`drizzle.config.ts` + committed
 `migrations/`, applied by `@ortha-cms/nx`'s `db:migrate`). It also **seeds the
 system roles** (`admin`/`contributor`/`viewer`) idempotently on boot and
-protects them from deletion (RBAC, FR-6). Behaviour is still partly pending:
-auth, sessions, tokens, user management, the `can()` check, and first-admin
-bootstrap land in later tickets (epic #3).
+protects them from deletion (RBAC, FR-6). It also handles **email/password
+login**: the `auth/` feature (`AuthController`, `AuthService`, `SessionService`)
+verifies credentials with bcrypt and opens a DB-backed, revocable session
+delivered as an `httpOnly` cookie (#8). Behaviour is still partly pending:
+session logout/revocation, the auth guard, tokens, user management, the
+`can()` check, and first-admin bootstrap land in later tickets (epic #3).
 
 ## Package
 
@@ -24,12 +27,21 @@ bootstrap land in later tickets (epic #3).
 
 ## Conventions
 
-- Uses `interface` for type contracts (not `type`)
+- Uses `interface` for type contracts (not `type`) — except a derived/mapped
+  type (e.g. a `Pick<typeof users.$inferSelect, …>`), which is a `type`
 - All exported symbols have JSDoc comments
 - No `.js` extensions in TypeScript imports
-- Plain functions go in `src/lib/utils/`; the NestJS module in `src/lib/`;
-  types in `src/lib/types/`; RBAC policy (the system-roles constant, seeder,
-  `RolesService`, errors) is grouped under `src/lib/rbac/`
+- **Group by feature, not by layer.** Each domain owns one folder under
+  `src/lib/` holding its controllers, services, and helpers, plus `dto/` and
+  `errors/` (the two uniform-kind subfolders) — `rbac/` (system-roles constant,
+  seeder, `RolesService`, `errors/`) and `auth/` (login/me controllers,
+  `AuthService` / `SessionService` / `HashingService` / `CookieService`,
+  `errors/`, `dto/`). Do **not** split into `controllers/`/`services/` by type —
+  that scatters one change across folders and ages badly as domains multiply.
+  `src/lib/utils/` is for **package-level** cross-cutting functions only (e.g.
+  the plugin factory), never feature helpers; the NestJS module sits in
+  `src/lib/`; shared types in `src/lib/types/`. Full rationale + the
+  flat-within-feature rule live in the `server-plugin` skill.
 - Always import types with the `type` keyword
 - `experimentalDecorators` and `emitDecoratorMetadata` are enabled
 
@@ -80,32 +92,47 @@ bootstrap land in later tickets (epic #3).
 
 - **DB-client acquisition (§5 — superseded).** The original scaffold decided
   identity must never import `@ortha-cms/database`, depending only on the Drizzle
-  client *type*. **Retired:** identity now depends on `@ortha-cms/database` and
+  client _type_. **Retired:** identity now depends on `@ortha-cms/database` and
   injects the client with `@InjectDatabase()` — the consumption pattern that
   plugin documents. Rationale for the reversal: the decoupling only paid off if
-  identity ran against a *different* db provider, which is not a goal — the
+  identity ran against a _different_ db provider, which is not a goal — the
   database plugin is the sole provider, and the ORM is fixed (Drizzle).
   Dialect-portability is instead handled narrowly: consumers annotate with the
   `Database` alias (owned by `@ortha-cms/database`), so a dialect change is a
   one-line edit there, not a sweep. (Inherently dialect-bound bits remain: the
   `pg-core` schema and pg-specific query methods like `onConflictDoNothing`.)
-- **Cross-origin cookies (deferred to #8).** Admin (`:4200`) and API (`:3000`)
-  are different origins, and `createServer` configures no CORS. The
-  `cookieSameSite` default (`lax`) assumes a **same-origin deployment or a dev
-  proxy** (preferred — proxy `/api` → `:3000` in `apps/admin/vite.config.ts`).
-  The alternative is separate origins with CORS — if taken, a `cors` option
-  belongs on `createServer` (host transport concern), not here. The login ticket
-  (#8) owns this decision.
+- **Cross-origin cookies (settled in #8 — same-origin dev proxy).** Admin
+  (`:4200`) and API (`:3000`) are different origins, and `createServer`
+  configures no CORS. #8 took the **dev-proxy** path: `apps/admin/vite.config.mts`
+  proxies `/api` → `:3000`, so the browser sees one origin and the session
+  cookie (`httpOnly`, `SameSite=lax`) is first-party with no CORS. The rejected
+  alternative was separate origins with CORS + `SameSite=none` — if ever taken,
+  a `cors` option belongs on `createServer` (host transport concern), not here.
+- **Session cookie is unsigned, token hashed at rest (#8).** The cookie carries
+  only the opaque 256-bit random token; every request re-validates it against
+  the DB (`revokedAt`/`expiresAt`), so there is nothing to forge and no signing
+  is needed. Consequently `sessionSecret` stays **unconsumed** for now — its
+  fail-fast validation moves to whichever ticket first signs something (tokens,
+  #10). The `sessions` PK stores the **SHA-256 of** the token, not the token, so
+  a read-only DB/backup leak yields no usable sessions (`SessionService` hashes
+  on write and on lookup; no migration — the column is still `text`).
+- **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
+  (10/min, in-memory — per-instance; needs a shared store + Express `trust
+proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
+  which rejects browser requests whose `Origin` is not in
+  `config.allowedOrigins` (login-CSRF defense; missing-`Origin` non-browser
+  clients pass). Still **deferred**: a CSRF token for higher-value mutations,
+  `helmet` security headers (host concern), and expired-session pruning.
 - **Secrets.** `sessionSecret` and `tokenSecret` are kept **distinct** by
-  design. They may be empty at boot in this scaffold (no signing yet);
-  **fail-fast validation must be added when signing is introduced** (#8/#10).
+  design. They may be empty at boot today (sessions are unsigned, see above);
+  **fail-fast validation must be added when signing is introduced** (#10).
 
 ## Not owned here
 
-- **DB connection / migration *execution*** — injects the Drizzle client from
+- **DB connection / migration _execution_** — injects the Drizzle client from
   `@ortha-cms/database`; owns neither the connection nor the apply step (that
   plugin + `@ortha-cms/nx`'s `db:migrate` do that). Identity **does** own its
-  schema and migration *files*
+  schema and migration _files_
   (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
