@@ -3,7 +3,8 @@ import type { IdentityPluginConfig } from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/roles.service';
 import { SystemRolesSeeder } from './rbac/system-roles.seeder';
-import { AuthController } from './auth/auth.controller';
+import { LoginController } from './auth/login.controller';
+import { MeController } from './auth/me.controller';
 import { AuthService } from './auth/auth.service';
 import { SessionService } from './auth/session.service';
 
@@ -13,7 +14,7 @@ import { SessionService } from './auth/session.service';
  * plugin module without an explicit import.
  *
  * Provides the resolved config and the RBAC services, and mounts the auth
- * controller (`/auth/login`, `/auth/me`). The Drizzle client is injected
+ * controllers (`/auth/login`, `/auth/me`). The Drizzle client is injected
  * straight from `@ortha-cms/database`'s global `DatabaseModule`
  * (`@InjectDatabase()`), so identity registers no db provider of its own.
  */
@@ -24,7 +25,7 @@ export class IdentityModule {
         return {
             module: IdentityModule,
             global: true,
-            controllers: [AuthController],
+            controllers: [LoginController, MeController],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
                 SystemRolesSeeder,

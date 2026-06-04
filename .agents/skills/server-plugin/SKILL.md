@@ -250,6 +250,16 @@ npx nx run server:db:migrate                                       # applies all
 - Controllers are **thin**: parse, delegate to a service, map the result. They
   sit under the host's global **`api`** prefix, so `@Controller('auth')` →
   `/api/auth/...`.
+- **One controller per use case, not a fat resource controller.** Split when
+  endpoints diverge in purpose or dependencies — auth is `LoginController`
+  (`@Post('login')`) + `MeController` (`@Get('me')`), each sharing
+  `@Controller('auth')` (NestJS allows multiple controllers on one prefix; no
+  routing conflict). Group only a genuine CRUD resource (list/get/create/delete
+  of one thing) into a single controller. Register each in the module's
+  `controllers: []`.
+- **Transport helpers live in the feature, not in services.** Express-touching
+  glue (e.g. cookie set/read in `auth/cookie.ts`) is a plain helper shared by
+  the controllers; services stay transport-agnostic (no `req`/`res`).
 - DTOs use `class-validator` decorators (`@IsEmail()`, `@IsString()`, ...). The
   host already applies a strict global `ValidationPipe`
   (`whitelist` + `forbidNonWhitelisted` + `transform`) in `create-server.ts` —
