@@ -8,7 +8,16 @@ export default defineConfig(() => ({
     cacheDir: '../../node_modules/.vite/apps/admin',
     server: {
         port: 4200,
-        host: 'localhost'
+        host: 'localhost',
+        // Proxy the API under the same origin as the admin app so the
+        // session cookie (httpOnly, SameSite=lax) is first-party in dev —
+        // the same-origin assumption identity's #8 settled on, avoiding CORS.
+        proxy: {
+            '/api': {
+                target: 'http://localhost:3000',
+                changeOrigin: true
+            }
+        }
     },
     preview: {
         port: 4200,

@@ -10,9 +10,12 @@ It currently defines its **persistence model** — the Drizzle schema in
 tokens) — and **ships its migrations** (`drizzle.config.ts` + committed
 `migrations/`, applied by `@ortha-cms/nx`'s `db:migrate`). It also **seeds the
 system roles** (`admin`/`contributor`/`viewer`) idempotently on boot and
-protects them from deletion (RBAC, FR-6). Behaviour is still partly pending:
-auth, sessions, tokens, user management, the `can()` check, and first-admin
-bootstrap land in later tickets (epic #3).
+protects them from deletion (RBAC, FR-6). It also handles **email/password
+login**: the `auth/` feature (`AuthController`, `AuthService`, `SessionService`)
+verifies credentials with bcrypt and opens a DB-backed, revocable session
+delivered as an `httpOnly` cookie (#8). Behaviour is still partly pending:
+session logout/revocation, the auth guard, tokens, user management, the
+`can()` check, and first-admin bootstrap land in later tickets (epic #3).
 
 ## Package
 
@@ -27,9 +30,15 @@ bootstrap land in later tickets (epic #3).
 - Uses `interface` for type contracts (not `type`)
 - All exported symbols have JSDoc comments
 - No `.js` extensions in TypeScript imports
-- Plain functions go in `src/lib/utils/`; the NestJS module in `src/lib/`;
-  types in `src/lib/types/`; RBAC policy (the system-roles constant, seeder,
-  `RolesService`, errors) is grouped under `src/lib/rbac/`
+- **Group by feature, not by layer.** Each domain owns one folder under
+  `src/lib/` that holds its controllers, services, DTOs, errors, and
+  feature-specific helpers together — `rbac/` (system-roles constant, seeder,
+  `RolesService`, errors) and `auth/` (controller, `AuthService` +
+  `SessionService`, `password` hashing, `dto/`). Do **not** split by type into
+  `controllers/`/`services/`/`errors/` — that scatters one change across folders
+  and ages badly as domains multiply. `src/lib/utils/` is for **package-level**
+  cross-cutting functions only (e.g. the plugin factory), never feature helpers;
+  the NestJS module sits in `src/lib/`; shared types in `src/lib/types/`.
 - Always import types with the `type` keyword
 - `experimentalDecorators` and `emitDecoratorMetadata` are enabled
 
@@ -89,16 +98,22 @@ bootstrap land in later tickets (epic #3).
   `Database` alias (owned by `@ortha-cms/database`), so a dialect change is a
   one-line edit there, not a sweep. (Inherently dialect-bound bits remain: the
   `pg-core` schema and pg-specific query methods like `onConflictDoNothing`.)
-- **Cross-origin cookies (deferred to #8).** Admin (`:4200`) and API (`:3000`)
-  are different origins, and `createServer` configures no CORS. The
-  `cookieSameSite` default (`lax`) assumes a **same-origin deployment or a dev
-  proxy** (preferred — proxy `/api` → `:3000` in `apps/admin/vite.config.ts`).
-  The alternative is separate origins with CORS — if taken, a `cors` option
-  belongs on `createServer` (host transport concern), not here. The login ticket
-  (#8) owns this decision.
+- **Cross-origin cookies (settled in #8 — same-origin dev proxy).** Admin
+  (`:4200`) and API (`:3000`) are different origins, and `createServer`
+  configures no CORS. #8 took the **dev-proxy** path: `apps/admin/vite.config.mts`
+  proxies `/api` → `:3000`, so the browser sees one origin and the session
+  cookie (`httpOnly`, `SameSite=lax`) is first-party with no CORS. The rejected
+  alternative was separate origins with CORS + `SameSite=none` — if ever taken,
+  a `cors` option belongs on `createServer` (host transport concern), not here.
+- **Session cookie is unsigned (#8).** The cookie carries only the opaque
+  256-bit random session id, which is also the `sessions` row PK; every request
+  re-validates it against the DB (`revokedAt`/`expiresAt`), so there is nothing
+  to forge and no signing is needed. Consequently `sessionSecret` stays
+  **unconsumed** for now — its fail-fast validation moves to whichever ticket
+  first signs something (tokens, #10), not this one.
 - **Secrets.** `sessionSecret` and `tokenSecret` are kept **distinct** by
-  design. They may be empty at boot in this scaffold (no signing yet);
-  **fail-fast validation must be added when signing is introduced** (#8/#10).
+  design. They may be empty at boot today (sessions are unsigned, see above);
+  **fail-fast validation must be added when signing is introduced** (#10).
 
 ## Not owned here
 

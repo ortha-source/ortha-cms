@@ -16,9 +16,13 @@
         "@nestjs/common": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
         "@ortha-cms/database": "*",
+        "bcrypt": "^5.1.1",
+        "class-validator": "^0.15.1",
         "drizzle-orm": "^0.36.0"
     },
     "devDependencies": {
+        "@types/bcrypt": "^5.0.2",
+        "@types/express": "^4.17.21",
         "drizzle-kit": "^0.31.0"
     }
 }
