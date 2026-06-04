@@ -90,8 +90,8 @@ export function LoginForm({
         <div className={cn('flex flex-col gap-6', className)} {...props}>
             <Card>
                 <CardHeader className="text-center">
-                    <CardTitle className="text-xl">
-                        {intl.formatMessage(messages.loginTitle)}
+                    <CardTitle asChild className="text-xl">
+                        <h1>{intl.formatMessage(messages.loginTitle)}</h1>
                     </CardTitle>
                     <CardDescription>
                         {intl.formatMessage(messages.loginDescription)}
@@ -115,6 +115,7 @@ export function LoginForm({
                                         field={field}
                                         id="login-email"
                                         type="email"
+                                        autoComplete="email"
                                         label={intl.formatMessage(
                                             messages.emailLabel
                                         )}
@@ -131,6 +132,7 @@ export function LoginForm({
                                         field={field}
                                         id="login-password"
                                         type="password"
+                                        autoComplete="current-password"
                                         label={intl.formatMessage(
                                             messages.passwordLabel
                                         )}
@@ -138,14 +140,15 @@ export function LoginForm({
                                             messages.passwordPlaceholder
                                         )}
                                         labelAction={
-                                            <a
-                                                href="#"
+                                            // TODO(#8): wire to the real forgot-password route
+                                            <button
+                                                type="button"
                                                 className="ml-auto text-sm underline-offset-4 hover:underline"
                                             >
                                                 {intl.formatMessage(
                                                     messages.forgotPassword
                                                 )}
-                                            </a>
+                                            </button>
                                         }
                                     />
                                 )}

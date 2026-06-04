@@ -6,15 +6,7 @@ const messages = defineMessages({
     legalFooter: {
         id: 'identity.login.legalFooter',
         defaultMessage:
-            'By clicking continue, you agree to our {termsLink} and {privacyLink}.'
-    },
-    termsOfService: {
-        id: 'identity.login.termsOfService',
-        defaultMessage: 'Terms of Service'
-    },
-    privacyPolicy: {
-        id: 'identity.login.privacyPolicy',
-        defaultMessage: 'Privacy Policy'
+            'By clicking continue, you agree to our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>.'
     }
 });
 
@@ -25,15 +17,16 @@ export function LegalFooter() {
     return (
         <FieldDescription className="px-6 text-center">
             {intl.formatMessage(messages.legalFooter, {
-                termsLink: (
-                    <a key="terms" href="#">
-                        {intl.formatMessage(messages.termsOfService)}
-                    </a>
+                // TODO(#8): wire to the real terms/privacy routes
+                terms: (chunks) => (
+                    <button type="button" key="terms">
+                        {chunks}
+                    </button>
                 ),
-                privacyLink: (
-                    <a key="privacy" href="#">
-                        {intl.formatMessage(messages.privacyPolicy)}
-                    </a>
+                privacy: (chunks) => (
+                    <button type="button" key="privacy">
+                        {chunks}
+                    </button>
                 )
             })}
         </FieldDescription>

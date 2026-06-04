@@ -13,11 +13,7 @@ const messages = defineMessages({
     },
     noAccount: {
         id: 'identity.login.noAccount',
-        defaultMessage: "Don't have an account? {signUpLink}"
-    },
-    signUp: {
-        id: 'identity.login.signUp',
-        defaultMessage: 'Sign up'
+        defaultMessage: "Don't have an account? <signup>Sign up</signup>"
     }
 });
 
@@ -52,10 +48,11 @@ export function LoginActions({ isPending, canSubmit }: LoginActionsProps) {
             </Button>
             <FieldDescription className="text-center">
                 {intl.formatMessage(messages.noAccount, {
-                    signUpLink: (
-                        <a key="signup" href="#">
-                            {intl.formatMessage(messages.signUp)}
-                        </a>
+                    // TODO(#8): wire to the real sign-up route
+                    signup: (chunks) => (
+                        <button type="button" key="signup">
+                            {chunks}
+                        </button>
                     )
                 })}
             </FieldDescription>

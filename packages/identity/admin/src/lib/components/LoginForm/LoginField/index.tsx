@@ -17,6 +17,8 @@ type LoginFieldProps = {
     placeholder: string;
     /** Input type; defaults to `text`. */
     type?: React.HTMLInputTypeAttribute;
+    /** HTML `autocomplete` token (e.g. `email`, `current-password`). */
+    autoComplete?: React.HTMLInputAutoCompleteAttribute;
     /** Optional label-row content rendered after the label (e.g. a link). */
     labelAction?: React.ReactNode;
 };
@@ -31,6 +33,7 @@ export function LoginField({
     label,
     placeholder,
     type = 'text',
+    autoComplete,
     labelAction
 }: LoginFieldProps) {
     const invalid =
@@ -48,7 +51,9 @@ export function LoginField({
             )}
             <Input
                 id={id}
+                name={field.name}
                 type={type}
+                autoComplete={autoComplete}
                 placeholder={placeholder}
                 value={field.state.value}
                 aria-invalid={invalid}
