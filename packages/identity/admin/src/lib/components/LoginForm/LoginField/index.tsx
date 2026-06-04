@@ -1,10 +1,10 @@
 import { type AnyFieldApi } from '@tanstack/react-form';
-import { Input, Field, FieldError, FieldLabel } from '@ortha-cms/design-system';
+import { InputField } from '@ortha-cms/design-system';
 
 /**
- * Props for {@link LoginField}. The field is presentation-only and domain
- * agnostic — the parent supplies already-localized `label`/`placeholder` and
- * wires the TanStack `field` via its `form.Field` render prop.
+ * Props for {@link LoginField}. Adapts a TanStack field to the design-system
+ * {@link InputField}: the parent supplies already-localized `label`/
+ * `placeholder` and wires the `field` via its `form.Field` render prop.
  */
 type LoginFieldProps = {
     /** The TanStack field API from the parent's `form.Field` render prop. */
@@ -24,8 +24,9 @@ type LoginFieldProps = {
 };
 
 /**
- * Form-bound text field: label, input, and validation error wired to a
- * TanStack field. Owns no copy of its own so it can back any login input.
+ * Form-bound text field: maps TanStack field state onto the design-system
+ * {@link InputField} (label, input, validation error). Owns no copy of its
+ * own so it can back any login input.
  */
 export function LoginField({
     field,
@@ -40,27 +41,19 @@ export function LoginField({
         field.state.meta.isTouched && field.state.meta.errors.length > 0;
 
     return (
-        <Field data-invalid={invalid}>
-            {labelAction ? (
-                <div className="flex items-center">
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
-                    {labelAction}
-                </div>
-            ) : (
-                <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            )}
-            <Input
-                id={id}
-                name={field.name}
-                type={type}
-                autoComplete={autoComplete}
-                placeholder={placeholder}
-                value={field.state.value}
-                aria-invalid={invalid}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-            />
-            {invalid && <FieldError errors={field.state.meta.errors} />}
-        </Field>
+        <InputField
+            id={id}
+            name={field.name}
+            type={type}
+            label={label}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            labelAction={labelAction}
+            invalid={invalid}
+            errors={invalid ? field.state.meta.errors : undefined}
+            value={field.state.value}
+            onChange={(e) => field.handleChange(e.target.value)}
+            onBlur={field.handleBlur}
+        />
     );
 }

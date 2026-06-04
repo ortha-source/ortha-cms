@@ -11,6 +11,8 @@ export {
 } from './lib/components/ui/card';
 export { Alert, AlertTitle, AlertDescription } from './lib/components/ui/alert';
 export { Input } from './lib/components/ui/input';
+export { InputField } from './lib/components/ui/input-field';
+export type { InputFieldProps } from './lib/components/ui/input-field';
 export { Label } from './lib/components/ui/label';
 export { Separator } from './lib/components/ui/separator';
 export {
