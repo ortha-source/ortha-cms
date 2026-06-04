@@ -1,9 +1,18 @@
-import axios from 'axios';
+import request from 'supertest';
+import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
 
-describe('server', () => {
-    it('boots with no plugin routes registered (404 on unknown path)', async () => {
-        const res = await axios.get(`/api`, { validateStatus: () => true });
+describe('server bootstrap', () => {
+    let harness: TestApp;
 
-        expect(res.status).toBe(404);
+    beforeAll(async () => {
+        harness = await createTestApp();
+    });
+
+    afterAll(async () => {
+        await closeTestApp(harness);
+    });
+
+    it('responds 404 on an unknown route under the global prefix', async () => {
+        await request(harness.server).get('/api/does-not-exist').expect(404);
     });
 });

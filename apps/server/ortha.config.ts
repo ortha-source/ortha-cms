@@ -65,6 +65,12 @@ const config: OrthaConfig = {
                     60 * 60 * 24 * 7,
                 resetTtlSeconds:
                     Number(process.env['RESET_TTL_SECONDS']) || 60 * 60
+            },
+            // Login rate limit. Defaults preserve the historical 10 req / 60s.
+            rateLimit: {
+                ttlSeconds:
+                    Number(process.env['LOGIN_RATE_LIMIT_TTL_SECONDS']) || 60,
+                limit: Number(process.env['LOGIN_RATE_LIMIT']) || 10
             }
         }
     }

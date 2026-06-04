@@ -34,6 +34,21 @@ export class CookieService {
     }
 
     /**
+     * Clears the session cookie on logout. Mirrors {@link setSession}'s
+     * attributes (`secure`/`sameSite`/`path`) so the browser matches the cookie
+     * and drops it; the value is emptied and the expiry pushed to the past.
+     */
+    clearSession(res: Response): void {
+        const { session } = this.config;
+        res.clearCookie(SESSION_COOKIE, {
+            httpOnly: true,
+            secure: session.cookieSecure,
+            sameSite: session.cookieSameSite,
+            path: '/'
+        });
+    }
+
+    /**
      * Extracts the session token from the raw `Cookie` header, or `null` when
      * absent. Hand-rolled (no `cookie-parser`) to keep the auth feature
      * self-contained; the auth-guard ticket owns request-side session

@@ -16,12 +16,14 @@
                 "options": {
                     "jestConfig": "apps/server-e2e/jest.config.cts",
                     "passWithNoTests": true
-                },
-                "dependsOn": [
-                    "server:build",
-                    "server:serve"
-                ]
+                }
             }
         }
+    },
+    "devDependencies": {
+        "@testcontainers/postgresql": "^12.0.1",
+        "@types/supertest": "^7.2.0",
+        "supertest": "^7.2.2",
+        "testcontainers": "^12.0.1"
     }
 }
