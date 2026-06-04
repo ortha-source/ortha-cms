@@ -1,26 +1,20 @@
-import { useMemo } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { defineMessages, useIntl } from 'react-intl';
-import { z } from 'zod';
 import {
-    Alert,
-    AlertTitle,
-    AlertDescription,
-    Button,
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
-    Input,
-    Field,
-    FieldDescription,
-    FieldError,
     FieldGroup,
-    FieldLabel,
     cn
 } from '@ortha-cms/design-system';
 import type { LoginCredentials } from '../../../types/auth.type';
+import { useLoginSchema } from './use-login-schema';
+import { LoginField } from './LoginField';
+import { LoginAlert } from './LoginAlert';
+import { LoginActions } from './LoginActions';
+import { LegalFooter } from './LegalFooter';
 
 /** Intl descriptors for {@link LoginForm}, co-located with the component. */
 const messages = defineMessages({
@@ -48,54 +42,9 @@ const messages = defineMessages({
         id: 'identity.login.passwordPlaceholder',
         defaultMessage: '••••••••'
     },
-    emailRequired: {
-        id: 'identity.login.emailRequired',
-        defaultMessage: 'Email is required'
-    },
-    emailInvalid: {
-        id: 'identity.login.emailInvalid',
-        defaultMessage: 'Enter a valid email address'
-    },
-    passwordRequired: {
-        id: 'identity.login.passwordRequired',
-        defaultMessage: 'Password is required'
-    },
     forgotPassword: {
         id: 'identity.login.forgotPassword',
         defaultMessage: 'Forgot your password?'
-    },
-    loginButton: {
-        id: 'identity.login.button',
-        defaultMessage: 'Login'
-    },
-    loginButtonPending: {
-        id: 'identity.login.buttonPending',
-        defaultMessage: 'Logging in...'
-    },
-    authFailedTitle: {
-        id: 'identity.login.authFailedTitle',
-        defaultMessage: 'Authentication failed'
-    },
-    noAccount: {
-        id: 'identity.login.noAccount',
-        defaultMessage: "Don't have an account? {signUpLink}"
-    },
-    signUp: {
-        id: 'identity.login.signUp',
-        defaultMessage: 'Sign up'
-    },
-    legalFooter: {
-        id: 'identity.login.legalFooter',
-        defaultMessage:
-            'By clicking continue, you agree to our {termsLink} and {privacyLink}.'
-    },
-    termsOfService: {
-        id: 'identity.login.termsOfService',
-        defaultMessage: 'Terms of Service'
-    },
-    privacyPolicy: {
-        id: 'identity.login.privacyPolicy',
-        defaultMessage: 'Privacy Policy'
     }
 });
 
@@ -129,27 +78,7 @@ export function LoginForm({
     ...props
 }: LoginFormProps) {
     const intl = useIntl();
-
-    // Built from intl so validation copy is localized like the rest of the form.
-    const loginSchema = useMemo(
-        () =>
-            z.object({
-                email: z
-                    .string()
-                    .min(1, {
-                        message: intl.formatMessage(messages.emailRequired)
-                    })
-                    .pipe(
-                        z.email({
-                            message: intl.formatMessage(messages.emailInvalid)
-                        })
-                    ),
-                password: z.string().min(1, {
-                    message: intl.formatMessage(messages.passwordRequired)
-                })
-            }),
-        [intl]
-    );
+    const loginSchema = useLoginSchema();
 
     const form = useForm({
         defaultValues: { email: '', password: '' },
@@ -178,155 +107,65 @@ export function LoginForm({
                         }}
                     >
                         <FieldGroup>
-                            {error && (
-                                <Alert variant="destructive">
-                                    <AlertTitle>
-                                        {intl.formatMessage(
-                                            messages.authFailedTitle
-                                        )}
-                                    </AlertTitle>
-                                    <AlertDescription>{error}</AlertDescription>
-                                </Alert>
-                            )}
+                            <LoginAlert message={error} />
 
                             <form.Field name="email">
-                                {(field) => {
-                                    const invalid =
-                                        field.state.meta.isTouched &&
-                                        field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={invalid}>
-                                            <FieldLabel htmlFor="login-email">
-                                                {intl.formatMessage(
-                                                    messages.emailLabel
-                                                )}
-                                            </FieldLabel>
-                                            <Input
-                                                id="login-email"
-                                                type="email"
-                                                placeholder={intl.formatMessage(
-                                                    messages.emailPlaceholder
-                                                )}
-                                                value={field.state.value}
-                                                aria-invalid={invalid}
-                                                onChange={(e) =>
-                                                    field.handleChange(
-                                                        e.target.value
-                                                    )
-                                                }
-                                                onBlur={field.handleBlur}
-                                            />
-                                            {invalid && (
-                                                <FieldError
-                                                    errors={
-                                                        field.state.meta.errors
-                                                    }
-                                                />
-                                            )}
-                                        </Field>
-                                    );
-                                }}
+                                {(field) => (
+                                    <LoginField
+                                        field={field}
+                                        id="login-email"
+                                        type="email"
+                                        label={intl.formatMessage(
+                                            messages.emailLabel
+                                        )}
+                                        placeholder={intl.formatMessage(
+                                            messages.emailPlaceholder
+                                        )}
+                                    />
+                                )}
                             </form.Field>
 
                             <form.Field name="password">
-                                {(field) => {
-                                    const invalid =
-                                        field.state.meta.isTouched &&
-                                        field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={invalid}>
-                                            <div className="flex items-center">
-                                                <FieldLabel htmlFor="login-password">
-                                                    {intl.formatMessage(
-                                                        messages.passwordLabel
-                                                    )}
-                                                </FieldLabel>
-                                                <a
-                                                    href="#"
-                                                    className="ml-auto text-sm underline-offset-4 hover:underline"
-                                                >
-                                                    {intl.formatMessage(
-                                                        messages.forgotPassword
-                                                    )}
-                                                </a>
-                                            </div>
-                                            <Input
-                                                id="login-password"
-                                                type="password"
-                                                placeholder={intl.formatMessage(
-                                                    messages.passwordPlaceholder
-                                                )}
-                                                value={field.state.value}
-                                                aria-invalid={invalid}
-                                                onChange={(e) =>
-                                                    field.handleChange(
-                                                        e.target.value
-                                                    )
-                                                }
-                                                onBlur={field.handleBlur}
-                                            />
-                                            {invalid && (
-                                                <FieldError
-                                                    errors={
-                                                        field.state.meta.errors
-                                                    }
-                                                />
-                                            )}
-                                        </Field>
-                                    );
-                                }}
-                            </form.Field>
-
-                            <Field className="gap-5">
-                                <form.Subscribe
-                                    selector={(state) => state.canSubmit}
-                                >
-                                    {(canSubmit) => (
-                                        <Button
-                                            type="submit"
-                                            className="w-full"
-                                            disabled={isPending || !canSubmit}
-                                        >
-                                            {isPending
-                                                ? intl.formatMessage(
-                                                      messages.loginButtonPending
-                                                  )
-                                                : intl.formatMessage(
-                                                      messages.loginButton
-                                                  )}
-                                        </Button>
-                                    )}
-                                </form.Subscribe>
-                                <FieldDescription className="text-center">
-                                    {intl.formatMessage(messages.noAccount, {
-                                        signUpLink: (
-                                            <a key="signup" href="#">
+                                {(field) => (
+                                    <LoginField
+                                        field={field}
+                                        id="login-password"
+                                        type="password"
+                                        label={intl.formatMessage(
+                                            messages.passwordLabel
+                                        )}
+                                        placeholder={intl.formatMessage(
+                                            messages.passwordPlaceholder
+                                        )}
+                                        labelAction={
+                                            <a
+                                                href="#"
+                                                className="ml-auto text-sm underline-offset-4 hover:underline"
+                                            >
                                                 {intl.formatMessage(
-                                                    messages.signUp
+                                                    messages.forgotPassword
                                                 )}
                                             </a>
-                                        )
-                                    })}
-                                </FieldDescription>
-                            </Field>
+                                        }
+                                    />
+                                )}
+                            </form.Field>
+
+                            <form.Subscribe
+                                selector={(state) => state.canSubmit}
+                            >
+                                {(canSubmit) => (
+                                    <LoginActions
+                                        isPending={isPending}
+                                        canSubmit={canSubmit}
+                                    />
+                                )}
+                            </form.Subscribe>
                         </FieldGroup>
                     </form>
                 </CardContent>
             </Card>
-            <FieldDescription className="px-6 text-center">
-                {intl.formatMessage(messages.legalFooter, {
-                    termsLink: (
-                        <a key="terms" href="#">
-                            {intl.formatMessage(messages.termsOfService)}
-                        </a>
-                    ),
-                    privacyLink: (
-                        <a key="privacy" href="#">
-                            {intl.formatMessage(messages.privacyPolicy)}
-                        </a>
-                    )
-                })}
-            </FieldDescription>
+            <LegalFooter />
         </div>
     );
 }
