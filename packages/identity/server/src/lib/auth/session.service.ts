@@ -1,10 +1,11 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { IdentityPluginConfig } from '../types';
 import { InjectIdentityConfig } from '../identity.tokens';
 import { sessions } from '../schema';
+import { HashingService } from './hashing.service';
 
 /** Refresh `lastUsedAt` at most this often, so a read path isn't a write per hit. */
 const LAST_USED_THROTTLE_MS = 60_000;
@@ -40,7 +41,8 @@ export interface CreatedSession {
 export class SessionService {
     constructor(
         @InjectDatabase() private readonly db: Database,
-        @InjectIdentityConfig() private readonly config: IdentityPluginConfig
+        @InjectIdentityConfig() private readonly config: IdentityPluginConfig,
+        private readonly hashing: HashingService
     ) {}
 
     /**
@@ -58,7 +60,7 @@ export class SessionService {
         );
 
         await this.db.insert(sessions).values({
-            id: hashToken(token),
+            id: this.hashing.hashToken(token),
             userId,
             expiresAt,
             userAgent: context.userAgent ?? null,
@@ -75,7 +77,7 @@ export class SessionService {
      * doesn't issue a write on every request.
      */
     async findValid(token: string): Promise<{ userId: string } | null> {
-        const id = hashToken(token);
+        const id = this.hashing.hashToken(token);
         const now = new Date();
         const [session] = await this.db
             .select({ userId: sessions.userId, lastUsedAt: sessions.lastUsedAt })
@@ -101,9 +103,4 @@ export class SessionService {
 
         return { userId: session.userId };
     }
-}
-
-/** SHA-256 (hex) of a session token — what is stored, never the token itself. */
-function hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
 }

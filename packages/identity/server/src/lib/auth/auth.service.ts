@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { users } from '../schema';
-import { hashPassword, verifyPassword } from './password';
+import { HashingService } from './hashing.service';
 import {
     SessionService,
     type CreatedSession,
@@ -11,17 +11,16 @@ import {
 } from './session.service';
 import { InvalidCredentialsError } from './errors';
 
-/** The current user as exposed by `GET /auth/me` — never includes the hash. */
-export interface PublicUser {
-    /** User id. */
-    id: string;
-    /** Login email (as stored). */
-    email: string;
-    /** The user's single global role id. */
-    roleId: string;
-    /** Account lifecycle state. */
-    status: (typeof users.status.enumValues)[number];
-}
+/**
+ * The current user as exposed by `GET /auth/me`. Derived from the schema row so
+ * it can't drift; the password hash is never among the picked fields. (A `type`
+ * rather than an `interface` because it is a derived `Pick`, not a hand-authored
+ * contract — an empty `interface … extends` is also a lint error.)
+ */
+export type PublicUser = Pick<
+    typeof users.$inferSelect,
+    'id' | 'email' | 'roleId' | 'status'
+>;
 
 /**
  * Email/password authentication. Verifies credentials and, on success, opens
@@ -40,7 +39,8 @@ export class AuthService {
 
     constructor(
         @InjectDatabase() private readonly db: Database,
-        private readonly sessions: SessionService
+        private readonly sessions: SessionService,
+        private readonly hashing: HashingService
     ) {}
 
     /**
@@ -66,7 +66,7 @@ export class AuthService {
 
         // Always run a comparison, even with no user/hash, to hold timing flat.
         const hashed = user?.passwordHash ?? (await this.getDummyHash());
-        const passwordOk = await verifyPassword(hashed, password);
+        const passwordOk = await this.hashing.verifyPassword(hashed, password);
 
         if (!user || !user.passwordHash || user.status !== 'active' || !passwordOk) {
             throw new InvalidCredentialsError();
@@ -101,7 +101,9 @@ export class AuthService {
 
     private getDummyHash(): Promise<string> {
         if (!this.dummyHash) {
-            this.dummyHash = hashPassword(randomBytes(32).toString('hex'));
+            this.dummyHash = this.hashing.hashPassword(
+                randomBytes(32).toString('hex')
+            );
         }
         return this.dummyHash;
     }

@@ -8,6 +8,8 @@ import { LoginController } from './auth/login.controller';
 import { MeController } from './auth/me.controller';
 import { AuthService } from './auth/auth.service';
 import { SessionService } from './auth/session.service';
+import { HashingService } from './auth/hashing.service';
+import { CookieService } from './auth/cookie.service';
 import { OriginGuard } from './auth/origin.guard';
 
 /**
@@ -42,6 +44,8 @@ export class IdentityModule {
                 RolesService,
                 AuthService,
                 SessionService,
+                HashingService,
+                CookieService,
                 OriginGuard
             ],
             exports: [IDENTITY_CONFIG, RolesService, AuthService]

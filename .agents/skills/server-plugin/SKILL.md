@@ -59,7 +59,8 @@ packages/<group>/server/
         list-widgets.controller.ts
         widget.service.ts
         widget.helper.ts           # feature-specific helper lives HERE
-        errors.ts
+        errors/                    # one error class per file
+          widget-not-found.error.ts
         dto/
           create-widget.dto.ts
       reports/                     # ← another feature folder
@@ -96,10 +97,12 @@ layer-grouping cost one level down. Need "all services"? `widgets/*.service.ts`.
   feature should **split** into smaller feature folders, each flat. A feature
   that large is usually several features in a trenchcoat; splitting restores
   cohesion, type-subfoldering just shelves by kind.
-- **The one standing exception is `dto/`.** DTOs multiply fast (a request — and
-  often response — DTO per endpoint) and are a uniform, logic-free kind, so they
-  earn their own folder before services/controllers would. Keep `<feature>/dto/`
-  even at one file.
+- **Two standing exceptions: `dto/` and `errors/`.** Both hold a uniform,
+  logic-free kind that multiplies (a request/response DTO per endpoint; an error
+  class per failure mode), so they earn a folder before services/controllers
+  would. Keep `<feature>/dto/` and `<feature>/errors/` (one class per file, e.g.
+  `errors/widget-not-found.error.ts`, fronted by an `index.ts` barrel) even at
+  one file.
 
 ---
 
@@ -279,18 +282,26 @@ npx nx run server:db:migrate                                       # applies all
   routing conflict). Group only a genuine CRUD resource (list/get/create/delete
   of one thing) into a single controller. Register each in the module's
   `controllers: []`.
-- **Transport helpers live in the feature, not in services.** Express-touching
-  glue (e.g. cookie or header parsing in `widgets/widget.helper.ts`) is a plain
-  helper shared by the controllers; services stay transport-agnostic (no
-  `req`/`res`).
+- **Isolate transport in a dedicated service; domain services stay
+  transport-agnostic.** Express-touching glue (cookies, header parsing) belongs
+  in its own injectable service (e.g. a `CookieService` that injects config and
+  exposes `setSession(res, …)` / `readSession(req)`), so `AuthService` and the
+  like never see `req`/`res`. A dedicated transport service is the *right* home
+  for that glue — the "no `req`/`res`" rule is about **domain** services, not a
+  ban on the concept.
+- **Reusable primitives are injectable services, not free functions.** Wrap
+  things like password/token hashing in a `HashingService` rather than exporting
+  loose functions — one tested, mockable provider that call sites inject. Keep
+  flow-specific policy (e.g. a login's dummy-hash timing trick) in the service
+  that owns the flow, not the primitive.
 - DTOs use `class-validator` decorators (`@IsString()`, `@IsInt()`, ...). The
   host already applies a strict global `ValidationPipe`
   (`whitelist` + `forbidNonWhitelisted` + `transform`) in `create-server.ts` —
   **do not** re-register a pipe; just decorate the DTO.
-- Domain errors are **transport-agnostic classes** in the feature folder (e.g.
-  a `WidgetNotFoundError`); the controller maps them to HTTP
-  (`NotFoundException`, etc.). Keep security-sensitive responses generic — no
-  enumeration signal.
+- Domain errors are **transport-agnostic classes**, one per file under
+  `<feature>/errors/` (e.g. a `WidgetNotFoundError`); the controller maps them
+  to HTTP (`NotFoundException`, etc.). Keep security-sensitive responses generic
+  — no enumeration signal.
 
 ---
 

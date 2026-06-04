@@ -27,18 +27,21 @@ session logout/revocation, the auth guard, tokens, user management, the
 
 ## Conventions
 
-- Uses `interface` for type contracts (not `type`)
+- Uses `interface` for type contracts (not `type`) — except a derived/mapped
+  type (e.g. a `Pick<typeof users.$inferSelect, …>`), which is a `type`
 - All exported symbols have JSDoc comments
 - No `.js` extensions in TypeScript imports
 - **Group by feature, not by layer.** Each domain owns one folder under
-  `src/lib/` that holds its controllers, services, DTOs, errors, and
-  feature-specific helpers together — `rbac/` (system-roles constant, seeder,
-  `RolesService`, errors) and `auth/` (controller, `AuthService` +
-  `SessionService`, `password` hashing, `dto/`). Do **not** split by type into
-  `controllers/`/`services/`/`errors/` — that scatters one change across folders
-  and ages badly as domains multiply. `src/lib/utils/` is for **package-level**
-  cross-cutting functions only (e.g. the plugin factory), never feature helpers;
-  the NestJS module sits in `src/lib/`; shared types in `src/lib/types/`.
+  `src/lib/` holding its controllers, services, and helpers, plus `dto/` and
+  `errors/` (the two uniform-kind subfolders) — `rbac/` (system-roles constant,
+  seeder, `RolesService`, `errors/`) and `auth/` (login/me controllers,
+  `AuthService` / `SessionService` / `HashingService` / `CookieService`,
+  `errors/`, `dto/`). Do **not** split into `controllers/`/`services/` by type —
+  that scatters one change across folders and ages badly as domains multiply.
+  `src/lib/utils/` is for **package-level** cross-cutting functions only (e.g.
+  the plugin factory), never feature helpers; the NestJS module sits in
+  `src/lib/`; shared types in `src/lib/types/`. Full rationale + the
+  flat-within-feature rule live in the `server-plugin` skill.
 - Always import types with the `type` keyword
 - `experimentalDecorators` and `emitDecoratorMetadata` are enabled
 

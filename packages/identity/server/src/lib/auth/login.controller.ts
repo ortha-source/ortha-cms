@@ -9,13 +9,11 @@ import {
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import type { IdentityPluginConfig } from '../types';
-import { InjectIdentityConfig } from '../identity.tokens';
 import { AuthService } from './auth.service';
 import { InvalidCredentialsError } from './errors';
 import { LoginDto } from './dto/login.dto';
 import { OriginGuard } from './origin.guard';
-import { setSessionCookie } from './cookie';
+import { CookieService } from './cookie.service';
 
 /**
  * `POST /api/auth/login` — validates credentials, persists a session, and sets
@@ -30,7 +28,7 @@ import { setSessionCookie } from './cookie';
 export class LoginController {
     constructor(
         private readonly auth: AuthService,
-        @InjectIdentityConfig() private readonly config: IdentityPluginConfig
+        private readonly cookies: CookieService
     ) {}
 
     @Post('login')
@@ -52,7 +50,7 @@ export class LoginController {
             throw error;
         }
 
-        setSessionCookie(res, session.token, this.config.session);
+        this.cookies.setSession(res, session.token);
         return { ok: true };
     }
 }

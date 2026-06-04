@@ -1,7 +1,7 @@
 import { Controller, Get, Req, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService, type PublicUser } from './auth.service';
-import { readSessionCookie } from './cookie';
+import { CookieService } from './cookie.service';
 
 /**
  * `GET /api/auth/me` — returns the current user resolved from the session
@@ -10,11 +10,14 @@ import { readSessionCookie } from './cookie';
  */
 @Controller('auth')
 export class MeController {
-    constructor(private readonly auth: AuthService) {}
+    constructor(
+        private readonly auth: AuthService,
+        private readonly cookies: CookieService
+    ) {}
 
     @Get('me')
     async me(@Req() req: Request): Promise<PublicUser> {
-        const sessionId = readSessionCookie(req);
+        const sessionId = this.cookies.readSession(req);
         const user = sessionId
             ? await this.auth.currentUser(sessionId)
             : null;
