@@ -57,7 +57,10 @@ screens and real authentication land in later tickets (epic #3).
 - **Presentation only.** `LoginForm` manages field state with TanStack Form and
   delegates submission to an `onSubmit(credentials)` prop, with `isPending` /
   `error` props driving the button and alert. There is **no `fetch`/mutation
-  here** — that seam is where the real `useLoginMutation` plugs in (#8).
+  here**. The submission seam is the `SignInRoute` container
+  (`pages/LoginPage/SignInRoute.tsx`) the router mounts — that's where the real
+  `useLoginMutation` plugs in (#8), feeding the page's
+  `onSubmit`/`isPending`/`error` props.
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
 
@@ -77,8 +80,8 @@ createAdmin({
 ## Not owned here (deferred)
 
 - API client / auth state, token storage, redirect-after-login — wired when the
-  login ticket (#8) lands; `LoginForm`'s `onSubmit`/`error`/`isPending` props
-  are the integration seam
+  login ticket (#8) lands inside the `SignInRoute` container, which drives
+  `LoginForm`'s `onSubmit`/`error`/`isPending` props
 - User/role/access screens and data fetching
 - Nav items and slot wiring — added with the host's slot system
 
