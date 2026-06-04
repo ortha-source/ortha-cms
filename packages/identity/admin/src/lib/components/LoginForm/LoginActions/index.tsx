@@ -50,7 +50,11 @@ export function LoginActions({ isPending, canSubmit }: LoginActionsProps) {
                 {intl.formatMessage(messages.noAccount, {
                     // TODO(#8): wire to the real sign-up route
                     signup: (chunks) => (
-                        <button type="button" key="signup">
+                        <button
+                            type="button"
+                            key="signup"
+                            className="cursor-pointer underline underline-offset-4 hover:text-primary"
+                        >
                             {chunks}
                         </button>
                     )

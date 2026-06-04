@@ -19,12 +19,20 @@ export function LegalFooter() {
             {intl.formatMessage(messages.legalFooter, {
                 // TODO(#8): wire to the real terms/privacy routes
                 terms: (chunks) => (
-                    <button type="button" key="terms">
+                    <button
+                        type="button"
+                        key="terms"
+                        className="cursor-pointer underline underline-offset-4 hover:text-primary"
+                    >
                         {chunks}
                     </button>
                 ),
                 privacy: (chunks) => (
-                    <button type="button" key="privacy">
+                    <button
+                        type="button"
+                        key="privacy"
+                        className="cursor-pointer underline underline-offset-4 hover:text-primary"
+                    >
                         {chunks}
                     </button>
                 )
