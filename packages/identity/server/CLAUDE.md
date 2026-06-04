@@ -105,12 +105,21 @@ session logout/revocation, the auth guard, tokens, user management, the
   cookie (`httpOnly`, `SameSite=lax`) is first-party with no CORS. The rejected
   alternative was separate origins with CORS + `SameSite=none` — if ever taken,
   a `cors` option belongs on `createServer` (host transport concern), not here.
-- **Session cookie is unsigned (#8).** The cookie carries only the opaque
-  256-bit random session id, which is also the `sessions` row PK; every request
-  re-validates it against the DB (`revokedAt`/`expiresAt`), so there is nothing
-  to forge and no signing is needed. Consequently `sessionSecret` stays
-  **unconsumed** for now — its fail-fast validation moves to whichever ticket
-  first signs something (tokens, #10), not this one.
+- **Session cookie is unsigned, token hashed at rest (#8).** The cookie carries
+  only the opaque 256-bit random token; every request re-validates it against
+  the DB (`revokedAt`/`expiresAt`), so there is nothing to forge and no signing
+  is needed. Consequently `sessionSecret` stays **unconsumed** for now — its
+  fail-fast validation moves to whichever ticket first signs something (tokens,
+  #10). The `sessions` PK stores the **SHA-256 of** the token, not the token, so
+  a read-only DB/backup leak yields no usable sessions (`SessionService` hashes
+  on write and on lookup; no migration — the column is still `text`).
+- **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
+  (10/min, in-memory — per-instance; needs a shared store + Express `trust
+  proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
+  which rejects browser requests whose `Origin` is not in
+  `config.allowedOrigins` (login-CSRF defense; missing-`Origin` non-browser
+  clients pass). Still **deferred**: a CSRF token for higher-value mutations,
+  `helmet` security headers (host concern), and expired-session pruning.
 - **Secrets.** `sessionSecret` and `tokenSecret` are kept **distinct** by
   design. They may be empty at boot today (sessions are unsigned, see above);
   **fail-fast validation must be added when signing is introduced** (#10).

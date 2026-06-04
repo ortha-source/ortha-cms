@@ -7,6 +7,12 @@ export interface IdentityPluginConfig {
     /** Secret used to sign server-side session cookies. */
     sessionSecret: string;
     /**
+     * Browser origins permitted to call state-changing endpoints (e.g. the
+     * admin app's origin). Checked by `OriginGuard` as a login-CSRF defense;
+     * requests with no `Origin` header (non-browser clients) are allowed.
+     */
+    allowedOrigins: string[];
+    /**
      * Secret used to sign one-time invite/reset tokens. Kept distinct
      * from {@link IdentityPluginConfig.sessionSecret} so a leaked token
      * secret cannot be used to forge sessions.

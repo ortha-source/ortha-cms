@@ -44,6 +44,14 @@ const config: OrthaConfig = {
             // a secret is first consumed for signing (#10 tokens).
             sessionSecret: process.env['SESSION_SECRET'] ?? '',
             tokenSecret: process.env['TOKEN_SECRET'] ?? '',
+            // Origins allowed to call state-changing endpoints (login-CSRF
+            // defense). Comma-separated; defaults to the dev admin origin.
+            allowedOrigins: (
+                process.env['ALLOWED_ORIGINS'] ?? 'http://localhost:4200'
+            )
+                .split(',')
+                .map((origin) => origin.trim())
+                .filter(Boolean),
             session: {
                 ttlSeconds:
                     Number(process.env['SESSION_TTL_SECONDS']) ||
