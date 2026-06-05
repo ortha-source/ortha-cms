@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 import type { LoginCredentials } from '../../types/auth.type';
 
 /**
@@ -27,21 +28,15 @@ export class LoginError extends Error {
  * @throws {LoginError} `invalidCredentials = true` on a `401`; `false` otherwise.
  */
 async function login(credentials: LoginCredentials): Promise<void> {
-    let response: Response;
     try {
-        response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(credentials)
-        });
-    } catch {
-        // Network/transport failure — never a credentials problem.
+        await axios.post('/api/auth/login', credentials);
+    } catch (error) {
+        // A response means the server rejected it (401 = bad credentials);
+        // no response means a network/transport failure.
+        if (axios.isAxiosError(error) && error.response) {
+            throw new LoginError(error.response.status === 401);
+        }
         throw new LoginError(false);
-    }
-
-    if (!response.ok) {
-        throw new LoginError(response.status === 401);
     }
 }
 
