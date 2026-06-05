@@ -67,10 +67,11 @@ auth (current-user gating, logout) land in later tickets (epic #3).
   (`pages/LoginPage/index.tsx`) is the route container the router mounts: it runs
   `useLoginMutation`, maps its `isPending`/`error` onto the form, and navigates
   to `/` on success.
-- **API layer.** `src/lib/api/useLoginMutation.ts` holds the `fetch` request
-  (`login`, throwing a typed `LoginError`) and wraps it in a TanStack Query
-  `useMutation`. The `QueryClient` is provided by the host, not here. The cookie
-  is reached same-origin via the admin dev proxy (`/api` → the API).
+- **API layer.** `src/lib/api/useLoginMutation.ts` issues the request via the
+  host's shared `apiClient` (`apiClient.post('/auth/login', …)`) and wraps it in
+  a TanStack Query `useMutation`, throwing a typed `LoginError`. The
+  `QueryClient` and `apiClient` are both provided by the host, not here. The
+  cookie is reached same-origin via the admin dev proxy (`/api` → the API).
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
 

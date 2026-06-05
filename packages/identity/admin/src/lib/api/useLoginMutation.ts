@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
+import { apiClient } from '@ortha-cms/bootstrap-admin';
 import type { LoginCredentials } from '../../types/auth.type';
 
 /**
@@ -20,20 +21,20 @@ export class LoginError extends Error {
 }
 
 /**
- * Posts credentials to `POST /api/auth/login`. On success the server sets the
- * `httpOnly` `ortha_session` cookie and this resolves with no value — the cookie
- * is the auth state, so nothing is returned. Reached same-origin via the admin
- * dev proxy (`/api` → the API), so the cookie is first-party.
+ * Posts credentials to `POST /api/auth/login` via the shared {@link apiClient}
+ * (base URL `/api`). On success the server sets the `httpOnly` `ortha_session`
+ * cookie and this resolves with no value — the cookie is the auth state, so
+ * nothing is returned.
  *
  * @throws {LoginError} `invalidCredentials = true` on a `401`; `false` otherwise.
  */
 async function login(credentials: LoginCredentials): Promise<void> {
     try {
-        await axios.post('/api/auth/login', credentials);
+        await apiClient.post('/auth/login', credentials);
     } catch (error) {
         // A response means the server rejected it (401 = bad credentials);
         // no response means a network/transport failure.
-        if (axios.isAxiosError(error) && error.response) {
+        if (isAxiosError(error) && error.response) {
             throw new LoginError(error.response.status === 401);
         }
         throw new LoginError(false);

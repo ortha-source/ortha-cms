@@ -25,6 +25,9 @@ contains no features.
 
 - `createAdmin(options)` — mounts the React root, wraps it in `BrowserRouter`,
   and renders plugin-contributed routes plus a catch-all redirect
+- `apiClient` — the shared axios instance (`baseURL: '/api'`,
+  `withCredentials`); plugins call it instead of importing `axios`, so
+  transport config and future interceptors live here
 - `AdminPlugin` — the plugin contract: `{ name, routes? }`
 - `RouteItem` — a contributed route: `{ path, element }`
 - `CreateAdminOptions` — `{ plugins, rootElement?, locale? }`
@@ -39,6 +42,12 @@ contains no features.
 - **Data.** The host owns the single TanStack Query `QueryClient`. Plugins fetch
   server state with `useQuery`/`useMutation` (e.g. identity's
   `useLoginMutation`) and never construct a client of their own.
+- **HTTP transport.** The host owns the shared `apiClient` axios instance
+  (`baseURL: '/api'`, `withCredentials`). Plugins import it (`apiClient.post('/auth/login', …)`)
+  rather than calling `axios` directly, so base URL, credentials, and future
+  interceptors (e.g. a global `401` → redirect, added with auth gating) have one
+  home. The host is admin-only, so this stays here rather than in a shared
+  `utils-*` package (the server has no matching client).
 - **i18n.** The host owns the single `react-intl` `IntlProvider` (`locale`
   defaults to `en`; messages resolve from each descriptor's `defaultMessage`).
   Plugins author strings with `defineMessages` + `useIntl` and **co-locate
