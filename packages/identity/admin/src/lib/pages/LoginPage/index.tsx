@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { LoginForm } from '../../components/LoginForm';
 import type { LoginCredentials } from '../../../types/auth.type';
@@ -38,7 +39,7 @@ export function LoginPage() {
 
     const errorMessage = error
         ? intl.formatMessage(
-              error.invalidCredentials
+              error.status === HTTP_STATUS.UNAUTHORIZED
                   ? messages.invalidCredentials
                   : messages.generic
           )

@@ -20,6 +20,20 @@ singletons live in one place instead of inside `bootstrap-admin`.
   `401` → redirect, added with auth gating) have a single home.
 - `queryClient` — the app's single TanStack Query `QueryClient`. The host wires
   it into `QueryClientProvider`; plugins use `useQuery`/`useMutation`.
+- `ApiError` / `toApiError(error)` — a normalized transport error carrying
+  `status: number | null` (`null` for a network failure). `toApiError` unwraps
+  an axios error so call sites never touch axios internals. **Transport only** —
+  it carries the status, not domain meaning; the consumer decides what a code
+  means (e.g. identity treats `401` as invalid credentials).
+- `HTTP_STATUS` — named status codes (`UNAUTHORIZED`, `FORBIDDEN`,
+  `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
+  bare `401`.
+
+## Layout
+
+- One concern per folder, each an `index.ts`: `src/lib/apiClient/`,
+  `src/lib/queryClient/`, `src/lib/apiError/`, `src/lib/httpStatus/`. The package
+  surface is `src/index.ts`.
 
 ## Architecture
 
@@ -34,7 +48,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
 ## Conventions
 
 - `type` over `interface`; JSDoc on exports; `import type` for type-only imports
-- Non-component files are `camelCase` (`apiClient.ts`, `queryClient.ts`)
+- Each module is a `camelCase` folder with an `index.ts` (`apiClient/index.ts`)
 
 ## Commands
 
