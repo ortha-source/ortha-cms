@@ -149,7 +149,8 @@ function flatten(node, scenarioPath, rows) {
     for (const child of node.children) flatten(child, next, rows);
 }
 
-/** Render one endpoint (top-level describe) as a heading + Scenario/Case table. */
+/** Render one endpoint (top-level describe): heading, then a Test-case table
+ *  per scenario, with the scenario as a subheading. */
 function renderEndpoint(node, lines) {
     const rows = [];
     for (const child of node.children) flatten(child, [], rows);
@@ -159,16 +160,25 @@ function renderEndpoint(node, lines) {
     lines.push('');
     lines.push(`## ${node.title}${tag(node.modifier)}`);
     if (!rows.length) return;
-    lines.push('');
-    lines.push('| Scenario | Test case |');
-    lines.push('| --- | --- |');
-    let prevScenario = null;
+
+    // Group consecutive rows by their scenario path (preserving spec order).
+    const groups = [];
     for (const row of rows) {
-        const scenario = row.scenario.join(' › ');
-        // Show the scenario only on the first row of each group; blank repeats.
-        const shown = scenario === prevScenario ? '' : cell(scenario || '—');
-        prevScenario = scenario;
-        lines.push(`| ${shown} | ${cell(row.title)} |`);
+        const key = row.scenario.join(' › ');
+        const last = groups[groups.length - 1];
+        if (last && last.key === key) last.titles.push(row.title);
+        else groups.push({ key, titles: [row.title] });
+    }
+
+    for (const group of groups) {
+        if (group.key) {
+            lines.push('');
+            lines.push(`### ${group.key}`);
+        }
+        lines.push('');
+        lines.push('| Test case |');
+        lines.push('| --- |');
+        for (const title of group.titles) lines.push(`| ${cell(title)} |`);
     }
 }
 
