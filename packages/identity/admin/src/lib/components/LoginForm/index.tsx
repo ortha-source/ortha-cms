@@ -82,10 +82,12 @@ export function LoginForm({
 
     const form = useForm({
         defaultValues: { email: '', password: '' },
-        // `onChange` validates as the user types; `onSubmit` re-runs it on a
-        // submit attempt so an untouched empty form still flags its required
-        // fields (the button is never disabled for invalidity).
-        validators: { onChange: loginSchema, onSubmit: loginSchema },
+        // `onChange` validates as the user types and **also runs on submit**
+        // (TanStack's submit pass includes the change validator), so an empty
+        // form flags its required fields when Login is pressed. Don't also set
+        // `onSubmit` to the same schema — both would run on submit and each
+        // field would show its error twice.
+        validators: { onChange: loginSchema },
         onSubmit: ({ value }) => onSubmit?.(value)
     });
 
