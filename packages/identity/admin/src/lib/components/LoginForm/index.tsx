@@ -82,7 +82,10 @@ export function LoginForm({
 
     const form = useForm({
         defaultValues: { email: '', password: '' },
-        validators: { onChange: loginSchema },
+        // `onChange` validates as the user types; `onSubmit` re-runs it on a
+        // submit attempt so an untouched empty form still flags its required
+        // fields (the button is never disabled for invalidity).
+        validators: { onChange: loginSchema, onSubmit: loginSchema },
         onSubmit: ({ value }) => onSubmit?.(value)
     });
 
@@ -154,16 +157,7 @@ export function LoginForm({
                                 )}
                             </form.Field>
 
-                            <form.Subscribe
-                                selector={(state) => state.canSubmit}
-                            >
-                                {(canSubmit) => (
-                                    <LoginActions
-                                        isPending={isPending}
-                                        canSubmit={canSubmit}
-                                    />
-                                )}
-                            </form.Subscribe>
+                            <LoginActions isPending={isPending} />
                         </FieldGroup>
                     </form>
                 </CardContent>

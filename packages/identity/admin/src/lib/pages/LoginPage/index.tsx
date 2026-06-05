@@ -9,7 +9,8 @@ import { useLoginMutation } from '../../api/useLoginMutation';
 const messages = defineMessages({
     invalidCredentials: {
         id: 'identity.login.error.invalidCredentials',
-        defaultMessage: 'Invalid email or password.'
+        defaultMessage:
+            'The email or password you entered is incorrect. Please double-check your credentials and try again.'
     },
     generic: {
         id: 'identity.login.error.generic',
