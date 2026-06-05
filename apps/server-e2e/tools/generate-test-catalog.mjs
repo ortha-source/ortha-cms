@@ -134,22 +134,42 @@ function parseSpec(file) {
 // ---- rendering ---------------------------------------------------------------
 
 const tag = (m) => (m === 'skip' ? ' _(skipped)_' : m === 'only' ? ' _(only)_' : '');
+const cell = (s) => s.replace(/\|/g, '\\|'); // escape pipes for table cells
 
 let TOTAL = 0;
 
-function renderNode(node, depth, lines) {
+/** Flatten a describe/it subtree into rows: { scenario: string[], title }. */
+function flatten(node, scenarioPath, rows) {
     if (node.kind === 'it') {
         TOTAL++;
-        // Heading levels express the describe nesting, so bullets stay flush.
-        lines.push(`- ${node.title}${tag(node.modifier)}`);
+        rows.push({ scenario: scenarioPath, title: node.title + tag(node.modifier) });
         return;
     }
-    // describe → heading (H2 at depth 2, capped at H6, then bold)
-    const level = Math.min(depth, 6);
-    const hashes = '#'.repeat(level);
+    const next = [...scenarioPath, node.title + tag(node.modifier)];
+    for (const child of node.children) flatten(child, next, rows);
+}
+
+/** Render one endpoint (top-level describe) as a heading + Scenario/Case table. */
+function renderEndpoint(node, lines) {
+    const rows = [];
+    for (const child of node.children) flatten(child, [], rows);
+    // `it`s placed directly on the endpoint describe land here too.
+    if (node.kind === 'it') flatten(node, [], rows);
+
     lines.push('');
-    if (level <= 6) lines.push(`${hashes} ${node.title}${tag(node.modifier)}`);
-    for (const child of node.children) renderNode(child, depth + 1, lines);
+    lines.push(`## ${node.title}${tag(node.modifier)}`);
+    if (!rows.length) return;
+    lines.push('');
+    lines.push('| Scenario | Test case |');
+    lines.push('| --- | --- |');
+    let prevScenario = null;
+    for (const row of rows) {
+        const scenario = row.scenario.join(' › ');
+        // Show the scenario only on the first row of each group; blank repeats.
+        const shown = scenario === prevScenario ? '' : cell(scenario || '—');
+        prevScenario = scenario;
+        lines.push(`| ${shown} | ${cell(row.title)} |`);
+    }
 }
 
 function render(specs) {
@@ -168,7 +188,7 @@ function render(specs) {
         const tree = parseSpec(file);
         if (!tree.length) continue;
         const fileLines = [];
-        for (const node of tree) renderNode(node, 2, fileLines);
+        for (const node of tree) renderEndpoint(node, fileLines);
         lines.push(`<!-- source: ${rel} -->`);
         lines.push(`_<sub>${rel}</sub>_`);
         lines.push(...fileLines);
