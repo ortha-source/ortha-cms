@@ -3,8 +3,9 @@
 The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpart
 to [`@ortha-cms/identity-server`](../server/CLAUDE.md). It contributes the
 identity screens into the admin host. Today it ships the **login UI** at
-`/identity/signin` — presentation only, not wired to the API. User/role/access
-screens and real authentication land in later tickets (epic #3).
+`/identity/signin`, wired to `POST /api/auth/login` (via `useLoginMutation`);
+a successful sign-in navigates to `/`. User/role/access screens and the rest of
+auth (current-user gating, logout) land in later tickets (epic #3).
 
 ## Package
 
@@ -54,13 +55,17 @@ screens and real authentication land in later tickets (epic #3).
   whose element is `IdentityRouter`, a `react-router-dom` `<Routes>` that owns
   the sub-paths (`signin`, with `/identity` → `/identity/signin`). New auth
   pages (signup, invite) are added inside that router, not the host.
-- **Presentation only.** `LoginForm` manages field state with TanStack Form and
-  delegates submission to an `onSubmit(credentials)` prop, with `isPending` /
-  `error` props driving the button and alert. There is **no `fetch`/mutation
-  here**. The submission seam is the `SignInRoute` container
-  (`pages/LoginPage/SignInRoute.tsx`) the router mounts — that's where the real
-  `useLoginMutation` plugs in (#8), feeding the page's
-  `onSubmit`/`isPending`/`error` props.
+- **Presentation vs. container.** `LoginForm`/`LoginPage` are presentation only:
+  `LoginForm` manages field state with TanStack Form and delegates submission to
+  an `onSubmit(credentials)` prop, with `isPending`/`error` props driving the
+  button and alert — **no `fetch`/mutation lives in the form**. The submission
+  seam is the `SignInRoute` container (`pages/LoginPage/SignInRoute.tsx`) the
+  router mounts: it runs `useLoginMutation` (`src/lib/api/`), maps its
+  `isPending`/`error` onto the page, and navigates to `/` on success.
+- **API layer.** `src/lib/api/auth.ts` holds the `fetch` wrapper (`login`,
+  throwing a typed `LoginError`); `use-login-mutation.ts` wraps it in a TanStack
+  Query `useMutation`. The `QueryClient` is provided by the host, not here. The
+  cookie is reached same-origin via the admin dev proxy (`/api` → the API).
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
 
@@ -79,10 +84,9 @@ createAdmin({
 
 ## Not owned here (deferred)
 
-- API client / auth state, token storage, redirect-after-login — wired when the
-  login ticket (#8) lands inside the `SignInRoute` container, which drives
-  `LoginForm`'s `onSubmit`/`error`/`isPending` props
-- User/role/access screens and data fetching
+- Current-user gating (`/api/auth/me`), logout, and route guards — login itself
+  is wired; the rest of auth state lands with the host's slot system / epic #3
+- User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system
 
 ## Commands

@@ -12,6 +12,7 @@
         "./package.json": "./package.json"
     },
     "dependencies": {
+        "@tanstack/react-query": "^5.0.0",
         "react-intl": "^7.0.0"
     },
     "peerDependencies": {

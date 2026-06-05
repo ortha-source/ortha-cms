@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { LoginPage } from '.';
 import type { LoginCredentials } from '../../../types/auth.type';
-import { login, LoginError } from '../../api/auth';
+import { useLoginMutation } from '../../api/use-login-mutation';
 
 /** Intl descriptors for {@link SignInRoute}, co-located with the component. */
 const messages = defineMessages({
@@ -18,39 +17,36 @@ const messages = defineMessages({
 });
 
 /**
- * Route container for the sign-in page. Owns the submission seam: calls
- * `POST /api/auth/login`, drives the page's `isPending`/`error` props, and on
- * success navigates to the home page (`/`). The session lives in the `httpOnly`
- * cookie the server sets, so there is nothing to persist client-side here.
+ * Route container for the sign-in page. Owns the submission seam: runs the
+ * `useLoginMutation` (`POST /api/auth/login`), maps its `isPending`/`error`
+ * onto the page's props, and on success navigates to the home page (`/`). The
+ * session lives in the `httpOnly` cookie the server sets, so there is nothing
+ * to persist client-side here.
  */
 export function SignInRoute() {
     const intl = useIntl();
     const navigate = useNavigate();
-    const [isPending, setIsPending] = useState(false);
-    const [error, setError] = useState<string>();
+    const { mutate, isPending, error } = useLoginMutation();
 
-    const handleSubmit = async (credentials: LoginCredentials) => {
-        setIsPending(true);
-        setError(undefined);
-        try {
-            await login(credentials);
-            navigate('/', { replace: true });
-        } catch (err) {
-            const invalid = err instanceof LoginError && err.invalidCredentials;
-            setError(
-                intl.formatMessage(
-                    invalid ? messages.invalidCredentials : messages.generic
-                )
-            );
-            setIsPending(false);
-        }
+    const handleSubmit = (credentials: LoginCredentials) => {
+        mutate(credentials, {
+            onSuccess: () => navigate('/', { replace: true })
+        });
     };
+
+    const errorMessage = error
+        ? intl.formatMessage(
+              error.invalidCredentials
+                  ? messages.invalidCredentials
+                  : messages.generic
+          )
+        : undefined;
 
     return (
         <LoginPage
             onSubmit={handleSubmit}
             isPending={isPending}
-            error={error}
+            error={errorMessage}
         />
     );
 }

@@ -32,9 +32,13 @@ contains no features.
 ## Architecture
 
 - **Mount + shell.** `createAdmin` is the single place the SPA is created
-  (`createRoot` + `<StrictMode>` + `<IntlProvider>` + `<BrowserRouter>`).
+  (`createRoot` + `<StrictMode>` + `<QueryClientProvider>` + `<IntlProvider>` +
+  `<BrowserRouter>`).
 - **Plugin assembly.** It flattens every plugin's `routes` into one `<Routes>`
   tree, then adds a `*` catch-all that redirects to `/`.
+- **Data.** The host owns the single TanStack Query `QueryClient`. Plugins fetch
+  server state with `useQuery`/`useMutation` (e.g. identity's
+  `useLoginMutation`) and never construct a client of their own.
 - **i18n.** The host owns the single `react-intl` `IntlProvider` (`locale`
   defaults to `en`; messages resolve from each descriptor's `defaultMessage`).
   Plugins author strings with `defineMessages` + `useIntl` and **co-locate
@@ -61,8 +65,8 @@ createAdmin({
 ## Not owned here (deferred until a plugin needs it)
 
 - Auth guards / current-user gating, nav items, slot system
-- Providers beyond the router and `IntlProvider` (QueryClient, Toaster) — add
-  when a plugin requires them
+- Providers beyond the router, `IntlProvider`, and `QueryClientProvider`
+  (e.g. Toaster) — add when a plugin requires them
 - Actual pages — those live in feature plugins
 
 ## Commands

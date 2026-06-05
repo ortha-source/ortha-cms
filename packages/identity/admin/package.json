@@ -18,6 +18,7 @@
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/design-system": "*",
         "@tanstack/react-form": "^1.0.0",
+        "@tanstack/react-query": "^5.0.0",
         "react-intl": "^7.0.0",
         "zod": "^4.4.3"
     },
