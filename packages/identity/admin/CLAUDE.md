@@ -23,8 +23,13 @@ auth (current-user gating, logout) land in later tickets (epic #3).
 - No `.js` extensions in TypeScript imports
 - JSX enabled (`react-jsx`), DOM types available
 - Components in `src/lib/components/<Name>/`; pages in `src/lib/pages/<Name>/`;
-  the nested router in `src/lib/router/`; the plugin factory in `src/lib/utils/`;
-  types in `src/types/`
+  the data layer (hooks + request fns) in `src/lib/api/`; the nested router in
+  `src/lib/router/`; the plugin factory in `src/lib/utils/`; types in `src/types/`
+- **File naming.** Components are `PascalCase` (`<Name>/index.tsx` or
+  `<Name>.tsx`); everything else is `camelCase`, and a hook file is named for its
+  hook (`useLoginMutation.ts`, `useLoginSchema.ts`). One concern per file — don't
+  split a presentational page from its tiny route container; the page *is* the
+  container (see `LoginPage`)
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`);
   the host provides the single `IntlProvider`. **Each component co-locates its
   own descriptors** — a module-level `const messages = defineMessages({ … })`
@@ -55,17 +60,17 @@ auth (current-user gating, logout) land in later tickets (epic #3).
   whose element is `IdentityRouter`, a `react-router-dom` `<Routes>` that owns
   the sub-paths (`signin`, with `/identity` → `/identity/signin`). New auth
   pages (signup, invite) are added inside that router, not the host.
-- **Presentation vs. container.** `LoginForm`/`LoginPage` are presentation only:
-  `LoginForm` manages field state with TanStack Form and delegates submission to
-  an `onSubmit(credentials)` prop, with `isPending`/`error` props driving the
-  button and alert — **no `fetch`/mutation lives in the form**. The submission
-  seam is the `SignInRoute` container (`pages/LoginPage/SignInRoute.tsx`) the
-  router mounts: it runs `useLoginMutation` (`src/lib/api/`), maps its
-  `isPending`/`error` onto the page, and navigates to `/` on success.
-- **API layer.** `src/lib/api/auth.ts` holds the `fetch` wrapper (`login`,
-  throwing a typed `LoginError`); `use-login-mutation.ts` wraps it in a TanStack
-  Query `useMutation`. The `QueryClient` is provided by the host, not here. The
-  cookie is reached same-origin via the admin dev proxy (`/api` → the API).
+- **Presentation vs. container.** `LoginForm` is presentation only: it manages
+  field state with TanStack Form and delegates submission to an
+  `onSubmit(credentials)` prop, with `isPending`/`error` props driving the button
+  and alert — **no `fetch`/mutation lives in the form**. `LoginPage`
+  (`pages/LoginPage/index.tsx`) is the route container the router mounts: it runs
+  `useLoginMutation`, maps its `isPending`/`error` onto the form, and navigates
+  to `/` on success.
+- **API layer.** `src/lib/api/useLoginMutation.ts` holds the `fetch` request
+  (`login`, throwing a typed `LoginError`) and wraps it in a TanStack Query
+  `useMutation`. The `QueryClient` is provided by the host, not here. The cookie
+  is reached same-origin via the admin dev proxy (`/api` → the API).
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
 

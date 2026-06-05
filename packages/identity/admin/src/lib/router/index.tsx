@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { SignInRoute } from '../pages/LoginPage/SignInRoute';
+import { LoginPage } from '../pages/LoginPage';
 
 /**
  * Identity plugin router. Renders the auth sub-routes; mounted by the plugin
@@ -9,7 +9,7 @@ export function IdentityRouter() {
     return (
         <Routes>
             <Route index element={<Navigate to="signin" replace />} />
-            <Route path="signin" element={<SignInRoute />} />
+            <Route path="signin" element={<LoginPage />} />
         </Routes>
     );
 }

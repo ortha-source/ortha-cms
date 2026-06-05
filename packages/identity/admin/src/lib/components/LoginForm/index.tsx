@@ -10,7 +10,7 @@ import {
     cn
 } from '@ortha-cms/design-system';
 import type { LoginCredentials } from '../../../types/auth.type';
-import { useLoginSchema } from './use-login-schema';
+import { useLoginSchema } from './useLoginSchema';
 import { LoginField } from './LoginField';
 import { LoginAlert } from './LoginAlert';
 import { LoginActions } from './LoginActions';

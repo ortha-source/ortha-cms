@@ -1,6 +1,6 @@
 import { createAdmin } from '@ortha-cms/bootstrap-admin';
 import { IdentityPlugin } from '@ortha-cms/identity-admin';
-import { HomePage } from './home-page';
+import { HomePage } from './HomePage';
 import './styles.css';
 
 createAdmin({
