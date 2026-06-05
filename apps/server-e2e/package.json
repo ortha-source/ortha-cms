@@ -16,12 +16,34 @@
                 "options": {
                     "jestConfig": "apps/server-e2e/jest.config.cts",
                     "passWithNoTests": true
-                },
-                "dependsOn": [
-                    "server:build",
-                    "server:serve"
-                ]
+                }
+            },
+            "catalog": {
+                "executor": "nx:run-commands",
+                "options": {
+                    "cwd": "apps/server-e2e",
+                    "command": "node tools/generate-test-catalog.mjs"
+                }
+            },
+            "catalog:check": {
+                "executor": "nx:run-commands",
+                "cache": true,
+                "inputs": [
+                    "{projectRoot}/src/**/*.spec.ts",
+                    "{projectRoot}/TESTS.md",
+                    "{projectRoot}/tools/generate-test-catalog.mjs"
+                ],
+                "options": {
+                    "cwd": "apps/server-e2e",
+                    "command": "node tools/generate-test-catalog.mjs --check"
+                }
             }
         }
+    },
+    "devDependencies": {
+        "@testcontainers/postgresql": "^12.0.1",
+        "@types/supertest": "^7.2.0",
+        "supertest": "^7.2.2",
+        "testcontainers": "^12.0.1"
     }
 }

@@ -1,7 +1,8 @@
 export type {
     IdentityPluginConfig,
     IdentitySessionConfig,
-    IdentityTokenConfig
+    IdentityTokenConfig,
+    IdentityRateLimitConfig
 } from './lib/types';
 export { IdentityPlugin } from './lib/utils/identity-plugin';
 export type { IdentityServerPlugin } from './lib/utils/identity-plugin';

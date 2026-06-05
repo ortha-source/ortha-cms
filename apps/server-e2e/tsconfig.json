@@ -6,6 +6,19 @@
         "noUnusedLocals": false,
         "noImplicitAny": false
     },
-    "include": ["jest.config.ts", "src/**/*.ts"],
-    "references": []
+    "include": ["jest.config.cts", "src/**/*.ts"],
+    "references": [
+        {
+            "path": "../../packages/bootstrap/server"
+        },
+        {
+            "path": "../../packages/identity/server"
+        },
+        {
+            "path": "../../packages/database"
+        },
+        {
+            "path": "../server"
+        }
+    ]
 }

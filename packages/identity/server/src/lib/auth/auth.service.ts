@@ -104,6 +104,16 @@ export class AuthService {
         return user ?? null;
     }
 
+    /**
+     * Ends the session identified by an opaque token (logout). Idempotent — an
+     * unknown or already-revoked token simply does nothing, and the user's
+     * other sessions are left untouched. Transport-agnostic: the controller
+     * owns reading the cookie and clearing it.
+     */
+    async logout(sessionId: string): Promise<void> {
+        await this.sessions.revoke(sessionId);
+    }
+
     private getDummyHash(): Promise<string> {
         if (!this.dummyHash) {
             this.dummyHash = this.hashing.hashPassword(

@@ -11,11 +11,13 @@ tokens) — and **ships its migrations** (`drizzle.config.ts` + committed
 `migrations/`, applied by `@ortha-cms/nx`'s `db:migrate`). It also **seeds the
 system roles** (`admin`/`contributor`/`viewer`) idempotently on boot and
 protects them from deletion (RBAC, FR-6). It also handles **email/password
-login**: the `auth/` feature (`AuthController`, `AuthService`, `SessionService`)
+login & logout**: the `auth/` feature (`LoginController`, `MeController`,
+`LogoutController`, plus `AuthService` / `SessionService` / `CookieService`)
 verifies credentials with bcrypt and opens a DB-backed, revocable session
-delivered as an `httpOnly` cookie (#8). Behaviour is still partly pending:
-session logout/revocation, the auth guard, tokens, user management, the
-`can()` check, and first-admin bootstrap land in later tickets (epic #3).
+delivered as an `httpOnly` cookie (#8); logout revokes the presented session
+(per-device, idempotent) and clears the cookie. Behaviour is still partly
+pending: the auth guard, tokens, user management, the `can()` check, and
+first-admin bootstrap land in later tickets (epic #3).
 
 ## Package
 

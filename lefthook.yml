@@ -1,0 +1,11 @@
+# Git hooks (installed via the root `prepare` script → `lefthook install`).
+# Docs: https://lefthook.dev/configuration/
+pre-commit:
+    parallel: true
+    jobs:
+        # Keep apps/server-e2e/TESTS.md in sync with the spec describe/it tree.
+        # Regenerates and re-stages it whenever a spec or the generator changes,
+        # so the committed catalog can never drift. See apps/server-e2e/CLAUDE.md.
+        - name: e2e-test-catalog
+          glob: 'apps/server-e2e/{src/**/*.spec.ts,tools/generate-test-catalog.mjs}'
+          run: npx nx catalog server-e2e && git add apps/server-e2e/TESTS.md

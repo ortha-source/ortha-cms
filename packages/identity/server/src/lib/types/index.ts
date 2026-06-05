@@ -22,6 +22,21 @@ export interface IdentityPluginConfig {
     session: IdentitySessionConfig;
     /** One-time token lifetimes. */
     token: IdentityTokenConfig;
+    /**
+     * Rate limit for sensitive endpoints (`/auth/login`). Optional — when
+     * omitted, defaults to 10 requests per 60s. Exposed so deployments can
+     * tune it and tests can relax it (a high limit) or pin it low to assert
+     * the throttled (429) path.
+     */
+    rateLimit?: IdentityRateLimitConfig;
+}
+
+/** Rate-limit settings for sensitive endpoints. */
+export interface IdentityRateLimitConfig {
+    /** Sliding-window length, in seconds. */
+    ttlSeconds: number;
+    /** Maximum requests permitted per window, per client IP. */
+    limit: number;
 }
 
 /** Session cookie and lifetime settings. */

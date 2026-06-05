@@ -109,4 +109,19 @@ export class SessionService {
 
         return { userId: session.userId };
     }
+
+    /**
+     * Revokes a single session by its opaque token, idempotently — an unknown
+     * or already-revoked token is a no-op (the `revokedAt IS NULL` guard keeps
+     * the original revoke time). Only the matching row is touched, so the
+     * user's other sessions stay valid: this is a per-device logout, not a
+     * global one.
+     */
+    async revoke(token: string): Promise<void> {
+        const id = this.hashing.hashToken(token);
+        await this.db
+            .update(sessions)
+            .set({ revokedAt: new Date() })
+            .where(and(eq(sessions.id, id), isNull(sessions.revokedAt)));
+    }
 }

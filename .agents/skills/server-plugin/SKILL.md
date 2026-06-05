@@ -280,6 +280,10 @@ npx nx run server:db:migrate                                       # applies all
 
 ## Controllers, DTOs, validation, errors
 
+> Every controller you add here needs an **e2e suite** in `apps/server-e2e`
+> exercising it end-to-end (happy path, authn/authz, validation, guards, side
+> effects). That harness is governed by the **`server-e2e`** skill.
+
 - Controllers are **thin**: parse, delegate to a service, map the result. They
   sit under the host's global **`api`** prefix, so `@Controller('widgets')` →
   `/api/widgets/...`.
@@ -347,5 +351,7 @@ plugin needs true cross-origin should a `cors` option be added to `createServer`
 - [ ] Registered in `apps/server/src/plugins.ts` (after `DatabasePlugin`) and
       `ortha.config.ts`.
 - [ ] A `CLAUDE.md` for the package documenting its decisions.
+- [ ] An **e2e suite** in `apps/server-e2e` for any controller it adds — see the
+      `server-e2e` skill.
 - [ ] `npx nx sync` then `typecheck` + `lint` green; `nx build server` if it has
       controllers.
