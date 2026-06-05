@@ -22,9 +22,10 @@ export default defineConfig({
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
         trace: 'on-first-retry'
     },
-    /* Run your local dev server before starting the tests */
+    /* Run the admin dev server before starting the tests. Specs mock `/api`
+       at the network layer, so no backend (or the dev proxy) is needed. */
     webServer: {
-        command: 'npx nx run admin:preview',
+        command: 'npx nx run admin:serve',
         url: 'http://localhost:4200',
         reuseExistingServer: true,
         cwd: workspaceRoot
