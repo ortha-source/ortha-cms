@@ -17,6 +17,7 @@
     "dependencies": {
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/design-system": "*",
+        "@ortha-cms/utils-admin": "*",
         "@tanstack/react-form": "^1.0.0",
         "@tanstack/react-query": "^5.0.0",
         "axios": "^1.6.0",

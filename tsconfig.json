@@ -35,6 +35,9 @@
         },
         {
             "path": "./packages/identity/admin"
+        },
+        {
+            "path": "./packages/utils/admin"
         }
     ]
 }

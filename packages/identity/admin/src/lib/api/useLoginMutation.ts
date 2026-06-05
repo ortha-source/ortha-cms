@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { apiClient } from '@ortha-cms/bootstrap-admin';
+import { apiClient } from '@ortha-cms/utils-admin';
 import type { LoginCredentials } from '../../types/auth.type';
 
 /**

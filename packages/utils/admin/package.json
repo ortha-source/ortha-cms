@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/bootstrap-admin",
+    "name": "@ortha-cms/utils-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -11,14 +11,11 @@
         },
         "./package.json": "./package.json"
     },
+    "files": [
+        "src"
+    ],
     "dependencies": {
-        "@ortha-cms/utils-admin": "*",
         "@tanstack/react-query": "^5.0.0",
-        "react-intl": "^7.0.0"
-    },
-    "peerDependencies": {
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-        "react-router-dom": "^6.0.0"
+        "axios": "^1.6.0"
     }
 }

@@ -2,7 +2,8 @@ import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { IntlProvider } from 'react-intl';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@ortha-cms/utils-admin';
 import type { CreateAdminOptions } from './types/admin-plugin';
 
 /**
@@ -23,7 +24,6 @@ export function createAdmin(options: CreateAdminOptions): void {
     const { plugins, rootElement = 'root', locale = 'en' } = options;
 
     const routes = plugins.flatMap((plugin) => plugin.routes ?? []);
-    const queryClient = new QueryClient();
 
     const root = ReactDOM.createRoot(
         document.getElementById(rootElement) as HTMLElement

@@ -13,7 +13,14 @@
     "include": ["src/**/*.ts", "src/**/*.tsx"],
     "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
     "references": [
-        { "path": "../../bootstrap/admin/tsconfig.lib.json" },
-        { "path": "../../design-system/tsconfig.lib.json" }
+        {
+            "path": "../../utils/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../design-system/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bootstrap/admin/tsconfig.lib.json"
+        }
     ]
 }

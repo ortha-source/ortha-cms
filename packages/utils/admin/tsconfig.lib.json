@@ -11,10 +11,5 @@
         "types": ["node"]
     },
     "include": ["src/**/*.ts", "src/**/*.tsx"],
-    "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
-    "references": [
-        {
-            "path": "../../utils/admin/tsconfig.lib.json"
-        }
-    ]
+    "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"]
 }

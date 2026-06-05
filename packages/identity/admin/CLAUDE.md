@@ -68,10 +68,12 @@ auth (current-user gating, logout) land in later tickets (epic #3).
   `useLoginMutation`, maps its `isPending`/`error` onto the form, and navigates
   to `/` on success.
 - **API layer.** `src/lib/api/useLoginMutation.ts` issues the request via the
-  host's shared `apiClient` (`apiClient.post('/auth/login', …)`) and wraps it in
-  a TanStack Query `useMutation`, throwing a typed `LoginError`. The
-  `QueryClient` and `apiClient` are both provided by the host, not here. The
-  cookie is reached same-origin via the admin dev proxy (`/api` → the API).
+  shared `apiClient` from
+  [`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md)
+  (`apiClient.post('/auth/login', …)`) and wraps it in a TanStack Query
+  `useMutation`, throwing a typed `LoginError`. The `apiClient` and `queryClient`
+  live in that shared library (the host mounts the query provider). The cookie is
+  reached same-origin via the admin dev proxy (`/api` → the API).
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
 
