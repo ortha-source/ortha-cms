@@ -25,4 +25,6 @@ export type CreateAdminOptions = {
     plugins: AdminPlugin[];
     /** DOM element id to mount into. Defaults to "root". */
     rootElement?: string;
+    /** Active locale for `react-intl`. Defaults to "en". */
+    locale?: string;
 };

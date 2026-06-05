@@ -21,7 +21,10 @@ export const createNodesV2: CreateNodesV2 = [
                 ? {
                       'db:generate': {
                           executor: '@ortha-cms/nx:db-generate',
-                          options: { cwd: projectRoot, config: 'drizzle.config.ts' },
+                          options: {
+                              cwd: projectRoot,
+                              config: 'drizzle.config.ts'
+                          },
                           cache: true,
                           inputs: ['{projectRoot}/src/lib/schema/**/*'],
                           outputs: ['{projectRoot}/migrations']

@@ -1,6 +1,10 @@
 import request from 'supertest';
 import type { Response } from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
 import {
     countUserSessions,
     resetDb,

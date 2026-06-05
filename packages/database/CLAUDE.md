@@ -62,7 +62,7 @@ createServer({
 
 ## Usage (consuming the db in a plugin)
 
-Inject the Drizzle instance and query against tables the *consuming* plugin
+Inject the Drizzle instance and query against tables the _consuming_ plugin
 owns:
 
 ```typescript

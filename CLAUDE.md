@@ -60,3 +60,7 @@ package; the admin app's Vite transpiles the design-system source directly.
   is governed by the `server-plugin` skill — the `ServerPlugin` factory +
   dynamic-module pattern, feature-folder layout, `@InjectDatabase()` DI, config
   injection, and the Drizzle schema/migrations descriptor
+- Admin i18n: `react-intl` with the host's single `IntlProvider`; each
+  component **co-locates** its own `const messages = defineMessages({ … })`
+  (no shared `messages.ts`). See
+  [`packages/bootstrap/admin/CLAUDE.md`](packages/bootstrap/admin/CLAUDE.md)

@@ -11,6 +11,11 @@
         },
         "./package.json": "./package.json"
     },
+    "dependencies": {
+        "@ortha-cms/utils-admin": "*",
+        "@tanstack/react-query": "^5.0.0",
+        "react-intl": "^7.0.0"
+    },
     "peerDependencies": {
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
