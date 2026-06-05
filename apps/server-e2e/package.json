@@ -17,6 +17,26 @@
                     "jestConfig": "apps/server-e2e/jest.config.cts",
                     "passWithNoTests": true
                 }
+            },
+            "catalog": {
+                "executor": "nx:run-commands",
+                "options": {
+                    "cwd": "apps/server-e2e",
+                    "command": "node tools/generate-test-catalog.mjs"
+                }
+            },
+            "catalog:check": {
+                "executor": "nx:run-commands",
+                "cache": true,
+                "inputs": [
+                    "{projectRoot}/src/**/*.spec.ts",
+                    "{projectRoot}/TESTS.md",
+                    "{projectRoot}/tools/generate-test-catalog.mjs"
+                ],
+                "options": {
+                    "cwd": "apps/server-e2e",
+                    "command": "node tools/generate-test-catalog.mjs --check"
+                }
             }
         }
     },

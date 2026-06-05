@@ -61,7 +61,18 @@ running Docker daemon for testcontainers).
 - Each spec **file** gets its own module registry (own app instance, own pool,
   own throttler) — that's why `closeTestApp` ends the pool per file.
 
+## Test catalog
+
+[`TESTS.md`](./TESTS.md) is a **generated** browsable index of every
+`describe`/`it` case, built by parsing the spec AST (`tools/generate-test-catalog.mjs`)
+— it never runs Jest, so it needs no Docker. **Don't edit it by hand.** After
+adding, renaming, or removing a test, run `npx nx catalog server-e2e` and commit
+the result. `npx nx catalog:check server-e2e` fails if it has drifted (wire this
+into CI once a pipeline exists).
+
 ## Commands
 
 - `npx nx e2e server-e2e` — run the suites (needs Docker running).
 - `npx nx lint server-e2e` / `npx nx typecheck server-e2e`.
+- `npx nx catalog server-e2e` — regenerate `TESTS.md` from the specs.
+- `npx nx catalog:check server-e2e` — fail if `TESTS.md` is stale.

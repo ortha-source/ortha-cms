@@ -2,7 +2,9 @@
     "name": "@ortha-cms/source",
     "version": "0.0.0",
     "license": "MIT",
-    "scripts": {},
+    "scripts": {
+        "prepare": "lefthook install"
+    },
     "private": true,
     "dependencies": {
         "@nestjs/common": "^11.0.0",
@@ -66,6 +68,7 @@
         "jest-util": "~30.3.0",
         "jiti": "2.4.2",
         "jsdom": "~22.1.0",
+        "lefthook": "^2.1.9",
         "nx": "22.7.5",
         "prettier": "~3.6.2",
         "tailwindcss": "^4.3.0",
