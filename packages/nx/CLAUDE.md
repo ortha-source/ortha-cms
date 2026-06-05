@@ -15,16 +15,16 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 
 - **`createNodesV2` inference** (`src/index.ts`) — targets appear
   automatically, the same way `@nx/js` infers `typecheck`:
-  - a project with a `drizzle.config.ts` gets a cacheable **`db:generate`**
-  - a project with an `ortha.config.ts` (the host) gets **`db:migrate`**
+    - a project with a `drizzle.config.ts` gets a cacheable **`db:generate`**
+    - a project with an `ortha.config.ts` (the host) gets **`db:migrate`**
 - **Executors** (`executors.json`):
-  - `db-generate` — runs `drizzle-kit generate` for one plugin's schema.
-    Cacheable (inputs: schema files; outputs: the `migrations` dir). Needs
-    no database and no secrets — generation only diffs against the snapshot.
-  - `db-migrate` — applies every plugin's migrations. Loads the host's
-    `ortha.config.ts` + `buildPlugins()` via `jiti`, then applies each
-    plugin's `migrations` (see `ServerPlugin.migrations`) under its own
-    tracking table. `cache: false` (side-effecting).
+    - `db-generate` — runs `drizzle-kit generate` for one plugin's schema.
+      Cacheable (inputs: schema files; outputs: the `migrations` dir). Needs
+      no database and no secrets — generation only diffs against the snapshot.
+    - `db-migrate` — applies every plugin's migrations. Loads the host's
+      `ortha.config.ts` + `buildPlugins()` via `jiti`, then applies each
+      plugin's `migrations` (see `ServerPlugin.migrations`) under its own
+      tracking table. `cache: false` (side-effecting).
 
 ## Architecture
 

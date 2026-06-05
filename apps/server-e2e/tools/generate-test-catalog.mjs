@@ -76,8 +76,7 @@ function titleOf(arg) {
     if (ts.isTemplateExpression(arg)) {
         // Reconstruct `head${expr}tail` with placeholders for the dynamic bits.
         let out = arg.head.text;
-        for (const span of arg.templateSpans)
-            out += '${…}' + span.literal.text;
+        for (const span of arg.templateSpans) out += '${…}' + span.literal.text;
         return out;
     }
     return '(dynamic title)';
@@ -89,11 +88,11 @@ function nodeFromCall(call, info) {
         kind: info.kind,
         modifier: info.modifier,
         title: titleOf(call.arguments[0]),
-        children: [],
+        children: []
     };
     if (info.kind === 'describe') {
         const body = call.arguments.find(
-            (a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a),
+            (a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a)
         );
         if (body && body.body && ts.isBlock(body.body))
             node.children = collectCalls(body.body);
@@ -105,10 +104,7 @@ function nodeFromCall(call, info) {
 function collectCalls(block) {
     const found = [];
     const visit = (n) => {
-        if (
-            ts.isExpressionStatement(n) &&
-            ts.isCallExpression(n.expression)
-        ) {
+        if (ts.isExpressionStatement(n) && ts.isCallExpression(n.expression)) {
             const info = classifyCallee(n.expression.expression);
             if (info) {
                 found.push(nodeFromCall(n.expression, info));
@@ -126,14 +122,15 @@ function parseSpec(file) {
         file,
         readFileSync(file, 'utf-8'),
         ts.ScriptTarget.Latest,
-        true,
+        true
     );
     return collectCalls(src);
 }
 
 // ---- rendering ---------------------------------------------------------------
 
-const tag = (m) => (m === 'skip' ? ' _(skipped)_' : m === 'only' ? ' _(only)_' : '');
+const tag = (m) =>
+    m === 'skip' ? ' _(skipped)_' : m === 'only' ? ' _(only)_' : '';
 const cell = (s) => s.replace(/\|/g, '\\|'); // escape pipes for table cells
 
 let TOTAL = 0;
@@ -142,7 +139,10 @@ let TOTAL = 0;
 function flatten(node, scenarioPath, rows) {
     if (node.kind === 'it') {
         TOTAL++;
-        rows.push({ scenario: scenarioPath, title: node.title + tag(node.modifier) });
+        rows.push({
+            scenario: scenarioPath,
+            title: node.title + tag(node.modifier)
+        });
         return;
     }
     const next = [...scenarioPath, node.title + tag(node.modifier)];
@@ -189,7 +189,7 @@ function render(specs) {
         '> **Generated file — do not edit by hand.** Regenerate with',
         '> `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`',
         '> and fails if this file has drifted from the specs.',
-        '',
+        ''
     ];
     const bodyStart = lines.length;
 
@@ -210,9 +210,14 @@ function render(specs) {
         bodyStart,
         0,
         `_${TOTAL} test cases across ${specs.length} spec files._`,
-        '',
+        ''
     );
-    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+    return (
+        lines
+            .join('\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trimEnd() + '\n'
+    );
 }
 
 // ---- main --------------------------------------------------------------------
@@ -230,7 +235,7 @@ if (check) {
     }
     if (current !== next) {
         console.error(
-            'TESTS.md is out of date. Run `npx nx catalog server-e2e` and commit the result.',
+            'TESTS.md is out of date. Run `npx nx catalog server-e2e` and commit the result.'
         );
         process.exit(1);
     }

@@ -3,7 +3,9 @@
     "version": "0.0.0",
     "license": "MIT",
     "scripts": {
-        "prepare": "lefthook install"
+        "prepare": "lefthook install",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
     },
     "private": true,
     "dependencies": {

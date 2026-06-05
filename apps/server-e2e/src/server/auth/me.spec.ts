@@ -1,6 +1,10 @@
 import request from 'supertest';
 import type { Response } from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
 import {
     deleteUser,
     expireUserSessions,
@@ -102,7 +106,9 @@ describe('GET /api/auth/me', () => {
         });
 
         it('exposes only the public fields (no hash/token leak)', async () => {
-            const res = await get().set('Cookie', await login()).expect(200);
+            const res = await get()
+                .set('Cookie', await login())
+                .expect(200);
             expect(Object.keys(res.body).sort()).toEqual([
                 'email',
                 'id',
@@ -112,7 +118,9 @@ describe('GET /api/auth/me', () => {
         });
 
         it('works with an explicitly forwarded session cookie', async () => {
-            await get().set('Cookie', await login()).expect(200);
+            await get()
+                .set('Cookie', await login())
+                .expect(200);
         });
 
         it('finds the session cookie among several cookies', async () => {
@@ -123,7 +131,9 @@ describe('GET /api/auth/me', () => {
         });
 
         it('reflects the user’s assigned role', async () => {
-            const res = await get().set('Cookie', await login()).expect(200);
+            const res = await get()
+                .set('Cookie', await login())
+                .expect(200);
             // The seeded user is an admin; roleId must be a real role id.
             expect(res.body.roleId).toEqual(expect.any(String));
         });

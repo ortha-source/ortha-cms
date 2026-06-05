@@ -24,7 +24,10 @@ import { OriginGuard } from './auth/origin.guard';
  * (`@InjectDatabase()`), so identity registers no db provider of its own.
  */
 /** Default login rate limit when the host supplies none: 10 requests / 60s. */
-const DEFAULT_RATE_LIMIT: IdentityRateLimitConfig = { ttlSeconds: 60, limit: 10 };
+const DEFAULT_RATE_LIMIT: IdentityRateLimitConfig = {
+    ttlSeconds: 60,
+    limit: 10
+};
 
 @Module({})
 export class IdentityModule {

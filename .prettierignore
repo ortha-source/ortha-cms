@@ -3,3 +3,8 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+
+# Generated / vendored — not hand-formatted
+/.agents
+skills-lock.json
+**/migrations/meta

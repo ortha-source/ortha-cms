@@ -1,5 +1,9 @@
 import request from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
 import { resetDb, seedActiveUser } from '../../support/seed';
 
 const EMAIL = 'throttle-test@example.com';

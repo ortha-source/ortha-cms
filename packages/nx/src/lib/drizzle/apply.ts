@@ -29,7 +29,9 @@ export async function applyPluginMigrations(
             if (!migrations) {
                 continue;
             }
-            console.log(`Applying migrations: ${plugin.name} → ${migrations.table}`);
+            console.log(
+                `Applying migrations: ${plugin.name} → ${migrations.table}`
+            );
             await migrate(db, {
                 migrationsFolder: migrations.dir(),
                 migrationsTable: migrations.table

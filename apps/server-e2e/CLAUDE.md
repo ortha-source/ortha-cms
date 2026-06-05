@@ -50,8 +50,7 @@ running Docker daemon for testcontainers).
 
 ## Gotchas
 
-- **`@Post` returns `201` by default** (no `@HttpCode` on login/logout), not
-  200. Assert `201`.
+- **`@Post` returns `201` by default** (no `@HttpCode` on login/logout), not 200. Assert `201`.
 - **Rate limit:** the app boots with a relaxed login limit so suites don't
   self-throttle. To test the `429` path, boot a dedicated app with
   `createTestApp({ rateLimit: { ttlSeconds, limit } })`. The throttle is

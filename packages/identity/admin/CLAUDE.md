@@ -28,7 +28,7 @@ auth (current-user gating, logout) land in later tickets (epic #3).
 - **File naming.** Components are `PascalCase` (`<Name>/index.tsx` or
   `<Name>.tsx`); everything else is `camelCase`, and a hook file is named for its
   hook (`useLoginMutation.ts`, `useLoginSchema.ts`). One concern per file — don't
-  split a presentational page from its tiny route container; the page *is* the
+  split a presentational page from its tiny route container; the page _is_ the
   container (see `LoginPage`)
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`);
   the host provides the single `IntlProvider`. **Each component co-locates its
