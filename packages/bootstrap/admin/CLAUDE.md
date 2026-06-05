@@ -27,14 +27,20 @@ contains no features.
   and renders plugin-contributed routes plus a catch-all redirect
 - `AdminPlugin` — the plugin contract: `{ name, routes? }`
 - `RouteItem` — a contributed route: `{ path, element }`
-- `CreateAdminOptions` — `{ plugins, rootElement? }`
+- `CreateAdminOptions` — `{ plugins, rootElement?, locale? }`
 
 ## Architecture
 
 - **Mount + shell.** `createAdmin` is the single place the SPA is created
-  (`createRoot` + `<StrictMode>` + `<BrowserRouter>`).
+  (`createRoot` + `<StrictMode>` + `<IntlProvider>` + `<BrowserRouter>`).
 - **Plugin assembly.** It flattens every plugin's `routes` into one `<Routes>`
   tree, then adds a `*` catch-all that redirects to `/`.
+- **i18n.** The host owns the single `react-intl` `IntlProvider` (`locale`
+  defaults to `en`; messages resolve from each descriptor's `defaultMessage`).
+  Plugins author strings with `defineMessages` + `useIntl` and **co-locate
+  their descriptors in the component file** (a module-level
+  `const messages = defineMessages({ … })`), not a shared `messages.ts`. IDs
+  are namespaced (`<plugin>.<area>.<key>`) to stay globally unique.
 - The host renders no chrome of its own yet — with no plugins it serves a blank
   shell. Global styles are imported by the **app** (`main.tsx`), not the host.
 
@@ -55,8 +61,8 @@ createAdmin({
 ## Not owned here (deferred until a plugin needs it)
 
 - Auth guards / current-user gating, nav items, slot system
-- Providers beyond the router (QueryClient, IntlProvider, Toaster) — add when a
-  plugin requires them
+- Providers beyond the router and `IntlProvider` (QueryClient, Toaster) — add
+  when a plugin requires them
 - Actual pages — those live in feature plugins
 
 ## Commands

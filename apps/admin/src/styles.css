@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 
 @source "../../../packages/design-system/src/**/*.{ts,tsx}";
+/* Admin-side plugin/host packages (grouped layout: packages/<group>/admin). */
+@source "../../../packages/*/admin/src/**/*.{ts,tsx}";
 
 @theme inline {
     --radius: 0.625rem;
