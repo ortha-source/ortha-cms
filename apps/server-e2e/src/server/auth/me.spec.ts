@@ -1,6 +1,6 @@
 import request from 'supertest';
 import type { Response } from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
+import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
 import {
     deleteUser,
     expireUserSessions,
@@ -8,7 +8,7 @@ import {
     revokeUserSessions,
     seedActiveUser,
     type SeededUser
-} from '../support/seed';
+} from '../../support/seed';
 
 const EMAIL = 'me-test@example.com';
 const PASSWORD = 'SecurePass123!';

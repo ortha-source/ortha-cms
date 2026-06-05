@@ -1,8 +1,8 @@
 import request from 'supertest';
 import type { Response } from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
-import { resetDb, seedActiveUser } from '../support/seed';
-import { TEST_ALLOWED_ORIGIN } from '../support/test-config';
+import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import { resetDb, seedActiveUser } from '../../support/seed';
+import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
 const EMAIL = 'logout-test@example.com';
 const PASSWORD = 'SecurePass123!';

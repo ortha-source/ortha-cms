@@ -12,10 +12,10 @@ throwaway Postgres **testcontainer** and drives it with `supertest`. No separate
 server process, no Docker Compose, no `tsx`/IPC — just `npx nx e2e server-e2e`
 (which needs a running Docker daemon).
 
-> **Reference suites:** `src/server/auth-login.spec.ts` (exhaustive validation +
-> guard coverage), `auth-me.spec.ts` (cookie/session lifecycle),
-> `auth-logout.spec.ts` (state-change + idempotency), and
-> `auth-login-throttle.spec.ts` (per-suite config override). Read the closest
+> **Reference suites:** `src/server/auth/login.spec.ts` (exhaustive validation +
+> guard coverage), `auth/me.spec.ts` (cookie/session lifecycle),
+> `auth/logout.spec.ts` (state-change + idempotency), and
+> `auth/login-throttle.spec.ts` (per-suite config override). Read the closest
 > one before writing a new suite. Package notes live in
 > [`apps/server-e2e/CLAUDE.md`](../../../apps/server-e2e/CLAUDE.md).
 
@@ -33,8 +33,9 @@ a plugin, add an e2e suite here that exercises it end-to-end.
    `seed.ts` helpers, which hash via the app's real `HashingService`.
 3. **Isolate with `resetDb()`** in `beforeEach` — truncates mutable tables,
    leaving seeded system roles. Don't rely on test ordering.
-4. **One suite per endpoint/concern**, `auth-<thing>.spec.ts` under
-   `src/server/`. Cross-project imports stay in `src/support/**` (the only
+4. **One suite per endpoint/concern**, grouped by feature folder under
+   `src/server/` (e.g. `src/server/auth/login.spec.ts`); the folder names the
+   domain. Cross-project imports stay in `src/support/**` (the only
    module-boundary-exempt place), never in specs.
 5. **Don't touch `bootstrap-server`** to make something testable — the harness
    reuses its public `ServerModule` + `buildPlugins`; extend the harness

@@ -31,9 +31,12 @@ running Docker daemon for testcontainers).
 
 ## Conventions
 
-- **One suite per endpoint/concern**, named `auth-<thing>.spec.ts` under
-  `src/server/`. `beforeAll(createTestApp)` / `afterAll(closeTestApp)`;
-  `beforeEach(resetDb + seed)` for a clean slate.
+- **One suite per endpoint/concern**, grouped by feature folder under
+  `src/server/` — e.g. auth suites live in `src/server/auth/`
+  (`login.spec.ts`, `logout.spec.ts`, `me.spec.ts`, …); the folder names the
+  domain so the file doesn't repeat it. Bootstrap/health stays at
+  `src/server/server.spec.ts`. `beforeAll(createTestApp)` /
+  `afterAll(closeTestApp)`; `beforeEach(resetDb + seed)` for a clean slate.
 - **Boot the real app** via `createTestApp` — never re-declare `NestFactory` /
   prefix / pipe in a spec (that drifts from prod). `bootstrap-server` stays
   untouched.

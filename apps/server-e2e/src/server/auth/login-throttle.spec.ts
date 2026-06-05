@@ -1,6 +1,6 @@
 import request from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
-import { resetDb, seedActiveUser } from '../support/seed';
+import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import { resetDb, seedActiveUser } from '../../support/seed';
 
 const EMAIL = 'throttle-test@example.com';
 const PASSWORD = 'SecurePass123!';

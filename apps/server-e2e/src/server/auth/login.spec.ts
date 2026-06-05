@@ -1,14 +1,14 @@
 import request from 'supertest';
 import type { Response } from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
+import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
 import {
     countUserSessions,
     resetDb,
     seedActiveUser,
     seedUser,
     type SeededUser
-} from '../support/seed';
-import { TEST_ALLOWED_ORIGIN } from '../support/test-config';
+} from '../../support/seed';
+import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
 const EMAIL = 'login-test@example.com';
 const PASSWORD = 'SecurePass123!';
