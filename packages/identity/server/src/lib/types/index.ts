@@ -29,6 +29,27 @@ export interface IdentityPluginConfig {
      * the throttled (429) path.
      */
     rateLimit?: IdentityRateLimitConfig;
+    /**
+     * Optional env-provisioned root administrator (self-hosted bootstrap).
+     * When set, an `active` user holding the `admin` role is ensured on boot —
+     * idempotent and non-destructive (an already-present email is left
+     * untouched). When omitted, the bootstrap is skipped entirely.
+     */
+    rootAdmin?: IdentityRootAdminConfig;
+}
+
+/**
+ * Root-admin bootstrap settings. Supply exactly one of {@link password}
+ * (plaintext, bcrypt-hashed before storage) or {@link passwordHash} (a
+ * pre-computed bcrypt hash, so no plaintext secret sits in the environment).
+ */
+export interface IdentityRootAdminConfig {
+    /** Login email of the root admin to provision. Stored lower-cased. */
+    email: string;
+    /** Plaintext password; bcrypt-hashed before it touches the database. */
+    password?: string;
+    /** Pre-computed bcrypt hash; preferred over {@link password} in production. */
+    passwordHash?: string;
 }
 
 /** Rate-limit settings for sensitive endpoints. */

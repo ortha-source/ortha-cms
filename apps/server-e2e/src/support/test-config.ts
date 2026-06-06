@@ -1,4 +1,7 @@
-import type { IdentityRateLimitConfig } from '@ortha-cms/identity-server';
+import type {
+    IdentityRateLimitConfig,
+    IdentityRootAdminConfig
+} from '@ortha-cms/identity-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 
 /**
@@ -28,6 +31,12 @@ export interface TestConfigOverrides {
     rateLimit?: IdentityRateLimitConfig;
     /** Replace the allow-listed origins. */
     allowedOrigins?: string[];
+    /**
+     * Configure the root-admin bootstrap. Omitted by default, so the seeder
+     * is a no-op and a freshly booted app has no users (matching production
+     * with no `ORTHA_ROOT_ADMIN_EMAIL` set).
+     */
+    rootAdmin?: IdentityRootAdminConfig;
 }
 
 export function buildTestConfig(
@@ -54,7 +63,8 @@ export function buildTestConfig(
                     inviteTtlSeconds: 60 * 60 * 24 * 7,
                     resetTtlSeconds: 60 * 60
                 },
-                rateLimit: overrides.rateLimit ?? RELAXED_RATE_LIMIT
+                rateLimit: overrides.rateLimit ?? RELAXED_RATE_LIMIT,
+                rootAdmin: overrides.rootAdmin
             }
         }
     };

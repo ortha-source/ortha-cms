@@ -15,9 +15,12 @@ login & logout**: the `auth/` feature (`LoginController`, `MeController`,
 `LogoutController`, plus `AuthService` / `SessionService` / `CookieService`)
 verifies credentials with bcrypt and opens a DB-backed, revocable session
 delivered as an `httpOnly` cookie (#8); logout revokes the presented session
-(per-device, idempotent) and clears the cookie. Behaviour is still partly
-pending: the auth guard, tokens, user management, the `can()` check, and
-first-admin bootstrap land in later tickets (epic #3).
+(per-device, idempotent) and clears the cookie. It also **provisions the root
+admin** on boot from host config (`root-admin/`, FR-10): when `rootAdmin` is
+set, `RootAdminSeeder` idempotently ensures one `active` user holding the
+`admin` role (non-destructive — an existing email is left untouched). Behaviour
+is still partly pending: the auth guard, tokens, user management, and the
+`can()` check land in later tickets (epic #3).
 
 ## Package
 
@@ -60,6 +63,9 @@ first-admin bootstrap land in later tickets (epic #3).
   source `seedSystemRoles`, `can()`, and tests all read from
 - `seedSystemRoles(db)` — idempotent seeder, invoked by `SystemRolesSeeder`
 - `RolesService` — role operations; rejects deletion of `isSystem` roles
+- `ensureRootAdmin(db, { email, passwordHash })` — idempotent, non-destructive
+  root-admin bootstrap (FR-10), invoked by `RootAdminSeeder`; returns
+  `'created' | 'exists'`. `IdentityRootAdminConfig` is its host-config contract.
 
 ## Architecture
 
@@ -79,9 +85,10 @@ first-admin bootstrap land in later tickets (epic #3).
   NestJS `OnApplicationBootstrap`, so the Drizzle client is **injected** rather
   than pulled from a pre-app hook. The hook fires inside `app.init()` — after
   every module is wired, before the server listens — so seeding finishes before
-  any request is served and a failure aborts boot. Idempotent first-admin
-  bootstrap (FR-10) follows the same pattern once #16 lands. (`onPluginInit` is
-  intentionally unused by identity now — it predates the DI graph.)
+  any request is served and a failure aborts boot. `RootAdminSeeder` follows the
+  same pattern (FR-10), declared **after** `SystemRolesSeeder` so the `admin`
+  role exists when it runs. (`onPluginInit` is intentionally unused by identity
+  now — it predates the DI graph.)
 - **RBAC seeding.** `seedSystemRoles` writes the permission catalogue, the three
   roles, and their grants in one transaction, each via `ON CONFLICT DO NOTHING`
   — so it is idempotent and concurrency-safe across simultaneously booting
@@ -139,8 +146,10 @@ proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
   (#11).
-- **CLI** — `bootstrapFirstAdmin(...)` will be a plain method taking the DB
-  client; no argv, prompts, or console output (#16).
+- **CLI** — root-admin bootstrap is env/config-driven (`ensureRootAdmin` is a
+  plain DB function with no argv, prompts, or console output, run by
+  `RootAdminSeeder` on boot). An interactive CLI / break-glass command is not
+  provided here.
 
 ## Configuration
 

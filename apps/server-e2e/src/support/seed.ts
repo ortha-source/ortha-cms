@@ -1,7 +1,13 @@
 import type { INestApplication } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
-import { roles, sessions, users } from '@ortha-cms/identity-server';
+import {
+    ensureRootAdmin,
+    roles,
+    sessions,
+    users,
+    type RootAdminOutcome
+} from '@ortha-cms/identity-server';
 // HashingService is internal to the identity plugin (not re-exported). We reach
 // for the class to pull the SAME provider instance out of the DI container, so
 // seeded password hashes are produced by the exact code login verifies against
@@ -91,6 +97,51 @@ export async function revokeUserSessions(userId: string): Promise<void> {
 /** Delete a user row (cascades to their sessions via FK). */
 export async function deleteUser(userId: string): Promise<void> {
     await getDatabase().delete(users).where(eq(users.id, userId));
+}
+
+/** A user row joined to its role key — what root-admin assertions read. */
+export interface UserRow {
+    id: string;
+    email: string;
+    status: UserStatus;
+    roleKey: string;
+    passwordHash: string | null;
+}
+
+/** Look up a single user by (case-insensitive) email, with its role key. */
+export async function getUserByEmail(email: string): Promise<UserRow | null> {
+    const [row] = await getDatabase()
+        .select({
+            id: users.id,
+            email: users.email,
+            status: users.status,
+            roleKey: roles.key,
+            passwordHash: users.passwordHash
+        })
+        .from(users)
+        .innerJoin(roles, eq(users.roleId, roles.id))
+        .where(eq(users.email, email.trim().toLowerCase()));
+    return row ?? null;
+}
+
+/** Count user rows — used to assert the bootstrap inserts exactly one. */
+export async function countUsers(): Promise<number> {
+    const rows = await getDatabase().select({ id: users.id }).from(users);
+    return rows.length;
+}
+
+/**
+ * Drive the plugin's real `ensureRootAdmin` against the live test DB, hashing
+ * the password through the app's `HashingService` (so the stored hash is what
+ * login verifies). Lets specs assert the bootstrap's idempotency and
+ * non-destructive behavior without re-importing plugin internals themselves.
+ */
+export async function provisionRootAdmin(
+    app: INestApplication,
+    opts: { email: string; password: string }
+): Promise<RootAdminOutcome> {
+    const passwordHash = await app.get(HashingService).hashPassword(opts.password);
+    return ensureRootAdmin(getDatabase(), { email: opts.email, passwordHash });
 }
 
 /** Count a user's session rows — used to assert a session was created. */

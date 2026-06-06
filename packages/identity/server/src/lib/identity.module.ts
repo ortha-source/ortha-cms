@@ -4,6 +4,7 @@ import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/roles.service';
 import { SystemRolesSeeder } from './rbac/system-roles.seeder';
+import { RootAdminSeeder } from './root-admin/root-admin.seeder';
 import { LoginController } from './auth/login.controller';
 import { MeController } from './auth/me.controller';
 import { LogoutController } from './auth/logout.controller';
@@ -51,6 +52,9 @@ export class IdentityModule {
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
                 SystemRolesSeeder,
+                // Declared after SystemRolesSeeder so the `admin` role is
+                // seeded before this hook ensures the root admin (FR-10).
+                RootAdminSeeder,
                 RolesService,
                 AuthService,
                 SessionService,

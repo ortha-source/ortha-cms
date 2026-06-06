@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_48 test cases across 5 spec files._
+_54 test cases across 6 spec files._
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -118,6 +118,32 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | rejects an expired session |
 | rejects a revoked session |
 | rejects a session whose user was deleted |
+
+<!-- source: apps/server-e2e/src/server/auth/root-admin.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
+
+## Root admin bootstrap (RootAdminSeeder)
+
+### provisioning on boot
+
+| Test case |
+| --- |
+| creates an active admin user with the configured email |
+| lets the provisioned admin log in |
+
+### idempotency & non-destructive behavior
+
+| Test case |
+| --- |
+| returns "created" then "exists" for the same email |
+| inserts no duplicate row on a repeat ensure |
+| matches an existing email case-insensitively (no overwrite) |
+
+### misconfiguration (fail-fast)
+
+| Test case |
+| --- |
+| aborts boot when an email is configured without a password |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
