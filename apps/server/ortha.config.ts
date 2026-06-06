@@ -38,10 +38,6 @@ const config: OrthaConfig = {
     },
     plugins: {
         identity: {
-            // SECURITY: empty default is tolerated only while no signing
-            // exists. #8 sessions are unsigned opaque tokens (DB-validated),
-            // so sessionSecret stays unconsumed; add fail-fast validation when
-            // a secret is first consumed for signing (#10 tokens).
             sessionSecret: process.env['SESSION_SECRET'] ?? '',
             tokenSecret: process.env['TOKEN_SECRET'] ?? '',
             // Origins allowed to call state-changing endpoints (login-CSRF
