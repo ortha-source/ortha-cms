@@ -8,3 +8,5 @@
 /.agents
 skills-lock.json
 **/migrations/meta
+# Generated test catalogs (owned by each e2e project's catalog generator)
+**/TESTS.md
