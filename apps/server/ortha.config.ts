@@ -72,21 +72,10 @@ const config: OrthaConfig = {
                     Number(process.env['LOGIN_RATE_LIMIT_TTL_SECONDS']) || 60,
                 limit: Number(process.env['LOGIN_RATE_LIMIT']) || 10
             },
-            // Root-admin bootstrap (self-hosted Option B). Provisioned only
-            // when ORTHA_ROOT_ADMIN_EMAIL is set; idempotent and
-            // non-destructive thereafter. Prefer ORTHA_ROOT_ADMIN_PASSWORD_HASH
-            // (a bcrypt hash) to keep plaintext out of the environment;
-            // ORTHA_ROOT_ADMIN_PASSWORD is the convenience path.
-            rootAdmin: process.env['ORTHA_ROOT_ADMIN_EMAIL']
-                ? {
-                      email: process.env['ORTHA_ROOT_ADMIN_EMAIL'],
-                      password:
-                          process.env['ORTHA_ROOT_ADMIN_PASSWORD'] || undefined,
-                      passwordHash:
-                          process.env['ORTHA_ROOT_ADMIN_PASSWORD_HASH'] ||
-                          undefined
-                  }
-                : undefined
+            rootAdmin: {
+                email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
+                password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? ''
+            }
         }
     }
 };

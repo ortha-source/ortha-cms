@@ -123,7 +123,9 @@ describe('Root admin bootstrap (RootAdminSeeder)', () => {
             // Reuses this file's live DB pool; the failed app is never returned
             // or closed, so the shared pool stays open for the suite.
             await expect(
-                createTestApp({ rootAdmin: { email: 'no-password@example.com' } })
+                createTestApp({
+                    rootAdmin: { email: 'no-password@example.com', password: '' }
+                })
             ).rejects.toThrow(/password/i);
         });
     });
