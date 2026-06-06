@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_15 test cases across 4 spec files._
+_18 test cases across 5 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -59,6 +59,17 @@ _<sub>apps/admin-e2e/src/auth/login.spec.ts</sub>_
 | --- |
 | disables the submit button while the request is in flight |
 
+<!-- source: apps/admin-e2e/src/auth/private-routes.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
+
+## Private route gating
+
+| Test case |
+| --- |
+| redirects a signed-out user from / to the sign-in page |
+| redirects a signed-out user from an unknown path to the sign-in page |
+| returns to the home page after a gated user signs in |
+
 <!-- source: apps/admin-e2e/src/auth/routing.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
 
@@ -68,4 +79,4 @@ _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
 | --- |
 | /identity redirects to the sign-in page |
 | an unknown path redirects to home |
-| serves the home page at / |
+| serves the home page inside the shell at / |
