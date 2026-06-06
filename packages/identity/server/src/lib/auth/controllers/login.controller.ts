@@ -14,15 +14,18 @@ import { InvalidCredentialsError } from '../errors';
 import { LoginDto } from '../dto/login.dto';
 import { OriginGuard } from '../guards/origin.guard';
 import { CookieService } from '../services/cookie.service';
+import { Public } from '../decorators/public.decorator';
 
 /**
  * `POST /api/auth/login` — validates credentials, persists a session, and sets
  * the `httpOnly` session cookie. On any failure responds with a generic 401
  * and creates no session. Mounted under the host's global `api` prefix.
  *
- * Guarded by a rate limit (brute-force + bcrypt CPU-DoS) and an `Origin` check
- * (login CSRF).
+ * `@Public()` so the app-wide `AuthGuard` lets it through (logging in needs no
+ * session). Still guarded by a rate limit (brute-force + bcrypt CPU-DoS) and an
+ * `Origin` check (login CSRF).
  */
+@Public()
 @UseGuards(ThrottlerGuard, OriginGuard)
 @Controller('auth')
 export class LoginController {

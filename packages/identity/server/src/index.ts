@@ -8,6 +8,11 @@ export type {
 export { IdentityPlugin } from './lib/utils/identity-plugin';
 export type { IdentityServerPlugin } from './lib/utils/identity-plugin';
 export { IdentityModule } from './lib/identity.module';
+export { AuthGuard } from './lib/auth/guards/auth.guard';
+export { Public } from './lib/auth/decorators/public.decorator';
+export { CurrentUser } from './lib/auth/decorators/current-user.decorator';
+export type { AuthenticatedRequest } from './lib/auth/decorators/current-user.decorator';
+export type { PublicUser } from './lib/auth/services/auth.service';
 export { PERMISSION_KEYS, SYSTEM_ROLES } from './lib/rbac/system-roles';
 export type { PermissionKey, SystemRole } from './lib/rbac/system-roles';
 export { seedSystemRoles } from './lib/rbac/seeders/seed-system-roles';

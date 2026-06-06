@@ -19,9 +19,12 @@ delivered as an `httpOnly` cookie (#8); logout revokes the presented session
 admin** on boot from host config (`root-admin/`, FR-10): when `rootAdmin` is
 set, `RootAdminService` (driven by `RootAdminSeeder`) idempotently ensures one
 `active` user holding the `admin` role (non-destructive — an existing email is
-left untouched). Behaviour
-is still partly pending: the auth guard, tokens, user management, and the
-`can()` check land in later tickets (epic #3).
+left untouched). It **enforces authentication app-wide**: an `AuthGuard` is
+registered as the global `APP_GUARD`, so every route requires a valid session
+unless marked `@Public()` (login/logout are); it resolves the session cookie to
+the user, attaches it, and exposes it to handlers via `@CurrentUser()`.
+Behaviour is still partly pending: tokens, user management, and the `can()`
+check land in later tickets (epic #3).
 
 ## Package
 
@@ -43,7 +46,8 @@ is still partly pending: the auth guard, tokens, user management, and the
   — one class per file. Today:
     - `auth/` — `controllers/` (`login`/`logout`/`me`), `services/` (`AuthService`
       / `SessionService` / `HashingService` / `CookieService`), `guards/`
-      (`OriginGuard`), `dto/`, `errors/`.
+      (`OriginGuard`, `AuthGuard`), `decorators/` (`@Public()`, `@CurrentUser()`),
+      `dto/`, `errors/`.
     - `rbac/` — `services/` (`RolesService`), `seeders/` (`SystemRolesSeeder` +
       its `seedSystemRoles` helper), `errors/`, and the `system-roles.ts`
       role/permission matrix at the feature root (non-class data).
