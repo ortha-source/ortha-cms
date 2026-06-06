@@ -24,18 +24,33 @@ contains no features.
 ## Key exports
 
 - `createAdmin(options)` — mounts the React root, wraps it in `BrowserRouter`,
-  and renders plugin-contributed routes plus a catch-all redirect
-- `AdminPlugin` — the plugin contract: `{ name, routes? }`
-- `RouteItem` — a contributed route: `{ path, element }`
-- `CreateAdminOptions` — `{ plugins, rootElement?, locale? }`
+  splits routes into public siblings + a single guarded private group, and
+  renders a catch-all redirect
+- `AdminPlugin` — the plugin contract: `{ name, routes?, provider?, layout? }`
+- `RouteItem` — a contributed route: `{ path, element, public? }`
+- `CreateAdminOptions` — `{ plugins, rootElement?, locale?, signInPath? }`
+- `RequireAuth` — gate component the host mounts as the private group's parent;
+  redirects to `signInPath` while unauthenticated
+- `useAuth` / `AuthProviderContext` — the auth-state slot: a source plugin
+  (identity) publishes `AuthState` via `AuthProviderContext`; the host reads it
+  with `useAuth`. `AuthState` / `AuthUser` are the types
 
 ## Architecture
 
 - **Mount + shell.** `createAdmin` is the single place the SPA is created
   (`createRoot` + `<StrictMode>` + `<QueryClientProvider>` + `<IntlProvider>` +
   `<BrowserRouter>`).
-- **Plugin assembly.** It flattens every plugin's `routes` into one `<Routes>`
-  tree, then adds a `*` catch-all that redirects to `/`.
+- **Plugin assembly.** It flattens every plugin's `routes`, then splits them by
+  the `public` flag: public routes mount as top-level siblings, while every
+  other route mounts under one pathless parent route guarded by `RequireAuth`.
+  That parent renders the authenticated shell — the first plugin-provided
+  `layout`, or a bare `<Outlet/>` — so all private pages share one auth check and
+  one chrome. The `*` catch-all (→ `/`) lives inside the private group.
+- **Auth gating, not auth.** The host owns the public/private *structure* and the
+  `RequireAuth` gate, but not how "current user" is known. A source plugin
+  (identity) supplies that via the `provider` slot, publishing `AuthState`
+  through `AuthProviderContext` — mirroring the server, where `bootstrap-server`
+  is generic and the identity plugin registers the `APP_GUARD`.
 - **Data.** The `QueryClient` and the axios `apiClient` live in
   [`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md), a shared leaf library.
   The host only imports `queryClient` to mount `<QueryClientProvider>`; plugins
@@ -67,7 +82,11 @@ createAdmin({
 
 ## Not owned here (deferred until a plugin needs it)
 
-- Auth guards / current-user gating, nav items, slot system
+- The auth-state *source* (`/api/auth/me`, login/logout) — the host owns the
+  gate (`RequireAuth`) and the `AuthProviderContext` slot; identity fills it
+- The authenticated shell/chrome — contributed via a plugin's `layout`
+  (see `@ortha-cms/shell-admin`); the host only mounts it
+- Nav items, slot system
 - Providers beyond the router, `IntlProvider`, and `QueryClientProvider`
   (e.g. Toaster) — add when a plugin requires them
 - Actual pages — those live in feature plugins

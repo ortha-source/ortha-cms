@@ -4,9 +4,11 @@
     "private": true,
     "dependencies": {
         "@ortha-cms/bootstrap-admin": "*",
-        "@ortha-cms/identity-admin": "*"
+        "@ortha-cms/identity-admin": "*",
+        "@ortha-cms/shell-admin": "*"
     },
     "nx": {
-        "name": "admin"
+        "name": "admin",
+        "projectType": "application"
     }
 }

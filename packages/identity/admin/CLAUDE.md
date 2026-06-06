@@ -2,10 +2,14 @@
 
 The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpart
 to [`@ortha-cms/identity-server`](../server/CLAUDE.md). It contributes the
-identity screens into the admin host. Today it ships the **login UI** at
-`/identity/signin`, wired to `POST /api/auth/login` (via `useLoginMutation`);
-a successful sign-in navigates to `/`. User/role/access screens and the rest of
-auth (current-user gating, logout) land in later tickets (epic #3).
+identity screens into the admin host. It ships the **login UI** at
+`/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`) and
+**provides the host's auth state**: its `AuthProvider` (the plugin's `provider`)
+fetches `GET /api/auth/me` (`useCurrentUser`) and publishes the current user into
+the host's `AuthProviderContext`, so `bootstrap-admin`'s `RequireAuth` can gate
+every private route. A successful sign-in refreshes that state and returns the
+user to where `RequireAuth` sent them (or `/`). User/role/access screens and
+logout land in later tickets (epic #3).
 
 ## Package
 
@@ -46,9 +50,13 @@ auth (current-user gating, logout) land in later tickets (epic #3).
   (the two never share a module — different apps).
 - `IdentityAdminPlugin` — the plugin shape (currently a thin alias of
   `AdminPlugin`)
-- `IdentityRouter` — the plugin's nested router (auth sub-routes)
-- `LoginPage` / `LoginForm` / `AuthLayout` — the login UI pieces
-- `LoginCredentials` / `AuthTokens` — auth wire types
+- `IdentityRouter` — the plugin's nested router (auth sub-routes); lazy-loads
+  `LoginPage` behind a `Suspense` boundary so its chunk loads only at
+  `/identity/signin`
+- `LoginForm` / `AuthLayout` — the login UI pieces. `LoginPage` is **not**
+  re-exported: it is consumed only via the router's dynamic `import()`, and a
+  static re-export would defeat the code split
+- `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture
 
@@ -94,8 +102,9 @@ createAdmin({
 
 ## Not owned here (deferred)
 
-- Current-user gating (`/api/auth/me`), logout, and route guards — login itself
-  is wired; the rest of auth state lands with the host's slot system / epic #3
+- The route *gate* itself — `RequireAuth` and the public/private split live in
+  `bootstrap-admin`; this plugin only feeds it the current user via `provider`
+- Logout — the `/api/auth/logout` call + invalidating `currentUserKey`; epic #3
 - User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system
 

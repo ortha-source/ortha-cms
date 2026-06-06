@@ -9,6 +9,21 @@ export type LoginCredentials = {
 };
 
 /**
+ * The authenticated user as returned by `GET /api/auth/me`. Mirrors the
+ * server's `PublicUser` projection.
+ */
+export type CurrentUser = {
+    /** Stable user id. */
+    id: string;
+    /** User email address. */
+    email: string;
+    /** Id of the user's role. */
+    roleId: string;
+    /** Account status (e.g. `active`). */
+    status: string;
+};
+
+/**
  * Token pair returned from a successful login.
  */
 export type AuthTokens = {
