@@ -9,11 +9,11 @@ import {
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { InvalidCredentialsError } from './errors';
-import { LoginDto } from './dto/login.dto';
-import { OriginGuard } from './origin.guard';
-import { CookieService } from './cookie.service';
+import { AuthService } from '../services/auth.service';
+import { InvalidCredentialsError } from '../errors';
+import { LoginDto } from '../dto/login.dto';
+import { OriginGuard } from '../guards/origin.guard';
+import { CookieService } from '../services/cookie.service';
 
 /**
  * `POST /api/auth/login` — validates credentials, persists a session, and sets

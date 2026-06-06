@@ -1,6 +1,6 @@
 ---
 name: server-plugin
-description: Authoring or modifying an Ortha CMS NestJS server plugin (packages/<group>/server, e.g. identity-server). Covers the ServerPlugin factory + dynamic-module pattern, feature-folder layout, @InjectDatabase DI, config injection, Drizzle schema + migrations descriptor, and lifecycle hooks. Use when creating a new server plugin, or adding controllers/services/schema/DTOs to an existing one.
+description: Authoring or modifying an Ortha CMS NestJS server plugin (packages/<group>/server, e.g. identity-server). Covers the ServerPlugin factory + dynamic-module pattern, feature-then-kind folder layout, @InjectDatabase DI, config injection, Drizzle schema + migrations descriptor, and lifecycle hooks. Use when creating a new server plugin, or adding controllers/services/schema/DTOs to an existing one.
 user-invocable: false
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *), Bash(npm install), Bash(git mv *)
 ---
@@ -34,7 +34,7 @@ features to the NestJS API. It is **not an app**: it exports a factory the host
 
 1. **A plugin is a `ServerPlugin` factory**, not a module you import directly.
 2. **One global dynamic module per plugin** (`XModule.forRoot(config)`).
-3. **Group code by feature, never by layer.**
+3. **Group code by feature, then by kind within each feature.**
 4. **The DB client is injected from `@ortha-cms/database`** — a plugin never
    opens a connection or registers a db provider.
 5. **Config is injected, never read from `process.env`.** Only
@@ -42,10 +42,11 @@ features to the NestJS API. It is **not an app**: it exports a factory the host
 
 ---
 
-## Folder layout — group by feature, not by layer
+## Folder layout — group by feature, then by kind
 
-Each domain owns **one folder** under `src/lib/` holding its controllers,
-services, DTOs, errors, **and feature-specific helpers** together:
+Each domain owns **one folder** under `src/lib/`; **inside** it, files are
+bucketed by kind — `controllers/`, `services/`, `guards/`, `seeders/`, `dto/`,
+`errors/` — one class per file:
 
 ```
 packages/<group>/server/
@@ -54,17 +55,24 @@ packages/<group>/server/
     lib/
       <plugin>.module.ts           # the one dynamic module
       <plugin>.tokens.ts           # DI tokens (dependency-free)
-      widgets/                     # ← a FEATURE folder (flat)
-        create-widget.controller.ts
-        list-widgets.controller.ts
-        widget.service.ts
-        widget.helper.ts           # feature-specific helper lives HERE
-        errors/                    # one error class per file
-          widget-not-found.error.ts
+      widgets/                     # ← a FEATURE folder, grouped by kind inside
+        controllers/
+          create-widget.controller.ts
+          list-widgets.controller.ts
+        services/
+          widget.service.ts
+        guards/
+          widget-owner.guard.ts
+        seeders/                   # OnApplicationBootstrap providers (+ their helpers)
+          widget-defaults.seeder.ts
         dto/
           create-widget.dto.ts
+        errors/                    # one error class per file, fronted by index.ts
+          widget-not-found.error.ts
+        widget.constants.ts        # non-class feature DATA stays at feature root
       reports/                     # ← another feature folder
-        report.service.ts
+        services/
+          report.service.ts
         report.constants.ts
       schema/                      # Drizzle tables + barrel
       types/                       # shared, public type contracts
@@ -77,32 +85,22 @@ packages/<group>/server/
   CLAUDE.md
 ```
 
-**Do NOT** create `controllers/`, `services/`, `errors/` folders. Layer-folders
-scatter one logical change across four directories and bloat monotonically as
-domains multiply — feature-folders add a sibling and leave the rest untouched.
-`src/lib/utils/` is for **package-level** functions only (the plugin factory);
-a helper used by exactly one feature lives **in that feature's folder**.
+**Feature first, kind second.** A logical change still stays inside one feature
+folder; the kind-subfolders keep that folder navigable as it grows ("all
+services" = `widgets/services/`). Each typed building block gets a folder —
+`controllers/`, `services/`, `guards/`, `seeders/`, plus the standing
+`dto/` and `errors/` (the latter fronted by an `index.ts` barrel). Use a folder
+even at one file, for consistency across features.
 
-### Stay flat _inside_ a feature too
+**What stays at the feature root.** Non-class feature **data** — constants, a
+role/permission matrix, a pure helper used only by that feature — lives directly
+in the feature folder (`widgets/widget.constants.ts`), not in a kind-subfolder.
+Kind-folders are for the typed components (controllers/services/guards/seeders),
+not for every file.
 
-Keep a feature's files **flat** in its folder — `widgets/widget.service.ts`,
-`widgets/widget.helper.ts` — not re-bucketed into nested `widgets/controllers/`,
-`widgets/services/`, `widgets/utils/`. The `*.controller.ts` / `*.service.ts`
-**suffix already encodes the type**, so nested type-folders just triple the
-redundancy (`widgets/controllers/create-widget.controller.ts`) and re-create the
-layer-grouping cost one level down. Need "all services"? `widgets/*.service.ts`.
-
-- **Promotion threshold:** only add a subfolder when a _single type_ in a
-  _single feature_ exceeds ~5–7 files — and even then, first ask whether the
-  feature should **split** into smaller feature folders, each flat. A feature
-  that large is usually several features in a trenchcoat; splitting restores
-  cohesion, type-subfoldering just shelves by kind.
-- **Two standing exceptions: `dto/` and `errors/`.** Both hold a uniform,
-  logic-free kind that multiplies (a request/response DTO per endpoint; an error
-  class per failure mode), so they earn a folder before services/controllers
-  would. Keep `<feature>/dto/` and `<feature>/errors/` (one class per file, e.g.
-  `errors/widget-not-found.error.ts`, fronted by an `index.ts` barrel) even at
-  one file.
+**Package-level vs feature.** `src/lib/utils/` is for **package-level**
+cross-cutting only (the plugin factory); the module + tokens sit at `src/lib/`
+root; `schema/` and `types/` are package-level folders.
 
 ---
 

@@ -2,14 +2,14 @@ import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { users } from '../schema';
+import { users } from '../../schema';
 import { HashingService } from './hashing.service';
 import {
     SessionService,
     type CreatedSession,
     type SessionContext
 } from './session.service';
-import { InvalidCredentialsError } from './errors';
+import { InvalidCredentialsError } from '../errors';
 
 /**
  * The current user as exposed by `GET /auth/me`. Derived from the schema row so

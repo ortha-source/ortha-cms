@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { roles } from '../schema';
-import { RoleNotFoundError, SystemRoleProtectedError } from './errors';
+import { roles } from '../../schema';
+import { RoleNotFoundError, SystemRoleProtectedError } from '../errors';
 
 /** Role operations for the identity plugin. Enforces system-role protection. */
 @Injectable()

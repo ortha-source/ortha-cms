@@ -1,7 +1,7 @@
 import { inArray } from 'drizzle-orm';
 import type { Database } from '@ortha-cms/database';
-import { permissions, rolePermissions, roles } from '../schema';
-import { PERMISSION_KEYS, SYSTEM_ROLES } from './system-roles';
+import { permissions, rolePermissions, roles } from '../../schema';
+import { PERMISSION_KEYS, SYSTEM_ROLES } from '../system-roles';
 
 /**
  * Idempotently seeds the permission catalogue, the three system roles, and
