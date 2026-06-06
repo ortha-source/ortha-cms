@@ -1,28 +1,17 @@
-import { Controller, Get, Req, UnauthorizedException } from '@nestjs/common';
-import type { Request } from 'express';
-import { AuthService, type PublicUser } from '../services/auth.service';
-import { CookieService } from '../services/cookie.service';
+import { Controller, Get } from '@nestjs/common';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import type { PublicUser } from '../services/auth.service';
 
 /**
- * `GET /api/auth/me` — returns the current user resolved from the session
- * cookie, or a generic 401 when there is no valid session. Useful for the
- * admin app to decide auth state on load.
+ * `GET /api/auth/me` — returns the current user. Authentication is handled by
+ * the app-wide {@link AuthGuard}: it resolves the session cookie, 401s when
+ * there is no valid session, and attaches the user, which `@CurrentUser()`
+ * reads here. Used by the admin app to decide auth state on load.
  */
 @Controller('auth')
 export class MeController {
-    constructor(
-        private readonly auth: AuthService,
-        private readonly cookies: CookieService
-    ) {}
-
     @Get('me')
-    async me(@Req() req: Request): Promise<PublicUser> {
-        const sessionId = this.cookies.readSession(req);
-        const user = sessionId ? await this.auth.currentUser(sessionId) : null;
-
-        if (!user) {
-            throw new UnauthorizedException();
-        }
+    me(@CurrentUser() user: PublicUser): PublicUser {
         return user;
     }
 }

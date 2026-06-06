@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
@@ -14,6 +15,7 @@ import { SessionService } from './auth/services/session.service';
 import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
 import { OriginGuard } from './auth/guards/origin.guard';
+import { AuthGuard } from './auth/guards/auth.guard';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -63,7 +65,12 @@ export class IdentityModule {
                 SessionService,
                 HashingService,
                 CookieService,
-                OriginGuard
+                OriginGuard,
+                // App-wide guard: every route requires a valid session unless
+                // marked `@Public()`. Resolves the user and attaches it for
+                // `@CurrentUser()`. APP_GUARD providers are collected globally,
+                // even from this dynamic module.
+                { provide: APP_GUARD, useClass: AuthGuard }
             ],
             exports: [IDENTITY_CONFIG, RolesService, AuthService]
         };
