@@ -69,12 +69,10 @@ WCAG issues — they guard against regressions, they don't prove conformance.
 ## Color & contrast
 
 - Normal text needs **4.5:1**, large text **3:1**, UI/graphics **3:1**.
-- **KNOWN DEBT:** the `muted-foreground` token currently **fails AA** for small
-  text (surfaced by axe on the "Forgot password"/"Sign up" links and legal
-  footer). `color-contrast` is therefore disabled in the admin-e2e `makeAxe`
-  fixture, centrally and loudly, pending a deliberate design-system contrast pass.
-  When adjusting theme tokens in `apps/admin/src/styles.css`, fix this and
-  re-enable the rule.
+- Theme tokens live in `apps/admin/src/styles.css`. `muted-foreground` was
+  darkened (from shadcn's `oklch(0.556…)` to `0.5`) to clear AA for small muted
+  text — the admin-e2e axe scan enforces `color-contrast`, so a regression here
+  fails CI. Keep any new token meeting the ratios above.
 - Never use color **alone** to convey meaning (pair with text/icon).
 
 ## Other

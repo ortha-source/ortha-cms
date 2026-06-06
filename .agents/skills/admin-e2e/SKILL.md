@@ -115,12 +115,10 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
 
 ## Accessibility & keyboard (see also the `accessibility` skill)
 
-- `makeAxe()` returns an axe scanner tagged WCAG 2.1 A/AA. Scan **states**, not
-  just the initial render (errors shown, banner shown, dialog open).
-- **`color-contrast` is currently disabled in `makeAxe`** — a loudly-commented,
-  centralized known-debt exception (the `muted-foreground` token fails AA;
-  tracked for a design-system contrast pass). Every other rule is enforced. Do
-  not add more rule exclusions silently — if you must, comment why + link a TODO.
+- `makeAxe()` returns an axe scanner tagged WCAG 2.1 A/AA, running the **full**
+  ruleset (no exclusions). Scan **states**, not just the initial render (errors
+  shown, banner shown, dialog open). If you ever need to exclude a rule, do it in
+  one place with a comment + a tracked TODO — never silently.
 - Keyboard specs cover what axe can't: first-focus, tab reachability, Enter-submits.
   Don't assert the exact tab order through **placeholder** controls (they change);
   assert the properties that matter.
@@ -140,8 +138,14 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
 
 ## After writing
 
+Regenerate the catalog when you add/rename/remove a suite or case:
+
 ```bash
 npx nx e2e admin-e2e -- --project=chromium   # faster locally; CI runs all 3
 npx nx run-many -t typecheck lint -p admin-e2e
+npx nx catalog admin-e2e                      # regenerate TESTS.md, then commit
 npx nx format:write
 ```
+
+`TESTS.md` is generated from the spec AST (`tools/generate-test-catalog.mjs`);
+`npx nx catalog:check admin-e2e` fails on drift. Don't hand-edit it.

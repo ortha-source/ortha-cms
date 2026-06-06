@@ -27,16 +27,12 @@ export const test = base.extend<Fixtures>({
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>
-            new AxeBuilder({ page })
-                .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-                // KNOWN DEBT — not a silent skip. The scan surfaced a real
-                // serious `color-contrast` failure on muted text (the
-                // "Forgot password" / "Sign up" links and the legal footer);
-                // it's systemic to the `muted-foreground` design token, so the
-                // fix is a deliberate design-system contrast pass, not this
-                // e2e PR. Disabled repo-wide here (one place, visible) until
-                // that lands; re-enable then. TODO(a11y): contrast token pass.
-                .disableRules(['color-contrast'])
+            new AxeBuilder({ page }).withTags([
+                'wcag2a',
+                'wcag2aa',
+                'wcag21a',
+                'wcag21aa'
+            ])
         );
     }
 });

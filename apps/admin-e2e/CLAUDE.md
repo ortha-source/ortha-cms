@@ -33,11 +33,19 @@ states.
 - Target: **WCAG 2.1 A/AA**, best-practice (not a formal 508/VPAT obligation).
   Automated scans are a regression guard — they catch a fraction of WCAG issues,
   never prove conformance; manual keyboard/screen-reader passes stay a human task.
-- **Known debt:** `color-contrast` is disabled in `makeAxe` (one place, loudly
-  commented). The scan found a real serious failure on muted text (the
-  "Forgot password" / "Sign up" links, legal footer) rooted in the
-  `muted-foreground` design token — fixing it is a deliberate design-system
-  contrast pass, tracked separately. Re-enable the rule once that lands.
+- `makeAxe` runs the **full** WCAG 2.1 A/AA ruleset (no rule exclusions). The
+  scan originally caught a real `color-contrast` failure on muted text; the
+  `muted-foreground` token was darkened to clear AA (`apps/admin/src/styles.css`)
+  and the rule stays on to guard against regressions. If you must ever exclude a
+  rule, do it in one place with a comment + a tracked TODO — never silently.
+
+## Test catalog
+
+[`TESTS.md`](./TESTS.md) is a **generated** index of every `test.describe`/`test`
+case, built by parsing the spec AST (`tools/generate-test-catalog.mjs`) — it
+never runs Playwright, so it needs no browser. **Don't edit it by hand.** After
+adding, renaming, or removing a test, run `npx nx catalog admin-e2e` and commit
+the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
 
 ## Conventions
 
@@ -69,3 +77,5 @@ states.
 - `npx nx e2e admin-e2e` — run the suites (starts the dev server automatically).
 - `npx nx e2e admin-e2e -- --project=chromium` — single browser, faster locally.
 - `npx nx lint admin-e2e` / `npx nx typecheck admin-e2e`.
+- `npx nx catalog admin-e2e` — regenerate `TESTS.md` from the specs.
+- `npx nx catalog:check admin-e2e` — fail if `TESTS.md` is stale.
