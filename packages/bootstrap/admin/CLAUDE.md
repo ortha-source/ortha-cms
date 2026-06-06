@@ -30,10 +30,10 @@ contains no features.
 - `RouteItem` — a contributed route: `{ path, element, public? }`
 - `CreateAdminOptions` — `{ plugins, rootElement?, locale?, signInPath? }`
 - `RequireAuth` — gate component the host mounts as the private group's parent;
-  redirects to `signInPath` while unauthenticated
-- `useAuth` / `AuthProviderContext` — the auth-state slot: a source plugin
-  (identity) publishes `AuthState` via `AuthProviderContext`; the host reads it
-  with `useAuth`. `AuthState` / `AuthUser` are the types
+  redirects to `signInPath` while unauthenticated. It reads the auth state via
+  `useAuth` from [`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md), which
+  owns the shared auth-state contract (`AuthState`, `useAuth`,
+  `AuthProviderContext`) — the host does **not** re-export it
 
 ## Architecture
 
@@ -50,7 +50,10 @@ contains no features.
   `RequireAuth` gate, but not how "current user" is known. A source plugin
   (identity) supplies that via the `provider` slot, publishing `AuthState`
   through `AuthProviderContext` — mirroring the server, where `bootstrap-server`
-  is generic and the identity plugin registers the `APP_GUARD`.
+  is generic and the identity plugin registers the `APP_GUARD`. The
+  `AuthState`/`AuthProviderContext`/`useAuth` contract itself lives in the shared
+  leaf `utils-admin`, so the producer (identity) and consumer (this gate) both
+  depend *down* on it — neither imports a runtime value from the other.
 - **Data.** The `QueryClient` and the axios `apiClient` live in
   [`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md), a shared leaf library.
   The host only imports `queryClient` to mount `<QueryClientProvider>`; plugins

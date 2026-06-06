@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './auth-context';
+import { useAuth } from '@ortha-cms/utils-admin';
 
 /** Props for {@link RequireAuth}. */
 type RequireAuthProps = {

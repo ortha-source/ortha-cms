@@ -4,10 +4,13 @@ The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpar
 to [`@ortha-cms/identity-server`](../server/CLAUDE.md). It contributes the
 identity screens into the admin host. It ships the **login UI** at
 `/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`) and
-**provides the host's auth state**: its `AuthProvider` (the plugin's `provider`)
+**provides the app's auth state**: its `AuthProvider` (the plugin's `provider`)
 fetches `GET /api/auth/me` (`useCurrentUser`) and publishes the current user into
-the host's `AuthProviderContext`, so `bootstrap-admin`'s `RequireAuth` can gate
-every private route. A successful sign-in refreshes that state and returns the
+the shared `AuthProviderContext` (owned by
+[`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md), not the host), so
+`bootstrap-admin`'s `RequireAuth` can gate every private route. Identity imports
+the contract from the shared leaf — its only remaining `bootstrap-admin`
+reference is the `AdminPlugin` type. A successful sign-in refreshes that state and returns the
 user to where `RequireAuth` sent them (or `/`). User/role/access screens and
 logout land in later tickets (epic #3).
 

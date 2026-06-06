@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AuthProviderContext, type AuthState } from '@ortha-cms/bootstrap-admin';
+import { AuthProviderContext, type AuthState } from '@ortha-cms/utils-admin';
 import { useCurrentUser } from '../../api/useCurrentUser';
 
 /**
