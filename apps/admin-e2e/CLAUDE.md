@@ -22,6 +22,22 @@ states.
 3. **`support/api/*`** are the "seed" layer — they stub `/api/**` responses
    (`mockLogin`, `spyLogin`). Routes are per-`page`, so they reset between tests
    with the browser context (the FE analog of `resetDb()`).
+4. **Accessibility.** `fixtures.ts` also provides `makeAxe` — an
+   `@axe-core/playwright` scanner pre-tagged for WCAG 2.1 A/AA. `support/a11y.ts`
+   (`expectNoA11yViolations`) asserts a clean scan with a readable failure
+   summary. `src/auth/a11y.spec.ts` scans pages **and dynamic states** (errors,
+   banner); `keyboard.spec.ts` covers keyboard operability axe can't.
+
+## Accessibility (a11y)
+
+- Target: **WCAG 2.1 A/AA**, best-practice (not a formal 508/VPAT obligation).
+  Automated scans are a regression guard — they catch a fraction of WCAG issues,
+  never prove conformance; manual keyboard/screen-reader passes stay a human task.
+- **Known debt:** `color-contrast` is disabled in `makeAxe` (one place, loudly
+  commented). The scan found a real serious failure on muted text (the
+  "Forgot password" / "Sign up" links, legal footer) rooted in the
+  `muted-foreground` design token — fixing it is a deliberate design-system
+  contrast pass, tracked separately. Re-enable the rule once that lands.
 
 ## Conventions
 
