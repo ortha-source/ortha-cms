@@ -1,7 +1,7 @@
 import { Controller, Get, Req, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthService, type PublicUser } from './auth.service';
-import { CookieService } from './cookie.service';
+import { AuthService, type PublicUser } from '../services/auth.service';
+import { CookieService } from '../services/cookie.service';
 
 /**
  * `GET /api/auth/me` — returns the current user resolved from the session

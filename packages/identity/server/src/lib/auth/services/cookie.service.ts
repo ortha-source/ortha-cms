@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { IdentityPluginConfig } from '../types';
-import { InjectIdentityConfig } from '../identity.tokens';
+import type { IdentityPluginConfig } from '../../types';
+import { InjectIdentityConfig } from '../../identity.tokens';
 
 /** Name of the opaque session cookie. */
 const SESSION_COOKIE = 'ortha_session';

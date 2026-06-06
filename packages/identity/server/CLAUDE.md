@@ -17,8 +17,9 @@ verifies credentials with bcrypt and opens a DB-backed, revocable session
 delivered as an `httpOnly` cookie (#8); logout revokes the presented session
 (per-device, idempotent) and clears the cookie. It also **provisions the root
 admin** on boot from host config (`root-admin/`, FR-10): when `rootAdmin` is
-set, `RootAdminSeeder` idempotently ensures one `active` user holding the
-`admin` role (non-destructive — an existing email is left untouched). Behaviour
+set, `RootAdminService` (driven by `RootAdminSeeder`) idempotently ensures one
+`active` user holding the `admin` role (non-destructive — an existing email is
+left untouched). Behaviour
 is still partly pending: the auth guard, tokens, user management, and the
 `can()` check land in later tickets (epic #3).
 
@@ -36,17 +37,23 @@ is still partly pending: the auth guard, tokens, user management, and the
   type (e.g. a `Pick<typeof users.$inferSelect, …>`), which is a `type`
 - All exported symbols have JSDoc comments
 - No `.js` extensions in TypeScript imports
-- **Group by feature, not by layer.** Each domain owns one folder under
-  `src/lib/` holding its controllers, services, and helpers, plus `dto/` and
-  `errors/` (the two uniform-kind subfolders) — `rbac/` (system-roles constant,
-  seeder, `RolesService`, `errors/`) and `auth/` (login/me controllers,
-  `AuthService` / `SessionService` / `HashingService` / `CookieService`,
-  `errors/`, `dto/`). Do **not** split into `controllers/`/`services/` by type —
-  that scatters one change across folders and ages badly as domains multiply.
-  `src/lib/utils/` is for **package-level** cross-cutting functions only (e.g.
-  the plugin factory), never feature helpers; the NestJS module sits in
-  `src/lib/`; shared types in `src/lib/types/`. Full rationale + the
-  flat-within-feature rule live in the `server-plugin` skill.
+- **Group by feature, then by kind within the feature.** Each domain owns one
+  folder under `src/lib/`; inside it, files are bucketed by kind into
+  `controllers/`, `services/`, `guards/`, `seeders/`, plus `dto/` and `errors/`
+  — one class per file. Today:
+    - `auth/` — `controllers/` (`login`/`logout`/`me`), `services/` (`AuthService`
+      / `SessionService` / `HashingService` / `CookieService`), `guards/`
+      (`OriginGuard`), `dto/`, `errors/`.
+    - `rbac/` — `services/` (`RolesService`), `seeders/` (`SystemRolesSeeder` +
+      its `seedSystemRoles` helper), `errors/`, and the `system-roles.ts`
+      role/permission matrix at the feature root (non-class data).
+    - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
+      (`RootAdminSeeder`), `errors/`.
+  Non-class feature **data** (e.g. the role matrix) stays at the feature root,
+  not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
+  only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;
+  shared types in `src/lib/types/`. Full rationale lives in the `server-plugin`
+  skill.
 - Always import types with the `type` keyword
 - `experimentalDecorators` and `emitDecoratorMetadata` are enabled
 
@@ -63,9 +70,10 @@ is still partly pending: the auth guard, tokens, user management, and the
   source `seedSystemRoles`, `can()`, and tests all read from
 - `seedSystemRoles(db)` — idempotent seeder, invoked by `SystemRolesSeeder`
 - `RolesService` — role operations; rejects deletion of `isSystem` roles
-- `ensureRootAdmin(db, { email, passwordHash })` — idempotent, non-destructive
-  root-admin bootstrap (FR-10), invoked by `RootAdminSeeder`; returns
-  `'created' | 'exists'`. `IdentityRootAdminConfig` is its host-config contract.
+- `RootAdminService` — idempotent, non-destructive root-admin bootstrap (FR-10):
+  `ensure(email, password)` returns `'created' | 'exists'`; `bootstrapFromConfig()`
+  reads `config.rootAdmin` and is invoked by `RootAdminSeeder` on boot.
+  `IdentityRootAdminConfig` is its host-config contract.
 
 ## Architecture
 
@@ -146,10 +154,9 @@ proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
   (#11).
-- **CLI** — root-admin bootstrap is env/config-driven (`ensureRootAdmin` is a
-  plain DB function with no argv, prompts, or console output, run by
-  `RootAdminSeeder` on boot). An interactive CLI / break-glass command is not
-  provided here.
+- **CLI** — root-admin bootstrap is env/config-driven (`RootAdminService.ensure`
+  takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
+  interactive CLI / break-glass command is not provided here.
 
 ## Configuration
 

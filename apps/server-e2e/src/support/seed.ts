@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
-    ensureRootAdmin,
+    RootAdminService,
     roles,
     sessions,
     users,
@@ -12,7 +12,7 @@ import {
 // for the class to pull the SAME provider instance out of the DI container, so
 // seeded password hashes are produced by the exact code login verifies against
 // — no re-implemented bcrypt to drift.
-import { HashingService } from '../../../../packages/identity/server/src/lib/auth/hashing.service';
+import { HashingService } from '../../../../packages/identity/server/src/lib/auth/services/hashing.service';
 
 /** A system role key seeded by `SystemRolesSeeder` at app boot. */
 export type SystemRoleKey = 'admin' | 'contributor' | 'viewer';
@@ -131,17 +131,16 @@ export async function countUsers(): Promise<number> {
 }
 
 /**
- * Drive the plugin's real `ensureRootAdmin` against the live test DB, hashing
- * the password through the app's `HashingService` (so the stored hash is what
- * login verifies). Lets specs assert the bootstrap's idempotency and
- * non-destructive behavior without re-importing plugin internals themselves.
+ * Drive the plugin's real `RootAdminService.ensure` (pulled from DI) against
+ * the live test DB — it hashes through the app's `HashingService`, so the
+ * stored hash is what login verifies. Lets specs assert the bootstrap's
+ * idempotency and non-destructive behavior without re-importing internals.
  */
 export async function provisionRootAdmin(
     app: INestApplication,
     opts: { email: string; password: string }
 ): Promise<RootAdminOutcome> {
-    const passwordHash = await app.get(HashingService).hashPassword(opts.password);
-    return ensureRootAdmin(getDatabase(), { email: opts.email, passwordHash });
+    return app.get(RootAdminService).ensure(opts.email, opts.password);
 }
 
 /** Count a user's session rows — used to assert a session was created. */

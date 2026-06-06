@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import type { IdentityPluginConfig } from '../types';
-import { InjectIdentityConfig } from '../identity.tokens';
-import { sessions } from '../schema';
+import type { IdentityPluginConfig } from '../../types';
+import { InjectIdentityConfig } from '../../identity.tokens';
+import { sessions } from '../../schema';
 import { HashingService } from './hashing.service';
 
 /** Refresh `lastUsedAt` at most this often, so a read path isn't a write per hit. */

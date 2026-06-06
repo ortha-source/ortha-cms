@@ -5,8 +5,8 @@ import {
     Injectable
 } from '@nestjs/common';
 import type { Request } from 'express';
-import type { IdentityPluginConfig } from '../types';
-import { InjectIdentityConfig } from '../identity.tokens';
+import type { IdentityPluginConfig } from '../../types';
+import { InjectIdentityConfig } from '../../identity.tokens';
 
 /**
  * Rejects a state-changing request whose browser-set `Origin` is not an

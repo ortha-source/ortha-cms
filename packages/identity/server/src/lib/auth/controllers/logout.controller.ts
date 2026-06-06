@@ -1,8 +1,8 @@
 import { Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { CookieService } from './cookie.service';
-import { OriginGuard } from './origin.guard';
+import { AuthService } from '../services/auth.service';
+import { CookieService } from '../services/cookie.service';
+import { OriginGuard } from '../guards/origin.guard';
 
 /**
  * `POST /api/auth/logout` — revokes the caller's session (if any) and clears
