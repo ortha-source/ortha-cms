@@ -4,15 +4,15 @@ The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpar
 to [`@ortha-cms/identity-server`](../server/CLAUDE.md). It contributes the
 identity screens into the admin host. It ships the **login UI** at
 `/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`) and
-**provides the app's auth state**: its `AuthProvider` (the plugin's `provider`)
-fetches `GET /api/auth/me` (`useCurrentUser`) and publishes the current user into
-the shared `AuthProviderContext` (owned by
-[`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md), not the host), so
-`bootstrap-admin`'s `RequireAuth` can gate every private route. Identity imports
-the contract from the shared leaf — its only remaining `bootstrap-admin`
-reference is the `AdminPlugin` type. A successful sign-in refreshes that state and returns the
-user to where `RequireAuth` sent them (or `/`). User/role/access screens and
-logout land in later tickets (epic #3).
+**owns the entire admin auth kit**: the auth context (`AuthState`, `useAuth`,
+`AuthProviderContext`), the `AuthProvider` that fetches `GET /api/auth/me`
+(`useCurrentUser`) and publishes the current user, and the `RequireAuth` route
+gate. None of these are contributed to the host via a slot — the host is
+auth-agnostic; the **shell** (`@ortha-cms/shell-admin`) imports `AuthProvider` +
+`RequireAuth` and composes them into its `layout`. A successful sign-in refreshes
+that state and returns the user to where `RequireAuth` sent them (or `/`). The
+plugin's only `bootstrap-admin` reference is the `AdminPlugin` *type*.
+User/role/access screens and logout land in later tickets (epic #3).
 
 ## Package
 
@@ -59,6 +59,14 @@ logout land in later tickets (epic #3).
 - `LoginForm` / `AuthLayout` — the login UI pieces. `LoginPage` is **not**
   re-exported: it is consumed only via the router's dynamic `import()`, and a
   static re-export would defeat the code split
+- `AuthProvider` — fetches `/api/auth/me` and publishes auth state; the shell
+  wraps it around `RequireAuth` in its `layout`
+- `RequireAuth` — the route gate; redirects to `/identity/signin` while
+  unauthenticated, preserving the attempted location for return-to. Reusable by
+  any plugin that needs to gate its own sub-routes (imported from here, not the
+  host)
+- `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the
+  types
 - `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture
@@ -105,8 +113,9 @@ createAdmin({
 
 ## Not owned here (deferred)
 
-- The route *gate* itself — `RequireAuth` and the public/private split live in
-  `bootstrap-admin`; this plugin only feeds it the current user via `provider`
+- Mounting the gate — `RequireAuth` lives here, but it is the **shell** that
+  composes it (with `AuthProvider`) into the `layout`; the public/private route
+  split is the host's
 - Logout — the `/api/auth/logout` call + invalidating `currentUserKey`; epic #3
 - User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system

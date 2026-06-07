@@ -1,10 +1,9 @@
 # @ortha-cms/utils-admin
 
-Shared **admin frontend library** — the cross-plugin data/HTTP layer plus the
-shared auth-state contract. Not a plugin (it contributes no routes or module)
-and not the host: it's a small leaf package that both the host and feature
-plugins import, so shared singletons (HTTP client, query client, auth context)
-live in one place instead of inside `bootstrap-admin`.
+Shared **admin frontend library** — the cross-plugin data/HTTP layer. Not a
+plugin (it contributes no routes or module) and not the host: it's a small leaf
+package that both the host and feature plugins import, so shared client
+singletons live in one place instead of inside `bootstrap-admin`.
 
 ## Package
 
@@ -29,20 +28,16 @@ live in one place instead of inside `bootstrap-admin`.
 - `HTTP_STATUS` — named status codes (`UNAUTHORIZED`, `FORBIDDEN`,
   `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
   bare `401`.
-- `AuthProviderContext` / `useAuth` / `AuthState` / `AuthUser` — the shared
-  auth-state contract. A **source** plugin (identity's `AuthProvider`) computes
-  the current user and publishes an `AuthState` via `AuthProviderContext`; the
-  **consumer** (`bootstrap-admin`'s `RequireAuth`) reads it with `useAuth`.
-  Living here — not in the host — means the producing plugin and the host gate
-  both depend *down* on the contract, never on each other (the same reason
-  `apiClient` lives here). The slot only carries state; route gating itself stays
-  in the host.
+
+> Auth state is **not** here — context, gate, and `/auth/me` all live in
+> `@ortha-cms/identity-admin`. This package stays a pure HTTP/data leaf (no
+> `react` dependency).
 
 ## Layout
 
 - One concern per folder, each an `index.ts`: `src/lib/apiClient/`,
-  `src/lib/queryClient/`, `src/lib/apiError/`, `src/lib/httpStatus/`,
-  `src/lib/auth/`. The package surface is `src/index.ts`.
+  `src/lib/queryClient/`, `src/lib/apiError/`, `src/lib/httpStatus/`. The package
+  surface is `src/index.ts`.
 
 ## Architecture
 

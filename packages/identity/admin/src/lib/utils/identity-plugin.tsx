@@ -1,6 +1,5 @@
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { IdentityRouter } from '../router';
-import { AuthProvider } from '../auth/AuthProvider';
 
 /**
  * Admin-side identity plugin shape. Mirrors `IdentityServerPlugin`; carries no
@@ -10,15 +9,15 @@ import { AuthProvider } from '../auth/AuthProvider';
 export type IdentityAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side identity plugin. It does two things:
+ * Creates the admin-side identity plugin. It mounts the auth screens: a single
+ * wildcard route `/identity/*` whose nested router owns the sub-paths; today it
+ * serves the login UI at `/identity/signin`. The route is `public` — sign-in
+ * must be reachable while logged out, so it sits outside the authenticated
+ * shell.
  *
- * - **Provides auth state.** Its `provider` ({@link AuthProvider}) fetches
- *   `GET /api/auth/me` and publishes the current user into the host's auth
- *   context, so the host can gate every private route.
- * - **Mounts the auth screens.** A single wildcard route `/identity/*` whose
- *   nested router owns the sub-paths; today it serves the login UI at
- *   `/identity/signin`. The route is `public` — sign-in must be reachable while
- *   logged out, so it sits outside the authenticated shell.
+ * Auth *state* and the route *gate* also live in this plugin
+ * ({@link AuthProvider}, {@link RequireAuth}), but they are not contributed via
+ * a slot — the shell imports and composes them into its `layout`.
  *
  * @example
  * ```typescript
@@ -32,7 +31,6 @@ export type IdentityAdminPlugin = AdminPlugin;
 export function IdentityPlugin(): IdentityAdminPlugin {
     return {
         name: 'identity',
-        provider: AuthProvider,
         routes: [
             { path: '/identity/*', element: <IdentityRouter />, public: true }
         ]

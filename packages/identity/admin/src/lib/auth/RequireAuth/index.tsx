@@ -1,26 +1,33 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@ortha-cms/utils-admin';
+import { useAuth } from '../authContext';
+
+/** Where the gate sends unauthenticated users; identity owns its sign-in path. */
+const DEFAULT_SIGN_IN_PATH = '/identity/signin';
 
 /** Props for {@link RequireAuth}. */
 type RequireAuthProps = {
-    /** Path to redirect unauthenticated users to. */
-    signInPath: string;
     /** The protected subtree (typically the authenticated shell). */
     children: ReactNode;
+    /** Override the redirect target; defaults to identity's sign-in page. */
+    signInPath?: string;
 };
 
 /**
  * Gates its children on authentication. While auth is resolving it renders
  * nothing (so the sign-in page never flashes for a logged-in user); once
- * resolved it either renders the children or redirects to `signInPath`,
+ * resolved it either renders the children or redirects to the sign-in page,
  * preserving the attempted location in router state so the sign-in flow can
  * return the user there.
  *
- * The host mounts this once as the element of the pathless parent route that
- * wraps every private route — one check guards the whole authenticated area.
+ * Composed by the shell into its `layout` (wrapped in {@link AuthProvider}), so
+ * one check guards the whole authenticated area. It must render under an
+ * `AuthProvider`, which supplies the state it reads via `useAuth`.
  */
-export function RequireAuth({ signInPath, children }: RequireAuthProps) {
+export function RequireAuth({
+    children,
+    signInPath = DEFAULT_SIGN_IN_PATH
+}: RequireAuthProps) {
     const { status } = useAuth();
     const location = useLocation();
 

@@ -17,6 +17,7 @@
     "dependencies": {
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/design-system": "*",
+        "@ortha-cms/identity-admin": "*",
         "react-intl": "^7.0.0"
     },
     "peerDependencies": {

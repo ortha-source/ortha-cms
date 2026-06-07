@@ -2,9 +2,11 @@
 
 The **shell plugin** for the Ortha CMS admin UI — the authenticated app chrome.
 It contributes the layout (logo + primary nav) that wraps every private route,
-plus the home page at `/`. It is the visible counterpart to the host's auth
-gating: the host mounts this plugin's `layout` as the single guarded parent of
-all non-`public` routes, so the shell renders only for signed-in users.
+plus the home page at `/`. It **owns the gating wiring**: its `layout` composes
+identity's `AuthProvider` (auth-state source) around `RequireAuth` (the gate)
+around `AppShell`. The host mounts that `layout` as the single parent of all
+non-`public` routes but stays auth-agnostic — so the shell is what makes private
+routes render only for signed-in users.
 
 ## Package
 
@@ -24,14 +26,16 @@ all non-`public` routes, so the shell renders only for signed-in users.
 
 ## Architecture
 
-- **Layout, not guard.** The host (`@ortha-cms/bootstrap-admin`) owns the
-  public/private split and the `RequireAuth` gate; this plugin only provides the
-  *chrome* via `layout`. The host wraps that layout in `RequireAuth` and nests
-  every private route under it, so private pages render inside `AppShell`'s
-  `<Outlet/>` and share one auth check.
-- **Private by default.** The home route carries no `public` flag, so it is
-  gated like any other private route. Public screens (sign-in) come from the
-  identity plugin and sit outside the shell.
+- **Layout *and* gate.** The host (`@ortha-cms/bootstrap-admin`) owns only the
+  public/private split and mounts the `layout` as the parent of private routes —
+  it is auth-agnostic. This plugin makes the layout gated by composing identity's
+  pieces: `<AuthProvider><RequireAuth><AppShell/></RequireAuth></AuthProvider>`.
+  So `AuthProvider` (the `/auth/me` source) and `RequireAuth` (the gate) wrap the
+  private subtree; private pages render in `AppShell`'s `<Outlet/>` behind one
+  check. This is why the shell **depends on `@ortha-cms/identity-admin`**.
+- **Private by default.** The home route carries no `public` flag, so it mounts
+  under the gated layout. Public screens (sign-in) come from the identity plugin
+  and sit outside the shell.
 
 ## Conventions
 

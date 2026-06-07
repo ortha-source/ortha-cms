@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
-import { AuthProviderContext, type AuthState } from '@ortha-cms/utils-admin';
 import { useCurrentUser } from '../../api/useCurrentUser';
+import { AuthProviderContext, type AuthState } from '../authContext';
 
 /**
  * Resolves the current user via `GET /api/auth/me` and publishes it into the
- * host's auth context, so the host's `RequireAuth` can gate routes without
- * knowing identity's endpoints. Registered as the identity plugin's `provider`,
- * it wraps the whole app.
+ * auth context, so {@link RequireAuth} can gate routes. The shell composes this
+ * around `RequireAuth` in its `layout`, so it wraps the private area (not the
+ * public sign-in page); the host renders that layout without knowing any of this
+ * exists.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, isPending, isFetching } = useCurrentUser();

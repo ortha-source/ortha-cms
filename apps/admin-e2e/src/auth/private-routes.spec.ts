@@ -5,7 +5,8 @@ const EMAIL = 'admin@example.com';
 const PASSWORD = 'SecurePass123!';
 
 /**
- * The host's auth gate (`RequireAuth` in `bootstrap-admin`). Every non-public
+ * The auth gate (`RequireAuth` from `identity-admin`, composed into the shell's
+ * layout). Every non-public
  * route lives behind it: a signed-out user is redirected to the sign-in page —
  * including via the catch-all, which now sits inside the guarded group — and
  * after signing in they land back on the private area. Signed-in rendering of
