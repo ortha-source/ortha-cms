@@ -29,6 +29,10 @@ singletons live in one place instead of inside `bootstrap-admin`.
   `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
   bare `401`.
 
+> Auth state is **not** here — context, gate, and `/auth/me` all live in
+> `@ortha-cms/identity-admin`. This package stays a pure HTTP/data leaf (no
+> `react` dependency).
+
 ## Layout
 
 - One concern per folder, each an `index.ts`: `src/lib/apiClient/`,

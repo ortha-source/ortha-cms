@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
-import type { LoginCredentials } from '../../types/auth.type';
+import type { LoginCredentials } from '../../../types/auth';
 
 /**
  * Posts credentials to `POST /api/auth/login` via the shared `apiClient`

@@ -1,10 +1,15 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { defineMessages, useIntl } from 'react-intl';
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { LoginForm } from '../../components/LoginForm';
-import type { LoginCredentials } from '../../../types/auth.type';
+import type { LoginCredentials } from '../../../types/auth';
 import { useLoginMutation } from '../../api/useLoginMutation';
+import { currentUserKey } from '../../api/useCurrentUser';
+
+/** Router state `RequireAuth` attaches when it bounces a user to sign-in. */
+type FromState = { from?: { pathname?: string } };
 
 /** Intl descriptors for {@link LoginPage}, co-located with the component. */
 const messages = defineMessages({
@@ -22,18 +27,29 @@ const messages = defineMessages({
 /**
  * Login page — the route container the identity router mounts at
  * `/identity/signin`. Runs `useLoginMutation` (`POST /api/auth/login`), maps its
- * `isPending`/`error` onto the presentational {@link LoginForm}, and navigates
- * to the home page (`/`) on success. The session lives in the `httpOnly` cookie
- * the server sets, so there is nothing to persist client-side here.
+ * `isPending`/`error` onto the presentational {@link LoginForm}, and on success
+ * refreshes the current user (so the host's auth context flips to authenticated)
+ * before navigating to wherever the user was headed — the location `RequireAuth`
+ * stashed, or `/` by default. The session lives in the `httpOnly` cookie the
+ * server sets, so there is nothing to persist client-side here.
  */
 export function LoginPage() {
     const intl = useIntl();
     const navigate = useNavigate();
+    const location = useLocation();
+    const queryClient = useQueryClient();
     const { mutate, isPending, error } = useLoginMutation();
+
+    const from = (location.state as FromState | null)?.from?.pathname ?? '/';
 
     const handleSubmit = (credentials: LoginCredentials) => {
         mutate(credentials, {
-            onSuccess: () => navigate('/', { replace: true })
+            onSuccess: async () => {
+                await queryClient.invalidateQueries({
+                    queryKey: currentUserKey
+                });
+                navigate(from, { replace: true });
+            }
         });
     };
 

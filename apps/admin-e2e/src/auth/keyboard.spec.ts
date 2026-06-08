@@ -1,5 +1,5 @@
 import { test, expect } from '../support/fixtures';
-import { mockLogin } from '../support/api/auth';
+import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
 
 /**
  * Keyboard operability of the login flow — the part axe can't check. Avoids
@@ -13,7 +13,11 @@ test.describe('keyboard accessibility', () => {
         page,
         loginPage
     }) => {
+        await mockSignedOut(page);
         await loginPage.goto();
+        // The login page is lazy-loaded behind Suspense; wait for the form so
+        // Tab lands on the email field rather than the loading fallback.
+        await expect(loginPage.heading).toBeVisible();
         await page.keyboard.press('Tab');
         await expect(loginPage.email).toBeFocused();
     });
@@ -24,6 +28,7 @@ test.describe('keyboard accessibility', () => {
         homePage
     }) => {
         await mockLogin(page, { status: 201 });
+        await mockSignedIn(page);
         await loginPage.goto();
 
         await loginPage.email.focus();

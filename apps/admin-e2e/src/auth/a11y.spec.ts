@@ -1,5 +1,5 @@
 import { test } from '../support/fixtures';
-import { mockLogin } from '../support/api/auth';
+import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -9,15 +9,18 @@ import { expectNoA11yViolations } from '../support/a11y';
  * keyboard/screen-reader checks remain a separate, human task.
  */
 test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
-    test('login page — initial', async ({ loginPage, makeAxe }) => {
+    test('login page — initial', async ({ page, loginPage, makeAxe }) => {
+        await mockSignedOut(page);
         await loginPage.goto();
         await expectNoA11yViolations(makeAxe());
     });
 
     test('login page — required-field errors visible', async ({
+        page,
         loginPage,
         makeAxe
     }) => {
+        await mockSignedOut(page);
         await loginPage.goto();
         await loginPage.submit.click();
         await loginPage.fieldError('Email is required').waitFor();
@@ -29,6 +32,7 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         loginPage,
         makeAxe
     }) => {
+        await mockSignedOut(page);
         await mockLogin(page, { status: 401 });
         await loginPage.goto();
         await loginPage.login('admin@example.com', 'wrong-password');
@@ -36,7 +40,8 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('home page', async ({ homePage, makeAxe }) => {
+    test('home page', async ({ page, homePage, makeAxe }) => {
+        await mockSignedIn(page);
         await homePage.goto();
         await expectNoA11yViolations(makeAxe());
     });

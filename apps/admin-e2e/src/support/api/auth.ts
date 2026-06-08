@@ -35,6 +35,51 @@ export async function mockLogin(
     });
 }
 
+/** The authenticated user `GET /api/auth/me` returns (the server's `PublicUser`). */
+const DEFAULT_USER = {
+    id: '00000000-0000-0000-0000-000000000001',
+    email: 'admin@example.com',
+    roleId: '00000000-0000-0000-0000-0000000000a1',
+    status: 'active'
+};
+
+/**
+ * Stub `GET /api/auth/me` as **signed in**. The host's `AuthProvider` calls this
+ * on load to resolve the current user, so any test that lands on a private route
+ * (the home page) must seed a session here — the FE analog of `seedActiveUser`.
+ *
+ * Registered per-`page`; later registrations win, so a test can start signed out
+ * (e.g. in `beforeEach`) and flip to signed in before submitting the login form.
+ */
+export async function mockSignedIn(
+    page: Page,
+    user: Partial<typeof DEFAULT_USER> = {}
+): Promise<void> {
+    await page.route('**/api/auth/me', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ...DEFAULT_USER, ...user })
+        });
+    });
+}
+
+/**
+ * Stub `GET /api/auth/me` as **signed out** (`401`). With this, every private
+ * route redirects to the sign-in page. Use it for the logged-out cases and to
+ * keep the login-page suite deterministic (the auth probe never hits a real
+ * backend).
+ */
+export async function mockSignedOut(page: Page): Promise<void> {
+    await page.route('**/api/auth/me', async (route) => {
+        await route.fulfill({
+            status: 401,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Unauthorized' })
+        });
+    });
+}
+
 /** Tracks calls to the login endpoint — to assert it is (not) hit. */
 export interface LoginSpy {
     readonly count: number;

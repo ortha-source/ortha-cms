@@ -2,10 +2,17 @@
 
 The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpart
 to [`@ortha-cms/identity-server`](../server/CLAUDE.md). It contributes the
-identity screens into the admin host. Today it ships the **login UI** at
-`/identity/signin`, wired to `POST /api/auth/login` (via `useLoginMutation`);
-a successful sign-in navigates to `/`. User/role/access screens and the rest of
-auth (current-user gating, logout) land in later tickets (epic #3).
+identity screens into the admin host. It ships the **login UI** at
+`/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`) and
+**owns the entire admin auth kit**: the auth context (`AuthState`, `useAuth`,
+`AuthProviderContext`), the `AuthProvider` that fetches `GET /api/auth/me`
+(`useCurrentUser`) and publishes the current user, and the `RequireAuth` route
+gate. None of these are contributed to the host via a slot — the host is
+auth-agnostic; the **shell** (`@ortha-cms/shell-admin`) imports `AuthProvider` +
+`RequireAuth` and composes them into its `layout`. A successful sign-in refreshes
+that state and returns the user to where `RequireAuth` sent them (or `/`). The
+plugin's only `bootstrap-admin` reference is the `AdminPlugin` *type*.
+User/role/access screens and logout land in later tickets (epic #3).
 
 ## Package
 
@@ -25,11 +32,14 @@ auth (current-user gating, logout) land in later tickets (epic #3).
 - Components in `src/lib/components/<Name>/`; pages in `src/lib/pages/<Name>/`;
   the data layer (hooks + request fns) in `src/lib/api/`; the nested router in
   `src/lib/router/`; the plugin factory in `src/lib/utils/`; types in `src/types/`
-- **File naming.** Components are `PascalCase` (`<Name>/index.tsx` or
-  `<Name>.tsx`); everything else is `camelCase`, and a hook file is named for its
-  hook (`useLoginMutation.ts`, `useLoginSchema.ts`). One concern per file — don't
-  split a presentational page from its tiny route container; the page _is_ the
-  container (see `LoginPage`)
+- **File naming.** Every top-level module lives in its own folder as
+  `<name>/index.ts(x)` — components in `PascalCase` (`LoginForm/index.tsx`),
+  everything else in `camelCase` named for its export
+  (`useLoginMutation/index.ts`, `authContext/index.ts`, `identityPlugin/index.tsx`,
+  `types/auth/index.ts`). Tightly co-located sub-modules of a component may stay
+  flat beside its `index` (e.g. `LoginForm/useLoginSchema.ts`). One concern per
+  file — don't split a presentational page from its tiny route container; the
+  page _is_ the container (see `LoginPage`)
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`);
   the host provides the single `IntlProvider`. **Each component co-locates its
   own descriptors** — a module-level `const messages = defineMessages({ … })`
@@ -46,15 +56,27 @@ auth (current-user gating, logout) land in later tickets (epic #3).
   (the two never share a module — different apps).
 - `IdentityAdminPlugin` — the plugin shape (currently a thin alias of
   `AdminPlugin`)
-- `IdentityRouter` — the plugin's nested router (auth sub-routes)
-- `LoginPage` / `LoginForm` / `AuthLayout` — the login UI pieces
-- `LoginCredentials` / `AuthTokens` — auth wire types
+- `IdentityRouter` — the plugin's nested router (auth sub-routes); lazy-loads
+  `LoginPage` behind a `Suspense` boundary so its chunk loads only at
+  `/identity/signin`
+- `LoginForm` / `AuthLayout` — the login UI pieces. `LoginPage` is **not**
+  re-exported: it is consumed only via the router's dynamic `import()`, and a
+  static re-export would defeat the code split
+- `AuthProvider` — fetches `/api/auth/me` and publishes auth state; the shell
+  wraps it around `RequireAuth` in its `layout`
+- `RequireAuth` — the route gate; redirects to `/identity/signin` while
+  unauthenticated, preserving the attempted location for return-to. Reusable by
+  any plugin that needs to gate its own sub-routes (imported from here, not the
+  host)
+- `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the
+  types
+- `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture
 
 - **Plugin, not an app.** Mirrors the server side: exposes `IdentityPlugin()`
   returning the standard
-  [`AdminPlugin`](../../bootstrap/admin/src/lib/types/admin-plugin.ts) shape,
+  [`AdminPlugin`](../../bootstrap/admin/src/lib/types/adminPlugin/index.ts) shape,
   assembled by the host in `apps/admin/src/main.tsx`.
 - **Nested routing.** The plugin contributes one wildcard route `/identity/*`
   whose element is `IdentityRouter`, a `react-router-dom` `<Routes>` that owns
@@ -67,7 +89,7 @@ auth (current-user gating, logout) land in later tickets (epic #3).
   (`pages/LoginPage/index.tsx`) is the route container the router mounts: it runs
   `useLoginMutation`, maps its `isPending`/`error` onto the form, and navigates
   to `/` on success.
-- **API layer.** `src/lib/api/useLoginMutation.ts` issues the request via the
+- **API layer.** `src/lib/api/useLoginMutation/index.ts` issues the request via the
   shared `apiClient` from
   [`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md)
   (`apiClient.post('/auth/login', …)`) and wraps it in a TanStack Query
@@ -94,8 +116,10 @@ createAdmin({
 
 ## Not owned here (deferred)
 
-- Current-user gating (`/api/auth/me`), logout, and route guards — login itself
-  is wired; the rest of auth state lands with the host's slot system / epic #3
+- Mounting the gate — `RequireAuth` lives here, but it is the **shell** that
+  composes it (with `AuthProvider`) into the `layout`; the public/private route
+  split is the host's
+- Logout — the `/api/auth/logout` call + invalidating `currentUserKey`; epic #3
 - User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system
 

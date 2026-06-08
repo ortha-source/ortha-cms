@@ -1,6 +1,6 @@
-export { createAdmin } from './lib/create-admin';
+export { createAdmin } from './lib/createAdmin';
 export type {
     AdminPlugin,
     RouteItem,
     CreateAdminOptions
-} from './lib/types/admin-plugin';
+} from './lib/types/adminPlugin';

@@ -1,5 +1,5 @@
 import { test, expect } from '../support/fixtures';
-import { mockLogin, spyLogin } from '../support/api/auth';
+import { mockLogin, mockSignedIn, mockSignedOut, spyLogin } from '../support/api/auth';
 
 const EMAIL = 'admin@example.com';
 const PASSWORD = 'SecurePass123!';
@@ -9,9 +9,14 @@ const PASSWORD = 'SecurePass123!';
  * layer (`support/api/auth`), so these assert admin behavior in isolation:
  * navigation on success, the error banner on a 401, client-side validation,
  * and the pending state. The real round-trip is the server-e2e suite's job.
+ *
+ * `beforeEach` seeds a signed-out session (`GET /auth/me` → 401) so the host's
+ * auth probe is deterministic; the success cases flip to signed in before
+ * submitting, so the post-login redirect to the private home page resolves.
  */
 test.describe('Login page (/identity/signin)', () => {
-    test.beforeEach(async ({ loginPage }) => {
+    test.beforeEach(async ({ page, loginPage }) => {
+        await mockSignedOut(page);
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
     });
@@ -23,6 +28,7 @@ test.describe('Login page (/identity/signin)', () => {
             homePage
         }) => {
             await mockLogin(page, { status: 201 });
+            await mockSignedIn(page);
             await loginPage.login(EMAIL, PASSWORD);
 
             await expect(page).toHaveURL('/');

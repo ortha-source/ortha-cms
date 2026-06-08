@@ -1,10 +1,16 @@
 import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import {
+    BrowserRouter,
+    Navigate,
+    Outlet,
+    Route,
+    Routes
+} from 'react-router-dom';
 import { IntlProvider } from 'react-intl';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@ortha-cms/utils-admin';
-import type { CreateAdminOptions } from './types/admin-plugin';
+import type { CreateAdminOptions } from '../types/adminPlugin';
 
 /**
  * Bootstraps the Ortha CMS admin app: mounts the React root, wraps it in
@@ -19,11 +25,26 @@ import type { CreateAdminOptions } from './types/admin-plugin';
  * Server state is fetched with TanStack Query, so the host also provides one
  * `QueryClient`. Plugins call `useQuery`/`useMutation` (e.g. identity's
  * `useLoginMutation`) without owning a client of their own.
+ *
+ * Routes split by `public`: public routes mount as top-level siblings, while
+ * every other route mounts under a single pathless parent that renders the
+ * `layout` a plugin contributed (or a bare `<Outlet/>`). The host is
+ * auth-agnostic — it does not know that `layout` may wrap its children in a
+ * gate; the contributing plugin (the shell) owns that. A `public:false` route
+ * with no gating `layout` therefore renders ungated.
  */
 export function createAdmin(options: CreateAdminOptions): void {
     const { plugins, rootElement = 'root', locale = 'en' } = options;
 
     const routes = plugins.flatMap((plugin) => plugin.routes ?? []);
+    const publicRoutes = routes.filter((route) => route.public);
+    const privateRoutes = routes.filter((route) => !route.public);
+
+    // The single layout that wraps every private route; falls back to a bare
+    // outlet before any layout plugin (the shell) is registered.
+    const layout = plugins.map((plugin) => plugin.layout).find(Boolean) ?? (
+        <Outlet />
+    );
 
     const root = ReactDOM.createRoot(
         document.getElementById(rootElement) as HTMLElement
@@ -35,17 +56,26 @@ export function createAdmin(options: CreateAdminOptions): void {
                 <IntlProvider locale={locale} defaultLocale="en">
                     <BrowserRouter>
                         <Routes>
-                            {routes.map((route) => (
+                            {publicRoutes.map((route) => (
                                 <Route
                                     key={route.path}
                                     path={route.path}
                                     element={route.element}
                                 />
                             ))}
-                            <Route
-                                path="*"
-                                element={<Navigate to="/" replace />}
-                            />
+                            <Route element={layout}>
+                                {privateRoutes.map((route) => (
+                                    <Route
+                                        key={route.path}
+                                        path={route.path}
+                                        element={route.element}
+                                    />
+                                ))}
+                                <Route
+                                    path="*"
+                                    element={<Navigate to="/" replace />}
+                                />
+                            </Route>
                         </Routes>
                     </BrowserRouter>
                 </IntlProvider>
