@@ -1,7 +1,7 @@
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { AuthProvider, RequireAuth } from '@ortha-cms/identity-admin';
-import { AppShell } from '../components/AppShell';
-import { HomePage } from '../pages/HomePage';
+import { AppShell } from '../../components/AppShell';
+import { HomePage } from '../../pages/HomePage';
 
 /**
  * Admin-side shell plugin shape. A thin alias of {@link AdminPlugin}, kept named

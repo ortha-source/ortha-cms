@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCurrentUser } from '../../api/useCurrentUser';
-import { AuthProviderContext, type AuthState } from '../authContext';
+import { AuthProviderContext, AuthStatus, type AuthState } from '../authContext';
 
 /**
  * Resolves the current user via `GET /api/auth/me` and publishes it into the
@@ -18,10 +18,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // query and the fresh response landing; only settle on `unauthenticated`
     // once a fetch has completed with no user.
     const value: AuthState = data
-        ? { status: 'authenticated', user: { id: data.id, email: data.email } }
+        ? {
+              status: AuthStatus.Authenticated,
+              user: { id: data.id, email: data.email }
+          }
         : isPending || isFetching
-          ? { status: 'loading', user: null }
-          : { status: 'unauthenticated', user: null };
+          ? { status: AuthStatus.Loading, user: null }
+          : { status: AuthStatus.Unauthenticated, user: null };
 
     return <AuthProviderContext value={value}>{children}</AuthProviderContext>;
 }

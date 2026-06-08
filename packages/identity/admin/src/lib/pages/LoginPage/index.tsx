@@ -4,7 +4,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { LoginForm } from '../../components/LoginForm';
-import type { LoginCredentials } from '../../../types/auth.type';
+import type { LoginCredentials } from '../../../types/auth';
 import { useLoginMutation } from '../../api/useLoginMutation';
 import { currentUserKey } from '../../api/useCurrentUser';
 

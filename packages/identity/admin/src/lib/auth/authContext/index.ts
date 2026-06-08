@@ -11,11 +11,25 @@ export type AuthUser = {
     email: string;
 };
 
+/**
+ * The three states auth resolution can be in. Used as the `AuthState`
+ * discriminant; `AuthProvider` sets it and `RequireAuth` branches on it, so the
+ * literal lives here once instead of being re-typed at each call site.
+ */
+export enum AuthStatus {
+    /** A probe (initial load or post-login/logout refetch) is in flight. */
+    Loading = 'loading',
+    /** A current user was resolved. */
+    Authenticated = 'authenticated',
+    /** A fetch completed with no user. */
+    Unauthenticated = 'unauthenticated'
+}
+
 /** Resolved auth state the route gate reads. */
 export type AuthState =
-    | { status: 'loading'; user: null }
-    | { status: 'authenticated'; user: AuthUser }
-    | { status: 'unauthenticated'; user: null };
+    | { status: AuthStatus.Loading; user: null }
+    | { status: AuthStatus.Authenticated; user: AuthUser }
+    | { status: AuthStatus.Unauthenticated; user: null };
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -32,5 +46,5 @@ export const AuthProviderContext = AuthContext.Provider;
  * resolved yet, so the gate stays closed until a user is confirmed — fail-closed.
  */
 export function useAuth(): AuthState {
-    return useContext(AuthContext) ?? { status: 'loading', user: null };
+    return useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null };
 }

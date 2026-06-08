@@ -1,5 +1,5 @@
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { IdentityRouter } from '../router';
+import { IdentityRouter } from '../../router';
 
 /**
  * Admin-side identity plugin shape. Mirrors `IdentityServerPlugin`; carries no

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient, HTTP_STATUS, toApiError } from '@ortha-cms/utils-admin';
-import type { CurrentUser } from '../../types/auth.type';
+import type { CurrentUser } from '../../../types/auth';
 
 /**
  * Query key for the current-user fetch. Exported so the login/logout flows can

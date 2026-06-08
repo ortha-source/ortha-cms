@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../authContext';
+import { AuthStatus, useAuth } from '../authContext';
 
 /** Where the gate sends unauthenticated users; identity owns its sign-in path. */
 const DEFAULT_SIGN_IN_PATH = '/identity/signin';
@@ -31,11 +31,11 @@ export function RequireAuth({
     const { status } = useAuth();
     const location = useLocation();
 
-    if (status === 'loading') {
+    if (status === AuthStatus.Loading) {
         return null;
     }
 
-    if (status === 'unauthenticated') {
+    if (status === AuthStatus.Unauthenticated) {
         return <Navigate to={signInPath} replace state={{ from: location }} />;
     }
 

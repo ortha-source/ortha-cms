@@ -40,8 +40,9 @@ routes render only for signed-in users.
 ## Conventions
 
 - `type` over `interface`; JSDoc on exports; `import type` for type-only imports
-- Components in `src/lib/components/<Name>/`; pages in `src/lib/pages/<Name>/`;
-  the plugin factory in `src/lib/utils/`
+- Every module is a `<name>/index.ts(x)` folder — components in
+  `src/lib/components/<Name>/`, pages in `src/lib/pages/<Name>/`, the plugin
+  factory in `src/lib/utils/shellPlugin/` (`camelCase` for non-components)
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `shell.<area>.<key>`
 - UI is built from `@ortha-cms/design-system` components, not bespoke markup

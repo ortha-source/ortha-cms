@@ -18,7 +18,9 @@ contains no features.
 - All exported symbols have JSDoc comments
 - No `.js` extensions in TypeScript imports
 - JSX enabled (`react-jsx`), DOM types available
-- Types go in `src/lib/types/`; the bootstrap entry in `src/lib/`
+- Types go in `src/lib/types/<name>/index.ts`; the bootstrap entry in
+  `src/lib/createAdmin/index.tsx`. Every module is a `<name>/index.ts(x)` folder
+  (`camelCase` for non-components)
 - Always import types with the `type` keyword
 
 ## Key exports

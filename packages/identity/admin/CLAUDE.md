@@ -32,11 +32,14 @@ User/role/access screens and logout land in later tickets (epic #3).
 - Components in `src/lib/components/<Name>/`; pages in `src/lib/pages/<Name>/`;
   the data layer (hooks + request fns) in `src/lib/api/`; the nested router in
   `src/lib/router/`; the plugin factory in `src/lib/utils/`; types in `src/types/`
-- **File naming.** Components are `PascalCase` (`<Name>/index.tsx` or
-  `<Name>.tsx`); everything else is `camelCase`, and a hook file is named for its
-  hook (`useLoginMutation.ts`, `useLoginSchema.ts`). One concern per file — don't
-  split a presentational page from its tiny route container; the page _is_ the
-  container (see `LoginPage`)
+- **File naming.** Every top-level module lives in its own folder as
+  `<name>/index.ts(x)` — components in `PascalCase` (`LoginForm/index.tsx`),
+  everything else in `camelCase` named for its export
+  (`useLoginMutation/index.ts`, `authContext/index.ts`, `identityPlugin/index.tsx`,
+  `types/auth/index.ts`). Tightly co-located sub-modules of a component may stay
+  flat beside its `index` (e.g. `LoginForm/useLoginSchema.ts`). One concern per
+  file — don't split a presentational page from its tiny route container; the
+  page _is_ the container (see `LoginPage`)
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`);
   the host provides the single `IntlProvider`. **Each component co-locates its
   own descriptors** — a module-level `const messages = defineMessages({ … })`
@@ -73,7 +76,7 @@ User/role/access screens and logout land in later tickets (epic #3).
 
 - **Plugin, not an app.** Mirrors the server side: exposes `IdentityPlugin()`
   returning the standard
-  [`AdminPlugin`](../../bootstrap/admin/src/lib/types/admin-plugin.ts) shape,
+  [`AdminPlugin`](../../bootstrap/admin/src/lib/types/adminPlugin/index.ts) shape,
   assembled by the host in `apps/admin/src/main.tsx`.
 - **Nested routing.** The plugin contributes one wildcard route `/identity/*`
   whose element is `IdentityRouter`, a `react-router-dom` `<Routes>` that owns
@@ -86,7 +89,7 @@ User/role/access screens and logout land in later tickets (epic #3).
   (`pages/LoginPage/index.tsx`) is the route container the router mounts: it runs
   `useLoginMutation`, maps its `isPending`/`error` onto the form, and navigates
   to `/` on success.
-- **API layer.** `src/lib/api/useLoginMutation.ts` issues the request via the
+- **API layer.** `src/lib/api/useLoginMutation/index.ts` issues the request via the
   shared `apiClient` from
   [`@ortha-cms/utils-admin`](../../utils/admin/CLAUDE.md)
   (`apiClient.post('/auth/login', …)`) and wraps it in a TanStack Query
