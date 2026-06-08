@@ -1,8 +1,8 @@
 import type { ComponentType } from 'react';
 import { createSlot } from '@ortha-cms/utils-admin';
 
-/** A navigation entry rendered in the top toolbar. */
-export type NavItem = {
+/** A navigation entry rendered in the top toolbar (either side). */
+export type NavbarItem = {
     /** react-intl message id for the label. */
     labelId: string;
     /** Fallback label when no translation is available. */
@@ -18,8 +18,10 @@ export type NavItem = {
 };
 
 /**
- * The top-toolbar nav-item slot. The shell's {@link AppShell} reads it; any
- * plugin may contribute entries via its `slots`. Defined here (not the host)
- * because the toolbar is a shell concern.
+ * Start (leading) toolbar slot — the primary nav, rendered after the brand.
+ * Any plugin contributes entries via its `slots`; {@link AppShell} reads it
+ * sorted by `order`. Named for placement so the trailing side can get its own
+ * slot: a `NAVBAR_END_SLOT` (`'shell.navbar.end'`) for account/actions will be
+ * added here when first needed.
  */
-export const NAV_ITEM_SLOT = createSlot<NavItem>('shell.navItem');
+export const NAVBAR_START_SLOT = createSlot<NavbarItem>('shell.navbar.start');

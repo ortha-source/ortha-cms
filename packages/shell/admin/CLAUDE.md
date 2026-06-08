@@ -9,7 +9,7 @@ pages. It **owns the gating wiring**: its `layout` composes identity's
 non-`public` routes but stays auth-agnostic — so the shell is what makes private
 routes render only for signed-in users.
 
-It also **owns the toolbar's `NAV_ITEM_SLOT`** — a `createSlot` extension point
+It also **owns the toolbar's `NAVBAR_START_SLOT`** — a `createSlot` extension point
 (primitive from `@ortha-cms/utils-admin`). `AppShell` reads it (sorted by
 `order`) to render nav buttons; any plugin contributes entries via its `slots`,
 so new nav items appear without editing the shell. The shell currently
@@ -35,8 +35,10 @@ contribute their own and the placeholders here are removed.
   destinations as cards.
 - `WorkspacesPage` / `UsersPage` — placeholder pages until their feature plugins
   land.
-- `NAV_ITEM_SLOT` / `NavItem` — the toolbar nav slot and its item type; exported
-  so other plugins can contribute nav entries.
+- `NAVBAR_START_SLOT` / `NavbarItem` — the leading (start-side) toolbar nav slot
+  and its item type; exported so other plugins can contribute nav entries. Named
+  for placement; a trailing `NAVBAR_END_SLOT` (`'shell.navbar.end'`) for
+  account/actions is added when first needed.
 
 ## Architecture
 
@@ -50,7 +52,7 @@ contribute their own and the placeholders here are removed.
 - **Private by default.** The routes carry no `public` flag, so they mount under
   the gated layout. Public screens (sign-in) come from the identity plugin and
   sit outside the shell.
-- **Slot-driven toolbar.** `AppShell` renders `NAV_ITEM_SLOT.getItems()` sorted
+- **Slot-driven toolbar.** `AppShell` renders `NAVBAR_START_SLOT.getItems()` sorted
   by `order`; the shell contributes its own items via `slots`. The host wires
   all plugins' contributions before render, so the toolbar is open to extension
   without the shell knowing which plugins exist. Tooltips on the icon buttons use

@@ -6,11 +6,11 @@ import {
     TooltipTrigger,
     TooltipContent
 } from '@ortha-cms/design-system';
-import type { NavItem } from '../../slots/navItemSlot';
+import type { NavbarItem } from '../../slots/navbarSlots';
 
 type NavbarNavButtonProps = {
     /** The nav item to render. */
-    item: NavItem;
+    item: NavbarItem;
 };
 
 /**

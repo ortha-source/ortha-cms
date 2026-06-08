@@ -5,7 +5,7 @@ import { AppShell } from '../../components/AppShell';
 import { HomePage } from '../../pages/HomePage';
 import { WorkspacesPage } from '../../pages/WorkspacesPage';
 import { UsersPage } from '../../pages/UsersPage';
-import { NAV_ITEM_SLOT } from '../../slots/navItemSlot';
+import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
 
 /**
  * Admin-side shell plugin shape. A thin alias of {@link AdminPlugin}, kept named
@@ -23,7 +23,7 @@ export type ShellAdminPlugin = AdminPlugin;
  *
  * Its routes (home, workspaces, users) carry no `public` flag, so they are
  * private — they render only for signed-in users. It also contributes the
- * toolbar's nav items to its own {@link NAV_ITEM_SLOT}. The Workspaces/Users
+ * toolbar's nav items to its own {@link NAVBAR_START_SLOT}. The Workspaces/Users
  * pages are placeholders until their feature plugins land, at which point those
  * plugins contribute their own routes and nav items and these are removed.
  *
@@ -54,7 +54,7 @@ export function ShellPlugin(): ShellAdminPlugin {
         ],
         slots: [
             {
-                slot: NAV_ITEM_SLOT,
+                slot: NAVBAR_START_SLOT,
                 items: [
                     {
                         labelId: 'shell.nav.home',

@@ -25,7 +25,7 @@ export type SlotContribution<T = unknown> = {
  *
  * @example
  * ```typescript
- * const NAV_ITEM_SLOT = createSlot<NavItem>('shell.navItem');
+ * const NAVBAR_START_SLOT = createSlot<NavbarItem>('shell.navbar.start');
  * ```
  */
 export function createSlot<T>(name: string): Slot<T> {

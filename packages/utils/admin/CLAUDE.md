@@ -33,7 +33,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
   it and reads `getItems()`, plugins contribute items via the host, and the host
   wires contributions in once at boot. Pure data (no `react`), so it lives in
   this leaf rather than the host. The *generic* mechanism only — concrete slots
-  (e.g. the shell's `NAV_ITEM_SLOT`) are defined by their owning plugin.
+  (e.g. the shell's `NAVBAR_START_SLOT`) are defined by their owning plugin.
 
 > Auth state is **not** here — context, gate, and `/auth/me` all live in
 > `@ortha-cms/identity-admin`. This package stays a pure HTTP/data leaf (no

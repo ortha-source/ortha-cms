@@ -8,7 +8,7 @@ import {
     NavbarNav,
     NavbarSpacer
 } from '@ortha-cms/design-system';
-import { NAV_ITEM_SLOT } from '../../slots/navItemSlot';
+import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
 import { NavbarNavButton } from '../NavbarNavButton';
 
 /** Intl descriptors for {@link AppShell}, co-located with the component. */
@@ -23,12 +23,12 @@ const messages = defineMessages({
  * The authenticated app shell: a sticky top toolbar (logo + slot-driven nav)
  * over an `<Outlet/>` where the matched private route renders. The host mounts
  * this as the single guarded layout for every non-public route, so it appears
- * only for signed-in users. Nav entries come from {@link NAV_ITEM_SLOT}, sorted
+ * only for signed-in users. Nav entries come from {@link NAVBAR_START_SLOT}, sorted
  * by `order`, so any plugin can contribute without touching the shell.
  */
 export function AppShell() {
     const intl = useIntl();
-    const navItems = NAV_ITEM_SLOT.getItems()
+    const navItems = NAVBAR_START_SLOT.getItems()
         .slice()
         .sort((a, b) => a.order - b.order);
 
