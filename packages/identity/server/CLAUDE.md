@@ -75,8 +75,9 @@ check land in later tickets (epic #3).
 - `seedSystemRoles(db)` — idempotent seeder, invoked by `SystemRolesSeeder`
 - `RolesService` — role operations; rejects deletion of `isSystem` roles
 - `RootAdminService` — idempotent, non-destructive root-admin bootstrap (FR-10):
-  `ensure(email, password)` returns `'created' | 'exists'`; `bootstrapFromConfig()`
-  reads `config.rootAdmin` and is invoked by `RootAdminSeeder` on boot.
+  `ensure(email, password, name?)` returns `'created' | 'exists'`;
+  `bootstrapFromConfig()` reads `config.rootAdmin` and is invoked by
+  `RootAdminSeeder` on boot. `name` is stored only when the row is first created.
   `IdentityRootAdminConfig` is its host-config contract.
 
 ## Architecture

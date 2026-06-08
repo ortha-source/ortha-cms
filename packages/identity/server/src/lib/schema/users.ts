@@ -31,6 +31,8 @@ export const users = pgTable(
          * the DB level (see index below); store lower-cased anyway.
          */
         email: text('email').notNull(),
+        /** Display name. Null until the user sets one (e.g. on invite accept). */
+        name: text('name'),
         /** Password hash. Null until an invite is accepted. Never plaintext. */
         passwordHash: text('password_hash'),
         /** The user's single global role. */

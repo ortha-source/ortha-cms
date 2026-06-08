@@ -39,6 +39,7 @@ export async function mockLogin(
 const DEFAULT_USER = {
     id: '00000000-0000-0000-0000-000000000001',
     email: 'admin@example.com',
+    name: 'Admin User',
     roleId: '00000000-0000-0000-0000-0000000000a1',
     status: 'active'
 };

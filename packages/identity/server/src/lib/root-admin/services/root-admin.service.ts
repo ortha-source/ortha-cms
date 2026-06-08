@@ -46,7 +46,11 @@ export class RootAdminService {
         if (!rootAdmin.password) {
             throw new MissingRootAdminPasswordError(rootAdmin.email);
         }
-        const outcome = await this.ensure(rootAdmin.email, rootAdmin.password);
+        const outcome = await this.ensure(
+            rootAdmin.email,
+            rootAdmin.password,
+            rootAdmin.name
+        );
         return { outcome, email: rootAdmin.email };
     }
 
@@ -58,8 +62,16 @@ export class RootAdminService {
      *
      * Requires the `admin` system role to be seeded first; throws clearly if
      * it is absent rather than inserting a dangling FK.
+     *
+     * `name` is optional; when given it is stored on the new account. Like the
+     * rest of `ensure`, it is **non-destructive** — an already-present email is
+     * left untouched, so the name is set only when the row is first created.
      */
-    async ensure(email: string, password: string): Promise<RootAdminOutcome> {
+    async ensure(
+        email: string,
+        password: string,
+        name?: string
+    ): Promise<RootAdminOutcome> {
         const normalizedEmail = email.trim().toLowerCase();
         const passwordHash = await this.hashing.hashPassword(password);
 
@@ -81,6 +93,7 @@ export class RootAdminService {
                 .insert(users)
                 .values({
                     email: normalizedEmail,
+                    name: name?.trim() || null,
                     passwordHash,
                     roleId: adminRole.id,
                     status: 'active'

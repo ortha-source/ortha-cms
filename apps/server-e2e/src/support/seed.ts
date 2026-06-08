@@ -50,6 +50,7 @@ export async function seedUser(
         password?: string;
         role: SystemRoleKey;
         status?: UserStatus;
+        name?: string;
     }
 ): Promise<SeededUser> {
     const passwordHash = opts.password
@@ -61,6 +62,7 @@ export async function seedUser(
         .insert(users)
         .values({
             email: opts.email,
+            name: opts.name ?? null,
             passwordHash,
             roleId,
             status: opts.status ?? 'active'
@@ -73,7 +75,7 @@ export async function seedUser(
 /** Convenience: an active user with valid credentials for `POST /auth/login`. */
 export async function seedActiveUser(
     app: INestApplication,
-    opts: { email: string; password: string; role: SystemRoleKey }
+    opts: { email: string; password: string; role: SystemRoleKey; name?: string }
 ): Promise<SeededUser> {
     return seedUser(app, { ...opts, status: 'active' });
 }

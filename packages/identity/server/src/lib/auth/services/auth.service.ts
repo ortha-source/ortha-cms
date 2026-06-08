@@ -19,7 +19,7 @@ import { InvalidCredentialsError } from '../errors';
  */
 export type PublicUser = Pick<
     typeof users.$inferSelect,
-    'id' | 'email' | 'roleId' | 'status'
+    'id' | 'email' | 'name' | 'roleId' | 'status'
 >;
 
 /**
@@ -95,6 +95,7 @@ export class AuthService {
             .select({
                 id: users.id,
                 email: users.email,
+                name: users.name,
                 roleId: users.roleId,
                 status: users.status
             })

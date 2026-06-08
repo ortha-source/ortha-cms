@@ -49,6 +49,8 @@ export interface IdentityRootAdminConfig {
     email: string;
     /** Plaintext password; bcrypt-hashed before it touches the database. */
     password: string;
+    /** Optional display name; set only when the account is first created. */
+    name?: string;
 }
 
 /** Rate-limit settings for sensitive endpoints. */

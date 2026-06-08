@@ -8,15 +8,15 @@ import { useAuth } from '@ortha-cms/identity-admin';
 const messages = defineMessages({
     greetingMorning: {
         id: 'shell.home.greeting.morning',
-        defaultMessage: 'Good morning, {email}'
+        defaultMessage: 'Good morning, {name}'
     },
     greetingAfternoon: {
         id: 'shell.home.greeting.afternoon',
-        defaultMessage: 'Good afternoon, {email}'
+        defaultMessage: 'Good afternoon, {name}'
     },
     greetingEvening: {
         id: 'shell.home.greeting.evening',
-        defaultMessage: 'Good evening, {email}'
+        defaultMessage: 'Good evening, {name}'
     },
     subtitle: {
         id: 'shell.home.subtitle',
@@ -76,9 +76,11 @@ export function HomePage() {
 
     return (
         <section className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-16 text-center">
-            <Logo showLabel={false} className="size-12" />
+            <Logo showLabel={false} size="lg" />
             <h1 className="text-3xl font-semibold tracking-tight">
-                {intl.formatMessage(greeting, { email: user?.email ?? '' })}
+                {intl.formatMessage(greeting, {
+                    name: user?.name ?? user?.email ?? ''
+                })}
             </h1>
             <p className="max-w-md text-muted-foreground">
                 {intl.formatMessage(messages.subtitle)}

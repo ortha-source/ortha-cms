@@ -9,6 +9,8 @@ export type AuthUser = {
     id: string;
     /** User email, handy for rendering the signed-in account. */
     email: string;
+    /** Display name; `null` until the user sets one. */
+    name: string | null;
 };
 
 /**
