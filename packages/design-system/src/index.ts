@@ -29,3 +29,17 @@ export {
     FieldTitle
 } from './lib/components/ui/field';
 export { Logo } from './lib/components/ui/logo';
+export {
+    Navbar,
+    NavbarBrand,
+    NavbarNav,
+    navbarItemVariants,
+    NavbarSpacer,
+    NavbarEnd
+} from './lib/components/ui/navbar';
+export {
+    Tooltip,
+    TooltipTrigger,
+    TooltipContent,
+    TooltipProvider
+} from './lib/components/ui/tooltip';

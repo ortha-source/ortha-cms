@@ -1,13 +1,18 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Logo, cn } from '@ortha-cms/design-system';
+import {
+    Logo,
+    Separator,
+    Navbar,
+    NavbarBrand,
+    NavbarNav,
+    NavbarSpacer
+} from '@ortha-cms/design-system';
+import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
+import { NavbarNavButton } from '../NavbarNavButton';
 
 /** Intl descriptors for {@link AppShell}, co-located with the component. */
 const messages = defineMessages({
-    home: {
-        id: 'shell.nav.home',
-        defaultMessage: 'Home'
-    },
     primaryNav: {
         id: 'shell.nav.primaryLabel',
         defaultMessage: 'Primary'
@@ -15,35 +20,35 @@ const messages = defineMessages({
 });
 
 /**
- * The authenticated app shell: persistent chrome (logo + primary nav) around an
- * `<Outlet/>` where the matched private route renders. The host mounts this as
- * the single guarded layout for every non-public route, so it appears only for
- * signed-in users.
+ * The authenticated app shell: a sticky top toolbar (logo + slot-driven nav)
+ * over an `<Outlet/>` where the matched private route renders. The host mounts
+ * this as the single guarded layout for every non-public route, so it appears
+ * only for signed-in users. Nav entries come from {@link NAVBAR_START_SLOT}, sorted
+ * by `order`, so any plugin can contribute without touching the shell.
  */
 export function AppShell() {
     const intl = useIntl();
+    const navItems = NAVBAR_START_SLOT.getItems()
+        .slice()
+        .sort((a, b) => a.order - b.order);
 
     return (
-        <div className="flex min-h-svh">
-            <aside className="flex w-60 flex-col gap-6 border-r p-4">
-                <Logo />
-                <nav aria-label={intl.formatMessage(messages.primaryNav)}>
-                    <NavLink
-                        to="/"
-                        end
-                        className={({ isActive }) =>
-                            cn(
-                                'block rounded-md px-3 py-2 text-sm font-medium',
-                                isActive
-                                    ? 'bg-accent text-accent-foreground'
-                                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                            )
-                        }
-                    >
-                        {intl.formatMessage(messages.home)}
-                    </NavLink>
-                </nav>
-            </aside>
+        <div className="flex min-h-svh flex-col">
+            <Navbar>
+                <NavbarBrand>
+                    <Logo showLabel={false} />
+                </NavbarBrand>
+                <Separator
+                    orientation="vertical"
+                    className="mx-1 h-6 bg-zinc-700"
+                />
+                <NavbarNav aria-label={intl.formatMessage(messages.primaryNav)}>
+                    {navItems.map((item) => (
+                        <NavbarNavButton key={item.to} item={item} />
+                    ))}
+                </NavbarNav>
+                <NavbarSpacer />
+            </Navbar>
             <main className="flex-1">
                 <Outlet />
             </main>

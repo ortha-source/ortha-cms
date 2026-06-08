@@ -21,6 +21,9 @@
         },
         {
             "path": "../../bootstrap/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../utils/admin/tsconfig.lib.json"
         }
     ]
 }

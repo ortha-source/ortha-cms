@@ -17,6 +17,8 @@ export type CurrentUser = {
     id: string;
     /** User email address. */
     email: string;
+    /** Display name; `null` until the user sets one. */
+    name: string | null;
     /** Id of the user's role. */
     roleId: string;
     /** Account status (e.g. `active`). */

@@ -16,6 +16,7 @@ import {
 
 const EMAIL = 'me-test@example.com';
 const PASSWORD = 'SecurePass123!';
+const NAME = 'Me Test';
 
 /** Extract the `ortha_session=value` pair from a login response. */
 function sessionCookie(res: Response): string {
@@ -47,7 +48,8 @@ describe('GET /api/auth/me', () => {
         user = await seedActiveUser(harness.app, {
             email: EMAIL,
             password: PASSWORD,
-            role: 'admin'
+            role: 'admin',
+            name: NAME
         });
     });
 
@@ -99,6 +101,7 @@ describe('GET /api/auth/me', () => {
                 expect.objectContaining({
                     id: user.id,
                     email: EMAIL,
+                    name: NAME,
                     status: 'active'
                 })
             );
@@ -112,6 +115,7 @@ describe('GET /api/auth/me', () => {
             expect(Object.keys(res.body).sort()).toEqual([
                 'email',
                 'id',
+                'name',
                 'roleId',
                 'status'
             ]);

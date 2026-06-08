@@ -70,7 +70,8 @@ const config: OrthaConfig = {
             },
             rootAdmin: {
                 email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
-                password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? ''
+                password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
+                name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
             }
         }
     }

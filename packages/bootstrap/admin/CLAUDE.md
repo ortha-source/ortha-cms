@@ -41,7 +41,7 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
 
 - **Mount + shell.** `createAdmin` is the single place the SPA is created
   (`createRoot` + `<StrictMode>` + `<QueryClientProvider>` + `<IntlProvider>` +
-  `<BrowserRouter>`).
+  `<TooltipProvider>` + `<BrowserRouter>`).
 - **Plugin assembly.** It flattens every plugin's `routes`, then splits them by
   the `public` flag: public routes mount as top-level siblings, while every
   other route mounts under one pathless parent route whose element is the first
@@ -60,6 +60,13 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
   import `apiClient`/`queryClient` from there directly. Keeping these out of the
   host means a plugin never depends on the composition root just to make a
   request — the host stays purely the app shell.
+- **Slots.** The plugin contract carries an optional `slots` — each a
+  `{ slot, items }` contribution to a `createSlot` extension point (the primitive
+  lives in `@ortha-cms/utils-admin`). Before render, `createAdmin` wires every
+  plugin's contributions into their target slots (`slot._register(items)`). The
+  host is **slot-agnostic**: it only wires; it never defines or reads a slot. A
+  consuming plugin owns each concrete slot (e.g. the shell owns the toolbar's
+  `NAVBAR_START_SLOT` and reads it in its `layout`).
 - **i18n.** The host owns the single `react-intl` `IntlProvider` (`locale`
   defaults to `en`; messages resolve from each descriptor's `defaultMessage`).
   Plugins author strings with `defineMessages` + `useIntl` and **co-locate
@@ -89,9 +96,10 @@ createAdmin({
   `@ortha-cms/identity-admin`; the host never imports them
 - The authenticated shell/chrome — contributed via a plugin's `layout`
   (see `@ortha-cms/shell-admin`); the host only mounts it
-- Nav items, slot system
-- Providers beyond the router, `IntlProvider`, and `QueryClientProvider`
-  (e.g. Toaster) — add when a plugin requires them
+- Concrete slots & nav items — the host wires `slots` contributions but defines
+  none; the shell owns the toolbar's `NAVBAR_START_SLOT` and its nav items
+- Providers beyond the router, `IntlProvider`, `QueryClientProvider`, and
+  `TooltipProvider` (e.g. Toaster) — add when a plugin requires them
 - Actual pages — those live in feature plugins
 
 ## Commands
