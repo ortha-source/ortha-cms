@@ -10,6 +10,7 @@ import {
 import { IntlProvider } from 'react-intl';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@ortha-cms/utils-admin';
+import { TooltipProvider } from '@ortha-cms/design-system';
 import type { CreateAdminOptions } from '../types/adminPlugin';
 
 /**
@@ -40,6 +41,14 @@ export function createAdmin(options: CreateAdminOptions): void {
     const publicRoutes = routes.filter((route) => route.public);
     const privateRoutes = routes.filter((route) => !route.public);
 
+    // Wire every plugin's slot contributions into their target slots before
+    // render, so consumers (e.g. the shell toolbar) see all contributed items.
+    for (const plugin of plugins) {
+        for (const contribution of plugin.slots ?? []) {
+            contribution.slot._register(contribution.items);
+        }
+    }
+
     // The single layout that wraps every private route; falls back to a bare
     // outlet before any layout plugin (the shell) is registered.
     const layout = plugins.map((plugin) => plugin.layout).find(Boolean) ?? (
@@ -54,30 +63,32 @@ export function createAdmin(options: CreateAdminOptions): void {
         <StrictMode>
             <QueryClientProvider client={queryClient}>
                 <IntlProvider locale={locale} defaultLocale="en">
-                    <BrowserRouter>
-                        <Routes>
-                            {publicRoutes.map((route) => (
-                                <Route
-                                    key={route.path}
-                                    path={route.path}
-                                    element={route.element}
-                                />
-                            ))}
-                            <Route element={layout}>
-                                {privateRoutes.map((route) => (
+                    <TooltipProvider delayDuration={200}>
+                        <BrowserRouter>
+                            <Routes>
+                                {publicRoutes.map((route) => (
                                     <Route
                                         key={route.path}
                                         path={route.path}
                                         element={route.element}
                                     />
                                 ))}
-                                <Route
-                                    path="*"
-                                    element={<Navigate to="/" replace />}
-                                />
-                            </Route>
-                        </Routes>
-                    </BrowserRouter>
+                                <Route element={layout}>
+                                    {privateRoutes.map((route) => (
+                                        <Route
+                                            key={route.path}
+                                            path={route.path}
+                                            element={route.element}
+                                        />
+                                    ))}
+                                    <Route
+                                        path="*"
+                                        element={<Navigate to="/" replace />}
+                                    />
+                                </Route>
+                            </Routes>
+                        </BrowserRouter>
+                    </TooltipProvider>
                 </IntlProvider>
             </QueryClientProvider>
         </StrictMode>

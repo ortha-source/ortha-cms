@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { SlotContribution } from '@ortha-cms/utils-admin';
 
 /** A route a plugin mounts into the app router. */
 export type RouteItem = {
@@ -33,6 +34,12 @@ export type AdminPlugin = {
      * provider + gate inside it. Omitted by most plugins.
      */
     layout?: ReactNode;
+    /**
+     * Slot contributions (e.g. toolbar nav items). The host wires these into
+     * their target slots before render and attaches no meaning beyond wiring —
+     * the consuming plugin (the shell) defines and reads the slot.
+     */
+    slots?: SlotContribution[];
 };
 
 /** Options for {@link createAdmin}. */

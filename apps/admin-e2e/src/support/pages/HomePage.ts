@@ -1,19 +1,23 @@
 import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
-/** Page object for the placeholder home page at `/` (the post-login landing). */
+/** Page object for the home page at `/` (the post-login landing). */
 export class HomePage extends BasePage {
+    /**
+     * The page's `<h1>` — the time-of-day greeting (`Good …, {email}`). Matched
+     * by level rather than text, since the greeting varies by hour and user.
+     */
     readonly heading: Locator;
     /**
      * The authenticated shell's primary nav (from `@ortha-cms/shell-admin`'s
-     * `AppShell`). Present only when a private route renders inside the shell, so
-     * it doubles as proof the gated layout wrapped the page.
+     * `AppShell` toolbar). Present only when a private route renders inside the
+     * shell, so it doubles as proof the gated layout wrapped the page.
      */
     readonly nav: Locator;
 
     constructor(page: Page) {
         super(page);
-        this.heading = page.getByRole('heading', { name: 'Ortha CMS' });
+        this.heading = page.getByRole('heading', { level: 1 });
         this.nav = page.getByRole('navigation', { name: 'Primary' });
     }
 

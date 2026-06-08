@@ -28,6 +28,12 @@ singletons live in one place instead of inside `bootstrap-admin`.
 - `HTTP_STATUS` — named status codes (`UNAUTHORIZED`, `FORBIDDEN`,
   `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
   bare `401`.
+- `createSlot<T>(name)` / `Slot<T>` / `SlotContribution<T>` — the plugin
+  extension-point primitive. A slot is a named, shared list: a consumer creates
+  it and reads `getItems()`, plugins contribute items via the host, and the host
+  wires contributions in once at boot. Pure data (no `react`), so it lives in
+  this leaf rather than the host. The *generic* mechanism only — concrete slots
+  (e.g. the shell's `NAV_ITEM_SLOT`) are defined by their owning plugin.
 
 > Auth state is **not** here — context, gate, and `/auth/me` all live in
 > `@ortha-cms/identity-admin`. This package stays a pure HTTP/data leaf (no
@@ -36,8 +42,8 @@ singletons live in one place instead of inside `bootstrap-admin`.
 ## Layout
 
 - One concern per folder, each an `index.ts`: `src/lib/apiClient/`,
-  `src/lib/queryClient/`, `src/lib/apiError/`, `src/lib/httpStatus/`. The package
-  surface is `src/index.ts`.
+  `src/lib/queryClient/`, `src/lib/apiError/`, `src/lib/httpStatus/`,
+  `src/lib/slot/`. The package surface is `src/index.ts`.
 
 ## Architecture
 
