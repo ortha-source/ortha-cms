@@ -21,7 +21,7 @@ const messages = defineMessages({
     subtitle: {
         id: 'shell.home.subtitle',
         defaultMessage:
-            "Here's your workspace. Manage content, users, and plugins from one place."
+            'Everything your team builds, in one place — shape the content, bring the right people in, and extend it all with plugins.'
     },
     workspacesTitle: {
         id: 'shell.home.card.workspaces.title',
