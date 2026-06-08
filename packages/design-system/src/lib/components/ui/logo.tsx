@@ -34,7 +34,7 @@ export function Logo({
         >
             <div
                 className={cn(
-                    'flex items-center justify-center rounded-md bg-primary text-primary-foreground',
+                    'flex items-center justify-center rounded-lg bg-primary text-primary-foreground',
                     sizes[size].badge
                 )}
             >
