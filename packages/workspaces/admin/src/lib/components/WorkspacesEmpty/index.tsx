@@ -81,7 +81,11 @@ export function WorkspacesEmpty({
             </EmptyHeader>
             <EmptyContent>
                 {filtered ? (
-                    <Button variant="outline" onClick={onClear}>
+                    <Button
+                        variant="outline"
+                        className="shadow-none"
+                        onClick={onClear}
+                    >
                         {intl.formatMessage(messages.clear)}
                     </Button>
                 ) : (
