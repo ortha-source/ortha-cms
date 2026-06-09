@@ -51,6 +51,48 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(workspacesPage.newWorkspaceButton).toBeFocused();
     });
 
+    test('the status filter radiogroup moves with arrow keys', async ({
+        page,
+        workspacesPage
+    }) => {
+        await workspacesPage.goto();
+        await workspacesPage.openFilter();
+
+        // Roving tabindex: the selected option (Active, the default) is the
+        // group's single tab stop. Arrow keys then move selection *and* focus
+        // together — the ARIA radiogroup pattern.
+        const active = workspacesPage.statusOption('Active');
+        await active.focus();
+        await expect(active).toBeFocused();
+
+        await page.keyboard.press('ArrowDown');
+        const archived = workspacesPage.statusOption('Archived');
+        await expect(archived).toBeFocused();
+        await expect(archived).toHaveAttribute('aria-checked', 'true');
+
+        // Selection follows focus: the grid re-filters to the archived set.
+        await page.keyboard.press('Escape');
+        await expect(workspacesPage.card('Research archive')).toBeVisible();
+    });
+
+    test('the color swatches move with arrow keys', async ({
+        page,
+        workspacesPage
+    }) => {
+        await workspacesPage.goto();
+        await workspacesPage.openCreate();
+
+        const slate = workspacesPage.colorSwatch('slate');
+        await slate.focus();
+        await expect(slate).toBeFocused();
+
+        await page.keyboard.press('ArrowRight');
+        const green = workspacesPage.colorSwatch('green');
+        await expect(green).toBeFocused();
+        await expect(green).toHaveAttribute('aria-checked', 'true');
+        await expect(slate).toHaveAttribute('aria-checked', 'false');
+    });
+
     test('a workspace can be created by keyboard alone', async ({
         page,
         workspacesPage

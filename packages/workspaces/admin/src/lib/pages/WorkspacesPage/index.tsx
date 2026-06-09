@@ -85,11 +85,14 @@ export function WorkspacesPage() {
         [workspaces, status, search]
     );
 
-    const isFiltering = search.trim() !== '' || status !== DEFAULT_STATUS;
-
+    // Resets back to the widest view. Clearing lands on `All` (not the default
+    // `Active`) so it reveals every workspace — including archived ones the
+    // default view hides — matching the empty-state's "see them all" copy. This
+    // also unsticks the all-archived case, where resetting to `Active` would
+    // leave the grid empty and the clear button a no-op.
     const clearFilters = () => {
         setSearch('');
-        setStatus(DEFAULT_STATUS);
+        setStatus('All');
     };
 
     return (
@@ -120,7 +123,12 @@ export function WorkspacesPage() {
                 </div>
             ) : filtered.length === 0 ? (
                 <WorkspacesEmpty
-                    filtered={isFiltering}
+                    // "No match / clear filters" whenever workspaces exist but
+                    // the current view hides them all (e.g. a search miss, or
+                    // the default Active filter with only archived workspaces);
+                    // the "no workspaces yet / create first" variant is reserved
+                    // for a genuinely empty list.
+                    filtered={workspaces.length > 0}
                     onClear={clearFilters}
                     onCreate={openCreate}
                 />

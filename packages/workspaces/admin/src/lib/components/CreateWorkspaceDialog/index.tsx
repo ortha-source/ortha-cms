@@ -28,6 +28,7 @@ import {
     type AvatarColor
 } from '@ortha-cms/design-system';
 import { useCreateWorkspace } from '../../api/useCreateWorkspace';
+import { radioGroupKeydown } from '../../utils/radioGroupKeydown';
 import { useCreateWorkspaceSchema } from './useCreateWorkspaceSchema';
 import type { WorkspaceMember } from '../../types/workspace';
 
@@ -73,6 +74,10 @@ const messages = defineMessages({
     created: {
         id: 'workspaces.create.created',
         defaultMessage: 'Created “{name}”'
+    },
+    createFailed: {
+        id: 'workspaces.create.failed',
+        defaultMessage: 'Couldn’t create the workspace. Please try again.'
     }
 });
 
@@ -130,6 +135,11 @@ export function CreateWorkspaceDialog({
                 color: value.color
             };
 
+            // Optimistic + fire-and-forget: the card appears instantly (see
+            // useCreateWorkspace) and the dialog closes right away. Success and
+            // failure are both surfaced as toasts, since the dialog is already
+            // gone by the time the mutation settles; on failure the optimistic
+            // insert is rolled back by the mutation's own onError.
             createWorkspace.mutate(
                 { ...value, creator },
                 {
@@ -138,6 +148,11 @@ export function CreateWorkspaceDialog({
                             intl.formatMessage(messages.created, {
                                 name: created.name
                             })
+                        );
+                    },
+                    onError: () => {
+                        toast.error(
+                            intl.formatMessage(messages.createFailed)
                         );
                     }
                 }
@@ -247,6 +262,14 @@ export function CreateWorkspaceDialog({
                                             messages.colorLabel
                                         )}
                                         className="flex flex-wrap gap-2"
+                                        onKeyDown={(event) =>
+                                            radioGroupKeydown(
+                                                event,
+                                                AVATAR_COLORS,
+                                                field.state.value,
+                                                field.handleChange
+                                            )
+                                        }
                                     >
                                         {AVATAR_COLORS.map((color) => {
                                             const selected =
@@ -257,6 +280,7 @@ export function CreateWorkspaceDialog({
                                                     type="button"
                                                     role="radio"
                                                     aria-checked={selected}
+                                                    tabIndex={selected ? 0 : -1}
                                                     aria-label={intl.formatMessage(
                                                         messages.colorSwatch,
                                                         { color }

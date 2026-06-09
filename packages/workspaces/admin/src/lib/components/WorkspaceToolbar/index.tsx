@@ -11,6 +11,7 @@ import {
     PopoverTrigger,
     cn
 } from '@ortha-cms/design-system';
+import { radioGroupKeydown } from '../../utils/radioGroupKeydown';
 
 /** The status the grid is filtered by. `Active` is the default view. */
 export type StatusFilter = 'All' | 'Active' | 'Archived';
@@ -121,6 +122,14 @@ export function WorkspaceToolbar({
                         role="radiogroup"
                         aria-label={intl.formatMessage(messages.statusLegend)}
                         className="flex flex-col gap-1"
+                        onKeyDown={(event) =>
+                            radioGroupKeydown(
+                                event,
+                                STATUS_OPTIONS,
+                                status,
+                                onStatusChange
+                            )
+                        }
                     >
                         <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
                             {intl.formatMessage(messages.statusLegend)}
@@ -133,6 +142,7 @@ export function WorkspaceToolbar({
                                     type="button"
                                     role="radio"
                                     aria-checked={selected}
+                                    tabIndex={selected ? 0 : -1}
                                     onClick={() => onStatusChange(option)}
                                     className={cn(
                                         'flex items-center justify-between rounded-md px-2 py-1.5 text-sm',
