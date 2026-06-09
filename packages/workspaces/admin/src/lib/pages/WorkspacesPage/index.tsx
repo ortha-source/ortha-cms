@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus } from 'lucide-react';
 import {
@@ -63,6 +63,18 @@ export function WorkspacesPage() {
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
     const [createOpen, setCreateOpen] = useState(false);
 
+    // Remember which control opened the create dialog so focus can return there
+    // when it closes (the dialog is state-controlled, not opened via a Radix
+    // trigger, so it has no trigger to restore focus to on its own).
+    const createTrigger = useRef<HTMLElement | null>(null);
+    const openCreate = () => {
+        createTrigger.current =
+            document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+        setCreateOpen(true);
+    };
+
     const filtered = useMemo(
         () =>
             workspaces.filter(
@@ -86,7 +98,7 @@ export function WorkspacesPage() {
                 title={intl.formatMessage(messages.title)}
                 subtitle={intl.formatMessage(messages.subtitle)}
                 actions={
-                    <Button onClick={() => setCreateOpen(true)}>
+                    <Button onClick={openCreate}>
                         <Plus />
                         {intl.formatMessage(messages.newWorkspace)}
                     </Button>
@@ -110,7 +122,7 @@ export function WorkspacesPage() {
                 <WorkspacesEmpty
                     filtered={isFiltering}
                     onClear={clearFilters}
-                    onCreate={() => setCreateOpen(true)}
+                    onCreate={openCreate}
                 />
             ) : (
                 <div
@@ -132,6 +144,7 @@ export function WorkspacesPage() {
             <CreateWorkspaceDialog
                 open={createOpen}
                 onOpenChange={setCreateOpen}
+                restoreFocusRef={createTrigger}
             />
         </Container>
     );

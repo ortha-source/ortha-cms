@@ -25,8 +25,9 @@ const MAX_AVATARS = 4;
 
 /**
  * The card footer's member control: a row of overlapping avatars plus a member
- * count. Clicking opens a popover listing every member. `stopPropagation` keeps
- * the click from also opening the parent workspace card.
+ * count. Clicking opens a popover listing every member. It renders above the
+ * card's click overlay (the card places it in a `relative z-10` row), so it is a
+ * sibling of — not nested in — the card's open button and activates on its own.
  */
 export function MemberStack({ members }: { members: WorkspaceMember[] }) {
     const intl = useIntl();
@@ -38,7 +39,6 @@ export function MemberStack({ members }: { members: WorkspaceMember[] }) {
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    onClick={(event) => event.stopPropagation()}
                     aria-label={intl.formatMessage(messages.open)}
                     className="-m-1 flex items-center gap-2 rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -68,11 +68,7 @@ export function MemberStack({ members }: { members: WorkspaceMember[] }) {
                     </span>
                 </button>
             </PopoverTrigger>
-            <PopoverContent
-                align="start"
-                className="w-72 p-0"
-                onClick={(event) => event.stopPropagation()}
-            >
+            <PopoverContent align="start" className="w-72 p-0">
                 <MemberListPopover members={members} />
             </PopoverContent>
         </Popover>

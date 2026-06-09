@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check } from 'lucide-react';
@@ -89,6 +90,12 @@ function initialsOf(name: string): string {
 type CreateWorkspaceDialogProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    /**
+     * Element to return focus to when the dialog closes. Set by the page to the
+     * control that opened it, since a state-controlled dialog has no Radix
+     * trigger to restore focus to on its own.
+     */
+    restoreFocusRef?: RefObject<HTMLElement | null>;
 };
 
 /**
@@ -98,7 +105,8 @@ type CreateWorkspaceDialogProps = {
  */
 export function CreateWorkspaceDialog({
     open,
-    onOpenChange
+    onOpenChange,
+    restoreFocusRef
 }: CreateWorkspaceDialogProps) {
     const intl = useIntl();
     const { user } = useAuth();
@@ -142,7 +150,15 @@ export function CreateWorkspaceDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent
+                onCloseAutoFocus={(event) => {
+                    const trigger = restoreFocusRef?.current;
+                    if (trigger) {
+                        event.preventDefault();
+                        trigger.focus();
+                    }
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title)}
