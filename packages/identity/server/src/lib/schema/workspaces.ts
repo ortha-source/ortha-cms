@@ -11,6 +11,8 @@ export const workspaces = pgTable('workspaces', {
     name: text('name').notNull(),
     /** URL-safe identifier. Unique across the system. */
     slug: text('slug').notNull().unique(),
+    /** Optional short summary of what the workspace holds. */
+    description: text('description'),
     /** Row creation timestamp. */
     createdAt: timestamp('created_at', { withTimezone: true })
         .notNull()

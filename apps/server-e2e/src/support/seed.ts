@@ -3,9 +3,11 @@ import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
+    memberships,
     roles,
     sessions,
     users,
+    workspaces,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
 // HashingService is internal to the identity plugin (not re-exported). We reach
@@ -78,6 +80,42 @@ export async function seedActiveUser(
     opts: { email: string; password: string; role: SystemRoleKey; name?: string }
 ): Promise<SeededUser> {
     return seedUser(app, { ...opts, status: 'active' });
+}
+
+/** A seeded workspace row — what the workspaces read assertions reference. */
+export interface SeededWorkspace {
+    id: string;
+    name: string;
+    slug: string;
+}
+
+/** Insert a workspace row directly. `description` defaults to `null`. */
+export async function seedWorkspace(opts: {
+    name: string;
+    slug: string;
+    description?: string;
+}): Promise<SeededWorkspace> {
+    const [workspace] = await getDatabase()
+        .insert(workspaces)
+        .values({
+            name: opts.name,
+            slug: opts.slug,
+            description: opts.description ?? null
+        })
+        .returning();
+    return {
+        id: workspace.id,
+        name: workspace.name,
+        slug: workspace.slug
+    };
+}
+
+/** Add a user to a workspace (the `memberships` join). */
+export async function seedMembership(
+    userId: string,
+    workspaceId: string
+): Promise<void> {
+    await getDatabase().insert(memberships).values({ userId, workspaceId });
 }
 
 /** Force every session of a user into the past — simulates natural expiry. */
