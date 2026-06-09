@@ -43,3 +43,51 @@ export {
     TooltipContent,
     TooltipProvider
 } from './lib/components/ui/tooltip';
+export {
+    Avatar,
+    AvatarImage,
+    AvatarFallback,
+    AVATAR_COLORS,
+    avatarColorVar
+} from './lib/components/ui/avatar';
+export type { AvatarColor } from './lib/components/ui/avatar';
+export { Badge, badgeVariants } from './lib/components/ui/badge';
+export type { BadgeProps } from './lib/components/ui/badge';
+export {
+    Popover,
+    PopoverTrigger,
+    PopoverContent,
+    PopoverAnchor
+} from './lib/components/ui/popover';
+export {
+    Empty,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+    EmptyDescription,
+    EmptyContent
+} from './lib/components/ui/empty';
+export { Textarea } from './lib/components/ui/textarea';
+export {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupButton,
+    InputGroupText,
+    InputGroupInput,
+    InputGroupTextarea
+} from './lib/components/ui/input-group';
+export {
+    Dialog,
+    DialogPortal,
+    DialogOverlay,
+    DialogTrigger,
+    DialogClose,
+    DialogContent,
+    DialogHeader,
+    DialogFooter,
+    DialogTitle,
+    DialogDescription
+} from './lib/components/ui/dialog';
+export { Toaster } from './lib/components/ui/sonner';
+export { toast } from 'sonner';
+export { Container, ContainerHeader } from './lib/components/ui/container';

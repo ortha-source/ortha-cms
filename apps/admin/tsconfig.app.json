@@ -37,6 +37,9 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../../packages/workspaces/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/shell/admin/tsconfig.lib.json"
         },
         {

@@ -27,6 +27,28 @@
     --color-border: oklch(0.922 0 0);
     --color-input: oklch(0.922 0 0);
     --color-ring: oklch(0.708 0 0);
+
+    /* Active-status green (spec #16a34a) — a generic status dot, reusable for
+       active users too. Consumed via the `bg-status-active` utility. */
+    --color-status-active: oklch(0.63 0.17 149);
+}
+
+/* Avatar accent palette — the only color in the otherwise-neutral admin. Muted
+   OKLCH, L≈0.5, low chroma; white initials ride on top. Shared across
+   workspaces, members, and (later) users.
+
+   Declared as plain `:root` custom properties (not `@theme`) because they are
+   tinted dynamically via inline `var(--color-avatar-…)` styles per workspace —
+   Tailwind tree-shakes `@theme` tokens that no generated utility references, so
+   a theme block would drop them. */
+:root {
+    --color-avatar-slate: oklch(0.5 0.03 250);
+    --color-avatar-green: oklch(0.5 0.08 150);
+    --color-avatar-amber: oklch(0.52 0.09 75);
+    --color-avatar-violet: oklch(0.5 0.1 300);
+    --color-avatar-rose: oklch(0.5 0.1 15);
+    --color-avatar-teal: oklch(0.5 0.06 190);
+    --color-avatar-indigo: oklch(0.5 0.1 275);
 }
 
 @layer base {

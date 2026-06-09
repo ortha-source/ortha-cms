@@ -5,7 +5,8 @@
     "dependencies": {
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/identity-admin": "*",
-        "@ortha-cms/shell-admin": "*"
+        "@ortha-cms/shell-admin": "*",
+        "@ortha-cms/workspaces-admin": "*"
     },
     "nx": {
         "name": "admin",
