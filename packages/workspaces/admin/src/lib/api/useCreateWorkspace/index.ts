@@ -1,8 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-    createWorkspace,
-    type CreateWorkspaceInput
-} from '../workspacesClient';
+import { createWorkspace, type CreateWorkspaceArgs } from '../workspacesClient';
 import { workspacesKey } from '../useWorkspaces';
 import type { Workspace } from '../../types/workspace';
 
@@ -16,18 +13,18 @@ export function useCreateWorkspace() {
 
     return useMutation({
         mutationFn: createWorkspace,
-        onMutate: async (input: CreateWorkspaceInput) => {
+        onMutate: async ({ body, creator }: CreateWorkspaceArgs) => {
             await queryClient.cancelQueries({ queryKey: workspacesKey });
             const previous =
                 queryClient.getQueryData<Workspace[]>(workspacesKey);
 
             const optimistic: Workspace = {
-                id: `optimistic_${input.name}`,
-                name: input.name,
-                description: input.description,
-                color: input.color,
+                id: `optimistic_${body.slug}`,
+                name: body.name,
+                description: body.description,
+                color: body.color,
                 status: 'Active',
-                members: [input.creator]
+                members: [creator]
             };
             queryClient.setQueryData<Workspace[]>(workspacesKey, (old = []) => [
                 optimistic,

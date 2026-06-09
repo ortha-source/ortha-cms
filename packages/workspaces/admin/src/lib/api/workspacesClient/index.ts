@@ -1,10 +1,13 @@
-import type { AvatarColor } from '@ortha-cms/design-system';
+import { AVATAR_COLORS, type AvatarColor } from '@ortha-cms/design-system';
 import type { Workspace, WorkspaceMember } from '../../types/workspace';
+import type { CreateWorkspaceBody } from '../../types/wizard';
+import { slugify } from '../../utils/slugify';
 
 // TODO(workspaces-server): replace this in-memory stub with `apiClient` calls
-// against `/api/workspaces` once a workspaces server plugin ships the rich shape
-// (members, color, status). The exported function signatures are the contract
-// the real client must satisfy — nothing else in the admin imports the store.
+// against `/api/workspaces` (list, create, and `GET /slug-available`) once a
+// workspaces server plugin ships the rich shape (members, roles, color, status,
+// content access). The exported function signatures are the contract the real
+// client must satisfy — nothing else in the admin imports the store.
 
 const member = (
     id: string,
@@ -16,13 +19,19 @@ const member = (
     name,
     email,
     color,
-    initials: name
-        .split(' ')
+    initials: initialsOf(name)
+});
+
+/** Up-to-two-letter initials from a display name. */
+function initialsOf(name: string): string {
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
         .map((part) => part[0])
         .slice(0, 2)
         .join('')
-        .toUpperCase()
-});
+        .toUpperCase();
+}
 
 let store: Workspace[] = [
     {
@@ -127,11 +136,13 @@ let store: Workspace[] = [
     }
 ];
 
-/** The shape the create form submits. The creator becomes the sole member. */
-export type CreateWorkspaceInput = {
-    name: string;
-    description: string;
-    color: AvatarColor;
+/**
+ * Arguments to {@link createWorkspace}: the API request body plus the creator,
+ * which the stub uses to seed the workspace's owner. The real server will
+ * derive the owner from the session and ignore `creator`.
+ */
+export type CreateWorkspaceArgs = {
+    body: CreateWorkspaceBody;
     creator: WorkspaceMember;
 };
 
@@ -140,17 +151,35 @@ export async function listWorkspaces(): Promise<Workspace[]> {
     return structuredClone(store);
 }
 
-/** Creates a workspace (Active, with the creator as its sole member). */
-export async function createWorkspace(
-    input: CreateWorkspaceInput
-): Promise<Workspace> {
+/**
+ * Whether `slug` is free. The stub treats the slugified name of every existing
+ * workspace as taken, so e.g. `marketing-site` reports unavailable.
+ */
+export async function checkSlugAvailable(slug: string): Promise<boolean> {
+    const taken = new Set(store.map((w) => slugify(w.name)));
+    return !taken.has(slug);
+}
+
+/** Creates a workspace (Active) with the creator as owner plus any added members. */
+export async function createWorkspace({
+    body,
+    creator
+}: CreateWorkspaceArgs): Promise<Workspace> {
+    const added = body.members.map((m, i) =>
+        member(
+            m.id,
+            m.invited ? m.email : m.name,
+            m.email,
+            AVATAR_COLORS[i % AVATAR_COLORS.length]
+        )
+    );
     const created: Workspace = {
-        id: `ws_${input.name.toLowerCase().replace(/\s+/g, '_')}_${store.length}`,
-        name: input.name,
-        description: input.description,
-        color: input.color,
+        id: `ws_${body.slug}_${store.length}`,
+        name: body.name,
+        description: body.description,
+        color: body.color,
         status: 'Active',
-        members: [input.creator]
+        members: [creator, ...added]
     };
     store = [created, ...store];
     return structuredClone(created);

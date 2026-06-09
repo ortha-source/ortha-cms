@@ -2,9 +2,9 @@
 
 The **workspaces feature plugin** for the Ortha CMS admin UI. It owns the
 Workspaces management experience: the private `/workspaces` route (a searchable,
-status-filterable grid of workspace cards with a create flow) and its toolbar
-nav entry. It replaced the placeholder the shell shipped while the feature was
-pending.
+status-filterable grid of workspace cards), the full-page **create wizard** at
+`/workspaces/new`, and its toolbar nav entry. It replaced the placeholder the
+shell shipped while the feature was pending.
 
 ## Package
 
@@ -20,20 +20,39 @@ pending.
 ## Key exports
 
 - `WorkspacesPlugin()` — factory returning an `AdminPlugin`: the lazy-loaded,
-  private `/workspaces` route plus the `Layers` nav item (`order: 20`, before
-  Users), contributed to the shell's `NAVBAR_START_SLOT`.
+  private `/workspaces` (list) and `/workspaces/new` (create wizard) routes plus
+  the `Layers` nav item (`order: 20`, before Users), contributed to the shell's
+  `NAVBAR_START_SLOT`.
 - `useWorkspaces` / `workspacesKey` — TanStack Query list hook + its key.
-- `useCreateWorkspace` — create mutation with optimistic insert at the top.
+- `useCreateWorkspace` — create mutation with optimistic insert at the top;
+  takes `{ body, creator }` (the `creator` seeds the stub's owner).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` / `memberCount` — the data
   model.
 
+## Create wizard (`/workspaces/new`)
+
+- A full-page, 3-step wizard (Basics → Members → Content), **not** a dialog. The
+  page (`pages/CreateWorkspacePage`) owns navigation + submission; all form state
+  lives in `hooks/useWizard` (the single source of truth) so it survives moving
+  between steps. The active step is mirrored to `?step=` and clamped.
+- The signature **`StepperRail`** renders markers (number → check once complete),
+  a connector that fills as steps complete, an Optional badge on steps 2–3, and a
+  summary chip per completed step.
+- Supporting hooks: `useSlug` (auto-fill + regenerate + availability),
+  `useResourceSelection` (controlled `specific`/`all` model), `useDebouncedValue`,
+  `useBasicsSchema` (localized Zod).
+- Step entrance motion is the `wizard-step-in` keyframe in `apps/admin/styles.css`
+  — **transform only** (opacity stays 1), disabled under `prefers-reduced-motion`,
+  replayed via `key={step}` on the step card.
+
 ## Architecture
 
-- **Data is stubbed.** `lib/api/workspacesClient` is an in-memory store with seed
-  data behind typed `listWorkspaces` / `createWorkspace` functions — the single
-  seam to swap for real `apiClient` calls against `/api/workspaces` once a
-  workspaces **server** plugin ships the rich shape (members, color, status). See
-  the `TODO(workspaces-server)` there; nothing else imports the store.
+- **Data is stubbed.** Three in-memory clients under `lib/api/` are the seams to
+  swap for real `apiClient` calls once the servers ship — each carries a `TODO`:
+  `workspacesClient` (`listWorkspaces` / `createWorkspace` / `checkSlugAvailable`
+  → `/api/workspaces`), `usersClient` (`searchUsers` → `GET /api/users?q=`), and
+  `contentTypesClient` (`listContentTypes` → `GET /api/content-types`). Nothing
+  else imports the stores directly.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral
@@ -52,7 +71,11 @@ pending.
   `src/lib/utils/workspacesPlugin/` (`camelCase` for non-components)
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `workspaces.<area>.<key>`
-- Forms use TanStack Form + a `use<Name>Schema` Zod hook for localized validation
+- Simple forms use TanStack Form + a `use<Name>Schema` Zod hook. The **create
+  wizard is the exception**: its cross-step state lives in `useWizard` (controlled
+  fields) and validates with the `useBasicsSchema` Zod hook directly, so state
+  isn't lost when a step unmounts.
+- non-api hooks live in `src/lib/hooks/<useThing>/`; api hooks in `src/lib/api/`
 - UI is built only from `@ortha-cms/design-system` components, not bespoke markup
 
 ## Commands

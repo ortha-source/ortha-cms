@@ -1,0 +1,386 @@
+import { defineMessages, useIntl } from 'react-intl';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
+import {
+    Button,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+    Container,
+    ContainerHeader,
+    Spinner,
+    toast
+} from '@ortha-cms/design-system';
+import { ContentStep } from '../../components/CreateWorkspaceWizard/ContentStep';
+import { IdentityFields } from '../../components/CreateWorkspaceWizard/IdentityFields';
+import { MembersStep } from '../../components/CreateWorkspaceWizard/MembersStep';
+import { StepCard } from '../../components/CreateWorkspaceWizard/StepCard';
+import { StepperRail } from '../../components/CreateWorkspaceWizard/StepperRail';
+import { WizardFooter } from '../../components/CreateWorkspaceWizard/WizardFooter';
+import { useSlug } from '../../hooks/useSlug';
+import { useWizard } from '../../hooks/useWizard';
+import { EMPTY_SELECTION } from '../../utils/resourceSelection';
+
+const messages = defineMessages({
+    title: {
+        id: 'workspaces.create.title',
+        defaultMessage: 'Create workspace'
+    },
+    subtitle: {
+        id: 'workspaces.create.subtitle',
+        defaultMessage:
+            'Set up a new workspace in three short steps. You can change most settings later.'
+    },
+    back: {
+        id: 'workspaces.create.backToWorkspaces',
+        defaultMessage: 'Back to workspaces'
+    },
+    // Rail
+    stepBasics: {
+        id: 'workspaces.create.stepBasics',
+        defaultMessage: 'Basics'
+    },
+    stepBasicsHint: {
+        id: 'workspaces.create.stepBasicsHint',
+        defaultMessage: 'Name, slug, and description'
+    },
+    stepMembers: {
+        id: 'workspaces.create.stepMembers',
+        defaultMessage: 'Members'
+    },
+    stepMembersHint: {
+        id: 'workspaces.create.stepMembersHint',
+        defaultMessage: 'Who can access the workspace'
+    },
+    stepContent: {
+        id: 'workspaces.create.stepContent',
+        defaultMessage: 'Content'
+    },
+    stepContentHint: {
+        id: 'workspaces.create.stepContentHint',
+        defaultMessage: 'Collections and pages'
+    },
+    summaryJustYou: {
+        id: 'workspaces.create.summaryMembers',
+        defaultMessage: '{count, plural, one {Just you} other {# people}}'
+    },
+    summaryAllContent: {
+        id: 'workspaces.create.summaryAllContent',
+        defaultMessage: 'All content'
+    },
+    summarySpecificContent: {
+        id: 'workspaces.create.summarySpecificContent',
+        defaultMessage: '{collections} collections · {pages} pages'
+    },
+    // Step cards
+    basicsTitle: {
+        id: 'workspaces.create.basicsCardTitle',
+        defaultMessage: 'Basics'
+    },
+    basicsDescription: {
+        id: 'workspaces.create.basicsCardDescription',
+        defaultMessage: 'Name your workspace and give it an identity.'
+    },
+    membersTitle: {
+        id: 'workspaces.create.membersCardTitle',
+        defaultMessage: 'Members'
+    },
+    membersDescription: {
+        id: 'workspaces.create.membersCardDescription',
+        defaultMessage:
+            'Add teammates now, or skip and invite them later. You are the owner.'
+    },
+    contentTitle: {
+        id: 'workspaces.create.contentCardTitle',
+        defaultMessage: 'Content access'
+    },
+    contentDescription: {
+        id: 'workspaces.create.contentCardDescription',
+        defaultMessage: 'Choose what this workspace can access.'
+    },
+    // Footer
+    basicsHint: {
+        id: 'workspaces.create.basicsFooterHint',
+        defaultMessage: 'Only a name is required — everything else can change later.'
+    },
+    continueToMembers: {
+        id: 'workspaces.create.continueToMembers',
+        defaultMessage: 'Continue to members'
+    },
+    continueToContent: {
+        id: 'workspaces.create.continueToContent',
+        defaultMessage: 'Continue to content'
+    },
+    backLabel: {
+        id: 'workspaces.create.back',
+        defaultMessage: 'Back'
+    },
+    skipForNow: {
+        id: 'workspaces.create.skipForNow',
+        defaultMessage: 'Skip for now'
+    },
+    skipAndCreate: {
+        id: 'workspaces.create.skipAndCreate',
+        defaultMessage: 'Skip & create'
+    },
+    create: {
+        id: 'workspaces.create.create',
+        defaultMessage: 'Create workspace'
+    },
+    creating: {
+        id: 'workspaces.create.creating',
+        defaultMessage: 'Creating…'
+    },
+    success: {
+        id: 'workspaces.create.success',
+        defaultMessage: 'Workspace "{name}" created.'
+    },
+    error: {
+        id: 'workspaces.create.error',
+        defaultMessage: 'Could not create workspace. Please try again.'
+    }
+});
+
+/**
+ * Full-page wizard for creating a workspace. Owns navigation and submission;
+ * all form state lives in {@link useWizard}, and each step body is
+ * presentational. Rendered at `/workspaces/new` inside the authenticated shell.
+ */
+export function CreateWorkspacePage() {
+    const intl = useIntl();
+    const navigate = useNavigate();
+    const wizard = useWizard();
+    const slug = useSlug({ data: wizard.data, update: wizard.update });
+
+    const basicsCanContinue = wizard.basicsValid && slug.status === 'available';
+    const contentBlocked =
+        wizard.contentMode === 'specific' &&
+        (wizard.ctLoading || wizard.ctError);
+
+    const submitTo = async (skip: boolean) => {
+        try {
+            const created = await wizard.submit(
+                skip
+                    ? {
+                          contentMode: 'specific',
+                          collections: EMPTY_SELECTION,
+                          pages: EMPTY_SELECTION
+                      }
+                    : undefined
+            );
+            toast.success(
+                intl.formatMessage(messages.success, { name: created.name })
+            );
+            navigate('/workspaces');
+        } catch {
+            toast.error(intl.formatMessage(messages.error));
+        }
+    };
+
+    const railSteps = [
+        {
+            label: intl.formatMessage(messages.stepBasics),
+            hint: intl.formatMessage(messages.stepBasicsHint),
+            summary: wizard.data.name.trim() || undefined
+        },
+        {
+            label: intl.formatMessage(messages.stepMembers),
+            hint: intl.formatMessage(messages.stepMembersHint),
+            optional: true,
+            summary: intl.formatMessage(messages.summaryJustYou, {
+                count: wizard.memberCount
+            })
+        },
+        {
+            label: intl.formatMessage(messages.stepContent),
+            hint: intl.formatMessage(messages.stepContentHint),
+            optional: true,
+            summary:
+                wizard.contentMode === 'all'
+                    ? intl.formatMessage(messages.summaryAllContent)
+                    : intl.formatMessage(messages.summarySpecificContent, {
+                          collections: wizard.collectionCount,
+                          pages: wizard.pageCount
+                      })
+        }
+    ];
+
+    return (
+        <Container className="max-w-[920px]">
+            <Link
+                to="/workspaces"
+                className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+                <ArrowLeft className="size-4" />
+                {intl.formatMessage(messages.back)}
+            </Link>
+
+            <ContainerHeader
+                title={intl.formatMessage(messages.title)}
+                subtitle={intl.formatMessage(messages.subtitle)}
+            />
+
+            <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
+                <div className="lg:sticky lg:top-6 lg:self-start">
+                    <StepperRail
+                        current={wizard.step}
+                        maxReached={wizard.maxReached}
+                        steps={railSteps}
+                        onStepClick={wizard.goStep}
+                    />
+                </div>
+
+                <StepCard key={wizard.step}>
+                    {wizard.step === 1 ? (
+                        <>
+                            <CardHeader>
+                                <CardTitle>
+                                    {intl.formatMessage(messages.basicsTitle)}
+                                </CardTitle>
+                                <CardDescription>
+                                    {intl.formatMessage(
+                                        messages.basicsDescription
+                                    )}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <IdentityFields
+                                    data={wizard.data}
+                                    update={wizard.update}
+                                    slug={slug}
+                                />
+                            </CardContent>
+                            <CardFooter>
+                                <WizardFooter
+                                    hint={intl.formatMessage(
+                                        messages.basicsHint
+                                    )}
+                                    primary={
+                                        <Button
+                                            type="button"
+                                            onClick={() => wizard.goStep(2)}
+                                            disabled={!basicsCanContinue}
+                                        >
+                                            {intl.formatMessage(
+                                                messages.continueToMembers
+                                            )}
+                                            <ArrowRight />
+                                        </Button>
+                                    }
+                                />
+                            </CardFooter>
+                        </>
+                    ) : null}
+
+                    {wizard.step === 2 ? (
+                        <>
+                            <CardHeader>
+                                <CardTitle>
+                                    {intl.formatMessage(messages.membersTitle)}
+                                </CardTitle>
+                                <CardDescription>
+                                    {intl.formatMessage(
+                                        messages.membersDescription
+                                    )}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <MembersStep
+                                    members={wizard.members}
+                                    addMember={wizard.addMember}
+                                    removeMember={wizard.removeMember}
+                                    setMemberRole={wizard.setMemberRole}
+                                />
+                            </CardContent>
+                            <CardFooter>
+                                <WizardFooter
+                                    onBack={() => wizard.goStep(1)}
+                                    backLabel={intl.formatMessage(
+                                        messages.backLabel
+                                    )}
+                                    onSkip={() => wizard.goStep(3)}
+                                    skipLabel={intl.formatMessage(
+                                        messages.skipForNow
+                                    )}
+                                    primary={
+                                        <Button
+                                            type="button"
+                                            onClick={() => wizard.goStep(3)}
+                                        >
+                                            {intl.formatMessage(
+                                                messages.continueToContent
+                                            )}
+                                            <ArrowRight />
+                                        </Button>
+                                    }
+                                />
+                            </CardFooter>
+                        </>
+                    ) : null}
+
+                    {wizard.step === 3 ? (
+                        <>
+                            <CardHeader>
+                                <CardTitle>
+                                    {intl.formatMessage(messages.contentTitle)}
+                                </CardTitle>
+                                <CardDescription>
+                                    {intl.formatMessage(
+                                        messages.contentDescription
+                                    )}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ContentStep
+                                    contentMode={wizard.contentMode}
+                                    setContentMode={wizard.setContentMode}
+                                    collections={wizard.collections}
+                                    setCollections={wizard.setCollections}
+                                    pages={wizard.pages}
+                                    setPages={wizard.setPages}
+                                />
+                            </CardContent>
+                            <CardFooter>
+                                <WizardFooter
+                                    onBack={() => wizard.goStep(2)}
+                                    backLabel={intl.formatMessage(
+                                        messages.backLabel
+                                    )}
+                                    onSkip={() => submitTo(true)}
+                                    skipLabel={intl.formatMessage(
+                                        messages.skipAndCreate
+                                    )}
+                                    primary={
+                                        <Button
+                                            type="button"
+                                            onClick={() => submitTo(false)}
+                                            disabled={
+                                                wizard.submitting ||
+                                                contentBlocked
+                                            }
+                                        >
+                                            {wizard.submitting ? (
+                                                <>
+                                                    <Spinner />
+                                                    {intl.formatMessage(
+                                                        messages.creating
+                                                    )}
+                                                </>
+                                            ) : (
+                                                intl.formatMessage(
+                                                    messages.create
+                                                )
+                                            )}
+                                        </Button>
+                                    }
+                                />
+                            </CardFooter>
+                        </>
+                    ) : null}
+                </StepCard>
+            </div>
+        </Container>
+    );
+}
