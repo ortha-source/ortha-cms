@@ -34,6 +34,7 @@ export class WorkspacesService {
                 name: workspaces.name,
                 slug: workspaces.slug,
                 description: workspaces.description,
+                color: workspaces.color,
                 createdAt: workspaces.createdAt,
                 updatedAt: workspaces.updatedAt
             })
@@ -46,6 +47,29 @@ export class WorkspacesService {
             return [];
         }
 
+        const membersByWorkspace = await this.membersByWorkspace(
+            rows.map((row) => row.id)
+        );
+
+        return rows.map((row) => ({
+            ...row,
+            // The caller is always a member of every workspace returned here,
+            // so the roster is never actually empty — `?? []` only satisfies
+            // the type for the `.get()` miss.
+            members: membersByWorkspace.get(row.id) ?? []
+        }));
+    }
+
+    /**
+     * Loads every member of the given workspaces, grouped by workspace id.
+     * One `inArray` query over `memberships → users` (index-covered by
+     * `memberships_workspace_id_idx`), ordered by name with an `id` tiebreaker
+     * so the roster is stable. Rows arrive name-ordered, so push order within
+     * each group preserves that ordering.
+     */
+    private async membersByWorkspace(
+        workspaceIds: string[]
+    ): Promise<Map<string, WorkspaceMemberView[]>> {
         const memberRows = await this.db
             .select({
                 workspaceId: memberships.workspaceId,
@@ -55,35 +79,23 @@ export class WorkspacesService {
             })
             .from(memberships)
             .innerJoin(users, eq(memberships.userId, users.id))
-            .where(
-                inArray(
-                    memberships.workspaceId,
-                    rows.map((row) => row.id)
-                )
-            )
+            .where(inArray(memberships.workspaceId, workspaceIds))
             .orderBy(users.name, users.id);
 
-        const membersByWorkspace = new Map<string, WorkspaceMemberView[]>();
+        const grouped = new Map<string, WorkspaceMemberView[]>();
         for (const member of memberRows) {
-            const list = membersByWorkspace.get(member.workspaceId);
             const view: WorkspaceMemberView = {
                 id: member.id,
                 name: member.name,
                 email: member.email
             };
+            const list = grouped.get(member.workspaceId);
             if (list) {
                 list.push(view);
             } else {
-                membersByWorkspace.set(member.workspaceId, [view]);
+                grouped.set(member.workspaceId, [view]);
             }
         }
-
-        return rows.map((row) => ({
-            ...row,
-            // The caller is always a member of every workspace returned here,
-            // so the roster is never actually empty — `?? []` only satisfies
-            // the type for the `.get()` miss.
-            members: membersByWorkspace.get(row.id) ?? []
-        }));
+        return grouped;
     }
 }

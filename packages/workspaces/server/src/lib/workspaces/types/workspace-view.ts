@@ -16,8 +16,8 @@ export interface WorkspaceMemberView {
 /**
  * A workspace as returned by `GET /api/workspaces`, scoped to the requesting
  * user's memberships. Mirrors the persisted columns plus the embedded member
- * roster. `color`/`status` are intentionally absent — they are admin-only
- * presentation, not persisted entities.
+ * roster. `status` is intentionally absent — it is admin-only presentation,
+ * not a persisted entity; `color` is persisted (a design-system accent key).
  */
 export interface WorkspaceView {
     /** Primary key. */
@@ -28,6 +28,8 @@ export interface WorkspaceView {
     slug: string;
     /** Optional short summary, or `null`. */
     description: string | null;
+    /** Accent color key (a design-system `AVATAR_COLORS` value, e.g. `slate`). */
+    color: string;
     /** Row creation timestamp. */
     createdAt: Date;
     /** Last-modified timestamp. */

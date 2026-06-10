@@ -88,7 +88,8 @@ describe('GET /api/workspaces', () => {
         alpha = await seedWorkspace({
             name: 'Alpha Site',
             slug: 'alpha',
-            description: 'The alpha workspace.'
+            description: 'The alpha workspace.',
+            color: 'violet'
         });
         bravo = await seedWorkspace({ name: 'Bravo Hub', slug: 'bravo' });
         charlie = await seedWorkspace({ name: 'Charlie Docs', slug: 'charlie' });
@@ -144,6 +145,7 @@ describe('GET /api/workspaces', () => {
                 (w: { slug: string }) => w.slug === 'alpha'
             );
             expect(Object.keys(workspace).sort()).toEqual([
+                'color',
                 'createdAt',
                 'description',
                 'id',
@@ -158,6 +160,23 @@ describe('GET /api/workspaces', () => {
                 'id',
                 'name'
             ]);
+        });
+
+        it('returns the persisted color, defaulting to slate when unset', async () => {
+            const res = await get()
+                .set('Cookie', await login(ADA))
+                .expect(200);
+
+            const alphaView = res.body.find(
+                (w: { slug: string }) => w.slug === 'alpha'
+            );
+            const bravoView = res.body.find(
+                (w: { slug: string }) => w.slug === 'bravo'
+            );
+            // Alpha was seeded with an explicit color; Bravo wasn't, so it
+            // falls back to the schema default.
+            expect(alphaView.color).toBe('violet');
+            expect(bravoView.color).toBe('slate');
         });
 
         it('returns a null description when none is set', async () => {

@@ -40,8 +40,10 @@ delete and membership mutation are later tickets.
   so the route is authenticated automatically; the controller reads the user via
   `@CurrentUser()` and scopes the list to that user's memberships. No
   `RequirePermission` (that decorator does not exist in identity yet).
-- **`color` / `status` are not persisted.** They are admin-only presentation,
-  derived client-side; the API returns only real columns plus the member join.
+- **`color` is persisted; `status` is not.** `color` is a real column on
+  identity's `workspaces` table (a design-system accent key, defaulting to
+  `slate`) and is returned by the read API. `status` stays admin-only
+  presentation, derived client-side.
 - **Two queries, grouped in memory.** `WorkspacesService.listForUser` fetches the
   user's workspaces, then their members, and stitches them — avoids a 3-way join
   repeating workspace columns per member. See the JSDoc there for the index

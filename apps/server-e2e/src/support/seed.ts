@@ -87,26 +87,33 @@ export interface SeededWorkspace {
     id: string;
     name: string;
     slug: string;
+    color: string;
 }
 
-/** Insert a workspace row directly. `description` defaults to `null`. */
+/**
+ * Insert a workspace row directly. `description` defaults to `null`; `color`
+ * is omitted so the schema default (`slate`) applies unless overridden.
+ */
 export async function seedWorkspace(opts: {
     name: string;
     slug: string;
     description?: string;
+    color?: string;
 }): Promise<SeededWorkspace> {
     const [workspace] = await getDatabase()
         .insert(workspaces)
         .values({
             name: opts.name,
             slug: opts.slug,
-            description: opts.description ?? null
+            description: opts.description ?? null,
+            ...(opts.color ? { color: opts.color } : {})
         })
         .returning();
     return {
         id: workspace.id,
         name: workspace.name,
-        slug: workspace.slug
+        slug: workspace.slug,
+        color: workspace.color
     };
 }
 
