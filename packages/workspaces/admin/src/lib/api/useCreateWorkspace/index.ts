@@ -22,7 +22,9 @@ export function useCreateWorkspace() {
                 queryClient.getQueryData<Workspace[]>(workspacesKey);
 
             const optimistic: Workspace = {
-                id: `optimistic_${input.name}`,
+                // A unique id so two same-named creates can't collide on their
+                // React key; reconciled away when `onSettled` refetches.
+                id: `optimistic_${crypto.randomUUID()}`,
                 name: input.name,
                 description: input.description,
                 color: input.color,

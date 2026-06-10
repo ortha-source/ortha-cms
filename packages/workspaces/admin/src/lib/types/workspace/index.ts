@@ -19,7 +19,7 @@ export type WorkspaceMember = {
 
 /**
  * A workspace: a self-contained grouping of content, members, and plugins.
- * `memberCount` is never stored — derive it from {@link memberCount}.
+ * The member count is never stored — read it from `members.length`.
  */
 export type Workspace = {
     /** Stable workspace id. */
@@ -35,7 +35,3 @@ export type Workspace = {
     /** Everyone who belongs to the workspace. */
     members: WorkspaceMember[];
 };
-
-/** Number of members in a workspace. */
-export const memberCount = (workspace: Workspace): number =>
-    workspace.members.length;

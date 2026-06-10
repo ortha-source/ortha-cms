@@ -3,18 +3,8 @@ import { cn } from '@ortha-cms/design-system';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import { StatusChip } from '../StatusChip';
 import { MemberStack } from '../MemberStack';
+import { initialsOf } from '../../utils/initialsOf';
 import type { Workspace } from '../../types/workspace';
-
-/** Derives up-to-two-letter initials from a workspace name. */
-function initialsOf(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-}
 
 /**
  * A workspace card. The whole card is clickable to open the workspace, but the

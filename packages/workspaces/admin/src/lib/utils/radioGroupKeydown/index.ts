@@ -31,8 +31,20 @@ export function radioGroupKeydown<T extends string>(
     if (!HANDLED_KEYS.includes(event.key)) return;
     event.preventDefault();
 
-    const index = options.indexOf(current);
+    const radios = Array.from(
+        event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')
+    );
     const last = options.length - 1;
+
+    // Move relative to the *focused* radio, per the ARIA radiogroup pattern —
+    // not the selected value. On open, focus can land on a radio other than the
+    // selected one (e.g. Radix autofocuses the first option), and keying off
+    // `current` would then jump from the wrong origin and skip an option. Fall
+    // back to the selected value only when focus is outside the group.
+    const focusedIndex = radios.indexOf(
+        document.activeElement as HTMLElement
+    );
+    const index = focusedIndex >= 0 ? focusedIndex : options.indexOf(current);
 
     let next = index;
     switch (event.key) {
@@ -54,8 +66,5 @@ export function radioGroupKeydown<T extends string>(
 
     if (next === index) return;
     onChange(options[next]);
-
-    const radios =
-        event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
     radios[next]?.focus();
 }

@@ -7,4 +7,3 @@ export type {
     WorkspaceMember,
     WorkspaceStatus
 } from './lib/types/workspace';
-export { memberCount } from './lib/types/workspace';

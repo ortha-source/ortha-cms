@@ -1,5 +1,6 @@
 import type { AvatarColor } from '@ortha-cms/design-system';
 import type { Workspace, WorkspaceMember } from '../../types/workspace';
+import { initialsOf } from '../../utils/initialsOf';
 
 // TODO(workspaces-server): replace this in-memory stub with `apiClient` calls
 // against `/api/workspaces` once a workspaces server plugin ships the rich shape
@@ -16,12 +17,7 @@ const member = (
     name,
     email,
     color,
-    initials: name
-        .split(' ')
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
+    initials: initialsOf(name)
 });
 
 let store: Workspace[] = [

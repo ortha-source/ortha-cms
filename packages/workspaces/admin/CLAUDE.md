@@ -24,8 +24,7 @@ pending.
   Users), contributed to the shell's `NAVBAR_START_SLOT`.
 - `useWorkspaces` / `workspacesKey` — TanStack Query list hook + its key.
 - `useCreateWorkspace` — create mutation with optimistic insert at the top.
-- `Workspace` / `WorkspaceMember` / `WorkspaceStatus` / `memberCount` — the data
-  model.
+- `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
 
 ## Architecture
 

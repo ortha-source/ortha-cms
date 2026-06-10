@@ -29,6 +29,7 @@ import {
 } from '@ortha-cms/design-system';
 import { useCreateWorkspace } from '../../api/useCreateWorkspace';
 import { radioGroupKeydown } from '../../utils/radioGroupKeydown';
+import { initialsOf } from '../../utils/initialsOf';
 import { useCreateWorkspaceSchema } from './useCreateWorkspaceSchema';
 import type { WorkspaceMember } from '../../types/workspace';
 
@@ -80,17 +81,6 @@ const messages = defineMessages({
         defaultMessage: 'Couldn’t create the workspace. Please try again.'
     }
 });
-
-/** Derives up-to-two-letter initials from a name. */
-function initialsOf(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-}
 
 type CreateWorkspaceDialogProps = {
     open: boolean;
