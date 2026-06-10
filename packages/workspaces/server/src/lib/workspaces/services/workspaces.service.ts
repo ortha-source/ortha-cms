@@ -23,8 +23,9 @@ export class WorkspacesService {
      * join would repeat every workspace column once per member, so we fetch the
      * user's workspaces, then their members, and stitch them together. Both
      * filters are index-covered (the memberships unique's leftmost prefix on
-     * `userId`; `memberships_workspace_id_idx` for the `inArray`). Ordered for
-     * deterministic output.
+     * `userId`; `memberships_workspace_id_idx` for the `inArray`). Ordered by
+     * name with an `id` tiebreaker, so rows with equal or null names stay
+     * stable across requests.
      */
     async listForUser(userId: string): Promise<WorkspaceView[]> {
         const rows = await this.db
@@ -39,7 +40,7 @@ export class WorkspacesService {
             .from(memberships)
             .innerJoin(workspaces, eq(memberships.workspaceId, workspaces.id))
             .where(eq(memberships.userId, userId))
-            .orderBy(workspaces.name);
+            .orderBy(workspaces.name, workspaces.id);
 
         if (rows.length === 0) {
             return [];
@@ -60,7 +61,7 @@ export class WorkspacesService {
                     rows.map((row) => row.id)
                 )
             )
-            .orderBy(users.name);
+            .orderBy(users.name, users.id);
 
         const membersByWorkspace = new Map<string, WorkspaceMemberView[]>();
         for (const member of memberRows) {
@@ -79,6 +80,9 @@ export class WorkspacesService {
 
         return rows.map((row) => ({
             ...row,
+            // The caller is always a member of every workspace returned here,
+            // so the roster is never actually empty — `?? []` only satisfies
+            // the type for the `.get()` miss.
             members: membersByWorkspace.get(row.id) ?? []
         }));
     }

@@ -8,9 +8,11 @@ import { WorkspacesModule } from '../workspaces.module';
 export type WorkspacesServerPlugin = ServerPlugin;
 
 /**
- * Creates the workspaces plugin. Register it **after** `IdentityPlugin` in the
- * `plugins` array — it reads the workspace/membership/user tables identity
- * owns and relies on identity's global `AuthGuard` to authenticate requests.
+ * Creates the workspaces plugin. Conventionally registered **after**
+ * `IdentityPlugin` in the `plugins` array, whose workspace/membership/user
+ * tables it reads and whose migrations must be applied for the route to work.
+ * (Identity's `AuthGuard` is an `APP_GUARD`, collected globally regardless of
+ * plugin order, so it protects this route either way.)
  *
  * Ships **no migrations**: it owns no schema (the tables it reads are migrated
  * by identity).

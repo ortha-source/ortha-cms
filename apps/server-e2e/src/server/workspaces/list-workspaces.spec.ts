@@ -46,6 +46,7 @@ describe('GET /api/workspaces', () => {
     let ada: SeededUser;
     let grace: SeededUser;
     let nemo: SeededUser;
+    let solo: SeededUser;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -77,7 +78,7 @@ describe('GET /api/workspaces', () => {
             role: 'viewer',
             status: 'active'
         });
-        await seedActiveUser(harness.app, {
+        solo = await seedActiveUser(harness.app, {
             email: SOLO,
             password: PASSWORD,
             role: 'viewer',
@@ -159,6 +160,17 @@ describe('GET /api/workspaces', () => {
             ]);
         });
 
+        it('returns a null description when none is set', async () => {
+            const res = await get()
+                .set('Cookie', await login(ADA))
+                .expect(200);
+
+            const bravoView = res.body.find(
+                (w: { slug: string }) => w.slug === 'bravo'
+            );
+            expect(bravoView.description).toBeNull();
+        });
+
         it('embeds every member of a shared workspace, not just the caller', async () => {
             const res = await get()
                 .set('Cookie', await login(ADA))
@@ -167,8 +179,13 @@ describe('GET /api/workspaces', () => {
             const bravoView = res.body.find(
                 (w: { slug: string }) => w.slug === 'bravo'
             );
+            // Ordered by name (no client-side sort) — verifies the query's
+            // `orderBy(users.name, users.id)`: Ada Lovelace before Grace Hopper.
             expect(
-                bravoView.members.map((m: { email: string }) => m.email).sort()
+                bravoView.members.map((m: { name: string }) => m.name)
+            ).toEqual(['Ada Lovelace', 'Grace Hopper']);
+            expect(
+                bravoView.members.map((m: { email: string }) => m.email)
             ).toEqual([ADA, GRACE]);
         });
 
@@ -195,6 +212,58 @@ describe('GET /api/workspaces', () => {
                 'Bravo Hub',
                 'Charlie Docs'
             ]);
+        });
+
+        it('breaks ties between equal-named workspaces by id', async () => {
+            // Two workspaces share a name, so `name` alone leaves their order
+            // undefined — only the `id` tiebreaker makes it stable. Solo (a
+            // member of nothing in the base seed) joins both.
+            const one = await seedWorkspace({ name: 'Tied', slug: 'tied-1' });
+            const two = await seedWorkspace({ name: 'Tied', slug: 'tied-2' });
+            const three = await seedWorkspace({ name: 'Tied', slug: 'tied-3' });
+            await seedMembership(solo.id, one.id);
+            await seedMembership(solo.id, two.id);
+            await seedMembership(solo.id, three.id);
+
+            const res = await get()
+                .set('Cookie', await login(SOLO))
+                .expect(200);
+
+            // Canonical uuids sort lexically the same as Postgres orders them.
+            const tiedIds = res.body
+                .filter((w: { name: string }) => w.name === 'Tied')
+                .map((w: { id: string }) => w.id);
+            expect(tiedIds).toEqual([one.id, two.id, three.id].sort());
+        });
+
+        it('breaks ties between members with no display name by id', async () => {
+            // Several members of one workspace all lack a display name, so
+            // `users.name` is null for each — only the `id` tiebreaker keeps
+            // their order stable.
+            const hub = await seedWorkspace({ name: 'Anon', slug: 'anon' });
+            const anons = await Promise.all(
+                ['anon1', 'anon2', 'anon3'].map((handle) =>
+                    seedUser(harness.app, {
+                        email: `${handle}@example.com`,
+                        password: PASSWORD,
+                        role: 'viewer',
+                        status: 'active'
+                    })
+                )
+            );
+            for (const anon of anons) {
+                await seedMembership(anon.id, hub.id);
+            }
+
+            const res = await get()
+                .set('Cookie', await login('anon1@example.com'))
+                .expect(200);
+
+            const anonHub = res.body.find(
+                (w: { slug: string }) => w.slug === 'anon'
+            );
+            const memberIds = anonHub.members.map((m: { id: string }) => m.id);
+            expect(memberIds).toEqual(anons.map((a) => a.id).sort());
         });
 
         it('returns an empty list for a user with no memberships', async () => {

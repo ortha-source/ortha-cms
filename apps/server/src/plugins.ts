@@ -10,9 +10,9 @@ import type { OrthaConfig } from '../ortha.config';
  * so both see exactly the same plugins, in the same order.
  *
  * Order matters: `DatabasePlugin` must come first — it opens the
- * connection every other plugin assumes. `WorkspacesPlugin` comes after
- * `IdentityPlugin` — it reads identity's tables and relies on its global
- * `AuthGuard`.
+ * connection every other plugin assumes. `WorkspacesPlugin` is listed after
+ * `IdentityPlugin`, whose tables it reads (a convention; the route's
+ * `AuthGuard` is global and order-independent).
  */
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     return [

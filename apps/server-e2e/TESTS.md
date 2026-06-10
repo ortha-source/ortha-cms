@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_62 test cases across 7 spec files._
+_65 test cases across 7 spec files._
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -172,7 +172,10 @@ _<sub>apps/server-e2e/src/server/workspaces/list-workspaces.spec.ts</sub>_
 | --- |
 | returns only the workspaces the caller is a member of |
 | exposes exactly the documented workspace + member fields |
+| returns a null description when none is set |
 | embeds every member of a shared workspace, not just the caller |
 | tolerates a member with no display name (null, not fabricated) |
 | orders the workspaces by name |
+| breaks ties between equal-named workspaces by id |
+| breaks ties between members with no display name by id |
 | returns an empty list for a user with no memberships |

@@ -12,12 +12,14 @@ delete and membership mutation are later tickets.
 - Grouped package (`packages/workspaces/server`), server-only. Consumed from
   source (`exports` → `./src/index.ts`); no build step.
 - Register it in `createServer({ plugins })` **after** `IdentityPlugin` — it
-  reads identity's tables and depends on identity's global `AuthGuard`.
+  reads identity's tables (a convention; identity's `AuthGuard` is a global
+  `APP_GUARD` and protects the route regardless of plugin order).
 
 ## Key exports
 
 - `WorkspacesPlugin()` — factory returning a `ServerPlugin` (no config).
-- `WorkspacesModule` — the global NestJS module.
+- `WorkspacesModule` — the NestJS module (mounts the read controller +
+  service; not global).
 - `WorkspaceView` / `WorkspaceMemberView` — the read API's response shape.
 
 ## Architecture

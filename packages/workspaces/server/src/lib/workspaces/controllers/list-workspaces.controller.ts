@@ -9,6 +9,10 @@ import type { WorkspaceView } from '../types/workspace-view';
  * resolves the session cookie, 401s when there is no valid session, and
  * attaches the user that `@CurrentUser()` reads here. The list is scoped to
  * that user's memberships, so no extra authorization is needed.
+ *
+ * The embedded roster includes each member's email. Any workspace member —
+ * including `viewer`s — can therefore see co-members' emails; this is
+ * intentional for v1. Gate behind a permission if that changes.
  */
 @Controller('workspaces')
 export class ListWorkspacesController {
