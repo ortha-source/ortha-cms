@@ -22,9 +22,12 @@ alongside the `@nx/*` plugins in the root `nx.json`.
       Cacheable (inputs: schema files; outputs: the `migrations` dir). Needs
       no database and no secrets — generation only diffs against the snapshot.
     - `db-migrate` — applies every plugin's migrations. Loads the host's
-      `ortha.config.ts` + `buildPlugins()` via `jiti`, then applies each
-      plugin's `migrations` (see `ServerPlugin.migrations`) under its own
-      tracking table. `cache: false` (side-effecting).
+      `ortha.config.ts` + `buildPlugins()` via `jiti` (transpiling with `swc`
+      in **legacy-decorator** mode, since the plugin graph it pulls in uses
+      `experimentalDecorators` and jiti's bundled babel otherwise defaults to
+      stage-3 decorators and crashes), then applies each plugin's `migrations`
+      (see `ServerPlugin.migrations`) under its own tracking table.
+      `cache: false` (side-effecting).
 
 ## Architecture
 
