@@ -16,6 +16,7 @@
     "dependencies": {
         "@nx/devkit": "22.7.5",
         "@ortha-cms/bootstrap-server": "*",
+        "@swc/core": "~1.15.5",
         "drizzle-kit": "^0.31.0",
         "drizzle-orm": "^0.36.0",
         "jiti": "^2.4.0",
