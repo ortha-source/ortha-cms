@@ -1,9 +1,8 @@
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { AuthProvider, RequireAuth } from '@ortha-cms/identity-admin';
-import { HomeIcon, LayoutGridIcon, UsersIcon } from 'lucide-react';
+import { HomeIcon, UsersIcon } from 'lucide-react';
 import { AppShell } from '../../components/AppShell';
 import { HomePage } from '../../pages/HomePage';
-import { WorkspacesPage } from '../../pages/WorkspacesPage';
 import { UsersPage } from '../../pages/UsersPage';
 import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
 
@@ -21,11 +20,11 @@ export type ShellAdminPlugin = AdminPlugin;
  * {@link AuthProvider} (the auth-state source). Private routes render in the
  * shell's outlet, behind that one check; the host stays auth-agnostic.
  *
- * Its routes (home, workspaces, users) carry no `public` flag, so they are
- * private — they render only for signed-in users. It also contributes the
- * toolbar's nav items to its own {@link NAVBAR_START_SLOT}. The Workspaces/Users
- * pages are placeholders until their feature plugins land, at which point those
- * plugins contribute their own routes and nav items and these are removed.
+ * Its routes (home, users) carry no `public` flag, so they are private — they
+ * render only for signed-in users. It also contributes the toolbar's nav items
+ * to its own {@link NAVBAR_START_SLOT}. The Users page is a placeholder until
+ * its feature plugin lands, at which point that plugin contributes its own route
+ * and nav item and this is removed (as Workspaces already has).
  *
  * @example
  * ```typescript
@@ -49,7 +48,6 @@ export function ShellPlugin(): ShellAdminPlugin {
         ),
         routes: [
             { path: '/', element: <HomePage /> },
-            { path: '/workspaces', element: <WorkspacesPage /> },
             { path: '/users', element: <UsersPage /> }
         ],
         slots: [
@@ -63,13 +61,6 @@ export function ShellPlugin(): ShellAdminPlugin {
                         end: true,
                         order: 10,
                         icon: HomeIcon
-                    },
-                    {
-                        labelId: 'shell.nav.workspaces',
-                        defaultLabel: 'Workspaces',
-                        to: '/workspaces',
-                        order: 20,
-                        icon: LayoutGridIcon
                     },
                     {
                         labelId: 'shell.nav.users',
