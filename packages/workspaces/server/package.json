@@ -1,7 +1,6 @@
 {
-    "name": "@ortha-cms/nx",
+    "name": "@ortha-cms/workspaces-server",
     "version": "0.0.1",
-    "private": true,
     "main": "./src/index.ts",
     "types": "./src/index.ts",
     "exports": {
@@ -12,14 +11,14 @@
         },
         "./package.json": "./package.json"
     },
-    "executors": "./executors.json",
+    "files": [
+        "src"
+    ],
     "dependencies": {
-        "@nx/devkit": "22.7.5",
+        "@nestjs/common": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
-        "@swc/core": "~1.15.5",
-        "drizzle-kit": "^0.31.0",
-        "drizzle-orm": "^0.36.0",
-        "jiti": "^2.4.0",
-        "pg": "^8.13.0"
+        "@ortha-cms/database": "*",
+        "@ortha-cms/identity-server": "*",
+        "drizzle-orm": "^0.36.0"
     }
 }

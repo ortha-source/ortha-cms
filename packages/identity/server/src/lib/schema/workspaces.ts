@@ -11,6 +11,16 @@ export const workspaces = pgTable('workspaces', {
     name: text('name').notNull(),
     /** URL-safe identifier. Unique across the system. */
     slug: text('slug').notNull().unique(),
+    /** Optional short summary of what the workspace holds. */
+    description: text('description'),
+    /**
+     * Accent color key tinting the workspace avatar in the admin. One of the
+     * design-system `AVATAR_COLORS` (`slate`/`green`/`amber`/`violet`/`rose`/
+     * `teal`/`indigo`); stored as plain text since the server can't depend on
+     * the admin palette. Defaults to `slate` until a create flow lets the user
+     * pick.
+     */
+    color: text('color').notNull().default('slate'),
     /** Row creation timestamp. */
     createdAt: timestamp('created_at', { withTimezone: true })
         .notNull()
