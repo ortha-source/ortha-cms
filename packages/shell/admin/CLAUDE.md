@@ -2,8 +2,8 @@
 
 The **shell plugin** for the Ortha CMS admin UI — the authenticated app chrome.
 It contributes the layout (a top toolbar: logo + slot-driven nav) that wraps
-every private route, the home page at `/`, and placeholder Workspaces/Users
-pages. It **owns the gating wiring**: its `layout` composes identity's
+every private route, the home page at `/`, and a placeholder Users page. It
+**owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
 non-`public` routes but stays auth-agnostic — so the shell is what makes private
@@ -13,8 +13,9 @@ It also **owns the toolbar's `NAVBAR_START_SLOT`** — a `createSlot` extension 
 (primitive from `@ortha-cms/utils-admin`). `AppShell` reads it (sorted by
 `order`) to render nav buttons; any plugin contributes entries via its `slots`,
 so new nav items appear without editing the shell. The shell currently
-contributes Home/Workspaces/Users itself; as feature plugins land they
-contribute their own and the placeholders here are removed.
+contributes Home/Users itself; as feature plugins land they contribute their own
+and the placeholders here are removed (Workspaces already moved out to
+`@ortha-cms/workspaces-admin`).
 
 ## Package
 
@@ -26,15 +27,13 @@ contribute their own and the placeholders here are removed.
 ## Key exports
 
 - `ShellPlugin()` — factory returning an `AdminPlugin` with `layout` (the
-  `AppShell`), the private `/`, `/workspaces`, `/users` routes, and the toolbar
-  nav-item `slots`. Register it in `createAdmin({ plugins })`, after
-  `IdentityPlugin()`.
+  `AppShell`), the private `/` and `/users` routes, and the toolbar nav-item
+  `slots`. Register it in `createAdmin({ plugins })`, after `IdentityPlugin()`.
 - `ShellAdminPlugin` — the plugin shape (thin alias of `AdminPlugin`).
 - `AppShell` — the authenticated layout; renders the top toolbar + `<Outlet/>`.
 - `HomePage` — greets the signed-in user and links to the two primary
   destinations as cards.
-- `WorkspacesPage` / `UsersPage` — placeholder pages until their feature plugins
-  land.
+- `UsersPage` — placeholder page until its feature plugin lands.
 - `NAVBAR_START_SLOT` / `NavbarItem` — the leading (start-side) toolbar nav slot
   and its item type; exported so other plugins can contribute nav entries. Named
   for placement; a trailing `NAVBAR_END_SLOT` (`'shell.navbar.end'`) for
