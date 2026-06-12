@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { useCan } from '@ortha-cms/identity-admin';
 import { Plus } from 'lucide-react';
 import {
     Button,
@@ -58,6 +59,7 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
+    const canCreate = useCan('workspaces:create');
     const { data: workspaces = [], isLoading } = useWorkspaces();
 
     const [search, setSearch] = useState('');
@@ -91,10 +93,12 @@ export function WorkspacesPage() {
                 title={intl.formatMessage(messages.title)}
                 subtitle={intl.formatMessage(messages.subtitle)}
                 actions={
-                    <Button onClick={openCreate}>
-                        <Plus />
-                        {intl.formatMessage(messages.newWorkspace)}
-                    </Button>
+                    canCreate ? (
+                        <Button onClick={openCreate}>
+                            <Plus />
+                            {intl.formatMessage(messages.newWorkspace)}
+                        </Button>
+                    ) : undefined
                 }
             />
 
@@ -119,6 +123,7 @@ export function WorkspacesPage() {
                     // the "no workspaces yet / create first" variant is reserved
                     // for a genuinely empty list.
                     filtered={workspaces.length > 0}
+                    canCreate={canCreate}
                     onClear={clearFilters}
                     onCreate={openCreate}
                 />

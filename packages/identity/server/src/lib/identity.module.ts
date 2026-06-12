@@ -4,6 +4,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/services/roles.service';
+import { PermissionsService } from './rbac/services/permissions.service';
+import { PermissionsGuard } from './rbac/guards/permissions.guard';
 import { SystemRolesSeeder } from './rbac/seeders/system-roles.seeder';
 import { RootAdminService } from './root-admin/services/root-admin.service';
 import { RootAdminSeeder } from './root-admin/seeders/root-admin.seeder';
@@ -79,6 +81,8 @@ export class IdentityModule {
                 RootAdminService,
                 RootAdminSeeder,
                 RolesService,
+                PermissionsService,
+                PermissionsGuard,
                 AuthService,
                 SessionService,
                 HashingService,
@@ -90,7 +94,12 @@ export class IdentityModule {
                 // even from this dynamic module.
                 { provide: APP_GUARD, useClass: AuthGuard }
             ],
-            exports: [IDENTITY_CONFIG, RolesService, AuthService]
+            exports: [
+                IDENTITY_CONFIG,
+                RolesService,
+                PermissionsService,
+                AuthService
+            ]
         };
     }
 }

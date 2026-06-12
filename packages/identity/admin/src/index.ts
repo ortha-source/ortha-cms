@@ -5,7 +5,7 @@ export { LoginForm } from './lib/components/LoginForm';
 export { AuthLayout } from './lib/components/AuthLayout';
 export { AuthProvider } from './lib/auth/AuthProvider';
 export { RequireAuth } from './lib/auth/RequireAuth';
-export { useAuth, AuthStatus } from './lib/auth/authContext';
+export { useAuth, useCan, AuthStatus } from './lib/auth/authContext';
 export type { AuthState, AuthUser } from './lib/auth/authContext';
 export type {
     LoginCredentials,

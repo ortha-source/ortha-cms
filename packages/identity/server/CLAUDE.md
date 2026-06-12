@@ -22,9 +22,12 @@ set, `RootAdminService` (driven by `RootAdminSeeder`) idempotently ensures one
 left untouched). It **enforces authentication app-wide**: an `AuthGuard` is
 registered as the global `APP_GUARD`, so every route requires a valid session
 unless marked `@Public()` (login/logout are); it resolves the session cookie to
-the user, attaches it, and exposes it to handlers via `@CurrentUser()`.
-Behaviour is still partly pending: tokens, user management, and the `can()`
-check land in later tickets (epic #3).
+the user, attaches it, and exposes it to handlers via `@CurrentUser()`. It also
+**enforces permissions**: `PermissionsGuard` + `@RequirePermissions('…')` 403 a
+route unless the user's role grants every listed permission (resolved by
+`PermissionsService.forRole`), and `GET /auth/me` returns the user's permission
+keys so the admin can gate UI to match. Behaviour is still partly pending:
+tokens and full user management land in later tickets (epic #3).
 
 ## Package
 

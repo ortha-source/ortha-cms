@@ -8,6 +8,8 @@ import {
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { PublicUser } from '../../auth/services/auth.service';
 import { OriginGuard } from '../../auth/guards/origin.guard';
+import { PermissionsGuard } from '../../rbac/guards/permissions.guard';
+import { RequirePermissions } from '../../rbac/decorators/require-permissions.decorator';
 import {
     WorkspaceService,
     type WorkspaceView
@@ -20,11 +22,13 @@ import { SlugTakenError } from '../errors';
  * owner is derived from the session (`@CurrentUser()`), never the body; the
  * wizard's per-member role is ignored. A duplicate slug maps to 409.
  *
- * Guarded by `OriginGuard` (CSRF defense for this state-changing POST, matching
+ * Requires the `workspaces:create` permission (`PermissionsGuard`). Guarded by
+ * `OriginGuard` (CSRF defense for this state-changing POST, matching
  * `/auth/login` + `/auth/logout`); authentication is enforced by the app-wide
  * `AuthGuard`.
  */
-@UseGuards(OriginGuard)
+@UseGuards(OriginGuard, PermissionsGuard)
+@RequirePermissions('workspaces:create')
 @Controller('workspaces')
 export class CreateWorkspaceController {
     constructor(private readonly workspaces: WorkspaceService) {}

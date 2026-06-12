@@ -5,6 +5,7 @@
  * permission set has exactly one source of truth.
  */
 export const PERMISSION_KEYS = [
+    'workspaces:create',
     'workspaces:read',
     'workspaces:update',
     'workspaces:delete',

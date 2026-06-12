@@ -1,5 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useCan } from '@ortha-cms/identity-admin';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import {
     Button,
@@ -151,8 +152,17 @@ const messages = defineMessages({
 export function CreateWorkspacePage() {
     const intl = useIntl();
     const navigate = useNavigate();
+    const canCreate = useCan('workspaces:create');
     const wizard = useWizard();
     const slug = useSlug({ data: wizard.data, update: wizard.update });
+
+    // The server enforces `workspaces:create`; redirect rather than render the
+    // wizard for users who can't create one (e.g. deep-linking to
+    // `/workspaces/new`). Auth is already resolved here — this route renders
+    // inside the shell's `RequireAuth`, so `canCreate` reflects real grants.
+    if (!canCreate) {
+        return <Navigate to="/workspaces" replace />;
+    }
 
     const basicsCanContinue = wizard.basicsValid && slug.status === 'available';
     const contentBlocked =
