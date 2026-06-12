@@ -1,4 +1,10 @@
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+
+/** Lifecycle state of a workspace. New workspaces start `active`. */
+export const workspaceStatus = pgEnum('workspace_status', [
+    'active',
+    'archived'
+]);
 
 /**
  * Tenancy boundary. First-class even though v1 seeds exactly one
@@ -21,6 +27,8 @@ export const workspaces = pgTable('workspaces', {
      * pick.
      */
     color: text('color').notNull().default('slate'),
+    /** Lifecycle state. */
+    status: workspaceStatus('status').notNull().default('active'),
     /** Row creation timestamp. */
     createdAt: timestamp('created_at', { withTimezone: true })
         .notNull()

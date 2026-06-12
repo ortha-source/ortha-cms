@@ -3,12 +3,14 @@ import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
+import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
 import { MembersPage } from './pages/MembersPage';
 
 interface Fixtures {
     loginPage: LoginPage;
     homePage: HomePage;
     workspacesPage: WorkspacesPage;
+    createWorkspacePage: CreateWorkspacePage;
     membersPage: MembersPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, pre-tagged for
@@ -31,6 +33,9 @@ export const test = base.extend<Fixtures>({
     },
     workspacesPage: async ({ page }, use) => {
         await use(new WorkspacesPage(page));
+    },
+    createWorkspacePage: async ({ page }, use) => {
+        await use(new CreateWorkspacePage(page));
     },
     membersPage: async ({ page }, use) => {
         await use(new MembersPage(page));

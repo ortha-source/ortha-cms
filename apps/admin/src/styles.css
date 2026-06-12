@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../../../packages/design-system/src/styles.css';
 
 @source "../../../packages/design-system/src/**/*.{ts,tsx}";
 /* Admin-side plugin/host packages (grouped layout: packages/<group>/admin). */

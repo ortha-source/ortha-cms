@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Container, ContainerHeader, Spinner } from '@ortha-cms/design-system';
+import { useHasPermission } from '@ortha-cms/identity-admin';
+import { Plus } from 'lucide-react';
+import {
+    Button,
+    Container,
+    ContainerHeader,
+    Spinner
+} from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import { WorkspaceCard } from '../../components/WorkspaceCard';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
@@ -21,6 +29,10 @@ const messages = defineMessages({
         id: 'workspaces.page.subtitle',
         defaultMessage:
             'Each workspace groups its own content, members, and plugins. Switch in to manage one, or spin up a new one.'
+    },
+    newWorkspace: {
+        id: 'workspaces.page.newWorkspace',
+        defaultMessage: 'New workspace'
     }
 });
 
@@ -41,19 +53,19 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 
 /**
  * The Workspaces management page: a searchable, status-filterable grid of
- * workspace cards, reading the signed-in user's workspaces from the API.
- * Rendered at `/workspaces` inside the authenticated shell.
- *
- * TODO(workspaces-create): the create flow is built (CreateWorkspaceDialog +
- * useCreateWorkspace) but its entry point is hidden until the server ships a
- * create endpoint — the API is read-only today.
+ * workspace cards with a create flow. Rendered at `/workspaces` inside the
+ * authenticated shell.
  */
 export function WorkspacesPage() {
     const intl = useIntl();
+    const navigate = useNavigate();
+    const canCreate = useHasPermission('workspaces:create');
     const { data: workspaces = [], isLoading } = useWorkspaces();
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
+
+    const openCreate = () => navigate('/workspaces/new');
 
     const filtered = useMemo(
         () =>
@@ -80,6 +92,14 @@ export function WorkspacesPage() {
             <ContainerHeader
                 title={intl.formatMessage(messages.title)}
                 subtitle={intl.formatMessage(messages.subtitle)}
+                actions={
+                    canCreate ? (
+                        <Button onClick={openCreate}>
+                            <Plus />
+                            {intl.formatMessage(messages.newWorkspace)}
+                        </Button>
+                    ) : undefined
+                }
             />
 
             <WorkspaceToolbar
@@ -100,10 +120,12 @@ export function WorkspacesPage() {
                     // "No match / clear filters" whenever workspaces exist but
                     // the current view hides them all (e.g. a search miss, or
                     // the default Active filter with only archived workspaces);
-                    // the "no workspaces yet" variant is reserved for a
-                    // genuinely empty list.
+                    // the "no workspaces yet / create first" variant is reserved
+                    // for a genuinely empty list.
                     filtered={workspaces.length > 0}
+                    canCreate={canCreate}
                     onClear={clearFilters}
+                    onCreate={openCreate}
                 />
             ) : (
                 <div

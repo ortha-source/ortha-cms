@@ -6,7 +6,7 @@ allowed to do?"_ (roles & access control). Invite-only by design — there is no
 public registration.
 
 It currently defines its **persistence model** — the Drizzle schema in
-`src/lib/schema` (workspaces, users, roles, permissions, memberships, sessions,
+`src/lib/schema` (workspaces, workspace_content, users, roles, permissions, memberships, sessions,
 tokens) — and **ships its migrations** (`drizzle.config.ts` + committed
 `migrations/`, applied by `@ortha-cms/nx`'s `db:migrate`). It also **seeds the
 system roles** (`admin`/`contributor`/`viewer`) idempotently on boot and
@@ -22,9 +22,12 @@ set, `RootAdminService` (driven by `RootAdminSeeder`) idempotently ensures one
 left untouched). It **enforces authentication app-wide**: an `AuthGuard` is
 registered as the global `APP_GUARD`, so every route requires a valid session
 unless marked `@Public()` (login/logout are); it resolves the session cookie to
-the user, attaches it, and exposes it to handlers via `@CurrentUser()`.
-Behaviour is still partly pending: tokens, user management, and the `can()`
-check land in later tickets (epic #3).
+the user, attaches it, and exposes it to handlers via `@CurrentUser()`. It also
+**enforces permissions**: `PermissionsGuard` + `@RequirePermissions('…')` 403 a
+route unless the user's role grants every listed permission (resolved by
+`PermissionsService.forRole`), and `GET /auth/me` returns the user's permission
+keys so the admin can gate UI to match. Behaviour is still partly pending:
+tokens and full user management land in later tickets (epic #3).
 
 ## Package
 
@@ -53,6 +56,18 @@ check land in later tickets (epic #3).
       role/permission matrix at the feature root (non-class data).
     - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
       (`RootAdminSeeder`), `errors/`.
+    - `workspaces/` — `controllers/` (`create`/`list`/`check-slug`, all on
+      `/api/workspaces`), `services/` (`WorkspaceService`), `dto/`, `errors/`.
+      Backs the admin create-wizard: creates a workspace + memberships + content
+      grants, lists workspaces with members, and checks slug availability. The
+      owner comes from the session; the wizard's per-member role is ignored
+      (membership is a pure link — see `memberships`).
+    - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
+      (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
+    - `content/` — a `ListContentTypesController` (`GET /api/content-types`) over
+      a **mock** `CONTENT_TYPES` registry at the feature root. Placeholder until
+      a real content-modeling plugin ships; also the source the workspace create
+      flow expands an "all content" grant against.
   Non-class feature **data** (e.g. the role matrix) stays at the feature root,
   not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
   only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;

@@ -11,12 +11,8 @@ export type AuthUser = {
     email: string;
     /** Display name; `null` until the user sets one. */
     name: string | null;
-    /**
-     * Permission keys granted by the user's role, as returned by
-     * `GET /api/auth/me`. Read via {@link useHasPermission} to gate pages and
-     * controls; presentation only — the server re-checks every route.
-     */
-    permissions: readonly string[];
+    /** Permission keys the user's role grants; drives permission-aware UI. */
+    permissions: string[];
 };
 
 /**
@@ -54,7 +50,20 @@ export const AuthProviderContext = AuthContext.Provider;
  * resolved yet, so the gate stays closed until a user is confirmed — fail-closed.
  */
 export function useAuth(): AuthState {
+    return useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null };
+}
+
+/**
+ * Whether the signed-in user holds `permission`. Fail-closed: returns `false`
+ * while auth is still loading or when unauthenticated, so permission-gated UI
+ * stays hidden until a grant is confirmed. Use it to gate actions (e.g. show the
+ * "New workspace" button only with `workspaces:create`); the server enforces the
+ * same permission, this just keeps the UI honest.
+ */
+export function useHasPermission(permission: string): boolean {
+    const auth = useAuth();
     return (
-        useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null }
+        auth.status === AuthStatus.Authenticated &&
+        auth.user.permissions.includes(permission)
     );
 }

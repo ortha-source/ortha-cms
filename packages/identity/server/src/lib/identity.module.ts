@@ -5,6 +5,7 @@ import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/services/roles.service';
 import { PermissionsService } from './rbac/services/permissions.service';
+import { PermissionsGuard } from './rbac/guards/permissions.guard';
 import { SystemRolesSeeder } from './rbac/seeders/system-roles.seeder';
 import { RootAdminService } from './root-admin/services/root-admin.service';
 import { RootAdminSeeder } from './root-admin/seeders/root-admin.seeder';
@@ -17,6 +18,14 @@ import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
 import { OriginGuard } from './auth/guards/origin.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
+import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
+import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
+import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
+import { WorkspaceService } from './workspaces/services/workspace.service';
+import { SlugService } from './workspaces/services/slug.service';
+import { MembershipService } from './workspaces/services/membership.service';
+import { ContentGrantService } from './workspaces/services/content-grant.service';
+import { ListContentTypesController } from './content/controllers/list-content-types.controller';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -52,9 +61,21 @@ export class IdentityModule {
                     { ttl: rateLimit.ttlSeconds * 1000, limit: rateLimit.limit }
                 ])
             ],
-            controllers: [LoginController, MeController, LogoutController],
+            controllers: [
+                LoginController,
+                MeController,
+                LogoutController,
+                CreateWorkspaceController,
+                ListWorkspacesController,
+                CheckSlugController,
+                ListContentTypesController
+            ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
+                WorkspaceService,
+                SlugService,
+                MembershipService,
+                ContentGrantService,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -63,6 +84,7 @@ export class IdentityModule {
                 RootAdminSeeder,
                 RolesService,
                 PermissionsService,
+                PermissionsGuard,
                 AuthService,
                 SessionService,
                 HashingService,

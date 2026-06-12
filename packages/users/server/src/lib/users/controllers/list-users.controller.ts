@@ -1,7 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
     PermissionsGuard,
-    RequirePermission
+    RequirePermissions
 } from '@ortha-cms/identity-server';
 import { ListUsersQueryDto } from '../dto/list-users-query.dto';
 import { UsersService } from '../services/users.service';
@@ -14,7 +14,7 @@ import type { MemberListView } from '../types/member-view';
  * (emails included — consistent with the workspaces read surface).
  */
 @UseGuards(PermissionsGuard)
-@RequirePermission('users:read')
+@RequirePermissions('users:read')
 @Controller('users')
 export class ListUsersController {
     constructor(private readonly users: UsersService) {}

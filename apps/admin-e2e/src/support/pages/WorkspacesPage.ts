@@ -5,10 +5,11 @@ import { BasePage } from './BasePage';
  * Page object for the Workspaces page at `/workspaces` (from
  * `@ortha-cms/workspaces-admin`).
  *
- * Data comes from the `GET /api/workspaces` mock (`mockWorkspaces`); tests also
- * need `mockSignedIn` for the auth probe, since the page lives behind the
- * shell's gate. Create is hidden (the API is read-only), so there are no
- * create-dialog locators here.
+ * Unlike the auth suites there is **no `/api` mock for the data**: the page
+ * reads from the plugin's in-memory `workspacesClient` stub, whose seed is fixed
+ * and resets with the browser context each test — so it is as deterministic as a
+ * network mock. Tests still need `mockSignedIn` for the auth probe, since the
+ * page lives behind the shell's gate.
  */
 export class WorkspacesPage extends BasePage {
     /** The page's `<h1>`. */
@@ -19,6 +20,11 @@ export class WorkspacesPage extends BasePage {
     readonly search: Locator;
     /** The "Filter" button that opens the status popover. */
     readonly filterButton: Locator;
+    /**
+     * The header "New workspace" CTA. An identical button appears in the empty
+     * state, so this takes the first (the header is first in the DOM).
+     */
+    readonly newWorkspaceButton: Locator;
 
     constructor(page: Page) {
         super(page);
@@ -31,6 +37,9 @@ export class WorkspacesPage extends BasePage {
             name: 'Search workspaces'
         });
         this.filterButton = page.getByRole('button', { name: 'Filter' });
+        this.newWorkspaceButton = page
+            .getByRole('button', { name: 'New workspace' })
+            .first();
     }
 
     async goto() {
@@ -100,5 +109,17 @@ export class WorkspacesPage extends BasePage {
 
     clearFiltersButton(): Locator {
         return this.page.getByRole('button', { name: 'Clear filters' });
+    }
+
+    // --- create ---
+
+    /** Open the create wizard — a full page at `/workspaces/new`, not a dialog. */
+    async openCreate() {
+        await this.newWorkspaceButton.click();
+    }
+
+    /** A toast message (sonner, portaled to the body). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
     }
 }

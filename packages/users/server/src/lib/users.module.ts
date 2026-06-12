@@ -17,7 +17,7 @@ import { InviteTokenService } from './users/services/invite-token.service';
  * The Drizzle client comes from `@ortha-cms/database`'s global
  * `DatabaseModule` (`@InjectDatabase()`); authentication from identity's
  * global `AuthGuard`; and authorization from identity's `PermissionsGuard`,
- * bound per controller with `@RequirePermission(…)` (its `PermissionsService`
+ * bound per controller with `@RequirePermissions(…)` (its `PermissionsService`
  * dependency resolves from identity's global module). It takes no config:
  * the invite TTL and page sizes are deliberate constants, not host knobs.
  */

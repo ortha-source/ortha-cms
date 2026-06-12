@@ -1,4 +1,5 @@
-export { workspaces } from './workspaces';
+export { workspaceStatus, workspaces } from './workspaces';
+export { contentKind, workspaceContent } from './workspace-content';
 export { roles } from './roles';
 export { permissions } from './permissions';
 export { rolePermissions } from './role-permissions';

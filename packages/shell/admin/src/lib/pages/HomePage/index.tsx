@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { LayoutGridIcon, UsersIcon } from 'lucide-react';
+import { Layers, UsersIcon } from 'lucide-react';
 import { Logo, Card, CardContent } from '@ortha-cms/design-system';
 import { useAuth } from '@ortha-cms/identity-admin';
 
@@ -62,7 +62,7 @@ export function HomePage() {
     const cards = [
         {
             to: '/workspaces',
-            Icon: LayoutGridIcon,
+            Icon: Layers,
             title: messages.workspacesTitle,
             description: messages.workspacesDescription
         },

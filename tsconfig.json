@@ -46,9 +46,6 @@
             "path": "./packages/workspaces/admin"
         },
         {
-            "path": "./packages/workspaces/server"
-        },
-        {
             "path": "./packages/users/server"
         },
         {

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import {
     PermissionsGuard,
-    RequirePermission
+    RequirePermissions
 } from '@ortha-cms/identity-server';
 import { InviteUserDto } from '../dto/invite-user.dto';
 import { EmailTakenError } from '../errors';
@@ -21,7 +21,7 @@ import type { MemberView } from '../types/member-view';
  * "Invited" status.
  */
 @UseGuards(PermissionsGuard)
-@RequirePermission('users:create')
+@RequirePermissions('users:create')
 @Controller('users')
 export class InviteUserController {
     constructor(private readonly users: UsersService) {}

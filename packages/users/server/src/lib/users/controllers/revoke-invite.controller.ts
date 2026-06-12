@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import {
     PermissionsGuard,
-    RequirePermission
+    RequirePermissions
 } from '@ortha-cms/identity-server';
 import { InvalidMemberStateError, MemberNotFoundError } from '../errors';
 import { UsersService } from '../services/users.service';
@@ -23,7 +23,7 @@ import { UsersService } from '../services/users.service';
  * non-pending target 409s.
  */
 @UseGuards(PermissionsGuard)
-@RequirePermission('users:delete')
+@RequirePermissions('users:delete')
 @Controller('users')
 export class RevokeInviteController {
     constructor(private readonly users: UsersService) {}

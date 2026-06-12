@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import {
     PermissionsGuard,
-    RequirePermission
+    RequirePermissions
 } from '@ortha-cms/identity-server';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { LastAdminProtectedError, MemberNotFoundError } from '../errors';
@@ -23,7 +23,7 @@ import type { MemberView } from '../types/member-view';
  * rejected with a 409 (the UI disables the control with the same rationale).
  */
 @UseGuards(PermissionsGuard)
-@RequirePermission('users:update')
+@RequirePermissions('users:update')
 @Controller('users')
 export class UpdateUserController {
     constructor(private readonly users: UsersService) {}

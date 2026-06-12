@@ -5,38 +5,24 @@ import { permissions, rolePermissions } from '../../schema';
 import type { PermissionKey } from '../system-roles';
 
 /**
- * Permission lookups for the identity plugin. Resolves which permission keys
- * a role holds by reading the seeded `role_permissions → permissions` join —
- * the single authorization source both the `/auth/me` payload (admin UI
- * gating) and {@link PermissionsGuard} (server enforcement) read from.
+ * Resolves what a role is allowed to do. Reads the `role_permissions` grants
+ * seeded by {@link seedSystemRoles}; the `PermissionsGuard` and `GET /auth/me`
+ * both consume it so "what can this user do?" has one source of truth.
  */
 @Injectable()
 export class PermissionsService {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
-    /**
-     * Lists the permission keys granted to a role, ordered for stable
-     * responses. Unknown role ids resolve to an empty grant — fail closed —
-     * rather than throwing, since callers only ever branch on membership.
-     */
-    async keysForRole(roleId: string): Promise<PermissionKey[]> {
+    /** The permission keys granted to `roleId`. */
+    async forRole(roleId: string): Promise<PermissionKey[]> {
         const rows = await this.db
             .select({ key: permissions.key })
             .from(rolePermissions)
             .innerJoin(
                 permissions,
-                eq(rolePermissions.permissionId, permissions.id)
+                eq(permissions.id, rolePermissions.permissionId)
             )
-            .where(eq(rolePermissions.roleId, roleId))
-            .orderBy(permissions.key);
-
-        // The seeder only writes catalogue keys, so the cast is safe.
+            .where(eq(rolePermissions.roleId, roleId));
         return rows.map((row) => row.key as PermissionKey);
-    }
-
-    /** Whether the role holds the given permission. */
-    async can(roleId: string, key: PermissionKey): Promise<boolean> {
-        const keys = await this.keysForRole(roleId);
-        return keys.includes(key);
     }
 }

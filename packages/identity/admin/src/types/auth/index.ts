@@ -23,10 +23,7 @@ export type CurrentUser = {
     roleId: string;
     /** Account status (e.g. `active`). */
     status: string;
-    /**
-     * Permission keys (`resource:action`) granted by the user's role. Drives
-     * UI gating only — the server re-checks every permissioned route.
-     */
+    /** Permission keys the user's role grants (e.g. `workspaces:create`). */
     permissions: string[];
 };
 

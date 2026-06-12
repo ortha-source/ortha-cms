@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import {
     PermissionsGuard,
-    RequirePermission
+    RequirePermissions
 } from '@ortha-cms/identity-server';
 import { InvalidMemberStateError, MemberNotFoundError } from '../errors';
 import { UsersService } from '../services/users.service';
@@ -22,7 +22,7 @@ import type { MemberView } from '../types/member-view';
  * pending.
  */
 @UseGuards(PermissionsGuard)
-@RequirePermission('users:create')
+@RequirePermissions('users:create')
 @Controller('users')
 export class ResendInviteController {
     constructor(private readonly users: UsersService) {}

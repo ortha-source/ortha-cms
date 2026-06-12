@@ -10,7 +10,7 @@ import {
 import {
     CurrentUser,
     PermissionsGuard,
-    RequirePermission,
+    RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
 import {
@@ -30,7 +30,7 @@ import type { MemberView } from '../types/member-view';
  * disabling the last active admin are rejected with a 409.
  */
 @UseGuards(PermissionsGuard)
-@RequirePermission('users:update')
+@RequirePermissions('users:update')
 @Controller('users')
 export class SetUserStatusController {
     constructor(private readonly users: UsersService) {}

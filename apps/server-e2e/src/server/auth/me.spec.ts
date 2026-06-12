@@ -122,14 +122,16 @@ describe('GET /api/auth/me', () => {
             ]);
         });
 
-        it('includes the permission keys granted by the user’s role', async () => {
+        it('includes the permission keys the user’s role grants', async () => {
             const res = await get()
                 .set('Cookie', await login())
                 .expect(200);
             // The seeded user is an admin, so they hold the full catalogue —
-            // including the users:* keys the admin UI gates on.
+            // workspaces:create plus the users:* keys the admin UI gates on.
+            expect(Array.isArray(res.body.permissions)).toBe(true);
             expect(res.body.permissions).toEqual(
                 expect.arrayContaining([
+                    'workspaces:create',
                     'users:read',
                     'users:create',
                     'users:update',

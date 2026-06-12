@@ -101,6 +101,8 @@ export {
     TableCell,
     TableCaption
 } from './lib/components/ui/table';
+export { Checkbox } from './lib/components/ui/checkbox';
+export { RadioGroup, RadioGroupItem } from './lib/components/ui/radio-group';
 export {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -139,3 +141,14 @@ export {
     PaginationNext,
     PaginationEllipsis
 } from './lib/components/ui/pagination';
+export {
+    Stepper,
+    WizardStepCard,
+    WizardFooter
+} from './lib/components/ui/wizard';
+export type {
+    StepperStep,
+    StepperProps,
+    WizardStepCardProps,
+    WizardFooterProps
+} from './lib/components/ui/wizard';

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_53 test cases across 11 spec files._
+_65 test cases across 12 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -131,10 +131,18 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 
 | Test case |
 | --- |
-| grid — initial |
+| grid — initial (active) |
+| grid — all statuses (archived cards visible) |
 | status filter popover — open |
 | member popover — open |
 | empty state — no matches |
+
+### create wizard
+
+| Test case |
+| --- |
+| basics step |
+| basics step — slug validation error visible |
 
 <!-- source: apps/admin-e2e/src/workspaces/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
@@ -147,6 +155,24 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | a card opens on Enter |
 | the status filter radiogroup moves with arrow keys |
 
+### create wizard
+
+| Test case |
+| --- |
+| opens the wizard from the grid on Enter |
+| a color swatch is selectable by keyboard |
+
+<!-- source: apps/admin-e2e/src/workspaces/permissions.spec.ts -->
+_<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_
+
+## Workspaces create permission
+
+| Test case |
+| --- |
+| shows "New workspace" to a user with workspaces:create |
+| hides "New workspace" from a user without the permission |
+| redirects /workspaces/new to the list without the permission |
+
 <!-- source: apps/admin-e2e/src/workspaces/workspaces.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 
@@ -154,9 +180,9 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the workspaces behind the shell |
+| renders the active workspaces by default behind the shell |
 | search narrows the grid and updates the count |
-| the archived filter empties the grid and badges the button |
+| the status filter switches to archived and badges the button |
 | the status filter can show all workspaces |
 | shows a contextual empty state when nothing matches |
 
@@ -171,3 +197,12 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | Test case |
 | --- |
 | a card opens its workspace on click |
+
+### create wizard
+
+| Test case |
+| --- |
+| creates a workspace and shows it in the grid |
+| keeps Continue disabled until the basics are valid |
+| returns to the list via "Back to workspaces" |
+| lets the owner pick an accent color |

@@ -37,6 +37,7 @@ export async function mockLogin(
 
 /** The full v1 permission catalogue — what the admin role grants. */
 const ALL_PERMISSIONS = [
+    'workspaces:create',
     'workspaces:read',
     'workspaces:update',
     'workspaces:delete',
@@ -46,7 +47,12 @@ const ALL_PERMISSIONS = [
     'users:delete'
 ];
 
-/** The authenticated user `GET /api/auth/me` returns (the server's `CurrentUserView`). */
+/**
+ * The authenticated user `GET /api/auth/me` returns (the server's `PublicUser`
+ * plus the role's `permissions`). Defaults to an admin holding every permission,
+ * so signed-in suites see all permission-gated UI; override `permissions` to
+ * test a restricted role (e.g. a viewer without `workspaces:create`).
+ */
 const DEFAULT_USER = {
     id: '00000000-0000-0000-0000-000000000001',
     email: 'admin@example.com',

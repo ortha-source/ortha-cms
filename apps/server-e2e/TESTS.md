@@ -107,7 +107,7 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | --- |
 | returns the current user after login (cookie flow) |
 | exposes only the public fields (no hash/token leak) |
-| includes the permission keys granted by the user’s role |
+| includes the permission keys the user’s role grants |
 | works with an explicitly forwarded session cookie |
 | finds the session cookie among several cookies |
 | reflects the user’s assigned role |
@@ -244,29 +244,39 @@ _<sub>apps/server-e2e/src/server/users/update-user.spec.ts</sub>_
 | returns 400 for a non-uuid id |
 | forbids a viewer (lacks users:update) with 403 |
 
-<!-- source: apps/server-e2e/src/server/workspaces/list-workspaces.spec.ts -->
-_<sub>apps/server-e2e/src/server/workspaces/list-workspaces.spec.ts</sub>_
+<!-- source: apps/server-e2e/src/server/workspaces/create-workspace.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
 
-## GET /api/workspaces
+## POST /api/workspaces
 
-### unauthenticated (401)
-
-| Test case |
-| --- |
-| rejects a request with no cookie |
-| rejects a bogus session token |
-
-### authenticated
+### authenticated admin (holds workspaces:create)
 
 | Test case |
 | --- |
-| returns only the workspaces the caller is a member of |
-| exposes exactly the documented workspace + member fields |
-| returns the persisted color, defaulting to slate when unset |
-| returns a null description when none is set |
-| embeds every member of a shared workspace, not just the caller |
-| tolerates a member with no display name (null, not fabricated) |
-| orders the workspaces by name |
-| breaks ties between equal-named workspaces by id |
-| breaks ties between members with no display name by id |
-| returns an empty list for a user with no memberships |
+| creates a workspace and seeds the owner as its sole member |
+| rejects a duplicate slug with 409 |
+
+### authorization
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| forbids a contributor (lacks workspaces:create) with 403 |
+| forbids a viewer (lacks workspaces:create) with 403 |
+
+### validation (400)
+
+| Test case |
+| --- |
+| rejects a missing name |
+| rejects a slug with illegal characters |
+| rejects an unknown extra field |
+| rejects a missing content block |
+
+### OriginGuard (CSRF)
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured app origin |
+| allows a request with no Origin (non-browser client) |
