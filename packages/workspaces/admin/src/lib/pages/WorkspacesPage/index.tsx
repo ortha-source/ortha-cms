@@ -1,5 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Plus } from 'lucide-react';
 import {
     Button,
@@ -15,7 +17,6 @@ import {
     DEFAULT_STATUS,
     type StatusFilter
 } from '../../components/WorkspaceToolbar';
-import { CreateWorkspaceDialog } from '../../components/CreateWorkspaceDialog';
 import type { Workspace } from '../../types/workspace';
 
 /** Intl descriptors for {@link WorkspacesPage}, co-located with the component. */
@@ -57,23 +58,14 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
  */
 export function WorkspacesPage() {
     const intl = useIntl();
+    const navigate = useNavigate();
+    const canCreate = useHasPermission('workspaces:create');
     const { data: workspaces = [], isLoading } = useWorkspaces();
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
-    const [createOpen, setCreateOpen] = useState(false);
 
-    // Remember which control opened the create dialog so focus can return there
-    // when it closes (the dialog is state-controlled, not opened via a Radix
-    // trigger, so it has no trigger to restore focus to on its own).
-    const createTrigger = useRef<HTMLElement | null>(null);
-    const openCreate = () => {
-        createTrigger.current =
-            document.activeElement instanceof HTMLElement
-                ? document.activeElement
-                : null;
-        setCreateOpen(true);
-    };
+    const openCreate = () => navigate('/workspaces/new');
 
     const filtered = useMemo(
         () =>
@@ -101,10 +93,12 @@ export function WorkspacesPage() {
                 title={intl.formatMessage(messages.title)}
                 subtitle={intl.formatMessage(messages.subtitle)}
                 actions={
-                    <Button onClick={openCreate}>
-                        <Plus />
-                        {intl.formatMessage(messages.newWorkspace)}
-                    </Button>
+                    canCreate ? (
+                        <Button onClick={openCreate}>
+                            <Plus />
+                            {intl.formatMessage(messages.newWorkspace)}
+                        </Button>
+                    ) : undefined
                 }
             />
 
@@ -129,6 +123,7 @@ export function WorkspacesPage() {
                     // the "no workspaces yet / create first" variant is reserved
                     // for a genuinely empty list.
                     filtered={workspaces.length > 0}
+                    canCreate={canCreate}
                     onClear={clearFilters}
                     onCreate={openCreate}
                 />
@@ -148,12 +143,6 @@ export function WorkspacesPage() {
                     ))}
                 </div>
             )}
-
-            <CreateWorkspaceDialog
-                open={createOpen}
-                onOpenChange={setCreateOpen}
-                restoreFocusRef={createTrigger}
-            />
         </Container>
     );
 }

@@ -23,6 +23,8 @@ export type CurrentUser = {
     roleId: string;
     /** Account status (e.g. `active`). */
     status: string;
+    /** Permission keys the user's role grants (e.g. `workspaces:create`). */
+    permissions: string[];
 };
 
 /**

@@ -1,10 +1,37 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import type { Workspace, WorkspaceMember } from '../../types/workspace';
+import type { CreateWorkspaceBody } from '../../types/wizard';
 import {
-    createWorkspace,
-    type CreateWorkspaceInput
-} from '../workspacesClient';
-import { workspacesKey } from '../useWorkspaces';
-import type { Workspace } from '../../types/workspace';
+    toWorkspace,
+    workspacesKey,
+    type WorkspaceView
+} from '../useWorkspaces';
+
+/**
+ * Arguments to the create mutation: the API request body plus the creator. The
+ * server derives the owner from the session and ignores `creator`; it's kept
+ * only so the optimistic update can seed a card before the response lands.
+ */
+export type CreateWorkspaceArgs = {
+    body: CreateWorkspaceBody;
+    creator: WorkspaceMember;
+};
+
+/** Creates a workspace via `POST /api/workspaces` and maps the response. */
+async function createWorkspace({
+    body
+}: CreateWorkspaceArgs): Promise<Workspace> {
+    try {
+        const { data } = await apiClient.post<WorkspaceView>(
+            '/workspaces',
+            body
+        );
+        return toWorkspace(data);
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
 
 /**
  * Creates a workspace and optimistically inserts it at the top of the list, so
@@ -16,7 +43,7 @@ export function useCreateWorkspace() {
 
     return useMutation({
         mutationFn: createWorkspace,
-        onMutate: async (input: CreateWorkspaceInput) => {
+        onMutate: async ({ body, creator }: CreateWorkspaceArgs) => {
             await queryClient.cancelQueries({ queryKey: workspacesKey });
             const previous =
                 queryClient.getQueryData<Workspace[]>(workspacesKey);
@@ -25,11 +52,11 @@ export function useCreateWorkspace() {
                 // A unique id so two same-named creates can't collide on their
                 // React key; reconciled away when `onSettled` refetches.
                 id: `optimistic_${crypto.randomUUID()}`,
-                name: input.name,
-                description: input.description,
-                color: input.color,
+                name: body.name,
+                description: body.description,
+                color: body.color,
                 status: 'Active',
-                members: [input.creator]
+                members: [creator]
             };
             queryClient.setQueryData<Workspace[]>(workspacesKey, (old = []) => [
                 optimistic,

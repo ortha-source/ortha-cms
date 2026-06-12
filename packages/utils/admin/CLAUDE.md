@@ -35,9 +35,17 @@ singletons live in one place instead of inside `bootstrap-admin`.
   this leaf rather than the host. The *generic* mechanism only — concrete slots
   (e.g. the shell's `NAVBAR_START_SLOT`) are defined by their owning plugin.
 
+- `slugify(input)` — derives a URL slug (`^[a-z0-9-]+$`) from free text. Pure,
+  framework-free.
+- `useDebouncedValue(value, delayMs)` — a generic debounce hook. Cross-plugin
+  helpers like this live here rather than inside a feature; it's why the package
+  takes a `react` dependency (alongside the `@tanstack/react-query` it already
+  uses). Keep only **generic, framework-level** hooks here — feature/auth state
+  stays in its owning plugin.
+
 > Auth state is **not** here — context, gate, and `/auth/me` all live in
-> `@ortha-cms/identity-admin`. This package stays a pure HTTP/data leaf (no
-> `react` dependency).
+> `@ortha-cms/identity-admin`. This package is the shared HTTP/data + generic
+> utility leaf, not a home for feature state.
 
 ## Layout
 
