@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../../../packages/design-system/src/styles.css';
 
 @source "../../../packages/design-system/src/**/*.{ts,tsx}";
 /* Admin-side plugin/host packages (grouped layout: packages/<group>/admin). */
@@ -60,28 +61,5 @@
     }
     #root {
         @apply min-h-svh;
-    }
-}
-
-/* Create-workspace wizard step entrance. Transforms ONLY — opacity stays 1 at
-   all times — so the step content is never hidden when the motion clock is
-   paused (background tab, print) or when reduced motion disables the animation.
-   The step card is remounted with `key={step}`, so this replays per step. */
-@keyframes wizard-step-in {
-    from {
-        transform: translateY(6px);
-    }
-    to {
-        transform: translateY(0);
-    }
-}
-
-.wizard-step-in {
-    animation: wizard-step-in 220ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .wizard-step-in {
-        animation: none;
     }
 }

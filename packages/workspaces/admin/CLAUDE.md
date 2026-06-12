@@ -34,15 +34,17 @@ shell shipped while the feature was pending.
   page (`pages/CreateWorkspacePage`) owns navigation + submission; all form state
   lives in `hooks/useWizard` (the single source of truth) so it survives moving
   between steps. The active step is mirrored to `?step=` and clamped.
-- The signature **`StepperRail`** renders markers (number → check once complete),
-  a connector that fills as steps complete, an Optional badge on steps 2–3, and a
-  summary chip per completed step.
+- The generic wizard **chrome lives in the design-system** — `Stepper` (the
+  progress rail), `WizardStepCard` (the animated step card), and `WizardFooter`
+  (back/skip/primary). The page configures them with its steps + intl labels; the
+  workspace-specific step bodies (Basics/Members/Content) stay here.
 - Supporting hooks: `useSlug` (auto-fill + regenerate + availability),
-  `useResourceSelection` (controlled `specific`/`all` model), `useDebouncedValue`,
-  `useBasicsSchema` (localized Zod).
-- Step entrance motion is the `wizard-step-in` keyframe in `apps/admin/styles.css`
-  — **transform only** (opacity stays 1), disabled under `prefers-reduced-motion`,
-  replayed via `key={step}` on the step card.
+  `useResourceSelection` (controlled `specific`/`all` model), `useBasicsSchema`
+  (localized Zod). Generic helpers (`slugify`, `useDebouncedValue`) come from
+  `@ortha-cms/utils-admin`.
+- Step entrance motion is the `wizard-step-in` keyframe shipped by the
+  design-system stylesheet — **transform only** (opacity stays 1), disabled under
+  `prefers-reduced-motion`, replayed via `key={step}` on the `WizardStepCard`.
 
 ## Architecture
 

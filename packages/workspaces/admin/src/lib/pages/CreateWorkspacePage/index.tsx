@@ -12,14 +12,14 @@ import {
     Container,
     ContainerHeader,
     Spinner,
+    Stepper,
+    WizardFooter,
+    WizardStepCard,
     toast
 } from '@ortha-cms/design-system';
 import { ContentStep } from '../../components/CreateWorkspaceWizard/ContentStep';
 import { IdentityFields } from '../../components/CreateWorkspaceWizard/IdentityFields';
 import { MembersStep } from '../../components/CreateWorkspaceWizard/MembersStep';
-import { StepCard } from '../../components/CreateWorkspaceWizard/StepCard';
-import { StepperRail } from '../../components/CreateWorkspaceWizard/StepperRail';
-import { WizardFooter } from '../../components/CreateWorkspaceWizard/WizardFooter';
 import { useSlug } from '../../hooks/useSlug';
 import { useWizard } from '../../hooks/useWizard';
 import { SlugStatus } from '../../types/wizard';
@@ -75,6 +75,14 @@ const messages = defineMessages({
     summarySpecificContent: {
         id: 'workspaces.create.summarySpecificContent',
         defaultMessage: '{collections} collections · {pages} pages'
+    },
+    stepperOptional: {
+        id: 'workspaces.create.stepper.optional',
+        defaultMessage: 'Optional'
+    },
+    stepperStepLabel: {
+        id: 'workspaces.create.stepper.stepLabel',
+        defaultMessage: 'Step {number}: {label}'
     },
     // Step cards
     basicsTitle: {
@@ -236,15 +244,24 @@ export function CreateWorkspacePage() {
 
             <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
                 <div className="lg:sticky lg:top-6 lg:self-start">
-                    <StepperRail
+                    <Stepper
                         current={wizard.step}
                         maxReached={wizard.maxReached}
                         steps={railSteps}
                         onStepClick={wizard.goStep}
+                        optionalLabel={intl.formatMessage(
+                            messages.stepperOptional
+                        )}
+                        stepAriaLabel={(step, number) =>
+                            intl.formatMessage(messages.stepperStepLabel, {
+                                number,
+                                label: step.label
+                            })
+                        }
                     />
                 </div>
 
-                <StepCard key={wizard.step}>
+                <WizardStepCard key={wizard.step}>
                     {wizard.step === 1 ? (
                         <>
                             <CardHeader>
@@ -390,7 +407,7 @@ export function CreateWorkspacePage() {
                             </CardFooter>
                         </>
                     ) : null}
-                </StepCard>
+                </WizardStepCard>
             </div>
         </Container>
     );

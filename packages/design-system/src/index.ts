@@ -110,3 +110,10 @@ export {
     DropdownMenuSubTrigger,
     DropdownMenuRadioGroup
 } from './lib/components/ui/dropdown-menu';
+export { Stepper, WizardStepCard, WizardFooter } from './lib/components/ui/wizard';
+export type {
+    StepperStep,
+    StepperProps,
+    WizardStepCardProps,
+    WizardFooterProps
+} from './lib/components/ui/wizard';
