@@ -22,6 +22,9 @@
     ],
     "references": [
         {
+            "path": "../../packages/content/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/database/tsconfig.lib.json"
         },
         {
