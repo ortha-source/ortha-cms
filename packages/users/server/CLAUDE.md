@@ -9,7 +9,9 @@ admin's Members page drives. One feature (`users/`) exposing, under
   each row joins the global role, the member's workspaces, and a
   server-computed `isLastAdmin` flag the UI uses to disable guarded controls.
 - `POST /users/invites` — invite by email: creates a `pending` user + invite
-  token. **No email is sent yet** (`TODO(users-email)`, identity epic #11).
+  token, and optionally links the new member to `workspaceIds` (memberships;
+  unknown ids are ignored). **No email is sent yet** (`TODO(users-email)`,
+  identity epic #11).
 - `PATCH /users/:id` — edit display name and/or role.
 - `POST /users/:id/disable` / `POST /users/:id/enable` — flip account status;
   disabling also revokes the member's live sessions.

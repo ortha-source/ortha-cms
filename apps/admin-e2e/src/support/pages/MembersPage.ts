@@ -85,8 +85,19 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Continue to role' });
     }
 
+    continueToWorkspaces(): Locator {
+        return this.page.getByRole('button', {
+            name: 'Continue to workspaces'
+        });
+    }
+
     inviteRole(label: string): Locator {
         return this.page.getByRole('radio', { name: label });
+    }
+
+    /** A workspace checkbox in the assignment step, by its visible name. */
+    inviteWorkspace(name: string): Locator {
+        return this.page.getByRole('checkbox', { name });
     }
 
     sendInvite(): Locator {

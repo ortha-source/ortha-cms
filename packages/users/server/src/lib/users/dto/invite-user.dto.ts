@@ -1,9 +1,12 @@
 import {
+    ArrayUnique,
+    IsArray,
     IsEmail,
     IsIn,
     IsNotEmpty,
     IsOptional,
-    IsString
+    IsString,
+    IsUUID
 } from 'class-validator';
 import {
     ASSIGNABLE_ROLE_KEYS,
@@ -25,4 +28,14 @@ export class InviteUserDto {
     @IsString()
     @IsNotEmpty()
     name?: string;
+
+    /**
+     * Workspaces to grant the new member access to (memberships). Optional —
+     * access can be granted later. Unknown ids are ignored server-side.
+     */
+    @IsOptional()
+    @IsArray()
+    @ArrayUnique()
+    @IsUUID('4', { each: true })
+    workspaceIds?: string[];
 }

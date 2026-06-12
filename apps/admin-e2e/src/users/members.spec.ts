@@ -1,6 +1,7 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockMembers, spyInvite } from '../support/api/members';
+import { mockWorkspaces } from '../support/api/workspaces';
 
 /**
  * The Members page (`/users`, `@ortha-cms/users-admin`): rendering the roster,
@@ -57,19 +58,25 @@ test.describe('Members page', () => {
         await expect(membersPage.emptyText('No members match')).toBeVisible();
     });
 
-    test('invites a member through the wizard', async ({
+    test('invites a member through the three-step wizard', async ({
         membersPage,
         page
     }) => {
         const invite = await spyInvite(page);
+        await mockWorkspaces(page); // the assignment step lists workspaces
         await membersPage.goto();
 
         await membersPage.inviteButton.click();
         await expect(page).toHaveURL(/\/users\/invite$/);
         await expect(membersPage.inviteHeading()).toBeVisible();
 
+        // Step 1 — details.
         await membersPage.inviteEmail().fill('new@ortha.dev');
         await membersPage.continueToRole().click();
+        // Step 2 — role.
+        await membersPage.continueToWorkspaces().click();
+        // Step 3 — assign a workspace, then send.
+        await membersPage.inviteWorkspace('Marketing site').check();
         await membersPage.sendInvite().click();
 
         // Back on the list; the invite was sent once.

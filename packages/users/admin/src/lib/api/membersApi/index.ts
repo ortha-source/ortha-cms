@@ -83,6 +83,8 @@ export type InviteMemberInput = {
     email: string;
     role: MemberRole;
     name?: string;
+    /** Workspaces to grant the new member access to (optional). */
+    workspaceIds?: string[];
 };
 
 /** A partial member edit; omitted fields are left unchanged. */

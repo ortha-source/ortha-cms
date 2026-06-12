@@ -1,12 +1,13 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockMembers } from '../support/api/members';
+import { mockWorkspaces } from '../support/api/workspaces';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
  * Accessibility scans (axe, WCAG 2.1 A/AA) of the Members page and its dynamic
- * states — the table, the open invite dialog and row menu, and the no-access
- * state. A regression guard, not a conformance claim.
+ * states — the table, the invite wizard's steps, the row menu, and the
+ * no-access state. A regression guard, not a conformance claim.
  */
 test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
     test.beforeEach(async ({ page }) => {
@@ -24,6 +25,21 @@ test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
         await membersPage.goto();
         await membersPage.inviteButton.click();
         await membersPage.inviteHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('invite wizard — workspaces step', async ({
+        membersPage,
+        page,
+        makeAxe
+    }) => {
+        await mockWorkspaces(page);
+        await membersPage.goto();
+        await membersPage.inviteButton.click();
+        await membersPage.inviteEmail().fill('new@ortha.dev');
+        await membersPage.continueToRole().click();
+        await membersPage.continueToWorkspaces().click();
+        await membersPage.inviteWorkspace('Marketing site').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

@@ -147,7 +147,31 @@ export class UsersService {
         // (identity epic #11) — the raw token is intentionally dropped here,
         // and "Resend invite" rotates it once delivery lands.
 
+        await this.linkWorkspaces(created.id, dto.workspaceIds ?? []);
+
         return this.findById(created.id);
+    }
+
+    /**
+     * Grants the new member access to the given workspaces (memberships).
+     * Filters to ids that resolve to real workspaces so a stale id can't fail
+     * the invite, and ignores duplicates.
+     */
+    private async linkWorkspaces(
+        userId: string,
+        workspaceIds: string[]
+    ): Promise<void> {
+        const unique = [...new Set(workspaceIds)];
+        if (unique.length === 0) return;
+        const existing = await this.db
+            .select({ id: workspaces.id })
+            .from(workspaces)
+            .where(inArray(workspaces.id, unique));
+        if (existing.length === 0) return;
+        await this.db
+            .insert(memberships)
+            .values(existing.map(({ id }) => ({ userId, workspaceId: id })))
+            .onConflictDoNothing();
     }
 
     /**

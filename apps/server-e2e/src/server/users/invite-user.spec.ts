@@ -7,8 +7,10 @@ import {
 import {
     getInviteTokenHashes,
     getUserByEmail,
+    getWorkspaceIdsForUser,
     resetDb,
-    seedActiveUser
+    seedActiveUser,
+    seedWorkspace
 } from '../../support/seed';
 
 const ADMIN_EMAIL = 'invite-admin@example.com';
@@ -75,6 +77,37 @@ describe('POST /api/users/invites', () => {
 
         const tokenHashes = await getInviteTokenHashes(row!.id);
         expect(tokenHashes).toHaveLength(1);
+    });
+
+    it('assigns the new member to the given workspaces (unknown ids ignored)', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const ws = await seedWorkspace({ name: 'Marketing', slug: 'marketing' });
+
+        const res = await agent
+            .post('/api/users/invites')
+            .send({
+                email: 'assigned@example.com',
+                role: 'viewer',
+                // a real workspace plus a well-formed but nonexistent id
+                workspaceIds: [ws.id, '11111111-1111-4111-8111-111111111111']
+            })
+            .expect(201);
+
+        // The real workspace is linked; the unknown id is silently dropped.
+        const ids = await getWorkspaceIdsForUser(res.body.id);
+        expect(ids).toEqual([ws.id]);
+    });
+
+    it('rejects a non-UUID workspace id with 400', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        await agent
+            .post('/api/users/invites')
+            .send({
+                email: 'bad-ws@example.com',
+                role: 'viewer',
+                workspaceIds: ['not-a-uuid']
+            })
+            .expect(400);
     });
 
     it('rejects a duplicate email with 409', async () => {

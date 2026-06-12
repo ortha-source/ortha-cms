@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_109 test cases across 12 spec files._
+_111 test cases across 12 spec files._
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -164,6 +164,8 @@ _<sub>apps/server-e2e/src/server/users/invite-user.spec.ts</sub>_
 | --- |
 | rejects an unauthenticated request with 401 |
 | creates a pending member, assigns the role, and issues an invite token |
+| assigns the new member to the given workspaces (unknown ids ignored) |
+| rejects a non-UUID workspace id with 400 |
 | rejects a duplicate email with 409 |
 | treats an existing email case-insensitively (409) |
 | rejects a malformed email with 400 |

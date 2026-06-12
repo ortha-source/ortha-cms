@@ -131,6 +131,17 @@ export async function seedMembership(
     await getDatabase().insert(memberships).values({ userId, workspaceId });
 }
 
+/** The workspace ids a user belongs to — for asserting membership side effects. */
+export async function getWorkspaceIdsForUser(
+    userId: string
+): Promise<string[]> {
+    const rows = await getDatabase()
+        .select({ workspaceId: memberships.workspaceId })
+        .from(memberships)
+        .where(eq(memberships.userId, userId));
+    return rows.map((row) => row.workspaceId);
+}
+
 /** Force every session of a user into the past — simulates natural expiry. */
 export async function expireUserSessions(userId: string): Promise<void> {
     await getDatabase()
