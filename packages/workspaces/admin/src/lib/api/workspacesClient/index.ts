@@ -1,176 +1,115 @@
-import { AVATAR_COLORS, type AvatarColor } from '@ortha-cms/design-system';
-import type { Workspace, WorkspaceMember } from '../../types/workspace';
+import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import {
+    AVATAR_COLORS,
+    type AvatarColor
+} from '@ortha-cms/design-system';
+import type {
+    Workspace,
+    WorkspaceMember,
+    WorkspaceStatus
+} from '../../types/workspace';
 import type { CreateWorkspaceBody } from '../../types/wizard';
-import { slugify } from '../../utils/slugify';
 import { initialsOf } from '../../utils/initialsOf';
 
-// TODO(workspaces-server): replace this in-memory stub with `apiClient` calls
-// against `/api/workspaces` (list, create, and `GET /slug-available`) once a
-// workspaces server plugin ships the rich shape (members, roles, color, status,
-// content access). The exported function signatures are the contract the real
-// client must satisfy — nothing else in the admin imports the store.
+/**
+ * The admin client for the workspaces API (`/api/workspaces`, served by the
+ * identity plugin). It calls the real endpoints via the shared `apiClient`
+ * (same-origin, cookie-authenticated) and maps the server's view to the admin's
+ * `Workspace` shape — deriving presentation-only fields (member initials and
+ * avatar colors) on the client, since the server stores neither.
+ */
 
-const member = (
-    id: string,
-    name: string,
-    email: string,
-    color: AvatarColor
-): WorkspaceMember => ({
-    id,
-    name,
-    email,
-    color,
-    initials: initialsOf(name)
-});
+/** A member as returned by the server (presentation fields are derived here). */
+interface WorkspaceMemberView {
+    id: string;
+    name: string | null;
+    email: string;
+}
 
-let store: Workspace[] = [
-    {
-        id: 'ws_marketing',
-        name: 'Marketing site',
-        description:
-            'Landing pages, the blog, and campaign content for the public website.',
-        color: 'violet',
-        status: 'Active',
-        members: [
-            member('u_ada', 'Ada Lovelace', 'ada@ortha.dev', 'violet'),
-            member('u_grace', 'Grace Hopper', 'grace@ortha.dev', 'teal'),
-            member('u_alan', 'Alan Turing', 'alan@ortha.dev', 'slate')
-        ]
-    },
-    {
-        id: 'ws_docs',
-        name: 'Product docs',
-        description:
-            'Guides, API references, and release notes for the developer portal.',
-        color: 'teal',
-        status: 'Active',
-        members: [
-            member('u_grace', 'Grace Hopper', 'grace@ortha.dev', 'teal'),
-            member('u_linus', 'Linus Torvalds', 'linus@ortha.dev', 'green'),
-            member(
-                'u_margaret',
-                'Margaret Hamilton',
-                'margaret@ortha.dev',
-                'rose'
-            ),
-            member('u_dennis', 'Dennis Ritchie', 'dennis@ortha.dev', 'amber'),
-            member(
-                'u_katherine',
-                'Katherine Johnson',
-                'katherine@ortha.dev',
-                'indigo'
-            )
-        ]
-    },
-    {
-        id: 'ws_support',
-        name: 'Support hub',
-        description:
-            'Help-center articles and canned responses shared across the support team.',
-        color: 'green',
-        status: 'Active',
-        members: [
-            member(
-                'u_margaret',
-                'Margaret Hamilton',
-                'margaret@ortha.dev',
-                'rose'
-            ),
-            member('u_alan', 'Alan Turing', 'alan@ortha.dev', 'slate')
-        ]
-    },
-    {
-        id: 'ws_internal',
-        name: 'Internal wiki',
-        description:
-            'Team handbook, onboarding, and process docs for employees only.',
-        color: 'amber',
-        status: 'Active',
-        members: [
-            member('u_ada', 'Ada Lovelace', 'ada@ortha.dev', 'violet'),
-            member('u_dennis', 'Dennis Ritchie', 'dennis@ortha.dev', 'amber'),
-            member('u_grace', 'Grace Hopper', 'grace@ortha.dev', 'teal'),
-            member(
-                'u_katherine',
-                'Katherine Johnson',
-                'katherine@ortha.dev',
-                'indigo'
-            )
-        ]
-    },
-    {
-        id: 'ws_research',
-        name: 'Research archive',
-        description:
-            'Retired experiments and old design explorations kept for reference.',
-        color: 'slate',
-        status: 'Archived',
-        members: [member('u_alan', 'Alan Turing', 'alan@ortha.dev', 'slate')]
-    },
-    {
-        id: 'ws_events_2023',
-        name: 'Events 2023',
-        description:
-            'Last year’s conference microsites and event landing pages, now archived.',
-        color: 'rose',
-        status: 'Archived',
-        members: [
-            member(
-                'u_katherine',
-                'Katherine Johnson',
-                'katherine@ortha.dev',
-                'indigo'
-            ),
-            member('u_linus', 'Linus Torvalds', 'linus@ortha.dev', 'green')
-        ]
-    }
-];
+/** A workspace as returned by the server. */
+interface WorkspaceView {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    color: string;
+    status: 'active' | 'archived';
+    members: WorkspaceMemberView[];
+}
 
 /**
- * Arguments to {@link createWorkspace}: the API request body plus the creator,
- * which the stub uses to seed the workspace's owner. The real server will
- * derive the owner from the session and ignore `creator`.
+ * Arguments to {@link createWorkspace}: the API request body plus the creator.
+ * The server derives the owner from the session and ignores `creator`; it's kept
+ * only so the mutation hook can seed an optimistic card before the response.
  */
 export type CreateWorkspaceArgs = {
     body: CreateWorkspaceBody;
     creator: WorkspaceMember;
 };
 
+const STATUS: Record<WorkspaceView['status'], WorkspaceStatus> = {
+    active: 'Active',
+    archived: 'Archived'
+};
+
+/** Derives an admin member (initials + a stable avatar color) from a server row. */
+function toMember(view: WorkspaceMemberView, index: number): WorkspaceMember {
+    const name = view.name ?? view.email;
+    return {
+        id: view.id,
+        name,
+        email: view.email,
+        initials: initialsOf(name),
+        color: AVATAR_COLORS[index % AVATAR_COLORS.length]
+    };
+}
+
+/** Maps a server workspace view to the admin's `Workspace`. */
+function toWorkspace(view: WorkspaceView): Workspace {
+    return {
+        id: view.id,
+        name: view.name,
+        description: view.description,
+        color: view.color as AvatarColor,
+        status: STATUS[view.status],
+        members: view.members.map(toMember)
+    };
+}
+
 /** Lists every workspace. */
 export async function listWorkspaces(): Promise<Workspace[]> {
-    return structuredClone(store);
+    try {
+        const { data } = await apiClient.get<WorkspaceView[]>('/workspaces');
+        return data.map(toWorkspace);
+    } catch (error) {
+        throw toApiError(error);
+    }
 }
 
-/**
- * Whether `slug` is free. The stub treats the slugified name of every existing
- * workspace as taken, so e.g. `marketing-site` reports unavailable.
- */
+/** Whether `slug` is free. */
 export async function checkSlugAvailable(slug: string): Promise<boolean> {
-    const taken = new Set(store.map((w) => slugify(w.name)));
-    return !taken.has(slug);
+    try {
+        const { data } = await apiClient.get<{ available: boolean }>(
+            '/workspaces/slug-available',
+            { params: { slug } }
+        );
+        return data.available;
+    } catch (error) {
+        throw toApiError(error);
+    }
 }
 
-/** Creates a workspace (Active) with the creator as owner plus any added members. */
+/** Creates a workspace and returns it. The owner comes from the session. */
 export async function createWorkspace({
-    body,
-    creator
+    body
 }: CreateWorkspaceArgs): Promise<Workspace> {
-    const added = body.members.map((m, i) =>
-        member(
-            m.id,
-            m.invited ? m.email : m.name,
-            m.email,
-            AVATAR_COLORS[i % AVATAR_COLORS.length]
-        )
-    );
-    const created: Workspace = {
-        id: `ws_${body.slug}_${store.length}`,
-        name: body.name,
-        description: body.description,
-        color: body.color,
-        status: 'Active',
-        members: [creator, ...added]
-    };
-    store = [created, ...store];
-    return structuredClone(created);
+    try {
+        const { data } = await apiClient.post<WorkspaceView>(
+            '/workspaces',
+            body
+        );
+        return toWorkspace(data);
+    } catch (error) {
+        throw toApiError(error);
+    }
 }

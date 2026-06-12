@@ -6,7 +6,6 @@ import { useContentTypes } from '../../api/useContentTypes';
 import { useCreateWorkspace } from '../../api/useCreateWorkspace';
 import type { Workspace, WorkspaceMember } from '../../types/workspace';
 import type {
-    AssignableRole,
     ContentMode,
     MemberDraft,
     ResourceSelection,
@@ -74,8 +73,6 @@ export type WizardController = {
     addMember: (member: MemberDraft) => void;
     /** Remove a member by id. */
     removeMember: (id: string) => void;
-    /** Change a member's role. */
-    setMemberRole: (id: string, role: AssignableRole) => void;
     /** Set the page-level content mode. */
     setContentMode: (mode: ContentMode) => void;
     /** Replace the collection selection. */
@@ -156,12 +153,6 @@ export function useWizard(): WizardController {
         setMembers((prev) => prev.filter((m) => m.id !== id));
     }, []);
 
-    const setMemberRole = useCallback((id: string, role: AssignableRole) => {
-        setMembers((prev) =>
-            prev.map((m) => (m.id === id ? { ...m, role } : m))
-        );
-    }, []);
-
     const submit = useCallback(
         (override?: Partial<WizardSnapshot>) => {
             const snapshot: WizardSnapshot = {
@@ -202,7 +193,6 @@ export function useWizard(): WizardController {
         update,
         addMember,
         removeMember,
-        setMemberRole,
         setContentMode,
         setCollections,
         setPages,

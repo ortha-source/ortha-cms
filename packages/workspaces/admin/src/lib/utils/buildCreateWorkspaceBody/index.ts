@@ -23,7 +23,6 @@ export function buildCreateWorkspaceBody(
             id: m.id,
             name: m.name,
             email: m.email,
-            role: m.role,
             invited: m.invited ?? false
         })),
         content:

@@ -16,6 +16,13 @@ import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
 import { OriginGuard } from './auth/guards/origin.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
+import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
+import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
+import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
+import { WorkspaceService } from './workspaces/services/workspace.service';
+import { SearchUsersController } from './users/controllers/search-users.controller';
+import { UserService } from './users/services/user.service';
+import { ListContentTypesController } from './content/controllers/list-content-types.controller';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -51,9 +58,20 @@ export class IdentityModule {
                     { ttl: rateLimit.ttlSeconds * 1000, limit: rateLimit.limit }
                 ])
             ],
-            controllers: [LoginController, MeController, LogoutController],
+            controllers: [
+                LoginController,
+                MeController,
+                LogoutController,
+                CreateWorkspaceController,
+                ListWorkspacesController,
+                CheckSlugController,
+                SearchUsersController,
+                ListContentTypesController
+            ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
+                WorkspaceService,
+                UserService,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin

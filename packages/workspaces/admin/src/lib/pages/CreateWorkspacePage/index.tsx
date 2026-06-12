@@ -291,7 +291,6 @@ export function CreateWorkspacePage() {
                                     members={wizard.members}
                                     addMember={wizard.addMember}
                                     removeMember={wizard.removeMember}
-                                    setMemberRole={wizard.setMemberRole}
                                 />
                             </CardContent>
                             <CardFooter>

@@ -16,9 +16,6 @@ import type { MemberDraft } from '../../../../types/wizard';
 /** Matches a plausible email address. */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Role assigned to newly-added members. */
-const DEFAULT_ROLE = 'editor' as const;
-
 const messages = defineMessages({
     placeholder: {
         id: 'workspaces.create.members.searchPlaceholder',
@@ -71,8 +68,7 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
         onAdd({
             id: user.id,
             name: user.name,
-            email: user.email,
-            role: DEFAULT_ROLE
+            email: user.email
         });
         setQuery('');
     };
@@ -83,7 +79,6 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
             id: email,
             name: email,
             email,
-            role: DEFAULT_ROLE,
             invited: true
         });
         setQuery('');

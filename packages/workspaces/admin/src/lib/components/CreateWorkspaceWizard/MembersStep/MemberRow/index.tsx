@@ -6,17 +6,12 @@ import {
     Badge,
     Button
 } from '@ortha-cms/design-system';
-import type { AssignableRole, MemberDraft } from '../../../../types/wizard';
-import { RoleMenu } from '../RoleMenu';
+import type { MemberDraft } from '../../../../types/wizard';
 
 const messages = defineMessages({
     invited: {
         id: 'workspaces.create.members.invitedBadge',
         defaultMessage: 'Invited'
-    },
-    roleFor: {
-        id: 'workspaces.create.members.roleFor',
-        defaultMessage: 'Role for {name}'
     },
     remove: {
         id: 'workspaces.create.members.remove',
@@ -41,17 +36,15 @@ function initialsOf(name: string): string {
 export type MemberRowProps = {
     /** The added member. */
     member: MemberDraft;
-    /** Change the member's role. */
-    onRoleChange: (role: AssignableRole) => void;
     /** Remove the member from the list. */
     onRemove: () => void;
 };
 
 /**
  * One added member: avatar, name/email, an "Invited" badge for invite-by-email
- * rows, a role dropdown, and a remove button.
+ * rows, and a remove button.
  */
-export function MemberRow({ member, onRoleChange, onRemove }: MemberRowProps) {
+export function MemberRow({ member, onRemove }: MemberRowProps) {
     const intl = useIntl();
 
     return (
@@ -84,14 +77,6 @@ export function MemberRow({ member, onRoleChange, onRemove }: MemberRowProps) {
                     {intl.formatMessage(messages.invited)}
                 </Badge>
             ) : null}
-
-            <RoleMenu
-                role={member.role}
-                onChange={onRoleChange}
-                ariaLabel={intl.formatMessage(messages.roleFor, {
-                    name: member.invited ? member.email : member.name
-                })}
-            />
 
             <Button
                 type="button"

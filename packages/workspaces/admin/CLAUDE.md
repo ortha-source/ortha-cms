@@ -46,12 +46,18 @@ shell shipped while the feature was pending.
 
 ## Architecture
 
-- **Data is stubbed.** Three in-memory clients under `lib/api/` are the seams to
-  swap for real `apiClient` calls once the servers ship — each carries a `TODO`:
+- **Wired to the real API.** Three thin clients under `lib/api/` call the
+  identity plugin over the shared `apiClient` (same-origin, cookie-authed):
   `workspacesClient` (`listWorkspaces` / `createWorkspace` / `checkSlugAvailable`
-  → `/api/workspaces`), `usersClient` (`searchUsers` → `GET /api/users?q=`), and
-  `contentTypesClient` (`listContentTypes` → `GET /api/content-types`). Nothing
-  else imports the stores directly.
+  → `/api/workspaces` + `/api/workspaces/slug-available`), `usersClient`
+  (`searchUsers` → `GET /api/users?q=`), and `contentTypesClient`
+  (`listContentTypes` → `GET /api/content-types`). They map the server views to
+  the admin shapes — deriving presentation-only member `initials`/`color` on the
+  client, since the server stores neither. Nothing else imports them directly.
+- **Membership is a pure link; there is no per-member role.** The server ignores
+  any role on a member — a user's permissions come from their single global
+  role. The Members step adds people (existing or invite-by-email) with no role
+  control; the owner is derived from the session, never the body.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral

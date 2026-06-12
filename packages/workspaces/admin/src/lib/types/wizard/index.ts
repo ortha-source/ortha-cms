@@ -8,16 +8,11 @@ export type SlugStatus =
     | 'available'
     | 'taken';
 
-/** Roles assignable to a member through the role dropdown. */
-export type AssignableRole = 'admin' | 'editor' | 'viewer';
-
-/** A member's role. The creator is always the (locked) `owner`. */
-export type WorkspaceRole = 'owner' | AssignableRole;
-
 /**
  * A person being granted access in the wizard. `invited` members were typed in
  * as an email that isn't in the directory yet — they have no `id` until the
- * invite is sent server-side.
+ * invite is sent server-side. Membership is a pure link; a member's permissions
+ * come from their single global role, not from the workspace.
  */
 export type MemberDraft = {
     /** Directory id, or the email for an invited member without an account. */
@@ -26,8 +21,6 @@ export type MemberDraft = {
     name: string;
     /** Contact email. */
     email: string;
-    /** Assigned role. */
-    role: AssignableRole;
     /** Whether this is an invite-by-email rather than an existing user. */
     invited?: boolean;
 };
@@ -113,7 +106,6 @@ export type CreateWorkspaceBody = {
         id: string;
         name: string;
         email: string;
-        role: AssignableRole;
         invited: boolean;
     }[];
     content:

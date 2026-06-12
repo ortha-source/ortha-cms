@@ -6,7 +6,7 @@ import {
     Badge,
     Separator
 } from '@ortha-cms/design-system';
-import type { AssignableRole, MemberDraft } from '../../../types/wizard';
+import type { MemberDraft } from '../../../types/wizard';
 import { MemberRow } from './MemberRow';
 import { MemberTypeahead } from './MemberTypeahead';
 
@@ -51,8 +51,6 @@ export type MembersStepProps = {
     addMember: (member: MemberDraft) => void;
     /** Remove a member by id. */
     removeMember: (id: string) => void;
-    /** Change a member's role. */
-    setMemberRole: (id: string, role: AssignableRole) => void;
 };
 
 /**
@@ -63,8 +61,7 @@ export type MembersStepProps = {
 export function MembersStep({
     members,
     addMember,
-    removeMember,
-    setMemberRole
+    removeMember
 }: MembersStepProps) {
     const intl = useIntl();
     const auth = useAuth();
@@ -118,9 +115,6 @@ export function MembersStep({
                                     <Separator />
                                     <MemberRow
                                         member={member}
-                                        onRoleChange={(role) =>
-                                            setMemberRole(member.id, role)
-                                        }
                                         onRemove={() => removeMember(member.id)}
                                     />
                                 </div>
