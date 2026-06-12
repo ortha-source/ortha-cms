@@ -68,7 +68,7 @@ User/role/access screens and logout land in later tickets (epic #3).
   unauthenticated, preserving the attempted location for return-to. Reusable by
   any plugin that needs to gate its own sub-routes (imported from here, not the
   host)
-- `useCan(permission)` — whether the signed-in user holds a permission key
+- `useHasPermission(permission)` — whether the signed-in user holds a permission key
   (from `/auth/me`); fail-closed while loading. Gate permission-aware UI with it
   (e.g. the workspaces "New workspace" button on `workspaces:create`)
 - `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the

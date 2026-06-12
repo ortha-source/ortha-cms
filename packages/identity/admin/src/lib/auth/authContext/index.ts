@@ -60,7 +60,7 @@ export function useAuth(): AuthState {
  * "New workspace" button only with `workspaces:create`); the server enforces the
  * same permission, this just keeps the UI honest.
  */
-export function useCan(permission: string): boolean {
+export function useHasPermission(permission: string): boolean {
     const auth = useAuth();
     return (
         auth.status === AuthStatus.Authenticated &&

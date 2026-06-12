@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useCan } from '@ortha-cms/identity-admin';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import {
     Button,
@@ -153,7 +153,7 @@ const messages = defineMessages({
 export function CreateWorkspacePage() {
     const intl = useIntl();
     const navigate = useNavigate();
-    const canCreate = useCan('workspaces:create');
+    const canCreate = useHasPermission('workspaces:create');
     const wizard = useWizard();
     const slug = useSlug({ data: wizard.data, update: wizard.update });
 

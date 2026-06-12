@@ -13,7 +13,11 @@ export { Public } from './lib/auth/decorators/public.decorator';
 export { CurrentUser } from './lib/auth/decorators/current-user.decorator';
 export type { AuthenticatedRequest } from './lib/auth/decorators/current-user.decorator';
 export type { PublicUser } from './lib/auth/services/auth.service';
-export { PERMISSION_KEYS, SYSTEM_ROLES } from './lib/rbac/system-roles';
+export {
+    PERMISSIONS,
+    PERMISSION_KEYS,
+    SYSTEM_ROLES
+} from './lib/rbac/system-roles';
 export type { PermissionKey, SystemRole } from './lib/rbac/system-roles';
 export { seedSystemRoles } from './lib/rbac/seeders/seed-system-roles';
 export { RolesService } from './lib/rbac/services/roles.service';

@@ -10,6 +10,7 @@ import type { PublicUser } from '../../auth/services/auth.service';
 import { OriginGuard } from '../../auth/guards/origin.guard';
 import { PermissionsGuard } from '../../rbac/guards/permissions.guard';
 import { RequirePermissions } from '../../rbac/decorators/require-permissions.decorator';
+import { PERMISSIONS } from '../../rbac/system-roles';
 import {
     WorkspaceService,
     type WorkspaceView
@@ -28,7 +29,7 @@ import { SlugTakenError } from '../errors';
  * `AuthGuard`.
  */
 @UseGuards(OriginGuard, PermissionsGuard)
-@RequirePermissions('workspaces:create')
+@RequirePermissions(PERMISSIONS.WORKSPACES_CREATE)
 @Controller('workspaces')
 export class CreateWorkspaceController {
     constructor(private readonly workspaces: WorkspaceService) {}

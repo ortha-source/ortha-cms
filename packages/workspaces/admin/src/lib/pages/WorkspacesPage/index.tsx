@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { useCan } from '@ortha-cms/identity-admin';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Plus } from 'lucide-react';
 import {
     Button,
@@ -59,7 +59,7 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
-    const canCreate = useCan('workspaces:create');
+    const canCreate = useHasPermission('workspaces:create');
     const { data: workspaces = [], isLoading } = useWorkspaces();
 
     const [search, setSearch] = useState('');
