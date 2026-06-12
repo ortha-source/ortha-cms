@@ -20,7 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const value: AuthState = data
         ? {
               status: AuthStatus.Authenticated,
-              user: { id: data.id, email: data.email, name: data.name }
+              user: {
+                  id: data.id,
+                  email: data.email,
+                  name: data.name,
+                  permissions: data.permissions
+              }
           }
         : isPending || isFetching
           ? { status: AuthStatus.Loading, user: null }

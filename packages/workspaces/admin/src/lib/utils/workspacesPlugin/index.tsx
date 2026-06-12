@@ -4,11 +4,17 @@ import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
 import { Spinner } from '@ortha-cms/design-system';
 import { Layers } from 'lucide-react';
 
-// Lazy-loaded so the workspaces page is code-split into its own chunk, fetched
-// only when a signed-in user first navigates to `/workspaces`.
+// Lazy-loaded so each page is code-split into its own chunk, fetched only when
+// a signed-in user first navigates to it.
 const WorkspacesPage = lazy(() =>
     import('../../pages/WorkspacesPage').then((module) => ({
         default: module.WorkspacesPage
+    }))
+);
+
+const CreateWorkspacePage = lazy(() =>
+    import('../../pages/CreateWorkspacePage').then((module) => ({
+        default: module.CreateWorkspacePage
     }))
 );
 
@@ -45,6 +51,14 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                 element: (
                     <Suspense fallback={<Spinner />}>
                         <WorkspacesPage />
+                    </Suspense>
+                )
+            },
+            {
+                path: '/workspaces/new',
+                element: (
+                    <Suspense fallback={<Spinner />}>
+                        <CreateWorkspacePage />
                     </Suspense>
                 )
             }
