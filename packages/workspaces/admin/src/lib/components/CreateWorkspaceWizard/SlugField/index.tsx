@@ -9,7 +9,7 @@ import {
     Input,
     Spinner
 } from '@ortha-cms/design-system';
-import type { SlugStatus } from '../../../types/wizard';
+import { SlugStatus } from '../../../types/wizard';
 
 const messages = defineMessages({
     label: {
@@ -47,7 +47,7 @@ const messages = defineMessages({
 function SlugStatusLine({ status }: { status: SlugStatus }) {
     const intl = useIntl();
 
-    if (status === 'checking') {
+    if (status === SlugStatus.Checking) {
         return (
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Spinner className="size-3.5" />
@@ -55,7 +55,7 @@ function SlugStatusLine({ status }: { status: SlugStatus }) {
             </span>
         );
     }
-    if (status === 'available') {
+    if (status === SlugStatus.Available) {
         return (
             <span className="flex items-center gap-1.5 text-sm text-status-active">
                 <Check className="size-3.5" />
@@ -63,7 +63,7 @@ function SlugStatusLine({ status }: { status: SlugStatus }) {
             </span>
         );
     }
-    if (status === 'taken') {
+    if (status === SlugStatus.Taken) {
         return (
             <span className="flex items-center gap-1.5 text-sm text-destructive">
                 <X className="size-3.5" />

@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import {
+    apiClient,
+    toApiError,
+    useDebouncedValue
+} from '@ortha-cms/utils-admin';
 import type { DirectoryUser } from '../../types/wizard';
-import { searchUsers } from '../usersClient';
 
 /** Result of {@link useUsersSearch}. */
 export type UsersSearchResult = {
@@ -11,12 +14,22 @@ export type UsersSearchResult = {
     loading: boolean;
 };
 
+/** Searches the user directory via `GET /api/users?q=`. */
+async function searchUsers(query: string): Promise<DirectoryUser[]> {
+    try {
+        const { data } = await apiClient.get<DirectoryUser[]>('/users', {
+            params: { q: query }
+        });
+        return data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
 /**
  * Searches the user directory for the member typeahead. Debounces the query
  * (250ms) so each keystroke doesn't fire a request, and only runs once at least
  * one character has been typed.
- *
- * TODO(users-server): back this with `GET /api/users?q=` (see {@link searchUsers}).
  */
 export function useUsersSearch(query: string): UsersSearchResult {
     const debounced = useDebouncedValue(query.trim(), 250);

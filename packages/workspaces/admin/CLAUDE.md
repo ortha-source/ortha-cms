@@ -46,14 +46,16 @@ shell shipped while the feature was pending.
 
 ## Architecture
 
-- **Wired to the real API.** Three thin clients under `lib/api/` call the
-  identity plugin over the shared `apiClient` (same-origin, cookie-authed):
-  `workspacesClient` (`listWorkspaces` / `createWorkspace` / `checkSlugAvailable`
-  → `/api/workspaces` + `/api/workspaces/slug-available`), `usersClient`
-  (`searchUsers` → `GET /api/users?q=`), and `contentTypesClient`
-  (`listContentTypes` → `GET /api/content-types`). They map the server views to
-  the admin shapes — deriving presentation-only member `initials`/`color` on the
-  client, since the server stores neither. Nothing else imports them directly.
+- **Wired to the real API — one hook per query.** Each `lib/api/<useThing>/`
+  hook owns its own request (via the shared `apiClient`, same-origin,
+  cookie-authed), response type, and mapper — there is no shared "client" module:
+  `useWorkspaces` (`GET /api/workspaces`, + the `toWorkspace`/`WorkspaceView`
+  mapper it exports for reuse), `useCreateWorkspace` (`POST /api/workspaces`),
+  `useSlugAvailability` (`GET /api/workspaces/slug-available`), `useUsersSearch`
+  (`GET /api/users?q=`), and `useContentTypes` (`GET /api/content-types`). The
+  mappers derive presentation-only member `initials`/`color` on the client, since
+  the server stores neither. Generic helpers (`slugify`, `useDebouncedValue`)
+  live in `@ortha-cms/utils-admin`, not here.
 - **Membership is a pure link; there is no per-member role.** The server ignores
   any role on a member — a user's permissions come from their single global
   role. The Members step adds people (existing or invite-by-email) with no role

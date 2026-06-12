@@ -22,6 +22,7 @@ import { StepperRail } from '../../components/CreateWorkspaceWizard/StepperRail'
 import { WizardFooter } from '../../components/CreateWorkspaceWizard/WizardFooter';
 import { useSlug } from '../../hooks/useSlug';
 import { useWizard } from '../../hooks/useWizard';
+import { SlugStatus } from '../../types/wizard';
 import { EMPTY_SELECTION } from '../../utils/resourceSelection';
 
 const messages = defineMessages({
@@ -164,7 +165,8 @@ export function CreateWorkspacePage() {
         return <Navigate to="/workspaces" replace />;
     }
 
-    const basicsCanContinue = wizard.basicsValid && slug.status === 'available';
+    const basicsCanContinue =
+        wizard.basicsValid && slug.status === SlugStatus.Available;
     const contentBlocked =
         wizard.contentMode === 'specific' &&
         (wizard.ctLoading || wizard.ctError);
