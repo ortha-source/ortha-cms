@@ -40,6 +40,9 @@
             "path": "../../packages/workspaces/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/users/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/shell/admin/tsconfig.lib.json"
         },
         {

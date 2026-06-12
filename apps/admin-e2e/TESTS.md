@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_34 test cases across 8 spec files._
+_53 test cases across 11 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -80,6 +80,49 @@ _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
 | /identity redirects to the sign-in page |
 | an unknown path redirects to home |
 | serves the home page inside the shell at / |
+
+<!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
+_<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
+
+## Members accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| table — initial |
+| invite dialog — open |
+| row menu — open |
+| empty state — no matches |
+| no-access state |
+
+<!-- source: apps/admin-e2e/src/users/keyboard.spec.ts -->
+_<sub>apps/admin-e2e/src/users/keyboard.spec.ts</sub>_
+
+## Members keyboard operability
+
+| Test case |
+| --- |
+| search filters as you type |
+| the invite dialog opens with Enter and closes with Escape |
+| the row menu opens from the keyboard |
+
+<!-- source: apps/admin-e2e/src/users/members.spec.ts -->
+_<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
+
+## Members page
+
+| Test case |
+| --- |
+| renders the roster with names, emails, and status pills |
+| shows the member count in the header subtitle |
+| filters the roster by a search term |
+| shows an empty state when the search matches nobody |
+| opens the invite dialog and sends an invite |
+| does not call the API when the invite email is invalid |
+| shows status-specific actions for a pending invite |
+| offers Enable (not Disable) for a disabled member |
+| disables the role select for the sole admin |
+| hides write controls without the matching permission |
+| shows a no-access state without users:read |
 
 <!-- source: apps/admin-e2e/src/workspaces/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_

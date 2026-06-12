@@ -89,6 +89,7 @@
         "@nestjs/platform-express": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
         "@ortha-cms/database": "*",
+        "@ortha-cms/users-server": "*",
         "@ortha-cms/workspaces-server": "*",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.15.1",

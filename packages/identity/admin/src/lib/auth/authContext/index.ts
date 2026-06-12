@@ -11,6 +11,12 @@ export type AuthUser = {
     email: string;
     /** Display name; `null` until the user sets one. */
     name: string | null;
+    /**
+     * Permission keys granted by the user's role, as returned by
+     * `GET /api/auth/me`. Read via {@link useHasPermission} to gate pages and
+     * controls; presentation only — the server re-checks every route.
+     */
+    permissions: readonly string[];
 };
 
 /**
@@ -48,5 +54,7 @@ export const AuthProviderContext = AuthContext.Provider;
  * resolved yet, so the gate stays closed until a user is confirmed — fail-closed.
  */
 export function useAuth(): AuthState {
-    return useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null };
+    return (
+        useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null }
+    );
 }

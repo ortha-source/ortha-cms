@@ -116,9 +116,26 @@ describe('GET /api/auth/me', () => {
                 'email',
                 'id',
                 'name',
+                'permissions',
                 'roleId',
                 'status'
             ]);
+        });
+
+        it('includes the permission keys granted by the user’s role', async () => {
+            const res = await get()
+                .set('Cookie', await login())
+                .expect(200);
+            // The seeded user is an admin, so they hold the full catalogue —
+            // including the users:* keys the admin UI gates on.
+            expect(res.body.permissions).toEqual(
+                expect.arrayContaining([
+                    'users:read',
+                    'users:create',
+                    'users:update',
+                    'users:delete'
+                ])
+            );
         });
 
         it('works with an explicitly forwarded session cookie', async () => {

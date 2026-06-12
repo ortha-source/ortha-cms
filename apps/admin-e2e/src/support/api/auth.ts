@@ -35,13 +35,27 @@ export async function mockLogin(
     });
 }
 
-/** The authenticated user `GET /api/auth/me` returns (the server's `PublicUser`). */
+/** The full v1 permission catalogue — what the admin role grants. */
+const ALL_PERMISSIONS = [
+    'workspaces:read',
+    'workspaces:update',
+    'workspaces:delete',
+    'users:read',
+    'users:create',
+    'users:update',
+    'users:delete'
+];
+
+/** The authenticated user `GET /api/auth/me` returns (the server's `CurrentUserView`). */
 const DEFAULT_USER = {
     id: '00000000-0000-0000-0000-000000000001',
     email: 'admin@example.com',
     name: 'Admin User',
     roleId: '00000000-0000-0000-0000-0000000000a1',
-    status: 'active'
+    status: 'active',
+    // Defaults to a full-access admin; a suite narrows this via `mockSignedIn`
+    // to exercise permission-gated UI.
+    permissions: ALL_PERMISSIONS
 };
 
 /**

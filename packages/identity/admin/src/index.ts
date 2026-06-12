@@ -6,9 +6,6 @@ export { AuthLayout } from './lib/components/AuthLayout';
 export { AuthProvider } from './lib/auth/AuthProvider';
 export { RequireAuth } from './lib/auth/RequireAuth';
 export { useAuth, AuthStatus } from './lib/auth/authContext';
+export { useHasPermission } from './lib/auth/useHasPermission';
 export type { AuthState, AuthUser } from './lib/auth/authContext';
-export type {
-    LoginCredentials,
-    AuthTokens,
-    CurrentUser
-} from './types/auth';
+export type { LoginCredentials, AuthTokens, CurrentUser } from './types/auth';
