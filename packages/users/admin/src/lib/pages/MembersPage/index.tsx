@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { UserPlus } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
@@ -11,7 +12,6 @@ import {
 import { useMembers } from '../../api/useMembers';
 import { DEFAULT_PAGE_SIZE } from '../../api/membersApi';
 import { EditMemberDialog } from '../../components/EditMemberDialog';
-import { InviteMemberDialog } from '../../components/InviteMemberDialog';
 import { MembersEmpty } from '../../components/MembersEmpty';
 import { MembersNoAccess } from '../../components/MembersNoAccess';
 import { MembersPagination } from '../../components/MembersPagination';
@@ -51,6 +51,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  */
 export function MembersPage() {
     const intl = useIntl();
+    const navigate = useNavigate();
     const canRead = useHasPermission('users:read');
     const canInvite = useHasPermission('users:create');
 
@@ -58,9 +59,7 @@ export function MembersPage() {
     const [page, setPage] = useState(1);
     const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
 
-    const [inviteOpen, setInviteOpen] = useState(false);
     const [editing, setEditing] = useState<Member | null>(null);
-    const inviteButtonRef = useRef<HTMLButtonElement>(null);
 
     const { data, isPending, isError } = useMembers(
         { search: debouncedSearch || undefined, page },
@@ -88,7 +87,7 @@ export function MembersPage() {
         setPage(1);
     };
 
-    const openInvite = () => setInviteOpen(true);
+    const openInvite = () => navigate('/users/invite');
 
     return (
         <Container>
@@ -99,7 +98,7 @@ export function MembersPage() {
                 })}
                 actions={
                     canInvite ? (
-                        <Button ref={inviteButtonRef} onClick={openInvite}>
+                        <Button onClick={openInvite}>
                             <UserPlus />
                             {intl.formatMessage(messages.invite)}
                         </Button>
@@ -136,11 +135,6 @@ export function MembersPage() {
                 </>
             )}
 
-            <InviteMemberDialog
-                open={inviteOpen}
-                onOpenChange={setInviteOpen}
-                restoreFocusRef={inviteButtonRef}
-            />
             <EditMemberDialog
                 member={editing}
                 onOpenChange={(open) => {

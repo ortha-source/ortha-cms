@@ -4,7 +4,7 @@ import { mockMembers, spyInvite } from '../support/api/members';
 
 /**
  * The Members page (`/users`, `@ortha-cms/users-admin`): rendering the roster,
- * search, the invite dialog, status-dependent row actions, the guardrail
+ * search, the invite wizard, status-dependent row actions, the guardrail
  * tooltips for the sole admin, and permission gating. The backend is the
  * `GET /api/users` mock; `mockSignedIn` satisfies the shell's auth probe.
  */
@@ -57,7 +57,7 @@ test.describe('Members page', () => {
         await expect(membersPage.emptyText('No members match')).toBeVisible();
     });
 
-    test('opens the invite dialog and sends an invite', async ({
+    test('invites a member through the wizard', async ({
         membersPage,
         page
     }) => {
@@ -65,16 +65,19 @@ test.describe('Members page', () => {
         await membersPage.goto();
 
         await membersPage.inviteButton.click();
-        await expect(membersPage.dialog()).toBeVisible();
+        await expect(page).toHaveURL(/\/users\/invite$/);
+        await expect(membersPage.inviteHeading()).toBeVisible();
 
-        await membersPage.dialogEmail().fill('new@ortha.dev');
-        await membersPage.dialogSubmit().click();
+        await membersPage.inviteEmail().fill('new@ortha.dev');
+        await membersPage.continueToRole().click();
+        await membersPage.sendInvite().click();
 
-        await expect(membersPage.dialog()).toBeHidden();
+        // Back on the list; the invite was sent once.
+        await expect(page).toHaveURL(/\/users$/);
         expect(invite.count).toBe(1);
     });
 
-    test('does not call the API when the invite email is invalid', async ({
+    test('keeps Continue disabled (no request) for an invalid email', async ({
         membersPage,
         page
     }) => {
@@ -82,11 +85,10 @@ test.describe('Members page', () => {
         await membersPage.goto();
 
         await membersPage.inviteButton.click();
-        await membersPage.dialogEmail().fill('not-an-email');
-        await membersPage.dialogSubmit().click();
+        await membersPage.inviteEmail().fill('not-an-email');
 
-        // The dialog stays open and the request is suppressed by validation.
-        await expect(membersPage.dialog()).toBeVisible();
+        // Continue stays disabled, so the role step and submit are unreachable.
+        await expect(membersPage.continueToRole()).toBeDisabled();
         expect(invite.count).toBe(0);
     });
 
@@ -112,14 +114,17 @@ test.describe('Members page', () => {
         await expect(membersPage.menuItem('Disable')).toHaveCount(0);
     });
 
-    test('disables the role select for the sole admin', async ({
+    test('renders the role as a chip and locks the sole admin in the edit dialog', async ({
         membersPage
     }) => {
         await membersPage.goto();
+        // The Role column is a read-only chip; editing happens in the dialog.
+        await expect(membersPage.roleChip('Ada Lovelace')).toBeVisible();
+
+        await membersPage.openActions('Ada Lovelace');
+        await membersPage.menuItem('Edit').click();
         // Ada is the last admin (isLastAdmin), so her role can't be changed.
-        await expect(membersPage.roleSelect('Ada Lovelace')).toBeDisabled();
-        // Grace is editable.
-        await expect(membersPage.roleSelect('Grace Hopper')).toBeEnabled();
+        await expect(membersPage.editRoleSelect()).toBeDisabled();
     });
 
     test('hides write controls without the matching permission', async ({
@@ -132,8 +137,8 @@ test.describe('Members page', () => {
 
         await expect(membersPage.heading).toBeVisible();
         await expect(membersPage.inviteButton).toHaveCount(0);
-        // No inline role editor — the role renders as plain text.
-        await expect(membersPage.roleSelect('Grace Hopper')).toHaveCount(0);
+        // The role is a read-only chip for everyone.
+        await expect(membersPage.roleChip('Grace Hopper')).toBeVisible();
         // No row menu either (no write actions available).
         await expect(membersPage.actionsTrigger('Grace Hopper')).toHaveCount(0);
     });

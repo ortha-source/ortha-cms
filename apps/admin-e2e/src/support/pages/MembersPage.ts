@@ -63,25 +63,44 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('menuitem', { name: label });
     }
 
-    /** The inline role select in a member's row. */
-    roleSelect(name: string): Locator {
-        return this.row(name).getByRole('combobox', {
-            name: `Change role for ${name}`
+    /** The read-only role chip in a member's row. */
+    roleChip(name: string): Locator {
+        return this.row(name).getByText(/^(Admin|Contributor|Viewer)$/);
+    }
+
+    // --- invite wizard (/users/invite) ---
+
+    inviteHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: 'Invite a member',
+            level: 1
         });
     }
 
-    // --- invite dialog ---
-
-    dialog(): Locator {
-        return this.page.getByRole('dialog');
-    }
-
-    dialogEmail(): Locator {
+    inviteEmail(): Locator {
         return this.page.getByLabel('Email');
     }
 
-    dialogSubmit(): Locator {
+    continueToRole(): Locator {
+        return this.page.getByRole('button', { name: 'Continue to role' });
+    }
+
+    inviteRole(label: string): Locator {
+        return this.page.getByRole('radio', { name: label });
+    }
+
+    sendInvite(): Locator {
         return this.page.getByRole('button', { name: 'Send invite' });
+    }
+
+    // --- edit dialog ---
+
+    editDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    editRoleSelect(): Locator {
+        return this.editDialog().getByRole('combobox');
     }
 
     // --- empty / no-access states ---

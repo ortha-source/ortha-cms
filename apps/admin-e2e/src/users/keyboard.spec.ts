@@ -4,8 +4,8 @@ import { mockMembers, spyInvite } from '../support/api/members';
 
 /**
  * Keyboard operability for the Members page — what axe can't assert: the
- * search box takes focus and typing filters, the invite dialog opens from the
- * keyboard and closes on Escape, and the row menu is keyboard-reachable.
+ * search box takes focus and typing filters, the invite wizard opens from the
+ * keyboard, and the row menu is keyboard-reachable.
  */
 test.describe('Members keyboard operability', () => {
     test.beforeEach(async ({ page }) => {
@@ -22,7 +22,7 @@ test.describe('Members keyboard operability', () => {
         await expect(membersPage.row('Ada Lovelace')).toHaveCount(0);
     });
 
-    test('the invite dialog opens with Enter and closes with Escape', async ({
+    test('the invite wizard opens from the keyboard', async ({
         membersPage,
         page
     }) => {
@@ -31,14 +31,9 @@ test.describe('Members keyboard operability', () => {
 
         await membersPage.inviteButton.focus();
         await page.keyboard.press('Enter');
-        await expect(membersPage.dialog()).toBeVisible();
-        // Focus moved into the dialog.
-        await expect(membersPage.dialogEmail()).toBeFocused();
 
-        await page.keyboard.press('Escape');
-        await expect(membersPage.dialog()).toBeHidden();
-        // Focus returns to the trigger.
-        await expect(membersPage.inviteButton).toBeFocused();
+        await expect(page).toHaveURL(/\/users\/invite$/);
+        await expect(membersPage.inviteHeading()).toBeVisible();
     });
 
     test('the row menu opens from the keyboard', async ({

@@ -1,5 +1,4 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Table,
     TableBody,
@@ -9,7 +8,7 @@ import {
     TableRow
 } from '@ortha-cms/design-system';
 import { MemberAvatar } from '../MemberAvatar';
-import { MemberRoleSelect } from '../MemberRoleSelect';
+import { MemberRoleChip } from '../MemberRoleChip';
 import { MemberRowActions } from '../MemberRowActions';
 import { MemberStatusBadge } from '../MemberStatusBadge';
 import { MemberWorkspaces } from '../MemberWorkspaces';
@@ -57,7 +56,6 @@ export function MembersTable({
     onEdit: (member: Member) => void;
 }) {
     const intl = useIntl();
-    const canUpdate = useHasPermission('users:update');
 
     return (
         <div className="rounded-xl border">
@@ -107,10 +105,7 @@ export function MembersTable({
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <MemberRoleSelect
-                                    member={member}
-                                    editable={canUpdate}
-                                />
+                                <MemberRoleChip role={member.role} />
                             </TableCell>
                             <TableCell>
                                 <MemberStatusBadge status={member.status} />

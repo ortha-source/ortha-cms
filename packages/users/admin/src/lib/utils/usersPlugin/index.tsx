@@ -12,6 +12,12 @@ const MembersPage = lazy(() =>
     }))
 );
 
+const InviteMemberPage = lazy(() =>
+    import('../../pages/InviteMemberPage').then((module) => ({
+        default: module.InviteMemberPage
+    }))
+);
+
 /**
  * Admin-side users plugin shape. A thin alias of {@link AdminPlugin}, kept
  * named so future config (sub-routes, slots) has a home.
@@ -46,6 +52,14 @@ export function UsersPlugin(): UsersAdminPlugin {
                 element: (
                     <Suspense fallback={<Spinner />}>
                         <MembersPage />
+                    </Suspense>
+                )
+            },
+            {
+                path: '/users/invite',
+                element: (
+                    <Suspense fallback={<Spinner />}>
+                        <InviteMemberPage />
                     </Suspense>
                 )
             }

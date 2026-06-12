@@ -89,7 +89,7 @@ _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
 | Test case |
 | --- |
 | table — initial |
-| invite dialog — open |
+| invite wizard — details step |
 | row menu — open |
 | empty state — no matches |
 | no-access state |
@@ -102,7 +102,7 @@ _<sub>apps/admin-e2e/src/users/keyboard.spec.ts</sub>_
 | Test case |
 | --- |
 | search filters as you type |
-| the invite dialog opens with Enter and closes with Escape |
+| the invite wizard opens from the keyboard |
 | the row menu opens from the keyboard |
 
 <!-- source: apps/admin-e2e/src/users/members.spec.ts -->
@@ -116,11 +116,11 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | shows the member count in the header subtitle |
 | filters the roster by a search term |
 | shows an empty state when the search matches nobody |
-| opens the invite dialog and sends an invite |
-| does not call the API when the invite email is invalid |
+| invites a member through the wizard |
+| keeps Continue disabled (no request) for an invalid email |
 | shows status-specific actions for a pending invite |
 | offers Enable (not Disable) for a disabled member |
-| disables the role select for the sole admin |
+| renders the role as a chip and locks the sole admin in the edit dialog |
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
 

@@ -233,8 +233,10 @@ export function MemberRowActions({
         return null;
     }
 
+    // `modal={false}` so the open menu doesn't aria-hide the page root (which
+    // holds focusable content) — a row menu needs no background trap.
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"

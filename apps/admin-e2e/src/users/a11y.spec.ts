@@ -20,10 +20,10 @@ test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('invite dialog — open', async ({ membersPage, makeAxe }) => {
+    test('invite wizard — details step', async ({ membersPage, makeAxe }) => {
         await membersPage.goto();
         await membersPage.inviteButton.click();
-        await membersPage.dialogEmail().waitFor();
+        await membersPage.inviteHeading().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
