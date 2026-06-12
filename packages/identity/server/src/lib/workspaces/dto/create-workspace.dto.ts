@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
     IsArray,
     IsBoolean,
+    IsDefined,
     IsIn,
     IsNotEmpty,
     IsOptional,
@@ -110,6 +111,7 @@ export class CreateWorkspaceDto {
     members!: CreateWorkspaceMemberDto[];
 
     /** Content access grant. */
+    @IsDefined()
     @ValidateNested()
     @Type(() => ContentDto)
     content!: ContentDto;

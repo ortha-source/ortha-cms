@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_44 test cases across 8 spec files._
+_47 test cases across 9 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -109,6 +109,17 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | the status filter radiogroup moves with arrow keys |
 | the color swatches move with arrow keys |
 | a workspace can be created by keyboard alone |
+
+<!-- source: apps/admin-e2e/src/workspaces/permissions.spec.ts -->
+_<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_
+
+## Workspaces create permission
+
+| Test case |
+| --- |
+| shows "New workspace" to a user with workspaces:create |
+| hides "New workspace" from a user without the permission |
+| redirects /workspaces/new to the list without the permission |
 
 <!-- source: apps/admin-e2e/src/workspaces/workspaces.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_

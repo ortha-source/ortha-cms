@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_54 test cases across 6 spec files._
+_67 test cases across 7 spec files._
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -107,6 +107,7 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | --- |
 | returns the current user after login (cookie flow) |
 | exposes only the public fields (no hash/token leak) |
+| includes the permission keys the user’s role grants |
 | works with an explicitly forwarded session cookie |
 | finds the session cookie among several cookies |
 | reflects the user’s assigned role |
@@ -153,3 +154,40 @@ _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
 | Test case |
 | --- |
 | responds 404 on an unknown route under the global prefix |
+
+<!-- source: apps/server-e2e/src/server/workspaces/create-workspace.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
+
+## POST /api/workspaces
+
+### authenticated admin (holds workspaces:create)
+
+| Test case |
+| --- |
+| creates a workspace and seeds the owner as its sole member |
+| rejects a duplicate slug with 409 |
+
+### authorization
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| forbids a contributor (lacks workspaces:create) with 403 |
+| forbids a viewer (lacks workspaces:create) with 403 |
+
+### validation (400)
+
+| Test case |
+| --- |
+| rejects a missing name |
+| rejects a slug with illegal characters |
+| rejects an unknown extra field |
+| rejects a missing content block |
+
+### OriginGuard (CSRF)
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured app origin |
+| allows a request with no Origin (non-browser client) |
