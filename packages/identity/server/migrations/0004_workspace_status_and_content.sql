@@ -9,8 +9,6 @@ CREATE TABLE "workspace_content" (
 	CONSTRAINT "workspace_content_unique" UNIQUE("workspace_id","kind","slug")
 );
 --> statement-breakpoint
-ALTER TABLE "workspaces" ADD COLUMN "description" text DEFAULT '' NOT NULL;--> statement-breakpoint
-ALTER TABLE "workspaces" ADD COLUMN "color" text DEFAULT 'slate' NOT NULL;--> statement-breakpoint
 ALTER TABLE "workspaces" ADD COLUMN "status" "workspace_status" DEFAULT 'active' NOT NULL;--> statement-breakpoint
 ALTER TABLE "workspace_content" ADD CONSTRAINT "workspace_content_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "workspace_content_workspace_id_idx" ON "workspace_content" USING btree ("workspace_id");

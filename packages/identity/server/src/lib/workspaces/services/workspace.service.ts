@@ -80,7 +80,7 @@ export class WorkspaceService {
             id: row.id,
             name: row.name,
             slug: row.slug,
-            description: row.description,
+            description: row.description ?? '',
             color: row.color,
             status: row.status,
             members: membersByWorkspace.get(row.id) ?? []
@@ -259,7 +259,7 @@ export class WorkspaceService {
             id: row.id,
             name: row.name,
             slug: row.slug,
-            description: row.description,
+            description: row.description ?? '',
             color: row.color,
             status: row.status,
             members: membersByWorkspace.get(row.id) ?? []
