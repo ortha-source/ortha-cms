@@ -34,7 +34,12 @@ export function WizardFooter({
         <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
                 {onBack ? (
-                    <Button type="button" variant="outline" onClick={onBack}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onBack}
+                        className="shadow-none"
+                    >
                         <ArrowLeft />
                         {backLabel}
                     </Button>

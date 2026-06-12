@@ -92,7 +92,7 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
             }}
         >
             <PopoverAnchor asChild>
-                <InputGroup>
+                <InputGroup className="shadow-none">
                     <InputGroupAddon>
                         <Search />
                     </InputGroupAddon>
