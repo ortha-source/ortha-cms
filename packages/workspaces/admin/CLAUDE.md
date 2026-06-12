@@ -28,11 +28,17 @@ pending.
 
 ## Architecture
 
-- **Data is stubbed.** `lib/api/workspacesClient` is an in-memory store with seed
-  data behind typed `listWorkspaces` / `createWorkspace` functions — the single
-  seam to swap for real `apiClient` calls against `/api/workspaces` once a
-  workspaces **server** plugin ships the rich shape (members, color, status). See
-  the `TODO(workspaces-server)` there; nothing else imports the store.
+- **Reads the real API.** `lib/api/workspacesClient` calls `GET /api/workspaces`
+  via the shared `apiClient` and maps the server's `WorkspaceView` to the admin
+  `Workspace` (its local wire types mirror the response — the admin can't import
+  the server package). `status` is admin-only and not persisted, so every
+  workspace maps to `Active` (the Active/Archived filter still works, Archived
+  is empty for now); member `initials`/`color` aren't persisted either and are
+  derived client-side (`utils/initialsOf`, `utils/avatarColor`).
+- **Create is deferred.** The create flow (`CreateWorkspaceDialog` +
+  `useCreateWorkspace`) is built but its entry point is **hidden** — the server
+  is read-only (no `POST /api/workspaces`). `createWorkspace` is the dormant
+  seam; see `TODO(workspaces-create)` in `workspacesClient` and `WorkspacesPage`.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral

@@ -1,15 +1,17 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces } from '../support/api/workspaces';
 
 /**
  * Keyboard operability of the Workspaces page — the part axe can't check.
  * Avoids asserting the exact global tab order (it runs through the shell nav and
  * varies); instead it pins the properties that matter: each control is
- * focusable and activates by keyboard, and the dialog traps and restores focus.
+ * focusable and activates by keyboard.
  */
 test.describe('Workspaces keyboard accessibility', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
+        await mockWorkspaces(page);
     });
 
     test('search is reachable and filters by keyboard', async ({
@@ -35,22 +37,6 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(page).toHaveURL('/');
     });
 
-    test('the create dialog opens, traps, and restores focus', async ({
-        page,
-        workspacesPage
-    }) => {
-        await workspacesPage.goto();
-
-        await workspacesPage.newWorkspaceButton.focus();
-        await page.keyboard.press('Enter');
-        await expect(workspacesPage.dialog()).toBeVisible();
-
-        // Escape closes the dialog and returns focus to the trigger.
-        await page.keyboard.press('Escape');
-        await expect(workspacesPage.dialog()).toBeHidden();
-        await expect(workspacesPage.newWorkspaceButton).toBeFocused();
-    });
-
     test('the status filter radiogroup moves with arrow keys', async ({
         page,
         workspacesPage
@@ -70,44 +56,9 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(archived).toBeFocused();
         await expect(archived).toHaveAttribute('aria-checked', 'true');
 
-        // Selection follows focus: the grid re-filters to the archived set.
+        // Selection follows focus: the grid re-filters to the archived set
+        // (empty, since the read API has no archived workspaces).
         await page.keyboard.press('Escape');
-        await expect(workspacesPage.card('Research archive')).toBeVisible();
-    });
-
-    test('the color swatches move with arrow keys', async ({
-        page,
-        workspacesPage
-    }) => {
-        await workspacesPage.goto();
-        await workspacesPage.openCreate();
-
-        const slate = workspacesPage.colorSwatch('slate');
-        await slate.focus();
-        await expect(slate).toBeFocused();
-
-        await page.keyboard.press('ArrowRight');
-        const green = workspacesPage.colorSwatch('green');
-        await expect(green).toBeFocused();
-        await expect(green).toHaveAttribute('aria-checked', 'true');
-        await expect(slate).toHaveAttribute('aria-checked', 'false');
-    });
-
-    test('a workspace can be created by keyboard alone', async ({
-        page,
-        workspacesPage
-    }) => {
-        await workspacesPage.goto();
-
-        await workspacesPage.newWorkspaceButton.focus();
-        await page.keyboard.press('Enter');
-        await expect(workspacesPage.dialog()).toBeVisible();
-
-        await workspacesPage.nameField().focus();
-        await workspacesPage.nameField().pressSequentially('Keyboard space');
-        await workspacesPage.nameField().press('Enter');
-
-        await expect(workspacesPage.dialog()).toBeHidden();
-        await expect(workspacesPage.card('Keyboard space')).toBeVisible();
+        await expect(workspacesPage.card('Marketing site')).toBeHidden();
     });
 });

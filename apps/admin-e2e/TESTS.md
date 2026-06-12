@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_44 test cases across 8 spec files._
+_34 test cases across 8 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -88,12 +88,9 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 
 | Test case |
 | --- |
-| grid — initial (active) |
-| grid — all statuses (archived cards visible) |
+| grid — initial |
 | status filter popover — open |
 | member popover — open |
-| create dialog — open |
-| create dialog — name validation error visible |
 | empty state — no matches |
 
 <!-- source: apps/admin-e2e/src/workspaces/keyboard.spec.ts -->
@@ -105,10 +102,7 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | --- |
 | search is reachable and filters by keyboard |
 | a card opens on Enter |
-| the create dialog opens, traps, and restores focus |
 | the status filter radiogroup moves with arrow keys |
-| the color swatches move with arrow keys |
-| a workspace can be created by keyboard alone |
 
 <!-- source: apps/admin-e2e/src/workspaces/workspaces.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
@@ -117,9 +111,9 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the active workspaces by default behind the shell |
+| renders the workspaces behind the shell |
 | search narrows the grid and updates the count |
-| the status filter switches to archived and badges the button |
+| the archived filter empties the grid and badges the button |
 | the status filter can show all workspaces |
 | shows a contextual empty state when nothing matches |
 
@@ -134,12 +128,3 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | Test case |
 | --- |
 | a card opens its workspace on click |
-
-### create
-
-| Test case |
-| --- |
-| adds a workspace optimistically and toasts |
-| blocks an empty name with a validation error |
-| can be dismissed with Cancel |
-| lets the owner pick an accent color |

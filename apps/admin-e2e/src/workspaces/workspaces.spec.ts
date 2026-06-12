@@ -1,29 +1,34 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces } from '../support/api/workspaces';
 
 /**
  * The Workspaces page (`@ortha-cms/workspaces-admin`). Data comes from the
- * plugin's in-memory seed (no `/api` mock) — only the auth probe is stubbed,
- * since the page sits behind the shell's gate. The seed is fixed: four Active
- * workspaces (Marketing site, Product docs, Support hub, Internal wiki) and two
- * Archived (Research archive, Events 2023); Product docs has five members.
+ * `GET /api/workspaces` mock (`mockWorkspaces`); the auth probe is stubbed too,
+ * since the page sits behind the shell's gate. The seed is fixed: four
+ * workspaces (Marketing site, Product docs, Support hub, Internal wiki) — the
+ * read API has no status, so the grid reads them all as Active; Product docs has
+ * five members. Create is hidden (the API is read-only), so there is no create
+ * flow here.
  */
 test.describe('Workspaces page', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
+        await mockWorkspaces(page);
     });
 
-    test('renders the active workspaces by default behind the shell', async ({
+    test('renders the workspaces behind the shell', async ({
         workspacesPage
     }) => {
         await workspacesPage.goto();
 
         await expect(workspacesPage.heading).toBeVisible();
         await expect(workspacesPage.nav).toBeVisible();
-        // Default filter is Active: active cards show, archived are hidden.
+        // Default filter is Active; the API has no status so every workspace
+        // shows.
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
-        await expect(workspacesPage.card('Research archive')).toBeHidden();
-        await expect(workspacesPage.count()).toHaveText('4 of 6');
+        await expect(workspacesPage.card('Internal wiki')).toBeVisible();
+        await expect(workspacesPage.count()).toHaveText('4 of 4');
     });
 
     test('search narrows the grid and updates the count', async ({
@@ -35,19 +40,23 @@ test.describe('Workspaces page', () => {
 
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
         await expect(workspacesPage.card('Support hub')).toBeHidden();
-        await expect(workspacesPage.count()).toHaveText('1 of 6');
+        await expect(workspacesPage.count()).toHaveText('1 of 4');
     });
 
-    test('the status filter switches to archived and badges the button', async ({
+    test('the archived filter empties the grid and badges the button', async ({
         workspacesPage
     }) => {
         await workspacesPage.goto();
 
         await workspacesPage.filterByStatus('Archived');
 
-        await expect(workspacesPage.card('Research archive')).toBeVisible();
+        // No workspace is archived (the API has no status), so the archived view
+        // is empty and offers to clear the filters.
         await expect(workspacesPage.card('Marketing site')).toBeHidden();
-        await expect(workspacesPage.count()).toHaveText('2 of 6');
+        await expect(
+            workspacesPage.emptyText('No workspaces match')
+        ).toBeVisible();
+        await expect(workspacesPage.count()).toHaveText('0 of 4');
         // A non-default status surfaces the count badge on the Filter button.
         await expect(workspacesPage.filterBadge()).toBeVisible();
     });
@@ -60,8 +69,8 @@ test.describe('Workspaces page', () => {
         await workspacesPage.filterByStatus('All');
 
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
-        await expect(workspacesPage.card('Research archive')).toBeVisible();
-        await expect(workspacesPage.count()).toHaveText('6 of 6');
+        await expect(workspacesPage.card('Internal wiki')).toBeVisible();
+        await expect(workspacesPage.count()).toHaveText('4 of 4');
     });
 
     test('shows a contextual empty state when nothing matches', async ({
@@ -75,12 +84,10 @@ test.describe('Workspaces page', () => {
             workspacesPage.emptyText('No workspaces match')
         ).toBeVisible();
         // Clearing widens to every workspace (status → All, search reset), so
-        // the action always reveals content — including the all-archived case
-        // where resetting to the default Active view would leave it empty.
+        // the action always reveals content.
         await workspacesPage.clearFiltersButton().click();
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
-        await expect(workspacesPage.card('Research archive')).toBeVisible();
-        await expect(workspacesPage.count()).toHaveText('6 of 6');
+        await expect(workspacesPage.count()).toHaveText('4 of 4');
     });
 
     test.describe('member stack', () => {
@@ -145,68 +152,5 @@ test.describe('Workspaces page', () => {
         // the catch-all redirects to home — this asserts the card is wired and
         // activates; tighten to the detail URL once that page lands.
         await expect(page).toHaveURL('/');
-    });
-
-    test.describe('create', () => {
-        test('adds a workspace optimistically and toasts', async ({
-            workspacesPage
-        }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
-
-            await workspacesPage.nameField().fill('QA space');
-            await workspacesPage
-                .descriptionField()
-                .fill('Scratch space for QA.');
-            await workspacesPage.submitCreate().click();
-
-            // Dialog closes, a toast confirms, and the new card is on top.
-            await expect(workspacesPage.dialog()).toBeHidden();
-            await expect(
-                workspacesPage.toast(/Created.*QA space/)
-            ).toBeVisible();
-            await expect(workspacesPage.card('QA space')).toBeVisible();
-            await expect(workspacesPage.count()).toHaveText('5 of 7');
-        });
-
-        test('blocks an empty name with a validation error', async ({
-            workspacesPage
-        }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
-
-            // Touch then clear the field to trigger onChange validation.
-            await workspacesPage.nameField().fill('Temp');
-            await workspacesPage.nameField().fill('');
-
-            await expect(
-                workspacesPage.fieldError('Name is required')
-            ).toBeVisible();
-            // The dialog stays open and nothing is created.
-            await expect(workspacesPage.dialog()).toBeVisible();
-        });
-
-        test('can be dismissed with Cancel', async ({ workspacesPage }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
-
-            await workspacesPage.cancelCreate().click();
-
-            await expect(workspacesPage.dialog()).toBeHidden();
-        });
-
-        test('lets the owner pick an accent color', async ({
-            workspacesPage
-        }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
-
-            await workspacesPage.colorSwatch('teal').click();
-
-            await expect(workspacesPage.colorSwatch('teal')).toHaveAttribute(
-                'aria-checked',
-                'true'
-            );
-        });
     });
 });
