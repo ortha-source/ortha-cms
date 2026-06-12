@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_42 test cases across 8 spec files._
+_44 test cases across 8 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -106,6 +106,8 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | search is reachable and filters by keyboard |
 | a card opens on Enter |
 | the create dialog opens, traps, and restores focus |
+| the status filter radiogroup moves with arrow keys |
+| the color swatches move with arrow keys |
 | a workspace can be created by keyboard alone |
 
 <!-- source: apps/admin-e2e/src/workspaces/workspaces.spec.ts -->

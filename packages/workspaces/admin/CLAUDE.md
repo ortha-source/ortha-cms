@@ -26,8 +26,7 @@ shell shipped while the feature was pending.
 - `useWorkspaces` / `workspacesKey` — TanStack Query list hook + its key.
 - `useCreateWorkspace` — create mutation with optimistic insert at the top;
   takes `{ body, creator }` (the `creator` seeds the stub's owner).
-- `Workspace` / `WorkspaceMember` / `WorkspaceStatus` / `memberCount` — the data
-  model.
+- `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
 
 ## Create wizard (`/workspaces/new`)
 

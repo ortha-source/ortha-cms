@@ -2,6 +2,7 @@ import { AVATAR_COLORS, type AvatarColor } from '@ortha-cms/design-system';
 import type { Workspace, WorkspaceMember } from '../../types/workspace';
 import type { CreateWorkspaceBody } from '../../types/wizard';
 import { slugify } from '../../utils/slugify';
+import { initialsOf } from '../../utils/initialsOf';
 
 // TODO(workspaces-server): replace this in-memory stub with `apiClient` calls
 // against `/api/workspaces` (list, create, and `GET /slug-available`) once a
@@ -21,17 +22,6 @@ const member = (
     color,
     initials: initialsOf(name)
 });
-
-/** Up-to-two-letter initials from a display name. */
-function initialsOf(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-}
 
 let store: Workspace[] = [
     {

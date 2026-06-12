@@ -74,10 +74,13 @@ test.describe('Workspaces page', () => {
         await expect(
             workspacesPage.emptyText('No workspaces match')
         ).toBeVisible();
-        // Clearing the filters restores the default active view.
+        // Clearing widens to every workspace (status → All, search reset), so
+        // the action always reveals content — including the all-archived case
+        // where resetting to the default Active view would leave it empty.
         await workspacesPage.clearFiltersButton().click();
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
-        await expect(workspacesPage.count()).toHaveText('4 of 6');
+        await expect(workspacesPage.card('Research archive')).toBeVisible();
+        await expect(workspacesPage.count()).toHaveText('6 of 6');
     });
 
     test.describe('member stack', () => {
