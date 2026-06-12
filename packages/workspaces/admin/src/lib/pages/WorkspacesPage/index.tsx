@@ -1,12 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Plus } from 'lucide-react';
-import {
-    Button,
-    Container,
-    ContainerHeader,
-    Spinner
-} from '@ortha-cms/design-system';
+import { Container, ContainerHeader, Spinner } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import { WorkspaceCard } from '../../components/WorkspaceCard';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
@@ -15,7 +9,6 @@ import {
     DEFAULT_STATUS,
     type StatusFilter
 } from '../../components/WorkspaceToolbar';
-import { CreateWorkspaceDialog } from '../../components/CreateWorkspaceDialog';
 import type { Workspace } from '../../types/workspace';
 
 /** Intl descriptors for {@link WorkspacesPage}, co-located with the component. */
@@ -28,10 +21,6 @@ const messages = defineMessages({
         id: 'workspaces.page.subtitle',
         defaultMessage:
             'Each workspace groups its own content, members, and plugins. Switch in to manage one, or spin up a new one.'
-    },
-    newWorkspace: {
-        id: 'workspaces.page.newWorkspace',
-        defaultMessage: 'New workspace'
     }
 });
 
@@ -52,8 +41,12 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 
 /**
  * The Workspaces management page: a searchable, status-filterable grid of
- * workspace cards with a create flow. Rendered at `/workspaces` inside the
- * authenticated shell.
+ * workspace cards, reading the signed-in user's workspaces from the API.
+ * Rendered at `/workspaces` inside the authenticated shell.
+ *
+ * TODO(workspaces-create): the create flow is built (CreateWorkspaceDialog +
+ * useCreateWorkspace) but its entry point is hidden until the server ships a
+ * create endpoint — the API is read-only today.
  */
 export function WorkspacesPage() {
     const intl = useIntl();
@@ -61,19 +54,6 @@ export function WorkspacesPage() {
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
-    const [createOpen, setCreateOpen] = useState(false);
-
-    // Remember which control opened the create dialog so focus can return there
-    // when it closes (the dialog is state-controlled, not opened via a Radix
-    // trigger, so it has no trigger to restore focus to on its own).
-    const createTrigger = useRef<HTMLElement | null>(null);
-    const openCreate = () => {
-        createTrigger.current =
-            document.activeElement instanceof HTMLElement
-                ? document.activeElement
-                : null;
-        setCreateOpen(true);
-    };
 
     const filtered = useMemo(
         () =>
@@ -100,12 +80,6 @@ export function WorkspacesPage() {
             <ContainerHeader
                 title={intl.formatMessage(messages.title)}
                 subtitle={intl.formatMessage(messages.subtitle)}
-                actions={
-                    <Button onClick={openCreate}>
-                        <Plus />
-                        {intl.formatMessage(messages.newWorkspace)}
-                    </Button>
-                }
             />
 
             <WorkspaceToolbar
@@ -126,11 +100,10 @@ export function WorkspacesPage() {
                     // "No match / clear filters" whenever workspaces exist but
                     // the current view hides them all (e.g. a search miss, or
                     // the default Active filter with only archived workspaces);
-                    // the "no workspaces yet / create first" variant is reserved
-                    // for a genuinely empty list.
+                    // the "no workspaces yet" variant is reserved for a
+                    // genuinely empty list.
                     filtered={workspaces.length > 0}
                     onClear={clearFilters}
-                    onCreate={openCreate}
                 />
             ) : (
                 <div
@@ -148,12 +121,6 @@ export function WorkspacesPage() {
                     ))}
                 </div>
             )}
-
-            <CreateWorkspaceDialog
-                open={createOpen}
-                onOpenChange={setCreateOpen}
-                restoreFocusRef={createTrigger}
-            />
         </Container>
     );
 }

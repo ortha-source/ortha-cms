@@ -28,11 +28,20 @@ pending.
 
 ## Architecture
 
-- **Data is stubbed.** `lib/api/workspacesClient` is an in-memory store with seed
-  data behind typed `listWorkspaces` / `createWorkspace` functions — the single
-  seam to swap for real `apiClient` calls against `/api/workspaces` once a
-  workspaces **server** plugin ships the rich shape (members, color, status). See
-  the `TODO(workspaces-server)` there; nothing else imports the store.
+- **Reads the real API — no client module.** Following identity-admin's
+  `useCurrentUser`, the data layer lives in the hooks themselves: `useWorkspaces`
+  owns its `fetchWorkspaces` (a `GET /api/workspaces` call via the shared
+  `apiClient`) plus the local wire types and the `WorkspaceView → Workspace`
+  mapper (the admin can't import the server package). `status` is admin-only and
+  not persisted, so every workspace maps to `Active` (the Active/Archived filter
+  still works, Archived is empty for now); member `initials`/`color` aren't
+  persisted either and are derived client-side (`utils/initialsOf`,
+  `utils/avatarColor`).
+- **Create is deferred.** The create flow (`CreateWorkspaceDialog` +
+  `useCreateWorkspace`) is built but its entry point is **hidden** — the server
+  is read-only (no `POST /api/workspaces`). `useCreateWorkspace` owns the dormant
+  `createWorkspace` request (reusing `useWorkspaces`' mapper); see
+  `TODO(workspaces-create)` there and in `WorkspacesPage`.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral

@@ -45,13 +45,17 @@ type WorkspacesEmptyProps = {
     filtered: boolean;
     /** Resets the search and status filter back to their defaults. */
     onClear: () => void;
-    /** Opens the create-workspace flow. */
-    onCreate: () => void;
+    /**
+     * Opens the create-workspace flow. Optional: omitted while the create entry
+     * point is hidden (the API is read-only), so the empty list shows no CTA.
+     */
+    onCreate?: () => void;
 };
 
 /**
  * The empty state for the grid. When filters are active it offers to clear
- * them; otherwise it invites creating the first workspace.
+ * them; otherwise it invites creating the first workspace (when create is
+ * available).
  */
 export function WorkspacesEmpty({
     filtered,
@@ -88,12 +92,12 @@ export function WorkspacesEmpty({
                     >
                         {intl.formatMessage(messages.clear)}
                     </Button>
-                ) : (
+                ) : onCreate ? (
                     <Button onClick={onCreate}>
                         <Plus />
                         {intl.formatMessage(messages.create)}
                     </Button>
-                )}
+                ) : null}
             </EmptyContent>
         </Empty>
     );
