@@ -111,42 +111,11 @@ export class WorkspacesPage extends BasePage {
         return this.page.getByRole('button', { name: 'Clear filters' });
     }
 
-    // --- create dialog ---
+    // --- create ---
 
-    dialog(): Locator {
-        return this.page.getByRole('dialog', { name: 'Create a workspace' });
-    }
-
-    nameField(): Locator {
-        return this.dialog().getByLabel('Name');
-    }
-
-    descriptionField(): Locator {
-        return this.dialog().getByLabel('Description');
-    }
-
-    colorSwatch(color: string): Locator {
-        return this.dialog().getByRole('radio', {
-            name: `Use the ${color} accent`
-        });
-    }
-
-    submitCreate(): Locator {
-        return this.dialog().getByRole('button', { name: 'Create workspace' });
-    }
-
-    cancelCreate(): Locator {
-        return this.dialog().getByRole('button', { name: 'Cancel' });
-    }
-
-    /** A validation message inside the dialog. */
-    fieldError(message: string): Locator {
-        return this.dialog().getByText(message);
-    }
-
+    /** Open the create wizard — a full page at `/workspaces/new`, not a dialog. */
     async openCreate() {
         await this.newWorkspaceButton.click();
-        await this.dialog().waitFor();
     }
 
     /** A toast message (sonner, portaled to the body). */

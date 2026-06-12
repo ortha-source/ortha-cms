@@ -1,15 +1,18 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
 
 /**
- * Keyboard operability of the Workspaces page — the part axe can't check.
- * Avoids asserting the exact global tab order (it runs through the shell nav and
- * varies); instead it pins the properties that matter: each control is
- * focusable and activates by keyboard, and the dialog traps and restores focus.
+ * Keyboard operability of the Workspaces page and its create wizard — the part
+ * axe can't check. Avoids asserting the exact global tab order (it runs through
+ * the shell nav and varies); instead it pins the properties that matter: each
+ * control is focusable and activates by keyboard, and the radiogroups move
+ * selection with the arrow keys.
  */
 test.describe('Workspaces keyboard accessibility', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
+        await mockWorkspaces(page);
     });
 
     test('search is reachable and filters by keyboard', async ({
@@ -33,22 +36,6 @@ test.describe('Workspaces keyboard accessibility', () => {
         await page.keyboard.press('Enter');
 
         await expect(page).toHaveURL('/');
-    });
-
-    test('the create dialog opens, traps, and restores focus', async ({
-        page,
-        workspacesPage
-    }) => {
-        await workspacesPage.goto();
-
-        await workspacesPage.newWorkspaceButton.focus();
-        await page.keyboard.press('Enter');
-        await expect(workspacesPage.dialog()).toBeVisible();
-
-        // Escape closes the dialog and returns focus to the trigger.
-        await page.keyboard.press('Escape');
-        await expect(workspacesPage.dialog()).toBeHidden();
-        await expect(workspacesPage.newWorkspaceButton).toBeFocused();
     });
 
     test('the status filter radiogroup moves with arrow keys', async ({
@@ -75,39 +62,44 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(workspacesPage.card('Research archive')).toBeVisible();
     });
 
-    test('the color swatches move with arrow keys', async ({
-        page,
-        workspacesPage
-    }) => {
-        await workspacesPage.goto();
-        await workspacesPage.openCreate();
+    test.describe('create wizard', () => {
+        test.beforeEach(async ({ page }) => {
+            await mockWorkspacesApi(page);
+        });
 
-        const slate = workspacesPage.colorSwatch('slate');
-        await slate.focus();
-        await expect(slate).toBeFocused();
+        test('opens the wizard from the grid on Enter', async ({
+            page,
+            workspacesPage,
+            createWorkspacePage
+        }) => {
+            await workspacesPage.goto();
 
-        await page.keyboard.press('ArrowRight');
-        const green = workspacesPage.colorSwatch('green');
-        await expect(green).toBeFocused();
-        await expect(green).toHaveAttribute('aria-checked', 'true');
-        await expect(slate).toHaveAttribute('aria-checked', 'false');
-    });
+            await workspacesPage.newWorkspaceButton.focus();
+            await expect(workspacesPage.newWorkspaceButton).toBeFocused();
+            await page.keyboard.press('Enter');
 
-    test('a workspace can be created by keyboard alone', async ({
-        page,
-        workspacesPage
-    }) => {
-        await workspacesPage.goto();
+            await expect(page).toHaveURL(/\/workspaces\/new$/);
+            await expect(createWorkspacePage.heading).toBeVisible();
+        });
 
-        await workspacesPage.newWorkspaceButton.focus();
-        await page.keyboard.press('Enter');
-        await expect(workspacesPage.dialog()).toBeVisible();
+        test('a color swatch is selectable by keyboard', async ({
+            page,
+            createWorkspacePage
+        }) => {
+            await createWorkspacePage.goto();
 
-        await workspacesPage.nameField().focus();
-        await workspacesPage.nameField().pressSequentially('Keyboard space');
-        await workspacesPage.nameField().press('Enter');
+            // slate is the default selection; focus another swatch and activate
+            // it from the keyboard.
+            const green = createWorkspacePage.colorSwatch('green');
+            await green.focus();
+            await expect(green).toBeFocused();
 
-        await expect(workspacesPage.dialog()).toBeHidden();
-        await expect(workspacesPage.card('Keyboard space')).toBeVisible();
+            await page.keyboard.press('Space');
+
+            await expect(green).toHaveAttribute('aria-checked', 'true');
+            await expect(
+                createWorkspacePage.colorSwatch('slate')
+            ).toHaveAttribute('aria-checked', 'false');
+        });
     });
 });

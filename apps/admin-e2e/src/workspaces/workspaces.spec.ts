@@ -1,16 +1,19 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
 
 /**
- * The Workspaces page (`@ortha-cms/workspaces-admin`). Data comes from the
- * plugin's in-memory seed (no `/api` mock) — only the auth probe is stubbed,
- * since the page sits behind the shell's gate. The seed is fixed: four Active
- * workspaces (Marketing site, Product docs, Support hub, Internal wiki) and two
- * Archived (Research archive, Events 2023); Product docs has five members.
+ * The Workspaces page (`@ortha-cms/workspaces-admin`). The grid reads
+ * `GET /api/workspaces`, stubbed by `mockWorkspaces` (the FE analog of seeded
+ * rows): four Active workspaces (Marketing site, Product docs, Support hub,
+ * Internal wiki) and two Archived (Research archive, Events 2023); Product docs
+ * has five members. The auth probe is stubbed too, since the page sits behind
+ * the shell's gate.
  */
 test.describe('Workspaces page', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
+        await mockWorkspaces(page);
     });
 
     test('renders the active workspaces by default behind the shell', async ({
@@ -74,9 +77,7 @@ test.describe('Workspaces page', () => {
         await expect(
             workspacesPage.emptyText('No workspaces match')
         ).toBeVisible();
-        // Clearing widens to every workspace (status → All, search reset), so
-        // the action always reveals content — including the all-archived case
-        // where resetting to the default Active view would leave it empty.
+        // Clearing widens to every workspace (status → All, search reset).
         await workspacesPage.clearFiltersButton().click();
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
         await expect(workspacesPage.card('Research archive')).toBeVisible();
@@ -147,66 +148,71 @@ test.describe('Workspaces page', () => {
         await expect(page).toHaveURL('/');
     });
 
-    test.describe('create', () => {
-        test('adds a workspace optimistically and toasts', async ({
-            workspacesPage
+    test.describe('create wizard', () => {
+        test.beforeEach(async ({ page }) => {
+            // Stateful create flow: the list GET reflects POSTed workspaces, plus
+            // the wizard's slug/users/content-type reads.
+            await mockWorkspacesApi(page);
+        });
+
+        test('creates a workspace and shows it in the grid', async ({
+            page,
+            workspacesPage,
+            createWorkspacePage
         }) => {
             await workspacesPage.goto();
             await workspacesPage.openCreate();
+            await expect(createWorkspacePage.heading).toBeVisible();
+            await expect(page).toHaveURL(/\/workspaces\/new$/);
 
-            await workspacesPage.nameField().fill('QA space');
-            await workspacesPage
-                .descriptionField()
-                .fill('Scratch space for QA.');
-            await workspacesPage.submitCreate().click();
+            await createWorkspacePage.create('QA space');
 
-            // Dialog closes, a toast confirms, and the new card is on top.
-            await expect(workspacesPage.dialog()).toBeHidden();
-            await expect(
-                workspacesPage.toast(/Created.*QA space/)
-            ).toBeVisible();
+            // Back on the list: a toast confirms and the new card persists
+            // through the post-create refetch (not just the optimistic insert).
+            await expect(page).toHaveURL(/\/workspaces$/);
             await expect(workspacesPage.card('QA space')).toBeVisible();
+            await expect(
+                workspacesPage.toast('Workspace "QA space" created.')
+            ).toBeVisible();
             await expect(workspacesPage.count()).toHaveText('5 of 7');
         });
 
-        test('blocks an empty name with a validation error', async ({
-            workspacesPage
+        test('keeps Continue disabled until the basics are valid', async ({
+            createWorkspacePage
         }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
+            await createWorkspacePage.goto();
 
-            // Touch then clear the field to trigger onChange validation.
-            await workspacesPage.nameField().fill('Temp');
-            await workspacesPage.nameField().fill('');
+            await expect(createWorkspacePage.continueToMembers).toBeDisabled();
 
-            await expect(
-                workspacesPage.fieldError('Name is required')
-            ).toBeVisible();
-            // The dialog stays open and nothing is created.
-            await expect(workspacesPage.dialog()).toBeVisible();
+            await createWorkspacePage.nameInput.fill('QA space');
+
+            // Enables once the auto-filled slug is confirmed available.
+            await expect(createWorkspacePage.continueToMembers).toBeEnabled();
         });
 
-        test('can be dismissed with Cancel', async ({ workspacesPage }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
+        test('returns to the list via "Back to workspaces"', async ({
+            page,
+            workspacesPage,
+            createWorkspacePage
+        }) => {
+            await createWorkspacePage.goto();
 
-            await workspacesPage.cancelCreate().click();
+            await createWorkspacePage.backLink.click();
 
-            await expect(workspacesPage.dialog()).toBeHidden();
+            await expect(page).toHaveURL(/\/workspaces$/);
+            await expect(workspacesPage.heading).toBeVisible();
         });
 
         test('lets the owner pick an accent color', async ({
-            workspacesPage
+            createWorkspacePage
         }) => {
-            await workspacesPage.goto();
-            await workspacesPage.openCreate();
+            await createWorkspacePage.goto();
 
-            await workspacesPage.colorSwatch('teal').click();
+            await createWorkspacePage.colorSwatch('teal').click();
 
-            await expect(workspacesPage.colorSwatch('teal')).toHaveAttribute(
-                'aria-checked',
-                'true'
-            );
+            await expect(
+                createWorkspacePage.colorSwatch('teal')
+            ).toHaveAttribute('aria-checked', 'true');
         });
     });
 });

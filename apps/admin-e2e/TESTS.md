@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_47 test cases across 9 spec files._
+_46 test cases across 9 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -92,9 +92,14 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 | grid — all statuses (archived cards visible) |
 | status filter popover — open |
 | member popover — open |
-| create dialog — open |
-| create dialog — name validation error visible |
 | empty state — no matches |
+
+### create wizard
+
+| Test case |
+| --- |
+| basics step |
+| basics step — slug validation error visible |
 
 <!-- source: apps/admin-e2e/src/workspaces/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
@@ -105,10 +110,14 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | --- |
 | search is reachable and filters by keyboard |
 | a card opens on Enter |
-| the create dialog opens, traps, and restores focus |
 | the status filter radiogroup moves with arrow keys |
-| the color swatches move with arrow keys |
-| a workspace can be created by keyboard alone |
+
+### create wizard
+
+| Test case |
+| --- |
+| opens the wizard from the grid on Enter |
+| a color swatch is selectable by keyboard |
 
 <!-- source: apps/admin-e2e/src/workspaces/permissions.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_
@@ -146,11 +155,11 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | --- |
 | a card opens its workspace on click |
 
-### create
+### create wizard
 
 | Test case |
 | --- |
-| adds a workspace optimistically and toasts |
-| blocks an empty name with a validation error |
-| can be dismissed with Cancel |
+| creates a workspace and shows it in the grid |
+| keeps Continue disabled until the basics are valid |
+| returns to the list via "Back to workspaces" |
 | lets the owner pick an accent color |

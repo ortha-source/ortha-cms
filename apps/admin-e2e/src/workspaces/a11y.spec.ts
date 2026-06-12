@@ -1,16 +1,19 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
  * Accessibility scans (axe, WCAG 2.1 A/AA) of the Workspaces page and its
- * dynamic states — the grid, the open popovers, the create dialog, the empty
- * state, and the archived (dimmed) view, where contrast issues tend to hide.
- * A regression guard, not a conformance claim.
+ * dynamic states — the grid, the open popovers, the empty state, the archived
+ * (dimmed) view, and the create wizard (including a visible validation error),
+ * where contrast issues tend to hide. A regression guard, not a conformance
+ * claim.
  */
 test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
+        await mockWorkspaces(page);
     });
 
     test('grid — initial (active)', async ({ workspacesPage, makeAxe }) => {
@@ -45,28 +48,33 @@ test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('create dialog — open', async ({ workspacesPage, makeAxe }) => {
-        await workspacesPage.goto();
-        await workspacesPage.openCreate();
-        await expectNoA11yViolations(makeAxe());
-    });
-
-    test('create dialog — name validation error visible', async ({
-        workspacesPage,
-        makeAxe
-    }) => {
-        await workspacesPage.goto();
-        await workspacesPage.openCreate();
-        await workspacesPage.nameField().fill('Temp');
-        await workspacesPage.nameField().fill('');
-        await workspacesPage.fieldError('Name is required').waitFor();
-        await expectNoA11yViolations(makeAxe());
-    });
-
     test('empty state — no matches', async ({ workspacesPage, makeAxe }) => {
         await workspacesPage.goto();
         await workspacesPage.search.fill('nonexistent-workspace-xyz');
         await workspacesPage.emptyText('No workspaces match').waitFor();
         await expectNoA11yViolations(makeAxe());
+    });
+
+    test.describe('create wizard', () => {
+        test.beforeEach(async ({ page }) => {
+            await mockWorkspacesApi(page);
+        });
+
+        test('basics step', async ({ createWorkspacePage, makeAxe }) => {
+            await createWorkspacePage.goto();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('basics step — slug validation error visible', async ({
+            createWorkspacePage,
+            makeAxe
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.slugInput.fill('Invalid Slug');
+            await createWorkspacePage
+                .fieldError('Use lowercase letters, numbers, and hyphens only.')
+                .waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
     });
 });
