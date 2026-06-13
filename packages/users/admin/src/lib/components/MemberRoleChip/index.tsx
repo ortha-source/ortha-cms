@@ -18,12 +18,14 @@ const messages = defineMessages({
     }
 });
 
-const ROLE_MESSAGE: Record<MemberRole, (typeof messages)[keyof typeof messages]> =
-    {
-        admin: messages.admin,
-        contributor: messages.contributor,
-        viewer: messages.viewer
-    };
+const ROLE_MESSAGE: Record<
+    MemberRole,
+    (typeof messages)[keyof typeof messages]
+> = {
+    admin: messages.admin,
+    contributor: messages.contributor,
+    viewer: messages.viewer
+};
 
 /**
  * The Role column's read-only chip: the member's role as a labelled badge.

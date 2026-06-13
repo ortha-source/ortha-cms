@@ -37,6 +37,8 @@ export type MembersListParams = {
     search?: string;
     /** 1-based page number; the server defaults to 1. */
     page?: number;
+    /** Rows per page; the server defaults to {@link DEFAULT_PAGE_SIZE}. */
+    pageSize?: number;
 };
 
 /** A member's role as returned by the API. */

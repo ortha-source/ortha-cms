@@ -235,7 +235,12 @@ export async function mockWorkspacesApi(
               )
             : DIRECTORY;
         await route.fulfill(
-            json({ items, page: 1, pageSize: items.length, total: items.length })
+            json({
+                items,
+                page: 1,
+                pageSize: items.length,
+                total: items.length
+            })
         );
     });
 

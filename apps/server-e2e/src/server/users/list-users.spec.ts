@@ -152,6 +152,17 @@ describe('GET /api/users', () => {
         await agent.get('/api/users?page=abc').expect(400);
     });
 
+    it('accepts the maximum page size (100)', async () => {
+        const agent = await adminAgent();
+        const res = await agent.get('/api/users?pageSize=100').expect(200);
+        expect(res.body.pageSize).toBe(100);
+    });
+
+    it('rejects a page size over the maximum with 400', async () => {
+        const agent = await adminAgent();
+        await agent.get('/api/users?pageSize=101').expect(400);
+    });
+
     it('allows a viewer to read (users:read is granted to every role)', async () => {
         await seedActiveUser(harness.app, {
             email: 'viewer@example.com',

@@ -57,12 +57,13 @@ export function MembersPage() {
 
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
     const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
 
     const [editing, setEditing] = useState<Member | null>(null);
 
     const { data, isPending, isError } = useMembers(
-        { search: debouncedSearch || undefined, page },
+        { search: debouncedSearch || undefined, page, pageSize },
         canRead
     );
 
@@ -76,14 +77,22 @@ export function MembersPage() {
     }
 
     const total = data?.total ?? 0;
-    const pageSize = data?.pageSize ?? DEFAULT_PAGE_SIZE;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    // The server echoes the effective page size; fall back to the requested one
+    // until the first response lands.
+    const effectivePageSize = data?.pageSize ?? pageSize;
+    const pageCount = Math.max(1, Math.ceil(total / effectivePageSize));
     const members = data?.items ?? [];
     const hasSearch = debouncedSearch.trim().length > 0;
 
     const changeSearch = (value: string) => {
         setSearch(value);
         // A narrowed result set may have fewer pages than the current one.
+        setPage(1);
+    };
+
+    const changePageSize = (next: number) => {
+        setPageSize(next);
+        // A larger page may absorb the current rows; restart from the first.
         setPage(1);
     };
 
@@ -130,7 +139,10 @@ export function MembersPage() {
                     <MembersPagination
                         page={page}
                         pageCount={pageCount}
+                        pageSize={effectivePageSize}
+                        total={total}
                         onPageChange={setPage}
+                        onPageSizeChange={changePageSize}
                     />
                 </>
             )}

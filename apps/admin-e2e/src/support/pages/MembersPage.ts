@@ -124,6 +124,31 @@ export class MembersPage extends BasePage {
         return this.editDialog().getByRole('combobox');
     }
 
+    // --- pagination ---
+
+    /** The "{from}–{to} of {total}" readout in the pagination bar. */
+    paginationRange(): Locator {
+        return this.page.getByText(/^\d+.\d+ of \d+$/);
+    }
+
+    /** Pick a rows-per-page value from the page-size select. */
+    async setRowsPerPage(value: string) {
+        await this.page
+            .getByRole('combobox', { name: 'Rows per page' })
+            .click();
+        await this.page
+            .getByRole('option', { name: value, exact: true })
+            .click();
+    }
+
+    nextPage(): Locator {
+        return this.page.getByRole('button', { name: 'Next page' });
+    }
+
+    prevPage(): Locator {
+        return this.page.getByRole('button', { name: 'Previous page' });
+    }
+
     // --- empty / no-access states ---
 
     noAccessText(): Locator {

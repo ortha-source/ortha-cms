@@ -15,5 +15,5 @@ export const INVITE_TOKEN_TTL_DAYS = 7;
 /** Default page size for `GET /api/users`. */
 export const DEFAULT_PAGE_SIZE = 10;
 
-/** Upper bound on the requested page size. */
-export const MAX_PAGE_SIZE = 50;
+/** Upper bound on the requested page size (the largest option the UI offers). */
+export const MAX_PAGE_SIZE = 100;

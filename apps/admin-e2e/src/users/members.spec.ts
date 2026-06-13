@@ -1,6 +1,6 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockMembers, spyInvite } from '../support/api/members';
+import { manyMembers, mockMembers, spyInvite } from '../support/api/members';
 import { mockWorkspaces } from '../support/api/workspaces';
 
 /**
@@ -121,7 +121,9 @@ test.describe('Members page', () => {
         await expect(
             membersPage.inviteWorkspace('Marketing site')
         ).toBeVisible();
-        await expect(membersPage.inviteWorkspace('Product docs')).toHaveCount(0);
+        await expect(membersPage.inviteWorkspace('Product docs')).toHaveCount(
+            0
+        );
     });
 
     test('keeps Continue disabled (no request) for an invalid email', async ({
@@ -137,6 +139,25 @@ test.describe('Members page', () => {
         // Continue stays disabled, so the role step and submit are unreachable.
         await expect(membersPage.continueToRole()).toBeDisabled();
         expect(invite.count).toBe(0);
+    });
+
+    test('paginates with a selectable page size', async ({
+        membersPage,
+        page
+    }) => {
+        // 7 members so a page size of 5 yields two pages.
+        await mockMembers(page, manyMembers(7));
+        await membersPage.goto();
+
+        // Default size (10) fits all 7 on one page — no prev/next.
+        await expect(membersPage.paginationRange()).toHaveText(/^1.7 of 7$/);
+        await expect(membersPage.nextPage()).toHaveCount(0);
+
+        // 5 per page → two pages; the readout and controls follow.
+        await membersPage.setRowsPerPage('5');
+        await expect(membersPage.paginationRange()).toHaveText(/^1.5 of 7$/);
+        await membersPage.nextPage().click();
+        await expect(membersPage.paginationRange()).toHaveText(/^6.7 of 7$/);
     });
 
     test('shows status-specific actions for a pending invite', async ({

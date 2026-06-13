@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_68 test cases across 12 spec files._
+_69 test cases across 12 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -121,6 +121,7 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | assigns all workspaces via the "All workspaces" mode |
 | searches the workspaces in the assignment step |
 | keeps Continue disabled (no request) for an invalid email |
+| paginates with a selectable page size |
 | shows status-specific actions for a pending invite |
 | offers Enable (not Disable) for a disabled member |
 | renders the role as a chip and locks the sole admin in the edit dialog |

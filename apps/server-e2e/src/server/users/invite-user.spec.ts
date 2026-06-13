@@ -81,7 +81,10 @@ describe('POST /api/users/invites', () => {
 
     it('assigns the new member to the given workspaces (unknown ids ignored)', async () => {
         const agent = await login(ADMIN_EMAIL);
-        const ws = await seedWorkspace({ name: 'Marketing', slug: 'marketing' });
+        const ws = await seedWorkspace({
+            name: 'Marketing',
+            slug: 'marketing'
+        });
 
         const res = await agent
             .post('/api/users/invites')

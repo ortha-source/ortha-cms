@@ -90,6 +90,20 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
     }
 ];
 
+/** Generates `count` active viewer members — for pagination tests. */
+export function manyMembers(count: number): MemberSeed[] {
+    return Array.from({ length: count }, (_, index) => ({
+        id: `u_gen_${index}`,
+        email: `gen-${index}@ortha.dev`,
+        name: `Generated ${String(index).padStart(2, '0')}`,
+        role: ROLES.viewer,
+        status: 'active' as const,
+        createdAt: TIMESTAMP,
+        isLastAdmin: false,
+        workspaces: []
+    }));
+}
+
 /** Reads `search`/`page`/`pageSize` from the intercepted request URL. */
 function paramsOf(route: Route): {
     search: string;
