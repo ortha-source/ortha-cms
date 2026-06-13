@@ -84,6 +84,26 @@ test.describe('Members page', () => {
         expect(invite.count).toBe(1);
     });
 
+    test('assigns all workspaces via the "All workspaces" mode', async ({
+        membersPage,
+        page
+    }) => {
+        await spyInvite(page);
+        await mockWorkspaces(page);
+        await membersPage.goto();
+
+        await membersPage.inviteButton.click();
+        await membersPage.inviteEmail().fill('new@ortha.dev');
+        await membersPage.continueToRole().click();
+        await membersPage.continueToWorkspaces().click();
+
+        // Default is "Specific" — the search is shown.
+        await expect(membersPage.workspaceSearch()).toBeVisible();
+        // Switching to "All workspaces" hides the per-workspace picker.
+        await membersPage.inviteWorkspaceMode('All workspaces').check();
+        await expect(membersPage.workspaceSearch()).toBeHidden();
+    });
+
     test('searches the workspaces in the assignment step', async ({
         membersPage,
         page

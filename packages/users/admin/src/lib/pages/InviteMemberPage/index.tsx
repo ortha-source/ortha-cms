@@ -76,6 +76,10 @@ const messages = defineMessages({
         defaultMessage:
             '{count, plural, =0 {No workspaces} one {# workspace} other {# workspaces}}'
     },
+    summaryAllWorkspaces: {
+        id: 'users.invitePage.summaryAllWorkspaces',
+        defaultMessage: 'All workspaces'
+    },
     // Step 1 — Details
     detailsTitle: {
         id: 'users.invitePage.detailsTitle',
@@ -151,7 +155,24 @@ const messages = defineMessages({
     workspacesDescription: {
         id: 'users.invitePage.workspacesDescription',
         defaultMessage:
-            'Select the workspaces to add this member to. You can leave this empty and assign access later.'
+            'Give this member access to all workspaces, or pick specific ones. You can change access later.'
+    },
+    modeAllTitle: {
+        id: 'users.invitePage.modeAllTitle',
+        defaultMessage: 'All workspaces'
+    },
+    modeAllDescription: {
+        id: 'users.invitePage.modeAllDescription',
+        defaultMessage:
+            'Add them to every workspace ({count}). Newly created workspaces aren’t included automatically.'
+    },
+    modeSpecificTitle: {
+        id: 'users.invitePage.modeSpecificTitle',
+        defaultMessage: 'Specific workspaces'
+    },
+    modeSpecificDescription: {
+        id: 'users.invitePage.modeSpecificDescription',
+        defaultMessage: 'Choose exactly which workspaces they can reach.'
     },
     workspacesInfo: {
         id: 'users.invitePage.workspacesInfo',
@@ -202,6 +223,20 @@ const messages = defineMessages({
 
 const EMAIL = z.email();
 
+/** The two workspace-access modes, mirroring the workspace create wizard. */
+const WORKSPACE_MODE_TILES = [
+    {
+        value: 'all' as const,
+        title: messages.modeAllTitle,
+        description: messages.modeAllDescription
+    },
+    {
+        value: 'specific' as const,
+        title: messages.modeSpecificTitle,
+        description: messages.modeSpecificDescription
+    }
+];
+
 /** A muted, icon-led note for the extra context shown on each step. */
 function InfoNote({ children }: { children: ReactNode }) {
     return (
@@ -230,6 +265,7 @@ export function InviteMemberPage() {
     const [name, setName] = useState('');
     const [role, setRole] = useState<MemberRole>('viewer');
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [wsMode, setWsMode] = useState<'all' | 'specific'>('specific');
     const [wsSearch, setWsSearch] = useState('');
 
     // Prefetch the workspace list once the user has moved past the first step.
@@ -288,13 +324,18 @@ export function InviteMemberPage() {
         });
     };
 
+    // "All" sends every workspace's id (a snapshot — memberships are explicit
+    // rows); "specific" sends the checked ones.
+    const workspaceIds =
+        wsMode === 'all' ? options.map((w) => w.id) : [...selected];
+
     const submit = async () => {
         try {
             const created = await invite.mutateAsync({
                 email: email.trim(),
                 role,
                 name: name.trim() || undefined,
-                workspaceIds: [...selected]
+                workspaceIds
             });
             toast(intl.formatMessage(messages.sent, { email: created.email }));
             navigate('/users');
@@ -325,9 +366,12 @@ export function InviteMemberPage() {
             label: intl.formatMessage(messages.stepWorkspaces),
             hint: intl.formatMessage(messages.stepWorkspacesHint),
             optional: true,
-            summary: intl.formatMessage(messages.summaryAccess, {
-                count: selected.size
-            })
+            summary:
+                wsMode === 'all'
+                    ? intl.formatMessage(messages.summaryAllWorkspaces)
+                    : intl.formatMessage(messages.summaryAccess, {
+                          count: selected.size
+                      })
         }
     ];
 
@@ -538,90 +582,152 @@ export function InviteMemberPage() {
                                     </p>
                                 ) : (
                                     <>
-                                        <InputGroup className="mb-3 shadow-none">
-                                            <InputGroupAddon>
-                                                <Search />
-                                            </InputGroupAddon>
-                                            <InputGroupInput
-                                                value={wsSearch}
-                                                onChange={(event) =>
-                                                    setWsSearch(
-                                                        event.target.value
-                                                    )
-                                                }
-                                                placeholder={intl.formatMessage(
-                                                    messages.workspacesSearch
-                                                )}
-                                                aria-label={intl.formatMessage(
-                                                    messages.workspacesSearch
-                                                )}
-                                                autoComplete="off"
-                                            />
-                                        </InputGroup>
-                                        <div
-                                            role="group"
-                                            className="flex max-h-[320px] flex-col gap-2 overflow-y-auto"
+                                        <RadioGroup
+                                            value={wsMode}
+                                            onValueChange={(value) =>
+                                                setWsMode(
+                                                    value as 'all' | 'specific'
+                                                )
+                                            }
+                                            className="grid gap-3 sm:grid-cols-2"
                                         >
-                                            {filteredOptions.length === 0 ? (
-                                                <p className="px-1 py-3 text-sm text-muted-foreground">
-                                                    {intl.formatMessage(
-                                                        messages.workspacesNoMatch
-                                                    )}
-                                                </p>
-                                            ) : (
-                                                filteredOptions.map(
-                                                    (workspace) => (
-                                                        <Label
-                                                            key={workspace.id}
-                                                            htmlFor={`invite-ws-${workspace.id}`}
-                                                            className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
-                                                        >
-                                                            <Checkbox
-                                                                id={`invite-ws-${workspace.id}`}
-                                                                aria-label={
-                                                                    workspace.name
-                                                                }
-                                                                checked={selected.has(
-                                                                    workspace.id
+                                            {WORKSPACE_MODE_TILES.map(
+                                                (tile) => (
+                                                    <Label
+                                                        key={tile.value}
+                                                        htmlFor={`invite-ws-mode-${tile.value}`}
+                                                        className={cn(
+                                                            'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
+                                                            wsMode ===
+                                                                tile.value
+                                                                ? 'border-primary bg-primary/5'
+                                                                : 'hover:bg-accent'
+                                                        )}
+                                                    >
+                                                        <RadioGroupItem
+                                                            id={`invite-ws-mode-${tile.value}`}
+                                                            value={tile.value}
+                                                            aria-label={intl.formatMessage(
+                                                                tile.title
+                                                            )}
+                                                            className="mt-0.5"
+                                                        />
+                                                        <span className="flex flex-col gap-1">
+                                                            <span className="text-sm font-medium">
+                                                                {intl.formatMessage(
+                                                                    tile.title
                                                                 )}
-                                                                onCheckedChange={(
-                                                                    checked
-                                                                ) =>
-                                                                    toggleWorkspace(
-                                                                        workspace.id,
-                                                                        checked ===
-                                                                            true
-                                                                    )
-                                                                }
-                                                            />
-                                                            <MemberAvatar
-                                                                initials={
-                                                                    workspace.initials
-                                                                }
-                                                                color={
-                                                                    workspace.color
-                                                                }
-                                                                className="size-7 text-[10px]"
-                                                            />
-                                                            <span className="truncate text-sm font-medium">
-                                                                {workspace.name}
                                                             </span>
-                                                        </Label>
-                                                    )
+                                                            <span className="text-sm text-muted-foreground">
+                                                                {intl.formatMessage(
+                                                                    tile.description,
+                                                                    {
+                                                                        count: options.length
+                                                                    }
+                                                                )}
+                                                            </span>
+                                                        </span>
+                                                    </Label>
                                                 )
                                             )}
-                                        </div>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            {intl.formatMessage(
-                                                messages.selectedCount,
-                                                { count: selected.size }
-                                            )}
-                                        </p>
+                                        </RadioGroup>
+
+                                        {wsMode === 'specific' ? (
+                                            <div className="mt-4 flex flex-col">
+                                                <InputGroup className="mb-3 shadow-none">
+                                                    <InputGroupAddon>
+                                                        <Search />
+                                                    </InputGroupAddon>
+                                                    <InputGroupInput
+                                                        value={wsSearch}
+                                                        onChange={(event) =>
+                                                            setWsSearch(
+                                                                event.target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        placeholder={intl.formatMessage(
+                                                            messages.workspacesSearch
+                                                        )}
+                                                        aria-label={intl.formatMessage(
+                                                            messages.workspacesSearch
+                                                        )}
+                                                        autoComplete="off"
+                                                    />
+                                                </InputGroup>
+                                                <div
+                                                    role="group"
+                                                    className="flex max-h-[320px] flex-col gap-2 overflow-y-auto"
+                                                >
+                                                    {filteredOptions.length ===
+                                                    0 ? (
+                                                        <p className="px-1 py-3 text-sm text-muted-foreground">
+                                                            {intl.formatMessage(
+                                                                messages.workspacesNoMatch
+                                                            )}
+                                                        </p>
+                                                    ) : (
+                                                        filteredOptions.map(
+                                                            (workspace) => (
+                                                                <Label
+                                                                    key={
+                                                                        workspace.id
+                                                                    }
+                                                                    htmlFor={`invite-ws-${workspace.id}`}
+                                                                    className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
+                                                                >
+                                                                    <Checkbox
+                                                                        id={`invite-ws-${workspace.id}`}
+                                                                        aria-label={
+                                                                            workspace.name
+                                                                        }
+                                                                        checked={selected.has(
+                                                                            workspace.id
+                                                                        )}
+                                                                        onCheckedChange={(
+                                                                            checked
+                                                                        ) =>
+                                                                            toggleWorkspace(
+                                                                                workspace.id,
+                                                                                checked ===
+                                                                                    true
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                    <MemberAvatar
+                                                                        initials={
+                                                                            workspace.initials
+                                                                        }
+                                                                        color={
+                                                                            workspace.color
+                                                                        }
+                                                                        className="size-7 text-[10px]"
+                                                                    />
+                                                                    <span className="truncate text-sm font-medium">
+                                                                        {
+                                                                            workspace.name
+                                                                        }
+                                                                    </span>
+                                                                </Label>
+                                                            )
+                                                        )
+                                                    )}
+                                                </div>
+                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                    {intl.formatMessage(
+                                                        messages.selectedCount,
+                                                        { count: selected.size }
+                                                    )}
+                                                </p>
+                                            </div>
+                                        ) : null}
                                     </>
                                 )}
 
                                 <InfoNote>
-                                    {intl.formatMessage(messages.workspacesInfo)}
+                                    {intl.formatMessage(
+                                        messages.workspacesInfo
+                                    )}
                                 </InfoNote>
 
                                 {errorMessage ? (
@@ -657,7 +763,9 @@ export function InviteMemberPage() {
                                                     </span>
                                                 </>
                                             ) : null}
-                                            {intl.formatMessage(messages.submit)}
+                                            {intl.formatMessage(
+                                                messages.submit
+                                            )}
                                         </Button>
                                     }
                                 />

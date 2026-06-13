@@ -100,7 +100,12 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('checkbox', { name });
     }
 
-    /** The search box in the assignment step. */
+    /** A workspace-access mode tile ("All workspaces" / "Specific workspaces"). */
+    inviteWorkspaceMode(label: string): Locator {
+        return this.page.getByRole('radio', { name: label });
+    }
+
+    /** The search box in the assignment step (shown in "Specific" mode). */
     workspaceSearch(): Locator {
         return this.page.getByLabel('Search workspaces');
     }
