@@ -1,6 +1,6 @@
 ---
 name: accessibility
-description: Building accessible (WCAG 2.1 AA) admin UI in Ortha CMS — semantic HTML first, labels via the design-system Field/InputField, ARIA only as a last resort, focus management, keyboard support, color-contrast caveats, and intl. Use when authoring or reviewing admin components, forms, dialogs, menus, or any interactive UI. Verify with the admin-e2e a11y/keyboard suites.
+description: Building accessible (WCAG 2.1 AA) admin UI in Ortha CMS — semantic HTML first, labels via the design-system Field/InputField, ARIA only as a last resort, focus management, keyboard support, accessible tables/pagination/dialogs/menus, landmarks + skip link, live-region announcements (toasts), color-contrast caveats, and intl. Use when authoring or reviewing admin components, forms, tables, dialogs, menus, or any interactive UI. Verify with the admin-e2e a11y/keyboard suites.
 user-invocable: false
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *)
 ---
@@ -39,6 +39,12 @@ WCAG issues — they guard against regressions, they don't prove conformance.
    (`sr-only` text or `aria-label`); decorative icons get `aria-hidden="true"`.
    Busy states announce (the submit `Spinner` is `aria-hidden` with an `sr-only`
    "Signing in…").
+6. **Announce dynamic changes.** Content that appears without a navigation — a
+   `toast()` confirmation, an async error banner, a "{n} results" count after a
+   search — must reach screen readers through a live region. The design-system
+   `Toaster` (sonner) and `Alert`/`FieldError` (`role="alert"`) already announce;
+   never hand-roll a silent `<div>` for status. Don't stack two `role="alert"`s
+   in one view (see the `admin-e2e` gotchas).
 
 ## Use the design system — it gives you a11y for free
 
@@ -51,8 +57,46 @@ WCAG issues — they guard against regressions, they don't prove conformance.
 - **`Alert`** (`role="alert"`) for page-level messages; **`Logo`/icons** mark
   decorative glyphs `aria-hidden`. **`Spinner`** is decorative — pair it with an
   `sr-only` label for the busy state.
+- **`Toaster`** (sonner) — mounted once in `createAdmin`; `toast()` posts to its
+  live region, so success/error feedback is announced for free.
+- **`Table`** family, **`Dialog`**, **`DropdownMenu`**, **`Pagination`**,
+  **`Select`** — Radix-backed primitives that wire roles, labelling, and focus
+  for you. Use them rather than hand-rolling; the per-element rules are below.
 - Strings go through **`react-intl`** (`defineMessages` + `useIntl`), co-located
   per component — so labels/errors are real, translatable text, not hardcoded.
+
+## Tables, pagination & overlays
+
+- **Tables** (`Table`/`TableHeader`/`TableHead`/…): a real `<table>` with
+  `<th scope="col">` column headers, and an accessible name — a `<caption>` or
+  `aria-label` saying what the table lists (e.g. "Members"). A sortable column
+  sets `aria-sort` on its header and puts the sort toggle in a real `<button>`
+  inside the `<th>`. The members table uses the design-system `Table`, which
+  renders the right elements — keep the header cells as `TableHead`.
+- **Pagination & page size** (`Pagination`, `Select`): every control carries a
+  name, not just a glyph or a bare number — "Go to next page", "Rows per page".
+  Mark the active page `aria-current="page"`. A `Select` used as a control needs
+  a label (a `FieldLabel`/`aria-label`), same as any input.
+- **Row menus** (`DropdownMenu`): the kebab trigger needs an accessible name
+  scoped to its row (`aria-label="Actions for {name}"`) — `MemberRowActions` is
+  the reference. Radix handles roving focus and `Escape`.
+- **Dialogs** (`Dialog`): always render a `DialogTitle` — Radix uses it as the
+  dialog's accessible name and warns when it's missing; a visually-hidden title
+  is fine. Add a `DialogDescription` for helper text; Radix wires
+  `aria-labelledby`/`aria-describedby`. (Focus trap/restore is below.)
+
+## Landmarks, headings & skip link
+
+- **One `<h1>` per page**, via `ContainerHeader`'s `title` (it renders the
+  `<h1>`). Don't hand-roll a page heading or skip levels — subsequent sections
+  are `<h2>`+ in order.
+- **Landmarks:** page content sits in the `<main>` the shell `layout` owns; the
+  toolbar is a `<nav>`. Don't add a second `<main>`.
+- **Skip link (WCAG 2.4.1):** with persistent chrome, the first focusable
+  element should be a "Skip to main content" link targeting the `<main>`. The
+  app has no skip link yet and `AppShell`'s `<main>` has no `id` — add both in
+  the shell `layout` when you next touch it (give `<main id="main">` and a link
+  to `#main`).
 
 ## Focus management
 
@@ -77,6 +121,8 @@ WCAG issues — they guard against regressions, they don't prove conformance.
 
 ## Other
 
+- **Set `<html lang>`** to the active locale (it should track the host
+  `IntlProvider`; WCAG 3.1.1) so assistive tech picks the right pronunciation.
 - **Respect `prefers-reduced-motion`** for non-essential animation.
 - **Images/icons:** meaningful → `alt`/accessible name; decorative → empty
   `alt`/`aria-hidden`.
