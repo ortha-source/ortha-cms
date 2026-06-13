@@ -77,12 +77,12 @@ export function MembersPagination({
                     onValueChange={(value) => onPageSizeChange(Number(value))}
                 >
                     <SelectTrigger
-                        className="h-8 w-[72px]"
+                        className="h-8 w-[72px] rounded-lg shadow-none"
                         aria-label={rowsLabel}
                     >
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-lg shadow-none">
                         <SelectGroup>
                             {PAGE_SIZE_OPTIONS.map((size) => (
                                 <SelectItem key={size} value={String(size)}>
