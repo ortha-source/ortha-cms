@@ -84,6 +84,26 @@ test.describe('Members page', () => {
         expect(invite.count).toBe(1);
     });
 
+    test('searches the workspaces in the assignment step', async ({
+        membersPage,
+        page
+    }) => {
+        await spyInvite(page);
+        await mockWorkspaces(page);
+        await membersPage.goto();
+
+        await membersPage.inviteButton.click();
+        await membersPage.inviteEmail().fill('new@ortha.dev');
+        await membersPage.continueToRole().click();
+        await membersPage.continueToWorkspaces().click();
+
+        await membersPage.workspaceSearch().fill('Marketing');
+        await expect(
+            membersPage.inviteWorkspace('Marketing site')
+        ).toBeVisible();
+        await expect(membersPage.inviteWorkspace('Product docs')).toHaveCount(0);
+    });
+
     test('keeps Continue disabled (no request) for an invalid email', async ({
         membersPage,
         page

@@ -100,6 +100,11 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('checkbox', { name });
     }
 
+    /** The search box in the assignment step. */
+    workspaceSearch(): Locator {
+        return this.page.getByLabel('Search workspaces');
+    }
+
     sendInvite(): Locator {
         return this.page.getByRole('button', { name: 'Send invite' });
     }

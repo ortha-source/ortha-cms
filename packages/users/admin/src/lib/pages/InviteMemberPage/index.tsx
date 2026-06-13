@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Search } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import {
@@ -19,6 +19,9 @@ import {
     ContainerHeader,
     FieldGroup,
     InputField,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
     Label,
     RadioGroup,
     RadioGroupItem,
@@ -114,7 +117,7 @@ const messages = defineMessages({
     roleAdminHint: {
         id: 'users.invitePage.roleAdminHint',
         defaultMessage:
-            'Full access — manage members and roles, and reach every workspace.'
+            'Full control of Ortha. Manages members, roles, and settings, and can reach every workspace and all of its content.'
     },
     roleContributor: {
         id: 'users.role.contributor',
@@ -123,12 +126,13 @@ const messages = defineMessages({
     roleContributorHint: {
         id: 'users.invitePage.roleContributorHint',
         defaultMessage:
-            'Create and edit content in the workspaces they’re assigned to.'
+            'Works on content — creates, edits, and publishes in the workspaces they’re assigned to. Can’t manage members or settings.'
     },
     roleViewer: { id: 'users.role.viewer', defaultMessage: 'Viewer' },
     roleViewerHint: {
         id: 'users.invitePage.roleViewerHint',
-        defaultMessage: 'Read-only access to assigned workspaces.'
+        defaultMessage:
+            'Read-only. Browses content in assigned workspaces but can’t make changes.'
     },
     roleInfo: {
         id: 'users.invitePage.roleInfo',
@@ -153,6 +157,14 @@ const messages = defineMessages({
         id: 'users.invitePage.workspacesInfo',
         defaultMessage:
             'Membership only controls which workspaces a person can reach — what they can do inside one comes from their role above. You can change access anytime from a workspace.'
+    },
+    workspacesSearch: {
+        id: 'users.invitePage.workspacesSearch',
+        defaultMessage: 'Search workspaces'
+    },
+    workspacesNoMatch: {
+        id: 'users.invitePage.workspacesNoMatch',
+        defaultMessage: 'No workspaces match your search.'
     },
     workspacesEmpty: {
         id: 'users.invitePage.workspacesEmpty',
@@ -218,6 +230,7 @@ export function InviteMemberPage() {
     const [name, setName] = useState('');
     const [role, setRole] = useState<MemberRole>('viewer');
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [wsSearch, setWsSearch] = useState('');
 
     // Prefetch the workspace list once the user has moved past the first step.
     const workspaces = useWorkspaceOptions(canInvite && maxReached >= 2);
@@ -251,6 +264,12 @@ export function InviteMemberPage() {
     ];
     const roleLabel = roles.find((r) => r.value === role)?.label;
     const options = workspaces.data ?? [];
+    const query = wsSearch.trim().toLowerCase();
+    const filteredOptions = query
+        ? options.filter((workspace) =>
+              workspace.name.toLowerCase().includes(query)
+          )
+        : options;
 
     const goStep = (next: number) => {
         setStep(next);
@@ -313,7 +332,7 @@ export function InviteMemberPage() {
     ];
 
     return (
-        <Container className="max-w-[760px]">
+        <Container className="max-w-[920px]">
             <Link
                 to="/users"
                 className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -519,45 +538,78 @@ export function InviteMemberPage() {
                                     </p>
                                 ) : (
                                     <>
+                                        <InputGroup className="mb-3 shadow-none">
+                                            <InputGroupAddon>
+                                                <Search />
+                                            </InputGroupAddon>
+                                            <InputGroupInput
+                                                value={wsSearch}
+                                                onChange={(event) =>
+                                                    setWsSearch(
+                                                        event.target.value
+                                                    )
+                                                }
+                                                placeholder={intl.formatMessage(
+                                                    messages.workspacesSearch
+                                                )}
+                                                aria-label={intl.formatMessage(
+                                                    messages.workspacesSearch
+                                                )}
+                                                autoComplete="off"
+                                            />
+                                        </InputGroup>
                                         <div
                                             role="group"
                                             className="flex max-h-[320px] flex-col gap-2 overflow-y-auto"
                                         >
-                                            {options.map((workspace) => (
-                                                <Label
-                                                    key={workspace.id}
-                                                    htmlFor={`invite-ws-${workspace.id}`}
-                                                    className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
-                                                >
-                                                    <Checkbox
-                                                        id={`invite-ws-${workspace.id}`}
-                                                        aria-label={
-                                                            workspace.name
-                                                        }
-                                                        checked={selected.has(
-                                                            workspace.id
-                                                        )}
-                                                        onCheckedChange={(
-                                                            checked
-                                                        ) =>
-                                                            toggleWorkspace(
-                                                                workspace.id,
-                                                                checked === true
-                                                            )
-                                                        }
-                                                    />
-                                                    <MemberAvatar
-                                                        initials={
-                                                            workspace.initials
-                                                        }
-                                                        color={workspace.color}
-                                                        className="size-7 text-[10px]"
-                                                    />
-                                                    <span className="truncate text-sm font-medium">
-                                                        {workspace.name}
-                                                    </span>
-                                                </Label>
-                                            ))}
+                                            {filteredOptions.length === 0 ? (
+                                                <p className="px-1 py-3 text-sm text-muted-foreground">
+                                                    {intl.formatMessage(
+                                                        messages.workspacesNoMatch
+                                                    )}
+                                                </p>
+                                            ) : (
+                                                filteredOptions.map(
+                                                    (workspace) => (
+                                                        <Label
+                                                            key={workspace.id}
+                                                            htmlFor={`invite-ws-${workspace.id}`}
+                                                            className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
+                                                        >
+                                                            <Checkbox
+                                                                id={`invite-ws-${workspace.id}`}
+                                                                aria-label={
+                                                                    workspace.name
+                                                                }
+                                                                checked={selected.has(
+                                                                    workspace.id
+                                                                )}
+                                                                onCheckedChange={(
+                                                                    checked
+                                                                ) =>
+                                                                    toggleWorkspace(
+                                                                        workspace.id,
+                                                                        checked ===
+                                                                            true
+                                                                    )
+                                                                }
+                                                            />
+                                                            <MemberAvatar
+                                                                initials={
+                                                                    workspace.initials
+                                                                }
+                                                                color={
+                                                                    workspace.color
+                                                                }
+                                                                className="size-7 text-[10px]"
+                                                            />
+                                                            <span className="truncate text-sm font-medium">
+                                                                {workspace.name}
+                                                            </span>
+                                                        </Label>
+                                                    )
+                                                )
+                                            )}
                                         </div>
                                         <p className="mt-2 text-xs text-muted-foreground">
                                             {intl.formatMessage(

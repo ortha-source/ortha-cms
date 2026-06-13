@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_66 test cases across 12 spec files._
+_67 test cases across 12 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -118,6 +118,7 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | filters the roster by a search term |
 | shows an empty state when the search matches nobody |
 | invites a member through the three-step wizard |
+| searches the workspaces in the assignment step |
 | keeps Continue disabled (no request) for an invalid email |
 | shows status-specific actions for a pending invite |
 | offers Enable (not Disable) for a disabled member |
