@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { Spinner } from '@ortha-cms/design-system';
+import { LoginSkeleton } from '../components/LoginSkeleton';
 
 /**
  * Login page, code-split so its bundle (form, schema, validation) loads only
@@ -18,18 +18,12 @@ const LoginPage = lazy(() =>
 /**
  * Identity plugin router. Renders the auth sub-routes; mounted by the plugin
  * under the `/identity` base path (see {@link IdentityPlugin}). The lazy login
- * page is wrapped in a `Suspense` boundary that shows a spinner while its chunk
- * loads.
+ * page is wrapped in a `Suspense` boundary that shows the {@link LoginSkeleton}
+ * while its chunk loads.
  */
 export function IdentityRouter() {
     return (
-        <Suspense
-            fallback={
-                <div className="flex min-h-svh items-center justify-center">
-                    <Spinner />
-                </div>
-            }
-        >
+        <Suspense fallback={<LoginSkeleton />}>
             <Routes>
                 <Route index element={<Navigate to="signin" replace />} />
                 <Route path="signin" element={<LoginPage />} />

@@ -146,15 +146,22 @@ const json = (body: unknown) => ({
  * initials/colors on the client. Scoped to the test's `page`, so it resets with
  * the browser context — the FE analog of `resetDb()`. Only the list `GET` is
  * fulfilled; other methods fall through.
+ *
+ * Pass `delayMs` to hold the response open, so a test can observe the grid's
+ * loading skeleton before the data lands.
  */
 export async function mockWorkspaces(
     page: Page,
-    workspaces: WorkspaceView[] = WORKSPACES_SEED
+    workspaces: WorkspaceView[] = WORKSPACES_SEED,
+    { delayMs }: { delayMs?: number } = {}
 ): Promise<void> {
     await page.route('**/api/workspaces', async (route) => {
         if (route.request().method() !== 'GET') {
             await route.fallback();
             return;
+        }
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
         await route.fulfill(json(workspaces));
     });

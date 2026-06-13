@@ -9,8 +9,7 @@ import {
     AlertDescription,
     Button,
     Container,
-    ContainerHeader,
-    Spinner
+    ContainerHeader
 } from '@ortha-cms/design-system';
 import { useMembers, DEFAULT_PAGE_SIZE } from '../../api/useMembers';
 import { EditMemberDialog } from '../../components/EditMemberDialog';
@@ -18,6 +17,7 @@ import { MembersEmpty } from '../../components/MembersEmpty';
 import { MembersNoAccess } from '../../components/MembersNoAccess';
 import { MembersPagination } from '../../components/MembersPagination';
 import { MembersTable } from '../../components/MembersTable';
+import { MembersTableSkeleton } from '../../components/MembersSkeleton';
 import { MembersToolbar } from '../../components/MembersToolbar';
 import type { Member } from '../../types/member';
 
@@ -35,10 +35,6 @@ const messages = defineMessages({
     invite: {
         id: 'users.page.invite',
         defaultMessage: 'Invite member'
-    },
-    loading: {
-        id: 'users.page.loading',
-        defaultMessage: 'Loading members…'
     },
     error: {
         id: 'users.page.error',
@@ -152,12 +148,7 @@ export function MembersPage() {
             <MembersToolbar search={search} onSearchChange={changeSearch} />
 
             {isPending ? (
-                <div className="flex justify-center py-16" role="status">
-                    <Spinner aria-hidden />
-                    <span className="sr-only">
-                        {intl.formatMessage(messages.loading)}
-                    </span>
-                </div>
+                <MembersTableSkeleton />
             ) : isError ? (
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">

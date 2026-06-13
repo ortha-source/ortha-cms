@@ -45,4 +45,17 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await homePage.goto();
         await expectNoA11yViolations(makeAxe());
     });
+
+    test('root loader — auth probe pending', async ({
+        page,
+        homePage,
+        makeAxe
+    }) => {
+        // Hold `GET /api/auth/me` open so the gate stays in its Loading state,
+        // rendering the branded AppLoader — the boot screen, scanned in isolation.
+        await mockSignedIn(page, {}, { delayMs: 30_000 });
+        await homePage.goto();
+        await homePage.rootLoader().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
 });
