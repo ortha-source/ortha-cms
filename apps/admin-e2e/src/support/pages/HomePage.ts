@@ -24,4 +24,13 @@ export class HomePage extends BasePage {
     async goto() {
         await this.page.goto('/');
     }
+
+    /**
+     * The branded root loader (`AppLoader`) — a `role="status"` region shown
+     * while the auth probe (`GET /api/auth/me`) is still resolving, before the
+     * gated shell renders. Seed it with `mockSignedIn(page, {}, { delayMs })`.
+     */
+    rootLoader(): Locator {
+        return this.page.getByRole('status').filter({ hasText: /Loading/ });
+    }
 }

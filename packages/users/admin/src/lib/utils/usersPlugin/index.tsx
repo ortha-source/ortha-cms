@@ -1,8 +1,11 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
-import { Spinner } from '@ortha-cms/design-system';
 import { Users } from 'lucide-react';
+import {
+    InviteMemberPageSkeleton,
+    MembersPageSkeleton
+} from '../../components/MembersSkeleton';
 
 // Lazy-loaded so the Members page is code-split into its own chunk, fetched
 // only when a signed-in user first navigates to `/users`.
@@ -50,7 +53,7 @@ export function UsersPlugin(): UsersAdminPlugin {
             {
                 path: '/users',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<MembersPageSkeleton />}>
                         <MembersPage />
                     </Suspense>
                 )
@@ -58,7 +61,7 @@ export function UsersPlugin(): UsersAdminPlugin {
             {
                 path: '/users/invite',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<InviteMemberPageSkeleton />}>
                         <InviteMemberPage />
                     </Suspense>
                 )

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_69 test cases across 12 spec files._
+_72 test cases across 12 spec files._
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
@@ -17,6 +17,7 @@ _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
 | login page — required-field errors visible |
 | login page — credential-error banner visible |
 | home page |
+| root loader — auth probe pending |
 
 <!-- source: apps/admin-e2e/src/auth/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
@@ -89,6 +90,7 @@ _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
 | Test case |
 | --- |
 | table — initial |
+| table — loading skeleton |
 | invite wizard — details step |
 | invite wizard — workspaces step |
 | row menu — open |
@@ -136,6 +138,7 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 | Test case |
 | --- |
 | grid — initial (active) |
+| grid — loading skeleton |
 | grid — all statuses (archived cards visible) |
 | status filter popover — open |
 | member popover — open |
