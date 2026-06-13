@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toApiError, type ApiError } from '@ortha-cms/utils-admin';
-import { membersKeys, revokeInvite } from '../membersApi';
+import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
+import { membersKeys } from '../../utils/membersKeys';
+
+/** Revokes a pending invite via `DELETE /api/users/:id/invites`. */
+async function revokeInvite(id: string): Promise<void> {
+    await apiClient.delete(`/users/${id}/invites`);
+}
 
 /**
  * Revokes a pending invite — the row disappears from the list (the server

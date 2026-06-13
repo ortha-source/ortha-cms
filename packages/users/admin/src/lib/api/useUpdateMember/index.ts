@@ -1,11 +1,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toApiError, type ApiError } from '@ortha-cms/utils-admin';
-import type { Member } from '../../types/member';
-import {
-    membersKeys,
-    updateMember,
-    type UpdateMemberInput
-} from '../membersApi';
+import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
+import type { Member, MemberRole } from '../../types/member';
+import { membersKeys } from '../../utils/membersKeys';
+import { toMember, type MemberResponse } from '../../utils/toMember';
+
+/** A partial member edit; omitted fields are left unchanged. */
+export type UpdateMemberInput = {
+    id: string;
+    name?: string;
+    role?: MemberRole;
+};
+
+/** Edits name and/or role via `PATCH /api/users/:id`; 409 = last admin. */
+async function updateMember(input: UpdateMemberInput): Promise<Member> {
+    const { id, ...body } = input;
+    const { data } = await apiClient.patch<MemberResponse>(
+        `/users/${id}`,
+        body
+    );
+    return toMember(data);
+}
 
 /**
  * Edits a member's name and/or role (the inline role select and the Edit

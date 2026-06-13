@@ -1,7 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
-import { toApiError, type ApiError } from '@ortha-cms/utils-admin';
+import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
 import type { Member } from '../../types/member';
-import { resendInvite } from '../membersApi';
+import { toMember, type MemberResponse } from '../../utils/toMember';
+
+/** Rotates a pending invite via `POST /api/users/:id/invites/resend`. */
+async function resendInvite(id: string): Promise<Member> {
+    const { data } = await apiClient.post<MemberResponse>(
+        `/users/${id}/invites/resend`
+    );
+    return toMember(data);
+}
 
 /**
  * Re-sends a pending member's invite (the server rotates the token,

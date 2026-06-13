@@ -1,7 +1,7 @@
 export { UsersPlugin } from './lib/utils/usersPlugin';
 export type { UsersAdminPlugin } from './lib/utils/usersPlugin';
 export { useMembers } from './lib/api/useMembers';
-export { membersKeys } from './lib/api/membersApi';
+export { membersKeys } from './lib/utils/membersKeys';
 export type {
     Member,
     MemberList,

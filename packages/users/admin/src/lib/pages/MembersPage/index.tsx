@@ -9,8 +9,7 @@ import {
     ContainerHeader,
     Spinner
 } from '@ortha-cms/design-system';
-import { useMembers } from '../../api/useMembers';
-import { DEFAULT_PAGE_SIZE } from '../../api/membersApi';
+import { useMembers, DEFAULT_PAGE_SIZE } from '../../api/useMembers';
 import { EditMemberDialog } from '../../components/EditMemberDialog';
 import { MembersEmpty } from '../../components/MembersEmpty';
 import { MembersNoAccess } from '../../components/MembersNoAccess';
