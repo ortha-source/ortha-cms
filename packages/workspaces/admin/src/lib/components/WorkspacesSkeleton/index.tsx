@@ -60,7 +60,7 @@ export function WorkspaceGridSkeleton({ count = 6 }: { count?: number }) {
     const intl = useIntl();
 
     return (
-        <div role="status" aria-busy="true">
+        <div role="status">
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
@@ -146,7 +146,7 @@ export function ContentTypesSkeleton() {
     const intl = useIntl();
 
     return (
-        <div role="status" aria-busy="true">
+        <div role="status">
             <span className="sr-only">
                 {intl.formatMessage(messages.loadingContent)}
             </span>

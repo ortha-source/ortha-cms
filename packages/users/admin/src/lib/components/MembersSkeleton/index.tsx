@@ -37,7 +37,7 @@ export function WorkspaceOptionsSkeleton({ rows = 3 }: { rows?: number }) {
     const intl = useIntl();
 
     return (
-        <div role="status" aria-busy="true">
+        <div role="status">
             <span className="sr-only">
                 {intl.formatMessage(messages.loadingWorkspaces)}
             </span>
@@ -72,7 +72,7 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
     const intl = useIntl();
 
     return (
-        <div role="status" aria-busy="true">
+        <div role="status">
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>

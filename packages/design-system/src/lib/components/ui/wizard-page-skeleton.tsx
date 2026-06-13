@@ -30,7 +30,7 @@ export function WizardPageSkeleton({
     fields = 4
 }: WizardPageSkeletonProps) {
     return (
-        <Container className="max-w-[920px]" role="status" aria-busy="true">
+        <Container className="max-w-[920px]" role="status">
             <span className="sr-only">{label}</span>
 
             <div aria-hidden>
