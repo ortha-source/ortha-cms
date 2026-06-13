@@ -4,7 +4,54 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_116 test cases across 12 spec files._
+_133 test cases across 13 spec files._
+
+<!-- source: apps/server-e2e/src/server/activity/activity.spec.ts -->
+_<sub>apps/server-e2e/src/server/activity/activity.spec.ts</sub>_
+
+## Activity log (GET /api/activity + recording)
+
+### recording (in-band, transactional)
+
+| Test case |
+| --- |
+| records user.signed_in on login and exposes it via the read API |
+| records user.suspended when an admin disables a member |
+| records user.role_changed with the from/to roles in meta |
+| records user.invited with the email in meta |
+
+### transactional guarantee
+
+| Test case |
+| --- |
+| writes no audit row when the mutation is rejected and rolled back |
+| records nothing for the member when re-enable is rejected |
+
+### filtering, pagination, and sort
+
+| Test case |
+| --- |
+| filters by a comma-separated kind list (IN) |
+| filters by actor email (case-insensitive substring) |
+| paginates with page/pageSize and echoes the envelope |
+| sorts by time, newest first by default and oldest first on asc |
+| returns an empty page for a future `from` bound |
+
+### authorization (activity:read)
+
+| Test case |
+| --- |
+| allows an admin (200) |
+| forbids a contributor with 403 |
+| forbids a viewer with 403 |
+| rejects an unauthenticated request with 401 |
+
+### logout
+
+| Test case |
+| --- |
+| records user.signed_out for the session owner |
+| records nothing extra for a logout with no live session |
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_

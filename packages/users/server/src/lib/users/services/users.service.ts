@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { ACTIVITY_KINDS } from '@ortha-cms/activity-contract';
+import { ActivityService } from '@ortha-cms/activity-server';
 import {
     memberships,
     roles,
     sessions,
     users,
-    workspaces
+    workspaces,
+    type PublicUser
 } from '@ortha-cms/identity-server';
 import type { ListUsersQueryDto } from '../dto/list-users-query.dto';
 import type { InviteUserDto } from '../dto/invite-user.dto';
@@ -65,7 +68,8 @@ const ACTIVE_ADMIN_LOCK = 0x55534552; // "USER"
 export class UsersService {
     constructor(
         @InjectDatabase() private readonly db: Database,
-        private readonly inviteTokens: InviteTokenService
+        private readonly inviteTokens: InviteTokenService,
+        private readonly activity: ActivityService
     ) {}
 
     /**
@@ -123,7 +127,7 @@ export class UsersService {
      * for a friendly error, with the DB's case-insensitive unique index as
      * the race-proof backstop (its violation maps to the same error).
      */
-    async invite(dto: InviteUserDto): Promise<MemberView> {
+    async invite(actor: PublicUser, dto: InviteUserDto): Promise<MemberView> {
         const email = dto.email.toLowerCase();
         const roleId = await this.roleIdByKey(dto.role);
 
@@ -135,17 +139,45 @@ export class UsersService {
             throw new EmailTakenError(dto.email);
         }
 
-        let created: { id: string };
+        let createdId: string;
         try {
-            [created] = await this.db
-                .insert(users)
-                .values({
-                    email,
-                    name: dto.name ?? null,
-                    roleId,
-                    status: 'pending'
-                })
-                .returning({ id: users.id });
+            createdId = await this.db.transaction(async (tx) => {
+                const [created] = await tx
+                    .insert(users)
+                    .values({
+                        email,
+                        name: dto.name ?? null,
+                        roleId,
+                        status: 'pending'
+                    })
+                    .returning({ id: users.id });
+
+                await this.inviteTokens.rotate(created.id, tx);
+                // TODO(users-email): deliver the invite link. No mailer exists
+                // yet (identity epic #11) — the raw token is intentionally
+                // dropped here, and "Resend invite" rotates it once delivery
+                // lands.
+
+                await this.linkWorkspaces(
+                    created.id,
+                    dto.workspaceIds ?? [],
+                    tx
+                );
+
+                await this.activity.record(
+                    {
+                        kind: ACTIVITY_KINDS.USER_INVITED,
+                        subjectType: 'user',
+                        subjectId: created.id,
+                        actorId: actor.id,
+                        actorEmail: actor.email,
+                        meta: { email }
+                    },
+                    tx
+                );
+
+                return created.id;
+            });
         } catch (error) {
             if (isUniqueViolation(error)) {
                 throw new EmailTakenError(dto.email);
@@ -153,14 +185,7 @@ export class UsersService {
             throw error;
         }
 
-        await this.inviteTokens.rotate(created.id);
-        // TODO(users-email): deliver the invite link. No mailer exists yet
-        // (identity epic #11) — the raw token is intentionally dropped here,
-        // and "Resend invite" rotates it once delivery lands.
-
-        await this.linkWorkspaces(created.id, dto.workspaceIds ?? []);
-
-        return this.findById(created.id);
+        return this.findById(createdId);
     }
 
     /**
@@ -170,16 +195,17 @@ export class UsersService {
      */
     private async linkWorkspaces(
         userId: string,
-        workspaceIds: string[]
+        workspaceIds: string[],
+        executor: SelectInsert = this.db
     ): Promise<void> {
         const unique = [...new Set(workspaceIds)];
         if (unique.length === 0) return;
-        const existing = await this.db
+        const existing = await executor
             .select({ id: workspaces.id })
             .from(workspaces)
             .where(inArray(workspaces.id, unique));
         if (existing.length === 0) return;
-        await this.db
+        await executor
             .insert(memberships)
             .values(existing.map(({ id }) => ({ userId, workspaceId: id })))
             .onConflictDoNothing();
@@ -192,7 +218,7 @@ export class UsersService {
      * simultaneous demotions cannot both pass the count check.
      */
     async update(
-        actorId: string,
+        actor: PublicUser,
         id: string,
         dto: UpdateUserDto
     ): Promise<MemberView> {
@@ -204,11 +230,13 @@ export class UsersService {
 
             const changesRole =
                 dto.role !== undefined && dto.role !== target.roleKey;
+            const changesName =
+                dto.name !== undefined && dto.name !== target.name;
 
             // You cannot change your own role — the same self-protection the
             // disable path enforces, so an admin can't accidentally strip their
             // own access (or hand themselves a different role).
-            if (changesRole && actorId === id) {
+            if (changesRole && actor.id === id) {
                 throw new SelfActionError(id);
             }
 
@@ -222,14 +250,44 @@ export class UsersService {
             }
 
             const changes: Partial<typeof users.$inferInsert> = {};
-            if (dto.name !== undefined) {
+            if (changesName) {
                 changes.name = dto.name;
             }
-            if (dto.role !== undefined && dto.role !== target.roleKey) {
-                changes.roleId = await this.roleIdByKey(dto.role);
+            if (changesRole) {
+                changes.roleId = await this.roleIdByKey(dto.role!);
             }
-            if (Object.keys(changes).length > 0) {
-                await tx.update(users).set(changes).where(eq(users.id, id));
+            if (Object.keys(changes).length === 0) {
+                return;
+            }
+            await tx.update(users).set(changes).where(eq(users.id, id));
+
+            // Record each facet that actually changed, in-band with the write
+            // (role and name are distinct audit events).
+            if (changesRole) {
+                await this.activity.record(
+                    {
+                        kind: ACTIVITY_KINDS.USER_ROLE_CHANGED,
+                        subjectType: 'user',
+                        subjectId: id,
+                        actorId: actor.id,
+                        actorEmail: actor.email,
+                        meta: { from: target.roleKey, to: dto.role! }
+                    },
+                    tx
+                );
+            }
+            if (changesName) {
+                await this.activity.record(
+                    {
+                        kind: ACTIVITY_KINDS.USER_PROFILE_UPDATED,
+                        subjectType: 'user',
+                        subjectId: id,
+                        actorId: actor.id,
+                        actorEmail: actor.email,
+                        meta: { name: { from: target.name, to: dto.name! } }
+                    },
+                    tx
+                );
             }
         });
 
@@ -241,8 +299,8 @@ export class UsersService {
      * active admin; revokes the member's live sessions in the same
      * transaction so the lockout is immediate, not at next session expiry.
      */
-    async disable(actorId: string, id: string): Promise<MemberView> {
-        if (actorId === id) {
+    async disable(actor: PublicUser, id: string): Promise<MemberView> {
+        if (actor.id === id) {
             throw new SelfActionError(id);
         }
 
@@ -269,13 +327,24 @@ export class UsersService {
                 .update(sessions)
                 .set({ revokedAt: new Date() })
                 .where(eq(sessions.userId, id));
+
+            await this.activity.record(
+                {
+                    kind: ACTIVITY_KINDS.USER_SUSPENDED,
+                    subjectType: 'user',
+                    subjectId: id,
+                    actorId: actor.id,
+                    actorEmail: actor.email
+                },
+                tx
+            );
         });
 
         return this.findById(id);
     }
 
     /** Re-enables a disabled member. */
-    async enable(id: string): Promise<MemberView> {
+    async enable(actor: PublicUser, id: string): Promise<MemberView> {
         await this.db.transaction(async (tx) => {
             const target = await this.loadRow(tx, id);
             if (target.status !== 'disabled') {
@@ -285,6 +354,17 @@ export class UsersService {
                 .update(users)
                 .set({ status: 'active' })
                 .where(eq(users.id, id));
+
+            await this.activity.record(
+                {
+                    kind: ACTIVITY_KINDS.USER_REACTIVATED,
+                    subjectType: 'user',
+                    subjectId: id,
+                    actorId: actor.id,
+                    actorEmail: actor.email
+                },
+                tx
+            );
         });
 
         return this.findById(id);
@@ -294,19 +374,33 @@ export class UsersService {
      * Rotates the invite token for a still-pending member, invalidating the
      * previously sent link. Only meaningful while the invite is unaccepted.
      */
-    async resendInvite(id: string): Promise<MemberView> {
-        const target = await this.loadRow(this.db, id);
-        if (target.status !== 'pending') {
-            throw new InvalidMemberStateError(
-                id,
-                target.status,
-                'resend an invite to'
-            );
-        }
+    async resendInvite(actor: PublicUser, id: string): Promise<MemberView> {
+        await this.db.transaction(async (tx) => {
+            const target = await this.loadRow(tx, id);
+            if (target.status !== 'pending') {
+                throw new InvalidMemberStateError(
+                    id,
+                    target.status,
+                    'resend an invite to'
+                );
+            }
 
-        await this.inviteTokens.rotate(id);
-        // TODO(users-email): deliver the rotated invite link once a mailer
-        // exists (identity epic #11).
+            await this.inviteTokens.rotate(id, tx);
+            // TODO(users-email): deliver the rotated invite link once a mailer
+            // exists (identity epic #11).
+
+            await this.activity.record(
+                {
+                    kind: ACTIVITY_KINDS.USER_INVITE_RESENT,
+                    subjectType: 'user',
+                    subjectId: id,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: { email: target.email }
+                },
+                tx
+            );
+        });
 
         return this.findById(id);
     }
@@ -316,7 +410,7 @@ export class UsersService {
      * cascades drop their invite tokens and any pre-assigned memberships.
      * Only `pending` rows qualify — real accounts are disabled, not deleted.
      */
-    async revokeInvite(id: string): Promise<void> {
+    async revokeInvite(actor: PublicUser, id: string): Promise<void> {
         await this.db.transaction(async (tx) => {
             const target = await this.loadRow(tx, id);
             if (target.status !== 'pending') {
@@ -326,6 +420,21 @@ export class UsersService {
                     'revoke an invite for'
                 );
             }
+
+            // Record before the delete; `subjectId` is text with no FK, so the
+            // audit row stands on its own once the placeholder row is gone.
+            await this.activity.record(
+                {
+                    kind: ACTIVITY_KINDS.USER_INVITE_REVOKED,
+                    subjectType: 'user',
+                    subjectId: id,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: { email: target.email }
+                },
+                tx
+            );
+
             await tx.delete(users).where(eq(users.id, id));
         });
     }
@@ -486,6 +595,12 @@ export class UsersService {
  * private helpers accept so guardrail checks can run inside `transaction()`.
  */
 type Querier = Pick<Database, 'select'>;
+
+/**
+ * The executor `linkWorkspaces` accepts — `select` to resolve workspace ids and
+ * `insert` to grant memberships — so it can run inside the invite transaction.
+ */
+type SelectInsert = Pick<Database, 'select' | 'insert'>;
 
 /** Whether an error (or its cause) is a Postgres unique violation (23505). */
 function isUniqueViolation(error: unknown): boolean {

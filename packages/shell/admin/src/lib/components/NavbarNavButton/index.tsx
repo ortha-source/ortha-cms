@@ -1,5 +1,6 @@
 import { useNavigate, useMatch } from 'react-router-dom';
 import { useIntl } from 'react-intl';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     navbarItemVariants,
     Tooltip,
@@ -29,6 +30,14 @@ export function NavbarNavButton({ item }: NavbarNavButtonProps) {
         id: item.labelId,
         defaultMessage: item.defaultLabel
     });
+
+    // Hide a permission-gated entry from users who lack it. The hook is always
+    // called (an empty key is simply never granted) so hook order stays stable;
+    // an entry with no `permission` is visible to every signed-in user.
+    const hasRequired = useHasPermission(item.permission ?? '');
+    if (item.permission && !hasRequired) {
+        return null;
+    }
 
     const button = (
         <button

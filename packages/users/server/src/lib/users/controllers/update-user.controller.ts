@@ -42,7 +42,7 @@ export class UpdateUserController {
         @Body() body: UpdateUserDto
     ): Promise<MemberView> {
         try {
-            return await this.users.update(actor.id, id, body);
+            return await this.users.update(actor, id, body);
         } catch (error) {
             if (error instanceof MemberNotFoundError) {
                 throw new NotFoundException();

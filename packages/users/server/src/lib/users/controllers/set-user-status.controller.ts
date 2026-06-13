@@ -41,16 +41,19 @@ export class SetUserStatusController {
         @Param('id', ParseUUIDPipe) id: string
     ): Promise<MemberView> {
         try {
-            return await this.users.disable(actor.id, id);
+            return await this.users.disable(actor, id);
         } catch (error) {
             throw mapStatusError(error);
         }
     }
 
     @Post(':id/enable')
-    async enable(@Param('id', ParseUUIDPipe) id: string): Promise<MemberView> {
+    async enable(
+        @CurrentUser() actor: PublicUser,
+        @Param('id', ParseUUIDPipe) id: string
+    ): Promise<MemberView> {
         try {
-            return await this.users.enable(id);
+            return await this.users.enable(actor, id);
         } catch (error) {
             throw mapStatusError(error);
         }

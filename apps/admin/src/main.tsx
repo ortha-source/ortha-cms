@@ -3,6 +3,7 @@ import { IdentityPlugin } from '@ortha-cms/identity-admin';
 import { ShellPlugin } from '@ortha-cms/shell-admin';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-admin';
 import { UsersPlugin } from '@ortha-cms/users-admin';
+import { ActivityPlugin } from '@ortha-cms/activity-admin';
 import './styles.css';
 
 createAdmin({
@@ -10,6 +11,7 @@ createAdmin({
         IdentityPlugin(),
         ShellPlugin(),
         WorkspacesPlugin(),
-        UsersPlugin()
+        UsersPlugin(),
+        ActivityPlugin()
     ]
 });

@@ -3,6 +3,7 @@
     "version": "0.0.1",
     "private": true,
     "dependencies": {
+        "@ortha-cms/activity-admin": "*",
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/identity-admin": "*",
         "@ortha-cms/shell-admin": "*",

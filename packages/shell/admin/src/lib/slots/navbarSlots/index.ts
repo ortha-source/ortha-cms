@@ -15,6 +15,13 @@ export type NavbarItem = {
     order: number;
     /** Optional leading icon (e.g. a lucide-react icon). */
     icon?: ComponentType<{ className?: string }>;
+    /**
+     * Optional permission key required to see this entry. When set, the entry
+     * is hidden from users whose role doesn't grant it (the UI mirror of the
+     * linked route's server-side gate). Omit for an entry visible to every
+     * signed-in user (the default — the linked page still gates itself).
+     */
+    permission?: string;
 };
 
 /**

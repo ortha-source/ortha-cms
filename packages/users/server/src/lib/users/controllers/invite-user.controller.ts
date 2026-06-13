@@ -6,8 +6,10 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@ortha-cms/identity-server';
 import { InviteUserDto } from '../dto/invite-user.dto';
 import { EmailTakenError } from '../errors';
@@ -27,9 +29,12 @@ export class InviteUserController {
     constructor(private readonly users: UsersService) {}
 
     @Post('invites')
-    async invite(@Body() body: InviteUserDto): Promise<MemberView> {
+    async invite(
+        @CurrentUser() actor: PublicUser,
+        @Body() body: InviteUserDto
+    ): Promise<MemberView> {
         try {
-            return await this.users.invite(body);
+            return await this.users.invite(actor, body);
         } catch (error) {
             if (error instanceof EmailTakenError) {
                 throw new ConflictException(

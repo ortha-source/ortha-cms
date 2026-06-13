@@ -1,0 +1,18 @@
+import { useIntl } from 'react-intl';
+import { Badge } from '@ortha-cms/design-system';
+import type { ActivityKind } from '@ortha-cms/activity-contract';
+import { formatActivityAction } from '../../utils/activityMessages';
+
+/**
+ * The "Action" cell: the localized, human-readable label for an event kind,
+ * rendered as a subtle badge. The label comes from the shared
+ * {@link formatActivityAction} renderer, never a hardcoded string.
+ */
+export function ActivityActionCell({ kind }: { kind: ActivityKind }) {
+    const intl = useIntl();
+    return (
+        <Badge variant="secondary" className="rounded-xl border-border">
+            {formatActivityAction(intl, kind)}
+        </Badge>
+    );
+}

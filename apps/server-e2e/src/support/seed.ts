@@ -231,13 +231,43 @@ export async function countUserSessions(userId: string): Promise<number> {
     return rows.length;
 }
 
+/** Read every audit event, newest first — what the activity assertions read. */
+export async function getActivityRows(): Promise<
+    {
+        kind: string;
+        subjectType: string;
+        subjectId: string;
+        actorId: string | null;
+        actorEmail: string | null;
+        meta: unknown;
+    }[]
+> {
+    const { rows } = await getPool().query(
+        `SELECT kind, subject_type AS "subjectType", subject_id AS "subjectId",
+                actor_id AS "actorId", actor_email AS "actorEmail", meta
+         FROM activity_events
+         ORDER BY at DESC, id DESC`
+    );
+    return rows;
+}
+
+/** Count audit events — used to assert a rolled-back mutation writes none. */
+export async function countActivityRows(): Promise<number> {
+    const { rows } = await getPool().query(
+        'SELECT count(*)::int AS total FROM activity_events'
+    );
+    return rows[0].total;
+}
+
 /**
  * Truncate the mutable tables between tests, leaving the seeded system roles
  * and permissions in place (users reference roles via FK). `CASCADE` clears
  * dependent rows — sessions, tokens, memberships — in one statement.
+ * `activity_events` is truncated explicitly: its `actor_id` has no FK, so a
+ * `users` cascade never reaches it.
  */
 export async function resetDb(): Promise<void> {
     await getPool().query(
-        'TRUNCATE TABLE users, workspaces RESTART IDENTITY CASCADE'
+        'TRUNCATE TABLE users, workspaces, activity_events RESTART IDENTITY CASCADE'
     );
 }

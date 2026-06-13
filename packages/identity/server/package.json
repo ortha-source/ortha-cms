@@ -18,6 +18,7 @@
     "dependencies": {
         "@nestjs/common": "^11.0.0",
         "@nestjs/throttler": "^6.4.0",
+        "@ortha-cms/activity-contract": "*",
         "@ortha-cms/bootstrap-server": "*",
         "@ortha-cms/database": "*",
         "bcrypt": "^5.1.1",

@@ -4,7 +4,37 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_69 test cases across 12 spec files._
+_81 test cases across 13 spec files._
+
+<!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
+_<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
+
+## Activity Log page
+
+| Test case |
+| --- |
+| renders the audit trail with actor, action, and details |
+| renders a system-initiated event with a "System" actor |
+| the kind filter drives the request and narrows the table |
+| the actor-email search drives the request |
+| deep-links the active filters into the URL |
+| shows an empty state when filters match nothing |
+| hides the nav entry and shows no-access without activity:read |
+
+## Activity Log accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| table — initial |
+| empty state — no matches |
+| no-access state |
+
+## Activity Log keyboard operability
+
+| Test case |
+| --- |
+| the actor-email search filters as you type |
+| the kind filter is operable from the keyboard |
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
