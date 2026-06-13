@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Ban,
@@ -239,6 +239,7 @@ export function MemberRowActions({
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
+                    id={`member-actions-${member.id}`}
                     variant="ghost"
                     size="icon"
                     className="size-8"
@@ -280,6 +281,8 @@ function GuardedMenuItem({
     onSelect: () => void;
     children: ReactNode;
 }) {
+    const reasonId = useId();
+
     if (!blockedReason) {
         return (
             <DropdownMenuItem onSelect={onSelect}>{children}</DropdownMenuItem>
@@ -291,10 +294,16 @@ function GuardedMenuItem({
             <TooltipTrigger asChild>
                 <DropdownMenuItem
                     aria-disabled
+                    aria-describedby={reasonId}
                     className={cn('opacity-50 focus:bg-transparent')}
                     onSelect={(event) => event.preventDefault()}
                 >
                     {children}
+                    {/* Voiced as the item's description so a screen-reader user
+                        hears why it's inert — the tooltip alone is visual. */}
+                    <span id={reasonId} className="sr-only">
+                        {blockedReason}
+                    </span>
                 </DropdownMenuItem>
             </TooltipTrigger>
             <TooltipContent className="max-w-60">

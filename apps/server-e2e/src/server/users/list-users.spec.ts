@@ -142,6 +142,56 @@ describe('GET /api/users', () => {
         }
     });
 
+    it('returns every status when unfiltered (the members grid contract)', async () => {
+        await seedUser(harness.app, {
+            email: 'pending@example.com',
+            role: 'viewer',
+            status: 'pending'
+        });
+        await seedUser(harness.app, {
+            email: 'disabled@example.com',
+            role: 'viewer',
+            status: 'disabled'
+        });
+
+        const agent = await adminAgent();
+        const res = await agent.get('/api/users').expect(200);
+        const emails = res.body.items.map((m: { email: string }) => m.email);
+        expect(emails).toEqual(
+            expect.arrayContaining([
+                'pending@example.com',
+                'disabled@example.com'
+            ])
+        );
+    });
+
+    it('scopes to active accounts when status=active (the typeahead contract)', async () => {
+        await seedUser(harness.app, {
+            email: 'pending@example.com',
+            role: 'viewer',
+            status: 'pending'
+        });
+        await seedUser(harness.app, {
+            email: 'disabled@example.com',
+            role: 'viewer',
+            status: 'disabled'
+        });
+
+        const agent = await adminAgent();
+        const res = await agent.get('/api/users?status=active').expect(200);
+        const emails = res.body.items.map((m: { email: string }) => m.email);
+        expect(emails).toContain(ADMIN_EMAIL);
+        expect(emails).not.toContain('pending@example.com');
+        expect(emails).not.toContain('disabled@example.com');
+        // total reflects the filter, not the whole table.
+        expect(res.body.total).toBe(1);
+    });
+
+    it('rejects an unknown status with 400', async () => {
+        const agent = await adminAgent();
+        await agent.get('/api/users?status=bogus').expect(400);
+    });
+
     it('rejects an unknown query field with 400', async () => {
         const agent = await adminAgent();
         await agent.get('/api/users?bogus=1').expect(400);

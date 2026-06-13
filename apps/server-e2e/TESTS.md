@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_111 test cases across 12 spec files._
+_116 test cases across 12 spec files._
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -185,8 +185,13 @@ _<sub>apps/server-e2e/src/server/users/list-users.spec.ts</sub>_
 | never leaks the password hash |
 | filters by a name or email substring, case-insensitively |
 | paginates with page and pageSize |
+| returns every status when unfiltered (the members grid contract) |
+| scopes to active accounts when status=active (the typeahead contract) |
+| rejects an unknown status with 400 |
 | rejects an unknown query field with 400 |
 | rejects a non-numeric page with 400 |
+| accepts the maximum page size (100) |
+| rejects a page size over the maximum with 400 |
 | allows a viewer to read (users:read is granted to every role) |
 
 <!-- source: apps/server-e2e/src/server/users/manage-invites.spec.ts -->

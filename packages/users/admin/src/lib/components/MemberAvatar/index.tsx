@@ -21,7 +21,10 @@ type MemberAvatarProps = {
 /**
  * A round initials avatar tinted with one of the shared accent colors —
  * members in the table, and the smaller workspace chips in the Workspaces
- * column, both sized via `className`.
+ * column, both sized via `className`. Purely decorative: the member/workspace
+ * name is always rendered as adjacent text (or an `aria-label` on the
+ * enclosing control), so the initials are hidden from assistive tech to avoid
+ * a meaningless "J D A B" reading.
  */
 export function MemberAvatar({
     initials,
@@ -31,6 +34,7 @@ export function MemberAvatar({
 }: MemberAvatarProps) {
     return (
         <Avatar
+            aria-hidden
             className={cn('rounded-full', className)}
             style={{ backgroundColor: avatarColorVar(color), ...style }}
         >

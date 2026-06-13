@@ -24,13 +24,19 @@ const TYPEAHEAD_PAGE_SIZE = 10;
 
 /**
  * Searches the user directory via the shared `GET /api/users` (users plugin):
- * a `?search=` filter returning a paginated envelope. Maps each member to the
- * lightweight {@link DirectoryUser} the typeahead renders.
+ * a `?search=` filter returning a paginated envelope, scoped to `active`
+ * accounts so disabled/pending members aren't offered as assignable workspace
+ * members. Maps each member to the lightweight {@link DirectoryUser} the
+ * typeahead renders.
  */
 async function searchUsers(query: string): Promise<DirectoryUser[]> {
     try {
         const { data } = await apiClient.get<MembersPage>('/users', {
-            params: { search: query, pageSize: TYPEAHEAD_PAGE_SIZE }
+            params: {
+                search: query,
+                pageSize: TYPEAHEAD_PAGE_SIZE,
+                status: 'active'
+            }
         });
         return data.items.map((member) => ({
             id: member.id,

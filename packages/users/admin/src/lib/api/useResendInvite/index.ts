@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
-import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
+import { apiClient } from '@ortha-cms/utils-admin';
 import type { Member } from '../../types/member';
 import { toMember, type MemberResponse } from '../../utils/toMember';
+import { useMembersMutation } from '../useMembersMutation';
 
 /** Rotates a pending invite via `POST /api/users/:id/invites/resend`. */
 async function resendInvite(id: string): Promise<Member> {
@@ -14,14 +14,10 @@ async function resendInvite(id: string): Promise<Member> {
 /**
  * Re-sends a pending member's invite (the server rotates the token,
  * invalidating the previous link). No cache invalidation — the row itself is
- * unchanged. Errors normalize to {@link ApiError}.
+ * unchanged. Errors normalize to `ApiError`.
  */
 export function useResendInvite() {
-    return useMutation<Member, ApiError, string>({
-        mutationFn: (id) => resendInvite(id).catch(rethrowAsApiError)
+    return useMembersMutation<string, Member>(resendInvite, {
+        invalidate: false
     });
-}
-
-function rethrowAsApiError(error: unknown): never {
-    throw toApiError(error);
 }

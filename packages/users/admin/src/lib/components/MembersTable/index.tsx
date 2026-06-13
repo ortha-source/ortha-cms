@@ -39,6 +39,10 @@ const messages = defineMessages({
     actions: {
         id: 'users.table.actions',
         defaultMessage: 'Actions'
+    },
+    caption: {
+        id: 'users.table.caption',
+        defaultMessage: 'Members'
     }
 });
 
@@ -59,7 +63,7 @@ export function MembersTable({
 
     return (
         <div className="rounded-xl border">
-            <Table>
+            <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>
                         <TableHead>

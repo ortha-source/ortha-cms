@@ -39,6 +39,16 @@ interface MemberRow {
 }
 
 /**
+ * Stable key for the transaction-scoped advisory lock that serializes the
+ * "≥1 active admin" guard. `update()` (demotion) and `disable()` both
+ * count-then-write the admin set; under the default READ COMMITTED isolation
+ * two concurrent transactions can read the same count and both pass, dropping
+ * it to zero. Taking this lock first makes those guard sections mutually
+ * exclusive. Any stable bigint works as long as it is the same in both paths.
+ */
+const ACTIVE_ADMIN_LOCK = 0x55534552; // "USER"
+
+/**
  * Member management for the users plugin. Reads and mutates the user/role/
  * membership/token tables owned by `@ortha-cms/identity-server` — this plugin
  * migrates nothing of its own. Uses the shared Drizzle client directly (no
@@ -46,9 +56,10 @@ interface MemberRow {
  *
  * Owns the two business invariants the UI mirrors:
  * - the last remaining **active admin** can be neither demoted nor disabled;
- * - a member cannot disable their own account.
- * Both are enforced inside transactions so concurrent mutations cannot race
- * the admin count below one.
+ * - a member can neither disable nor re-role their own account.
+ * The admin-count invariant is enforced under a transaction-scoped advisory
+ * lock ({@link ACTIVE_ADMIN_LOCK}) so concurrent mutations cannot race the
+ * count below one.
  */
 @Injectable()
 export class UsersService {
@@ -66,7 +77,7 @@ export class UsersService {
     async list(query: ListUsersQueryDto): Promise<MemberListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-        const where = this.searchPredicate(query.search);
+        const where = this.listPredicate(query);
 
         const [{ total }] = await this.db
             .select({ total: count() })
@@ -175,18 +186,33 @@ export class UsersService {
     }
 
     /**
-     * Partial update of a member's display name and/or role. Demoting the
-     * last active admin is rejected inside the transaction, so two
+     * Partial update of a member's display name and/or role. A member cannot
+     * change their own role (mirrors the self-disable guard). Demoting the last
+     * active admin is rejected under the shared advisory lock, so two
      * simultaneous demotions cannot both pass the count check.
      */
-    async update(id: string, dto: UpdateUserDto): Promise<MemberView> {
+    async update(
+        actorId: string,
+        id: string,
+        dto: UpdateUserDto
+    ): Promise<MemberView> {
         await this.db.transaction(async (tx) => {
+            await tx.execute(
+                sql`select pg_advisory_xact_lock(${ACTIVE_ADMIN_LOCK})`
+            );
             const target = await this.loadRow(tx, id);
 
-            const demotesAdmin =
-                dto.role !== undefined &&
-                dto.role !== target.roleKey &&
-                target.roleKey === 'admin';
+            const changesRole =
+                dto.role !== undefined && dto.role !== target.roleKey;
+
+            // You cannot change your own role — the same self-protection the
+            // disable path enforces, so an admin can't accidentally strip their
+            // own access (or hand themselves a different role).
+            if (changesRole && actorId === id) {
+                throw new SelfActionError(id);
+            }
+
+            const demotesAdmin = changesRole && target.roleKey === 'admin';
             if (
                 demotesAdmin &&
                 target.status === 'active' &&
@@ -221,6 +247,9 @@ export class UsersService {
         }
 
         await this.db.transaction(async (tx) => {
+            await tx.execute(
+                sql`select pg_advisory_xact_lock(${ACTIVE_ADMIN_LOCK})`
+            );
             const target = await this.loadRow(tx, id);
             if (target.status !== 'active') {
                 throw new InvalidMemberStateError(id, target.status, 'disable');
@@ -361,6 +390,22 @@ export class UsersService {
         const escaped = needle.replace(/[\\%_]/g, '\\$&');
         const pattern = `%${escaped}%`;
         return or(ilike(users.name, pattern), ilike(users.email, pattern));
+    }
+
+    /**
+     * The combined `where` for the list: the optional name/email search,
+     * intersected with the optional account-status filter. The grid passes no
+     * status and sees every member; the workspace member typeahead passes
+     * `status: 'active'` so disabled/pending accounts aren't offered as
+     * assignable members (the filter the old `UserService.search` enforced).
+     * `and(undefined, …)` collapses to no filter, so an unfiltered list still
+     * scans everyone.
+     */
+    private listPredicate(query: ListUsersQueryDto) {
+        return and(
+            this.searchPredicate(query.search),
+            query.status ? eq(users.status, query.status) : undefined
+        );
     }
 
     /**
