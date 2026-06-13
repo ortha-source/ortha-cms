@@ -13,14 +13,21 @@ single source of truth; do **not** restate their rules here, read them.
 ## Scope
 
 Target: **$ARGUMENTS** — a PR number or branch. If empty, review the local branch
-against `main`.
+against `main` — **all of it, committed and uncommitted, pushed or not** (push
+status is irrelevant; only a branch already merged into main yields an empty
+review).
 
-Changed files vs main:
+Committed on this branch (vs main's merge-base):
 
-!`git diff main...HEAD --stat 2>/dev/null || git diff main...HEAD`
+!`git diff main...HEAD --stat 2>/dev/null || echo "(no commits vs main)"`
 
-If `$ARGUMENTS` names a PR or branch, review **that** target's diff instead (fetch
-the PR / `git diff main...<branch>` as appropriate).
+Uncommitted working-tree changes — **include these in scope too** when present:
+
+!`git status --short; git diff --stat HEAD 2>/dev/null`
+
+Treat the union of both as the review scope. If `$ARGUMENTS` names a PR or branch,
+review **that** target's diff instead (fetch the PR / `git diff main...<branch>`),
+and ignore the local working tree.
 
 ## Steps
 
