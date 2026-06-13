@@ -1,6 +1,6 @@
 ---
 name: admin-plugin
-description: Authoring or modifying an Ortha CMS admin plugin (packages/<group>/admin, e.g. users-admin). Covers the AdminPlugin factory (routes/layout/slots), the per-module `<name>/index.ts(x)` folder layout, lazy code-split routes, the per-hook data layer (apiClient + TanStack Query, each hook owning its request fn), useHasPermission gating, co-located react-intl messages, and slot contributions. Use when creating a new admin plugin, or adding a page/route/hook/component to an existing one. Companion to server-plugin (the API side), accessibility, and admin-e2e.
+description: Authoring, modifying, or reviewing an Ortha CMS admin plugin (packages/<group>/admin, e.g. users-admin). Covers the AdminPlugin factory (routes/layout/slots), the per-module `<name>/index.ts(x)` folder layout, lazy code-split routes, the per-hook data layer (apiClient + TanStack Query, each hook owning its request fn), useHasPermission gating, co-located react-intl messages, slot contributions, and the review-critical data/page pitfalls (clamp page to pageCount after mutations, error-vs-empty state, mapper fallbacks that silently rewrite data, over-invalidation). Use when creating a new admin plugin, adding a page/route/hook/component, or reviewing a change to one. Companion to server-plugin (the API side), accessibility, and admin-e2e.
 user-invocable: false
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *), Bash(npm install), Bash(git mv *)
 ---
@@ -358,7 +358,11 @@ export function WidgetsPage() {
 ```
 
 Gate **both** the data fetch (`enabled`) and the write controls. The server
-enforces RBAC regardless; the UI gate is for UX, not security.
+enforces RBAC regardless; the UI gate is for UX, not security. The permission
+strings are a **mirror** of the server's matrix and must match it **exactly**
+(`'users:read'` here ⇔ the server's `@RequirePermissions('users:read')`) — a typo
+silently hides UI a user should see (or shows one the server then 403s), with no
+error to catch it.
 
 ### 6. i18n — co-located messages
 
@@ -414,6 +418,29 @@ npx nx run-many -t typecheck lint -p @ortha-cms/<group>-admin
 
 ---
 
+## Data & page pitfalls (review-critical)
+
+The recurring admin-side mistakes a careful review catches:
+
+- **Paginated pages: clamp the page.** After a mutation removes the last row on a
+  trailing page (revoke/disable/delete), `page` can point past `pageCount`; the
+  refetch then lands on an out-of-range **empty** page with the pager hidden and
+  the user stranded. Reset or clamp `page` to `pageCount` when the total shrinks —
+  not just on search/page-size change.
+- **Distinguish error from empty.** Give `isError` its own state (a message, a
+  retry) — never fall through into the empty-list "nothing here yet" state. A
+  failed load that reads as "no rows" misleads the operator (e.g. re-inviting
+  someone who already exists).
+- **Mapper fallbacks must not rewrite data on round-trip.** When a wire field is
+  open-ended (a `role.key` the UI's union doesn't know), a mapper default
+  (`… : 'viewer'`) is fine for *display*, but submitting the form then **persists
+  the fallback** — silently demoting the record. When the form can't faithfully
+  represent a value, disable the control (or preserve the original) rather than
+  defaulting it into a save.
+- **Don't over-invalidate blindly.** Mutations that already return the updated
+  row can `setQueryData` the current page instead of invalidating every cached
+  list page; invalidate the root key when you genuinely can't place the change.
+
 ## Design-system & UI
 
 - Build UI from `@ortha-cms/design-system` primitives (`Button`, `Container`,
@@ -446,7 +473,10 @@ npx nx run-many -t typecheck lint -p @ortha-cms/<group>-admin
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
 - [ ] Data layer: one `api/use*/` folder per hook (request fn + endpoint types +
       the hook); shared mapper + query keys in `lib/utils/` (or the read hook).
-- [ ] `useHasPermission` gating on the query (`enabled`) and write controls.
+- [ ] `useHasPermission` gating on the query (`enabled`) and write controls;
+      permission strings match the server's matrix exactly.
+- [ ] Paginated pages clamp `page` to `pageCount` after mutations; `isError` has
+      its own state (not the empty state).
 - [ ] Co-located `defineMessages` with `<plugin>.<area>.<key>` IDs.
 - [ ] Public barrel `src/index.ts` (factory + type + external API only).
 - [ ] Registered in `apps/admin/src/main.tsx`.
