@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { useCurrentUser } from '../../api/useCurrentUser';
-import { AuthProviderContext, AuthStatus, type AuthState } from '../authContext';
+import {
+    AuthProviderContext,
+    AuthStatus,
+    type AuthState
+} from '../authContext';
 
 /**
  * Resolves the current user via `GET /api/auth/me` and publishes it into the

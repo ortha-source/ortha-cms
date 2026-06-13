@@ -222,17 +222,26 @@ export async function mockWorkspacesApi(
     );
 
     await page.route(/\/api\/users(\?.*)?$/, async (route) => {
-        const q = (
-            new URL(route.request().url()).searchParams.get('q') ?? ''
+        // The typeahead uses the users plugin's `GET /api/users?search=`, which
+        // returns a paginated envelope of members.
+        const search = (
+            new URL(route.request().url()).searchParams.get('search') ?? ''
         ).toLowerCase();
-        const matches = q
+        const items = search
             ? DIRECTORY.filter(
                   (u) =>
-                      u.name?.toLowerCase().includes(q) ||
-                      u.email.toLowerCase().includes(q)
+                      u.name?.toLowerCase().includes(search) ||
+                      u.email.toLowerCase().includes(search)
               )
             : DIRECTORY;
-        await route.fulfill(json(matches));
+        await route.fulfill(
+            json({
+                items,
+                page: 1,
+                pageSize: items.length,
+                total: items.length
+            })
+        );
     });
 
     await page.route(/\/api\/content-types(\?.*)?$/, async (route) => {

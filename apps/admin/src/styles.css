@@ -32,6 +32,11 @@
     /* Active-status green (spec #16a34a) — a generic status dot, reusable for
        active users too. Consumed via the `bg-status-active` utility. */
     --color-status-active: oklch(0.63 0.17 149);
+
+    /* Invited-status amber — the dot on the Members page's "Invited" pill.
+       Always paired with the pill's text label, so the color is never the
+       sole carrier of meaning. Consumed via `bg-status-invited`. */
+    --color-status-invited: oklch(0.75 0.15 75);
 }
 
 /* Avatar accent palette — the only color in the otherwise-neutral admin. Muted

@@ -2,7 +2,7 @@
 
 The **shell plugin** for the Ortha CMS admin UI — the authenticated app chrome.
 It contributes the layout (a top toolbar: logo + slot-driven nav) that wraps
-every private route, the home page at `/`, and a placeholder Users page. It
+every private route and the home page at `/`. It
 **owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
@@ -12,10 +12,9 @@ routes render only for signed-in users.
 It also **owns the toolbar's `NAVBAR_START_SLOT`** — a `createSlot` extension point
 (primitive from `@ortha-cms/utils-admin`). `AppShell` reads it (sorted by
 `order`) to render nav buttons; any plugin contributes entries via its `slots`,
-so new nav items appear without editing the shell. The shell currently
-contributes Home/Users itself; as feature plugins land they contribute their own
-and the placeholders here are removed (Workspaces already moved out to
-`@ortha-cms/workspaces-admin`).
+so new nav items appear without editing the shell. The shell contributes only
+its own Home item; feature plugins contribute the rest (Workspaces moved out to
+`@ortha-cms/workspaces-admin`, Members to `@ortha-cms/users-admin`).
 
 ## Package
 
@@ -27,13 +26,12 @@ and the placeholders here are removed (Workspaces already moved out to
 ## Key exports
 
 - `ShellPlugin()` — factory returning an `AdminPlugin` with `layout` (the
-  `AppShell`), the private `/` and `/users` routes, and the toolbar nav-item
-  `slots`. Register it in `createAdmin({ plugins })`, after `IdentityPlugin()`.
+  `AppShell`), the private `/` route, and the toolbar nav-item `slots`. Register
+  it in `createAdmin({ plugins })`, after `IdentityPlugin()`.
 - `ShellAdminPlugin` — the plugin shape (thin alias of `AdminPlugin`).
 - `AppShell` — the authenticated layout; renders the top toolbar + `<Outlet/>`.
 - `HomePage` — greets the signed-in user and links to the two primary
   destinations as cards.
-- `UsersPage` — placeholder page until its feature plugin lands.
 - `NAVBAR_START_SLOT` / `NavbarItem` — the leading (start-side) toolbar nav slot
   and its item type; exported so other plugins can contribute nav entries. Named
   for placement; a trailing `NAVBAR_END_SLOT` (`'shell.navbar.end'`) for
@@ -41,7 +39,7 @@ and the placeholders here are removed (Workspaces already moved out to
 
 ## Architecture
 
-- **Layout *and* gate.** The host (`@ortha-cms/bootstrap-admin`) owns only the
+- **Layout _and_ gate.** The host (`@ortha-cms/bootstrap-admin`) owns only the
   public/private split and mounts the `layout` as the parent of private routes —
   it is auth-agnostic. This plugin makes the layout gated by composing identity's
   pieces: `<AuthProvider><RequireAuth><AppShell/></RequireAuth></AuthProvider>`.

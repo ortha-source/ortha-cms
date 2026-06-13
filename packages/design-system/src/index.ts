@@ -91,6 +91,16 @@ export {
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
 export { Container, ContainerHeader } from './lib/components/ui/container';
+export {
+    Table,
+    TableHeader,
+    TableBody,
+    TableFooter,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableCaption
+} from './lib/components/ui/table';
 export { Checkbox } from './lib/components/ui/checkbox';
 export { RadioGroup, RadioGroupItem } from './lib/components/ui/radio-group';
 export {
@@ -110,7 +120,32 @@ export {
     DropdownMenuSubTrigger,
     DropdownMenuRadioGroup
 } from './lib/components/ui/dropdown-menu';
-export { Stepper, WizardStepCard, WizardFooter } from './lib/components/ui/wizard';
+export {
+    Select,
+    SelectGroup,
+    SelectValue,
+    SelectTrigger,
+    SelectContent,
+    SelectLabel,
+    SelectItem,
+    SelectSeparator,
+    SelectScrollUpButton,
+    SelectScrollDownButton
+} from './lib/components/ui/select';
+export {
+    Pagination,
+    PaginationContent,
+    PaginationLink,
+    PaginationItem,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis
+} from './lib/components/ui/pagination';
+export {
+    Stepper,
+    WizardStepCard,
+    WizardFooter
+} from './lib/components/ui/wizard';
 export type {
     StepperStep,
     StepperProps,

@@ -14,13 +14,35 @@ export type UsersSearchResult = {
     loading: boolean;
 };
 
-/** Searches the user directory via `GET /api/users?q=`. */
+/** A page of members from `GET /api/users` — only the fields the typeahead needs. */
+type MembersPage = {
+    items: { id: string; name: string | null; email: string }[];
+};
+
+/** How many matches the typeahead asks for per query. */
+const TYPEAHEAD_PAGE_SIZE = 10;
+
+/**
+ * Searches the user directory via the shared `GET /api/users` (users plugin):
+ * a `?search=` filter returning a paginated envelope, scoped to `active`
+ * accounts so disabled/pending members aren't offered as assignable workspace
+ * members. Maps each member to the lightweight {@link DirectoryUser} the
+ * typeahead renders.
+ */
 async function searchUsers(query: string): Promise<DirectoryUser[]> {
     try {
-        const { data } = await apiClient.get<DirectoryUser[]>('/users', {
-            params: { q: query }
+        const { data } = await apiClient.get<MembersPage>('/users', {
+            params: {
+                search: query,
+                pageSize: TYPEAHEAD_PAGE_SIZE,
+                status: 'active'
+            }
         });
-        return data;
+        return data.items.map((member) => ({
+            id: member.id,
+            name: member.name ?? member.email,
+            email: member.email
+        }));
     } catch (error) {
         throw toApiError(error);
     }

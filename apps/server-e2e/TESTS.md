@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_67 test cases across 7 spec files._
+_116 test cases across 12 spec files._
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -154,6 +154,102 @@ _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
 | Test case |
 | --- |
 | responds 404 on an unknown route under the global prefix |
+
+<!-- source: apps/server-e2e/src/server/users/invite-user.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/invite-user.spec.ts</sub>_
+
+## POST /api/users/invites
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| creates a pending member, assigns the role, and issues an invite token |
+| assigns the new member to the given workspaces (unknown ids ignored) |
+| rejects a non-UUID workspace id with 400 |
+| rejects a duplicate email with 409 |
+| treats an existing email case-insensitively (409) |
+| rejects a malformed email with 400 |
+| rejects an unknown role with 400 |
+| rejects an unknown extra field with 400 |
+| forbids a contributor (lacks users:create) with 403 |
+
+<!-- source: apps/server-e2e/src/server/users/list-users.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/list-users.spec.ts</sub>_
+
+## GET /api/users
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| returns the paginated envelope with the expected shape |
+| never leaks the password hash |
+| filters by a name or email substring, case-insensitively |
+| paginates with page and pageSize |
+| returns every status when unfiltered (the members grid contract) |
+| scopes to active accounts when status=active (the typeahead contract) |
+| rejects an unknown status with 400 |
+| rejects an unknown query field with 400 |
+| rejects a non-numeric page with 400 |
+| accepts the maximum page size (100) |
+| rejects a page size over the maximum with 400 |
+| allows a viewer to read (users:read is granted to every role) |
+
+<!-- source: apps/server-e2e/src/server/users/manage-invites.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/manage-invites.spec.ts</sub>_
+
+## manage pending invites
+
+### POST /api/users/:id/invites/resend
+
+| Test case |
+| --- |
+| rotates the invite token, keeping exactly one live |
+| rejects resending to an active member with 409 |
+| returns 404 for an unknown id |
+| forbids a contributor (lacks users:create) with 403 |
+
+### DELETE /api/users/:id/invites
+
+| Test case |
+| --- |
+| revokes a pending invite, deleting the placeholder user (204) |
+| refuses to revoke an active member with 409 |
+| returns 404 for an unknown id |
+| forbids a contributor (lacks users:delete) with 403 |
+
+<!-- source: apps/server-e2e/src/server/users/set-user-status.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/set-user-status.spec.ts</sub>_
+
+## POST /api/users/:id/(disable|enable)
+
+| Test case |
+| --- |
+| disables an active member and revokes their sessions |
+| refuses to let a member disable themselves with 409 |
+| rejects disabling an already-disabled member with 409 |
+| re-enables a disabled member |
+| rejects enabling an already-active member with 409 |
+| returns 404 disabling an unknown id |
+| rejects an unauthenticated request with 401 |
+| forbids a contributor (lacks users:update) with 403 |
+
+<!-- source: apps/server-e2e/src/server/users/update-user.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/update-user.spec.ts</sub>_
+
+## PATCH /api/users/:id
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| changes a member’s role and persists it |
+| updates the display name |
+| refuses to demote the last remaining admin with 409 |
+| allows demoting an admin when another active admin remains |
+| rejects an unknown role with 400 |
+| rejects an unknown extra field with 400 |
+| returns 404 for an unknown id |
+| returns 400 for a non-uuid id |
+| forbids a viewer (lacks users:update) with 403 |
 
 <!-- source: apps/server-e2e/src/server/workspaces/create-workspace.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_

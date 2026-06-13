@@ -33,7 +33,7 @@ const messages = defineMessages({
     },
     usersTitle: {
         id: 'shell.home.card.users.title',
-        defaultMessage: 'Users'
+        defaultMessage: 'Members'
     },
     usersDescription: {
         id: 'shell.home.card.users.description',

@@ -44,6 +44,12 @@
         },
         {
             "path": "./packages/workspaces/admin"
+        },
+        {
+            "path": "./packages/users/server"
+        },
+        {
+            "path": "./packages/users/admin"
         }
     ]
 }

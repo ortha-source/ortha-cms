@@ -1,9 +1,8 @@
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { AuthProvider, RequireAuth } from '@ortha-cms/identity-admin';
-import { HomeIcon, UsersIcon } from 'lucide-react';
+import { HomeIcon } from 'lucide-react';
 import { AppShell } from '../../components/AppShell';
 import { HomePage } from '../../pages/HomePage';
-import { UsersPage } from '../../pages/UsersPage';
 import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
 
 /**
@@ -20,11 +19,10 @@ export type ShellAdminPlugin = AdminPlugin;
  * {@link AuthProvider} (the auth-state source). Private routes render in the
  * shell's outlet, behind that one check; the host stays auth-agnostic.
  *
- * Its routes (home, users) carry no `public` flag, so they are private — they
- * render only for signed-in users. It also contributes the toolbar's nav items
- * to its own {@link NAVBAR_START_SLOT}. The Users page is a placeholder until
- * its feature plugin lands, at which point that plugin contributes its own route
- * and nav item and this is removed (as Workspaces already has).
+ * Its home route carries no `public` flag, so it is private — it renders only
+ * for signed-in users. It also contributes the toolbar's Home nav item to its
+ * own {@link NAVBAR_START_SLOT}. Feature pages (Workspaces, Members) live in
+ * their own plugins, which contribute their routes and nav items.
  *
  * @example
  * ```typescript
@@ -46,10 +44,7 @@ export function ShellPlugin(): ShellAdminPlugin {
                 </RequireAuth>
             </AuthProvider>
         ),
-        routes: [
-            { path: '/', element: <HomePage /> },
-            { path: '/users', element: <UsersPage /> }
-        ],
+        routes: [{ path: '/', element: <HomePage /> }],
         slots: [
             {
                 slot: NAVBAR_START_SLOT,
@@ -61,13 +56,6 @@ export function ShellPlugin(): ShellAdminPlugin {
                         end: true,
                         order: 10,
                         icon: HomeIcon
-                    },
-                    {
-                        labelId: 'shell.nav.users',
-                        defaultLabel: 'Users',
-                        to: '/users',
-                        order: 30,
-                        icon: UsersIcon
                     }
                 ]
             }

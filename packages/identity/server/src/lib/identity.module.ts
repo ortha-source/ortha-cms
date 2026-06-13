@@ -25,8 +25,6 @@ import { WorkspaceService } from './workspaces/services/workspace.service';
 import { SlugService } from './workspaces/services/slug.service';
 import { MembershipService } from './workspaces/services/membership.service';
 import { ContentGrantService } from './workspaces/services/content-grant.service';
-import { SearchUsersController } from './users/controllers/search-users.controller';
-import { UserService } from './users/services/user.service';
 import { ListContentTypesController } from './content/controllers/list-content-types.controller';
 
 /**
@@ -70,7 +68,6 @@ export class IdentityModule {
                 CreateWorkspaceController,
                 ListWorkspacesController,
                 CheckSlugController,
-                SearchUsersController,
                 ListContentTypesController
             ],
             providers: [
@@ -79,7 +76,6 @@ export class IdentityModule {
                 SlugService,
                 MembershipService,
                 ContentGrantService,
-                UserService,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin

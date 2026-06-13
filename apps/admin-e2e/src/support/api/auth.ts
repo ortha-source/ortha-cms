@@ -35,6 +35,18 @@ export async function mockLogin(
     });
 }
 
+/** The full v1 permission catalogue — what the admin role grants. */
+const ALL_PERMISSIONS = [
+    'workspaces:create',
+    'workspaces:read',
+    'workspaces:update',
+    'workspaces:delete',
+    'users:read',
+    'users:create',
+    'users:update',
+    'users:delete'
+];
+
 /**
  * The authenticated user `GET /api/auth/me` returns (the server's `PublicUser`
  * plus the role's `permissions`). Defaults to an admin holding every permission,
@@ -47,16 +59,9 @@ const DEFAULT_USER = {
     name: 'Admin User',
     roleId: '00000000-0000-0000-0000-0000000000a1',
     status: 'active',
-    permissions: [
-        'workspaces:create',
-        'workspaces:read',
-        'workspaces:update',
-        'workspaces:delete',
-        'users:read',
-        'users:create',
-        'users:update',
-        'users:delete'
-    ]
+    // Defaults to a full-access admin; a suite narrows this via `mockSignedIn`
+    // to exercise permission-gated UI.
+    permissions: ALL_PERMISSIONS
 };
 
 /**

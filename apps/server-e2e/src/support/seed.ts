@@ -6,6 +6,7 @@ import {
     memberships,
     roles,
     sessions,
+    tokens,
     users,
     workspaces,
     type RootAdminOutcome
@@ -77,7 +78,12 @@ export async function seedUser(
 /** Convenience: an active user with valid credentials for `POST /auth/login`. */
 export async function seedActiveUser(
     app: INestApplication,
-    opts: { email: string; password: string; role: SystemRoleKey; name?: string }
+    opts: {
+        email: string;
+        password: string;
+        role: SystemRoleKey;
+        name?: string;
+    }
 ): Promise<SeededUser> {
     return seedUser(app, { ...opts, status: 'active' });
 }
@@ -123,6 +129,17 @@ export async function seedMembership(
     workspaceId: string
 ): Promise<void> {
     await getDatabase().insert(memberships).values({ userId, workspaceId });
+}
+
+/** The workspace ids a user belongs to — for asserting membership side effects. */
+export async function getWorkspaceIdsForUser(
+    userId: string
+): Promise<string[]> {
+    const rows = await getDatabase()
+        .select({ workspaceId: memberships.workspaceId })
+        .from(memberships)
+        .where(eq(memberships.userId, userId));
+    return rows.map((row) => row.workspaceId);
 }
 
 /** Force every session of a user into the past — simulates natural expiry. */
@@ -188,6 +205,21 @@ export async function provisionRootAdmin(
     opts: { email: string; password: string }
 ): Promise<RootAdminOutcome> {
     return app.get(RootAdminService).ensure(opts.email, opts.password);
+}
+
+/**
+ * The live invite tokens for a user — `tokenHash`s only (the raw token is
+ * never stored). Used to assert that inviting issues a token and that resend
+ * rotates it (a different hash, still exactly one).
+ */
+export async function getInviteTokenHashes(userId: string): Promise<string[]> {
+    const rows = await getDatabase()
+        .select({ tokenHash: tokens.tokenHash, type: tokens.type })
+        .from(tokens)
+        .where(eq(tokens.userId, userId));
+    return rows
+        .filter((row) => row.type === 'invite')
+        .map((row) => row.tokenHash);
 }
 
 /** Count a user's session rows — used to assert a session was created. */
