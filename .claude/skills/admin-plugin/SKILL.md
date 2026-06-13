@@ -1,6 +1,6 @@
 ---
 name: admin-plugin
-description: Authoring or modifying an Ortha CMS admin plugin (packages/<group>/admin, e.g. users-admin). Covers the AdminPlugin factory (routes/layout/slots), the per-module `<name>/index.ts(x)` folder layout, lazy code-split routes, the api-module + per-query-hook data layer (apiClient + TanStack Query), useHasPermission gating, co-located react-intl messages, and slot contributions. Use when creating a new admin plugin, or adding a page/route/hook/component to an existing one. Companion to server-plugin (the API side), accessibility, and admin-e2e.
+description: Authoring or modifying an Ortha CMS admin plugin (packages/<group>/admin, e.g. users-admin). Covers the AdminPlugin factory (routes/layout/slots), the per-module `<name>/index.ts(x)` folder layout, lazy code-split routes, the per-hook data layer (apiClient + TanStack Query, each hook owning its request fn), useHasPermission gating, co-located react-intl messages, and slot contributions. Use when creating a new admin plugin, or adding a page/route/hook/component to an existing one. Companion to server-plugin (the API side), accessibility, and admin-e2e.
 user-invocable: false
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *), Bash(npm install), Bash(git mv *)
 ---
@@ -13,11 +13,13 @@ to the React admin SPA. It is **not an app**: it exports a factory the host
 (`@ortha-cms/bootstrap-admin`) assembles into a running SPA via `createAdmin`.
 
 > **Reference implementations:** `packages/users/admin` is the fullest worked
-> example (routes, slot nav entry, a full api-module + query/mutation hooks,
-> permission gating, an invite wizard). `packages/workspaces/admin` shows a
-> create wizard + slug hook; `packages/shell/admin` owns the `layout` and a
-> slot; `packages/identity/admin` owns auth (the gate + `useHasPermission`).
-> When a detail here is unclear, read the closest one.
+> example (routes, slot nav entry, a per-hook data layer with shared mapper +
+> query keys in `utils/`, permission gating, an invite wizard).
+> `packages/workspaces/admin` shows a create wizard + slug hook and the
+> read-hook-exports-the-mapper variant (`useWorkspaces` exports `toWorkspace`);
+> `packages/shell/admin` owns the `layout` and a slot; `packages/identity/admin`
+> owns auth (the gate + `useHasPermission`). When a detail here is unclear, read
+> the closest one.
 
 > Plugins are consumed **from source** (`exports` → `./src/index.ts`,
 > `customConditions: ["@ortha-cms/source"]`). No build step; the admin app's
@@ -47,11 +49,14 @@ here, make it accessible, and add an admin-e2e suite.
    `camelCase` named for its export (`useMembers/index.ts`,
    `usersPlugin/index.tsx`, `types/member/index.ts`). No kebab-case, no dotted
    suffixes.
-3. **Data lives in an api-module; hooks only bind it to TanStack Query.** One
-   `api/<feature>Api/` module owns wire types, query-key factory, request
-   functions (via `apiClient`), and wire→model mappers. Each `api/use*/` hook is
-   a thin `useQuery`/`useMutation` over those functions. **No shared client
-   class, no repository wrapper.**
+3. **Each `use*` hook owns its endpoint; nothing centralizes the data layer.**
+   A hook's `api/use*/` folder holds its request function (via `apiClient`), its
+   request/response wire types, and the thin `useQuery`/`useMutation` over them —
+   all in one file. Genuinely shared pieces (the wire→model mapper, the query-key
+   factory) live in **one** place every hook imports: either the owning read hook
+   (workspaces exports `toWorkspace` from `useWorkspaces`) or a `lib/utils/`
+   folder (users has `utils/toMember` + `utils/membersKeys`). **No central
+   `*Api` module, no shared client class, no repository wrapper.**
 4. **Gate on permissions with `useHasPermission`** (from
    `@ortha-cms/identity-admin`) — the UI mirror of the server's RBAC. A read
    page disables its query (`enabled`) until the permission is confirmed;
@@ -79,6 +84,8 @@ packages/<group>/admin/
         <plugin>Plugin/index.tsx      # the AdminPlugin factory — entry point
         initialsOf/index.ts           # pure helpers, one per folder
         avatarColor/index.ts
+        membersKeys/index.ts          # shared query-key factory + list params
+        toMember/index.ts             # shared wire types + wire→model mapper
       pages/
         MembersPage/index.tsx         # a routed page (the container AND view)
         InviteMemberPage/index.tsx
@@ -86,9 +93,8 @@ packages/<group>/admin/
         MembersTable/index.tsx        # presentational pieces
         MembersPagination/index.tsx
       api/
-        membersApi/index.ts           # wire types + keys + request fns + mappers
-        useMembers/index.ts           # useQuery hook over membersApi
-        useInviteMember/index.ts      # useMutation hook
+        useMembers/index.ts           # fetchMembers + envelope type + useQuery
+        useInviteMember/index.ts      # inviteMember + InviteMemberInput + useMutation
       hooks/
         useSlug/index.ts              # cross-component stateful logic
       types/
@@ -104,10 +110,12 @@ component may stay flat beside its `index` (e.g.
 container: `MembersPage` runs its own queries/mutations and renders directly.
 Don't add a separate thin "route" wrapper.
 
-**Co-locate request fn with concept, hook next door.** The request functions and
-mappers live in `api/<feature>Api/`; the `use*` hooks import them. (Tiny
-features may co-locate a single request fn directly in its hook file — see
-identity's `login` + `useLoginMutation`.)
+**Request fn lives in its hook file.** Each `api/use*/` hook declares its own
+request function and that endpoint's wire types right above the hook (see
+identity's `useLoginMutation`, workspaces' `useWorkspaces`). Only pieces *several
+hooks share* — the wire→model mapper and the query-key factory — are lifted out,
+to the owning read hook or a `lib/utils/` folder (never to a catch-all `*Api`
+module that re-centralizes the layer).
 
 ---
 
@@ -225,50 +233,56 @@ render; it never defines or reads a slot. If you need a _new_ extension point,
 define it (`createSlot<T>('<plugin>.<area>')`) in the plugin that renders it and
 export it, then other plugins contribute.
 
-### 4. The data layer — api-module + hooks
+### 4. The data layer — one folder per hook, shared pieces in `utils/`
+
+Shared across hooks — the query keys and the wire→model mapper — go in `utils/`
+(or export them from the read hook for a tiny feature):
 
 ```ts
-// src/lib/api/widgetsApi/index.ts — the whole HTTP contract in one file
-import { apiClient } from '@ortha-cms/utils-admin';
-import type { Widget, WidgetList } from '../../types/widget';
+// src/lib/utils/widgetsKeys/index.ts — keys + the list query's params
+export type WidgetsListParams = { search?: string; page?: number };
 
 /** Query keys for the widgets cache; mutations invalidate `widgetsKeys.all`. */
 export const widgetsKeys = {
     all: ['widgets'] as const,
     list: (params: WidgetsListParams) => ['widgets', 'list', params] as const
 };
-
-export type WidgetsListParams = { search?: string; page?: number };
-
-/** Wire shape returned by `GET /api/widgets` (mirrors the server's view —
- * the admin can't import the server package across the module boundary). */
-type WidgetResponse = { id: string; name: string };
-
-/** Maps a widget from the wire to the admin's model. */
-function toWidget(dto: WidgetResponse): Widget {
-    return { id: dto.id, name: dto.name };
-}
-
-/** Fetches one page from `GET /api/widgets`. */
-export async function fetchWidgets(
-    params: WidgetsListParams
-): Promise<WidgetList> {
-    const { data } = await apiClient.get<{ items: WidgetResponse[] }>(
-        '/widgets',
-        { params }
-    );
-    return { items: data.items.map(toWidget) };
-}
 ```
 
 ```ts
-// src/lib/api/useWidgets/index.ts — the hook only binds the fn to Query
+// src/lib/utils/toWidget/index.ts — shared wire types + the mapper
+import type { Widget } from '../../types/widget';
+
+/** Wire shape returned by the widgets API (mirrors the server's view — the
+ * admin can't import the server package across the module boundary). */
+export type WidgetResponse = { id: string; name: string };
+
+/** Maps a widget from the wire to the admin's model. */
+export function toWidget(dto: WidgetResponse): Widget {
+    return { id: dto.id, name: dto.name };
+}
+```
+
+Each hook then owns its own request fn + endpoint types:
+
+```ts
+// src/lib/api/useWidgets/index.ts — request fn + envelope type + the hook
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import {
-    fetchWidgets,
-    widgetsKeys,
-    type WidgetsListParams
-} from '../widgetsApi';
+import { apiClient } from '@ortha-cms/utils-admin';
+import type { WidgetList } from '../../types/widget';
+import { widgetsKeys, type WidgetsListParams } from '../../utils/widgetsKeys';
+import { toWidget, type WidgetResponse } from '../../utils/toWidget';
+
+/** The paginated envelope `GET /api/widgets` returns. */
+type WidgetListResponse = { items: WidgetResponse[] };
+
+/** Fetches one page from `GET /api/widgets`. */
+async function fetchWidgets(params: WidgetsListParams): Promise<WidgetList> {
+    const { data } = await apiClient.get<WidgetListResponse>('/widgets', {
+        params
+    });
+    return { items: data.items.map(toWidget) };
+}
 
 /** Fetches one page of widgets. Disabled until the caller confirms
  * `widgets:read`; `keepPreviousData` avoids a flash between pages. */
@@ -282,11 +296,42 @@ export function useWidgets(params: WidgetsListParams, enabled = true) {
 }
 ```
 
+```ts
+// src/lib/api/useCreateWidget/index.ts — a mutation hook, same shape
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@ortha-cms/utils-admin';
+import type { Widget } from '../../types/widget';
+import { widgetsKeys } from '../../utils/widgetsKeys';
+import { toWidget, type WidgetResponse } from '../../utils/toWidget';
+
+/** Body the create form submits. */
+export type CreateWidgetInput = { name: string };
+
+/** Creates a widget via `POST /api/widgets`. */
+async function createWidget(input: CreateWidgetInput): Promise<Widget> {
+    const { data } = await apiClient.post<WidgetResponse>('/widgets', input);
+    return toWidget(data);
+}
+
+/** Creates a widget, then refreshes every cached widgets page. */
+export function useCreateWidget() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createWidget,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: widgetsKeys.all });
+        }
+    });
+}
+```
+
 - **`apiClient`** (axios, from `@ortha-cms/utils-admin`) targets the `/api`
   prefix via the dev proxy — request paths omit `/api` (`apiClient.get('/widgets')`).
-- **Mutations** live in their own `useXxx` hooks and `invalidateQueries` the
-  feature's root key on success.
-- **Map wire→model in the api-module**, not in components. The admin restates
+- **The request fn stays module-private** to its hook (no `export`); only the
+  input/output **types** are exported where a component needs them.
+- **Mutations** `invalidateQueries` the feature's root key (`widgetsKeys.all`)
+  on success.
+- **Map wire→model in the shared mapper**, not in components. The admin restates
   the server's view types locally (no cross-app import).
 
 ### 5. Permission gating
@@ -335,7 +380,7 @@ single `IntlProvider` resolves them from each descriptor's `defaultMessage`.
 
 Export the public API only: the `XPlugin` factory + its type, plus any
 hook/type/component a **consumer outside the package** uses. Keep internals
-(api-module request fns, presentational components used only inside) out of the
+(per-hook request fns, presentational components used only inside) out of the
 barrel until something external needs them.
 
 ```ts
@@ -399,8 +444,8 @@ npx nx run-many -t typecheck lint -p @ortha-cms/<group>-admin
 - [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` returning
       `{ name, routes, slots? }`; pages lazy + `<Suspense>`.
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
-- [ ] Data layer: an `api/<feature>Api/` module (types + keys + fns + mappers)
-      and thin `api/use*/` hooks over it.
+- [ ] Data layer: one `api/use*/` folder per hook (request fn + endpoint types +
+      the hook); shared mapper + query keys in `lib/utils/` (or the read hook).
 - [ ] `useHasPermission` gating on the query (`enabled`) and write controls.
 - [ ] Co-located `defineMessages` with `<plugin>.<area>.<key>` IDs.
 - [ ] Public barrel `src/index.ts` (factory + type + external API only).
