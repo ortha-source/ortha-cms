@@ -1,6 +1,10 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
+import {
+    mockWorkspaces,
+    mockWorkspacesApi,
+    WORKSPACES_SEED
+} from '../support/api/workspaces';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -18,6 +22,19 @@ test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
 
     test('grid — initial (active)', async ({ workspacesPage, makeAxe }) => {
         await workspacesPage.goto();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('grid — loading skeleton', async ({
+        workspacesPage,
+        page,
+        makeAxe
+    }) => {
+        // Hold the list response open so the card-grid skeleton stays on screen
+        // (the header + toolbar are already live) while axe scans it.
+        await mockWorkspaces(page, WORKSPACES_SEED, { delayMs: 30_000 });
+        await workspacesPage.goto();
+        await workspacesPage.gridSkeleton().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

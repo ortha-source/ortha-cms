@@ -1,8 +1,11 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
-import { Spinner } from '@ortha-cms/design-system';
 import { Layers } from 'lucide-react';
+import {
+    CreateWorkspacePageSkeleton,
+    WorkspacesPageSkeleton
+} from '../../components/WorkspacesSkeleton';
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
 // a signed-in user first navigates to it.
@@ -49,7 +52,7 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
             {
                 path: '/workspaces',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<WorkspacesPageSkeleton />}>
                         <WorkspacesPage />
                     </Suspense>
                 )
@@ -57,7 +60,7 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
             {
                 path: '/workspaces/new',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<CreateWorkspacePageSkeleton />}>
                         <CreateWorkspacePage />
                     </Suspense>
                 )

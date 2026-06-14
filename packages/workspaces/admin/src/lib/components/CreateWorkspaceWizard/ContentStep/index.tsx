@@ -1,13 +1,9 @@
 import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { AlertCircle, Database, FileText } from 'lucide-react';
-import {
-    Alert,
-    AlertDescription,
-    AlertTitle,
-    Spinner
-} from '@ortha-cms/design-system';
+import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
 import { useContentTypes } from '../../../api/useContentTypes';
+import { ContentTypesSkeleton } from '../../WorkspacesSkeleton';
 import type { ContentMode, ResourceSelection } from '../../../types/wizard';
 import { ModeTiles } from './ModeTiles';
 import {
@@ -16,10 +12,6 @@ import {
 } from './ResourceSection';
 
 const messages = defineMessages({
-    loading: {
-        id: 'workspaces.create.content.loading',
-        defaultMessage: 'Loading content types…'
-    },
     errorTitle: {
         id: 'workspaces.create.content.errorTitle',
         defaultMessage: 'Could not load content types'
@@ -193,10 +185,7 @@ export function ContentStep({
                     </AlertDescription>
                 </Alert>
             ) : query.isPending ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Spinner className="size-4" />
-                    {intl.formatMessage(messages.loading)}
-                </p>
+                <ContentTypesSkeleton />
             ) : query.isError ? (
                 <Alert variant="destructive">
                     <AlertCircle className="size-4" />

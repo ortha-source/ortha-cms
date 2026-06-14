@@ -6,11 +6,11 @@ import { Plus } from 'lucide-react';
 import {
     Button,
     Container,
-    ContainerHeader,
-    Spinner
+    ContainerHeader
 } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import { WorkspaceCard } from '../../components/WorkspaceCard';
+import { WorkspaceGridSkeleton } from '../../components/WorkspacesSkeleton';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
 import {
     WorkspaceToolbar,
@@ -112,9 +112,7 @@ export function WorkspacesPage() {
             />
 
             {isLoading ? (
-                <div className="flex justify-center py-16">
-                    <Spinner />
-                </div>
+                <WorkspaceGridSkeleton />
             ) : filtered.length === 0 ? (
                 <WorkspacesEmpty
                     // "No match / clear filters" whenever workspaces exist but

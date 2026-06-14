@@ -125,15 +125,21 @@ function paramsOf(route: Route): {
  * `mockSignedIn` for the auth probe.
  *
  * Registered per-`page`, so it resets between tests with the browser context.
+ * Pass `delayMs` to hold the response open, so a test can observe the table's
+ * loading skeleton before the rows land.
  */
 export async function mockMembers(
     page: Page,
-    members: MemberSeed[] = DEFAULT_MEMBERS
+    members: MemberSeed[] = DEFAULT_MEMBERS,
+    { delayMs }: { delayMs?: number } = {}
 ): Promise<void> {
     await page.route('**/api/users?*', async (route) => {
         if (route.request().method() !== 'GET') {
             await route.fallback();
             return;
+        }
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
         const { search, page: pageNum, pageSize } = paramsOf(route);
         const matched = search

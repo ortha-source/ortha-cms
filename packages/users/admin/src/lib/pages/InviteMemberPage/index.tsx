@@ -35,6 +35,7 @@ import {
 import { useInviteMember } from '../../api/useInviteMember';
 import { useWorkspaceOptions } from '../../api/useWorkspaceOptions';
 import { MemberAvatar } from '../../components/MemberAvatar';
+import { WorkspaceOptionsSkeleton } from '../../components/MembersSkeleton';
 import type { MemberRole } from '../../types/member';
 
 const messages = defineMessages({
@@ -563,9 +564,7 @@ export function InviteMemberPage() {
                             </CardHeader>
                             <CardContent>
                                 {workspaces.isPending ? (
-                                    <div className="flex justify-center py-8">
-                                        <Spinner />
-                                    </div>
+                                    <WorkspaceOptionsSkeleton />
                                 ) : workspaces.isError ? (
                                     <Alert variant="destructive">
                                         <AlertDescription>

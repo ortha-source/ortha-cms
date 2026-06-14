@@ -52,6 +52,17 @@ export class WorkspacesPage extends BasePage {
         return this.page.getByText(/^\d+ of \d+$/);
     }
 
+    /**
+     * The card-grid loading skeleton — a `role="status"` region announcing
+     * "Loading workspaces…", shown while the list query is in flight (seed it
+     * with `mockWorkspaces(page, …, { delayMs })`).
+     */
+    gridSkeleton(): Locator {
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: /Loading workspaces/ });
+    }
+
     /** A workspace card, located by its accessible name (a labelled group). */
     card(name: string): Locator {
         return this.page.getByRole('group', { name, exact: true });

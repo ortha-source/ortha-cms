@@ -43,6 +43,17 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('row').filter({ hasText: nameOrEmail });
     }
 
+    /**
+     * The table loading skeleton — a `role="status"` region announcing
+     * "Loading members…", shown while the list query is in flight (seed it with
+     * `mockMembers(page, …, { delayMs })`).
+     */
+    tableSkeleton(): Locator {
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: /Loading members/ });
+    }
+
     /** A status pill anywhere in the table (e.g. "Invited"). */
     statusPill(label: string): Locator {
         return this.page.getByText(label, { exact: true });

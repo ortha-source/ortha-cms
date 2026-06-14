@@ -1,6 +1,6 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockMembers } from '../support/api/members';
+import { mockMembers, DEFAULT_MEMBERS } from '../support/api/members';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -18,6 +18,19 @@ test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
     test('table — initial', async ({ membersPage, makeAxe }) => {
         await membersPage.goto();
         await membersPage.heading.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('table — loading skeleton', async ({
+        membersPage,
+        page,
+        makeAxe
+    }) => {
+        // Hold the list response open so the table skeleton stays on screen
+        // (the header + toolbar are already live) while axe scans it.
+        await mockMembers(page, DEFAULT_MEMBERS, { delayMs: 30_000 });
+        await membersPage.goto();
+        await membersPage.tableSkeleton().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

@@ -72,12 +72,20 @@ const DEFAULT_USER = {
  *
  * Registered per-`page`; later registrations win, so a test can start signed out
  * (e.g. in `beforeEach`) and flip to signed in before submitting the login form.
+ *
+ * Pass `delayMs` to hold the probe open — the gate stays in its `Loading` state,
+ * so a test can observe the branded root loader (`AppLoader`) before the session
+ * resolves.
  */
 export async function mockSignedIn(
     page: Page,
-    user: Partial<typeof DEFAULT_USER> = {}
+    user: Partial<typeof DEFAULT_USER> = {},
+    { delayMs }: { delayMs?: number } = {}
 ): Promise<void> {
     await page.route('**/api/auth/me', async (route) => {
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
