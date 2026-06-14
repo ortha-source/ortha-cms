@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_133 test cases across 13 spec files._
+_142 test cases across 14 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity.spec.ts</sub>_
@@ -334,3 +334,32 @@ _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
 | rejects a disallowed Origin with 403 |
 | allows the configured app origin |
 | allows a request with no Origin (non-browser client) |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-members.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
+
+## Workspace members + activity
+
+### workspace.created
+
+| Test case |
+| --- |
+| records workspace.created when an admin creates a workspace |
+
+### POST /api/workspaces/:id/members
+
+| Test case |
+| --- |
+| adds a member and records workspace.member_added |
+| is idempotent — re-adding a member records nothing new |
+| 404s for an unknown workspace |
+| 404s for an unknown user |
+| forbids a contributor (lacks workspaces:update) with 403 |
+
+### DELETE /api/workspaces/:id/members/:userId
+
+| Test case |
+| --- |
+| removes a member and records workspace.member_removed |
+| is a no-op (204) and records nothing when not a member |
+| forbids a viewer (lacks workspaces:update) with 403 |

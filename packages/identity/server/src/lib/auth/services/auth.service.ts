@@ -3,10 +3,10 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import {
-    ACTIVITY_KINDS,
     ACTIVITY_RECORDER,
     type ActivityRecorder
-} from '@ortha-cms/activity-contract';
+} from '../../activity/activity-recorder';
+import { IDENTITY_ACTIVITY_KINDS } from '../../activity/activity-kinds';
 import { users } from '../../schema';
 import { HashingService } from './hashing.service';
 import {
@@ -92,7 +92,7 @@ export class AuthService {
             const session = await this.sessions.create(user.id, context, tx);
             await this.recorder?.record(
                 {
-                    kind: ACTIVITY_KINDS.USER_SIGNED_IN,
+                    kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN,
                     subjectType: 'user',
                     subjectId: user.id,
                     actorId: user.id,
@@ -148,7 +148,7 @@ export class AuthService {
                 .where(eq(users.id, revoked.userId));
             await this.recorder.record(
                 {
-                    kind: ACTIVITY_KINDS.USER_SIGNED_OUT,
+                    kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT,
                     subjectType: 'user',
                     subjectId: revoked.userId,
                     actorId: revoked.userId,

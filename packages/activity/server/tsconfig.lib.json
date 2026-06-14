@@ -14,9 +14,6 @@
     "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
     "references": [
         {
-            "path": "../contract/tsconfig.lib.json"
-        },
-        {
             "path": "../../database/tsconfig.lib.json"
         },
         {

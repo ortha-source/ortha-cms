@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { ScrollText } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import {
     Button,
     Empty,
@@ -54,7 +54,7 @@ export function ActivityEmpty({
         <Empty className="border">
             <EmptyHeader>
                 <EmptyMedia variant="icon">
-                    <ScrollText />
+                    <Activity />
                 </EmptyMedia>
                 <EmptyTitle>
                     {intl.formatMessage(

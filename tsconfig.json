@@ -52,9 +52,6 @@
             "path": "./packages/users/admin"
         },
         {
-            "path": "./packages/activity/contract"
-        },
-        {
             "path": "./packages/activity/server"
         },
         {

@@ -12,10 +12,6 @@ import {
     Min
 } from 'class-validator';
 import {
-    ACTIVITY_KIND_VALUES,
-    type ActivityKind
-} from '@ortha-cms/activity-contract';
-import {
     MAX_PAGE_SIZE,
     SORTABLE_FIELDS,
     SORT_ORDERS,
@@ -50,8 +46,9 @@ export class ListActivityQueryDto {
 
     /**
      * Restrict to one or more event kinds. Accepts a comma-separated list
-     * (`?kind=user.invited,user.suspended`) → matched with `IN`. Each value
-     * must be a known {@link ACTIVITY_KIND_VALUES} kind.
+     * (`?kind=user.invited,user.suspended`) → matched with `IN`. Kinds are
+     * owned by the emitting plugins, so this is validated as free text, not
+     * against a central catalogue.
      */
     @IsOptional()
     @Transform(({ value }) =>
@@ -63,8 +60,9 @@ export class ListActivityQueryDto {
             : value
     )
     @IsArray()
-    @IsIn(ACTIVITY_KIND_VALUES, { each: true })
-    kind?: ActivityKind[];
+    @IsString({ each: true })
+    @MaxLength(255, { each: true })
+    kind?: string[];
 
     /** Case-insensitive substring search over the actor email snapshot. */
     @IsOptional()

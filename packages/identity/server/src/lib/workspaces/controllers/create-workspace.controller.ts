@@ -40,7 +40,7 @@ export class CreateWorkspaceController {
         @CurrentUser() user: PublicUser
     ): Promise<WorkspaceView> {
         try {
-            return await this.workspaces.create(body, user.id);
+            return await this.workspaces.create(body, user);
         } catch (error) {
             if (error instanceof SlugTakenError) {
                 throw new ConflictException('Workspace slug already taken');

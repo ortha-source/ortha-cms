@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_81 test cases across 13 spec files._
+_88 test cases across 13 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
@@ -13,8 +13,9 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the audit trail with actor, action, and details |
+| renders the audit trail with actors and actions |
 | renders a system-initiated event with a "System" actor |
+| expands a row to reveal its details, then collapses it |
 | the kind filter drives the request and narrows the table |
 | the actor-email search drives the request |
 | deep-links the active filters into the URL |
@@ -26,6 +27,8 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 | Test case |
 | --- |
 | table — initial |
+| table — expanded row |
+| table — loading skeleton |
 | empty state — no matches |
 | no-access state |
 
@@ -34,6 +37,7 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 | Test case |
 | --- |
 | the actor-email search filters as you type |
+| a row expands from the keyboard |
 | the kind filter is operable from the keyboard |
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
@@ -47,6 +51,7 @@ _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
 | login page — required-field errors visible |
 | login page — credential-error banner visible |
 | home page |
+| root loader — auth probe pending |
 
 <!-- source: apps/admin-e2e/src/auth/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
@@ -119,6 +124,7 @@ _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
 | Test case |
 | --- |
 | table — initial |
+| table — loading skeleton |
 | invite wizard — details step |
 | invite wizard — workspaces step |
 | row menu — open |
@@ -166,6 +172,7 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 | Test case |
 | --- |
 | grid — initial (active) |
+| grid — loading skeleton |
 | grid — all statuses (archived cards visible) |
 | status filter popover — open |
 | member popover — open |

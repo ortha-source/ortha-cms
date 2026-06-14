@@ -10,7 +10,7 @@ import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-cor
  *   the trail stays readable even after the user row is gone or renamed.
  * - `subjectId` is **text**, not uuid — subjects are not always users and not
  *   always uuid-keyed.
- * - `meta` is a per-kind jsonb payload typed by `@ortha-cms/activity-contract`.
+ * - `meta` is an open jsonb payload; each emitting plugin owns its shape.
  * - `at` is the logical event time (defaults to now); `createdAt` is the
  *   immutable write time, dropped from the read API.
  *

@@ -64,8 +64,6 @@ export const DEFAULT_ACTIVITY: ActivitySeed[] = [
 function paramsOf(route: Route): {
     kinds: string[];
     actorEmail: string;
-    from: string;
-    to: string;
     page: number;
     pageSize: number;
 } {
@@ -76,8 +74,6 @@ function paramsOf(route: Route): {
         actorEmail: (url.searchParams.get('actorEmail') ?? '')
             .trim()
             .toLowerCase(),
-        from: url.searchParams.get('from') ?? '',
-        to: url.searchParams.get('to') ?? '',
         page: Number(url.searchParams.get('page') ?? '1'),
         pageSize: Number(url.searchParams.get('pageSize') ?? '25')
     };
@@ -86,22 +82,26 @@ function paramsOf(route: Route): {
 /**
  * Stub `GET /api/activity` with a deterministic log, applying the same
  * filtering + pagination the server does (kind IN, actor-email substring,
- * date range, offset paging) so the page's controls behave for real. The page
- * sits behind the shell's gate, so a test also needs `mockSignedIn`.
+ * offset paging) so the page's controls behave for real. The page sits behind
+ * the shell's gate, so a test also needs `mockSignedIn`. Pass `delayMs` to hold
+ * the response open and observe the loading skeleton.
  *
  * Registered per-`page`, so it resets between tests with the browser context.
  */
 export async function mockActivity(
     page: Page,
-    events: ActivitySeed[] = DEFAULT_ACTIVITY
+    events: ActivitySeed[] = DEFAULT_ACTIVITY,
+    { delayMs }: { delayMs?: number } = {}
 ): Promise<void> {
     await page.route('**/api/activity?*', async (route) => {
         if (route.request().method() !== 'GET') {
             await route.fallback();
             return;
         }
-        const { kinds, actorEmail, from, to, page: pageNum, pageSize } =
-            paramsOf(route);
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        const { kinds, actorEmail, page: pageNum, pageSize } = paramsOf(route);
 
         const matched = events.filter((event) => {
             if (kinds.length > 0 && !kinds.includes(event.kind)) {
@@ -111,12 +111,6 @@ export async function mockActivity(
                 actorEmail &&
                 !(event.actorEmail ?? '').toLowerCase().includes(actorEmail)
             ) {
-                return false;
-            }
-            if (from && event.at < from) {
-                return false;
-            }
-            if (to && event.at.slice(0, 10) > to) {
                 return false;
             }
             return true;

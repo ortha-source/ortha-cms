@@ -1,6 +1,6 @@
 import { useIntl } from 'react-intl';
 import { Badge } from '@ortha-cms/design-system';
-import type { ActivityKind } from '@ortha-cms/activity-contract';
+import type { ActivityKind } from '../../utils/activityKinds';
 import { formatActivityAction } from '../../utils/activityMessages';
 
 /**

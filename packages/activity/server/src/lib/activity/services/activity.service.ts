@@ -3,11 +3,9 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from 'drizzle-orm
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type {
     ActivityExecutor,
-    ActivityKind,
-    ActivityMeta,
     ActivityRecorder,
     ActivityRecordInput
-} from '@ortha-cms/activity-contract';
+} from '@ortha-cms/identity-server';
 import { activityEvents } from '../../schema';
 import { DEFAULT_PAGE_SIZE, type SortableField } from '../activity.constants';
 import type { ListActivityQueryDto } from '../dto/list-activity-query.dto';
@@ -92,8 +90,7 @@ export class ActivityService implements ActivityRecorder {
         return {
             items: rows.map((row): ActivityEventView => ({
                 ...row,
-                kind: row.kind as ActivityKind,
-                meta: row.meta as ActivityMeta | null
+                meta: (row.meta as Record<string, unknown> | null) ?? null
             })),
             total,
             page,

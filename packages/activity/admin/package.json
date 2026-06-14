@@ -15,7 +15,6 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/activity-contract": "*",
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/design-system": "*",
         "@ortha-cms/identity-admin": "*",

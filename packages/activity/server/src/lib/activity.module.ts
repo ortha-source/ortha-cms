@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ACTIVITY_RECORDER } from '@ortha-cms/activity-contract';
+import { ACTIVITY_RECORDER } from '@ortha-cms/identity-server';
 import { ListActivityController } from './activity/controllers/list-activity.controller';
 import { ActivityService } from './activity/services/activity.service';
 

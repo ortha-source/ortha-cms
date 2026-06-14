@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { ACTIVITY_KINDS } from '@ortha-cms/activity-contract';
 import { ActivityService } from '@ortha-cms/activity-server';
 import {
     memberships,
@@ -11,6 +10,7 @@ import {
     workspaces,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { USER_ACTIVITY_KINDS } from '../users-activity';
 import type { ListUsersQueryDto } from '../dto/list-users-query.dto';
 import type { InviteUserDto } from '../dto/invite-user.dto';
 import type { UpdateUserDto } from '../dto/update-user.dto';
@@ -166,7 +166,7 @@ export class UsersService {
 
                 await this.activity.record(
                     {
-                        kind: ACTIVITY_KINDS.USER_INVITED,
+                        kind: USER_ACTIVITY_KINDS.USER_INVITED,
                         subjectType: 'user',
                         subjectId: created.id,
                         actorId: actor.id,
@@ -266,7 +266,7 @@ export class UsersService {
             if (changesRole) {
                 await this.activity.record(
                     {
-                        kind: ACTIVITY_KINDS.USER_ROLE_CHANGED,
+                        kind: USER_ACTIVITY_KINDS.USER_ROLE_CHANGED,
                         subjectType: 'user',
                         subjectId: id,
                         actorId: actor.id,
@@ -279,7 +279,7 @@ export class UsersService {
             if (changesName) {
                 await this.activity.record(
                     {
-                        kind: ACTIVITY_KINDS.USER_PROFILE_UPDATED,
+                        kind: USER_ACTIVITY_KINDS.USER_PROFILE_UPDATED,
                         subjectType: 'user',
                         subjectId: id,
                         actorId: actor.id,
@@ -330,7 +330,7 @@ export class UsersService {
 
             await this.activity.record(
                 {
-                    kind: ACTIVITY_KINDS.USER_SUSPENDED,
+                    kind: USER_ACTIVITY_KINDS.USER_SUSPENDED,
                     subjectType: 'user',
                     subjectId: id,
                     actorId: actor.id,
@@ -357,7 +357,7 @@ export class UsersService {
 
             await this.activity.record(
                 {
-                    kind: ACTIVITY_KINDS.USER_REACTIVATED,
+                    kind: USER_ACTIVITY_KINDS.USER_REACTIVATED,
                     subjectType: 'user',
                     subjectId: id,
                     actorId: actor.id,
@@ -391,7 +391,7 @@ export class UsersService {
 
             await this.activity.record(
                 {
-                    kind: ACTIVITY_KINDS.USER_INVITE_RESENT,
+                    kind: USER_ACTIVITY_KINDS.USER_INVITE_RESENT,
                     subjectType: 'user',
                     subjectId: id,
                     actorId: actor.id,
@@ -425,7 +425,7 @@ export class UsersService {
             // audit row stands on its own once the placeholder row is gone.
             await this.activity.record(
                 {
-                    kind: ACTIVITY_KINDS.USER_INVITE_REVOKED,
+                    kind: USER_ACTIVITY_KINDS.USER_INVITE_REVOKED,
                     subjectType: 'user',
                     subjectId: id,
                     actorId: actor.id,

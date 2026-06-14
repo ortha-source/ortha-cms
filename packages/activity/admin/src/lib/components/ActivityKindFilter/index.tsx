@@ -7,7 +7,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '@ortha-cms/design-system';
-import { ACTIVITY_KIND_VALUES } from '@ortha-cms/activity-contract';
+import { ACTIVITY_KINDS } from '../../utils/activityKinds';
 import { formatActivityAction } from '../../utils/activityMessages';
 
 /** Intl descriptors for {@link ActivityKindFilter}, co-located. */
@@ -56,7 +56,7 @@ export function ActivityKindFilter({
                     <SelectItem value={ALL}>
                         {intl.formatMessage(messages.all)}
                     </SelectItem>
-                    {ACTIVITY_KIND_VALUES.map((kind) => (
+                    {ACTIVITY_KINDS.map((kind) => (
                         <SelectItem key={kind} value={kind}>
                             {formatActivityAction(intl, kind)}
                         </SelectItem>

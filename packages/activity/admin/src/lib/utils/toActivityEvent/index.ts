@@ -1,5 +1,5 @@
-import type { ActivityKind, ActivityMeta } from '@ortha-cms/activity-contract';
 import type { ActivityEvent } from '../../types/activityEvent';
+import type { ActivityKind } from '../activityKinds';
 
 // The shared wire→model contract for an audit event. The admin can't import the
 // server package (separate apps / module boundaries), so this wire type mirrors
@@ -33,7 +33,7 @@ export function toActivityEvent(dto: ActivityEventResponse): ActivityEvent {
         actor: dto.actorId
             ? { id: dto.actorId, email: dto.actorEmail }
             : null,
-        meta: (dto.meta as ActivityMeta | null) ?? null,
+        meta: dto.meta ?? null,
         at: new Date(dto.at)
     };
 }

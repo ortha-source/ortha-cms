@@ -5,10 +5,11 @@ import { expectNoA11yViolations } from '../support/a11y';
 
 /**
  * The Activity Log page (`/activity`, `@ortha-cms/activity-admin`): rendering
- * the audit trail, the filter toolbar driving the `/api/activity` mock, the
- * "System" actor rendering, and the `activity:read` gate (no nav entry, a
- * no-access state for users who lack it). The backend is the
- * `GET /api/activity` mock; `mockSignedIn` satisfies the shell's auth probe.
+ * the audit trail, expandable rows revealing details, the filter toolbar
+ * driving the `/api/activity` mock, the "System" actor rendering, and the
+ * `activity:read` gate (no nav entry, a no-access state for users who lack it).
+ * The backend is the `GET /api/activity` mock; `mockSignedIn` satisfies the
+ * shell's auth probe.
  */
 test.describe('Activity Log page', () => {
     test.beforeEach(async ({ page }) => {
@@ -16,7 +17,7 @@ test.describe('Activity Log page', () => {
         await mockActivity(page);
     });
 
-    test('renders the audit trail with actor, action, and details', async ({
+    test('renders the audit trail with actors and actions', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
@@ -25,14 +26,11 @@ test.describe('Activity Log page', () => {
         await expect(activityLogPage.nav).toBeVisible();
         await expect(activityLogPage.table).toBeVisible();
 
-        // A role change renders its from→to details.
-        await expect(
-            activityLogPage.row('Changed role').filter({
-                hasText: 'viewer → contributor'
-            })
-        ).toBeVisible();
+        await expect(activityLogPage.row('Changed role')).toBeVisible();
         // An actor email shows in its row.
-        await expect(activityLogPage.row('ada@ortha.dev').first()).toBeVisible();
+        await expect(
+            activityLogPage.row('ada@ortha.dev').first()
+        ).toBeVisible();
     });
 
     test('renders a system-initiated event with a "System" actor', async ({
@@ -42,6 +40,24 @@ test.describe('Activity Log page', () => {
         await expect(
             activityLogPage.row('Invited member').filter({ hasText: 'System' })
         ).toBeVisible();
+    });
+
+    test('expands a row to reveal its details, then collapses it', async ({
+        activityLogPage,
+        page
+    }) => {
+        await activityLogPage.goto();
+        const detail = page.getByText('viewer → contributor');
+
+        // Collapsed by default — the detail panel isn't visible.
+        await expect(detail).toBeHidden();
+
+        await activityLogPage.expandRow('Changed role');
+        await expect(detail).toBeVisible();
+
+        // Toggling again collapses it.
+        await activityLogPage.expandRow('Changed role');
+        await expect(detail).toBeHidden();
     });
 
     test('the kind filter drives the request and narrows the table', async ({
@@ -121,6 +137,24 @@ test.describe('Activity Log accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
+    test('table — expanded row', async ({ activityLogPage, makeAxe, page }) => {
+        await activityLogPage.goto();
+        await activityLogPage.expandRow('Changed role');
+        await page.getByText('viewer → contributor').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('table — loading skeleton', async ({
+        activityLogPage,
+        page,
+        makeAxe
+    }) => {
+        await mockActivity(page, undefined, { delayMs: 30_000 });
+        await activityLogPage.goto();
+        await activityLogPage.tableSkeleton().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
     test('empty state — no matches', async ({ activityLogPage, makeAxe }) => {
         await activityLogPage.goto();
         await activityLogPage.emailSearch.fill('nobody-xyz');
@@ -138,7 +172,8 @@ test.describe('Activity Log accessibility (axe, WCAG 2.1 A/AA)', () => {
 
 /**
  * Keyboard operability for the Activity Log — what axe can't assert: the
- * filters take focus and the actor-email search filters as you type.
+ * filters take focus and filter as you type, and a row expands from the
+ * keyboard.
  */
 test.describe('Activity Log keyboard operability', () => {
     test.beforeEach(async ({ page }) => {
@@ -155,6 +190,16 @@ test.describe('Activity Log keyboard operability', () => {
 
         await expect(activityLogPage.row('grace@ortha.dev')).toBeVisible();
         await expect(activityLogPage.row('ada@ortha.dev')).toHaveCount(0);
+    });
+
+    test('a row expands from the keyboard', async ({
+        activityLogPage,
+        page
+    }) => {
+        await activityLogPage.goto();
+        await activityLogPage.expandToggle('Changed role').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByText('viewer → contributor')).toBeVisible();
     });
 
     test('the kind filter is operable from the keyboard', async ({

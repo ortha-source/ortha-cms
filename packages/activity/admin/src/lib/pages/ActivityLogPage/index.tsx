@@ -8,11 +8,11 @@ import {
     AlertDescription,
     Button,
     Container,
-    ContainerHeader,
-    Spinner
+    ContainerHeader
 } from '@ortha-cms/design-system';
 import { useActivityLog, DEFAULT_PAGE_SIZE } from '../../api/useActivityLog';
 import { ActivityEmpty } from '../../components/ActivityEmpty';
+import { ActivityLogTableSkeleton } from '../../components/ActivityLogSkeleton';
 import { ActivityNoAccess } from '../../components/ActivityNoAccess';
 import { ActivityPagination } from '../../components/ActivityPagination';
 import { ActivityTable } from '../../components/ActivityTable';
@@ -29,10 +29,6 @@ const messages = defineMessages({
         id: 'activity.page.subtitle',
         defaultMessage:
             '{count, plural, one {# event} other {# events}} across the workspace.'
-    },
-    loading: {
-        id: 'activity.page.loading',
-        defaultMessage: 'Loading activity…'
     },
     error: {
         id: 'activity.page.error',
@@ -70,8 +66,6 @@ export function ActivityLogPage() {
     // The URL is the source of truth for every filter.
     const kindParam = searchParams.get('kind') ?? '';
     const emailParam = searchParams.get('actorEmail') ?? '';
-    const fromParam = searchParams.get('from') ?? '';
-    const toParam = searchParams.get('to') ?? '';
     const page = readInt(searchParams.get('page'), 1);
     const pageSize = readInt(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
 
@@ -115,8 +109,6 @@ export function ActivityLogPage() {
     const params: ActivityListParams = {
         kind: kindParam || undefined,
         actorEmail: emailParam || undefined,
-        from: fromParam || undefined,
-        to: toParam || undefined,
         page,
         pageSize
     };
@@ -149,9 +141,7 @@ export function ActivityLogPage() {
     }
 
     const events = data?.items ?? [];
-    const hasFilters = Boolean(
-        kindParam || emailParam || fromParam || toParam
-    );
+    const hasFilters = Boolean(kindParam || emailParam);
 
     const clearFilters = () => {
         setEmailInput('');
@@ -172,19 +162,10 @@ export function ActivityLogPage() {
                 onKindChange={(value) => updateParams({ kind: value })}
                 email={emailInput}
                 onEmailChange={setEmailInput}
-                from={fromParam}
-                to={toParam}
-                onFromChange={(value) => updateParams({ from: value })}
-                onToChange={(value) => updateParams({ to: value })}
             />
 
             {isPending ? (
-                <div className="flex justify-center py-16" role="status">
-                    <Spinner aria-hidden />
-                    <span className="sr-only">
-                        {intl.formatMessage(messages.loading)}
-                    </span>
-                </div>
+                <ActivityLogTableSkeleton />
             ) : isError ? (
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">

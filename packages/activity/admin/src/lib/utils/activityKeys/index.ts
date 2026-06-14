@@ -4,10 +4,6 @@ export type ActivityListParams = {
     kind?: string;
     /** Case-insensitive actor-email substring; omit for no filter. */
     actorEmail?: string;
-    /** Inclusive lower bound on the event time (ISO 8601). */
-    from?: string;
-    /** Inclusive upper bound on the event time (ISO 8601). */
-    to?: string;
     /** 1-based page number; the server defaults to 1. */
     page?: number;
     /** Rows per page; the server defaults to its own page size. */

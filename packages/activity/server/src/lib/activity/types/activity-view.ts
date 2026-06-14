@@ -1,16 +1,15 @@
-import type { ActivityKind, ActivityMeta } from '@ortha-cms/activity-contract';
-
 /**
  * One audit event as returned by `GET /api/activity`. Mirrors the
  * `activity_events` row minus `createdAt` (the immutable write time is an
- * internal detail and never reaches the wire). `meta` is the per-kind payload
- * typed by the contract.
+ * internal detail and never reaches the wire). `kind` is an open string and
+ * `meta` an open record — each emitting plugin owns its own kinds/shapes, and
+ * the admin restates the ones it renders.
  */
 export interface ActivityEventView {
     /** Event primary key. */
     id: string;
-    /** The `domain.action` kind (see `ACTIVITY_KINDS`). */
-    kind: ActivityKind;
+    /** The `domain.action` kind, owned by the emitting plugin. */
+    kind: string;
     /** The kind of entity acted upon (e.g. `'user'`). */
     subjectType: string;
     /** The acted-upon entity's id (text). */
@@ -19,8 +18,8 @@ export interface ActivityEventView {
     actorId: string | null;
     /** Frozen email snapshot of the actor, or `null`. */
     actorEmail: string | null;
-    /** Per-kind extra payload, or `null` when the kind carries none. */
-    meta: ActivityMeta | null;
+    /** Open per-kind payload, or `null`. */
+    meta: Record<string, unknown> | null;
     /** Logical event time. */
     at: Date;
 }

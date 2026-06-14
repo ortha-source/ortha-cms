@@ -15,19 +15,23 @@ and its toolbar nav entry. Mirrors the Members page patterns.
 ## The page
 
 `ActivityLogPage` — `Container`/`ContainerHeader`, a filter toolbar (action/kind
-select, actor-email search, from/to date range), the **When · Actor · Action ·
-Subject · Details** table, pagination, and skeleton/empty/error/no-access
-states. The **URL query string is the source of truth** for every filter and
-page (deep-linkable); `page` is clamped to `pageCount` after a filter narrows
-the result, and placeholder data is treated as loading.
+select + actor-email search), the **When · Actor · Action · Subject** table with
+**expandable rows** (a leading toggle reveals a details panel — subject, actor,
+exact time, raw metadata — animated via a grid-rows `0fr↔1fr` transition,
+`inert` when collapsed, reduced-motion aware), pagination, and a loading
+**skeleton** (`ActivityLogSkeleton`, used for both the lazy fallback and
+`isPending`) plus empty/error/no-access states. The **URL query string is the
+source of truth** for every filter and page (deep-linkable); `page` is clamped
+to `pageCount` after a filter narrows the result.
 
 ## Conventions
 
 - Per-hook data layer: `api/useActivityLog/` (its own request fn + envelope
   type), shared `utils/activityKeys` + `utils/toActivityEvent` (wire→model).
-- `utils/activityMessages` turns `ActivityKind` → an "Action" label and `meta`
-  → a "Details" string, reading the catalogue from `@ortha-cms/activity-contract`
-  — **no hardcoded action strings**.
+- `utils/activityKinds` restates the kind strings locally (the admin can't
+  import the server plugins), driving the kind filter; `utils/activityMessages`
+  maps a kind → an "Action" label and `meta` → a "Details" string — **no
+  hardcoded action strings**, no central contract package.
 - Co-located `defineMessages` (ids `activity.<area>.<key>`); `type` over
   `interface`; design-system primitives only; a11y per the `accessibility` skill.
 

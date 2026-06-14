@@ -1,8 +1,8 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
-import { Spinner } from '@ortha-cms/design-system';
-import { ScrollText } from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { ActivityLogPageSkeleton } from '../../components/ActivityLogSkeleton';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
 // fetched only when a signed-in user first navigates to `/activity`.
@@ -46,7 +46,7 @@ export function ActivityPlugin(): ActivityAdminPlugin {
             {
                 path: '/activity',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<ActivityLogPageSkeleton />}>
                         <ActivityLogPage />
                     </Suspense>
                 )
@@ -61,7 +61,7 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                         defaultLabel: 'Activity',
                         to: '/activity',
                         order: 35,
-                        icon: ScrollText,
+                        icon: Activity,
                         permission: 'activity:read'
                     }
                 ]

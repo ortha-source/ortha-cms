@@ -1,4 +1,7 @@
-import type { ActivityKind, ActivityMeta } from '@ortha-cms/activity-contract';
+import type { ActivityKind } from '../../utils/activityKinds';
+
+/** Open per-kind payload — the admin reads known fields loosely. */
+export type ActivityMeta = Record<string, unknown>;
 
 /**
  * Who performed an action. `null` means a system-initiated event (no actor) —

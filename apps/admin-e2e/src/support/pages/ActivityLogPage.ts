@@ -20,10 +20,6 @@ export class ActivityLogPage extends BasePage {
     readonly kindFilter: Locator;
     /** The actor-email search box. */
     readonly emailSearch: Locator;
-    /** The "From" date input. */
-    readonly fromInput: Locator;
-    /** The "To" date input. */
-    readonly toInput: Locator;
     /** The audit-log table. */
     readonly table: Locator;
 
@@ -41,8 +37,6 @@ export class ActivityLogPage extends BasePage {
         this.emailSearch = page.getByRole('searchbox', {
             name: 'Search by actor email'
         });
-        this.fromInput = page.getByLabel('From');
-        this.toInput = page.getByLabel('To');
         this.table = page.getByRole('table', { name: 'Activity log' });
     }
 
@@ -53,6 +47,25 @@ export class ActivityLogPage extends BasePage {
     /** A table row located by any visible text it contains (email, action…). */
     row(text: string): Locator {
         return this.page.getByRole('row').filter({ hasText: text });
+    }
+
+    /** The expand/collapse toggle inside a row matched by its visible text. */
+    expandToggle(rowText: string): Locator {
+        return this.row(rowText)
+            .getByRole('button', { name: /details/i })
+            .first();
+    }
+
+    /** Expands the first row containing `rowText` to reveal its details panel. */
+    async expandRow(rowText: string) {
+        await this.expandToggle(rowText).click();
+    }
+
+    /** The table loading skeleton — a `role="status"` region. */
+    tableSkeleton(): Locator {
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: /Loading activity/ });
     }
 
     /** Opens the kind filter and selects the option with the given label. */

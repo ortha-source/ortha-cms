@@ -21,6 +21,8 @@ import { AuthGuard } from './auth/guards/auth.guard';
 import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
 import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
 import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
+import { AddWorkspaceMemberController } from './workspaces/controllers/add-workspace-member.controller';
+import { RemoveWorkspaceMemberController } from './workspaces/controllers/remove-workspace-member.controller';
 import { WorkspaceService } from './workspaces/services/workspace.service';
 import { SlugService } from './workspaces/services/slug.service';
 import { MembershipService } from './workspaces/services/membership.service';
@@ -68,6 +70,8 @@ export class IdentityModule {
                 CreateWorkspaceController,
                 ListWorkspacesController,
                 CheckSlugController,
+                AddWorkspaceMemberController,
+                RemoveWorkspaceMemberController,
                 ListContentTypesController
             ],
             providers: [

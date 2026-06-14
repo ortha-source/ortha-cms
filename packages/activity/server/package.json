@@ -17,7 +17,6 @@
     ],
     "dependencies": {
         "@nestjs/common": "^11.0.0",
-        "@ortha-cms/activity-contract": "*",
         "@ortha-cms/bootstrap-server": "*",
         "@ortha-cms/database": "*",
         "@ortha-cms/identity-server": "*",
