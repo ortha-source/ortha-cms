@@ -11,12 +11,12 @@ import {
 import { useWorkspaces } from '../../api/useWorkspaces';
 import { WorkspaceCard } from '../../components/WorkspaceCard';
 import { WorkspaceGridSkeleton } from '../../components/WorkspacesSkeleton';
-import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
+import { WorkspacesEmpty } from './WorkspacesEmpty';
 import {
     WorkspaceToolbar,
     DEFAULT_STATUS,
     type StatusFilter
-} from '../../components/WorkspaceToolbar';
+} from './WorkspaceToolbar';
 import type { Workspace } from '../../types/workspace';
 
 /** Intl descriptors for {@link WorkspacesPage}, co-located with the component. */

@@ -71,9 +71,10 @@ here, make it accessible, and add an admin-e2e suite.
 ## Folder layout — per-module `index` folders, grouped by feature
 
 Each module is its own folder fronted by an `index`; the plugin factory lives in
-`utils/`, pages in `pages/`, presentational pieces in `components/`, the data
-layer in `api/`, shared contracts in `types/`, and reusable logic in `utils/` or
-`hooks/`:
+`utils/`, pages in `pages/`, the data layer in `api/`, shared contracts in
+`types/`, and reusable logic in `utils/` or `hooks/`. Presentational pieces
+**co-locate under their consumer** — only pieces shared across two or more
+consumers (or exported from the barrel) live in `components/`:
 
 ```
 packages/<group>/admin/
@@ -87,11 +88,17 @@ packages/<group>/admin/
         membersKeys/index.ts          # shared query-key factory + list params
         toMember/index.ts             # shared wire types + wire→model mapper
       pages/
-        MembersPage/index.tsx         # a routed page (the container AND view)
+        MembersPage/
+          index.tsx                   # the routed page (container AND view)
+          MembersTable/
+            index.tsx                 # used only by MembersPage → co-located
+            MemberRowActions/index.tsx# used only by MembersTable → nested again
+          MembersToolbar/index.tsx
+          MembersPagination/index.tsx
         InviteMemberPage/index.tsx
       components/
-        MembersTable/index.tsx        # presentational pieces
-        MembersPagination/index.tsx
+        MemberAvatar/index.tsx        # SHARED (table + invite page) → stays here
+        MembersSkeleton/index.tsx     # page body + route Suspense fallback
       api/
         useMembers/index.ts           # fetchMembers + envelope type + useQuery
         useInviteMember/index.ts      # inviteMember + InviteMemberInput + useMutation
@@ -100,6 +107,19 @@ packages/<group>/admin/
       types/
         member/index.ts               # shared, public type contracts
 ```
+
+**Co-locate single-consumer components; promote on reuse.** A presentational
+component imported by exactly **one** other component/page — and not exported
+from the barrel — lives **inside that consumer's folder**, not as a flat sibling
+in `components/`. This cascades: a piece used only by `MembersTable` (itself
+used only by `MembersPage`) nests at `pages/MembersPage/MembersTable/<Piece>/`.
+A component earns a spot in the shared `components/` directory **only** once it
+has **two or more** consumers or is part of the package's public API. Route-level
+`Suspense` fallbacks (skeletons) count as shared — they pair with the lazy route
+in `utils/<plugin>/`, so they stay in `components/`. When a nested component
+later gains a second consumer, move it up to `components/` then (the move is the
+signal it became shared). This keeps structure mirroring the dependency graph:
+where a component sits tells you who can use it.
 
 **Per-module folders, not flat files.** Even a one-file helper gets a
 `<name>/index.ts` folder, for consistency. Tightly co-located sub-modules of a
@@ -471,6 +491,8 @@ The recurring admin-side mistakes a careful review catches:
 - [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` returning
       `{ name, routes, slots? }`; pages lazy + `<Suspense>`.
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
+- [ ] Single-consumer components co-located under their consumer; `components/`
+      holds only shared (≥2 consumers) or barrel-exported pieces.
 - [ ] Data layer: one `api/use*/` folder per hook (request fn + endpoint types +
       the hook); shared mapper + query keys in `lib/utils/` (or the read hook).
 - [ ] `useHasPermission` gating on the query (`enabled`) and write controls;

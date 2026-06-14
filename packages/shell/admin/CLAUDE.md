@@ -60,7 +60,10 @@ its own Home item; feature plugins contribute the rest (Workspaces moved out to
 - `type` over `interface`; JSDoc on exports; `import type` for type-only imports
 - Every module is a `<name>/index.ts(x)` folder — components in
   `src/lib/components/<Name>/`, pages in `src/lib/pages/<Name>/`, the plugin
-  factory in `src/lib/utils/shellPlugin/` (`camelCase` for non-components)
+  factory in `src/lib/utils/shellPlugin/` (`camelCase` for non-components). A
+  single-consumer, non-exported component co-locates under its consumer:
+  `NavbarNavButton` lives in `AppShell/NavbarNavButton/` (only `AppShell` uses
+  it), not in `components/`.
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `shell.<area>.<key>`
 - UI is built from `@ortha-cms/design-system` components, not bespoke markup

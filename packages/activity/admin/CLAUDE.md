@@ -26,6 +26,14 @@ to `pageCount` after a filter narrows the result.
 
 ## Conventions
 
+- Single-consumer components co-locate **under their consumer**: a piece used by
+  exactly one page/parent (and not barrel-exported) lives inside that consumer's
+  folder, cascading by depth (`ActivityToolbar`, `ActivityPagination`,
+  `ActivityEmpty`, `ActivityNoAccess`, and the `ActivityTable` under
+  `pages/ActivityLogPage/`; the cells `ActivityActionCell`/`ActivityActorCell`/
+  `ActivitySubjectCell` under `…/ActivityTable/`). Only **shared** pieces stay in
+  `components/` — here just `ActivityLogSkeleton` (consumed by both the page's
+  `isPending` body and the lazy route's `Suspense` fallback).
 - Per-hook data layer: `api/useActivityLog/` (its own request fn + envelope
   type), shared `utils/activityKeys` + `utils/toActivityEvent` (wire→model).
 - `utils/activityKinds` restates the kind strings locally (the admin can't
