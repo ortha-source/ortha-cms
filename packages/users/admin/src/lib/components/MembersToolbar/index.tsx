@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Search } from 'lucide-react';
 import {
@@ -19,16 +20,19 @@ const messages = defineMessages({
 });
 
 /**
- * The table toolbar: a single search box filtering members by name or email.
- * Deliberately filterless beyond search — no role or status filters on this
- * page.
+ * The table toolbar: a search box filtering members by name or email, plus an
+ * optional advanced-filter control (the query-builder drawer trigger). The page
+ * owns the filter state.
  */
 export function MembersToolbar({
     search,
-    onSearchChange
+    onSearchChange,
+    filterControl
 }: {
     search: string;
     onSearchChange: (value: string) => void;
+    /** Optional advanced-filter control rendered after the search box. */
+    filterControl?: ReactNode;
 }) {
     const intl = useIntl();
 
@@ -46,6 +50,7 @@ export function MembersToolbar({
                     placeholder={intl.formatMessage(messages.searchPlaceholder)}
                 />
             </InputGroup>
+            {filterControl}
         </div>
     );
 }

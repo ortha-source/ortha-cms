@@ -160,6 +160,71 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Previous page' });
     }
 
+    // --- query-builder filter drawer ---
+
+    /** The toolbar "Filters" trigger (its label carries the active count). */
+    filterTrigger(): Locator {
+        return this.page.getByRole('button', { name: /^Filters/ });
+    }
+
+    /** The query-builder drawer surface (a modal dialog titled "Query Builder"). */
+    filterDrawer(): Locator {
+        return this.page.getByRole('dialog', { name: 'Query Builder' });
+    }
+
+    /** Open the filter drawer. */
+    async openFilters() {
+        await this.filterTrigger().click();
+        await this.filterDrawer().waitFor();
+    }
+
+    /** Add a rule to the (root) group. */
+    async addRule() {
+        await this.filterDrawer()
+            .getByRole('button', { name: 'Add rule' })
+            .click();
+    }
+
+    /** The field / operator / value comboboxes of the first rule, in order. */
+    private ruleCombobox(index: number): Locator {
+        return this.filterDrawer().getByRole('combobox').nth(index);
+    }
+
+    /** Pick a field for the first rule by its visible label (e.g. "Status"). */
+    async selectField(label: string) {
+        await this.ruleCombobox(0).click();
+        await this.page
+            .getByRole('option', { name: label, exact: true })
+            .click();
+    }
+
+    /** Pick an enum value for the first rule (the third combobox). */
+    async selectEnumValue(label: string) {
+        await this.ruleCombobox(2).click();
+        await this.page
+            .getByRole('option', { name: label, exact: true })
+            .click();
+    }
+
+    /** Type a scalar value into the first rule's text input. */
+    async fillValue(value: string) {
+        await this.filterDrawer().getByRole('textbox').last().fill(value);
+    }
+
+    /** Commit the drawer's draft to the URL. */
+    async applyFilters() {
+        await this.filterDrawer()
+            .getByRole('button', { name: 'Apply' })
+            .click();
+    }
+
+    /** Clear all conditions from the drawer. */
+    async resetFilters() {
+        await this.filterDrawer()
+            .getByRole('button', { name: 'Reset' })
+            .click();
+    }
+
     // --- empty / no-access states ---
 
     noAccessText(): Locator {

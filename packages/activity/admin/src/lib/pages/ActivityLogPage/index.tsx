@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { Filter } from 'lucide-react';
+import {
+    QueryBuilderDrawer,
+    countRules,
+    jsonFilterToTree,
+    treeToJsonFilter,
+    type FilterGroup
+} from '@ortha-cms/query-builder-admin';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useDebouncedValue } from '@ortha-cms/utils-admin';
 import {
@@ -17,6 +25,7 @@ import { ActivityNoAccess } from '../../components/ActivityNoAccess';
 import { ActivityPagination } from '../../components/ActivityPagination';
 import { ActivityTable } from '../../components/ActivityTable';
 import { ActivityToolbar } from '../../components/ActivityToolbar';
+import { ACTIVITY_FILTER_FIELDS } from '../../utils/activityFilterFields';
 import type { ActivityListParams } from '../../utils/activityKeys';
 
 /** Intl descriptors for {@link ActivityLogPage}, co-located with the component. */
@@ -37,6 +46,10 @@ const messages = defineMessages({
     retry: {
         id: 'activity.page.retry',
         defaultMessage: 'Retry'
+    },
+    filters: {
+        id: 'activity.page.filters',
+        defaultMessage: 'Filters{count, plural, =0 {} other { (#)}}'
     }
 });
 
@@ -65,8 +78,17 @@ export function ActivityLogPage() {
 
     // The URL is the source of truth for the search filter.
     const emailParam = searchParams.get('actorEmail') ?? '';
+    const filterParam = searchParams.get('filter') ?? '';
     const page = readInt(searchParams.get('page'), 1);
     const pageSize = readInt(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
+
+    // Rehydrate the applied filter tree from the URL for the drawer. Keyed on
+    // the raw param so a deep-linked or hand-edited filter restores on load.
+    const appliedFilter = useMemo(
+        () => jsonFilterToTree(new URLSearchParams({ filter: filterParam })),
+        [filterParam]
+    );
+    const ruleCount = countRules(appliedFilter);
 
     // The email box is debounced locally, then pushed into the URL.
     const [emailInput, setEmailInput] = useState(emailParam);
@@ -102,9 +124,18 @@ export function ActivityLogPage() {
 
     const params: ActivityListParams = {
         actorEmail: emailParam || undefined,
+        filter: filterParam || undefined,
         page,
         pageSize
     };
+
+    /** Commit (or clear) the query-builder filter to the URL. */
+    const applyFilter = useCallback(
+        (next: FilterGroup | null) => {
+            updateParams({ filter: treeToJsonFilter(next) ?? undefined });
+        },
+        [updateParams]
+    );
 
     const { data, isPending, isError, isPlaceholderData, refetch } =
         useActivityLog(params, canRead);
@@ -137,7 +168,7 @@ export function ActivityLogPage() {
     }
 
     const events = data?.items ?? [];
-    const hasFilters = Boolean(emailParam);
+    const hasFilters = Boolean(emailParam) || ruleCount > 0;
 
     const clearFilters = () => {
         setEmailInput('');
@@ -156,6 +187,21 @@ export function ActivityLogPage() {
             <ActivityToolbar
                 email={emailInput}
                 onEmailChange={setEmailInput}
+                filterControl={
+                    <QueryBuilderDrawer
+                        fields={ACTIVITY_FILTER_FIELDS}
+                        value={appliedFilter}
+                        onApply={applyFilter}
+                        trigger={
+                            <Button variant="outline" className="shadow-none">
+                                <Filter aria-hidden className="size-4" />
+                                {intl.formatMessage(messages.filters, {
+                                    count: ruleCount
+                                })}
+                            </Button>
+                        }
+                    />
+                }
             />
 
             {isPending ? (

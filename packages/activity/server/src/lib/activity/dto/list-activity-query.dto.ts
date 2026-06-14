@@ -12,6 +12,7 @@ import {
     Min
 } from 'class-validator';
 import {
+    FILTER_MAX_LENGTH,
     MAX_PAGE_SIZE,
     SORTABLE_FIELDS,
     SORT_ORDERS,
@@ -69,6 +70,18 @@ export class ListActivityQueryDto {
     @IsString()
     @MaxLength(255)
     actorEmail?: string;
+
+    /**
+     * Structured filter tree as a JSON string (`?filter=<json>`), produced by
+     * the admin query builder and validated against the activity filter schema
+     * by `parseFilterTree`. Length-capped here as a first line of defence; the
+     * engine's node/depth caps bound the parsed shape. AND-ed with the other
+     * params.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(FILTER_MAX_LENGTH)
+    filter?: string;
 
     /** Inclusive lower bound on the event time (ISO 8601). */
     @IsOptional()

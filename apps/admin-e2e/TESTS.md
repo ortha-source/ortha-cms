@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_87 test cases across 13 spec files._
+_93 test cases across 14 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
@@ -140,6 +140,20 @@ _<sub>apps/admin-e2e/src/users/keyboard.spec.ts</sub>_
 | search filters as you type |
 | the invite wizard opens from the keyboard |
 | the row menu opens from the keyboard |
+
+<!-- source: apps/admin-e2e/src/users/members-filter.spec.ts -->
+_<sub>apps/admin-e2e/src/users/members-filter.spec.ts</sub>_
+
+## Members filter (query builder)
+
+| Test case |
+| --- |
+| opens the filter drawer from the toolbar |
+| filters the roster by status and deep-links the choice |
+| reflects the active condition count on the trigger |
+| restores the filter from a deep link on load |
+| the open drawer with a rule is accessible (axe) |
+| Reset clears the filter and restores the full roster |
 
 <!-- source: apps/admin-e2e/src/users/members.spec.ts -->
 _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_

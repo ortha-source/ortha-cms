@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import { ActivityService } from '@ortha-cms/activity-server';
 import {
     memberships,
@@ -27,6 +28,7 @@ import type {
     MemberWorkspaceView
 } from '../types/member-view';
 import { DEFAULT_PAGE_SIZE, type AssignableRoleKey } from '../users.constants';
+import { USERS_FILTER_SCHEMA } from '../users-filter';
 import { InviteTokenService } from './invite-token.service';
 
 /** A member row as selected from `users ⋈ roles`, before view assembly. */
@@ -81,7 +83,7 @@ export class UsersService {
     async list(query: ListUsersQueryDto): Promise<MemberListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-        const where = this.listPredicate(query);
+        const where = await this.listWhere(query);
 
         const [{ total }] = await this.db
             .select({ total: count() })
@@ -515,6 +517,25 @@ export class UsersService {
             this.searchPredicate(query.search),
             query.status ? eq(users.status, query.status) : undefined
         );
+    }
+
+    /**
+     * The full `where` for the list: the structured `search` / `status` params
+     * AND-ed with the optional query-builder `?filter=` tree. The filter is
+     * parsed and translated against {@link USERS_FILTER_SCHEMA} (the `role`
+     * relation resolves to an `EXISTS (… roles …)` subquery, so it composes
+     * into both the count and page queries without a join); a malformed filter
+     * throws a `FilterException` (HTTP 400).
+     */
+    private async listWhere(query: ListUsersQueryDto) {
+        const tree = parseFilterTree(query.filter, USERS_FILTER_SCHEMA);
+        const filterSql = await applyFilterTree(
+            tree,
+            USERS_FILTER_SCHEMA,
+            users,
+            this.db
+        );
+        return and(this.listPredicate(query), filterSql);
     }
 
     /**

@@ -8,7 +8,7 @@ import {
     MaxLength,
     Min
 } from 'class-validator';
-import { MAX_PAGE_SIZE } from '../users.constants';
+import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../users.constants';
 
 /** Account statuses a caller may filter the list by. */
 const FILTERABLE_STATUSES = ['pending', 'active', 'disabled'] as const;
@@ -34,6 +34,18 @@ export class ListUsersQueryDto {
     @IsOptional()
     @IsIn(FILTERABLE_STATUSES)
     status?: (typeof FILTERABLE_STATUSES)[number];
+
+    /**
+     * Structured filter tree as a JSON string (`?filter=<json>`), produced by
+     * the admin query builder and validated against the user filter schema by
+     * `parseFilterTree`. Length-capped here as a first line of defence; the
+     * engine's node/depth caps bound the parsed shape. AND-ed with
+     * `search` / `status`.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(FILTER_MAX_LENGTH)
+    filter?: string;
 
     /** 1-based page number. */
     @IsOptional()

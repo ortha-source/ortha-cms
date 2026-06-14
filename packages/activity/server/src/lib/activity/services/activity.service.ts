@@ -1,12 +1,24 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    count,
+    desc,
+    eq,
+    gte,
+    ilike,
+    inArray,
+    lte
+} from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import type {
     ActivityExecutor,
     ActivityRecorder,
     ActivityRecordInput
 } from '@ortha-cms/identity-server';
 import { activityEvents } from '../../schema';
+import { ACTIVITY_FILTER_SCHEMA } from '../activity-filter';
 import { DEFAULT_PAGE_SIZE, type SortableField } from '../activity.constants';
 import type { ListActivityQueryDto } from '../dto/list-activity-query.dto';
 import type {
@@ -61,7 +73,7 @@ export class ActivityService implements ActivityRecorder {
     async list(query: ListActivityQueryDto): Promise<ActivityListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-        const where = this.listPredicate(query);
+        const where = await this.listWhere(query);
         const sortColumn = SORT_COLUMNS[query.sort ?? 'at'];
         const direction = query.order === 'asc' ? asc : desc;
 
@@ -88,10 +100,12 @@ export class ActivityService implements ActivityRecorder {
             .offset((page - 1) * pageSize);
 
         return {
-            items: rows.map((row): ActivityEventView => ({
-                ...row,
-                meta: (row.meta as Record<string, unknown> | null) ?? null
-            })),
+            items: rows.map(
+                (row): ActivityEventView => ({
+                    ...row,
+                    meta: (row.meta as Record<string, unknown> | null) ?? null
+                })
+            ),
             total,
             page,
             pageSize
@@ -99,9 +113,27 @@ export class ActivityService implements ActivityRecorder {
     }
 
     /**
-     * The combined `where` for the list: every supplied filter intersected
-     * (AND). `and(undefined, …)` collapses to no filter, so an unfiltered list
-     * scans everything.
+     * The full `where` for the list: the structured params (`listPredicate`)
+     * AND-ed with the optional query-builder `?filter=` tree. The filter is
+     * parsed and translated against {@link ACTIVITY_FILTER_SCHEMA}; a malformed
+     * filter throws a `FilterException` (HTTP 400). `and(undefined, …)`
+     * collapses cleanly, so an unfiltered list still scans everything.
+     */
+    private async listWhere(query: ListActivityQueryDto) {
+        const tree = parseFilterTree(query.filter, ACTIVITY_FILTER_SCHEMA);
+        const filterSql = await applyFilterTree(
+            tree,
+            ACTIVITY_FILTER_SCHEMA,
+            activityEvents,
+            this.db
+        );
+        return and(this.listPredicate(query), filterSql);
+    }
+
+    /**
+     * The structured-param `where` for the list: every supplied filter
+     * intersected (AND). `and(undefined, …)` collapses to no filter, so an
+     * unfiltered list scans everything.
      */
     private listPredicate(query: ListActivityQueryDto) {
         return and(
@@ -111,7 +143,9 @@ export class ActivityService implements ActivityRecorder {
             query.subjectId
                 ? eq(activityEvents.subjectId, query.subjectId)
                 : undefined,
-            query.actorId ? eq(activityEvents.actorId, query.actorId) : undefined,
+            query.actorId
+                ? eq(activityEvents.actorId, query.actorId)
+                : undefined,
             query.kind && query.kind.length > 0
                 ? inArray(activityEvents.kind, query.kind)
                 : undefined,

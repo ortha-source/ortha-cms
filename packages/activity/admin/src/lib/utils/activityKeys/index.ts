@@ -2,6 +2,8 @@
 export type ActivityListParams = {
     /** Case-insensitive actor-email substring; omit for no filter. */
     actorEmail?: string;
+    /** Query-builder filter tree as a JSON string; omit for no structured filter. */
+    filter?: string;
     /** 1-based page number; the server defaults to 1. */
     page?: number;
     /** Rows per page; the server defaults to its own page size. */
@@ -22,6 +24,5 @@ export const activityKeys = {
     /** Root key covering every activity query. */
     all: ['activity'] as const,
     /** One list page for the given params. */
-    list: (params: ActivityListParams) =>
-        ['activity', 'list', params] as const
+    list: (params: ActivityListParams) => ['activity', 'list', params] as const
 };

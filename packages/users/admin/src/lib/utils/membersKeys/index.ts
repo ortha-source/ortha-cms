@@ -2,6 +2,8 @@
 export type MembersListParams = {
     /** Case-insensitive name/email substring; omit for no filter. */
     search?: string;
+    /** Query-builder filter tree as a JSON string; omit for no structured filter. */
+    filter?: string;
     /** 1-based page number; the server defaults to 1. */
     page?: number;
     /** Rows per page; the server defaults to its own page size. */
