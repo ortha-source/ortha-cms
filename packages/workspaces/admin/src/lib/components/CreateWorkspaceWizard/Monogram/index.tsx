@@ -1,16 +1,5 @@
 import { avatarColorVar, cn, type AvatarColor } from '@ortha-cms/design-system';
-
-/** Up-to-two-letter initials from a name; falls back to a dash. */
-function initialsOf(name: string): string {
-    const initials = name
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-    return initials || '—';
-}
+import { initialsOf } from '@ortha-cms/utils-admin';
 
 /** Props for {@link Monogram}. */
 export type MonogramProps = {
@@ -37,7 +26,7 @@ export function Monogram({ name, color, className }: MonogramProps) {
             )}
             style={{ backgroundColor: avatarColorVar(color) }}
         >
-            {initialsOf(name)}
+            {initialsOf(name) || '—'}
         </div>
     );
 }

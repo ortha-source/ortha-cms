@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@ortha-cms/design-system';
+import { initialsOf } from '@ortha-cms/utils-admin';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import { StatusChip } from './StatusChip';
 import { MemberStack } from './MemberStack';
-import { initialsOf } from '../../utils/initialsOf';
 import type { Workspace } from '../../types/workspace';
 
 /**

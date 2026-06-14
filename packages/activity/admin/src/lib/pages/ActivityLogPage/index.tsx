@@ -80,15 +80,10 @@ export function ActivityLogPage() {
                 (prev) => {
                     const next = new URLSearchParams(prev);
                     for (const [key, value] of Object.entries(patch)) {
-                        if (value === undefined || value === '') {
-                            next.delete(key);
-                        } else {
-                            next.set(key, value);
-                        }
+                        if (value) next.set(key, value);
+                        else next.delete(key);
                     }
-                    if (resetPage) {
-                        next.delete('page');
-                    }
+                    if (resetPage) next.delete('page');
                     return next;
                 },
                 { replace: true }

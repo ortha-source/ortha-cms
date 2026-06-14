@@ -32,7 +32,9 @@ workspaces), gated the same way.
   `MembersSkeleton` (the page's `isPending` body, the invite page, and the lazy
   routes' `Suspense` fallback).
 - Per-hook data layer in `api/` (each hook owns its request fn), shared
-  `utils/membersKeys`; types in `types/member`.
+  `utils/membersKeys`; types in `types/member`. Presentation-only member
+  initials/avatar colors come from the shared `initialsOf`/`asAvatarColor`/
+  `avatarColorForId` in `@ortha-cms/utils-admin` (no local `utils/` copies).
 - Co-located `defineMessages` (ids `users.<area>.<key>`); `type` over
   `interface`; design-system primitives only; a11y per the `accessibility` skill.
 

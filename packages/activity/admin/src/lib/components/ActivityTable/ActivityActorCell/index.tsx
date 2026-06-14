@@ -2,10 +2,10 @@ import { defineMessages, useIntl } from 'react-intl';
 import {
     Avatar,
     AvatarFallback,
-    AVATAR_COLORS,
     avatarColorVar,
     cn
 } from '@ortha-cms/design-system';
+import { avatarColorForId, initialsFromEmail } from '@ortha-cms/utils-admin';
 import type { ActivityActor } from '../../../types/activityEvent';
 
 /** Intl descriptors for {@link ActivityActorCell}, co-located. */
@@ -19,27 +19,6 @@ const messages = defineMessages({
         defaultMessage: 'Unknown'
     }
 });
-
-/** Up-to-two-letter uppercase initials from an email's local part. */
-function initialsFor(email: string): string {
-    const local = email.split('@')[0] ?? email;
-    return local
-        .split(/[.\-_+]+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-}
-
-/** A stable accent color derived by hashing the actor id into the palette. */
-function colorForId(id: string) {
-    let hash = 0;
-    for (let index = 0; index < id.length; index++) {
-        hash = (hash + id.charCodeAt(index)) % AVATAR_COLORS.length;
-    }
-    return AVATAR_COLORS[hash];
-}
 
 /**
  * The "Actor" cell: an initials avatar plus the actor's email. A `null` actor
@@ -65,10 +44,12 @@ export function ActivityActorCell({ actor }: { actor: ActivityActor }) {
             <Avatar
                 aria-hidden
                 className={cn('size-8 shrink-0 rounded-full text-xs')}
-                style={{ backgroundColor: avatarColorVar(colorForId(actor.id)) }}
+                style={{
+                    backgroundColor: avatarColorVar(avatarColorForId(actor.id))
+                }}
             >
                 <AvatarFallback className="rounded-[inherit] bg-transparent font-semibold text-white">
-                    {actor.email ? initialsFor(actor.email) : '?'}
+                    {actor.email ? initialsFromEmail(actor.email) : '?'}
                 </AvatarFallback>
             </Avatar>
             <span className="truncate text-sm">{label}</span>
