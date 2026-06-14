@@ -31,4 +31,16 @@ export type {
     RootAdminBootstrapResult
 } from './lib/root-admin/services/root-admin.service';
 export { MissingRootAdminPasswordError } from './lib/root-admin/errors';
+export {
+    ACTIVITY_RECORDER
+} from './lib/activity/activity-recorder';
+export type {
+    ActivityRecorder,
+    ActivityRecordInput,
+    ActivityExecutor
+} from './lib/activity/activity-recorder';
+export {
+    IDENTITY_ACTIVITY_KINDS
+} from './lib/activity/activity-kinds';
+export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export * from './lib/schema';

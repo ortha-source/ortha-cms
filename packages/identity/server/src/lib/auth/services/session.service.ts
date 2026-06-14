@@ -18,6 +18,13 @@ export interface SessionContext {
     ipAddress?: string | null;
 }
 
+/**
+ * The query surface `create`/`revoke` accept: the root client or an open
+ * transaction. Typed so the auth flows can record an audit row in the **same**
+ * transaction that opens or revokes the session.
+ */
+export type SessionExecutor = Pick<Database, 'insert' | 'update'>;
+
 /** A freshly created session: the opaque token for the client and its expiry. */
 export interface CreatedSession {
     /**
@@ -52,14 +59,15 @@ export class SessionService {
      */
     async create(
         userId: string,
-        context: SessionContext = {}
+        context: SessionContext = {},
+        executor: SessionExecutor = this.db
     ): Promise<CreatedSession> {
         const token = randomBytes(32).toString('base64url');
         const expiresAt = new Date(
             Date.now() + this.config.session.ttlSeconds * 1000
         );
 
-        await this.db.insert(sessions).values({
+        await executor.insert(sessions).values({
             id: this.hashing.hashToken(token),
             userId,
             expiresAt,
@@ -115,13 +123,20 @@ export class SessionService {
      * or already-revoked token is a no-op (the `revokedAt IS NULL` guard keeps
      * the original revoke time). Only the matching row is touched, so the
      * user's other sessions stay valid: this is a per-device logout, not a
-     * global one.
+     * global one. Returns the revoked session's owner so the caller can record
+     * the sign-out, or `null` when nothing was revoked (unknown/already-revoked
+     * token), keeping the audit trail free of phantom logout events.
      */
-    async revoke(token: string): Promise<void> {
+    async revoke(
+        token: string,
+        executor: SessionExecutor = this.db
+    ): Promise<{ userId: string } | null> {
         const id = this.hashing.hashToken(token);
-        await this.db
+        const [revoked] = await executor
             .update(sessions)
             .set({ revokedAt: new Date() })
-            .where(and(eq(sessions.id, id), isNull(sessions.revokedAt)));
+            .where(and(eq(sessions.id, id), isNull(sessions.revokedAt)))
+            .returning({ userId: sessions.userId });
+        return revoked ?? null;
     }
 }

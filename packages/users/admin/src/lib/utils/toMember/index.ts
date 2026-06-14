@@ -1,6 +1,9 @@
+import {
+    asAvatarColor,
+    avatarColorForId,
+    initialsOf
+} from '@ortha-cms/utils-admin';
 import type { Member, MemberRole, MemberStatus, MemberWorkspace } from '../../types/member';
-import { initialsOf } from '../initialsOf';
-import { asAvatarColor, avatarColorForId } from '../avatarColor';
 
 // The shared wire→model contract for a member. The admin can't import the
 // server package (separate apps / module boundaries), so these wire types

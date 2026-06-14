@@ -6,6 +6,7 @@ import {
     Badge,
     Button
 } from '@ortha-cms/design-system';
+import { initialsOf } from '@ortha-cms/utils-admin';
 import type { MemberDraft } from '../../../../types/wizard';
 
 const messages = defineMessages({
@@ -18,19 +19,6 @@ const messages = defineMessages({
         defaultMessage: 'Remove {name}'
     }
 });
-
-/** Up-to-two-letter initials from a name. */
-function initialsOf(name: string): string {
-    return (
-        name
-            .split(/\s+/)
-            .filter(Boolean)
-            .map((part) => part[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase() || '—'
-    );
-}
 
 /** Props for {@link MemberRow}. */
 export type MemberRowProps = {
@@ -55,7 +43,7 @@ export function MemberRow({ member, onRemove }: MemberRowProps) {
                         <Mail className="size-4 text-muted-foreground" />
                     ) : (
                         <span className="text-xs font-medium">
-                            {initialsOf(member.name)}
+                            {initialsOf(member.name) || '—'}
                         </span>
                     )}
                 </AvatarFallback>

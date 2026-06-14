@@ -341,6 +341,14 @@ careful review checks:
   surfacing pending/disabled accounts as assignable.
 - **No enumeration signal** in security-sensitive responses (also under
   Controllers) — keep "this email exists" out of distinguishable errors/timing.
+- **Record audit events in-band, not after the fact.** A state-changing
+  operation that's audit-worthy records via the `ACTIVITY_RECORDER` token (or
+  `ActivityService` for a plugin that may depend on activity), passing the
+  mutation's `tx` as the executor — so the audit row commits iff the mutation
+  does. Recording out-of-band (post-commit, or via an event emitter) means a
+  rolled-back mutation can still leave an audit row, or a committed one can
+  silently drop it. Each plugin owns its own kinds. See
+  [`packages/activity/server/CLAUDE.md`](../../../packages/activity/server/CLAUDE.md).
 
 ## TypeScript conventions (match the existing packages)
 
@@ -376,6 +384,8 @@ plugin needs true cross-origin should a `cors` option be added to `createServer`
 - [ ] Concurrency-sensitive invariants locked (`FOR UPDATE` / serializable), not
       a `count()` inside a transaction; consolidated endpoints keep prior
       filters + validation.
+- [ ] State-changing endpoints record an audit event in-band (mutation's `tx` as
+      the executor) when the action is audit-worthy.
 - [ ] Public barrel `src/index.ts`.
 - [ ] Schema + `drizzle.config.ts` + `migrations/` if DB-backed.
 - [ ] Registered in `apps/server/src/plugins.ts` (after `DatabasePlugin`) and

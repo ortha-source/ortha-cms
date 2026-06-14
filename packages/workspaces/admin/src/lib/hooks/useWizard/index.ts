@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@ortha-cms/identity-admin';
+import { initialsOf } from '@ortha-cms/utils-admin';
 import type { AvatarColor } from '@ortha-cms/design-system';
 import { useContentTypes } from '../../api/useContentTypes';
 import { useCreateWorkspace } from '../../api/useCreateWorkspace';
@@ -33,17 +34,6 @@ const INITIAL_DATA: WizardData = {
 
 const clampStep = (n: number) =>
     Math.min(MAX_STEP, Math.max(MIN_STEP, Number.isFinite(n) ? n : MIN_STEP));
-
-/** Up-to-two-letter initials from a display name. */
-function initialsOf(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-}
 
 /** The full controller returned by {@link useWizard}. */
 export type WizardController = {

@@ -8,8 +8,10 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@ortha-cms/identity-server';
 import { InvalidMemberStateError, MemberNotFoundError } from '../errors';
 import { UsersService } from '../services/users.service';
@@ -28,9 +30,12 @@ export class ResendInviteController {
     constructor(private readonly users: UsersService) {}
 
     @Post(':id/invites/resend')
-    async resend(@Param('id', ParseUUIDPipe) id: string): Promise<MemberView> {
+    async resend(
+        @CurrentUser() actor: PublicUser,
+        @Param('id', ParseUUIDPipe) id: string
+    ): Promise<MemberView> {
         try {
-            return await this.users.resendInvite(id);
+            return await this.users.resendInvite(actor, id);
         } catch (error) {
             if (error instanceof MemberNotFoundError) {
                 throw new NotFoundException();

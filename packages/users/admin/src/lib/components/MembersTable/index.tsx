@@ -8,10 +8,10 @@ import {
     TableRow
 } from '@ortha-cms/design-system';
 import { MemberAvatar } from '../MemberAvatar';
-import { MemberRoleChip } from '../MemberRoleChip';
-import { MemberRowActions } from '../MemberRowActions';
-import { MemberStatusBadge } from '../MemberStatusBadge';
-import { MemberWorkspaces } from '../MemberWorkspaces';
+import { MemberRoleChip } from './MemberRoleChip';
+import { MemberRowActions } from './MemberRowActions';
+import { MemberStatusBadge } from './MemberStatusBadge';
+import { MemberWorkspaces } from './MemberWorkspaces';
 import type { Member } from '../../types/member';
 
 /** Intl descriptors for {@link MembersTable}, co-located with the component. */

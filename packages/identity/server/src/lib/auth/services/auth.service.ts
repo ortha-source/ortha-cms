@@ -1,7 +1,12 @@
 import { randomBytes } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import {
+    ACTIVITY_RECORDER,
+    type ActivityRecorder
+} from '../../activity/activity-recorder';
+import { IDENTITY_ACTIVITY_KINDS } from '../../activity/activity-kinds';
 import { users } from '../../schema';
 import { HashingService } from './hashing.service';
 import {
@@ -40,7 +45,10 @@ export class AuthService {
     constructor(
         @InjectDatabase() private readonly db: Database,
         private readonly sessions: SessionService,
-        private readonly hashing: HashingService
+        private readonly hashing: HashingService,
+        @Optional()
+        @Inject(ACTIVITY_RECORDER)
+        private readonly recorder?: ActivityRecorder
     ) {}
 
     /**
@@ -58,6 +66,7 @@ export class AuthService {
         const [user] = await this.db
             .select({
                 id: users.id,
+                email: users.email,
                 passwordHash: users.passwordHash,
                 status: users.status
             })
@@ -77,7 +86,22 @@ export class AuthService {
             throw new InvalidCredentialsError();
         }
 
-        return this.sessions.create(user.id, context);
+        // Open the session and record the sign-in in one transaction, so the
+        // audit row commits iff the session does (in-band, never dropped).
+        return this.db.transaction(async (tx) => {
+            const session = await this.sessions.create(user.id, context, tx);
+            await this.recorder?.record(
+                {
+                    kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN,
+                    subjectType: 'user',
+                    subjectId: user.id,
+                    actorId: user.id,
+                    actorEmail: user.email
+                },
+                tx
+            );
+            return session;
+        });
     }
 
     /**
@@ -112,7 +136,27 @@ export class AuthService {
      * owns reading the cookie and clearing it.
      */
     async logout(sessionId: string): Promise<void> {
-        await this.sessions.revoke(sessionId);
+        await this.db.transaction(async (tx) => {
+            const revoked = await this.sessions.revoke(sessionId, tx);
+            // Nothing revoked (unknown/already-revoked token) → no audit row.
+            if (!revoked || !this.recorder) {
+                return;
+            }
+            const [actor] = await tx
+                .select({ email: users.email })
+                .from(users)
+                .where(eq(users.id, revoked.userId));
+            await this.recorder.record(
+                {
+                    kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT,
+                    subjectType: 'user',
+                    subjectId: revoked.userId,
+                    actorId: revoked.userId,
+                    actorEmail: actor?.email ?? null
+                },
+                tx
+            );
+        });
     }
 
     private getDummyHash(): Promise<string> {

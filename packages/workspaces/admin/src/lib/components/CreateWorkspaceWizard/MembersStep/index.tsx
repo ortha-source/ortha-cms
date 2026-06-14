@@ -6,6 +6,7 @@ import {
     Badge,
     Separator
 } from '@ortha-cms/design-system';
+import { initialsOf } from '@ortha-cms/utils-admin';
 import type { MemberDraft } from '../../../types/wizard';
 import { MemberRow } from './MemberRow';
 import { MemberTypeahead } from './MemberTypeahead';
@@ -29,19 +30,6 @@ const messages = defineMessages({
             "It's just you for now. Add teammates above, or skip and invite them later."
     }
 });
-
-/** Up-to-two-letter initials from a name. */
-function initialsOf(name: string): string {
-    return (
-        name
-            .split(/\s+/)
-            .filter(Boolean)
-            .map((part) => part[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase() || '—'
-    );
-}
 
 /** Props for {@link MembersStep}. */
 export type MembersStepProps = {
@@ -88,7 +76,7 @@ export function MembersStep({
                         <Avatar className="size-9">
                             <AvatarFallback>
                                 <span className="text-xs font-medium">
-                                    {initialsOf(ownerName)}
+                                    {initialsOf(ownerName) || '—'}
                                 </span>
                             </AvatarFallback>
                         </Avatar>

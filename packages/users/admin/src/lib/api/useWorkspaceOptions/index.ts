@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import {
+    apiClient,
+    asAvatarColor,
+    initialsOf,
+    toApiError
+} from '@ortha-cms/utils-admin';
 import type { AvatarColor } from '@ortha-cms/design-system';
-import { asAvatarColor } from '../../utils/avatarColor';
-import { initialsOf } from '../../utils/initialsOf';
 
 /** A workspace as the invite wizard's assignment step renders it. */
 export type WorkspaceOption = {

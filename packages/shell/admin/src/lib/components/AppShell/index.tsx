@@ -9,7 +9,7 @@ import {
     NavbarSpacer
 } from '@ortha-cms/design-system';
 import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
-import { NavbarNavButton } from '../NavbarNavButton';
+import { NavbarNavButton } from './NavbarNavButton';
 
 /** Intl descriptors for {@link AppShell}, co-located with the component. */
 const messages = defineMessages({

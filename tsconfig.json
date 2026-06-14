@@ -50,6 +50,12 @@
         },
         {
             "path": "./packages/users/admin"
+        },
+        {
+            "path": "./packages/activity/server"
+        },
+        {
+            "path": "./packages/activity/admin"
         }
     ]
 }

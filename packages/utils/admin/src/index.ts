@@ -6,3 +6,5 @@ export { createSlot } from './lib/slot';
 export type { Slot, SlotContribution } from './lib/slot';
 export { slugify } from './lib/slugify';
 export { useDebouncedValue } from './lib/useDebouncedValue';
+export { asAvatarColor, avatarColorForId } from './lib/avatarColor';
+export { initialsOf, initialsFromEmail } from './lib/initials';

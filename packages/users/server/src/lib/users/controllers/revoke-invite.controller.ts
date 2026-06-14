@@ -10,8 +10,10 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@ortha-cms/identity-server';
 import { InvalidMemberStateError, MemberNotFoundError } from '../errors';
 import { UsersService } from '../services/users.service';
@@ -30,9 +32,12 @@ export class RevokeInviteController {
 
     @Delete(':id/invites')
     @HttpCode(HttpStatus.NO_CONTENT)
-    async revoke(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    async revoke(
+        @CurrentUser() actor: PublicUser,
+        @Param('id', ParseUUIDPipe) id: string
+    ): Promise<void> {
         try {
-            await this.users.revokeInvite(id);
+            await this.users.revokeInvite(actor, id);
         } catch (error) {
             if (error instanceof MemberNotFoundError) {
                 throw new NotFoundException();

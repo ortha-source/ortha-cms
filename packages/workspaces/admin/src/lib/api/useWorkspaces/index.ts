@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import { apiClient, initialsOf, toApiError } from '@ortha-cms/utils-admin';
 import { AVATAR_COLORS, type AvatarColor } from '@ortha-cms/design-system';
 import type {
     Workspace,
     WorkspaceMember,
     WorkspaceStatus
 } from '../../types/workspace';
-import { initialsOf } from '../../utils/initialsOf';
 
 /** A member as `GET /api/workspaces` returns it (presentation fields derived). */
 export interface WorkspaceMemberView {

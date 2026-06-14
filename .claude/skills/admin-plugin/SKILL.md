@@ -71,9 +71,11 @@ here, make it accessible, and add an admin-e2e suite.
 ## Folder layout — per-module `index` folders, grouped by feature
 
 Each module is its own folder fronted by an `index`; the plugin factory lives in
-`utils/`, pages in `pages/`, presentational pieces in `components/`, the data
-layer in `api/`, shared contracts in `types/`, and reusable logic in `utils/` or
-`hooks/`:
+`utils/`, pages in `pages/`, **all** presentational components in `components/`,
+the data layer in `api/`, shared contracts in `types/`, and reusable logic in
+`utils/` or `hooks/`. `pages/` stays **flat** — a page is just its `index`; a
+component used only by one other component **nests inside that component** within
+`components/`:
 
 ```
 packages/<group>/admin/
@@ -86,12 +88,16 @@ packages/<group>/admin/
         avatarColor/index.ts
         membersKeys/index.ts          # shared query-key factory + list params
         toMember/index.ts             # shared wire types + wire→model mapper
-      pages/
-        MembersPage/index.tsx         # a routed page (the container AND view)
+      pages/                          # FLAT — only the page index, no child components
+        MembersPage/index.tsx         # the routed page (container AND view)
         InviteMemberPage/index.tsx
       components/
-        MembersTable/index.tsx        # presentational pieces
-        MembersPagination/index.tsx
+        MembersTable/
+          index.tsx                   # used only by MembersPage → top of components/
+          MemberRowActions/index.tsx  # used only by MembersTable → nested inside it
+        MembersToolbar/index.tsx      # page-only piece → still top of components/
+        MemberAvatar/index.tsx        # shared (table + invite page)
+        MembersSkeleton/index.tsx     # page body + route Suspense fallback
       api/
         useMembers/index.ts           # fetchMembers + envelope type + useQuery
         useInviteMember/index.ts      # inviteMember + InviteMemberInput + useMutation
@@ -100,6 +106,19 @@ packages/<group>/admin/
       types/
         member/index.ts               # shared, public type contracts
 ```
+
+**Pages flat; components nest inside components.** A page folder holds only its
+`index` (plus page-local hooks/helpers) — **never** child component folders. All
+presentational components live under `components/`. A component imported by
+exactly **one other component** — and not barrel-exported — nests **inside that
+component's folder** (`components/MembersTable/MemberRowActions/`), and this
+cascades. A component used by a **page** (or by two or more consumers, or
+exported) sits at the **top level of `components/`**, never inside the page.
+Route-level `Suspense` fallbacks (skeletons) sit at the top of `components/` too
+— they pair with the lazy route in `utils/<plugin>/`. When a nested component
+gains a second consumer, move it up to the top of `components/` (the move is the
+signal it became shared). Structure mirrors the dependency graph: a component's
+depth tells you it's private to the component it sits under.
 
 **Per-module folders, not flat files.** Even a one-file helper gets a
 `<name>/index.ts` folder, for consistency. Tightly co-located sub-modules of a
@@ -471,6 +490,8 @@ The recurring admin-side mistakes a careful review catches:
 - [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` returning
       `{ name, routes, slots? }`; pages lazy + `<Suspense>`.
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
+- [ ] `pages/` flat (only the page `index`); all components in `components/`, a
+      component used by one other component nested inside it.
 - [ ] Data layer: one `api/use*/` folder per hook (request fn + endpoint types +
       the hook); shared mapper + query keys in `lib/utils/` (or the read hook).
 - [ ] `useHasPermission` gating on the query (`enabled`) and write controls;

@@ -56,8 +56,10 @@ shell shipped while the feature was pending.
   `useSlugAvailability` (`GET /api/workspaces/slug-available`), `useUsersSearch`
   (`GET /api/users?q=`), and `useContentTypes` (`GET /api/content-types`). The
   mappers derive presentation-only member `initials`/`color` on the client, since
-  the server stores neither. Generic helpers (`slugify`, `useDebouncedValue`)
-  live in `@ortha-cms/utils-admin`, not here.
+  the server stores neither — via the shared `initialsOf`/`asAvatarColor`/
+  `avatarColorForId` from `@ortha-cms/utils-admin` (no local `utils/` copies).
+  Generic helpers (`slugify`, `useDebouncedValue`) live in
+  `@ortha-cms/utils-admin`, not here.
 - **Membership is a pure link; there is no per-member role.** The server ignores
   any role on a member — a user's permissions come from their single global
   role. The Members step adds people (existing or invite-by-email) with no role
@@ -78,6 +80,17 @@ shell shipped while the feature was pending.
   `src/lib/components/<Name>/`, pages in `src/lib/pages/<Name>/`, query/mutation
   hooks in `src/lib/api/<useThing>/`, the plugin factory in
   `src/lib/utils/workspacesPlugin/` (`camelCase` for non-components)
+- **`pages/` stays flat** — each page is just `pages/<Name>/index.tsx`, no
+  child component folders. Every component lives under `components/`. A
+  component used only by **another component** nests inside that component's
+  folder; a component used by a **page** sits at the top of `components/`. So
+  `StatusChip` + `MemberStack/` (with `MemberListPopover/` nested inside it)
+  live under `components/WorkspaceCard/`, and the whole
+  `components/CreateWorkspaceWizard/` subtree (Basics/Members/Content step
+  bodies and their parts) nests under the wizard. The page-only components —
+  `WorkspaceToolbar`, `WorkspacesEmpty`, `CreateWorkspaceWizard` — and the
+  shared pieces — `WorkspaceAvatar`, `WorkspaceCard`, `WorkspacesSkeleton` —
+  all sit at the top of `components/`.
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `workspaces.<area>.<key>`
 - Simple forms use TanStack Form + a `use<Name>Schema` Zod hook. The **create
