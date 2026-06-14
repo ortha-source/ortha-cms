@@ -83,16 +83,16 @@ export function ActivityTable({ events }: { events: ActivityEvent[] }) {
                 <TableHeader>
                     <TableRow>
                         <TableHead className="w-8" />
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.when)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.actor)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.action)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.subject)}
                         </TableHead>
                     </TableRow>

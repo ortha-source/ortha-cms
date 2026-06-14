@@ -119,15 +119,18 @@ export function ActivityLogPage() {
     const pageCount = Math.max(1, Math.ceil(total / effectivePageSize));
 
     // Pull `page` back when a filter change leaves fewer pages than the current
-    // one, so we never strand the user on an empty page past the end.
+    // one, so we never strand the user on an empty page past the end. Guarded on
+    // `data` so it runs only after a real response — before the first fetch lands
+    // `total` is 0 and `pageCount` is 1, which would otherwise reset a deep-linked
+    // `?page=N>1` back to page 1.
     useEffect(() => {
-        if (page > pageCount) {
+        if (data && page > pageCount) {
             updateParams(
                 { page: pageCount > 1 ? String(pageCount) : undefined },
                 false
             );
         }
-    }, [page, pageCount, updateParams]);
+    }, [data, page, pageCount, updateParams]);
 
     if (!canRead) {
         return (
