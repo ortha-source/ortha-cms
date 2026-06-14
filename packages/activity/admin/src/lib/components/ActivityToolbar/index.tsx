@@ -5,7 +5,6 @@ import {
     InputGroupAddon,
     InputGroupInput
 } from '@ortha-cms/design-system';
-import { ActivityKindFilter } from '../ActivityKindFilter';
 
 /** Intl descriptors for {@link ActivityToolbar}, co-located. */
 const messages = defineMessages({
@@ -20,31 +19,21 @@ const messages = defineMessages({
 });
 
 type ActivityToolbarProps = {
-    /** Selected kind (empty for all). */
-    kind: string;
-    onKindChange: (value: string) => void;
     /** Actor-email search box value. */
     email: string;
     onEmailChange: (value: string) => void;
 };
 
 /**
- * The Activity Log filter toolbar: an action (kind) select and an actor-email
- * search box. Each control reports its change up; the page owns the filter
- * state (the URL query string).
+ * The Activity Log filter toolbar: a single actor-email search box. The page
+ * owns the filter state (the URL query string).
  */
-export function ActivityToolbar({
-    kind,
-    onKindChange,
-    email,
-    onEmailChange
-}: ActivityToolbarProps) {
+export function ActivityToolbar({ email, onEmailChange }: ActivityToolbarProps) {
     const intl = useIntl();
 
     return (
         <div className="mb-4 flex flex-wrap items-end gap-3">
-            <ActivityKindFilter value={kind} onChange={onKindChange} />
-            <InputGroup className="w-full shadow-none sm:max-w-[280px]">
+            <InputGroup className="w-full shadow-none sm:max-w-[360px]">
                 <InputGroupAddon>
                     <Search />
                 </InputGroupAddon>

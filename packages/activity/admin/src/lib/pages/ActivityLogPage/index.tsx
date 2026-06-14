@@ -63,8 +63,7 @@ export function ActivityLogPage() {
     const canRead = useHasPermission('activity:read');
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // The URL is the source of truth for every filter.
-    const kindParam = searchParams.get('kind') ?? '';
+    // The URL is the source of truth for the search filter.
     const emailParam = searchParams.get('actorEmail') ?? '';
     const page = readInt(searchParams.get('page'), 1);
     const pageSize = readInt(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
@@ -107,7 +106,6 @@ export function ActivityLogPage() {
     }, [debouncedEmail, emailParam, updateParams]);
 
     const params: ActivityListParams = {
-        kind: kindParam || undefined,
         actorEmail: emailParam || undefined,
         page,
         pageSize
@@ -141,7 +139,7 @@ export function ActivityLogPage() {
     }
 
     const events = data?.items ?? [];
-    const hasFilters = Boolean(kindParam || emailParam);
+    const hasFilters = Boolean(emailParam);
 
     const clearFilters = () => {
         setEmailInput('');
@@ -158,8 +156,6 @@ export function ActivityLogPage() {
             />
 
             <ActivityToolbar
-                kind={kindParam}
-                onKindChange={(value) => updateParams({ kind: value })}
                 email={emailInput}
                 onEmailChange={setEmailInput}
             />

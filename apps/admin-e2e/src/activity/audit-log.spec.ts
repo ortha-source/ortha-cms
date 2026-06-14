@@ -60,20 +60,6 @@ test.describe('Activity Log page', () => {
         await expect(detail).toBeHidden();
     });
 
-    test('the kind filter drives the request and narrows the table', async ({
-        activityLogPage
-    }) => {
-        await activityLogPage.goto();
-        await expect(activityLogPage.row('Changed role')).toBeVisible();
-
-        await activityLogPage.selectKind('Suspended member');
-
-        // The mock applied the kind filter: only the suspension remains.
-        await expect(activityLogPage.row('Suspended member')).toBeVisible();
-        await expect(activityLogPage.row('Changed role')).toHaveCount(0);
-        await expect(activityLogPage.row('Signed in')).toHaveCount(0);
-    });
-
     test('the actor-email search drives the request', async ({
         activityLogPage
     }) => {
@@ -85,14 +71,14 @@ test.describe('Activity Log page', () => {
         await expect(activityLogPage.row('ada@ortha.dev')).toHaveCount(0);
     });
 
-    test('deep-links the active filters into the URL', async ({
+    test('deep-links the active search into the URL', async ({
         activityLogPage,
         page
     }) => {
         await activityLogPage.goto();
-        await activityLogPage.selectKind('Suspended member');
+        await activityLogPage.emailSearch.fill('grace');
 
-        await expect(page).toHaveURL(/kind=user\.suspended/);
+        await expect(page).toHaveURL(/actorEmail=grace/);
     });
 
     test('shows an empty state when filters match nothing', async ({
@@ -200,17 +186,5 @@ test.describe('Activity Log keyboard operability', () => {
         await activityLogPage.expandToggle('Changed role').focus();
         await page.keyboard.press('Enter');
         await expect(page.getByText('viewer → contributor')).toBeVisible();
-    });
-
-    test('the kind filter is operable from the keyboard', async ({
-        activityLogPage,
-        page
-    }) => {
-        await activityLogPage.goto();
-        await activityLogPage.kindFilter.focus();
-        await page.keyboard.press('Enter');
-        await expect(
-            page.getByRole('option', { name: 'Suspended member', exact: true })
-        ).toBeVisible();
     });
 });

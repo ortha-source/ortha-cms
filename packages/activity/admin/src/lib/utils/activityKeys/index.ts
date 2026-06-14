@@ -1,7 +1,5 @@
-/** Parameters accepted by `GET /api/activity` — the log's filters and paging. */
+/** Parameters accepted by `GET /api/activity` — the log's search and paging. */
 export type ActivityListParams = {
-    /** Comma-separated event kinds (`IN` filter); omit for all kinds. */
-    kind?: string;
     /** Case-insensitive actor-email substring; omit for no filter. */
     actorEmail?: string;
     /** 1-based page number; the server defaults to 1. */

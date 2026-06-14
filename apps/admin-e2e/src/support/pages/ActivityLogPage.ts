@@ -16,8 +16,6 @@ export class ActivityLogPage extends BasePage {
     readonly nav: Locator;
     /** The Activity entry in the primary nav (an icon button, labelled). */
     readonly navButton: Locator;
-    /** The action (kind) filter select. */
-    readonly kindFilter: Locator;
     /** The actor-email search box. */
     readonly emailSearch: Locator;
     /** The audit-log table. */
@@ -31,9 +29,6 @@ export class ActivityLogPage extends BasePage {
         });
         this.nav = page.getByRole('navigation', { name: 'Primary' });
         this.navButton = this.nav.getByRole('button', { name: 'Activity' });
-        this.kindFilter = page.getByRole('combobox', {
-            name: 'Filter by action'
-        });
         this.emailSearch = page.getByRole('searchbox', {
             name: 'Search by actor email'
         });
@@ -66,12 +61,6 @@ export class ActivityLogPage extends BasePage {
         return this.page
             .getByRole('status')
             .filter({ hasText: /Loading activity/ });
-    }
-
-    /** Opens the kind filter and selects the option with the given label. */
-    async selectKind(label: string) {
-        await this.kindFilter.click();
-        await this.page.getByRole('option', { name: label, exact: true }).click();
     }
 
     /** The no-access empty state heading (shown without `activity:read`). */

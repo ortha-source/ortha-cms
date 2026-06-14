@@ -1,9 +1,10 @@
 /**
  * The audit-event kinds the Activity Log renders. The admin can't import the
  * server plugins (separate apps / module boundaries), so it restates the kind
- * strings here — exactly as it restates wire types — to drive the kind filter
- * and the action-label map. Each string mirrors a kind an emitting plugin
- * records (identity owns auth/workspace, users owns member lifecycle).
+ * strings here — exactly as it restates wire types — as the source for the
+ * `ActivityKind` type and the action-label map. Each string mirrors a kind an
+ * emitting plugin records (identity owns auth/workspace, users owns member
+ * lifecycle).
  */
 export const ACTIVITY_KINDS = [
     'user.invited',
