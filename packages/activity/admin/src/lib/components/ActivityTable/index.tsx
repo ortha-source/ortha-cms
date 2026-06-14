@@ -133,11 +133,20 @@ function ActivityRow({
 
     return (
         <>
-            <TableRow>
+            <TableRow
+                onClick={onToggle}
+                className="cursor-pointer"
+            >
                 <TableCell>
                     <button
                         type="button"
-                        onClick={onToggle}
+                        // The row already toggles on click; stop the bubble so
+                        // the button doesn't toggle twice. It stays the
+                        // keyboard-accessible control (aria-expanded).
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onToggle();
+                        }}
                         aria-expanded={open}
                         aria-controls={panelId}
                         aria-label={intl.formatMessage(

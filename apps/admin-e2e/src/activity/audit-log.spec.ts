@@ -60,6 +60,18 @@ test.describe('Activity Log page', () => {
         await expect(detail).toBeHidden();
     });
 
+    test('expands a row by clicking anywhere on the row body', async ({
+        activityLogPage,
+        page
+    }) => {
+        await activityLogPage.goto();
+        const detail = page.getByText('viewer → contributor');
+        await expect(detail).toBeHidden();
+
+        await activityLogPage.clickRowBody('Changed role');
+        await expect(detail).toBeVisible();
+    });
+
     test('the actor-email search drives the request', async ({
         activityLogPage
     }) => {

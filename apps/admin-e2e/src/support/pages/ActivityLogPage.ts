@@ -56,6 +56,14 @@ export class ActivityLogPage extends BasePage {
         await this.expandToggle(rowText).click();
     }
 
+    /** Clicks a row's body (not the toggle button) to expand/collapse it. */
+    async clickRowBody(rowText: string) {
+        await this.row(rowText)
+            .getByText(rowText, { exact: false })
+            .first()
+            .click();
+    }
+
     /** The table loading skeleton — a `role="status"` region. */
     tableSkeleton(): Locator {
         return this.page
