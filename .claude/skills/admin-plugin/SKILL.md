@@ -71,10 +71,11 @@ here, make it accessible, and add an admin-e2e suite.
 ## Folder layout — per-module `index` folders, grouped by feature
 
 Each module is its own folder fronted by an `index`; the plugin factory lives in
-`utils/`, pages in `pages/`, the data layer in `api/`, shared contracts in
-`types/`, and reusable logic in `utils/` or `hooks/`. Presentational pieces
-**co-locate under their consumer** — only pieces shared across two or more
-consumers (or exported from the barrel) live in `components/`:
+`utils/`, pages in `pages/`, **all** presentational components in `components/`,
+the data layer in `api/`, shared contracts in `types/`, and reusable logic in
+`utils/` or `hooks/`. `pages/` stays **flat** — a page is just its `index`; a
+component used only by one other component **nests inside that component** within
+`components/`:
 
 ```
 packages/<group>/admin/
@@ -87,17 +88,15 @@ packages/<group>/admin/
         avatarColor/index.ts
         membersKeys/index.ts          # shared query-key factory + list params
         toMember/index.ts             # shared wire types + wire→model mapper
-      pages/
-        MembersPage/
-          index.tsx                   # the routed page (container AND view)
-          MembersTable/
-            index.tsx                 # used only by MembersPage → co-located
-            MemberRowActions/index.tsx# used only by MembersTable → nested again
-          MembersToolbar/index.tsx
-          MembersPagination/index.tsx
+      pages/                          # FLAT — only the page index, no child components
+        MembersPage/index.tsx         # the routed page (container AND view)
         InviteMemberPage/index.tsx
       components/
-        MemberAvatar/index.tsx        # SHARED (table + invite page) → stays here
+        MembersTable/
+          index.tsx                   # used only by MembersPage → top of components/
+          MemberRowActions/index.tsx  # used only by MembersTable → nested inside it
+        MembersToolbar/index.tsx      # page-only piece → still top of components/
+        MemberAvatar/index.tsx        # shared (table + invite page)
         MembersSkeleton/index.tsx     # page body + route Suspense fallback
       api/
         useMembers/index.ts           # fetchMembers + envelope type + useQuery
@@ -108,18 +107,18 @@ packages/<group>/admin/
         member/index.ts               # shared, public type contracts
 ```
 
-**Co-locate single-consumer components; promote on reuse.** A presentational
-component imported by exactly **one** other component/page — and not exported
-from the barrel — lives **inside that consumer's folder**, not as a flat sibling
-in `components/`. This cascades: a piece used only by `MembersTable` (itself
-used only by `MembersPage`) nests at `pages/MembersPage/MembersTable/<Piece>/`.
-A component earns a spot in the shared `components/` directory **only** once it
-has **two or more** consumers or is part of the package's public API. Route-level
-`Suspense` fallbacks (skeletons) count as shared — they pair with the lazy route
-in `utils/<plugin>/`, so they stay in `components/`. When a nested component
-later gains a second consumer, move it up to `components/` then (the move is the
-signal it became shared). This keeps structure mirroring the dependency graph:
-where a component sits tells you who can use it.
+**Pages flat; components nest inside components.** A page folder holds only its
+`index` (plus page-local hooks/helpers) — **never** child component folders. All
+presentational components live under `components/`. A component imported by
+exactly **one other component** — and not barrel-exported — nests **inside that
+component's folder** (`components/MembersTable/MemberRowActions/`), and this
+cascades. A component used by a **page** (or by two or more consumers, or
+exported) sits at the **top level of `components/`**, never inside the page.
+Route-level `Suspense` fallbacks (skeletons) sit at the top of `components/` too
+— they pair with the lazy route in `utils/<plugin>/`. When a nested component
+gains a second consumer, move it up to the top of `components/` (the move is the
+signal it became shared). Structure mirrors the dependency graph: a component's
+depth tells you it's private to the component it sits under.
 
 **Per-module folders, not flat files.** Even a one-file helper gets a
 `<name>/index.ts` folder, for consistency. Tightly co-located sub-modules of a
@@ -491,8 +490,8 @@ The recurring admin-side mistakes a careful review catches:
 - [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` returning
       `{ name, routes, slots? }`; pages lazy + `<Suspense>`.
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
-- [ ] Single-consumer components co-located under their consumer; `components/`
-      holds only shared (≥2 consumers) or barrel-exported pieces.
+- [ ] `pages/` flat (only the page `index`); all components in `components/`, a
+      component used by one other component nested inside it.
 - [ ] Data layer: one `api/use*/` folder per hook (request fn + endpoint types +
       the hook); shared mapper + query keys in `lib/utils/` (or the read hook).
 - [ ] `useHasPermission` gating on the query (`enabled`) and write controls;

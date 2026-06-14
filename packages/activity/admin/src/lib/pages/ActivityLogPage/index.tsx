@@ -11,12 +11,12 @@ import {
     ContainerHeader
 } from '@ortha-cms/design-system';
 import { useActivityLog, DEFAULT_PAGE_SIZE } from '../../api/useActivityLog';
-import { ActivityEmpty } from './ActivityEmpty';
+import { ActivityEmpty } from '../../components/ActivityEmpty';
 import { ActivityLogTableSkeleton } from '../../components/ActivityLogSkeleton';
-import { ActivityNoAccess } from './ActivityNoAccess';
-import { ActivityPagination } from './ActivityPagination';
-import { ActivityTable } from './ActivityTable';
-import { ActivityToolbar } from './ActivityToolbar';
+import { ActivityNoAccess } from '../../components/ActivityNoAccess';
+import { ActivityPagination } from '../../components/ActivityPagination';
+import { ActivityTable } from '../../components/ActivityTable';
+import { ActivityToolbar } from '../../components/ActivityToolbar';
 import type { ActivityListParams } from '../../utils/activityKeys';
 
 /** Intl descriptors for {@link ActivityLogPage}, co-located with the component. */

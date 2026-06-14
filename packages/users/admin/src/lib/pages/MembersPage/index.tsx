@@ -13,12 +13,12 @@ import {
 } from '@ortha-cms/design-system';
 import { useMembers, DEFAULT_PAGE_SIZE } from '../../api/useMembers';
 import { MembersTableSkeleton } from '../../components/MembersSkeleton';
-import { EditMemberDialog } from './EditMemberDialog';
-import { MembersEmpty } from './MembersEmpty';
-import { MembersNoAccess } from './MembersNoAccess';
-import { MembersPagination } from './MembersPagination';
-import { MembersTable } from './MembersTable';
-import { MembersToolbar } from './MembersToolbar';
+import { EditMemberDialog } from '../../components/EditMemberDialog';
+import { MembersEmpty } from '../../components/MembersEmpty';
+import { MembersNoAccess } from '../../components/MembersNoAccess';
+import { MembersPagination } from '../../components/MembersPagination';
+import { MembersTable } from '../../components/MembersTable';
+import { MembersToolbar } from '../../components/MembersToolbar';
 import type { Member } from '../../types/member';
 
 /** Intl descriptors for {@link MembersPage}, co-located with the component. */

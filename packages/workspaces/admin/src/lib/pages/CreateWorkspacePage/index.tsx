@@ -17,9 +17,9 @@ import {
     WizardStepCard,
     toast
 } from '@ortha-cms/design-system';
-import { ContentStep } from './CreateWorkspaceWizard/ContentStep';
-import { IdentityFields } from './CreateWorkspaceWizard/IdentityFields';
-import { MembersStep } from './CreateWorkspaceWizard/MembersStep';
+import { ContentStep } from '../../components/CreateWorkspaceWizard/ContentStep';
+import { IdentityFields } from '../../components/CreateWorkspaceWizard/IdentityFields';
+import { MembersStep } from '../../components/CreateWorkspaceWizard/MembersStep';
 import { useSlug } from '../../hooks/useSlug';
 import { useWizard } from '../../hooks/useWizard';
 import { SlugStatus } from '../../types/wizard';

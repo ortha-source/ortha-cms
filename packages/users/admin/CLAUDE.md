@@ -20,13 +20,14 @@ workspaces), gated the same way.
 
 ## Conventions
 
-- Single-consumer components co-locate **under their consumer**: a piece used by
-  exactly one page/parent (and not barrel-exported) lives inside that consumer's
-  folder, cascading by depth. The whole `MembersTable` and its row pieces
-  (`MemberRoleChip`, `MemberRowActions`, `MemberStatusBadge`, `MemberWorkspaces`)
-  plus `MembersToolbar`, `MembersPagination`, `MembersEmpty`, `MembersNoAccess`,
-  and `EditMemberDialog` live under `pages/MembersPage/` (the row pieces nested
-  under `…/MembersTable/`). Only **shared** pieces stay in `components/` — here
+- `pages/` stays **flat** — each page is just `pages/<Page>/index.tsx`, with no
+  child component folders. Every component lives under `components/`. A component
+  used by exactly one **other component** nests inside that component's folder:
+  the row pieces (`MemberRoleChip`, `MemberRowActions`, `MemberStatusBadge`,
+  `MemberWorkspaces`) live under `components/MembersTable/`. A component used by a
+  **page** sits at the top level of `components/` — `MembersTable`,
+  `MembersToolbar`, `MembersPagination`, `MembersEmpty`, `MembersNoAccess`, and
+  `EditMemberDialog`. **Shared** pieces also sit at the top of `components/` —
   `MemberAvatar` (used by the table, `MemberWorkspaces`, and the invite page) and
   `MembersSkeleton` (the page's `isPending` body, the invite page, and the lazy
   routes' `Suspense` fallback).

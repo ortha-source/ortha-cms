@@ -78,15 +78,17 @@ shell shipped while the feature was pending.
   `src/lib/components/<Name>/`, pages in `src/lib/pages/<Name>/`, query/mutation
   hooks in `src/lib/api/<useThing>/`, the plugin factory in
   `src/lib/utils/workspacesPlugin/` (`camelCase` for non-components)
-- **Single-consumer components co-locate under their one consumer**; only
-  shared (≥2 consumers) or barrel-exported pieces live at the top of
-  `components/`. So `WorkspaceToolbar` + `WorkspacesEmpty` sit under
-  `pages/WorkspacesPage/`, the whole `CreateWorkspaceWizard/` subtree
-  (Basics/Members/Content step bodies and their parts) under
-  `pages/CreateWorkspacePage/`, and `StatusChip` + `MemberStack/` (with
-  `MemberListPopover/` nested inside it) under `components/WorkspaceCard/`. The
+- **`pages/` stays flat** — each page is just `pages/<Name>/index.tsx`, no
+  child component folders. Every component lives under `components/`. A
+  component used only by **another component** nests inside that component's
+  folder; a component used by a **page** sits at the top of `components/`. So
+  `StatusChip` + `MemberStack/` (with `MemberListPopover/` nested inside it)
+  live under `components/WorkspaceCard/`, and the whole
+  `components/CreateWorkspaceWizard/` subtree (Basics/Members/Content step
+  bodies and their parts) nests under the wizard. The page-only components —
+  `WorkspaceToolbar`, `WorkspacesEmpty`, `CreateWorkspaceWizard` — and the
   shared pieces — `WorkspaceAvatar`, `WorkspaceCard`, `WorkspacesSkeleton` —
-  stay at the top of `components/`.
+  all sit at the top of `components/`.
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `workspaces.<area>.<key>`
 - Simple forms use TanStack Form + a `use<Name>Schema` Zod hook. The **create
