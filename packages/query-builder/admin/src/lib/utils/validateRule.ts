@@ -77,6 +77,24 @@ export function validateRule(
         if (!Array.isArray(rule.value) || rule.value.length === 0) {
             return RULE_VALIDATION.MultiRequired;
         }
+        // Validate every item, not just presence — a free-text CSV editor
+        // (string/uuid fields) can produce items the server rejects with
+        // FILTER_INVALID_VALUE. Without this, e.g. a `uuid in (abc,def)`
+        // rule passes the Apply gate and 400s on the wire.
+        for (const item of rule.value) {
+            if (typeof item !== 'string' || !isScalarValid(item, field.type)) {
+                if (field.type === FIELD_TYPE.Uuid) {
+                    return RULE_VALIDATION.NotUuid;
+                }
+                if (field.type === FIELD_TYPE.Number) {
+                    return RULE_VALIDATION.NotNumber;
+                }
+                if (field.type === FIELD_TYPE.Date) {
+                    return RULE_VALIDATION.NotDate;
+                }
+                return RULE_VALIDATION.MultiRequired;
+            }
+        }
         return null;
     }
 

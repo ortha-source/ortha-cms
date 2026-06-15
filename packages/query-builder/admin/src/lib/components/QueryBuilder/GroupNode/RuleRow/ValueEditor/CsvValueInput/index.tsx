@@ -11,6 +11,10 @@ export type CsvValueInputProps = {
     className?: string;
     /** Accessible name for the input (no visible label sits beside it). */
     ariaLabel?: string;
+    /** Marks the input `aria-invalid` when the rule fails validation. */
+    invalid?: boolean;
+    /** Id of the rule's error message, wired as `aria-describedby`. */
+    describedById?: string;
 };
 
 /**
@@ -27,7 +31,9 @@ export function CsvValueInput({
     onChange,
     placeholder = 'value1,value2',
     className = 'w-48',
-    ariaLabel
+    ariaLabel,
+    invalid,
+    describedById
 }: CsvValueInputProps) {
     const [draft, setDraft] = useState(() => value.join(','));
     const canonicalValue = useMemo(() => value.join(','), [value]);
@@ -62,6 +68,8 @@ export function CsvValueInput({
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}
             aria-label={ariaLabel}
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedById}
             className={className}
         />
     );

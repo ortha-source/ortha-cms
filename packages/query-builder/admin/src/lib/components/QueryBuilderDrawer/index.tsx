@@ -131,23 +131,25 @@ export function QueryBuilderDrawer({
                         {intl.formatMessage(messages.description)}
                     </DrawerDescription>
                 </DrawerHeader>
-                <div className="flex flex-col gap-3">
-                    <div className="space-y-1">
-                        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {intl.formatMessage(messages.conditions)}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                            {intl.formatMessage(messages.conditionsHint)}
-                        </p>
+                <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+                    <div className="flex flex-col gap-3">
+                        <div className="space-y-1">
+                            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {intl.formatMessage(messages.conditions)}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                                {intl.formatMessage(messages.conditionsHint)}
+                            </p>
+                        </div>
+                        <QueryBuilder
+                            fields={fields}
+                            value={draft}
+                            onChange={setDraft}
+                            showErrors={showErrors}
+                        />
                     </div>
-                    <QueryBuilder
-                        fields={fields}
-                        value={draft}
-                        onChange={setDraft}
-                        showErrors={showErrors}
-                    />
+                    <JsonPreview tree={draft} />
                 </div>
-                <JsonPreview tree={draft} />
                 <DrawerFooter className="mt-auto flex-row justify-end gap-2 p-0">
                     <Button type="button" variant="ghost" onClick={reset}>
                         {intl.formatMessage(messages.reset)}

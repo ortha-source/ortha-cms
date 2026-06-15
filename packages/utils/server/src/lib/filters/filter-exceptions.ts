@@ -23,7 +23,15 @@ export const FilterErrorCode = {
     /** Tree exceeded `schema.maxNodes` (default 50). */
     MaxNodesExceeded: 'FILTER_MAX_NODES_EXCEEDED',
     /** Group nesting exceeded `schema.maxGroupDepth` (default 5). */
-    GroupDepthExceeded: 'FILTER_GROUP_DEPTH_EXCEEDED'
+    GroupDepthExceeded: 'FILTER_GROUP_DEPTH_EXCEEDED',
+    /**
+     * `in`/`nin` value list was empty. Rejected because an empty `in`
+     * matches no rows and an empty `nin` matches every row — a silent
+     * no-op/inverted filter rather than the user's intent.
+     */
+    EmptyInList: 'FILTER_EMPTY_IN_LIST',
+    /** `in`/`nin` value list exceeded `schema.maxInListLength` (default 100). */
+    MaxInListExceeded: 'FILTER_MAX_IN_LIST_EXCEEDED'
 } as const;
 
 /** One of the {@link FilterErrorCode} values. */

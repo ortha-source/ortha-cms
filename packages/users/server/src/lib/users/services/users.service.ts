@@ -85,28 +85,29 @@ export class UsersService {
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
         const where = await this.listWhere(query);
 
-        const [{ total }] = await this.db
-            .select({ total: count() })
-            .from(users)
-            .where(where);
-
-        const rows: MemberRow[] = await this.db
-            .select({
-                id: users.id,
-                email: users.email,
-                name: users.name,
-                status: users.status,
-                createdAt: users.createdAt,
-                roleId: roles.id,
-                roleKey: roles.key,
-                roleName: roles.name
-            })
-            .from(users)
-            .innerJoin(roles, eq(users.roleId, roles.id))
-            .where(where)
-            .orderBy(users.name, users.id)
-            .limit(pageSize)
-            .offset((page - 1) * pageSize);
+        // Count and page rows share the same WHERE but are otherwise
+        // independent; run them concurrently so a list request pays the max
+        // of the two query times, not their sum.
+        const [[{ total }], rows] = await Promise.all([
+            this.db.select({ total: count() }).from(users).where(where),
+            this.db
+                .select({
+                    id: users.id,
+                    email: users.email,
+                    name: users.name,
+                    status: users.status,
+                    createdAt: users.createdAt,
+                    roleId: roles.id,
+                    roleKey: roles.key,
+                    roleName: roles.name
+                })
+                .from(users)
+                .innerJoin(roles, eq(users.roleId, roles.id))
+                .where(where)
+                .orderBy(users.name, users.id)
+                .limit(pageSize)
+                .offset((page - 1) * pageSize) as Promise<MemberRow[]>
+        ]);
 
         const [workspacesByUser, adminCount] = await Promise.all([
             this.workspacesByUser(rows.map((row) => row.id)),

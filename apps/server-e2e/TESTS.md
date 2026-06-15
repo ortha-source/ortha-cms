@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_157 test cases across 16 spec files._
+_159 test cases across 16 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -249,6 +249,8 @@ _<sub>apps/server-e2e/src/server/users/list-users-filter.spec.ts</sub>_
 | rejects an unknown operator with 400 |
 | rejects malformed JSON with 400 |
 | rejects a tree nested past the group-depth cap with 400 |
+| rejects an empty `in` list with 400 (never silently matches all) |
+| rejects an oversized `in` list with 400 (DoS guard) |
 | treats an empty filter as no filter (returns all) |
 
 <!-- source: apps/server-e2e/src/server/users/list-users.spec.ts -->

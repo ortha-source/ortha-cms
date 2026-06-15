@@ -276,5 +276,58 @@ describe('parseFilterTree', () => {
             for (let i = 0; i < 10; i++) inner = { and: [inner] };
             expect(captureCode(inner)).toBe(FilterErrorCode.GroupDepthExceeded);
         });
+
+        it('rejects an empty `in` list (would match no rows)', () => {
+            // An empty array reaches inArray(col, []) which Drizzle emits as
+            // SQL `false`; reject it as a clean 400 instead.
+            expect(
+                captureCode({ field: 'status', op: 'in', value: [] })
+            ).toBe(FilterErrorCode.EmptyInList);
+        });
+
+        it('rejects an empty `nin` list (would match every row)', () => {
+            // notInArray(col, []) emits SQL `true` — a silent inverted filter.
+            expect(
+                captureCode({ field: 'status', op: 'nin', value: [] })
+            ).toBe(FilterErrorCode.EmptyInList);
+        });
+
+        it('caps the `in` value list length', () => {
+            const tinySchema: FilterSchema = {
+                ...schema,
+                maxInListLength: 3
+            };
+            try {
+                parseFilterTree(
+                    {
+                        field: 'email',
+                        op: 'in',
+                        value: ['a', 'b', 'c', 'd']
+                    },
+                    tinySchema
+                );
+                throw new Error('expected parseFilterTree to throw');
+            } catch (err) {
+                expect((err as { code: string }).code).toBe(
+                    FilterErrorCode.MaxInListExceeded
+                );
+            }
+        });
+
+        it('accepts an `in` list within the cap', () => {
+            const tree = parseFilterTree(
+                {
+                    field: 'status',
+                    op: 'in',
+                    value: ['active', 'pending']
+                },
+                schema
+            );
+            expect(tree).toMatchObject({
+                kind: 'rule',
+                op: 'in',
+                value: ['active', 'pending']
+            });
+        });
     });
 });

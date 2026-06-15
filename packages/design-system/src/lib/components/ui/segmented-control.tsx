@@ -52,7 +52,9 @@ const SegmentedControlItem = React.forwardRef<
             'group inline-flex h-7 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-muted-foreground transition-colors',
             'hover:text-foreground',
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-            'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+            // Active state pairs the primary fill with a weight bump so the
+            // selection is distinguishable without relying on color alone.
+            'data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground',
             'disabled:pointer-events-none disabled:opacity-50',
             className
         )}

@@ -56,6 +56,11 @@ const messages = defineMessages({
     filters: {
         id: 'users.page.filters',
         defaultMessage: 'Filters{count, plural, =0 {} other { (#)}}'
+    },
+    results: {
+        id: 'users.page.results',
+        defaultMessage:
+            '{count, plural, one {# member} other {# members}} found.'
     }
 });
 
@@ -205,6 +210,14 @@ export function MembersPage() {
                     />
                 }
             />
+
+            {/* Announce the result count to assistive tech after a search or
+                filter changes the table without a navigation (WCAG 4.1.3). */}
+            {!isPending && !isError && (
+                <p role="status" aria-live="polite" className="sr-only">
+                    {intl.formatMessage(messages.results, { count: total })}
+                </p>
+            )}
 
             {isPending ? (
                 <MembersTableSkeleton />

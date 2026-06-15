@@ -86,6 +86,33 @@ test.describe('Activity filter (query builder)', () => {
         );
     });
 
+    test('blocks Apply when a UUID "is one of" rule has a non-UUID value', async ({
+        activityLogPage,
+        page
+    }) => {
+        await activityLogPage.goto();
+        await expect(
+            activityLogPage.row('ada@ortha.dev').first()
+        ).toBeVisible();
+
+        // Actor ID is a UUID field offering "is one of" (free-text CSV). A
+        // non-UUID item must be caught client-side, not round-tripped to a 400.
+        await activityLogPage.openFilters();
+        await activityLogPage.addRule();
+        await activityLogPage.selectField('Actor ID');
+        await activityLogPage.selectOperator('is one of');
+        await activityLogPage.fillValue('not-a-uuid');
+        await activityLogPage.applyFilters();
+
+        // Drawer stays open, the rule shows its validation error, and nothing
+        // was committed to the URL.
+        await expect(activityLogPage.filterDrawer()).toBeVisible();
+        await expect(activityLogPage.ruleError()).toHaveText(
+            'Must be a valid UUID'
+        );
+        await expect(page).not.toHaveURL(/filter=/);
+    });
+
     test('the open drawer with a rule is accessible (axe)', async ({
         activityLogPage,
         makeAxe

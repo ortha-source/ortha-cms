@@ -183,6 +183,39 @@ describe('GET /api/users (query-builder filter)', () => {
         await getFiltered(agent, inner).expect(400);
     });
 
+    it('rejects an empty `in` list with 400 (never silently matches all)', async () => {
+        // An empty list would translate to `IN ()` / `NOT IN ()`, which
+        // Drizzle emits as `false` / `true` — a silent no-op or inverted
+        // filter. The engine must reject it instead.
+        await seedUser(harness.app, {
+            email: 'present@example.com',
+            role: 'viewer',
+            status: 'active'
+        });
+        const agent = await adminAgent();
+
+        await getFiltered(agent, {
+            field: 'status',
+            op: 'in',
+            value: []
+        }).expect(400);
+        await getFiltered(agent, {
+            field: 'status',
+            op: 'nin',
+            value: []
+        }).expect(400);
+    });
+
+    it('rejects an oversized `in` list with 400 (DoS guard)', async () => {
+        const agent = await adminAgent();
+        const huge = Array.from({ length: 5000 }, (_, i) => `v${i}`);
+        await getFiltered(agent, {
+            field: 'email',
+            op: 'in',
+            value: huge
+        }).expect(400);
+    });
+
     it('treats an empty filter as no filter (returns all)', async () => {
         await seedUser(harness.app, {
             email: 'someone@example.com',

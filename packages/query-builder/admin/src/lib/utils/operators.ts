@@ -23,8 +23,12 @@ export const OPS_FOR_TYPE: Record<FieldType, readonly OpId[]> = {
     ],
     [FIELD_TYPE.Boolean]: [OP.Equals],
     [FIELD_TYPE.Uuid]: [OP.Equals, OP.NotEquals, OP.IsOneOf, OP.IsEmpty],
+    // No `equals` for dates: the editor is minute-precision (`datetime-local`)
+    // while the column is a millisecond `timestamptz`, so `eq` would compare
+    // against an instant at `:00` seconds and essentially never match a real
+    // row — a dead-end filter. Ranges (`between`, gt/gte/lt/lte, `within_last`)
+    // stay, since they bound rather than pin the instant.
     [FIELD_TYPE.Date]: [
-        OP.Equals,
         OP.Gt,
         OP.Gte,
         OP.Lt,

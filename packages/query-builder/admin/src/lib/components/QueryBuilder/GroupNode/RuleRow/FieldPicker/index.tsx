@@ -25,7 +25,7 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
     return (
         <Select value={value} onValueChange={onChange}>
             <SelectTrigger
-                className="w-40"
+                className="w-full"
                 aria-label={intl.formatMessage(messages.label)}
             >
                 <SelectValue />

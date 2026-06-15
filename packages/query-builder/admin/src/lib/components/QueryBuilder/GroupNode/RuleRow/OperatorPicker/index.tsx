@@ -27,7 +27,7 @@ export function OperatorPicker({ ops, value, onChange }: OperatorPickerProps) {
     return (
         <Select value={value} onValueChange={(v) => onChange(v as OpId)}>
             <SelectTrigger
-                className="w-44"
+                className="w-full"
                 aria-label={intl.formatMessage(messages.label)}
             >
                 <SelectValue />

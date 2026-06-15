@@ -147,6 +147,13 @@ export interface FilterSchema {
      * dotted-path depth on a single rule).
      */
     maxGroupDepth?: number;
+    /**
+     * Maximum number of elements in a single `in`/`nin` value list.
+     * Defaults to 100. Bounds the size of the generated `IN (...)` clause
+     * independently of {@link maxNodes} (which counts whole rules, not the
+     * elements inside one rule's value list).
+     */
+    maxInListLength?: number;
 }
 
 /** Parser output, one node per URL filter entry. */

@@ -12,6 +12,10 @@ export type EnumMultiSelectProps = {
     onChange: (next: string[]) => void;
     /** Accessible group label (no visible legend sits beside the row). */
     label: string;
+    /** Marks the group `aria-invalid` when the rule fails validation. */
+    invalid?: boolean;
+    /** Id of the rule's error message, wired as `aria-describedby`. */
+    describedById?: string;
 };
 
 /**
@@ -24,7 +28,9 @@ export function EnumMultiSelect({
     options,
     value,
     onChange,
-    label
+    label,
+    invalid,
+    describedById
 }: EnumMultiSelectProps) {
     const intl = useIntl();
     const toggle = (optValue: string, checked: boolean) => {
@@ -39,7 +45,9 @@ export function EnumMultiSelect({
         <div
             role="group"
             aria-label={label}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-input px-3 py-1.5"
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedById}
+            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-input px-3 py-1.5"
         >
             {options.map((opt) => {
                 const optLabel = intl.formatMessage(opt.label);

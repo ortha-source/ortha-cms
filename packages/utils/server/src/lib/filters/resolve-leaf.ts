@@ -18,7 +18,8 @@ export function resolveLeaf(
     op: string,
     value: unknown,
     schema: FilterSchema,
-    maxDepth: number
+    maxDepth: number,
+    maxInListLength: number
 ): ParsedFilter {
     if (path.length === 0) {
         throw new FilterException(
@@ -59,7 +60,13 @@ export function resolveLeaf(
             return {
                 path,
                 op: op as FilterOperator,
-                value: coerce(value, field, op as FilterOperator, path)
+                value: coerce(
+                    value,
+                    field,
+                    op as FilterOperator,
+                    path,
+                    maxInListLength
+                )
             };
         }
         const rel = relations[seg];
@@ -84,7 +91,8 @@ function coerce(
     raw: unknown,
     field: ScalarFieldSchema,
     op: FilterOperator,
-    path: string[]
+    path: string[],
+    maxInListLength: number
 ): unknown {
     const pathStr = path.join('.');
     if (op === FilterOperator.Null) {
@@ -102,6 +110,26 @@ function coerce(
             : typeof raw === 'string'
               ? raw.split(',')
               : [raw];
+        // An empty list would translate to `IN ()` / `NOT IN ()`, which
+        // Drizzle emits as `false` / `true` — a silent no-op (matches
+        // nothing) or inverted filter (matches everything). Reject it so
+        // the client gets a clean 400 instead of a surprising result set.
+        if (items.length === 0) {
+            throw new FilterException(
+                FilterErrorCode.EmptyInList,
+                `${op} requires at least one value`,
+                { path: pathStr, op }
+            );
+        }
+        // Cap the list so a single rule (one node, under maxNodes) can't
+        // blow up into an arbitrarily large IN clause.
+        if (items.length > maxInListLength) {
+            throw new FilterException(
+                FilterErrorCode.MaxInListExceeded,
+                `${op} value list exceeds max length ${maxInListLength}`,
+                { path: pathStr, op, maxInListLength, length: items.length }
+            );
+        }
         return items.map((v) => scalarOf(v, field, pathStr));
     }
     return scalarOf(raw, field, pathStr);

@@ -44,12 +44,25 @@ export abstract class BasePage {
             .click();
     }
 
+    /** Pick the operator for the first rule by its label (the second combobox). */
+    async selectOperator(label: string) {
+        await this.ruleCombobox(1).click();
+        await this.page
+            .getByRole('option', { name: label, exact: true })
+            .click();
+    }
+
     /** Pick an enum value for the first rule (the third combobox). */
     async selectEnumValue(label: string) {
         await this.ruleCombobox(2).click();
         await this.page
             .getByRole('option', { name: label, exact: true })
             .click();
+    }
+
+    /** The inline validation error rendered under an invalid rule. */
+    ruleError(): Locator {
+        return this.filterDrawer().getByTestId('qb-rule-error');
     }
 
     /** Type a scalar value into the first rule's text input. */

@@ -49,6 +49,10 @@ const messages = defineMessages({
     filters: {
         id: 'activity.page.filters',
         defaultMessage: 'Filters{count, plural, =0 {} other { (#)}}'
+    },
+    results: {
+        id: 'activity.page.results',
+        defaultMessage: '{count, plural, one {# event} other {# events}} found.'
     }
 });
 
@@ -169,6 +173,14 @@ export function ActivityLogPage() {
                     />
                 }
             />
+
+            {/* Announce the result count to assistive tech after a filter
+                changes the table without a navigation (WCAG 4.1.3). */}
+            {!isPending && !isError && (
+                <p role="status" aria-live="polite" className="sr-only">
+                    {intl.formatMessage(messages.results, { count: total })}
+                </p>
+            )}
 
             {isPending ? (
                 <ActivityLogTableSkeleton />

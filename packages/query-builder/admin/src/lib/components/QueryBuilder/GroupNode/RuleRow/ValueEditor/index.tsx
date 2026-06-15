@@ -60,6 +60,10 @@ export type ValueEditorProps = {
     op: OpId;
     value: RuleValue;
     onChange: (next: RuleValue) => void;
+    /** Marks the control(s) `aria-invalid` when the rule fails validation. */
+    invalid?: boolean;
+    /** Id of the rule's error message, wired as `aria-describedby`. */
+    describedById?: string;
 };
 
 const inputTypeFor = (
@@ -89,8 +93,22 @@ const fromInputValue = (fieldType: FieldType, v: string): string =>
  * text input. Date fields use `datetime-local` over a full ISO instant so
  * `timestamptz` comparisons stay exact.
  */
-export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
+export function ValueEditor({
+    field,
+    op,
+    value,
+    onChange,
+    invalid,
+    describedById
+}: ValueEditorProps) {
     const intl = useIntl();
+    // Shared a11y props applied to every editor variant's primary control,
+    // so a failed Apply marks the value invalid and points screen readers
+    // at the rule's error text.
+    const a11y = {
+        'aria-invalid': invalid || undefined,
+        'aria-describedby': describedById
+    };
 
     if (op === OP.IsEmpty) return null;
 
@@ -100,9 +118,8 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
             to: ''
         };
         const inputType = inputTypeFor(field.type);
-        const isDate = field.type === FIELD_TYPE.Date;
         return (
-            <div className="flex items-center gap-1">
+            <div className="flex w-full items-center gap-1">
                 <Input
                     type={inputType}
                     value={toInputValue(field.type, range.from)}
@@ -113,9 +130,10 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                         })
                     }
                     aria-label={intl.formatMessage(messages.rangeFrom)}
-                    className={isDate ? 'w-44' : 'w-32'}
+                    className="min-w-0 flex-1"
+                    {...a11y}
                 />
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground shrink-0 text-xs">
                     {intl.formatMessage(messages.rangeJoin)}
                 </span>
                 <Input
@@ -128,7 +146,8 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                         })
                     }
                     aria-label={intl.formatMessage(messages.rangeTo)}
-                    className={isDate ? 'w-44' : 'w-32'}
+                    className="min-w-0 flex-1"
+                    {...a11y}
                 />
             </div>
         );
@@ -140,7 +159,7 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
             unit: WITHIN_UNIT.Days
         };
         return (
-            <div className="flex items-center gap-1">
+            <div className="flex w-full items-center gap-1">
                 <Input
                     type="number"
                     min={1}
@@ -152,7 +171,8 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                         })
                     }
                     aria-label={intl.formatMessage(messages.withinAmount)}
-                    className="w-20"
+                    className="w-20 shrink-0"
+                    {...a11y}
                 />
                 <Select
                     value={v.unit}
@@ -161,7 +181,7 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                     }
                 >
                     <SelectTrigger
-                        className="w-28"
+                        className="min-w-0 flex-1"
                         aria-label={intl.formatMessage(messages.withinUnit)}
                     >
                         <SelectValue />
@@ -189,6 +209,8 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                     value={Array.isArray(value) ? value : []}
                     onChange={onChange}
                     label={intl.formatMessage(messages.value)}
+                    invalid={invalid}
+                    describedById={describedById}
                 />
             );
         }
@@ -198,8 +220,9 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                 onValueChange={(v) => onChange(v)}
             >
                 <SelectTrigger
-                    className="w-48"
+                    className="w-full"
                     aria-label={intl.formatMessage(messages.value)}
+                    {...a11y}
                 >
                     <SelectValue
                         placeholder={intl.formatMessage(
@@ -225,6 +248,9 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                 onChange={onChange}
                 placeholder={intl.formatMessage(messages.csvPlaceholder)}
                 ariaLabel={intl.formatMessage(messages.value)}
+                className="w-full"
+                invalid={invalid}
+                describedById={describedById}
             />
         );
     }
@@ -236,8 +262,9 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                 onValueChange={(v) => onChange(v)}
             >
                 <SelectTrigger
-                    className="w-32"
+                    className="w-full"
                     aria-label={intl.formatMessage(messages.value)}
+                    {...a11y}
                 >
                     <SelectValue
                         placeholder={intl.formatMessage(
@@ -268,7 +295,8 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
                 onChange(fromInputValue(field.type, e.target.value))
             }
             aria-label={intl.formatMessage(messages.value)}
-            className={field.type === FIELD_TYPE.Date ? 'w-52' : 'w-48'}
+            className="w-full"
+            {...a11y}
         />
     );
 }

@@ -77,27 +77,31 @@ export class ActivityService implements ActivityRecorder {
         const sortColumn = SORT_COLUMNS[query.sort ?? 'at'];
         const direction = query.order === 'asc' ? asc : desc;
 
-        const [{ total }] = await this.db
-            .select({ total: count() })
-            .from(activityEvents)
-            .where(where);
-
-        const rows = await this.db
-            .select({
-                id: activityEvents.id,
-                kind: activityEvents.kind,
-                subjectType: activityEvents.subjectType,
-                subjectId: activityEvents.subjectId,
-                actorId: activityEvents.actorId,
-                actorEmail: activityEvents.actorEmail,
-                meta: activityEvents.meta,
-                at: activityEvents.at
-            })
-            .from(activityEvents)
-            .where(where)
-            .orderBy(direction(sortColumn), desc(activityEvents.id))
-            .limit(pageSize)
-            .offset((page - 1) * pageSize);
+        // Count and page rows share the same WHERE but are otherwise
+        // independent; run them concurrently so a list request pays the max
+        // of the two query times, not their sum.
+        const [[{ total }], rows] = await Promise.all([
+            this.db
+                .select({ total: count() })
+                .from(activityEvents)
+                .where(where),
+            this.db
+                .select({
+                    id: activityEvents.id,
+                    kind: activityEvents.kind,
+                    subjectType: activityEvents.subjectType,
+                    subjectId: activityEvents.subjectId,
+                    actorId: activityEvents.actorId,
+                    actorEmail: activityEvents.actorEmail,
+                    meta: activityEvents.meta,
+                    at: activityEvents.at
+                })
+                .from(activityEvents)
+                .where(where)
+                .orderBy(direction(sortColumn), desc(activityEvents.id))
+                .limit(pageSize)
+                .offset((page - 1) * pageSize)
+        ]);
 
         return {
             items: rows.map(

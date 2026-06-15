@@ -68,6 +68,13 @@ function walk(
         // `between` rule back into a single Between rule, so a saved range
         // round-trips to its compound editor instead of two loose Gte/Lte rows
         // (which would also double-count in the "Filters (N)" badge).
+        //
+        // This is intentionally lossy: a `between` and a hand-built AND group
+        // of exactly `field gte X` + `field lte Y` serialise to the identical
+        // wire sub-shape, so the inverse can't tell them apart. We prefer the
+        // Between rehydration (the common, editor-authored case). Either way
+        // the resulting WHERE clause is identical — only which editor the user
+        // sees on reload differs — so no filter semantics are lost.
         if (combinator === COMBINATOR.And && mapped.length === 2) {
             const between = pairToBetween(mapped[0], mapped[1], idFactory);
             if (between) return between;

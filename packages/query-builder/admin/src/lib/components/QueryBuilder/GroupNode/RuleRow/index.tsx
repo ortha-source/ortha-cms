@@ -1,8 +1,9 @@
+import { useId } from 'react';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { X } from 'lucide-react';
 import { Button } from '@ortha-cms/design-system';
 import type { FilterField } from '../../../../types/filter-field.type';
-import type { FilterRule, OpId } from '../../../../types/filter-tree.type';
+import { OP, type FilterRule, type OpId } from '../../../../types/filter-tree.type';
 import { defaultValueForOp } from '../../../../utils/defaultValueForOp';
 import { OPS_FOR_TYPE } from '../../../../utils/operators';
 import {
@@ -93,50 +94,64 @@ export function RuleRow({
     const field = fields.find((f) => f.id === rule.fieldId) ?? fields[0];
     const ops = OPS_FOR_TYPE[field.type];
     const errorCode = showErrors ? validateRule(rule, field) : null;
+    const errorId = useId();
 
     return (
         <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-                <FieldPicker
-                    fields={fields}
-                    value={rule.fieldId}
-                    onChange={(fieldId) => {
-                        const nextField = fields.find((f) => f.id === fieldId);
-                        if (!nextField) return;
-                        const nextOp = OPS_FOR_TYPE[nextField.type][0];
-                        onUpdate({
-                            fieldId,
-                            op: nextOp,
-                            value: defaultValueForOp(nextOp)
-                        });
-                    }}
-                />
-                <OperatorPicker
-                    ops={ops}
-                    value={rule.op}
-                    onChange={(op: OpId) =>
-                        onUpdate({ op, value: defaultValueForOp(op) })
-                    }
-                />
-                <ValueEditor
-                    field={field}
-                    op={rule.op}
-                    value={rule.value}
-                    onChange={(value) => onUpdate({ value })}
-                />
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-[7rem] flex-1 basis-0">
+                    <FieldPicker
+                        fields={fields}
+                        value={rule.fieldId}
+                        onChange={(fieldId) => {
+                            const nextField = fields.find(
+                                (f) => f.id === fieldId
+                            );
+                            if (!nextField) return;
+                            const nextOp = OPS_FOR_TYPE[nextField.type][0];
+                            onUpdate({
+                                fieldId,
+                                op: nextOp,
+                                value: defaultValueForOp(nextOp)
+                            });
+                        }}
+                    />
+                </div>
+                <div className="min-w-[7rem] flex-1 basis-0">
+                    <OperatorPicker
+                        ops={ops}
+                        value={rule.op}
+                        onChange={(op: OpId) =>
+                            onUpdate({ op, value: defaultValueForOp(op) })
+                        }
+                    />
+                </div>
+                {rule.op !== OP.IsEmpty && (
+                    <div className="min-w-[8rem] flex-[1.5] basis-0">
+                        <ValueEditor
+                            field={field}
+                            op={rule.op}
+                            value={rule.value}
+                            onChange={(value) => onUpdate({ value })}
+                            invalid={errorCode !== null}
+                            describedById={errorCode ? errorId : undefined}
+                        />
+                    </div>
+                )}
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     aria-label={intl.formatMessage(messages.removeRule)}
                     onClick={onRemove}
-                    className="size-7"
+                    className="size-7 shrink-0"
                 >
                     <X aria-hidden className="size-3.5" />
                 </Button>
             </div>
             {errorCode && (
                 <p
+                    id={errorId}
                     role="alert"
                     className="text-destructive text-xs pl-1"
                     data-testid="qb-rule-error"

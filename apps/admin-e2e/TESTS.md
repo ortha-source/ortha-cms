@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_99 test cases across 15 spec files._
+_100 test cases across 15 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -17,6 +17,7 @@ _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
 | filters the log by kind and deep-links the choice |
 | reflects the active condition count on the trigger |
 | restores the filter from a deep link on load |
+| blocks Apply when a UUID "is one of" rule has a non-UUID value |
 | the open drawer with a rule is accessible (axe) |
 | Reset clears the filter and restores the full log |
 
