@@ -64,6 +64,7 @@ export const DEFAULT_ACTIVITY: ActivitySeed[] = [
 function paramsOf(route: Route): {
     kinds: string[];
     actorEmail: string;
+    filter: string;
     page: number;
     pageSize: number;
 } {
@@ -74,9 +75,84 @@ function paramsOf(route: Route): {
         actorEmail: (url.searchParams.get('actorEmail') ?? '')
             .trim()
             .toLowerCase(),
+        filter: url.searchParams.get('filter') ?? '',
         page: Number(url.searchParams.get('page') ?? '1'),
         pageSize: Number(url.searchParams.get('pageSize') ?? '25')
     };
+}
+
+/** The leaf/group wire shapes the query builder emits under `?filter=`. */
+type FilterNode =
+    | { and: FilterNode[] }
+    | { or: FilterNode[] }
+    | { field: string; op: string; value: unknown };
+
+/** Resolve an event's value for a whitelisted wire field name. */
+function eventValue(event: ActivitySeed, field: string): string {
+    switch (field) {
+        case 'kind':
+            return event.kind;
+        case 'subjectType':
+            return event.subjectType;
+        case 'subjectId':
+            return event.subjectId;
+        case 'actorId':
+            return event.actorId ?? '';
+        case 'actorEmail':
+            return event.actorEmail ?? '';
+        case 'at':
+            return event.at;
+        default:
+            return '';
+    }
+}
+
+/**
+ * A minimal evaluator for the query-builder wire tree — enough to make the
+ * Activity filter drawer behave for real in a browser test (mirrors the members
+ * mock). Supports `eq`/`ne`/`in`/`ilike`/`null`/`gte`/`lte` plus `and`/`or`; an
+ * unknown shape matches everything (fail-open, so unrelated tests are
+ * unaffected). The wire grammar can't be imported (specs stay black-box), so
+ * the shape is re-declared here.
+ */
+function matchesNode(event: ActivitySeed, node: FilterNode): boolean {
+    if ('and' in node) return node.and.every((c) => matchesNode(event, c));
+    if ('or' in node) return node.or.some((c) => matchesNode(event, c));
+    const actual = eventValue(event, node.field);
+    switch (node.op) {
+        case 'eq':
+            return actual === node.value;
+        case 'ne':
+            return actual !== node.value;
+        case 'in':
+            return Array.isArray(node.value) && node.value.includes(actual);
+        case 'ilike': {
+            const needle = String(node.value)
+                .replace(/^%|%$/g, '')
+                .toLowerCase();
+            return actual.toLowerCase().includes(needle);
+        }
+        case 'null':
+            return actual.length === 0;
+        case 'gte':
+            return actual >= String(node.value);
+        case 'lte':
+            return actual <= String(node.value);
+        default:
+            return true;
+    }
+}
+
+/** Apply a raw `?filter=` JSON string to the log; no filter → unchanged. */
+function applyFilter(events: ActivitySeed[], filter: string): ActivitySeed[] {
+    if (!filter) return events;
+    let node: FilterNode;
+    try {
+        node = JSON.parse(filter) as FilterNode;
+    } catch {
+        return events;
+    }
+    return events.filter((e) => matchesNode(e, node));
 }
 
 /**
@@ -101,9 +177,15 @@ export async function mockActivity(
         if (delayMs) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
-        const { kinds, actorEmail, page: pageNum, pageSize } = paramsOf(route);
+        const {
+            kinds,
+            actorEmail,
+            filter,
+            page: pageNum,
+            pageSize
+        } = paramsOf(route);
 
-        const matched = events.filter((event) => {
+        const searched = events.filter((event) => {
             if (kinds.length > 0 && !kinds.includes(event.kind)) {
                 return false;
             }
@@ -115,6 +197,9 @@ export async function mockActivity(
             }
             return true;
         });
+        // The query-builder `?filter=` intersects with the structured params,
+        // mirroring the server's AND composition.
+        const matched = applyFilter(searched, filter);
 
         const start = (pageNum - 1) * pageSize;
         const items = matched.slice(start, start + pageSize);

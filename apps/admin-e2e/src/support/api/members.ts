@@ -104,18 +104,78 @@ export function manyMembers(count: number): MemberSeed[] {
     }));
 }
 
-/** Reads `search`/`page`/`pageSize` from the intercepted request URL. */
+/** Reads `search`/`filter`/`page`/`pageSize` from the intercepted request URL. */
 function paramsOf(route: Route): {
     search: string;
+    filter: string;
     page: number;
     pageSize: number;
 } {
     const url = new URL(route.request().url());
     return {
         search: (url.searchParams.get('search') ?? '').trim().toLowerCase(),
+        filter: url.searchParams.get('filter') ?? '',
         page: Number(url.searchParams.get('page') ?? '1'),
         pageSize: Number(url.searchParams.get('pageSize') ?? '10')
     };
+}
+
+/** The leaf/group wire shapes the query builder emits under `?filter=`. */
+type FilterNode =
+    | { and: FilterNode[] }
+    | { or: FilterNode[] }
+    | { field: string; op: string; value: unknown };
+
+/** Resolve a member's value for a wire field name (incl. the `role.key` path). */
+function memberValue(member: MemberSeed, field: string): string {
+    if (field === 'role.key') return member.role.key;
+    if (field === 'email') return member.email;
+    if (field === 'name') return member.name ?? '';
+    if (field === 'status') return member.status;
+    return '';
+}
+
+/**
+ * A minimal evaluator for the query-builder wire tree — enough to make the
+ * Members filter drawer behave for real in a browser test. Supports the
+ * scalar ops the simple-field UI can produce (`eq`/`ne`/`ilike`/`in`/`null`)
+ * plus `and`/`or` groups; an unknown shape matches everything (fail-open, so a
+ * test that doesn't exercise filtering is unaffected).
+ */
+function matchesNode(member: MemberSeed, node: FilterNode): boolean {
+    if ('and' in node) return node.and.every((c) => matchesNode(member, c));
+    if ('or' in node) return node.or.some((c) => matchesNode(member, c));
+    const actual = memberValue(member, node.field);
+    switch (node.op) {
+        case 'eq':
+            return actual === node.value;
+        case 'ne':
+            return actual !== node.value;
+        case 'in':
+            return Array.isArray(node.value) && node.value.includes(actual);
+        case 'ilike': {
+            const needle = String(node.value)
+                .replace(/^%|%$/g, '')
+                .toLowerCase();
+            return actual.toLowerCase().includes(needle);
+        }
+        case 'null':
+            return actual.length === 0;
+        default:
+            return true;
+    }
+}
+
+/** Apply a raw `?filter=` JSON string to the roster; no filter → unchanged. */
+function applyFilter(members: MemberSeed[], filter: string): MemberSeed[] {
+    if (!filter) return members;
+    let node: FilterNode;
+    try {
+        node = JSON.parse(filter) as FilterNode;
+    } catch {
+        return members;
+    }
+    return members.filter((m) => matchesNode(m, node));
 }
 
 /**
@@ -141,14 +201,17 @@ export async function mockMembers(
         if (delayMs) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
-        const { search, page: pageNum, pageSize } = paramsOf(route);
-        const matched = search
+        const { search, filter, page: pageNum, pageSize } = paramsOf(route);
+        const searched = search
             ? members.filter(
                   (m) =>
                       (m.name ?? '').toLowerCase().includes(search) ||
                       m.email.toLowerCase().includes(search)
               )
             : members;
+        // The query-builder `?filter=` intersects with `search`, mirroring the
+        // server's AND composition.
+        const matched = applyFilter(searched, filter);
         const start = (pageNum - 1) * pageSize;
         const items = matched.slice(start, start + pageSize);
 

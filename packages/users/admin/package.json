@@ -18,6 +18,7 @@
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/design-system": "*",
         "@ortha-cms/identity-admin": "*",
+        "@ortha-cms/query-builder-admin": "*",
         "@ortha-cms/shell-admin": "*",
         "@ortha-cms/utils-admin": "*",
         "@tanstack/react-form": "^1.0.0",

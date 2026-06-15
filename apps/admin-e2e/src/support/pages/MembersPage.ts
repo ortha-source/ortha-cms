@@ -160,6 +160,9 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Previous page' });
     }
 
+    // The query-builder filter-drawer helpers live on BasePage (the drawer is
+    // the same component on every list page).
+
     // --- empty / no-access states ---
 
     noAccessText(): Locator {

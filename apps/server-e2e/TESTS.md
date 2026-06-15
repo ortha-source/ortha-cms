@@ -4,7 +4,21 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_142 test cases across 14 spec files._
+_159 test cases across 16 spec files._
+
+<!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
+_<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
+
+## GET /api/activity (query-builder filter)
+
+| Test case |
+| --- |
+| filters by a scalar kind rule (eq) |
+| combines kinds with an OR group |
+| filters by an `at` lower bound (gte) |
+| AND-composes the filter with the existing kind param |
+| rejects an unknown field with 400 (whitelist) |
+| rejects malformed JSON with 400 |
 
 <!-- source: apps/server-e2e/src/server/activity/activity.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity.spec.ts</sub>_
@@ -219,6 +233,25 @@ _<sub>apps/server-e2e/src/server/users/invite-user.spec.ts</sub>_
 | rejects an unknown role with 400 |
 | rejects an unknown extra field with 400 |
 | forbids a contributor (lacks users:create) with 403 |
+
+<!-- source: apps/server-e2e/src/server/users/list-users-filter.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/list-users-filter.spec.ts</sub>_
+
+## GET /api/users (query-builder filter)
+
+| Test case |
+| --- |
+| filters by a scalar email rule (ilike, %v%) |
+| filters by the role relation (role.key eq) via an EXISTS subquery |
+| combines rules with an OR group |
+| AND-composes the filter with the existing status param |
+| rejects an unknown field with 400 (whitelist) |
+| rejects an unknown operator with 400 |
+| rejects malformed JSON with 400 |
+| rejects a tree nested past the group-depth cap with 400 |
+| rejects an empty `in` list with 400 (never silently matches all) |
+| rejects an oversized `in` list with 400 (DoS guard) |
+| treats an empty filter as no filter (returns all) |
 
 <!-- source: apps/server-e2e/src/server/users/list-users.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/list-users.spec.ts</sub>_

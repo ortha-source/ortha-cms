@@ -91,6 +91,27 @@ export {
     DialogTitle,
     DialogDescription
 } from './lib/components/ui/dialog';
+export {
+    Drawer,
+    DrawerPortal,
+    DrawerOverlay,
+    DrawerTrigger,
+    DrawerClose,
+    DrawerContent,
+    DrawerHeader,
+    DrawerFooter,
+    DrawerTitle,
+    DrawerDescription
+} from './lib/components/ui/drawer';
+export {
+    SegmentedControl,
+    SegmentedControlItem,
+    SegmentedControlCount
+} from './lib/components/ui/segmented-control';
+export {
+    SearchToolbar,
+    type SearchToolbarProps
+} from './lib/components/ui/search-toolbar';
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
 export { Container, ContainerHeader } from './lib/components/ui/container';

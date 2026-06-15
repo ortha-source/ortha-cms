@@ -17,16 +17,19 @@
             "path": "../../utils/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../shell/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../query-builder/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../identity/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../design-system/tsconfig.lib.json"
         },
         {
             "path": "../../bootstrap/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../shell/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../identity/admin/tsconfig.lib.json"
         }
     ]
 }

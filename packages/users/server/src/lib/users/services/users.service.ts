@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import { ActivityService } from '@ortha-cms/activity-server';
 import {
     memberships,
@@ -27,6 +28,7 @@ import type {
     MemberWorkspaceView
 } from '../types/member-view';
 import { DEFAULT_PAGE_SIZE, type AssignableRoleKey } from '../users.constants';
+import { USERS_FILTER_SCHEMA } from '../users-filter';
 import { InviteTokenService } from './invite-token.service';
 
 /** A member row as selected from `users ⋈ roles`, before view assembly. */
@@ -81,30 +83,31 @@ export class UsersService {
     async list(query: ListUsersQueryDto): Promise<MemberListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-        const where = this.listPredicate(query);
+        const where = await this.listWhere(query);
 
-        const [{ total }] = await this.db
-            .select({ total: count() })
-            .from(users)
-            .where(where);
-
-        const rows: MemberRow[] = await this.db
-            .select({
-                id: users.id,
-                email: users.email,
-                name: users.name,
-                status: users.status,
-                createdAt: users.createdAt,
-                roleId: roles.id,
-                roleKey: roles.key,
-                roleName: roles.name
-            })
-            .from(users)
-            .innerJoin(roles, eq(users.roleId, roles.id))
-            .where(where)
-            .orderBy(users.name, users.id)
-            .limit(pageSize)
-            .offset((page - 1) * pageSize);
+        // Count and page rows share the same WHERE but are otherwise
+        // independent; run them concurrently so a list request pays the max
+        // of the two query times, not their sum.
+        const [[{ total }], rows] = await Promise.all([
+            this.db.select({ total: count() }).from(users).where(where),
+            this.db
+                .select({
+                    id: users.id,
+                    email: users.email,
+                    name: users.name,
+                    status: users.status,
+                    createdAt: users.createdAt,
+                    roleId: roles.id,
+                    roleKey: roles.key,
+                    roleName: roles.name
+                })
+                .from(users)
+                .innerJoin(roles, eq(users.roleId, roles.id))
+                .where(where)
+                .orderBy(users.name, users.id)
+                .limit(pageSize)
+                .offset((page - 1) * pageSize) as Promise<MemberRow[]>
+        ]);
 
         const [workspacesByUser, adminCount] = await Promise.all([
             this.workspacesByUser(rows.map((row) => row.id)),
@@ -515,6 +518,25 @@ export class UsersService {
             this.searchPredicate(query.search),
             query.status ? eq(users.status, query.status) : undefined
         );
+    }
+
+    /**
+     * The full `where` for the list: the structured `search` / `status` params
+     * AND-ed with the optional query-builder `?filter=` tree. The filter is
+     * parsed and translated against {@link USERS_FILTER_SCHEMA} (the `role`
+     * relation resolves to an `EXISTS (… roles …)` subquery, so it composes
+     * into both the count and page queries without a join); a malformed filter
+     * throws a `FilterException` (HTTP 400).
+     */
+    private async listWhere(query: ListUsersQueryDto) {
+        const tree = parseFilterTree(query.filter, USERS_FILTER_SCHEMA);
+        const filterSql = await applyFilterTree(
+            tree,
+            USERS_FILTER_SCHEMA,
+            users,
+            this.db
+        );
+        return and(this.listPredicate(query), filterSql);
     }
 
     /**
