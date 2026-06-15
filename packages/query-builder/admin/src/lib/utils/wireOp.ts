@@ -41,9 +41,13 @@ export const UI_TO_WIRE: Partial<Record<OpId, WireOp>> = {
 };
 
 /**
- * Inverse of {@link UI_TO_WIRE}. `gte`/`lte` map back to their UI ops;
- * paired-leaf detection for `OP.Between` and `OP.WithinLast` happens at
- * the deserialiser level (a single `gte` is just `OP.Gte`).
+ * Inverse of {@link UI_TO_WIRE}. `gte`/`lte` map back to their UI ops.
+ * `OP.Between` is reconstructed by `jsonFilterToTree` (it pairs a same-field
+ * `gte`+`lte` AND group back into one Between rule). `OP.WithinLast` is
+ * intentionally **one-way**: it serialises to a concrete `gte` cutoff, so on
+ * reload it rehydrates as an absolute `OP.Gte` rule (a single `gte` is
+ * indistinguishable from a real one) — the relative window is resolved at
+ * Apply time, which is the right behaviour for a shareable deep link.
  */
 export const WIRE_TO_UI: Partial<Record<WireOp, OpId>> = {
     [WIRE_OP.Eq]: OP.Equals,

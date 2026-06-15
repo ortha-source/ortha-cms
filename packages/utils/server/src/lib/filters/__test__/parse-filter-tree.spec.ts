@@ -229,6 +229,26 @@ describe('parseFilterTree', () => {
             ).toBe(FilterErrorCode.UnknownOperator);
         });
 
+        it('accepts a canonical uuid value', () => {
+            const tree = parseFilterTree(
+                { field: 'id', op: 'eq', value: UUID },
+                schema
+            );
+            expect(tree).toMatchObject({ kind: 'rule', value: UUID });
+        });
+
+        it('rejects a non-canonical uuid (only hex+dashes) with InvalidValue', () => {
+            // The loose `[0-9a-f-]{36}` form would pass this and then fail
+            // Postgres' uuid cast as a 500; the canonical regex rejects it 400.
+            expect(
+                captureCode({
+                    field: 'id',
+                    op: 'eq',
+                    value: '------------------------------------'
+                })
+            ).toBe(FilterErrorCode.InvalidValue);
+        });
+
         it('caps total node count', () => {
             const tinySchema: FilterSchema = { ...schema, maxNodes: 5 };
             const children = Array.from({ length: 10 }, () => ({

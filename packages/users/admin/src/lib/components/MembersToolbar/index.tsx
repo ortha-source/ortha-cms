@@ -1,11 +1,6 @@
 import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Search } from 'lucide-react';
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupInput
-} from '@ortha-cms/design-system';
+import { SearchToolbar } from '@ortha-cms/design-system';
 
 /** Intl descriptors for {@link MembersToolbar}, co-located with the component. */
 const messages = defineMessages({
@@ -20,9 +15,9 @@ const messages = defineMessages({
 });
 
 /**
- * The table toolbar: a search box filtering members by name or email, plus an
- * optional advanced-filter control (the query-builder drawer trigger). The page
- * owns the filter state.
+ * The Members table toolbar: a name/email search box with the advanced-filter
+ * control pinned to the right. Layout lives in the shared `SearchToolbar`; this
+ * wrapper only supplies the localised strings and the page-owned filter control.
  */
 export function MembersToolbar({
     search,
@@ -31,26 +26,18 @@ export function MembersToolbar({
 }: {
     search: string;
     onSearchChange: (value: string) => void;
-    /** Optional advanced-filter control rendered after the search box. */
+    /** Optional advanced-filter control rendered on the right. */
     filterControl?: ReactNode;
 }) {
     const intl = useIntl();
 
     return (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-            <InputGroup className="w-full shadow-none sm:max-w-[360px]">
-                <InputGroupAddon>
-                    <Search />
-                </InputGroupAddon>
-                <InputGroupInput
-                    type="search"
-                    value={search}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                    aria-label={intl.formatMessage(messages.searchLabel)}
-                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                />
-            </InputGroup>
-            {filterControl}
-        </div>
+        <SearchToolbar
+            value={search}
+            onValueChange={onSearchChange}
+            searchLabel={intl.formatMessage(messages.searchLabel)}
+            searchPlaceholder={intl.formatMessage(messages.searchPlaceholder)}
+            actions={filterControl}
+        />
     );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Filter, UserPlus } from 'lucide-react';
 import {
@@ -10,7 +10,7 @@ import {
     type FilterGroup
 } from '@ortha-cms/query-builder-admin';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useDebouncedValue } from '@ortha-cms/utils-admin';
+import { useTableUrlState } from '@ortha-cms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -59,22 +59,13 @@ const messages = defineMessages({
     }
 });
 
-/** Debounce window for the search box, so a keystroke burst issues one query. */
-const SEARCH_DEBOUNCE_MS = 300;
-
-/** Reads a 1-based positive int from a query param, falling back to a default. */
-function readInt(value: string | null, fallback: number): number {
-    const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback;
-}
-
 /**
  * The Members management page: a searchable, filterable, paginated, and
  * deep-linkable table of everyone who can sign in, with invite / edit / role /
  * status controls gated on the signed-in user's `users:*` permissions. The URL
  * query string is the single source of truth for search, the query-builder
- * filter, and the page, so a filtered view can be shared or bookmarked.
- * Rendered at `/users` inside the authenticated shell.
+ * filter, and the page (via `useTableUrlState`), so a filtered view can be
+ * shared or bookmarked. Rendered at `/users` inside the authenticated shell.
  *
  * Gated on `users:read`: without it the page shows a no-access state and
  * fetches nothing (the server would refuse the request anyway).
@@ -84,22 +75,24 @@ export function MembersPage() {
     const navigate = useNavigate();
     const canRead = useHasPermission('users:read');
     const canInvite = useHasPermission('users:create');
-    const [searchParams, setSearchParams] = useSearchParams();
 
-    // The URL is the source of truth for search, filter, and paging.
-    const searchParam = searchParams.get('search') ?? '';
-    const filterParam = searchParams.get('filter') ?? '';
-    const page = readInt(searchParams.get('page'), 1);
-    const pageSize = readInt(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
-
-    // The search box is debounced locally, then pushed into the URL.
-    const [searchInput, setSearchInput] = useState(searchParam);
-    const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
+    const {
+        searchParam,
+        filterParam,
+        page,
+        pageSize,
+        searchInput,
+        setSearchInput,
+        updateParams
+    } = useTableUrlState({
+        searchKey: 'search',
+        defaultPageSize: DEFAULT_PAGE_SIZE
+    });
 
     // Rehydrate the applied filter tree from the URL for the drawer. Keyed on
     // the raw param so a deep-linked or hand-edited filter restores on load.
     const appliedFilter = useMemo(
-        () => jsonFilterToTree(new URLSearchParams({ filter: filterParam })),
+        () => jsonFilterToTree(filterParam),
         [filterParam]
     );
     const ruleCount = countRules(appliedFilter);
@@ -108,34 +101,6 @@ export function MembersPage() {
     // Focus returns here when the edit dialog closes — the row's kebab, which
     // outlives the dialog (only the menu popover closed). Captured on open.
     const restoreFocusRef = useRef<HTMLElement | null>(null);
-
-    /** Merges a query patch into the URL, dropping empty values; resets the
-     *  page unless told otherwise (a narrowed result set has fewer pages). */
-    const updateParams = useCallback(
-        (patch: Record<string, string | undefined>, resetPage = true) => {
-            setSearchParams(
-                (prev) => {
-                    const next = new URLSearchParams(prev);
-                    for (const [key, value] of Object.entries(patch)) {
-                        if (value) next.set(key, value);
-                        else next.delete(key);
-                    }
-                    if (resetPage) next.delete('page');
-                    return next;
-                },
-                { replace: true }
-            );
-        },
-        [setSearchParams]
-    );
-
-    // Sync the debounced search into the URL. Settles in one extra pass: once
-    // the URL reflects the debounced value the guard is false, so no loop.
-    useEffect(() => {
-        if (debouncedSearch !== searchParam) {
-            updateParams({ search: debouncedSearch || undefined });
-        }
-    }, [debouncedSearch, searchParam, updateParams]);
 
     const params: MembersListParams = {
         search: searchParam || undefined,
@@ -184,7 +149,7 @@ export function MembersPage() {
     }
 
     const members = data?.items ?? [];
-    const hasFilters = debouncedSearch.trim().length > 0 || ruleCount > 0;
+    const hasFilters = searchInput.trim().length > 0 || ruleCount > 0;
 
     const openEdit = (member: Member) => {
         restoreFocusRef.current = document.getElementById(
@@ -193,10 +158,13 @@ export function MembersPage() {
         setEditing(member);
     };
 
-    /** Clear every filter (search + query builder) and reset to the first page. */
+    /**
+     * Clear the filters (search + query builder) and reset to the first page,
+     * while preserving the user's page-size choice.
+     */
     const clearFilters = () => {
         setSearchInput('');
-        setSearchParams(new URLSearchParams(), { replace: true });
+        updateParams({ search: undefined, filter: undefined });
     };
 
     const openInvite = () => navigate('/users/invite');

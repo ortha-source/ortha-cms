@@ -80,10 +80,14 @@ function ruleToJson(rule: FilterRule, now: Date): JsonFilterNode {
     const f = rule.fieldId;
     switch (rule.op) {
         case OP.Contains:
+            // Escape LIKE metacharacters in the user's text before wrapping in
+            // `%…%`, so a literal `%` / `_` in the search behaves literally
+            // (Postgres treats `\` as the default LIKE escape) — matching the
+            // server's own actor-email substring path.
             return {
                 field: f,
                 op: WIRE_OP.Ilike,
-                value: `%${scalar(rule.value)}%`
+                value: `%${escapeLike(scalar(rule.value))}%`
             };
         case OP.IsOneOf:
             return {
@@ -126,6 +130,11 @@ function scalar(v: RuleValue): string {
     if (v == null) return '';
     if (typeof v === 'string') return v;
     return String(v);
+}
+
+/** Escape LIKE/ILIKE metacharacters (`\`, `%`, `_`) for a literal substring match. */
+function escapeLike(s: string): string {
+    return s.replace(/[\\%_]/g, '\\$&');
 }
 
 const MS_PER_UNIT: Record<WithinUnit, number> = {

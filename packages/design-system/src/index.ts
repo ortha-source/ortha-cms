@@ -108,6 +108,10 @@ export {
     SegmentedControlItem,
     SegmentedControlCount
 } from './lib/components/ui/segmented-control';
+export {
+    SearchToolbar,
+    type SearchToolbarProps
+} from './lib/components/ui/search-toolbar';
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
 export { Container, ContainerHeader } from './lib/components/ui/container';

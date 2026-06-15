@@ -4,6 +4,10 @@ import type { FilterSchema, ParsedFilter, ScalarFieldSchema } from './types';
 
 const OPS: readonly FilterOperator[] = Object.values(FilterOperator);
 
+/** Canonical 8-4-4-4-12 hex UUID — what Postgres' `uuid` type actually accepts. */
+const UUID_CANONICAL =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Walk a single dotted path against the schema, validate the operator,
  * and coerce the value to the declared type. Produces the `ParsedFilter`
@@ -132,7 +136,10 @@ function scalarOf(
                 { path: pathStr, expectedType: 'boolean', value: s }
             );
         case ScalarFieldType.Uuid:
-            if (!/^[0-9a-f-]{36}$/i.test(s)) {
+            // Canonical 8-4-4-4-12 form — stricter than a loose `[0-9a-f-]{36}`,
+            // which would let malformed values (e.g. 36 dashes) pass coercion
+            // and then fail Postgres' uuid cast as a 500 instead of a clean 400.
+            if (!UUID_CANONICAL.test(s)) {
                 throw new FilterException(
                     FilterErrorCode.InvalidValue,
                     `not a uuid: ${s}`,

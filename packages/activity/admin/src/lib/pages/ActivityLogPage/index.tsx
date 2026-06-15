@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Filter } from 'lucide-react';
 import {
@@ -10,7 +9,7 @@ import {
     type FilterGroup
 } from '@ortha-cms/query-builder-admin';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useDebouncedValue } from '@ortha-cms/utils-admin';
+import { useTableUrlState } from '@ortha-cms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -53,20 +52,11 @@ const messages = defineMessages({
     }
 });
 
-/** Debounce window for the actor-email search, so a keystroke burst is one query. */
-const SEARCH_DEBOUNCE_MS = 300;
-
-/** Reads a 1-based positive int from a query param, falling back to a default. */
-function readInt(value: string | null, fallback: number): number {
-    const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback;
-}
-
 /**
  * The Activity Log page: a filterable, paginated, deep-linkable table of audit
  * events. The URL query string is the single source of truth for every filter
- * and page, so a filtered view can be shared or bookmarked. Rendered at
- * `/activity` inside the authenticated shell.
+ * and page (via `useTableUrlState`), so a filtered view can be shared or
+ * bookmarked. Rendered at `/activity` inside the authenticated shell.
  *
  * Gated on `activity:read` (admin-only): without it the page shows a no-access
  * state and fetches nothing (the server refuses the request anyway).
@@ -74,53 +64,27 @@ function readInt(value: string | null, fallback: number): number {
 export function ActivityLogPage() {
     const intl = useIntl();
     const canRead = useHasPermission('activity:read');
-    const [searchParams, setSearchParams] = useSearchParams();
 
-    // The URL is the source of truth for the search filter.
-    const emailParam = searchParams.get('actorEmail') ?? '';
-    const filterParam = searchParams.get('filter') ?? '';
-    const page = readInt(searchParams.get('page'), 1);
-    const pageSize = readInt(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
+    const {
+        searchParam: emailParam,
+        filterParam,
+        page,
+        pageSize,
+        searchInput: emailInput,
+        setSearchInput: setEmailInput,
+        updateParams
+    } = useTableUrlState({
+        searchKey: 'actorEmail',
+        defaultPageSize: DEFAULT_PAGE_SIZE
+    });
 
     // Rehydrate the applied filter tree from the URL for the drawer. Keyed on
     // the raw param so a deep-linked or hand-edited filter restores on load.
     const appliedFilter = useMemo(
-        () => jsonFilterToTree(new URLSearchParams({ filter: filterParam })),
+        () => jsonFilterToTree(filterParam),
         [filterParam]
     );
     const ruleCount = countRules(appliedFilter);
-
-    // The email box is debounced locally, then pushed into the URL.
-    const [emailInput, setEmailInput] = useState(emailParam);
-    const debouncedEmail = useDebouncedValue(emailInput, SEARCH_DEBOUNCE_MS);
-
-    /** Merges a filter patch into the URL, dropping empty values; resets the
-     *  page unless told otherwise (a narrowed result set has fewer pages). */
-    const updateParams = useCallback(
-        (patch: Record<string, string | undefined>, resetPage = true) => {
-            setSearchParams(
-                (prev) => {
-                    const next = new URLSearchParams(prev);
-                    for (const [key, value] of Object.entries(patch)) {
-                        if (value) next.set(key, value);
-                        else next.delete(key);
-                    }
-                    if (resetPage) next.delete('page');
-                    return next;
-                },
-                { replace: true }
-            );
-        },
-        [setSearchParams]
-    );
-
-    // Sync the debounced email into the URL. Settles in one extra pass: once
-    // the URL reflects the debounced value the guard is false, so no loop.
-    useEffect(() => {
-        if (debouncedEmail !== emailParam) {
-            updateParams({ actorEmail: debouncedEmail || undefined });
-        }
-    }, [debouncedEmail, emailParam, updateParams]);
 
     const params: ActivityListParams = {
         actorEmail: emailParam || undefined,
@@ -170,9 +134,11 @@ export function ActivityLogPage() {
     const events = data?.items ?? [];
     const hasFilters = Boolean(emailParam) || ruleCount > 0;
 
+    // Clear the filters (actor-email + query builder) and reset to the first
+    // page, while preserving the user's sort/order/page-size choices.
     const clearFilters = () => {
         setEmailInput('');
-        setSearchParams(new URLSearchParams(), { replace: true });
+        updateParams({ actorEmail: undefined, filter: undefined });
     };
 
     return (

@@ -1,5 +1,4 @@
 import { ScalarFieldType, type FilterSchema } from '@ortha-cms/utils-server';
-import { activityEvents } from '../schema';
 
 /**
  * The filterable surface of the audit log for the query-builder engine.
@@ -22,6 +21,3 @@ export const ACTIVITY_FILTER_SCHEMA: FilterSchema = {
         at: { type: ScalarFieldType.Date }
     }
 };
-
-/** Drizzle table the activity filter resolves columns against. */
-export const ACTIVITY_FILTER_TABLE = activityEvents;

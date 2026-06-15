@@ -19,7 +19,12 @@ import {
     type RuleValue,
     type WithinUnit
 } from '../../../../../types/filter-tree.type';
+import {
+    isoToLocalInput,
+    localInputToIso
+} from '../../../../../utils/dateInput';
 import { CsvValueInput } from './CsvValueInput';
+import { EnumMultiSelect } from './EnumMultiSelect';
 
 const messages = defineMessages({
     rangeJoin: { id: 'qb.value.rangeJoin', defaultMessage: 'and' },
@@ -57,18 +62,32 @@ export type ValueEditorProps = {
     onChange: (next: RuleValue) => void;
 };
 
-const inputTypeFor = (fieldType: FieldType): 'date' | 'number' | 'text' => {
-    if (fieldType === FIELD_TYPE.Date) return 'date';
+const inputTypeFor = (
+    fieldType: FieldType
+): 'datetime-local' | 'number' | 'text' => {
+    if (fieldType === FIELD_TYPE.Date) return 'datetime-local';
     if (fieldType === FIELD_TYPE.Number) return 'number';
     return 'text';
 };
 
 /**
+ * Date fields store a full ISO instant on the wire but `datetime-local` reads
+ * `YYYY-MM-DDTHH:mm` — convert in/out so the column's `timestamptz` semantics
+ * stay exact. Non-date fields pass their string value through untouched.
+ */
+const toInputValue = (fieldType: FieldType, v: string): string =>
+    fieldType === FIELD_TYPE.Date ? isoToLocalInput(v) : v;
+const fromInputValue = (fieldType: FieldType, v: string): string =>
+    fieldType === FIELD_TYPE.Date ? localInputToIso(v) : v;
+
+/**
  * Switch-based value editor: picks the right control for the active
  * field/op pair. `is_empty` renders nothing — the operator carries the
- * full meaning. `between` and `within_last` render compound editors;
- * `is_one_of` renders a comma-separated text input (a polished
- * multi-select lands with the async-FK editor later).
+ * full meaning. `between` and `within_last` render compound editors. For
+ * `is_one_of`, an enum field gets a constrained checkbox multi-select
+ * ({@link EnumMultiSelect}); string/uuid fields keep a comma-separated
+ * text input. Date fields use `datetime-local` over a full ISO instant so
+ * `timestamptz` comparisons stay exact.
  */
 export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
     const intl = useIntl();
@@ -81,26 +100,35 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
             to: ''
         };
         const inputType = inputTypeFor(field.type);
+        const isDate = field.type === FIELD_TYPE.Date;
         return (
             <div className="flex items-center gap-1">
                 <Input
                     type={inputType}
-                    value={range.from}
+                    value={toInputValue(field.type, range.from)}
                     onChange={(e) =>
-                        onChange({ ...range, from: e.target.value })
+                        onChange({
+                            ...range,
+                            from: fromInputValue(field.type, e.target.value)
+                        })
                     }
                     aria-label={intl.formatMessage(messages.rangeFrom)}
-                    className="w-32"
+                    className={isDate ? 'w-44' : 'w-32'}
                 />
                 <span className="text-muted-foreground text-xs">
                     {intl.formatMessage(messages.rangeJoin)}
                 </span>
                 <Input
                     type={inputType}
-                    value={range.to}
-                    onChange={(e) => onChange({ ...range, to: e.target.value })}
+                    value={toInputValue(field.type, range.to)}
+                    onChange={(e) =>
+                        onChange({
+                            ...range,
+                            to: fromInputValue(field.type, e.target.value)
+                        })
+                    }
                     aria-label={intl.formatMessage(messages.rangeTo)}
-                    className="w-32"
+                    className={isDate ? 'w-44' : 'w-32'}
                 />
             </div>
         );
@@ -152,15 +180,15 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
 
     if (field.type === FIELD_TYPE.Enum && field.enumValues) {
         if (op === OP.IsOneOf) {
-            // Multi-select via comma-separated string for v1; polish
-            // (proper multi-select chips) lands with the async-FK
-            // editor later.
+            // Constrain `is_one_of` on an enum to its declared members so a
+            // value can't be typed that the server would reject with
+            // FILTER_INVALID_VALUE. (Free-text CSV stays for string/uuid fields.)
             return (
-                <CsvValueInput
+                <EnumMultiSelect
+                    options={field.enumValues}
                     value={Array.isArray(value) ? value : []}
                     onChange={onChange}
-                    placeholder={intl.formatMessage(messages.csvPlaceholder)}
-                    ariaLabel={intl.formatMessage(messages.value)}
+                    label={intl.formatMessage(messages.value)}
                 />
             );
         }
@@ -232,10 +260,15 @@ export function ValueEditor({ field, op, value, onChange }: ValueEditorProps) {
     return (
         <Input
             type={inputTypeFor(field.type)}
-            value={typeof value === 'string' ? value : ''}
-            onChange={(e) => onChange(e.target.value)}
+            value={toInputValue(
+                field.type,
+                typeof value === 'string' ? value : ''
+            )}
+            onChange={(e) =>
+                onChange(fromInputValue(field.type, e.target.value))
+            }
             aria-label={intl.formatMessage(messages.value)}
-            className="w-48"
+            className={field.type === FIELD_TYPE.Date ? 'w-52' : 'w-48'}
         />
     );
 }

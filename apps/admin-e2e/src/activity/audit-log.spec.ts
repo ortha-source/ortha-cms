@@ -79,7 +79,9 @@ test.describe('Activity Log page', () => {
         await activityLogPage.emailSearch.fill('grace');
 
         // Only Grace's suspension event matches the actor-email filter.
-        await expect(activityLogPage.row('grace@ortha.dev')).toBeVisible();
+        await expect(
+            activityLogPage.row('grace@ortha.dev').first()
+        ).toBeVisible();
         await expect(activityLogPage.row('ada@ortha.dev')).toHaveCount(0);
     });
 
@@ -186,7 +188,9 @@ test.describe('Activity Log keyboard operability', () => {
         await activityLogPage.emailSearch.focus();
         await activityLogPage.emailSearch.pressSequentially('grace');
 
-        await expect(activityLogPage.row('grace@ortha.dev')).toBeVisible();
+        await expect(
+            activityLogPage.row('grace@ortha.dev').first()
+        ).toBeVisible();
         await expect(activityLogPage.row('ada@ortha.dev')).toHaveCount(0);
     });
 

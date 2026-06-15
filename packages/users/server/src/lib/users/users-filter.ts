@@ -36,6 +36,3 @@ export const USERS_FILTER_SCHEMA: FilterSchema = {
         }
     }
 };
-
-/** Drizzle table the user filter resolves root columns against. */
-export const USERS_FILTER_TABLE = users;

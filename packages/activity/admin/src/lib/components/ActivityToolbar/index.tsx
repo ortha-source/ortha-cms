@@ -1,11 +1,6 @@
 import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Search } from 'lucide-react';
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupInput
-} from '@ortha-cms/design-system';
+import { SearchToolbar } from '@ortha-cms/design-system';
 
 /** Intl descriptors for {@link ActivityToolbar}, co-located. */
 const messages = defineMessages({
@@ -23,17 +18,14 @@ type ActivityToolbarProps = {
     /** Actor-email search box value. */
     email: string;
     onEmailChange: (value: string) => void;
-    /**
-     * Optional advanced-filter control (the query-builder drawer trigger).
-     * The page owns it so the toolbar stays presentational.
-     */
+    /** Optional advanced-filter control rendered on the right. */
     filterControl?: ReactNode;
 };
 
 /**
- * The Activity Log filter toolbar: an actor-email search box plus an optional
- * advanced-filter control. The page owns the filter state (the URL query
- * string).
+ * The Activity Log toolbar: an actor-email search box with the advanced-filter
+ * control pinned to the right. Layout lives in the shared `SearchToolbar`; this
+ * wrapper only supplies the localised strings and the page-owned filter control.
  */
 export function ActivityToolbar({
     email,
@@ -43,20 +35,12 @@ export function ActivityToolbar({
     const intl = useIntl();
 
     return (
-        <div className="mb-4 flex flex-wrap items-end gap-3">
-            <InputGroup className="w-full shadow-none sm:max-w-[360px]">
-                <InputGroupAddon>
-                    <Search />
-                </InputGroupAddon>
-                <InputGroupInput
-                    type="search"
-                    value={email}
-                    onChange={(event) => onEmailChange(event.target.value)}
-                    aria-label={intl.formatMessage(messages.searchLabel)}
-                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                />
-            </InputGroup>
-            {filterControl}
-        </div>
+        <SearchToolbar
+            value={email}
+            onValueChange={onEmailChange}
+            searchLabel={intl.formatMessage(messages.searchLabel)}
+            searchPlaceholder={intl.formatMessage(messages.searchPlaceholder)}
+            actions={filterControl}
+        />
     );
 }
