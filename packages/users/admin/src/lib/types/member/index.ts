@@ -16,6 +16,8 @@ export type MemberWorkspace = {
     id: string;
     /** Display name. */
     name: string;
+    /** Short description, or `null` when none is set. */
+    description: string | null;
     /** Two-letter initials shown in the avatar. */
     initials: string;
     /** Accent color tinting the workspace's avatar. */

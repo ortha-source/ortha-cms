@@ -180,8 +180,17 @@ export function AddToWorkspacesDialog({
                                                     color={workspace.color}
                                                     className="size-9 shrink-0 text-xs"
                                                 />
-                                                <span className="min-w-0 flex-1 truncate text-sm">
-                                                    {workspace.name}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-sm">
+                                                        {workspace.name}
+                                                    </span>
+                                                    {workspace.description ? (
+                                                        <span className="block truncate text-xs text-muted-foreground">
+                                                            {
+                                                                workspace.description
+                                                            }
+                                                        </span>
+                                                    ) : null}
                                                 </span>
                                             </Label>
                                         </li>

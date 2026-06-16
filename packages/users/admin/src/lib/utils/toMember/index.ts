@@ -22,6 +22,7 @@ export type MemberRoleResponse = {
 export type MemberWorkspaceResponse = {
     id: string;
     name: string;
+    description: string | null;
     color: string;
 };
 
@@ -47,6 +48,7 @@ function toMemberWorkspace(dto: MemberWorkspaceResponse): MemberWorkspace {
     return {
         id: dto.id,
         name: dto.name,
+        description: dto.description,
         initials: initialsOf(dto.name),
         color: asAvatarColor(dto.color)
     };

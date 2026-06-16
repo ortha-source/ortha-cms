@@ -557,6 +557,7 @@ export class UsersService {
                 userId: memberships.userId,
                 id: workspaces.id,
                 name: workspaces.name,
+                description: workspaces.description,
                 color: workspaces.color
             })
             .from(memberships)
@@ -569,6 +570,7 @@ export class UsersService {
             const view: MemberWorkspaceView = {
                 id: row.id,
                 name: row.name,
+                description: row.description,
                 color: row.color
             };
             const list = grouped.get(row.userId);

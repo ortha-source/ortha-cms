@@ -43,9 +43,16 @@ export function WorkspaceMembershipCard({
                     color={workspace.color}
                     className="size-9 shrink-0 text-xs"
                 />
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {workspace.name}
-                </p>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                        {workspace.name}
+                    </p>
+                    {workspace.description ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                            {workspace.description}
+                        </p>
+                    ) : null}
+                </div>
                 {onRemove ? (
                     <Button
                         variant="ghost"
