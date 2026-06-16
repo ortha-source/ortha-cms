@@ -80,19 +80,27 @@ export function UserWorkspacesPage() {
     const [removing, setRemoving] = useState<MemberWorkspace | null>(null);
 
     const onAdd = async (workspaceIds: string[]) => {
-        try {
-            await Promise.all(
-                workspaceIds.map((workspaceId) =>
-                    addMember.mutateAsync({ userId: member.id, workspaceId })
-                )
-            );
+        // Add each workspace independently so one failure (e.g. a 409 from an
+        // already-member race, or a transient network error) doesn't mask the
+        // ones that did commit. `Promise.all` would reject on the first failure
+        // and report total failure even though some adds succeeded.
+        const results = await Promise.allSettled(
+            workspaceIds.map((workspaceId) =>
+                addMember.mutateAsync({ userId: member.id, workspaceId })
+            )
+        );
+        const added = results.filter(
+            (result) => result.status === 'fulfilled'
+        ).length;
+
+        // Close once anything landed (the successful mutations have already
+        // invalidated the detail, so the list reflects them); keep the dialog
+        // open only when every add failed, so the admin can retry.
+        if (added > 0) {
             setAdding(false);
-            toast.success(
-                intl.formatMessage(messages.added, {
-                    count: workspaceIds.length
-                })
-            );
-        } catch {
+            toast.success(intl.formatMessage(messages.added, { count: added }));
+        }
+        if (added < workspaceIds.length) {
             toast.error(intl.formatMessage(messages.addFailed));
         }
     };

@@ -63,22 +63,22 @@ export function MembersTable({ members }: { members: Member[] }) {
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.member)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.role)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.status)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.workspaces)}
                         </TableHead>
-                        <TableHead>
+                        <TableHead scope="col">
                             {intl.formatMessage(messages.joined)}
                         </TableHead>
-                        <TableHead className="w-12">
+                        <TableHead scope="col" className="w-12">
                             <span className="sr-only">
                                 {intl.formatMessage(messages.actions)}
                             </span>

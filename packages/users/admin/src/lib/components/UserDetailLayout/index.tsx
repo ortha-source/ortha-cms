@@ -102,7 +102,17 @@ export function UserDetailLayout() {
             <UserStatsStrip member={member} />
             <div className="grid gap-8 md:grid-cols-[14rem_minmax(0,1fr)]">
                 <UserSideRail member={member} />
-                <div className="min-w-0">
+                {/*
+                 * Key the tab subtree by member id so navigating straight from
+                 * one member's detail to another's (e.g. the account menu's
+                 * "My profile" from a roster member) remounts the active tab.
+                 * Without this React reuses the same instance across the `:id`
+                 * change — the layout never unmounts the Outlet when the target
+                 * member is already cached (`isPending` stays false) — leaving a
+                 * tab's `useState(member.…)` seeded from the previous member,
+                 * which Save would then write back onto the wrong user.
+                 */}
+                <div key={member.id} className="min-w-0">
                     <Outlet context={context} />
                 </div>
             </div>
