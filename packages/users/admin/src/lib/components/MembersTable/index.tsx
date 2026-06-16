@@ -1,3 +1,4 @@
+import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Table,
@@ -47,19 +48,15 @@ const messages = defineMessages({
 });
 
 /**
- * The members table: avatar + name + email, an inline role editor, the
- * status pill, the workspace stack, the joined date (the invite date for
- * Invited rows), and the per-row actions menu.
+ * The members table: avatar + name + email, the role chip, the status pill, the
+ * workspace stack, the joined date (the invite date for Invited rows), and the
+ * per-row actions menu. The whole row is a shortcut to the member's detail page
+ * (the name is a real link for keyboard users); the actions cell stops the
+ * click from bubbling so opening the menu doesn't also navigate.
  */
-export function MembersTable({
-    members,
-    onEdit
-}: {
-    members: Member[];
-    /** Opens the edit dialog for a member (from the row menu). */
-    onEdit: (member: Member) => void;
-}) {
+export function MembersTable({ members }: { members: Member[] }) {
     const intl = useIntl();
+    const navigate = useNavigate();
 
     return (
         <div className="rounded-xl border">
@@ -90,7 +87,11 @@ export function MembersTable({
                 </TableHeader>
                 <TableBody>
                     {members.map((member) => (
-                        <TableRow key={member.id}>
+                        <TableRow
+                            key={member.id}
+                            onClick={() => navigate(`/users/${member.id}`)}
+                            className="cursor-pointer"
+                        >
                             <TableCell>
                                 <div className="flex items-center gap-3">
                                     <MemberAvatar
@@ -99,9 +100,15 @@ export function MembersTable({
                                         className="size-9 shrink-0 text-xs"
                                     />
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium">
+                                        <Link
+                                            to={`/users/${member.id}`}
+                                            className="block truncate text-sm font-medium hover:underline"
+                                            onClick={(event) =>
+                                                event.stopPropagation()
+                                            }
+                                        >
                                             {member.name}
-                                        </p>
+                                        </Link>
                                         <p className="truncate text-xs text-muted-foreground">
                                             {member.email}
                                         </p>
@@ -124,11 +131,11 @@ export function MembersTable({
                                     dateStyle: 'medium'
                                 })}
                             </TableCell>
-                            <TableCell className="text-right">
-                                <MemberRowActions
-                                    member={member}
-                                    onEdit={onEdit}
-                                />
+                            <TableCell
+                                className="text-right"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <MemberRowActions member={member} />
                             </TableCell>
                         </TableRow>
                     ))}

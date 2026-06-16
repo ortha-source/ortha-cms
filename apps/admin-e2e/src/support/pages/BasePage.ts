@@ -8,6 +8,23 @@ import { type Locator, type Page } from '@playwright/test';
 export abstract class BasePage {
     constructor(protected readonly page: Page) {}
 
+    // --- toolbar account menu (shell chrome, contributed by users-admin) ---
+
+    /** The trailing account-menu trigger (the avatar button). */
+    accountMenuTrigger(): Locator {
+        return this.page.getByRole('button', { name: 'Account menu' });
+    }
+
+    /** Open the account menu. */
+    async openAccountMenu() {
+        await this.accountMenuTrigger().click();
+    }
+
+    /** An account-menu item by label (e.g. "My profile", "Logout"). */
+    accountMenuItem(label: string): Locator {
+        return this.page.getByRole('menuitem', { name: label });
+    }
+
     /** The toolbar "Filters" trigger (its label carries the active count). */
     filterTrigger(): Locator {
         return this.page.getByRole('button', { name: /^Filters/ });

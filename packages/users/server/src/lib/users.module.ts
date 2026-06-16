@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ListUsersController } from './users/controllers/list-users.controller';
+import { GetUserController } from './users/controllers/get-user.controller';
 import { InviteUserController } from './users/controllers/invite-user.controller';
 import { UpdateUserController } from './users/controllers/update-user.controller';
 import { SetUserStatusController } from './users/controllers/set-user-status.controller';
@@ -29,6 +30,7 @@ export class UsersModule {
             module: UsersModule,
             controllers: [
                 ListUsersController,
+                GetUserController,
                 InviteUserController,
                 UpdateUserController,
                 SetUserStatusController,

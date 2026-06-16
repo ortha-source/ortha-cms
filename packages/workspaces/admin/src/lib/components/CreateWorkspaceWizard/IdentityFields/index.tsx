@@ -146,6 +146,7 @@ export function IdentityFields({ data, update, slug }: IdentityFieldsProps) {
                 </FieldLabel>
                 <Textarea
                     id="workspace-description"
+                    className="shadow-none"
                     value={data.description}
                     onChange={(event) =>
                         update({ description: event.target.value })

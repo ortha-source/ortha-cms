@@ -43,7 +43,7 @@ export function ActivityActorCell({ actor }: { actor: ActivityActor }) {
         <div className="flex items-center gap-3">
             <Avatar
                 aria-hidden
-                className={cn('size-8 shrink-0 rounded-full text-xs')}
+                className={cn('size-8 shrink-0 text-xs')}
                 style={{
                     backgroundColor: avatarColorVar(avatarColorForId(actor.id))
                 }}

@@ -30,6 +30,9 @@
         },
         {
             "path": "../../bootstrap/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../activity/admin/tsconfig.lib.json"
         }
     ]
 }

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_100 test cases across 15 spec files._
+_113 test cases across 17 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -145,6 +145,17 @@ _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
 | empty state — no matches |
 | no-access state |
 
+<!-- source: apps/admin-e2e/src/users/account-menu.spec.ts -->
+_<sub>apps/admin-e2e/src/users/account-menu.spec.ts</sub>_
+
+## Account menu
+
+| Test case |
+| --- |
+| shows the signed-in account in the toolbar dropdown |
+| "My profile" opens the current user’s detail page |
+| Logout calls the logout endpoint |
+
 <!-- source: apps/admin-e2e/src/users/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/users/keyboard.spec.ts</sub>_
 
@@ -187,10 +198,28 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | keeps Continue disabled (no request) for an invalid email |
 | paginates with a selectable page size |
 | shows status-specific actions for a pending invite |
+| the row menu mirrors the detail sections |
 | offers Enable (not Disable) for a disabled member |
-| renders the role as a chip and locks the sole admin in the edit dialog |
+| renders the role as a read-only chip |
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
+
+<!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
+_<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_
+
+## User detail page
+
+| Test case |
+| --- |
+| renders the member hero and the General tab by default |
+| opens when the member row is clicked |
+| opens a specific tab from the row menu |
+| navigates between tabs via the side rail |
+| edits the display name (PATCH /api/users/:id) |
+| revokes a session from the Sessions tab |
+| renders the activity timeline with per-action entries |
+| shows workspace membership events in the personal log |
+| hides audit and access tabs without users:update |
 
 <!-- source: apps/admin-e2e/src/workspaces/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_

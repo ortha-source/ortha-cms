@@ -7,6 +7,7 @@ export { AuthProvider } from './lib/auth/AuthProvider';
 export { RequireAuth } from './lib/auth/RequireAuth';
 export { useAuth, useHasPermission, AuthStatus } from './lib/auth/authContext';
 export type { AuthState, AuthUser } from './lib/auth/authContext';
+export { useLogoutMutation } from './lib/api/useLogoutMutation';
 export type {
     LoginCredentials,
     AuthTokens,

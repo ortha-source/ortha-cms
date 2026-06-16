@@ -1,22 +1,46 @@
 # @ortha-cms/users-admin
 
 The members **admin plugin**: the **Members** page at `/users`, the **Invite
-member** page at `/users/invite`, and the toolbar nav entry.
+member** page at `/users/invite`, the **user detail** page at `/users/:id`, and
+the toolbar nav entry.
 
 ## What it owns
 
-- The private `/users` and `/users/invite` routes (lazy + `<Suspense>`),
-  rendered in the shell's authenticated layout.
+- The private `/users`, `/users/invite`, and `/users/:id/*` routes (lazy +
+  `<Suspense>`), rendered in the shell's authenticated layout.
 - A `NAVBAR_START_SLOT` entry (`order: 30`, after Workspaces). The pages gate on
   the `users:read` permission via `useHasPermission`.
+- The toolbar **account menu** (`AccountMenu`), contributed to the shell's
+  `NAVBAR_END_SLOT`: the signed-in user's avatar + a dropdown with their
+  name/email, **My profile** (→ their own `/users/:id` detail page), and
+  **Logout** (identity's `useLogoutMutation`). It reads the current user from
+  identity's `useAuth`.
 
 ## The pages
 
 `MembersPage` — `Container`/`ContainerHeader`, a search toolbar, the
-**Member · Role · Status · Workspaces** table with per-row actions, pagination,
-an inline edit dialog, and a loading **skeleton** (`MembersTableSkeleton`) plus
-empty/no-access states. `InviteMemberPage` — the invite form (role +
-workspaces), gated the same way.
+**Member · Role · Status · Workspaces** table, pagination, a loading
+**skeleton** (`MembersTableSkeleton`), and empty/no-access states. Each row is a
+shortcut to the member's detail page (the name is a real link for keyboard
+users); the row's kebab menu mirrors the detail side rail — an **Account**
+group (General/Role/Workspaces) plus permission-gated **Audit**
+(Sessions/Activity) and **Access** (Sign-in access) groups that navigate
+straight to a tab — followed by the status quick actions (Resend/Revoke invite,
+Disable/Enable). Editing name/role now lives on the detail page, not an inline
+dialog. `InviteMemberPage` — the invite form (role + workspaces), gated the same
+way.
+
+`UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`'s nested `<Routes>`)
+— fetches one member once (`useUserDetail`) and shares it with every tab through
+the Outlet context (`utils/userDetailContext`), so a tab read is free. Renders
+the back link, `UserHero`, `UserStatsStrip`, and a sticky `UserSideRail` beside
+the active tab. Six tab pages: **General** (edit name), **Role** (`RolePicker` +
+confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
+**Sessions** (`SessionCard` + revoke), **Activity** (reuses
+`@ortha-cms/activity-admin`'s `useActivityLog`, pinned to `subjectId`), and
+**Access** (suspend/reactivate). The Audit (Sessions, Activity) and Access tabs
+are permission-gated **at the route level** — without `users:update` /
+`activity:read` the rail hides them and the route redirects to General.
 
 ## Conventions
 

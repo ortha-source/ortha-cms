@@ -12,6 +12,7 @@ import { RootAdminSeeder } from './root-admin/seeders/root-admin.seeder';
 import { LoginController } from './auth/controllers/login.controller';
 import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
+import { UserSessionsController } from './auth/controllers/user-sessions.controller';
 import { AuthService } from './auth/services/auth.service';
 import { SessionService } from './auth/services/session.service';
 import { HashingService } from './auth/services/hashing.service';
@@ -67,6 +68,7 @@ export class IdentityModule {
                 LoginController,
                 MeController,
                 LogoutController,
+                UserSessionsController,
                 CreateWorkspaceController,
                 ListWorkspacesController,
                 CheckSlugController,

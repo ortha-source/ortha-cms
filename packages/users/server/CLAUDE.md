@@ -8,6 +8,8 @@ admin's Members page drives. One feature (`users/`) exposing, under
   (`?page=&pageSize=`, 1-based, defaults in `users.constants.ts`) member list;
   each row joins the global role, the member's workspaces, and a
   server-computed `isLastAdmin` flag the UI uses to disable guarded controls.
+- `GET /users/:id` — one member's full view (the same `MemberView` the list
+  returns), backing the admin user detail page; `users:read`, 404 on unknown id.
 - `POST /users/invites` — invite by email: creates a `pending` user + invite
   token, and optionally links the new member to `workspaceIds` (memberships;
   unknown ids are ignored). **No email is sent yet** (`TODO(users-email)`,
