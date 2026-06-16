@@ -185,7 +185,7 @@ export function AddToWorkspacesDialog({
                                                         {workspace.name}
                                                     </span>
                                                     {workspace.description ? (
-                                                        <span className="block truncate text-xs text-muted-foreground">
+                                                        <span className="line-clamp-3 text-xs text-muted-foreground">
                                                             {
                                                                 workspace.description
                                                             }

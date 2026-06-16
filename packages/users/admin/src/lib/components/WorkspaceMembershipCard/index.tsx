@@ -48,7 +48,7 @@ export function WorkspaceMembershipCard({
                         {workspace.name}
                     </p>
                     {workspace.description ? (
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="line-clamp-3 text-xs text-muted-foreground">
                             {workspace.description}
                         </p>
                     ) : null}
