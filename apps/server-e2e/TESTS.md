@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_172 test cases across 18 spec files._
+_178 test cases across 19 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -206,6 +206,32 @@ _<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
 | Test case |
 | --- |
 | aborts boot when an email is configured without a password |
+
+<!-- source: apps/server-e2e/src/server/content/content-schema.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-schema.spec.ts</sub>_
+
+## Content schema (GET /api/content-schema)
+
+### authorization
+
+| Test case |
+| --- |
+| 401s an unauthenticated list request |
+| 401s an unauthenticated detail request |
+| 403s an authenticated user whose role lacks content:read |
+
+### list
+
+| Test case |
+| --- |
+| returns a summary of every code-defined content type |
+
+### detail
+
+| Test case |
+| --- |
+| returns the full field schema for a type |
+| 404s an unknown content type |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

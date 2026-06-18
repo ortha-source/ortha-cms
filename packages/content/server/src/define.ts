@@ -8,7 +8,7 @@
  * via its controllers.
  */
 
-export { collection, single } from './lib/collection/define';
+export { collection, single, joinTableOf } from './lib/collection/define';
 export { f } from './lib/fields';
 
 export type {

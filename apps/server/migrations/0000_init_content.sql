@@ -9,7 +9,7 @@ CREATE TABLE "content_author" (
 	"bio" text,
 	"avatar" text,
 	"joined_on" date,
-	"active" boolean NOT NULL
+	"active" boolean DEFAULT false NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "content_home_featured_posts" (

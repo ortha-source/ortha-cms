@@ -6,7 +6,7 @@ export type {
     ContentServerPlugin
 } from './lib/utils/content-plugin';
 
-export { collection, single } from './lib/collection/define';
+export { collection, single, joinTableOf } from './lib/collection/define';
 export { f } from './lib/fields';
 
 export { ContentModule } from './lib/content.module';

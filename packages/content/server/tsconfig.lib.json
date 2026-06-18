@@ -15,6 +15,9 @@
     "references": [
         {
             "path": "../../bootstrap/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../identity/server/tsconfig.lib.json"
         }
     ]
 }

@@ -65,7 +65,11 @@ function columnFor(
             builder = integer(col);
             break;
         case 'boolean':
-            builder = pgBoolean(col);
+            // A required boolean defaults to false so an omitted value is a
+            // concrete `false` rather than a NOT NULL violation.
+            builder = spec.required
+                ? pgBoolean(col).default(false)
+                : pgBoolean(col);
             break;
         case 'date':
             builder = pgDate(col);

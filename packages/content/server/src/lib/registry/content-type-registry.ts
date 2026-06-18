@@ -6,6 +6,7 @@
  */
 
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
+import type { AnyFieldSpec } from '../types/fields';
 
 /** Wire shape of a field, as served to the admin / frontends. */
 export interface SerializedField {
@@ -17,7 +18,13 @@ export interface SerializedField {
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
     options?: readonly string[];
-    relation?: { to: string; many: boolean; onDelete: string };
+    /**
+     * `onDelete` is the FK referential action — meaningful only for a single
+     * relation. For a many-relation the link lives in a join table whose rows
+     * always cascade, so `onDelete` is omitted rather than reported as the
+     * (inert) spec value.
+     */
+    relation?: { to: string; many: boolean; onDelete?: string };
 }
 
 /** Wire shape of a content type (summary, wizard-compatible). */
@@ -72,15 +79,50 @@ export class ContentTypeRegistry {
         return this.byName.get(name);
     }
 
-    /** Wizard-compatible summaries (matches `ContentTypeDescriptor`). */
-    summaries(): SerializedContentTypeSummary[] {
-        return this.all().map((type) => ({
+    /** The wizard-compatible summary of one type. */
+    private summaryOf(type: AnyContentType): SerializedContentTypeSummary {
+        return {
             name: type.name,
             kind: type.kind,
             label: type.label,
             ...(type.description ? { description: type.description } : {}),
             ...(type.path ? { path: type.path } : {})
-        }));
+        };
+    }
+
+    /** The wire shape of one field spec. */
+    private serializeField(
+        fieldName: string,
+        spec: AnyFieldSpec
+    ): SerializedField {
+        return {
+            name: fieldName,
+            type: spec.type,
+            required: spec.required,
+            localized: spec.localized,
+            ai: spec.ai,
+            validation: { ...spec.validation },
+            admin: { ...spec.admin },
+            ...(spec.options ? { options: spec.options } : {}),
+            ...(spec.relation
+                ? {
+                      relation: {
+                          to: spec.relation.to().name,
+                          many: spec.relation.many,
+                          // onDelete only applies to a single FK column; a
+                          // many-relation's join rows always cascade.
+                          ...(spec.relation.many
+                              ? {}
+                              : { onDelete: spec.relation.onDelete })
+                      }
+                  }
+                : {})
+        };
+    }
+
+    /** Wizard-compatible summaries (matches `ContentTypeDescriptor`). */
+    summaries(): SerializedContentTypeSummary[] {
+        return this.all().map((type) => this.summaryOf(type));
     }
 
     /** Full serialized schema for one type, or undefined. */
@@ -88,26 +130,10 @@ export class ContentTypeRegistry {
         const type = this.get(name);
         if (!type) return undefined;
         return {
-            ...this.summaries().find((s) => s.name === name)!,
-            fields: Object.entries(type.fields).map(([fieldName, spec]) => ({
-                name: fieldName,
-                type: spec.type,
-                required: spec.required,
-                localized: spec.localized,
-                ai: spec.ai,
-                validation: { ...spec.validation },
-                admin: { ...spec.admin },
-                ...(spec.options ? { options: spec.options } : {}),
-                ...(spec.relation
-                    ? {
-                          relation: {
-                              to: spec.relation.to().name,
-                              many: spec.relation.many,
-                              onDelete: spec.relation.onDelete
-                          }
-                      }
-                    : {})
-            }))
+            ...this.summaryOf(type),
+            fields: Object.entries(type.fields).map(([fieldName, spec]) =>
+                this.serializeField(fieldName, spec)
+            )
         };
     }
 }

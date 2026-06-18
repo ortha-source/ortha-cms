@@ -1,4 +1,15 @@
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    NotFoundException,
+    Param,
+    UseGuards
+} from '@nestjs/common';
+import {
+    PERMISSIONS,
+    PermissionsGuard,
+    RequirePermissions
+} from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type {
     ContentTypeRegistry,
@@ -9,8 +20,10 @@ import type {
  * `GET /api/content-schema/:name` — the full field schema of one content
  * type: types, validation rules, and admin presentation props. This is
  * what the admin's dynamic tables/forms render from. Authentication is
- * enforced by the app-wide AuthGuard.
+ * enforced by the app-wide AuthGuard; read access is gated on `content:read`.
  */
+@UseGuards(PermissionsGuard)
+@RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content-schema')
 export class GetContentSchemaController {
     constructor(

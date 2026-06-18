@@ -23,6 +23,32 @@ export interface ValidationResult {
 const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** ISO-8601 calendar date, no time of day. */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * ISO-8601 date-time with a time component (and optional fractional seconds /
+ * timezone). Rejects date-only strings, which `Date.parse` would otherwise
+ * accept and silently coerce to UTC midnight for a `timestamptz` column.
+ */
+const DATETIME_RE =
+    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
+
+/**
+ * Compiled-regex cache for field `pattern` rules. Patterns are author-defined
+ * and bounded in number, so caching by source avoids recompiling on every
+ * `validate()` call without unbounded growth.
+ */
+const patternCache = new Map<string, RegExp>();
+function compiledPattern(pattern: string): RegExp {
+    let re = patternCache.get(pattern);
+    if (!re) {
+        re = new RegExp(pattern);
+        patternCache.set(pattern, re);
+    }
+    return re;
+}
+
 function isEmpty(value: unknown): boolean {
     return (
         value === undefined ||
@@ -58,7 +84,7 @@ function checkField(
                 fail(`must be at least ${v.minLength} characters`);
             if (v.maxLength !== undefined && value.length > v.maxLength)
                 fail(`must be at most ${v.maxLength} characters`);
-            if (v.pattern && !new RegExp(v.pattern).test(value))
+            if (v.pattern && !compiledPattern(v.pattern).test(value))
                 fail(`must match pattern ${v.pattern}`);
             break;
         }
@@ -80,19 +106,17 @@ function checkField(
             if (typeof value !== 'boolean') fail('must be true or false');
             break;
         case 'date':
-            if (
-                typeof value !== 'string' ||
-                !/^\d{4}-\d{2}-\d{2}$/.test(value)
-            )
+            if (typeof value !== 'string' || !DATE_RE.test(value))
                 fail('must be an ISO date (YYYY-MM-DD)');
             break;
         case 'datetime':
             if (
                 !(value instanceof Date) &&
                 (typeof value !== 'string' ||
+                    !DATETIME_RE.test(value) ||
                     Number.isNaN(Date.parse(value)))
             )
-                fail('must be a date-time');
+                fail('must be an ISO date-time');
             break;
         case 'select':
             if (

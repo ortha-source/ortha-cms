@@ -39,6 +39,18 @@ function text<const O extends TextFieldOptions = TextFieldOptions>(
     options?: O
 ): FieldSpec<'text', WithRequired<O, string>> {
     const { minLength, maxLength, pattern } = options ?? {};
+    if (pattern !== undefined) {
+        // Fail at definition time (boot) rather than on the first value that
+        // hits validation, if the author wrote an unparseable pattern.
+        try {
+            new RegExp(pattern);
+        } catch (cause) {
+            throw new Error(
+                `Invalid regex pattern ${JSON.stringify(pattern)} on a text ` +
+                    `field: ${(cause as Error).message}`
+            );
+        }
+    }
     return base('text', options, { minLength, maxLength, pattern });
 }
 

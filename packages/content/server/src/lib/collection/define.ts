@@ -5,8 +5,10 @@
  * and re-exports (the tables) for drizzle-kit.
  */
 
+import type { PgTable } from 'drizzle-orm/pg-core';
 import type { AnyFieldSpec } from '../types/fields';
 import type {
+    AnyContentType,
     ContentType,
     ContentTypeOptions,
     SingleOptions
@@ -25,7 +27,30 @@ function assertName(name: string): void {
     }
 }
 
-function assertFieldNames(
+/** Envelope columns every generated table carries (see {@link buildTables}). */
+const RESERVED_COLUMNS = new Set([
+    'id',
+    'workspace_id',
+    'status',
+    'created_at',
+    'updated_at'
+]);
+
+/**
+ * The physical main-table column a field maps to, or `null` for a
+ * many-relation (which lives in its own join table, not a column). A
+ * single relation becomes a `<field>_id` FK column — mirror that here so
+ * collision detection sees the real column name, not the bare field name.
+ */
+function mainColumnName(fieldName: string, spec: AnyFieldSpec): string | null {
+    if (spec.type === 'relation') {
+        if (spec.relation?.many) return null;
+        return `${snakeCase(fieldName)}_id`;
+    }
+    return snakeCase(fieldName);
+}
+
+function assertFields(
     typeName: string,
     fields: Record<string, AnyFieldSpec>
 ): void {
@@ -33,20 +58,62 @@ function assertFieldNames(
     if (names.length === 0) {
         throw new Error(`Content type "${typeName}" defines no fields.`);
     }
-    const reserved = new Set([
-        'id',
-        'workspace_id',
-        'status',
-        'created_at',
-        'updated_at'
-    ]);
+    const seen = new Map<string, string>();
     for (const name of names) {
-        if (reserved.has(snakeCase(name))) {
+        const spec = fields[name];
+
+        // A required single relation with ON DELETE SET NULL is a
+        // contradiction: the FK column is NOT NULL, so nulling it on a
+        // parent delete always fails — the delete can never succeed.
+        if (
+            spec.type === 'relation' &&
+            spec.relation &&
+            !spec.relation.many &&
+            spec.required &&
+            spec.relation.onDelete === 'set null'
+        ) {
             throw new Error(
-                `Field "${name}" on "${typeName}" collides with an envelope column.`
+                `Relation "${typeName}.${name}" is required but its onDelete is ` +
+                    `'set null' — a NOT NULL foreign key cannot be nulled on delete. ` +
+                    `Use 'cascade' or 'restrict'.`
             );
         }
+
+        const column = mainColumnName(name, spec);
+        if (column === null) continue; // many-relation: no main-table column
+
+        if (RESERVED_COLUMNS.has(column)) {
+            throw new Error(
+                `Field "${name}" on "${typeName}" maps to column "${column}", ` +
+                    `which collides with an envelope column.`
+            );
+        }
+        const existing = seen.get(column);
+        if (existing) {
+            throw new Error(
+                `Fields "${existing}" and "${name}" on "${typeName}" both map to ` +
+                    `column "${column}".`
+            );
+        }
+        seen.set(column, name);
     }
+}
+
+/**
+ * The generated join table for a many-relation field, or throw. Use this in
+ * the host's drizzle-kit schema entry (`re-export`) so a renamed or removed
+ * many-relation fails loudly at load instead of silently resolving to
+ * `undefined` and dropping the join table from the generated migration.
+ */
+export function joinTableOf(type: AnyContentType, field: string): PgTable {
+    const table = type.joinTables[field];
+    if (!table) {
+        throw new Error(
+            `Content type "${type.name}" has no join table for ` +
+                `many-relation "${field}".`
+        );
+    }
+    return table;
 }
 
 /**
@@ -66,7 +133,7 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
     options: ContentTypeOptions<TFields>
 ): ContentType<TFields> {
     assertName(name);
-    assertFieldNames(name, options.fields);
+    assertFields(name, options.fields);
     const { table, joinTables } = buildTables(name, options.fields);
     return {
         name,
@@ -88,7 +155,7 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
     options: SingleOptions<TFields>
 ): ContentType<TFields> {
     assertName(name);
-    assertFieldNames(name, options.fields);
+    assertFields(name, options.fields);
     if (!options.path.startsWith('/')) {
         throw new Error(
             `Single "${name}" path must start with "/" (got "${options.path}").`
