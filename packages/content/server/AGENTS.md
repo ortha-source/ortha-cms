@@ -8,7 +8,8 @@ own** — the HOST owns the generated tables and their migrations (see below).
 
 ## The DSL (`collection()` / `single()` + `f.*`)
 
-Content types are declared in code, in the host app (`apps/server/src/collections`):
+Content types are declared in code, in the host app (collections in
+`apps/server/src/collections`, pages/singles in `apps/server/src/pages`):
 
 ```typescript
 export const post = collection('post', {
@@ -54,7 +55,7 @@ only the decorator-free DSL (`collection`, `single`, `f`, `joinTableOf`, types).
 ## Migrations are HOST-owned
 
 This package emits no migrations. The HOST (`apps/server`) re-exports every
-generated table from `src/collections/schema.ts` (use `joinTableOf(type, field)`
+generated table from `src/content.ts` (use `joinTableOf(type, field)`
 for join tables — it throws if a many-relation was renamed, instead of silently
 dropping the table from the diff), runs `db:generate` against its own
 `drizzle.config.ts`, and commits the SQL. `ContentPlugin({ types, migrations })`

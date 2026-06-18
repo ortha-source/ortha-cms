@@ -6,7 +6,7 @@ import { DatabasePlugin } from '@ortha-cms/database';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
 import { UsersPlugin } from '@ortha-cms/users-server';
 import type { OrthaConfig } from '../ortha.config';
-import { contentTypes } from './collections';
+import { contentTypes } from './content';
 
 /**
  * Builds the host's plugin list. Shared by `main.ts` (boot) and the
@@ -32,7 +32,7 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         ContentPlugin({
             types: contentTypes,
             // The HOST owns the generated collection tables (drizzle.config.ts
-            // diffs src/collections/schema.ts into ./migrations); routing the
+            // diffs src/content.ts into ./migrations); routing the
             // descriptor through the plugin lets the standard db:migrate
             // machinery apply them with every other plugin's migrations.
             migrations: {

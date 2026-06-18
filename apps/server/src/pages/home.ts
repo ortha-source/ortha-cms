@@ -1,5 +1,5 @@
 import { f, single } from '@ortha-cms/content-server/define';
-import { post } from './post';
+import { post } from '../collections/post';
 
 /** The site landing page — a single (one entry, routed at `/`). */
 export const home = single('home', {
