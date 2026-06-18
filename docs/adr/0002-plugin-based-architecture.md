@@ -1,0 +1,42 @@
+# 0002 — Plugin-based architecture
+
+- **Status:** Accepted
+- **Date:** 2026-06-18
+- **Deciders:** Engineering
+
+> Documents a decision already embodied in the codebase, recorded
+> retrospectively so the rationale is explicit.
+
+## Context
+
+OrthaCms must grow many capabilities (auth, users, workspaces, activity, and
+eventually content/AI) across two runtimes (a React admin SPA and a NestJS API)
+without the hosts accumulating domain logic or features becoming entangled.
+
+## Decision
+
+We will keep the application **hosts** (`@ortha-cms/bootstrap-admin`,
+`@ortha-cms/bootstrap-server`) free of domain logic. Each host turns a *list of
+plugins* into a running app. Capability lives in plugins, usually shipped as an
+`admin`/`server` pair under `packages/<group>/{admin,server}`. Server plugins own
+their own Drizzle schema and migrations; the shared `@ortha-cms/database` plugin
+owns the single connection but no schema. Plugins integrate through explicit
+contracts (`AdminPlugin`, `ServerPlugin`) and named UI **slots**, never by
+reaching into each other.
+
+## Consequences
+
+- Adding capability never requires editing a host — register a plugin in
+  `apps/admin/src/main.tsx` / `apps/server/src/plugins.ts`.
+- Clear ownership boundaries; per-plugin schema/migrations keep domains isolated.
+- Authoring conventions must be encoded and enforced (hence the `server-plugin`
+  and `admin-plugin` skills) so plugins stay consistent.
+- Cross-cutting concerns (auth guard, validation, DB connection) are provided
+  globally by the host/database plugin rather than re-implemented per plugin.
+
+## Alternatives considered
+
+- **A conventional layered monolith** — simpler initially, but couples features
+  and concentrates change in shared modules.
+- **Separate repos/services per domain** — too much operational overhead for the
+  current stage; the monorepo + plugin model gives isolation without it.
