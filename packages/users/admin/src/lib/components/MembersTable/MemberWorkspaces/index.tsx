@@ -56,6 +56,7 @@ export function MemberWorkspaces({
                 <button
                     type="button"
                     aria-label={intl.formatMessage(messages.open)}
+                    onClick={(event) => event.stopPropagation()}
                     className="-m-1 flex items-center gap-2 rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <span className="flex">
