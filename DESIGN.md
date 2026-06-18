@@ -1,0 +1,47 @@
+# Design
+
+Product & design intent — the *why* behind the UI and the experience, as
+opposed to the *how* of [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+> **Status: skeleton.** This document is owned by Design/Product. The sections
+> below are the agreed structure; the `TODO:` prompts must be filled by a human
+> who owns product direction. Agents: do **not** invent product intent here —
+> leave the `TODO:` markers until a human supplies the content.
+
+## Product vision
+
+<!-- TODO: One paragraph — what is OrthaCms for, and who is it for? -->
+
+## Target users & jobs-to-be-done
+
+<!-- TODO: Primary personas (e.g. admins, content editors) and the core jobs
+     each comes to the product to do. -->
+
+## Design principles
+
+<!-- TODO: 3–6 principles that resolve trade-offs (e.g. "governance over speed",
+     "keyboard-first", "accessible by default"). Accessibility is already a hard
+     requirement — see the `accessibility` skill (WCAG 2.1 AA). -->
+
+## Information architecture
+
+<!-- TODO: Top-level navigation and how features are grouped. The current shell
+     exposes nav via NAVBAR_START_SLOT (workspaces, users, activity). -->
+
+## Visual language
+
+The component layer is the `@ortha-cms/design-system` (shadcn/ui + Tailwind),
+governed by the `shadcn` skill.
+
+<!-- TODO: brand tokens, color, typography, spacing, tone of voice, motion. -->
+
+## Key flows
+
+<!-- TODO: Describe the critical flows and their intended feel. Existing flows
+     to document: login, invite member, create workspace, manage user (roles /
+     access / sessions / activity). -->
+
+## Open questions
+
+<!-- TODO: Unresolved design decisions worth tracking. Significant resolved ones
+     should graduate into an ADR under docs/adr/. -->
