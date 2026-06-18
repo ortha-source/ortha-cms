@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_178 test cases across 19 spec files._
+_181 test cases across 20 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -232,6 +232,17 @@ _<sub>apps/server-e2e/src/server/content/content-schema.spec.ts</sub>_
 | --- |
 | returns the full field schema for a type |
 | 404s an unknown content type |
+
+<!-- source: apps/server-e2e/src/server/content/content-types.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-types.spec.ts</sub>_
+
+## Content catalogue handover (GET /api/content-types + grants)
+
+| Test case |
+| --- |
+| 401s an unauthenticated request |
+| serves the code-defined registry, not the mock catalogue |
+| grants a workspace the real registry slugs on content mode "all" |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

@@ -1,8 +1,9 @@
 /**
  * A content type a workspace can be granted access to. The real source of truth
- * will be code-defined collections/pages once a content-modeling plugin ships;
- * for now this is a server-owned mock, exposed by `GET /api/content-types` and
- * reused by the workspace create flow to expand an "all content" grant.
+ * is the code-defined registry in `@ortha-cms/content-server`, surfaced to
+ * identity through the {@link ContentCatalog} port; this descriptor is the wire
+ * shape `GET /api/content-types` returns and the workspace create flow expands
+ * an "all content" grant against.
  */
 export interface ContentTypeDescriptor {
     /** Stable machine name / slug. */
@@ -18,9 +19,10 @@ export interface ContentTypeDescriptor {
 }
 
 /**
- * MOCK content catalogue. Mirrors the admin stub so the wizard renders real
- * data end-to-end; replace with the code-defined registry when content modeling
- * lands. The `name` of each entry is the slug stored in `workspace_content`.
+ * FALLBACK content catalogue, used only when no content plugin is registered to
+ * bind {@link ContentCatalog} (e.g. identity booted standalone in a test). When
+ * `@ortha-cms/content-server` is present, the code-defined registry supersedes
+ * this. The `name` of each entry is the slug stored in `workspace_content`.
  */
 export const CONTENT_TYPES: readonly ContentTypeDescriptor[] = [
     {
