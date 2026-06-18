@@ -101,8 +101,10 @@ export class WorkspaceService {
 
     /**
      * Links an existing user to a workspace, recording `workspace.member_added`
-     * in-band. Idempotent — re-adding an existing member is a no-op that
-     * records nothing. 404s when the workspace or user doesn't exist.
+     * in-band against **the added user** (`subjectType: 'user'`), so the event
+     * surfaces in that member's personal activity log; the workspace is carried
+     * in `meta.workspaceId`. Idempotent — re-adding an existing member is a
+     * no-op that records nothing. 404s when the workspace or user doesn't exist.
      */
     async addMember(
         actor: PublicUser,
@@ -137,11 +139,11 @@ export class WorkspaceService {
             await this.recorder?.record(
                 {
                     kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_MEMBER_ADDED,
-                    subjectType: 'workspace',
-                    subjectId: workspaceId,
+                    subjectType: 'user',
+                    subjectId: userId,
                     actorId: actor.id,
                     actorEmail: actor.email,
-                    meta: { userId, email: user.email }
+                    meta: { workspaceId, email: user.email }
                 },
                 tx
             );
@@ -152,9 +154,11 @@ export class WorkspaceService {
     }
 
     /**
-     * Removes a user's membership, recording `workspace.member_removed` in-band.
-     * Removing a non-member is a no-op (records nothing); the endpoint still
-     * returns 204.
+     * Removes a user's membership, recording `workspace.member_removed` in-band
+     * against **the removed user** (`subjectType: 'user'`), so the event shows
+     * in that member's personal activity log; the workspace is carried in
+     * `meta.workspaceId`. Removing a non-member is a no-op (records nothing);
+     * the endpoint still returns 204.
      */
     async removeMember(
         actor: PublicUser,
@@ -183,11 +187,11 @@ export class WorkspaceService {
             await this.recorder?.record(
                 {
                     kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_MEMBER_REMOVED,
-                    subjectType: 'workspace',
-                    subjectId: workspaceId,
+                    subjectType: 'user',
+                    subjectId: userId,
                     actorId: actor.id,
                     actorEmail: actor.email,
-                    meta: { userId, email: user?.email ?? null }
+                    meta: { workspaceId, email: user?.email ?? null }
                 },
                 tx
             );

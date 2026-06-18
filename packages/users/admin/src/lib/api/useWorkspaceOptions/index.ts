@@ -11,6 +11,7 @@ import type { AvatarColor } from '@ortha-cms/design-system';
 export type WorkspaceOption = {
     id: string;
     name: string;
+    description: string | null;
     initials: string;
     color: AvatarColor;
 };
@@ -19,6 +20,7 @@ export type WorkspaceOption = {
 type WorkspaceResponse = {
     id: string;
     name: string;
+    description: string | null;
     color: string;
 };
 
@@ -32,6 +34,7 @@ async function fetchWorkspaceOptions(): Promise<WorkspaceOption[]> {
         return data.map((workspace) => ({
             id: workspace.id,
             name: workspace.name,
+            description: workspace.description,
             initials: initialsOf(workspace.name),
             color: asAvatarColor(workspace.color)
         }));

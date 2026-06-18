@@ -41,9 +41,9 @@ function WorkspaceCardSkeleton() {
             </div>
             <div className="mt-4 border-t pt-4">
                 <div className="flex -space-x-2">
-                    <Skeleton className="size-7 rounded-full" />
-                    <Skeleton className="size-7 rounded-full" />
-                    <Skeleton className="size-7 rounded-full" />
+                    <Skeleton className="size-7 rounded-xl" />
+                    <Skeleton className="size-7 rounded-xl" />
+                    <Skeleton className="size-7 rounded-xl" />
                 </div>
             </div>
         </div>

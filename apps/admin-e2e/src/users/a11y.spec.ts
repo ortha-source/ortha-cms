@@ -59,7 +59,7 @@ test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
     test('row menu — open', async ({ membersPage, makeAxe }) => {
         await membersPage.goto();
         await membersPage.openActions('Grace Hopper');
-        await membersPage.menuItem('Edit').waitFor();
+        await membersPage.menuItem('General').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

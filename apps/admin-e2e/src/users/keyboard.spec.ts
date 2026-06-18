@@ -44,6 +44,6 @@ test.describe('Members keyboard operability', () => {
         await membersPage.actionsTrigger('Grace Hopper').focus();
         await page.keyboard.press('Enter');
 
-        await expect(membersPage.menuItem('Edit')).toBeVisible();
+        await expect(membersPage.menuItem('General')).toBeVisible();
     });
 });

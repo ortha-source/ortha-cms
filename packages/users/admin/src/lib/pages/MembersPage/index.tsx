@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Filter, UserPlus } from 'lucide-react';
@@ -20,7 +20,6 @@ import {
 } from '@ortha-cms/design-system';
 import { useMembers, DEFAULT_PAGE_SIZE } from '../../api/useMembers';
 import { MembersTableSkeleton } from '../../components/MembersSkeleton';
-import { EditMemberDialog } from '../../components/EditMemberDialog';
 import { MembersEmpty } from '../../components/MembersEmpty';
 import { MembersNoAccess } from '../../components/MembersNoAccess';
 import { MembersPagination } from '../../components/MembersPagination';
@@ -28,7 +27,6 @@ import { MembersTable } from '../../components/MembersTable';
 import { MembersToolbar } from '../../components/MembersToolbar';
 import { MEMBERS_FILTER_FIELDS } from '../../utils/membersFilterFields';
 import type { MembersListParams } from '../../utils/membersKeys';
-import type { Member } from '../../types/member';
 
 /** Intl descriptors for {@link MembersPage}, co-located with the component. */
 const messages = defineMessages({
@@ -102,11 +100,6 @@ export function MembersPage() {
     );
     const ruleCount = countRules(appliedFilter);
 
-    const [editing, setEditing] = useState<Member | null>(null);
-    // Focus returns here when the edit dialog closes — the row's kebab, which
-    // outlives the dialog (only the menu popover closed). Captured on open.
-    const restoreFocusRef = useRef<HTMLElement | null>(null);
-
     const params: MembersListParams = {
         search: searchParam || undefined,
         filter: filterParam || undefined,
@@ -155,13 +148,6 @@ export function MembersPage() {
 
     const members = data?.items ?? [];
     const hasFilters = searchInput.trim().length > 0 || ruleCount > 0;
-
-    const openEdit = (member: Member) => {
-        restoreFocusRef.current = document.getElementById(
-            `member-actions-${member.id}`
-        );
-        setEditing(member);
-    };
 
     /**
      * Clear the filters (search + query builder) and reset to the first page,
@@ -243,7 +229,7 @@ export function MembersPage() {
                 />
             ) : (
                 <>
-                    <MembersTable members={members} onEdit={openEdit} />
+                    <MembersTable members={members} />
                     <MembersPagination
                         page={page}
                         pageCount={pageCount}
@@ -258,16 +244,6 @@ export function MembersPage() {
                     />
                 </>
             )}
-
-            <EditMemberDialog
-                member={editing}
-                restoreFocusRef={restoreFocusRef}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setEditing(null);
-                    }
-                }}
-            />
         </Container>
     );
 }

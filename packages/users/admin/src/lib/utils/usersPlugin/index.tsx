@@ -1,11 +1,12 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
+import { NAVBAR_END_SLOT, NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
 import { Users } from 'lucide-react';
 import {
     InviteMemberPageSkeleton,
     MembersPageSkeleton
 } from '../../components/MembersSkeleton';
+import { AccountMenu } from '../../components/AccountMenu';
 
 // Lazy-loaded so the Members page is code-split into its own chunk, fetched
 // only when a signed-in user first navigates to `/users`.
@@ -18,6 +19,14 @@ const MembersPage = lazy(() =>
 const InviteMemberPage = lazy(() =>
     import('../../pages/InviteMemberPage').then((module) => ({
         default: module.InviteMemberPage
+    }))
+);
+
+// The detail page (its nested tab router) is its own chunk, fetched only when a
+// member row is opened.
+const UserDetailRouter = lazy(() =>
+    import('../../components/UserDetailRouter').then((module) => ({
+        default: module.UserDetailRouter
     }))
 );
 
@@ -65,6 +74,17 @@ export function UsersPlugin(): UsersAdminPlugin {
                         <InviteMemberPage />
                     </Suspense>
                 )
+            },
+            {
+                // Splat so the detail page owns its nested tab routes
+                // (`general`, `roles`, …). `/users/invite` outranks `/users/:id`
+                // in the router, so the static invite route is unaffected.
+                path: '/users/:id/*',
+                element: (
+                    <Suspense fallback={<MembersPageSkeleton />}>
+                        <UserDetailRouter />
+                    </Suspense>
+                )
             }
         ],
         slots: [
@@ -77,6 +97,17 @@ export function UsersPlugin(): UsersAdminPlugin {
                         to: '/users',
                         order: 30,
                         icon: Users
+                    }
+                ]
+            },
+            {
+                // The account menu in the toolbar's trailing region.
+                slot: NAVBAR_END_SLOT,
+                items: [
+                    {
+                        id: 'users.account',
+                        order: 10,
+                        Component: AccountMenu
                     }
                 ]
             }

@@ -19,5 +19,9 @@ export const membersKeys = {
     /** Root key covering every members query. */
     all: ['members'] as const,
     /** One list page for the given params. */
-    list: (params: MembersListParams) => ['members', 'list', params] as const
+    list: (params: MembersListParams) => ['members', 'list', params] as const,
+    /** One member's full detail record (the user detail page). */
+    detail: (id: string) => ['members', 'detail', id] as const,
+    /** One member's live sessions (the detail page's Sessions tab). */
+    sessions: (id: string) => ['members', 'detail', id, 'sessions'] as const
 };

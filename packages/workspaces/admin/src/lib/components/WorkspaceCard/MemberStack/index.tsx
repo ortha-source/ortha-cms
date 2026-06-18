@@ -54,7 +54,7 @@ export function MemberStack({ members }: { members: WorkspaceMember[] }) {
                         ))}
                         {overflow > 0 ? (
                             <span
-                                className="flex size-[26px] items-center justify-center rounded-full border-2 border-card bg-secondary text-[10px] font-semibold text-muted-foreground"
+                                className="flex size-[26px] items-center justify-center rounded-xl border-2 border-card bg-secondary text-[10px] font-semibold text-muted-foreground"
                                 style={{ marginLeft: -8 }}
                             >
                                 +{overflow}

@@ -33,9 +33,12 @@ its own Home item; feature plugins contribute the rest (Workspaces moved out to
 - `HomePage` — greets the signed-in user and links to the two primary
   destinations as cards.
 - `NAVBAR_START_SLOT` / `NavbarItem` — the leading (start-side) toolbar nav slot
-  and its item type; exported so other plugins can contribute nav entries. Named
-  for placement; a trailing `NAVBAR_END_SLOT` (`'shell.navbar.end'`) for
-  account/actions is added when first needed.
+  and its item type; exported so other plugins can contribute nav entries.
+- `NAVBAR_END_SLOT` / `NavbarEndItem` — the trailing (end-side) toolbar slot for
+  account/global actions. Unlike the declarative `NavbarItem` link, an end item
+  is `{ id, order, Component }` — the plugin renders its own widget (so it can
+  own a dropdown, current-user data, and actions). `users-admin` contributes the
+  account menu here.
 
 ## Architecture
 

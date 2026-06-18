@@ -56,6 +56,7 @@ export function MemberWorkspaces({
                 <button
                     type="button"
                     aria-label={intl.formatMessage(messages.open)}
+                    onClick={(event) => event.stopPropagation()}
                     className="-m-1 flex items-center gap-2 rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <span className="flex">
@@ -70,7 +71,7 @@ export function MemberWorkspaces({
                         ))}
                         {overflow > 0 ? (
                             <span
-                                className="flex size-[26px] items-center justify-center rounded-full border-2 border-background bg-secondary text-[10px] font-semibold text-muted-foreground"
+                                className="flex size-[26px] items-center justify-center rounded-xl border-2 border-background bg-secondary text-[10px] font-semibold text-muted-foreground"
                                 style={{ marginLeft: -8 }}
                             >
                                 +{overflow}

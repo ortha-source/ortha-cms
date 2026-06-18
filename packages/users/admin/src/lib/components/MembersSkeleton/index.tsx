@@ -51,7 +51,7 @@ export function WorkspaceOptionsSkeleton({ rows = 3 }: { rows?: number }) {
                         key={index}
                         className="flex items-center gap-3 rounded-xl border p-3"
                     >
-                        <Skeleton className="size-8 shrink-0 rounded-full" />
+                        <Skeleton className="size-8 shrink-0 rounded-xl" />
                         <Skeleton className="h-4 w-40" />
                         <Skeleton className="ml-auto size-5 rounded" />
                     </div>
@@ -103,7 +103,7 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
                             <TableRow key={index}>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <Skeleton className="size-9 shrink-0 rounded-full" />
+                                        <Skeleton className="size-9 shrink-0 rounded-xl" />
                                         <div className="flex flex-col gap-1.5">
                                             <Skeleton className="h-3.5 w-28" />
                                             <Skeleton className="h-3 w-36" />
@@ -118,8 +118,8 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex -space-x-2">
-                                        <Skeleton className="size-6 rounded-full" />
-                                        <Skeleton className="size-6 rounded-full" />
+                                        <Skeleton className="size-6 rounded-xl" />
+                                        <Skeleton className="size-6 rounded-xl" />
                                     </div>
                                 </TableCell>
                                 <TableCell>

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_159 test cases across 16 spec files._
+_172 test cases across 18 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -216,6 +216,20 @@ _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
 | --- |
 | responds 404 on an unknown route under the global prefix |
 
+<!-- source: apps/server-e2e/src/server/users/get-user.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/get-user.spec.ts</sub>_
+
+## GET /api/users/:id
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| returns the member with role and workspaces |
+| flags the sole active admin with isLastAdmin |
+| returns 404 for an unknown id |
+| returns 400 for a non-uuid id |
+| allows a viewer (holds users:read) to read a member |
+
 <!-- source: apps/server-e2e/src/server/users/invite-user.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/invite-user.spec.ts</sub>_
 
@@ -330,6 +344,21 @@ _<sub>apps/server-e2e/src/server/users/update-user.spec.ts</sub>_
 | returns 404 for an unknown id |
 | returns 400 for a non-uuid id |
 | forbids a viewer (lacks users:update) with 403 |
+
+<!-- source: apps/server-e2e/src/server/users/user-sessions.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/user-sessions.spec.ts</sub>_
+
+## User sessions (admin)
+
+| Test case |
+| --- |
+| rejects unauthenticated access with 401 |
+| lists a member’s live sessions |
+| marks the caller’s own session as current |
+| revokes a session and drops it from the list |
+| is idempotent — revoking an unknown session still 204s |
+| lets a viewer read sessions but not revoke them (403) |
+| returns 400 for a non-uuid user id |
 
 <!-- source: apps/server-e2e/src/server/workspaces/create-workspace.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_

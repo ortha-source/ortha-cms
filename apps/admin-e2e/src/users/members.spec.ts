@@ -167,9 +167,21 @@ test.describe('Members page', () => {
         await membersPage.openActions('alan@ortha.dev');
 
         await expect(membersPage.menuItem('Resend invite')).toBeVisible();
-        await expect(membersPage.menuItem('Edit')).toBeVisible();
         await expect(membersPage.menuItem('Revoke invite')).toBeVisible();
         await expect(membersPage.menuItem('Disable')).toHaveCount(0);
+    });
+
+    test('the row menu mirrors the detail sections', async ({
+        membersPage
+    }) => {
+        await membersPage.goto();
+        await membersPage.openActions('Grace Hopper');
+
+        // Account + gated Audit/Access navigation, no "Edit".
+        await expect(membersPage.menuItem('General')).toBeVisible();
+        await expect(membersPage.menuItem('Sessions')).toBeVisible();
+        await expect(membersPage.menuItem('Sign-in access')).toBeVisible();
+        await expect(membersPage.menuItem('Edit')).toHaveCount(0);
     });
 
     test('offers Enable (not Disable) for a disabled member', async ({
@@ -182,17 +194,11 @@ test.describe('Members page', () => {
         await expect(membersPage.menuItem('Disable')).toHaveCount(0);
     });
 
-    test('renders the role as a chip and locks the sole admin in the edit dialog', async ({
-        membersPage
-    }) => {
+    test('renders the role as a read-only chip', async ({ membersPage }) => {
         await membersPage.goto();
-        // The Role column is a read-only chip; editing happens in the dialog.
+        // The Role column is a read-only chip; editing happens on the detail
+        // page's Role tab, not inline.
         await expect(membersPage.roleChip('Ada Lovelace')).toBeVisible();
-
-        await membersPage.openActions('Ada Lovelace');
-        await membersPage.menuItem('Edit').click();
-        // Ada is the last admin (isLastAdmin), so her role can't be changed.
-        await expect(membersPage.editRoleSelect()).toBeDisabled();
     });
 
     test('hides write controls without the matching permission', async ({
@@ -207,8 +213,12 @@ test.describe('Members page', () => {
         await expect(membersPage.inviteButton).toHaveCount(0);
         // The role is a read-only chip for everyone.
         await expect(membersPage.roleChip('Grace Hopper')).toBeVisible();
-        // No row menu either (no write actions available).
-        await expect(membersPage.actionsTrigger('Grace Hopper')).toHaveCount(0);
+        // The row menu is navigation-only for a viewer: Account links, but no
+        // gated Audit/Access tabs and no write actions.
+        await membersPage.openActions('Grace Hopper');
+        await expect(membersPage.menuItem('General')).toBeVisible();
+        await expect(membersPage.menuItem('Sessions')).toHaveCount(0);
+        await expect(membersPage.menuItem('Disable')).toHaveCount(0);
     });
 
     test('shows a no-access state without users:read', async ({

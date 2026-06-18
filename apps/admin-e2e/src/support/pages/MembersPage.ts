@@ -125,14 +125,16 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Send invite' });
     }
 
-    // --- edit dialog ---
+    // --- detail navigation ---
 
-    editDialog(): Locator {
-        return this.page.getByRole('dialog');
+    /** A member's name rendered as a link to their detail page. */
+    memberLink(name: string): Locator {
+        return this.page.getByRole('link', { name });
     }
 
-    editRoleSelect(): Locator {
-        return this.editDialog().getByRole('combobox');
+    /** Open a member's detail page by clicking their name link. */
+    async openMember(name: string) {
+        await this.memberLink(name).click();
     }
 
     // --- pagination ---

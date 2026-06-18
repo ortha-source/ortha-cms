@@ -110,6 +110,29 @@ export async function mockSignedOut(page: Page): Promise<void> {
     });
 }
 
+/**
+ * Stub `POST /api/auth/logout` (always succeeds) and record each call, so a
+ * test can assert the account menu's Logout triggered it.
+ */
+export async function spyLogout(
+    page: Page
+): Promise<{ readonly count: number }> {
+    let count = 0;
+    await page.route('**/api/auth/logout', async (route) => {
+        count += 1;
+        await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify({ ok: true })
+        });
+    });
+    return {
+        get count() {
+            return count;
+        }
+    };
+}
+
 /** Tracks calls to the login endpoint — to assert it is (not) hit. */
 export interface LoginSpy {
     readonly count: number;

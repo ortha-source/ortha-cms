@@ -121,11 +121,13 @@ describe('Workspace members + activity', () => {
             const added = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.member_added'
             );
+            // Recorded against the added user so it shows in their personal log;
+            // the workspace is carried in `meta`.
             expect(added).toMatchObject({
-                subjectType: 'workspace',
-                subjectId: id,
+                subjectType: 'user',
+                subjectId: member.id,
                 actorEmail: ADMIN_EMAIL,
-                meta: { userId: member.id, email: 'member@example.com' }
+                meta: { workspaceId: id, email: 'member@example.com' }
             });
         });
 
@@ -217,11 +219,13 @@ describe('Workspace members + activity', () => {
             const removed = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.member_removed'
             );
+            // Recorded against the removed user so it shows in their personal
+            // log; the workspace is carried in `meta`.
             expect(removed).toMatchObject({
-                subjectType: 'workspace',
-                subjectId: id,
+                subjectType: 'user',
+                subjectId: member.id,
                 actorEmail: ADMIN_EMAIL,
-                meta: { userId: member.id, email: 'member@example.com' }
+                meta: { workspaceId: id, email: 'member@example.com' }
             });
         });
 

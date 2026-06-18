@@ -14,6 +14,8 @@ export interface MemberWorkspaceView {
     id: string;
     /** Display name. */
     name: string;
+    /** Short description, or `null` when none is set. */
+    description: string | null;
     /** Accent color key (a design-system `AVATAR_COLORS` value). */
     color: string;
 }

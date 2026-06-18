@@ -1,12 +1,18 @@
-import { useId, type ReactNode } from 'react';
+import { useId, type ComponentType, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    Activity,
     Ban,
+    Building2,
     CircleCheck,
+    KeyRound,
+    MonitorSmartphone,
     MoreHorizontal,
-    Pencil,
     Send,
-    Trash2
+    ShieldCheck,
+    Trash2,
+    UserRound
 } from 'lucide-react';
 import { useAuth, useHasPermission } from '@ortha-cms/identity-admin';
 import {
@@ -15,6 +21,7 @@ import {
     DropdownMenuContent,
     DropdownMenuGroup,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
     Tooltip,
@@ -34,9 +41,41 @@ const messages = defineMessages({
         id: 'users.actions.open',
         defaultMessage: 'Actions for {name}'
     },
-    edit: {
-        id: 'users.actions.edit',
-        defaultMessage: 'Edit'
+    account: {
+        id: 'users.actions.account',
+        defaultMessage: 'Account'
+    },
+    audit: {
+        id: 'users.actions.audit',
+        defaultMessage: 'Audit'
+    },
+    access: {
+        id: 'users.actions.access',
+        defaultMessage: 'Access'
+    },
+    general: {
+        id: 'users.actions.general',
+        defaultMessage: 'General'
+    },
+    role: {
+        id: 'users.actions.role',
+        defaultMessage: 'Role'
+    },
+    workspaces: {
+        id: 'users.actions.workspaces',
+        defaultMessage: 'Workspaces'
+    },
+    sessions: {
+        id: 'users.actions.sessions',
+        defaultMessage: 'Sessions'
+    },
+    activity: {
+        id: 'users.actions.activity',
+        defaultMessage: 'Activity'
+    },
+    signInAccess: {
+        id: 'users.actions.signInAccess',
+        defaultMessage: 'Sign-in access'
     },
     disable: {
         id: 'users.actions.disable',
@@ -85,46 +124,57 @@ const messages = defineMessages({
     }
 });
 
+type MenuIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+
 /**
- * The row-end kebab menu. Its items vary by the member's status — Invited:
- * resend / edit / revoke; Active: edit / disable; Disabled: edit / enable —
- * and each action is shown only when the signed-in user holds its `users:*`
- * permission. Guardrailed items (disabling yourself, disabling the sole
- * admin) stay visible but inert, with a tooltip explaining why. Renders
- * nothing when no action is available.
+ * The row-end kebab menu. It mirrors the user detail page's side rail: an
+ * **Account** group (General / Role / Workspaces) that every reader sees, then
+ * permission-gated **Audit** (Sessions / Activity) and **Access** (Sign-in
+ * access) groups — each item navigates straight to that tab. Below a separator
+ * sit the status quick actions: a pending invite offers Resend / Revoke, an
+ * active member Disable, a disabled member Enable, each shown only with its
+ * `users:*` permission. The guardrailed Disable (yourself, the sole admin)
+ * stays visible but inert with a tooltip. (Clicking the row itself also opens
+ * the member — see {@link MembersTable}.)
  */
-export function MemberRowActions({
-    member,
-    onEdit
-}: {
-    member: Member;
-    /** Opens the edit dialog for this member. */
-    onEdit: (member: Member) => void;
-}) {
+export function MemberRowActions({ member }: { member: Member }) {
     const intl = useIntl();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const canUpdate = useHasPermission('users:update');
     const canInvite = useHasPermission('users:create');
     const canRevoke = useHasPermission('users:delete');
+    const canReadActivity = useHasPermission('activity:read');
 
     const setStatus = useSetMemberStatus();
     const resendInvite = useResendInvite();
     const revokeInvite = useRevokeInvite();
 
     const failed = () => toast.error(intl.formatMessage(messages.actionFailed));
+    const base = `/users/${member.id}`;
 
-    const editItem = canUpdate ? (
-        <DropdownMenuItem key="edit" onSelect={() => onEdit(member)}>
-            <Pencil aria-hidden />
-            {intl.formatMessage(messages.edit)}
-        </DropdownMenuItem>
-    ) : null;
+    /** A navigation item that routes to one of the member's detail tabs. */
+    const navItem = (
+        key: string,
+        icon: MenuIcon,
+        label: string,
+        to: string
+    ): ReactNode => {
+        const Icon = icon;
+        return (
+            <DropdownMenuItem key={key} onSelect={() => navigate(to)}>
+                <Icon aria-hidden />
+                {label}
+            </DropdownMenuItem>
+        );
+    };
 
-    let items: ReactNode[] = [];
+    // Quick status actions, mirroring the member's lifecycle.
+    let quickItems: ReactNode[] = [];
     let destructiveItem: ReactNode = null;
 
     if (member.status === 'pending') {
-        items = [
+        quickItems = [
             canInvite ? (
                 <DropdownMenuItem
                     key="resend"
@@ -143,8 +193,7 @@ export function MemberRowActions({
                     <Send aria-hidden />
                     {intl.formatMessage(messages.resend)}
                 </DropdownMenuItem>
-            ) : null,
-            editItem
+            ) : null
         ];
         destructiveItem = canRevoke ? (
             <DropdownMenuItem
@@ -174,8 +223,7 @@ export function MemberRowActions({
                   ? intl.formatMessage(messages.disableLastAdmin)
                   : null;
 
-        items = [
-            editItem,
+        quickItems = [
             canUpdate ? (
                 <GuardedMenuItem
                     key="disable"
@@ -201,8 +249,7 @@ export function MemberRowActions({
             ) : null
         ];
     } else {
-        items = [
-            editItem,
+        quickItems = [
             canUpdate ? (
                 <DropdownMenuItem
                     key="enable"
@@ -228,14 +275,12 @@ export function MemberRowActions({
         ];
     }
 
-    const visibleItems = items.filter(Boolean);
-    if (visibleItems.length === 0 && !destructiveItem) {
-        return null;
-    }
+    const visibleQuick = quickItems.filter(Boolean);
+    const hasQuick = visibleQuick.length > 0 || destructiveItem;
 
-    // `modal={false}` so the open menu doesn't aria-hide the page root (which
-    // holds focusable content) — a row menu needs no background trap.
     return (
+        // `modal={false}` so the open menu doesn't aria-hide the page root (which
+        // holds focusable content) — a row menu needs no background trap.
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
@@ -251,14 +296,86 @@ export function MemberRowActions({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-                {visibleItems.length > 0 ? (
-                    <DropdownMenuGroup>{visibleItems}</DropdownMenuGroup>
+                <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                        {intl.formatMessage(messages.account)}
+                    </DropdownMenuLabel>
+                    {navItem(
+                        'general',
+                        UserRound,
+                        intl.formatMessage(messages.general),
+                        `${base}/general`
+                    )}
+                    {navItem(
+                        'role',
+                        ShieldCheck,
+                        intl.formatMessage(messages.role),
+                        `${base}/roles`
+                    )}
+                    {navItem(
+                        'workspaces',
+                        Building2,
+                        intl.formatMessage(messages.workspaces),
+                        `${base}/workspaces`
+                    )}
+                </DropdownMenuGroup>
+
+                {canUpdate || canReadActivity ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                            <DropdownMenuLabel>
+                                {intl.formatMessage(messages.audit)}
+                            </DropdownMenuLabel>
+                            {canUpdate
+                                ? navItem(
+                                      'sessions',
+                                      MonitorSmartphone,
+                                      intl.formatMessage(messages.sessions),
+                                      `${base}/sessions`
+                                  )
+                                : null}
+                            {canReadActivity
+                                ? navItem(
+                                      'activity',
+                                      Activity,
+                                      intl.formatMessage(messages.activity),
+                                      `${base}/activity`
+                                  )
+                                : null}
+                        </DropdownMenuGroup>
+                    </>
                 ) : null}
-                {visibleItems.length > 0 && destructiveItem ? (
-                    <DropdownMenuSeparator />
+
+                {canUpdate ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                            <DropdownMenuLabel>
+                                {intl.formatMessage(messages.access)}
+                            </DropdownMenuLabel>
+                            {navItem(
+                                'access',
+                                KeyRound,
+                                intl.formatMessage(messages.signInAccess),
+                                `${base}/access`
+                            )}
+                        </DropdownMenuGroup>
+                    </>
                 ) : null}
-                {destructiveItem ? (
-                    <DropdownMenuGroup>{destructiveItem}</DropdownMenuGroup>
+
+                {hasQuick ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        {visibleQuick.length > 0 ? (
+                            <DropdownMenuGroup>{visibleQuick}</DropdownMenuGroup>
+                        ) : null}
+                        {destructiveItem ? (
+                            <DropdownMenuGroup>
+                                {destructiveItem}
+                            </DropdownMenuGroup>
+                        ) : null}
+                    </>
                 ) : null}
             </DropdownMenuContent>
         </DropdownMenu>

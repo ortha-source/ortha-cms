@@ -64,7 +64,7 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <Skeleton className="size-8 shrink-0 rounded-full" />
+                                        <Skeleton className="size-8 shrink-0 rounded-xl" />
                                         <Skeleton className="h-4 w-32" />
                                     </div>
                                 </TableCell>

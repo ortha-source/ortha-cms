@@ -33,7 +33,7 @@ export function MemberListPopover({ members }: { members: WorkspaceMember[] }) {
                         <WorkspaceAvatar
                             initials={member.initials}
                             color={member.color}
-                            className="size-[30px] shrink-0 rounded-full text-xs"
+                            className="size-[30px] shrink-0 text-xs"
                         />
                         <div className="min-w-0">
                             <p className="truncate text-sm font-medium">

@@ -73,6 +73,9 @@ User/role/access screens and logout land in later tickets (epic #3).
   (e.g. the workspaces "New workspace" button on `workspaces:create`)
 - `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the
   types
+- `useLogoutMutation` — `POST /api/auth/logout` then invalidates
+  `currentUserKey`, so the gate flips to unauthenticated and redirects to
+  sign-in. Used by the toolbar account menu (`users-admin`)
 - `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture
@@ -122,7 +125,6 @@ createAdmin({
 - Mounting the gate — `RequireAuth` lives here, but it is the **shell** that
   composes it (with `AuthProvider`) into the `layout`; the public/private route
   split is the host's
-- Logout — the `/api/auth/logout` call + invalidating `currentUserKey`; epic #3
 - User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system
 
