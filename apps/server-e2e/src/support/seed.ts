@@ -3,9 +3,12 @@ import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
+    memberships,
     roles,
     sessions,
+    tokens,
     users,
+    workspaces,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
 // HashingService is internal to the identity plugin (not re-exported). We reach
@@ -75,9 +78,68 @@ export async function seedUser(
 /** Convenience: an active user with valid credentials for `POST /auth/login`. */
 export async function seedActiveUser(
     app: INestApplication,
-    opts: { email: string; password: string; role: SystemRoleKey; name?: string }
+    opts: {
+        email: string;
+        password: string;
+        role: SystemRoleKey;
+        name?: string;
+    }
 ): Promise<SeededUser> {
     return seedUser(app, { ...opts, status: 'active' });
+}
+
+/** A seeded workspace row — what the workspaces read assertions reference. */
+export interface SeededWorkspace {
+    id: string;
+    name: string;
+    slug: string;
+    color: string;
+}
+
+/**
+ * Insert a workspace row directly. `description` defaults to `null`; `color`
+ * is omitted so the schema default (`slate`) applies unless overridden.
+ */
+export async function seedWorkspace(opts: {
+    name: string;
+    slug: string;
+    description?: string;
+    color?: string;
+}): Promise<SeededWorkspace> {
+    const [workspace] = await getDatabase()
+        .insert(workspaces)
+        .values({
+            name: opts.name,
+            slug: opts.slug,
+            description: opts.description ?? null,
+            ...(opts.color ? { color: opts.color } : {})
+        })
+        .returning();
+    return {
+        id: workspace.id,
+        name: workspace.name,
+        slug: workspace.slug,
+        color: workspace.color
+    };
+}
+
+/** Add a user to a workspace (the `memberships` join). */
+export async function seedMembership(
+    userId: string,
+    workspaceId: string
+): Promise<void> {
+    await getDatabase().insert(memberships).values({ userId, workspaceId });
+}
+
+/** The workspace ids a user belongs to — for asserting membership side effects. */
+export async function getWorkspaceIdsForUser(
+    userId: string
+): Promise<string[]> {
+    const rows = await getDatabase()
+        .select({ workspaceId: memberships.workspaceId })
+        .from(memberships)
+        .where(eq(memberships.userId, userId));
+    return rows.map((row) => row.workspaceId);
 }
 
 /** Force every session of a user into the past — simulates natural expiry. */
@@ -145,6 +207,21 @@ export async function provisionRootAdmin(
     return app.get(RootAdminService).ensure(opts.email, opts.password);
 }
 
+/**
+ * The live invite tokens for a user — `tokenHash`s only (the raw token is
+ * never stored). Used to assert that inviting issues a token and that resend
+ * rotates it (a different hash, still exactly one).
+ */
+export async function getInviteTokenHashes(userId: string): Promise<string[]> {
+    const rows = await getDatabase()
+        .select({ tokenHash: tokens.tokenHash, type: tokens.type })
+        .from(tokens)
+        .where(eq(tokens.userId, userId));
+    return rows
+        .filter((row) => row.type === 'invite')
+        .map((row) => row.tokenHash);
+}
+
 /** Count a user's session rows — used to assert a session was created. */
 export async function countUserSessions(userId: string): Promise<number> {
     const rows = await getDatabase()
@@ -154,13 +231,43 @@ export async function countUserSessions(userId: string): Promise<number> {
     return rows.length;
 }
 
+/** Read every audit event, newest first — what the activity assertions read. */
+export async function getActivityRows(): Promise<
+    {
+        kind: string;
+        subjectType: string;
+        subjectId: string;
+        actorId: string | null;
+        actorEmail: string | null;
+        meta: unknown;
+    }[]
+> {
+    const { rows } = await getPool().query(
+        `SELECT kind, subject_type AS "subjectType", subject_id AS "subjectId",
+                actor_id AS "actorId", actor_email AS "actorEmail", meta
+         FROM activity_events
+         ORDER BY at DESC, id DESC`
+    );
+    return rows;
+}
+
+/** Count audit events — used to assert a rolled-back mutation writes none. */
+export async function countActivityRows(): Promise<number> {
+    const { rows } = await getPool().query(
+        'SELECT count(*)::int AS total FROM activity_events'
+    );
+    return rows[0].total;
+}
+
 /**
  * Truncate the mutable tables between tests, leaving the seeded system roles
  * and permissions in place (users reference roles via FK). `CASCADE` clears
  * dependent rows — sessions, tokens, memberships — in one statement.
+ * `activity_events` is truncated explicitly: its `actor_id` has no FK, so a
+ * `users` cascade never reaches it.
  */
 export async function resetDb(): Promise<void> {
     await getPool().query(
-        'TRUNCATE TABLE users, workspaces RESTART IDENTITY CASCADE'
+        'TRUNCATE TABLE users, workspaces, activity_events RESTART IDENTITY CASCADE'
     );
 }

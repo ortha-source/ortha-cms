@@ -1,5 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import {
     Button,
@@ -11,16 +12,17 @@ import {
     Container,
     ContainerHeader,
     Spinner,
+    Stepper,
+    WizardFooter,
+    WizardStepCard,
     toast
 } from '@ortha-cms/design-system';
 import { ContentStep } from '../../components/CreateWorkspaceWizard/ContentStep';
 import { IdentityFields } from '../../components/CreateWorkspaceWizard/IdentityFields';
 import { MembersStep } from '../../components/CreateWorkspaceWizard/MembersStep';
-import { StepCard } from '../../components/CreateWorkspaceWizard/StepCard';
-import { StepperRail } from '../../components/CreateWorkspaceWizard/StepperRail';
-import { WizardFooter } from '../../components/CreateWorkspaceWizard/WizardFooter';
 import { useSlug } from '../../hooks/useSlug';
 import { useWizard } from '../../hooks/useWizard';
+import { SlugStatus } from '../../types/wizard';
 import { EMPTY_SELECTION } from '../../utils/resourceSelection';
 
 const messages = defineMessages({
@@ -73,6 +75,14 @@ const messages = defineMessages({
     summarySpecificContent: {
         id: 'workspaces.create.summarySpecificContent',
         defaultMessage: '{collections} collections · {pages} pages'
+    },
+    stepperOptional: {
+        id: 'workspaces.create.stepper.optional',
+        defaultMessage: 'Optional'
+    },
+    stepperStepLabel: {
+        id: 'workspaces.create.stepper.stepLabel',
+        defaultMessage: 'Step {number}: {label}'
     },
     // Step cards
     basicsTitle: {
@@ -151,10 +161,20 @@ const messages = defineMessages({
 export function CreateWorkspacePage() {
     const intl = useIntl();
     const navigate = useNavigate();
+    const canCreate = useHasPermission('workspaces:create');
     const wizard = useWizard();
     const slug = useSlug({ data: wizard.data, update: wizard.update });
 
-    const basicsCanContinue = wizard.basicsValid && slug.status === 'available';
+    // The server enforces `workspaces:create`; redirect rather than render the
+    // wizard for users who can't create one (e.g. deep-linking to
+    // `/workspaces/new`). Auth is already resolved here — this route renders
+    // inside the shell's `RequireAuth`, so `canCreate` reflects real grants.
+    if (!canCreate) {
+        return <Navigate to="/workspaces" replace />;
+    }
+
+    const basicsCanContinue =
+        wizard.basicsValid && slug.status === SlugStatus.Available;
     const contentBlocked =
         wizard.contentMode === 'specific' &&
         (wizard.ctLoading || wizard.ctError);
@@ -224,15 +244,24 @@ export function CreateWorkspacePage() {
 
             <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
                 <div className="lg:sticky lg:top-6 lg:self-start">
-                    <StepperRail
+                    <Stepper
                         current={wizard.step}
                         maxReached={wizard.maxReached}
                         steps={railSteps}
                         onStepClick={wizard.goStep}
+                        optionalLabel={intl.formatMessage(
+                            messages.stepperOptional
+                        )}
+                        stepAriaLabel={(step, number) =>
+                            intl.formatMessage(messages.stepperStepLabel, {
+                                number,
+                                label: step.label
+                            })
+                        }
                     />
                 </div>
 
-                <StepCard key={wizard.step}>
+                <WizardStepCard key={wizard.step}>
                     {wizard.step === 1 ? (
                         <>
                             <CardHeader>
@@ -378,7 +407,7 @@ export function CreateWorkspacePage() {
                             </CardFooter>
                         </>
                     ) : null}
-                </StepCard>
+                </WizardStepCard>
             </div>
         </Container>
     );

@@ -1,9 +1,19 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { defineMessages, useIntl } from 'react-intl';
+import { AppLoader } from '@ortha-cms/design-system';
 import { AuthStatus, useAuth } from '../authContext';
 
 /** Where the gate sends unauthenticated users; identity owns its sign-in path. */
 const DEFAULT_SIGN_IN_PATH = '/identity/signin';
+
+/** Intl descriptors for {@link RequireAuth}, co-located with the component. */
+const messages = defineMessages({
+    loading: {
+        id: 'identity.requireAuth.loading',
+        defaultMessage: 'Loading…'
+    }
+});
 
 /** Props for {@link RequireAuth}. */
 type RequireAuthProps = {
@@ -14,11 +24,12 @@ type RequireAuthProps = {
 };
 
 /**
- * Gates its children on authentication. While auth is resolving it renders
- * nothing (so the sign-in page never flashes for a logged-in user); once
- * resolved it either renders the children or redirects to the sign-in page,
- * preserving the attempted location in router state so the sign-in flow can
- * return the user there.
+ * Gates its children on authentication. While auth is resolving it shows the
+ * branded {@link AppLoader} (the "root" boot load) rather than the sign-in page,
+ * so that page never flashes for a logged-in user; once resolved it either
+ * renders the children or redirects to the sign-in page, preserving the
+ * attempted location in router state so the sign-in flow can return the user
+ * there.
  *
  * Composed by the shell into its `layout` (wrapped in {@link AuthProvider}), so
  * one check guards the whole authenticated area. It must render under an
@@ -28,11 +39,12 @@ export function RequireAuth({
     children,
     signInPath = DEFAULT_SIGN_IN_PATH
 }: RequireAuthProps) {
+    const intl = useIntl();
     const { status } = useAuth();
     const location = useLocation();
 
     if (status === AuthStatus.Loading) {
-        return null;
+        return <AppLoader label={intl.formatMessage(messages.loading)} />;
     }
 
     if (status === AuthStatus.Unauthenticated) {

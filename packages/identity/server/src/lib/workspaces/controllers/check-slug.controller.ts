@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { WorkspaceService } from '../services/workspace.service';
+import { SlugService } from '../services/slug.service';
 import { CheckSlugDto } from '../dto/check-slug.dto';
 
 /**
@@ -8,12 +8,12 @@ import { CheckSlugDto } from '../dto/check-slug.dto';
  */
 @Controller('workspaces')
 export class CheckSlugController {
-    constructor(private readonly workspaces: WorkspaceService) {}
+    constructor(private readonly slugs: SlugService) {}
 
     @Get('slug-available')
     async check(
         @Query() query: CheckSlugDto
     ): Promise<{ available: boolean }> {
-        return { available: await this.workspaces.slugAvailable(query.slug) };
+        return { available: await this.slugs.available(query.slug) };
     }
 }

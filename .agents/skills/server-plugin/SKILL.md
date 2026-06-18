@@ -1,6 +1,6 @@
 ---
 name: server-plugin
-description: Authoring or modifying an Ortha CMS NestJS server plugin (packages/<group>/server, e.g. identity-server). Covers the ServerPlugin factory + dynamic-module pattern, feature-then-kind folder layout, @InjectDatabase DI, config injection, Drizzle schema + migrations descriptor, and lifecycle hooks. Use when creating a new server plugin, or adding controllers/services/schema/DTOs to an existing one.
+description: Authoring, modifying, or reviewing an Ortha CMS NestJS server plugin (packages/<group>/server, e.g. identity-server). Covers the ServerPlugin factory + dynamic-module pattern, feature-then-kind folder layout, @InjectDatabase DI, config injection, Drizzle schema + migrations descriptor, lifecycle hooks, and the review-critical authorization/data-integrity invariants (permission-by-constant guards, lock contended invariants instead of count-then-write, preserve filters/validation when consolidating endpoints, no enumeration signal). Use when creating a new server plugin, adding controllers/services/schema/DTOs, or reviewing a change to one.
 user-invocable: false
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *), Bash(npm install), Bash(git mv *)
 ---
@@ -315,6 +315,41 @@ npx nx run server:db:migrate                                       # applies all
 
 ---
 
+## Authorization & data-integrity invariants
+
+The cross-cutting rules that are easy to get subtly wrong — and the first thing a
+careful review checks:
+
+- **Guard every route with a permission, by constant.** Each controller carries
+  `@RequirePermissions(PERMISSIONS.X)` using the role matrix's **exported
+  constants**, never a raw `'users:read'` literal (a literal silently goes stale
+  when a key is renamed — no compile error, the guard just checks a permission no
+  role grants). The admin mirrors each with a `useHasPermission` gate, but the
+  server is the only real enforcer.
+- **Lock contended invariants; don't count-then-write.** A "last active admin",
+  "sole owner", "at least one X" rule must read the contended rows `FOR UPDATE`
+  (or run the transaction `serializable`) **before** deciding. A bare `count()`
+  inside a transaction is **not** race-safe under READ COMMITTED — two
+  simultaneous demotions each read the old count, both pass, both commit, and the
+  invariant is breached. A JSDoc claiming "the transaction makes this safe" does
+  not make it so.
+- **Preserve behaviour when an endpoint is consolidated.** Replacing a
+  specialized endpoint with a shared one must carry over **every** filter and
+  bound it enforced — a `status = 'active'` filter on an assignable-member list,
+  a `@MaxLength` on a search term. A silently widened query is a regression no
+  type catches: e.g. a shared `GET /users` that backs a member picker and starts
+  surfacing pending/disabled accounts as assignable.
+- **No enumeration signal** in security-sensitive responses (also under
+  Controllers) — keep "this email exists" out of distinguishable errors/timing.
+- **Record audit events in-band, not after the fact.** A state-changing
+  operation that's audit-worthy records via the `ACTIVITY_RECORDER` token (or
+  `ActivityService` for a plugin that may depend on activity), passing the
+  mutation's `tx` as the executor — so the audit row commits iff the mutation
+  does. Recording out-of-band (post-commit, or via an event emitter) means a
+  rolled-back mutation can still leave an audit row, or a committed one can
+  silently drop it. Each plugin owns its own kinds. See
+  [`packages/activity/server/CLAUDE.md`](../../../packages/activity/server/CLAUDE.md).
+
 ## TypeScript conventions (match the existing packages)
 
 - `interface` for type contracts, not `type`.
@@ -344,6 +379,13 @@ plugin needs true cross-origin should a `cors` option be added to `createServer`
 - [ ] Plugin factory in `utils/<plugin>-plugin.ts` (+ `migrations` descriptor if
       DB-backed).
 - [ ] Feature folders for each domain (no layer folders).
+- [ ] Every controller `@RequirePermissions(PERMISSIONS.*)` (constants, not
+      literals), with a matching admin `useHasPermission` gate.
+- [ ] Concurrency-sensitive invariants locked (`FOR UPDATE` / serializable), not
+      a `count()` inside a transaction; consolidated endpoints keep prior
+      filters + validation.
+- [ ] State-changing endpoints record an audit event in-band (mutation's `tx` as
+      the executor) when the action is audit-worthy.
 - [ ] Public barrel `src/index.ts`.
 - [ ] Schema + `drizzle.config.ts` + `migrations/` if DB-backed.
 - [ ] Registered in `apps/server/src/plugins.ts` (after `DatabasePlugin`) and

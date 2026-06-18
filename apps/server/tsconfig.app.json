@@ -22,6 +22,12 @@
     ],
     "references": [
         {
+            "path": "../../packages/activity/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/users/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/content/server/tsconfig.lib.json"
         },
         {

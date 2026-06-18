@@ -11,6 +11,8 @@ export type AuthUser = {
     email: string;
     /** Display name; `null` until the user sets one. */
     name: string | null;
+    /** Permission keys the user's role grants; drives permission-aware UI. */
+    permissions: string[];
 };
 
 /**
@@ -49,4 +51,19 @@ export const AuthProviderContext = AuthContext.Provider;
  */
 export function useAuth(): AuthState {
     return useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null };
+}
+
+/**
+ * Whether the signed-in user holds `permission`. Fail-closed: returns `false`
+ * while auth is still loading or when unauthenticated, so permission-gated UI
+ * stays hidden until a grant is confirmed. Use it to gate actions (e.g. show the
+ * "New workspace" button only with `workspaces:create`); the server enforces the
+ * same permission, this just keeps the UI honest.
+ */
+export function useHasPermission(permission: string): boolean {
+    const auth = useAuth();
+    return (
+        auth.status === AuthStatus.Authenticated &&
+        auth.user.permissions.includes(permission)
+    );
 }

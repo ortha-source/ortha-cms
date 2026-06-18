@@ -4,12 +4,15 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/services/roles.service';
+import { PermissionsService } from './rbac/services/permissions.service';
+import { PermissionsGuard } from './rbac/guards/permissions.guard';
 import { SystemRolesSeeder } from './rbac/seeders/system-roles.seeder';
 import { RootAdminService } from './root-admin/services/root-admin.service';
 import { RootAdminSeeder } from './root-admin/seeders/root-admin.seeder';
 import { LoginController } from './auth/controllers/login.controller';
 import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
+import { UserSessionsController } from './auth/controllers/user-sessions.controller';
 import { AuthService } from './auth/services/auth.service';
 import { SessionService } from './auth/services/session.service';
 import { HashingService } from './auth/services/hashing.service';
@@ -19,9 +22,12 @@ import { AuthGuard } from './auth/guards/auth.guard';
 import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
 import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
 import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
+import { AddWorkspaceMemberController } from './workspaces/controllers/add-workspace-member.controller';
+import { RemoveWorkspaceMemberController } from './workspaces/controllers/remove-workspace-member.controller';
 import { WorkspaceService } from './workspaces/services/workspace.service';
-import { SearchUsersController } from './users/controllers/search-users.controller';
-import { UserService } from './users/services/user.service';
+import { SlugService } from './workspaces/services/slug.service';
+import { MembershipService } from './workspaces/services/membership.service';
+import { ContentGrantService } from './workspaces/services/content-grant.service';
 import { ListContentTypesController } from './content/controllers/list-content-types.controller';
 
 /**
@@ -62,16 +68,20 @@ export class IdentityModule {
                 LoginController,
                 MeController,
                 LogoutController,
+                UserSessionsController,
                 CreateWorkspaceController,
                 ListWorkspacesController,
                 CheckSlugController,
-                SearchUsersController,
+                AddWorkspaceMemberController,
+                RemoveWorkspaceMemberController,
                 ListContentTypesController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
                 WorkspaceService,
-                UserService,
+                SlugService,
+                MembershipService,
+                ContentGrantService,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -79,6 +89,8 @@ export class IdentityModule {
                 RootAdminService,
                 RootAdminSeeder,
                 RolesService,
+                PermissionsService,
+                PermissionsGuard,
                 AuthService,
                 SessionService,
                 HashingService,
@@ -90,7 +102,12 @@ export class IdentityModule {
                 // even from this dynamic module.
                 { provide: APP_GUARD, useClass: AuthGuard }
             ],
-            exports: [IDENTITY_CONFIG, RolesService, AuthService]
+            exports: [
+                IDENTITY_CONFIG,
+                RolesService,
+                PermissionsService,
+                AuthService
+            ]
         };
     }
 }

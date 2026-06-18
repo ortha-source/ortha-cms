@@ -46,6 +46,24 @@
             "path": "./packages/workspaces/admin"
         },
         {
+            "path": "./packages/users/server"
+        },
+        {
+            "path": "./packages/users/admin"
+        },
+        {
+            "path": "./packages/activity/server"
+        },
+        {
+            "path": "./packages/activity/admin"
+        },
+        {
+            "path": "./packages/utils/server"
+        },
+        {
+            "path": "./packages/query-builder/admin"
+        },
+        {
             "path": "./packages/content/server"
         }
     ]

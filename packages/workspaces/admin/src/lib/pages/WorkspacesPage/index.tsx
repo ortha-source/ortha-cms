@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Plus } from 'lucide-react';
 import {
     Button,
     Container,
-    ContainerHeader,
-    Spinner
+    ContainerHeader
 } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import { WorkspaceCard } from '../../components/WorkspaceCard';
+import { WorkspaceGridSkeleton } from '../../components/WorkspacesSkeleton';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
 import {
     WorkspaceToolbar,
@@ -58,6 +59,7 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
+    const canCreate = useHasPermission('workspaces:create');
     const { data: workspaces = [], isLoading } = useWorkspaces();
 
     const [search, setSearch] = useState('');
@@ -91,10 +93,12 @@ export function WorkspacesPage() {
                 title={intl.formatMessage(messages.title)}
                 subtitle={intl.formatMessage(messages.subtitle)}
                 actions={
-                    <Button onClick={openCreate}>
-                        <Plus />
-                        {intl.formatMessage(messages.newWorkspace)}
-                    </Button>
+                    canCreate ? (
+                        <Button onClick={openCreate}>
+                            <Plus />
+                            {intl.formatMessage(messages.newWorkspace)}
+                        </Button>
+                    ) : undefined
                 }
             />
 
@@ -108,9 +112,7 @@ export function WorkspacesPage() {
             />
 
             {isLoading ? (
-                <div className="flex justify-center py-16">
-                    <Spinner />
-                </div>
+                <WorkspaceGridSkeleton />
             ) : filtered.length === 0 ? (
                 <WorkspacesEmpty
                     // "No match / clear filters" whenever workspaces exist but
@@ -119,6 +121,7 @@ export function WorkspacesPage() {
                     // the "no workspaces yet / create first" variant is reserved
                     // for a genuinely empty list.
                     filtered={workspaces.length > 0}
+                    canCreate={canCreate}
                     onClear={clearFilters}
                     onCreate={openCreate}
                 />

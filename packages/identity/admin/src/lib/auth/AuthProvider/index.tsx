@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { useCurrentUser } from '../../api/useCurrentUser';
-import { AuthProviderContext, AuthStatus, type AuthState } from '../authContext';
+import {
+    AuthProviderContext,
+    AuthStatus,
+    type AuthState
+} from '../authContext';
 
 /**
  * Resolves the current user via `GET /api/auth/me` and publishes it into the
@@ -20,7 +24,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const value: AuthState = data
         ? {
               status: AuthStatus.Authenticated,
-              user: { id: data.id, email: data.email, name: data.name }
+              user: {
+                  id: data.id,
+                  email: data.email,
+                  name: data.name,
+                  permissions: data.permissions
+              }
           }
         : isPending || isFetching
           ? { status: AuthStatus.Loading, user: null }

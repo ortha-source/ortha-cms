@@ -1,6 +1,6 @@
+import { slugify } from '@ortha-cms/utils-admin';
 import { useSlugAvailability } from '../../api/useSlugAvailability';
 import type { SlugStatus, WizardData } from '../../types/wizard';
-import { slugify } from '../../utils/slugify';
 
 /** Arguments for {@link useSlug}. */
 export type UseSlugArgs = {

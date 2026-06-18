@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { IdentityPluginConfig } from '../../types';
 import { InjectIdentityConfig } from '../../identity.tokens';
@@ -16,6 +16,33 @@ export interface SessionContext {
     userAgent?: string | null;
     /** Originating IP, if any. */
     ipAddress?: string | null;
+}
+
+/**
+ * The query surface `create`/`revoke` accept: the root client or an open
+ * transaction. Typed so the auth flows can record an audit row in the **same**
+ * transaction that opens or revokes the session.
+ */
+export type SessionExecutor = Pick<Database, 'insert' | 'update'>;
+
+/**
+ * One live session as the admin user-detail "Sessions" tab renders it. Carries
+ * only display/audit metadata — never the token or its hash beyond the opaque
+ * row `id`, which the client treats as a handle for revocation.
+ */
+export interface UserSessionView {
+    /** The session row id (SHA-256 of the token); a revocation handle. */
+    id: string;
+    /** Originating `User-Agent`, if captured. */
+    userAgent: string | null;
+    /** Originating IP, if captured. */
+    ipAddress: string | null;
+    /** When the session was opened. */
+    createdAt: Date;
+    /** Last authenticated request seen on this session. */
+    lastUsedAt: Date;
+    /** Absolute expiry. */
+    expiresAt: Date;
 }
 
 /** A freshly created session: the opaque token for the client and its expiry. */
@@ -52,14 +79,15 @@ export class SessionService {
      */
     async create(
         userId: string,
-        context: SessionContext = {}
+        context: SessionContext = {},
+        executor: SessionExecutor = this.db
     ): Promise<CreatedSession> {
         const token = randomBytes(32).toString('base64url');
         const expiresAt = new Date(
             Date.now() + this.config.session.ttlSeconds * 1000
         );
 
-        await this.db.insert(sessions).values({
+        await executor.insert(sessions).values({
             id: this.hashing.hashToken(token),
             userId,
             expiresAt,
@@ -115,13 +143,70 @@ export class SessionService {
      * or already-revoked token is a no-op (the `revokedAt IS NULL` guard keeps
      * the original revoke time). Only the matching row is touched, so the
      * user's other sessions stay valid: this is a per-device logout, not a
-     * global one.
+     * global one. Returns the revoked session's owner so the caller can record
+     * the sign-out, or `null` when nothing was revoked (unknown/already-revoked
+     * token), keeping the audit trail free of phantom logout events.
      */
-    async revoke(token: string): Promise<void> {
+    async revoke(
+        token: string,
+        executor: SessionExecutor = this.db
+    ): Promise<{ userId: string } | null> {
         const id = this.hashing.hashToken(token);
-        await this.db
+        const [revoked] = await executor
             .update(sessions)
             .set({ revokedAt: new Date() })
-            .where(and(eq(sessions.id, id), isNull(sessions.revokedAt)));
+            .where(and(eq(sessions.id, id), isNull(sessions.revokedAt)))
+            .returning({ userId: sessions.userId });
+        return revoked ?? null;
+    }
+
+    /**
+     * Lists a user's currently-valid sessions (not revoked, not expired),
+     * most-recently-used first, for the admin "Sessions" tab. Returns display
+     * metadata only — never the raw token. Expired/revoked rows are filtered so
+     * the admin sees the same "live" set the user's own device list would.
+     */
+    async listForUser(userId: string): Promise<UserSessionView[]> {
+        const now = new Date();
+        return this.db
+            .select({
+                id: sessions.id,
+                userAgent: sessions.userAgent,
+                ipAddress: sessions.ipAddress,
+                createdAt: sessions.createdAt,
+                lastUsedAt: sessions.lastUsedAt,
+                expiresAt: sessions.expiresAt
+            })
+            .from(sessions)
+            .where(
+                and(
+                    eq(sessions.userId, userId),
+                    isNull(sessions.revokedAt),
+                    gt(sessions.expiresAt, now)
+                )
+            )
+            .orderBy(desc(sessions.lastUsedAt));
+    }
+
+    /**
+     * Revokes one of a user's sessions by its row id, idempotently. Scoped to
+     * `userId` so an admin can only revoke sessions that belong to the target
+     * member — a mismatched (id, userId) pair touches nothing. Returns whether
+     * a live session was revoked (`false` for unknown/already-revoked/wrong
+     * owner), so the caller can stay silent rather than emit a phantom event.
+     */
+    async revokeById(userId: string, sessionId: string): Promise<boolean> {
+        const [revoked] = await this.db
+            .update(sessions)
+            .set({ revokedAt: new Date() })
+            .where(
+                and(
+                    eq(sessions.id, sessionId),
+                    eq(sessions.userId, userId),
+                    isNull(sessions.revokedAt)
+                )
+            )
+            .returning({ id: sessions.id });
+        return revoked != null;
     }
 }

@@ -43,6 +43,8 @@ const messages = defineMessages({
 type WorkspacesEmptyProps = {
     /** Whether a search or non-default filter is currently narrowing the list. */
     filtered: boolean;
+    /** Whether the user may create a workspace (gates the create CTA). */
+    canCreate: boolean;
     /** Resets the search and status filter back to their defaults. */
     onClear: () => void;
     /** Opens the create-workspace flow. */
@@ -51,10 +53,12 @@ type WorkspacesEmptyProps = {
 
 /**
  * The empty state for the grid. When filters are active it offers to clear
- * them; otherwise it invites creating the first workspace.
+ * them; otherwise it invites creating the first workspace — but only when the
+ * user holds `workspaces:create`.
  */
 export function WorkspacesEmpty({
     filtered,
+    canCreate,
     onClear,
     onCreate
 }: WorkspacesEmptyProps) {
@@ -88,12 +92,12 @@ export function WorkspacesEmpty({
                     >
                         {intl.formatMessage(messages.clear)}
                     </Button>
-                ) : (
+                ) : canCreate ? (
                     <Button onClick={onCreate}>
                         <Plus />
                         {intl.formatMessage(messages.create)}
                     </Button>
-                )}
+                ) : null}
             </EmptyContent>
         </Empty>
     );

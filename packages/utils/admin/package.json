@@ -15,7 +15,12 @@
         "src"
     ],
     "dependencies": {
+        "@ortha-cms/design-system": "*",
         "@tanstack/react-query": "^5.0.0",
-        "axios": "^1.6.0"
+        "axios": "^1.6.0",
+        "react": "^19.0.0"
+    },
+    "peerDependencies": {
+        "react-router-dom": "^6.0.0"
     }
 }

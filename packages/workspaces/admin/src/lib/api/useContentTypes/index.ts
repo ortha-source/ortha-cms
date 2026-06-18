@@ -1,22 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
+import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import type { ContentType } from '../../types/wizard';
-import { listContentTypes } from '../contentTypesClient';
 
 /** Query key for the content-types list. */
 export const contentTypesKey = ['content-types'] as const;
+
+/** Loads the content-type catalogue from `GET /api/content-types`. */
+async function fetchContentTypes(): Promise<ContentType[]> {
+    try {
+        const { data } = await apiClient.get<ContentType[]>('/content-types');
+        return data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
 
 /**
  * Loads every content type so the content step can split them into collections
  * and pages. Returns the standard TanStack Query result; callers read `data`,
  * `isPending`, and `isError`.
- *
- * TODO(content-types-server): back this with `GET /api/content-types`
- * (see {@link listContentTypes}).
  */
 export function useContentTypes() {
-    return useQuery<ContentType[]>({
+    return useQuery({
         queryKey: contentTypesKey,
-        queryFn: listContentTypes,
+        queryFn: fetchContentTypes,
         staleTime: 60_000
     });
 }

@@ -17,12 +17,14 @@ export const workspaces = pgTable('workspaces', {
     name: text('name').notNull(),
     /** URL-safe identifier. Unique across the system. */
     slug: text('slug').notNull().unique(),
-    /** Optional long description; empty string when omitted. */
-    description: text('description').notNull().default(''),
+    /** Optional short summary of what the workspace holds. */
+    description: text('description'),
     /**
-     * Accent color key for the workspace monogram. A free-form text rather than
-     * an enum so the design-system's `AvatarColor` palette can grow without a
-     * migration; the admin is the source of truth for valid values.
+     * Accent color key tinting the workspace avatar in the admin. One of the
+     * design-system `AVATAR_COLORS` (`slate`/`green`/`amber`/`violet`/`rose`/
+     * `teal`/`indigo`); stored as plain text since the server can't depend on
+     * the admin palette. Defaults to `slate` until a create flow lets the user
+     * pick.
      */
     color: text('color').notNull().default('slate'),
     /** Lifecycle state. */

@@ -5,11 +5,12 @@ import {
     Separator,
     Navbar,
     NavbarBrand,
+    NavbarEnd,
     NavbarNav,
     NavbarSpacer
 } from '@ortha-cms/design-system';
-import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
-import { NavbarNavButton } from '../NavbarNavButton';
+import { NAVBAR_END_SLOT, NAVBAR_START_SLOT } from '../../slots/navbarSlots';
+import { NavbarNavButton } from './NavbarNavButton';
 
 /** Intl descriptors for {@link AppShell}, co-located with the component. */
 const messages = defineMessages({
@@ -31,6 +32,9 @@ export function AppShell() {
     const navItems = NAVBAR_START_SLOT.getItems()
         .slice()
         .sort((a, b) => a.order - b.order);
+    const endItems = NAVBAR_END_SLOT.getItems()
+        .slice()
+        .sort((a, b) => a.order - b.order);
 
     return (
         <div className="flex min-h-svh flex-col">
@@ -48,6 +52,13 @@ export function AppShell() {
                     ))}
                 </NavbarNav>
                 <NavbarSpacer />
+                {endItems.length > 0 ? (
+                    <NavbarEnd>
+                        {endItems.map(({ id, Component }) => (
+                            <Component key={id} />
+                        ))}
+                    </NavbarEnd>
+                ) : null}
             </Navbar>
             <main className="flex-1">
                 <Outlet />

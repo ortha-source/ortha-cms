@@ -1,12 +1,18 @@
 import type { AvatarColor } from '@ortha-cms/design-system';
 
 /** Live state of the slug availability check. */
-export type SlugStatus =
-    | 'empty'
-    | 'invalid'
-    | 'checking'
-    | 'available'
-    | 'taken';
+export enum SlugStatus {
+    /** No slug entered yet. */
+    Empty = 'empty',
+    /** Breaks the `^[a-z0-9-]+$` pattern. */
+    Invalid = 'invalid',
+    /** Debouncing or an availability request is in flight. */
+    Checking = 'checking',
+    /** Free to use. */
+    Available = 'available',
+    /** Already taken by another workspace. */
+    Taken = 'taken'
+}
 
 /**
  * A person being granted access in the wizard. `invited` members were typed in

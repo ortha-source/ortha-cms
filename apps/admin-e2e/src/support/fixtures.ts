@@ -3,11 +3,19 @@ import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
+import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
+import { MembersPage } from './pages/MembersPage';
+import { UserDetailPage } from './pages/UserDetailPage';
+import { ActivityLogPage } from './pages/ActivityLogPage';
 
 interface Fixtures {
     loginPage: LoginPage;
     homePage: HomePage;
     workspacesPage: WorkspacesPage;
+    createWorkspacePage: CreateWorkspacePage;
+    membersPage: MembersPage;
+    userDetailPage: UserDetailPage;
+    activityLogPage: ActivityLogPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, pre-tagged for
      * WCAG 2.1 A/AA (the team's best-practice target). Call it per assertion so
@@ -29,6 +37,18 @@ export const test = base.extend<Fixtures>({
     },
     workspacesPage: async ({ page }, use) => {
         await use(new WorkspacesPage(page));
+    },
+    createWorkspacePage: async ({ page }, use) => {
+        await use(new CreateWorkspacePage(page));
+    },
+    membersPage: async ({ page }, use) => {
+        await use(new MembersPage(page));
+    },
+    userDetailPage: async ({ page }, use) => {
+        await use(new UserDetailPage(page));
+    },
+    activityLogPage: async ({ page }, use) => {
+        await use(new ActivityLogPage(page));
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>
