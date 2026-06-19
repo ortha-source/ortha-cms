@@ -56,7 +56,7 @@ export function WorkspaceSidebarButton({ item }: WorkspaceSidebarButtonProps) {
                 {isActive ? (
                     <span
                         aria-hidden
-                        className="absolute -left-2 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
+                        className="absolute -left-3 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
                     />
                 ) : null}
                 <Icon className="size-4" />

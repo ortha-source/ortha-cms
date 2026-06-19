@@ -121,10 +121,10 @@ export function WorkspaceShellSkeleton() {
             </span>
             <div
                 aria-hidden
-                className="sticky top-12 flex h-[calc(100svh-3rem)] w-12 shrink-0 flex-col items-center gap-1.5 self-start border-r border-border bg-[oklch(0.985_0_0)] py-2.5"
+                className="sticky top-12 flex h-[calc(100svh-3rem)] w-14 shrink-0 flex-col items-center gap-1.5 self-start border-r border-border bg-[oklch(0.985_0_0)] py-2.5"
             >
                 <Skeleton className="size-8 rounded-lg" />
-                <div className="my-1 h-px w-6 bg-border" />
+                <div className="my-1 h-px w-7 bg-border" />
                 <div className="flex flex-col items-center gap-2">
                     {Array.from({ length: 4 }).map((_, index) => (
                         <Skeleton key={index} className="size-8 rounded-lg" />
