@@ -34,4 +34,9 @@ export type Workspace = {
     status: WorkspaceStatus;
     /** Everyone who belongs to the workspace. */
     members: WorkspaceMember[];
+    /**
+     * Slugs of the content types granted to this workspace at creation. Feature
+     * plugins (e.g. the Content Library) scope what they show to these.
+     */
+    content: string[];
 };

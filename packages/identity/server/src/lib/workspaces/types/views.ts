@@ -24,4 +24,10 @@ export interface WorkspaceView {
     status: 'active' | 'archived';
     /** Members, owner first (insertion order). */
     members: WorkspaceMemberView[];
+    /**
+     * Slugs of the code-defined content types this workspace was granted at
+     * creation (its `workspace_content` rows). The admin scopes its Content
+     * Library to these.
+     */
+    content: string[];
 }

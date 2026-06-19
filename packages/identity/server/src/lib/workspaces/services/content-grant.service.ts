@@ -1,4 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { inArray } from 'drizzle-orm';
+import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { workspaceContent } from '../../schema';
 import { CONTENT_TYPES } from '../../content/content.constants';
 import {
@@ -68,10 +70,36 @@ function resolveGrants(content: ContentDto, known: KnownSlugs): ContentGrant[] {
 @Injectable()
 export class ContentGrantService {
     constructor(
+        @InjectDatabase() private readonly db: Database,
         @Optional()
         @Inject(CONTENT_CATALOG)
         private readonly catalog?: ContentCatalog
     ) {}
+
+    /**
+     * Groups each workspace's granted content slugs by workspace id. Backs the
+     * workspace views so the admin can scope its Content Library to the slugs a
+     * workspace was linked to at creation.
+     */
+    async loadByWorkspace(
+        workspaceIds: string[]
+    ): Promise<Map<string, string[]>> {
+        const byWorkspace = new Map<string, string[]>();
+        if (workspaceIds.length === 0) return byWorkspace;
+        const rows = await this.db
+            .select({
+                workspaceId: workspaceContent.workspaceId,
+                slug: workspaceContent.slug
+            })
+            .from(workspaceContent)
+            .where(inArray(workspaceContent.workspaceId, workspaceIds));
+        for (const row of rows) {
+            const list = byWorkspace.get(row.workspaceId) ?? [];
+            list.push(row.slug);
+            byWorkspace.set(row.workspaceId, list);
+        }
+        return byWorkspace;
+    }
 
     /** The catalogue's slugs, split by kind, resolved at grant time. */
     private knownSlugs(): KnownSlugs {

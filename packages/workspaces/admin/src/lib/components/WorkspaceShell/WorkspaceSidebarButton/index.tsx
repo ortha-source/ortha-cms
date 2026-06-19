@@ -14,9 +14,10 @@ type WorkspaceSidebarButtonProps = {
  * Renders a single section as a 40×40 icon button. The item's `to` is relative
  * to the workspace, so this resolves it against the active `:id`, derives active
  * state from the current location, and navigates on click. At rest it's a muted
- * icon; hover tints the background neutral (`--accent`); active fills it
- * `--primary` with a primary marker bar bleeding off the rail's left edge.
- * Transitions colors only — no transform on press (Ortha rule).
+ * icon; hover tints the background a faint neutral (`--accent/60`); active fills
+ * it the fuller neutral `--accent` with a solid black (`--foreground`) marker bar
+ * bleeding off the rail's left edge. Transitions colors only — no transform on
+ * press (Ortha rule).
  */
 export function WorkspaceSidebarButton({ item }: WorkspaceSidebarButtonProps) {
     const intl = useIntl();
@@ -49,14 +50,14 @@ export function WorkspaceSidebarButton({ item }: WorkspaceSidebarButtonProps) {
                 className={cn(
                     'relative flex size-8 items-center justify-center rounded-lg transition-colors duration-[120ms]',
                     isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                        ? 'bg-accent text-foreground'
+                        : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                 )}
             >
                 {isActive ? (
                     <span
                         aria-hidden
-                        className="absolute -left-3 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
+                        className="absolute -left-3 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-foreground"
                     />
                 ) : null}
                 <Icon className="size-[18px]" />

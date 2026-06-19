@@ -37,7 +37,8 @@ export function ContentPlugin(): ContentAdminPlugin {
                         defaultLabel: 'Content Library',
                         to: 'content',
                         order: 10,
-                        icon: Library
+                        icon: Library,
+                        permission: 'content:read'
                     }
                 ]
             },

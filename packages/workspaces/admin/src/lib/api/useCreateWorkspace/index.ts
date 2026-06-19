@@ -56,7 +56,9 @@ export function useCreateWorkspace() {
                 description: body.description,
                 color: body.color,
                 status: 'Active',
-                members: [creator]
+                members: [creator],
+                // Grants are resolved server-side; reconciled when onSettled refetches.
+                content: []
             };
             queryClient.setQueryData<Workspace[]>(workspacesKey, (old = []) => [
                 optimistic,
