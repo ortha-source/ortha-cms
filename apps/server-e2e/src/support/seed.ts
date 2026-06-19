@@ -88,6 +88,37 @@ export async function seedActiveUser(
     return seedUser(app, { ...opts, status: 'active' });
 }
 
+/**
+ * Insert an active user under a freshly-created, **permission-less** role —
+ * the principal that proves a route requires a specific permission rather than
+ * mere authentication. `roleKey` must be unique across a run (`roles` is not
+ * truncated by `resetDb`), so callers pass a suite-specific key and create it
+ * once.
+ */
+export async function seedUserWithEmptyRole(
+    app: INestApplication,
+    opts: { email: string; password: string; roleKey: string }
+): Promise<SeededUser> {
+    const db = getDatabase();
+    const [role] = await db
+        .insert(roles)
+        .values({ key: opts.roleKey, name: opts.roleKey, isSystem: false })
+        .returning();
+    const passwordHash = await app
+        .get(HashingService)
+        .hashPassword(opts.password);
+    const [user] = await db
+        .insert(users)
+        .values({
+            email: opts.email,
+            passwordHash,
+            roleId: role.id,
+            status: 'active'
+        })
+        .returning();
+    return { id: user.id, email: user.email };
+}
+
 /** A seeded workspace row — what the workspaces read assertions reference. */
 export interface SeededWorkspace {
     id: string;

@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { workspaceContent } from '../../schema';
 import { CONTENT_TYPES } from '../../content/content.constants';
+import {
+    CONTENT_CATALOG,
+    type ContentCatalog
+} from '../../content/content-catalog';
 import type { ContentDto } from '../dto/create-workspace.dto';
 import type { Tx } from './tx';
 
@@ -10,12 +14,11 @@ interface ContentGrant {
     slug: string;
 }
 
-const COLLECTION_SLUGS = CONTENT_TYPES.filter(
-    (ct) => ct.kind === 'collection'
-).map((ct) => ct.name);
-const PAGE_SLUGS = CONTENT_TYPES.filter((ct) => ct.kind === 'single').map(
-    (ct) => ct.name
-);
+/** The catalogue's slugs, split by kind. */
+interface KnownSlugs {
+    collections: string[];
+    pages: string[];
+}
 
 /** Resolves a resource selection against the known slugs of that kind. */
 function selectionToSlugs(
@@ -34,21 +37,21 @@ function selectionToSlugs(
 }
 
 /** Flattens the wizard's content decision into explicit (kind, slug) rows. */
-function resolveGrants(content: ContentDto): ContentGrant[] {
+function resolveGrants(content: ContentDto, known: KnownSlugs): ContentGrant[] {
     if (content.mode === 'all') {
         return [
-            ...COLLECTION_SLUGS.map((slug) => ({
+            ...known.collections.map((slug) => ({
                 kind: 'collection' as const,
                 slug
             })),
-            ...PAGE_SLUGS.map((slug) => ({ kind: 'single' as const, slug }))
+            ...known.pages.map((slug) => ({ kind: 'single' as const, slug }))
         ];
     }
     return [
-        ...selectionToSlugs(content.collections, COLLECTION_SLUGS).map(
+        ...selectionToSlugs(content.collections, known.collections).map(
             (slug) => ({ kind: 'collection' as const, slug })
         ),
-        ...selectionToSlugs(content.pages, PAGE_SLUGS).map((slug) => ({
+        ...selectionToSlugs(content.pages, known.pages).map((slug) => ({
             kind: 'single' as const,
             slug
         }))
@@ -57,18 +60,39 @@ function resolveGrants(content: ContentDto): ContentGrant[] {
 
 /**
  * Persists a workspace's content-access grants. The collections/pages live in
- * code (the mock {@link CONTENT_TYPES} registry today); this only links a
- * workspace to the slugs it may access, flattening "all" into explicit rows.
+ * code — resolved through the content plugin's {@link CONTENT_CATALOG} registry
+ * (falling back to the built-in mock when no content plugin is registered); this
+ * only links a workspace to the slugs it may access, flattening "all" into
+ * explicit rows.
  */
 @Injectable()
 export class ContentGrantService {
+    constructor(
+        @Optional()
+        @Inject(CONTENT_CATALOG)
+        private readonly catalog?: ContentCatalog
+    ) {}
+
+    /** The catalogue's slugs, split by kind, resolved at grant time. */
+    private knownSlugs(): KnownSlugs {
+        const types = this.catalog?.list() ?? CONTENT_TYPES;
+        return {
+            collections: types
+                .filter((ct) => ct.kind === 'collection')
+                .map((ct) => ct.name),
+            pages: types
+                .filter((ct) => ct.kind === 'single')
+                .map((ct) => ct.name)
+        };
+    }
+
     /** Grants `content` access to `workspaceId` within `tx`. */
     async grant(
         tx: Tx,
         workspaceId: string,
         content: ContentDto
     ): Promise<void> {
-        const grants = resolveGrants(content);
+        const grants = resolveGrants(content, this.knownSlugs());
         if (grants.length === 0) return;
         await tx
             .insert(workspaceContent)

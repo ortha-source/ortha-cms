@@ -43,4 +43,7 @@ export {
     IDENTITY_ACTIVITY_KINDS
 } from './lib/activity/activity-kinds';
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
+export { CONTENT_CATALOG } from './lib/content/content-catalog';
+export type { ContentCatalog } from './lib/content/content-catalog';
+export type { ContentTypeDescriptor } from './lib/content/content.constants';
 export * from './lib/schema';

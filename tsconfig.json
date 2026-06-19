@@ -62,6 +62,9 @@
         },
         {
             "path": "./packages/query-builder/admin"
+        },
+        {
+            "path": "./packages/content/server"
         }
     ]
 }

@@ -64,10 +64,14 @@ tokens and full user management land in later tickets (epic #3).
       (membership is a pure link — see `memberships`).
     - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
       (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
-    - `content/` — a `ListContentTypesController` (`GET /api/content-types`) over
-      a **mock** `CONTENT_TYPES` registry at the feature root. Placeholder until
-      a real content-modeling plugin ships; also the source the workspace create
-      flow expands an "all content" grant against.
+    - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and
+      the `CONTENT_CATALOG` **port** (`content-catalog.ts`). The controller and
+      the workspace create flow (an "all content" grant) resolve against
+      whatever binds the port — `@ortha-cms/content-server`'s code-defined
+      registry in the assembled app — falling back to the `CONTENT_TYPES` mock
+      at the feature root when no content plugin is present. Same inversion as
+      `ACTIVITY_RECORDER`: identity owns the port, the plugin binds it, so the
+      package graph stays acyclic.
   Non-class feature **data** (e.g. the role matrix) stays at the feature root,
   not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
   only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;

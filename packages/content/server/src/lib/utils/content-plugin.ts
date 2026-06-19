@@ -1,0 +1,48 @@
+import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
+import { ContentModule } from '../content.module';
+import { ContentTypeRegistry } from '../registry/content-type-registry';
+import type { AnyContentType } from '../types/content-type';
+
+/** Options for {@link ContentPlugin}. */
+export interface ContentPluginOptions {
+    /** Every code-defined content type (collections and singles). */
+    types: readonly AnyContentType[];
+    /**
+     * The HOST's migrations for the generated collection tables. The host
+     * owns this schema (its drizzle.config.ts diffs the re-exported
+     * tables), but routing the descriptor through the plugin lets the
+     * standard `db:migrate` machinery apply it with everything else.
+     */
+    migrations?: ServerPlugin['migrations'];
+}
+
+/** The content plugin's `ServerPlugin`, exposing its registry. */
+export interface ContentServerPlugin extends ServerPlugin {
+    registry: ContentTypeRegistry;
+}
+
+/**
+ * Content plugin factory. Builds the registry eagerly — duplicate names
+ * or unresolvable relation targets throw here, failing boot rather than
+ * the first request.
+ *
+ * @example
+ *   ContentPlugin({
+ *       types: [post, author, home],
+ *       migrations: {
+ *           dir: () => join(__dirname, '../migrations'),
+ *           table: '__drizzle_migrations_content'
+ *       }
+ *   })
+ */
+export function ContentPlugin(
+    options: ContentPluginOptions
+): ContentServerPlugin {
+    const registry = new ContentTypeRegistry(options.types);
+    return {
+        name: 'content',
+        module: ContentModule.forRoot(registry),
+        registry,
+        ...(options.migrations ? { migrations: options.migrations } : {})
+    };
+}

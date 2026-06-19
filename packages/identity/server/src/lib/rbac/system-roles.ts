@@ -14,7 +14,8 @@ export const PERMISSIONS = {
     USERS_CREATE: 'users:create',
     USERS_UPDATE: 'users:update',
     USERS_DELETE: 'users:delete',
-    ACTIVITY_READ: 'activity:read'
+    ACTIVITY_READ: 'activity:read',
+    CONTENT_READ: 'content:read'
 } as const;
 
 /** A `resource:action` permission key drawn from {@link PERMISSIONS}. */
@@ -44,11 +45,19 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
     {
         key: 'contributor',
         name: 'Contributor',
-        permissions: [PERMISSIONS.WORKSPACES_READ, PERMISSIONS.USERS_READ]
+        permissions: [
+            PERMISSIONS.WORKSPACES_READ,
+            PERMISSIONS.USERS_READ,
+            PERMISSIONS.CONTENT_READ
+        ]
     },
     {
         key: 'viewer',
         name: 'Viewer',
-        permissions: [PERMISSIONS.WORKSPACES_READ, PERMISSIONS.USERS_READ]
+        permissions: [
+            PERMISSIONS.WORKSPACES_READ,
+            PERMISSIONS.USERS_READ,
+            PERMISSIONS.CONTENT_READ
+        ]
     }
 ] as const;
