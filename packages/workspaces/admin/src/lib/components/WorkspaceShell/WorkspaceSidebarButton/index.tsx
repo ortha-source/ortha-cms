@@ -59,7 +59,7 @@ export function WorkspaceSidebarButton({ item }: WorkspaceSidebarButtonProps) {
                         className="absolute -left-3 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
                     />
                 ) : null}
-                <Icon className="size-4" />
+                <Icon className="size-[18px]" />
             </button>
         </RailTooltip>
     );
