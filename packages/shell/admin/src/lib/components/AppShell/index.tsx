@@ -39,8 +39,12 @@ export function AppShell() {
     return (
         <div className="flex min-h-svh flex-col">
             <Navbar>
-                <NavbarBrand>
-                    <Logo showLabel={false} />
+                <NavbarBrand className="gap-2">
+                    {/* The hexagon is decorative here; the "Ortha Studio"
+                        wordmark carries the accessible brand name. The shared
+                        Logo keeps its own "Ortha CMS" label elsewhere. */}
+                    <Logo showLabel={false} aria-hidden />
+                    <span className="text-sm font-medium">Ortha Studio</span>
                 </NavbarBrand>
                 <Separator
                     orientation="vertical"
