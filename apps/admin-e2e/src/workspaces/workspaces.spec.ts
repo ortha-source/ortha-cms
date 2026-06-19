@@ -142,10 +142,12 @@ test.describe('Workspaces page', () => {
 
         await workspacesPage.openButton('Marketing site').click();
 
-        // TODO(workspaces-detail): there is no `/workspaces/:id` route yet, so
-        // the catch-all redirects to home — this asserts the card is wired and
-        // activates; tighten to the detail URL once that page lands.
-        await expect(page).toHaveURL('/');
+        // The card opens the workspace shell, which redirects the base to its
+        // first rail section (Content Library).
+        await expect(page).toHaveURL('/workspaces/ws_marketing/content');
+        await expect(
+            page.getByRole('heading', { name: 'Content Library' })
+        ).toBeVisible();
     });
 
     test.describe('create wizard', () => {

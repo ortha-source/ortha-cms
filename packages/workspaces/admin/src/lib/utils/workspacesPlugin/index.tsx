@@ -1,11 +1,16 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
-import { Layers } from 'lucide-react';
+import { Layers, Settings } from 'lucide-react';
 import {
     CreateWorkspacePageSkeleton,
+    WorkspaceShellSkeleton,
     WorkspacesPageSkeleton
 } from '../../components/WorkspacesSkeleton';
+import {
+    WORKSPACE_ROUTE_SLOT,
+    WORKSPACE_SIDEBAR_SLOT
+} from '../../slots/workspaceSlots';
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
 // a signed-in user first navigates to it.
@@ -21,6 +26,18 @@ const CreateWorkspacePage = lazy(() =>
     }))
 );
 
+const WorkspaceShell = lazy(() =>
+    import('../../components/WorkspaceShell').then((module) => ({
+        default: module.WorkspaceShell
+    }))
+);
+
+const WorkspaceSettingsPage = lazy(() =>
+    import('../../pages/WorkspaceSettingsPage').then((module) => ({
+        default: module.WorkspaceSettingsPage
+    }))
+);
+
 /**
  * Admin-side workspaces plugin shape. A thin alias of {@link AdminPlugin}, kept
  * named so future config (sub-routes, slots) has a home.
@@ -28,11 +45,16 @@ const CreateWorkspacePage = lazy(() =>
 export type WorkspacesAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side workspaces plugin. It owns the workspaces feature: the
- * private `/workspaces` route (rendered inside the shell's authenticated
- * layout) and its toolbar nav entry, contributed to the shell's
- * {@link NAVBAR_START_SLOT} at `order: 20` (before Users). This replaces the
- * placeholder the shell shipped while the feature was pending.
+ * Creates the admin-side workspaces plugin. It owns two things:
+ *
+ * 1. **The workspaces management area** — the private `/workspaces` list and
+ *    `/workspaces/new` create wizard, plus the `Layers` toolbar nav entry
+ *    contributed to the shell's {@link NAVBAR_START_SLOT} at `order: 20`.
+ * 2. **The workspace shell** — the `/workspaces/:id/*` layout (left rail +
+ *    switcher) that opens when a workspace card is clicked. The plugin owns the
+ *    rail slots; feature plugins (Content/Media/Insights) contribute their rail
+ *    buttons + routes there. Workspaces itself contributes the last-section
+ *    **Settings** entry + its `/workspaces/:id/settings` page.
  *
  * @example
  * ```typescript
@@ -64,6 +86,17 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                         <CreateWorkspacePage />
                     </Suspense>
                 )
+            },
+            {
+                // The workspace shell. `/workspaces/new` is statically more
+                // specific, so React Router ranks it ahead of this dynamic
+                // segment regardless of declaration order.
+                path: '/workspaces/:id/*',
+                element: (
+                    <Suspense fallback={<WorkspaceShellSkeleton />}>
+                        <WorkspaceShell />
+                    </Suspense>
+                )
             }
         ],
         slots: [
@@ -76,6 +109,33 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                         to: '/workspaces',
                         order: 20,
                         icon: Layers
+                    }
+                ]
+            },
+            {
+                // Settings is the last section in the rail's nav (the bottom
+                // region is the fixed new-workspace action, not a slot).
+                slot: WORKSPACE_SIDEBAR_SLOT,
+                items: [
+                    {
+                        labelId: 'workspaces.settings.nav',
+                        defaultLabel: 'Settings',
+                        to: 'settings',
+                        order: 100,
+                        icon: Settings
+                    }
+                ]
+            },
+            {
+                slot: WORKSPACE_ROUTE_SLOT,
+                items: [
+                    {
+                        path: 'settings',
+                        element: (
+                            <Suspense fallback={null}>
+                                <WorkspaceSettingsPage />
+                            </Suspense>
+                        )
                     }
                 ]
             }

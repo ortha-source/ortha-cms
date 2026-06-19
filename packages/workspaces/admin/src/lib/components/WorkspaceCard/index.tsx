@@ -20,8 +20,8 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
     const navigate = useNavigate();
     const isArchived = workspace.status === 'Archived';
 
-    // TODO(workspaces-detail): point at the real workspace detail route once it
-    // exists; today there is no `/workspaces/:id` page.
+    // Opens the workspace shell (`/workspaces/:id/*`), which redirects to the
+    // first rail section (Content Library).
     const open = () => navigate(`/workspaces/${workspace.id}`);
 
     return (

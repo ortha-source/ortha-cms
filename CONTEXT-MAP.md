@@ -28,7 +28,10 @@ detail.
 | `identity/admin` | `@ortha-cms/identity-admin` | **Plugin.** Login page + auth client state. |
 | `users/server` | `@ortha-cms/users-server` | **Plugin.** Member management API (list/invite/edit/disable/sessions). |
 | `users/admin` | `@ortha-cms/users-admin` | **Plugin.** Members roster, invite flow, user detail tabs. |
-| `workspaces/admin` | `@ortha-cms/workspaces-admin` | **Plugin.** Workspace list + create wizard. |
+| `workspaces/admin` | `@ortha-cms/workspaces-admin` | **Plugin.** Workspace list + create wizard + the workspace shell (`/workspaces/:id/*`). Defines `WORKSPACE_SIDEBAR_SLOT` / `WORKSPACE_ROUTE_SLOT`. |
+| `content/admin` | `@ortha-cms/content-admin` | **Plugin.** Content Library (workspace rail). Scaffold. |
+| `media/admin` | `@ortha-cms/media-admin` | **Plugin.** Media Library (workspace rail). Scaffold; no server yet. |
+| `insights/admin` | `@ortha-cms/insights-admin` | **Plugin.** Insights (workspace rail). Scaffold; no server yet. |
 | `activity/server` | `@ortha-cms/activity-server` | **Plugin.** Audit-event schema + read API. |
 | `activity/admin` | `@ortha-cms/activity-admin` | **Plugin.** Global & user-scoped activity logs. |
 | `shell/admin` | `@ortha-cms/shell-admin` | **Plugin.** Authenticated chrome (toolbar, layout). Defines `NAVBAR_START_SLOT`. |

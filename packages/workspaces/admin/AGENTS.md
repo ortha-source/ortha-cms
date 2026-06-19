@@ -3,8 +3,9 @@
 The **workspaces feature plugin** for the Ortha CMS admin UI. It owns the
 Workspaces management experience: the private `/workspaces` route (a searchable,
 status-filterable grid of workspace cards), the full-page **create wizard** at
-`/workspaces/new`, and its toolbar nav entry. It replaced the placeholder the
-shell shipped while the feature was pending.
+`/workspaces/new`, and its toolbar nav entry. It also owns the **workspace
+shell** at `/workspaces/:id/*` — the per-workspace layout (left icon rail +
+switcher) that opens when a card is clicked.
 
 ## Package
 
@@ -27,6 +28,34 @@ shell shipped while the feature was pending.
 - `useCreateWorkspace` — create mutation with optimistic insert at the top;
   takes `{ body, creator }` (the `creator` seeds the stub's owner).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
+- **Workspace shell slots** — `WORKSPACE_SIDEBAR_SLOT` (the rail's section nav)
+  and `WORKSPACE_ROUTE_SLOT` (pages mounted inside the shell), plus the
+  `WorkspaceNavItem` / `WorkspaceRoute` item types. A feature plugin that lives
+  inside a workspace (Content Library, Media Library, Insights) contributes a
+  rail button + a route to these — and **no** top-level route or navbar item.
+- `useCurrentWorkspace()` — reads the open workspace from the shell's context
+  (no re-fetch); throws if called outside a shell route.
+
+## Workspace shell (`/workspaces/:id/*`)
+
+- `WorkspaceShell` resolves the `:id` param against `useWorkspaces()`, publishes
+  it via `CurrentWorkspaceProvider`, and renders the left **rail** beside a
+  content area whose nested `<Routes>` are built from `WORKSPACE_ROUTE_SLOT`.
+  Landing on the base redirects to the first rail section.
+- It is registered as a normal private route, so it renders **under the shell's
+  top navbar** (nested chrome, not a full-screen replacement). The 64px rail is
+  `sticky top-12` (below the 48px navbar), off-white so it reads as chrome.
+- The rail is icon-only with fly-out tooltips (`RailTooltip`): the
+  `WorkspaceSwitcher` chip (accent-tinted, opens `WorkspaceSwitcherPopover`) over
+  the slot-driven section nav. Creating a workspace lives in the popover footer,
+  so the rail has no bottom action. `WorkspaceSidebarButton`'s `to` is
+  **relative** to the workspace base; active state (`useMatch`) fills it
+  `--primary` with a left marker bar, and `useHasPermission` gates it.
+- The **only** color in the rail is the workspace accent — on the switcher chip
+  and the popover's workspace chips. Active sections are grayscale (`--primary`).
+- Workspaces owns the last-section **Settings** entry (`order: 100`) + its
+  `/workspaces/:id/settings` page; the other rail sections come from the feature
+  plugins.
 
 ## Create wizard (`/workspaces/new`)
 
@@ -69,9 +98,8 @@ shell shipped while the feature was pending.
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral
   admin. New tokens/types live in the design-system, not here.
 - **The card opens the workspace; it has no actions menu and shows no role** —
-  role is a property of the current user, not the card. There is no
-  `/workspaces/:id` detail route yet (see the `TODO(workspaces-detail)` in
-  `WorkspaceCard`).
+  role is a property of the current user, not the card. Clicking it navigates to
+  `/workspaces/:id`, which the shell redirects to the first rail section.
 
 ## Conventions
 
