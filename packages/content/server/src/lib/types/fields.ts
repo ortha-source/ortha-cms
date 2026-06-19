@@ -79,8 +79,6 @@ export interface RelationSpec {
 export interface BaseFieldOptions {
     /** Reject empty values; the column becomes NOT NULL. */
     required?: boolean;
-    /** Mark the field as translatable (metadata for the admin; storage lands with the i18n milestone). */
-    localized?: boolean;
     /** Whether AI is allowed to draft this field (writes are audit-trailed). */
     ai?: boolean;
     /** Presentation props forwarded to the admin. */
@@ -137,7 +135,6 @@ export interface FieldSpec<
 > {
     readonly type: TType;
     readonly required: boolean;
-    readonly localized: boolean;
     readonly ai: boolean;
     readonly validation: FieldValidation;
     readonly admin: AdminProps;

@@ -13,7 +13,6 @@ export interface SerializedField {
     name: string;
     type: string;
     required: boolean;
-    localized: boolean;
     ai: boolean;
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
@@ -99,7 +98,6 @@ export class ContentTypeRegistry {
             name: fieldName,
             type: spec.type,
             required: spec.required,
-            localized: spec.localized,
             ai: spec.ai,
             validation: { ...spec.validation },
             admin: { ...spec.admin },

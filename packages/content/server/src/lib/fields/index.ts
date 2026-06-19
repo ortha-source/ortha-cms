@@ -27,7 +27,6 @@ function base<TType extends FieldType>(
     return {
         type,
         required: options.required ?? false,
-        localized: options.localized ?? false,
         ai: options.ai ?? false,
         validation,
         admin: options.admin ?? {}

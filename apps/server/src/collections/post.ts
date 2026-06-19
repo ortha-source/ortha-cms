@@ -14,11 +14,9 @@ export const post = collection('post', {
         title: f.text({
             required: true,
             minLength: 3,
-            maxLength: 200,
-            localized: true
+            maxLength: 200
         }),
         summary: f.text({
-            localized: true,
             ai: true,
             maxLength: 300,
             admin: {
@@ -26,7 +24,7 @@ export const post = collection('post', {
                 description: 'Shown in cards and meta tags.'
             }
         }),
-        body: f.richtext({ localized: true }),
+        body: f.richtext(),
         author: f.relation({
             to: () => author,
             required: true,

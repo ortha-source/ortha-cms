@@ -7,8 +7,8 @@ export const home = single('home', {
     description: 'The site landing page.',
     path: '/',
     fields: {
-        headline: f.text({ required: true, maxLength: 120, localized: true }),
-        intro: f.richtext({ localized: true }),
+        headline: f.text({ required: true, maxLength: 120 }),
+        intro: f.richtext(),
         featuredPosts: f.relation({ to: () => post, many: true })
     }
 });
