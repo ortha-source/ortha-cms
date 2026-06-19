@@ -79,8 +79,6 @@ export interface RelationSpec {
 export interface BaseFieldOptions {
     /** Reject empty values; the column becomes NOT NULL. */
     required?: boolean;
-    /** Whether AI is allowed to draft this field (writes are audit-trailed). */
-    ai?: boolean;
     /** Presentation props forwarded to the admin. */
     admin?: AdminProps;
 }
@@ -135,7 +133,6 @@ export interface FieldSpec<
 > {
     readonly type: TType;
     readonly required: boolean;
-    readonly ai: boolean;
     readonly validation: FieldValidation;
     readonly admin: AdminProps;
     /** Allowed values — select fields only. */

@@ -13,7 +13,6 @@ export interface SerializedField {
     name: string;
     type: string;
     required: boolean;
-    ai: boolean;
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
     options?: readonly string[];
@@ -98,7 +97,6 @@ export class ContentTypeRegistry {
             name: fieldName,
             type: spec.type,
             required: spec.required,
-            ai: spec.ai,
             validation: { ...spec.validation },
             admin: { ...spec.admin },
             ...(spec.options ? { options: spec.options } : {}),

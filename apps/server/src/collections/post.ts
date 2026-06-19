@@ -4,8 +4,8 @@ import { tag } from './tag';
 
 /**
  * Blog posts — the reference collection. Exercises most of the field
- * vocabulary: validated text, AI-draftable summary, two independent
- * dates, money, a single FK relation, and a many-to-many relation.
+ * vocabulary: validated text, two independent dates, money, a single FK
+ * relation, and a many-to-many relation.
  */
 export const post = collection('post', {
     label: 'Blog posts',
@@ -17,7 +17,6 @@ export const post = collection('post', {
             maxLength: 200
         }),
         summary: f.text({
-            ai: true,
             maxLength: 300,
             admin: {
                 widget: 'textarea',
