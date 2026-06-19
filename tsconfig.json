@@ -65,6 +65,15 @@
         },
         {
             "path": "./packages/content/server"
+        },
+        {
+            "path": "./packages/insights/admin"
+        },
+        {
+            "path": "./packages/content/admin"
+        },
+        {
+            "path": "./packages/media/admin"
         }
     ]
 }

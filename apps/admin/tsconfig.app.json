@@ -43,6 +43,15 @@
             "path": "../../packages/workspaces/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/content/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/media/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/insights/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/users/admin/tsconfig.lib.json"
         },
         {
