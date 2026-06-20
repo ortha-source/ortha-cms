@@ -2,6 +2,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { FileText, History, Search, Table2, Trash2 } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
 import type { ContentFavorites } from '../../hooks/useContentFavorites';
+import { HISTORY_SEGMENT, TRASH_SEGMENT } from '../../constants';
 import { groupContentTypes } from '../../utils/groupContentTypes';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContentSidebarItem } from './ContentSidebarItem';
@@ -159,12 +160,12 @@ export function ContentSidebar({
                     </div>
                     <div className="mt-1 flex w-full min-w-0 flex-col gap-1">
                         <ContentSidebarLink
-                            to={`${basePath}/history`}
+                            to={`${basePath}/${HISTORY_SEGMENT}`}
                             label={intl.formatMessage(messages.history)}
                             icon={History}
                         />
                         <ContentSidebarLink
-                            to={`${basePath}/trash`}
+                            to={`${basePath}/${TRASH_SEGMENT}`}
                             label={intl.formatMessage(messages.trash)}
                             icon={Trash2}
                         />

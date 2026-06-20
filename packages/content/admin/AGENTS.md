@@ -66,6 +66,19 @@ exports; `<name>/index.ts(x)` folders (pages in `src/lib/pages/<Name>/`, the
 factory in `src/lib/utils/contentPlugin/`); co-located `react-intl` messages
 namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
+- **A component used by only one other component nests inside that parent's
+  folder** (it is not a render method on the parent and not a top-level
+  component). So the search palette's result row lives at
+  `components/ContentSearchDialog/ContentSearchItem/`, not as a `renderItem`
+  closure inside the dialog.
+- **No magic string literals for route segments, route params, keyboard keys, or
+  permissions** — define them as named constants in `src/lib/constants/` and
+  import them wherever they're used. `CONTENT_SEGMENT` is the single source of
+  truth for the `content` mount path, shared by `contentPlugin` (slot `to` +
+  route `path`) and `ContentLibraryPage` (`basePath`); `HISTORY_SEGMENT` /
+  `TRASH_SEGMENT` / `TYPE_PARAM` drive the nested routes and the sidebar links;
+  `SEARCH_SHORTCUT_KEY` is the ⌘K key; `CONTENT_READ` is the permission gate.
+
 ## Commands
 
 - `npm exec nx typecheck @ortha-cms/content-admin`

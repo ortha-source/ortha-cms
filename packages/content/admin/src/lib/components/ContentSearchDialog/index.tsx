@@ -1,16 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Badge,
     CommandDialog,
     CommandEmpty,
     CommandGroup,
     CommandInput,
-    CommandItem,
     CommandList
 } from '@ortha-cms/design-system';
 import type { ContentType } from '../../types/contentType';
 import { groupContentTypes } from '../../utils/groupContentTypes';
+import { ContentSearchItem } from './ContentSearchItem';
 
 /** Intl descriptors for the content search palette, co-located here. */
 const messages = defineMessages({
@@ -84,26 +83,6 @@ export function ContentSearchDialog({
         navigate(`${basePath}/${type.name}`);
     };
 
-    const renderItem = (type: ContentType, badge: string) => (
-        <CommandItem
-            key={type.name}
-            // cmdk filters on `value`; include the machine name + description so
-            // they're all searchable.
-            value={`${type.label} ${type.name} ${type.description ?? ''}`}
-            onSelect={() => select(type)}
-        >
-            <div className="flex min-w-0 flex-col">
-                <span className="truncate font-medium">{type.label}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                    {type.description ?? type.name}
-                </span>
-            </div>
-            <Badge variant="secondary" className="ml-auto">
-                {badge}
-            </Badge>
-        </CommandItem>
-    );
-
     return (
         <CommandDialog
             open={open}
@@ -123,24 +102,30 @@ export function ContentSearchDialog({
                     <CommandGroup
                         heading={intl.formatMessage(messages.collectionsGroup)}
                     >
-                        {collections.map((type) =>
-                            renderItem(
-                                type,
-                                intl.formatMessage(messages.collectionBadge)
-                            )
-                        )}
+                        {collections.map((type) => (
+                            <ContentSearchItem
+                                key={type.name}
+                                type={type}
+                                badge={intl.formatMessage(
+                                    messages.collectionBadge
+                                )}
+                                onSelect={select}
+                            />
+                        ))}
                     </CommandGroup>
                 ) : null}
                 {pages.length > 0 ? (
                     <CommandGroup
                         heading={intl.formatMessage(messages.pagesGroup)}
                     >
-                        {pages.map((type) =>
-                            renderItem(
-                                type,
-                                intl.formatMessage(messages.pageBadge)
-                            )
-                        )}
+                        {pages.map((type) => (
+                            <ContentSearchItem
+                                key={type.name}
+                                type={type}
+                                badge={intl.formatMessage(messages.pageBadge)}
+                                onSelect={select}
+                            />
+                        ))}
                     </CommandGroup>
                 ) : null}
             </CommandList>

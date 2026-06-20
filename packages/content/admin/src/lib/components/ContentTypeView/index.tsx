@@ -11,6 +11,7 @@ import {
 } from '@ortha-cms/design-system';
 import { FileQuestion, Inbox } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
+import { TYPE_PARAM } from '../../constants';
 
 /** Intl descriptors for the selected-type view, co-located here. */
 const messages = defineMessages({
@@ -55,7 +56,7 @@ type ContentTypeViewProps = {
  */
 export function ContentTypeView({ types }: ContentTypeViewProps) {
     const intl = useIntl();
-    const { typeName } = useParams();
+    const typeName = useParams()[TYPE_PARAM];
     const type = types.find((candidate) => candidate.name === typeName);
 
     if (!type) {

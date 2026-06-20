@@ -21,9 +21,14 @@ import { ContentWelcome } from '../../components/ContentWelcome';
 import { ContentComingSoon } from '../../components/ContentComingSoon';
 import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
-
-/** Permission required to browse content. Granted to all system roles. */
-const CONTENT_READ = 'content:read';
+import {
+    CONTENT_READ,
+    CONTENT_SEGMENT,
+    HISTORY_SEGMENT,
+    SEARCH_SHORTCUT_KEY,
+    TRASH_SEGMENT,
+    TYPE_PARAM
+} from '../../constants';
 
 /** Intl descriptors for the page-level states, co-located here. */
 const messages = defineMessages({
@@ -74,12 +79,15 @@ export function ContentLibraryPage() {
     const favorites = useContentFavorites(workspace.id);
     const [searchOpen, setSearchOpen] = useState(false);
 
-    const basePath = `/workspaces/${workspace.id}/content`;
+    const basePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}`;
 
     // ⌘K / Ctrl+K toggles the search palette from anywhere on the page.
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+            if (
+                (event.metaKey || event.ctrlKey) &&
+                event.key === SEARCH_SHORTCUT_KEY
+            ) {
                 event.preventDefault();
                 setSearchOpen((open) => !open);
             }
@@ -161,7 +169,7 @@ export function ContentLibraryPage() {
                             }
                         />
                         <Route
-                            path="history"
+                            path={HISTORY_SEGMENT}
                             element={
                                 <ContentComingSoon
                                     icon={History}
@@ -175,7 +183,7 @@ export function ContentLibraryPage() {
                             }
                         />
                         <Route
-                            path="trash"
+                            path={TRASH_SEGMENT}
                             element={
                                 <ContentComingSoon
                                     icon={Trash2}
@@ -189,7 +197,7 @@ export function ContentLibraryPage() {
                             }
                         />
                         <Route
-                            path=":typeName"
+                            path={`:${TYPE_PARAM}`}
                             element={<ContentTypeView types={scopedTypes} />}
                         />
                         <Route path="*" element={<Navigate to="." replace />} />
