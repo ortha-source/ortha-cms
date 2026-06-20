@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Filter, Plus } from 'lucide-react';
 import {
@@ -24,7 +24,8 @@ import {
     CONTENT_SEGMENT,
     DEFAULT_PAGE_SIZE,
     NEW_SEGMENT,
-    SEARCH_PARAM
+    SEARCH_PARAM,
+    SORT_PARAM
 } from '../../constants';
 import { useContentSchema } from '../../api/useContentSchema';
 import { useContentEntries } from '../../api/useContentEntries';
@@ -88,7 +89,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
 
     if (isPending) {
         return (
-            <Container className="max-w-none py-8">
+            <Container className="max-w-none p-4 sm:p-4">
                 <ContainerHeader title={type.label} />
                 <CollectionRecordsSkeleton />
             </Container>
@@ -97,7 +98,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
 
     if (isError || !schema) {
         return (
-            <Container className="max-w-none py-8">
+            <Container className="max-w-none p-4 sm:p-4">
                 <ContainerHeader title={type.label} />
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -150,6 +151,30 @@ function LoadedRecordsView({
         searchKey: SEARCH_PARAM,
         defaultPageSize: DEFAULT_PAGE_SIZE
     });
+
+    // Sort lives in the URL too (`?sort=<columnId>` asc, `?sort=-<columnId>`
+    // desc), beside the table state above. Clicking a header cycles
+    // asc → desc → off (cleared).
+    const [searchParams] = useSearchParams();
+    const sortParam = searchParams.get(SORT_PARAM) ?? '';
+    const sort = useMemo(() => {
+        if (!sortParam) return null;
+        const desc = sortParam.startsWith('-');
+        const key = desc ? sortParam.slice(1) : sortParam;
+        return key ? { key, dir: desc ? ('desc' as const) : ('asc' as const) } : null;
+    }, [sortParam]);
+    const handleSort = useCallback(
+        (columnId: string) => {
+            const next =
+                !sort || sort.key !== columnId
+                    ? columnId
+                    : sort.dir === 'asc'
+                      ? `-${columnId}`
+                      : undefined;
+            updateParams({ [SORT_PARAM]: next });
+        },
+        [sort, updateParams]
+    );
 
     const { columns, defaults } = useMemo(
         () => entryColumns(schema),
@@ -213,6 +238,7 @@ function LoadedRecordsView({
     const { data, isPending, isError, refetch } = useContentEntries(schema, {
         search: searchParam || undefined,
         filter: filterParam || undefined,
+        sort: sortParam || undefined,
         page,
         pageSize
     });
@@ -252,7 +278,7 @@ function LoadedRecordsView({
     const openCreate = () => navigate(`${typePath}/${NEW_SEGMENT}`);
 
     return (
-        <Container className="max-w-none py-8">
+        <Container className="max-w-none p-4 sm:p-4">
             <ContainerHeader
                 title={schema.label}
                 subtitle={intl.formatMessage(messages.subtitle, {
@@ -349,6 +375,8 @@ function LoadedRecordsView({
                         selectedIds={selectedIds}
                         onToggleRow={toggleRow}
                         onTogglePage={setPageSelection}
+                        sort={sort}
+                        onSort={handleSort}
                     />
                     <CollectionRecordsPagination
                         page={page}

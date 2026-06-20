@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import {
     Badge,
     Checkbox,
@@ -13,6 +14,9 @@ import {
 import type { EntryRecord } from '../../../types/contentType';
 import { fieldLabel, type EntryColumn } from '../../../utils/entryColumns';
 import { renderCell } from './renderCell';
+
+/** The current table sort: a column id and direction, or none. */
+export type TableSort = { key: string; dir: 'asc' | 'desc' } | null;
 
 /** Intl descriptors for {@link CollectionRecordsTable}, co-located. */
 const messages = defineMessages({
@@ -29,6 +33,10 @@ const messages = defineMessages({
     selectRow: {
         id: 'content.records.selectRow',
         defaultMessage: 'Select row'
+    },
+    sortBy: {
+        id: 'content.records.sortBy',
+        defaultMessage: 'Sort by {column}'
     }
 });
 
@@ -97,7 +105,9 @@ export function CollectionRecordsTable({
     typePath,
     selectedIds,
     onToggleRow,
-    onTogglePage
+    onTogglePage,
+    sort,
+    onSort
 }: {
     /** The content type's display label, for the table caption. */
     label: string;
@@ -113,6 +123,10 @@ export function CollectionRecordsTable({
     onToggleRow: (id: string) => void;
     /** Select or clear every row on the current page. */
     onTogglePage: (ids: string[], select: boolean) => void;
+    /** The active sort column + direction, or null for default order. */
+    sort: TableSort;
+    /** Cycle the sort on a column (asc → desc → off). */
+    onSort: (columnId: string) => void;
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -144,11 +158,52 @@ export function CollectionRecordsTable({
                                 )}
                             />
                         </TableHead>
-                        {columns.map((column) => (
-                            <TableHead key={column.id} scope="col">
-                                {columnLabel(column)}
-                            </TableHead>
-                        ))}
+                        {columns.map((column) => {
+                            const active = sort?.key === column.id;
+                            const ariaSort = active
+                                ? sort.dir === 'asc'
+                                    ? 'ascending'
+                                    : 'descending'
+                                : 'none';
+                            const label = columnLabel(column);
+                            return (
+                                <TableHead
+                                    key={column.id}
+                                    scope="col"
+                                    aria-sort={ariaSort}
+                                >
+                                    <button
+                                        type="button"
+                                        className="-ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        aria-label={intl.formatMessage(
+                                            messages.sortBy,
+                                            { column: label }
+                                        )}
+                                        onClick={() => onSort(column.id)}
+                                    >
+                                        {label}
+                                        {active ? (
+                                            sort.dir === 'asc' ? (
+                                                <ArrowUp
+                                                    className="size-3.5"
+                                                    aria-hidden
+                                                />
+                                            ) : (
+                                                <ArrowDown
+                                                    className="size-3.5"
+                                                    aria-hidden
+                                                />
+                                            )
+                                        ) : (
+                                            <ArrowUpDown
+                                                className="size-3.5 text-muted-foreground/50"
+                                                aria-hidden
+                                            />
+                                        )}
+                                    </button>
+                                </TableHead>
+                            );
+                        })}
                     </TableRow>
                 </TableHeader>
                 <TableBody>

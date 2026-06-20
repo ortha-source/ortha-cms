@@ -49,5 +49,12 @@ export const ENTRY_PARAM = 'entryId';
  */
 export const SEARCH_PARAM = 'q';
 
+/**
+ * Query-param name holding a collection table's sort: a column id for ascending,
+ * or `-`-prefixed for descending (e.g. `text`, `-updatedAt`). Absent means
+ * default (insertion) order. The bare-`-` convention keeps the URL unescaped.
+ */
+export const SORT_PARAM = 'sort';
+
 /** Default rows-per-page for a collection's records table. */
 export const DEFAULT_PAGE_SIZE = 10;

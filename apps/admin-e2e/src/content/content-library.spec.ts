@@ -330,6 +330,45 @@ test.describe('Content Library', () => {
         ).toHaveText(expectedAfter);
     });
 
+    test('sorts records by a column, toggling asc → desc → off', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        // Title is the first data column, so its cells are `<td>` 2 (the leading
+        // selection checkbox is `<td>` 1).
+        const titleCells = contentLibraryPage.recordColumnCells('Blog posts', 2);
+        const titleHeader = contentLibraryPage.columnHeader('Blog posts', 'Title');
+
+        // First click → ascending. URL + aria-sort reflect it, and the rendered
+        // page is in non-decreasing order.
+        await contentLibraryPage.sortHeader('Title').click();
+        await expect(page).toHaveURL(/[?&]sort=title(&|$)/);
+        await expect(titleHeader).toHaveAttribute('aria-sort', 'ascending');
+        const asc = await titleCells.allTextContents();
+        expect(asc).toEqual([...asc].sort((a, b) => a.localeCompare(b)));
+
+        // Second click → descending (the reverse order; `-` prefix).
+        await contentLibraryPage.sortHeader('Title').click();
+        await expect(page).toHaveURL(/[?&]sort=-title(&|$)/);
+        await expect(titleHeader).toHaveAttribute('aria-sort', 'descending');
+        const desc = await titleCells.allTextContents();
+        expect(desc).toEqual([...desc].sort((a, b) => b.localeCompare(a)));
+
+        // Third click clears the sort.
+        await contentLibraryPage.sortHeader('Title').click();
+        await expect(page).not.toHaveURL(/[?&]sort=/);
+        await expect(titleHeader).toHaveAttribute('aria-sort', 'none');
+    });
+
     test('selects rows, select-all, and clears the selection', async ({
         page,
         contentLibraryPage

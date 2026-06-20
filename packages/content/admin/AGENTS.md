@@ -6,7 +6,7 @@ registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
 `/workspaces/:id/content/*` and ships the library's **landing + navigation
 shell**: a second sidebar listing the workspace's content types, a ⌘K search
 palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
-table (search, query-builder filter, a column picker with
+table (search, query-builder filter, **click-to-sort headers**, a column picker with
 **drag-and-drop / keyboard reordering**, **row selection** with a select-all and
 a "{n} selected" bar, pagination, and an **Add record** action); selecting a
 **single** (page) still shows the
@@ -53,10 +53,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   and the query-builder filter fields (`filterFieldsFromSchema`). `useContentEntries`
   is the **single mock boundary** — it fabricates rows via `utils/mockEntries`
   and applies search → query-builder filter (`utils/applyFilterTree`, evaluating
-  the same wire JSON the server's `parseFilterTree` consumes) → pagination,
-  returning the `{ items, total, page, pageSize }` envelope. Swap its body for an
-  `apiClient` call when the entry API lands; callers stay unchanged. URL state
-  (search/filter/page) is owned by `useTableUrlState` (`@ortha-cms/utils-admin`),
+  the same wire JSON the server's `parseFilterTree` consumes) → **type-aware sort**
+  → pagination, returning the `{ items, total, page, pageSize }` envelope. Swap
+  its body for an `apiClient` call when the entry API lands; callers stay
+  unchanged. Sort is a URL param (`?sort=<columnId>` asc, `?sort=-<columnId>`
+  desc); a header click cycles asc → desc → off, sets `aria-sort` on the
+  `<th>`, and resets the page. URL state (search/filter/sort/page) is owned by
+  `useTableUrlState` (`@ortha-cms/utils-admin`),
   mirroring the Members page. `useEntryColumns` holds the **ordered** visible
   columns in component state (**not persisted** — the choice lasts the session
   and resets on reload) — the array is both the visibility set and the display
@@ -74,8 +77,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
   `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
   table header itself is static. The records view spans full width (`Container`
-  overridden to `max-w-none`); the table sits in a full-width bordered card whose
-  outer padding comes from the `Container` (`px-4 sm:px-6 py-8`), not the card.
+  overridden to `max-w-none`) with a uniform 16px gutter (`p-4 sm:p-4`, overriding
+  the Container's responsive padding); the table sits in a full-width bordered
+  card with no padding of its own.
 - The design-system `command` + `collapsible` primitives this plugin relies on
   were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 

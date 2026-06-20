@@ -109,6 +109,14 @@ export class ContentLibraryPage extends BasePage {
         return this.recordsTable(label).locator('tbody tr');
     }
 
+    /**
+     * The cells of one body column, by 1-based `<td>` position (the leading
+     * selection checkbox is column 1, so the first data column is 2).
+     */
+    recordColumnCells(label: string, nthChild: number): Locator {
+        return this.recordRows(label).locator(`td:nth-child(${nthChild})`);
+    }
+
     /** The records search box. */
     get recordsSearch(): Locator {
         return this.page.getByRole('searchbox', { name: 'Search records' });
@@ -134,6 +142,11 @@ export class ContentLibraryPage extends BasePage {
         return this.recordsTable(table).getByRole('columnheader', {
             name: label
         });
+    }
+
+    /** The sort button inside a column header, by the column's label. */
+    sortHeader(label: string): Locator {
+        return this.page.getByRole('button', { name: `Sort by ${label}` });
     }
 
     /** The filter-drawer trigger ("Filters" / "Filters (N)"). */
