@@ -97,6 +97,60 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('heading', { name: label, level: 1 });
     }
 
+    /** The collection records table (by its `{label} records` aria-label). */
+    recordsTable(label: string): Locator {
+        return this.page.getByRole('table', {
+            name: new RegExp(`${label} records`)
+        });
+    }
+
+    /** The data rows of the records table (excludes the header row). */
+    recordRows(label: string): Locator {
+        return this.recordsTable(label).locator('tbody tr');
+    }
+
+    /** The records search box. */
+    get recordsSearch(): Locator {
+        return this.page.getByRole('searchbox', { name: 'Search records' });
+    }
+
+    /** The "Add record" action in the records header. */
+    get addRecord(): Locator {
+        return this.page.getByRole('button', { name: 'Add record' });
+    }
+
+    /** The column-picker trigger. */
+    get columnsButton(): Locator {
+        return this.page.getByRole('button', { name: 'Columns' });
+    }
+
+    /** A column-picker checkbox option by its label. */
+    columnOption(label: string): Locator {
+        return this.page.getByRole('menuitemcheckbox', { name: label });
+    }
+
+    /** A column header cell in the records table by label. */
+    columnHeader(table: string, label: string): Locator {
+        return this.recordsTable(table).getByRole('columnheader', {
+            name: label
+        });
+    }
+
+    /** The filter-drawer trigger ("Filters" / "Filters (N)"). */
+    get filtersButton(): Locator {
+        return this.page.getByRole('button', { name: /Filters/ });
+    }
+
+    /** The records pagination "Next page" control. */
+    get nextPage(): Locator {
+        return this.page.getByRole('button', { name: 'Next page' });
+    }
+
+    /** The records empty/no-match title. */
+    get noRecordsMatch(): Locator {
+        return this.page.getByText('No records match');
+    }
+
     /** Visible text in the selected-type / placeholder pane. */
     paneText(text: string): Locator {
         return this.page.getByText(text);

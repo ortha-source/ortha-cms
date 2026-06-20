@@ -34,3 +34,53 @@ export type ContentType = {
     /** Route path — singles (pages) only. */
     path?: string;
 };
+
+/**
+ * Wire shape of one field, as served by `GET /api/content-schema/:name`.
+ * Mirrors the server's `SerializedField`
+ * (`packages/content/server/src/lib/registry/content-type-registry.ts`)
+ * without importing across the server boundary.
+ */
+export type ContentField = {
+    /** Machine name of the field — the key on an entry record. */
+    name: string;
+    /** Field kind: `text`/`richtext`/`number`/`money`/`boolean`/`date`/`datetime`/`select`/`json`/`media`/`relation`. */
+    type: string;
+    /** Whether a value is required. */
+    required: boolean;
+    /** Type-specific validation (minLength, max, pattern, …); opaque here. */
+    validation: Record<string, unknown>;
+    /** Admin display hints (label, description, placeholder, widget, hidden, …). */
+    admin: Record<string, unknown>;
+    /** Allowed values — present only for `select`. */
+    options?: readonly string[];
+    /** Relation target — present only for `relation`. */
+    relation?: { to: string; many: boolean; onDelete?: string };
+};
+
+/**
+ * Wire shape of a content type with its full field schema, as served by
+ * `GET /api/content-schema/:name`. Mirrors the server's `SerializedContentType`.
+ */
+export type ContentTypeDetail = ContentType & {
+    /** The type's fields, in declaration order. */
+    fields: ContentField[];
+};
+
+/**
+ * One collection entry as the admin renders it: the storage envelope
+ * (`id`, `status`, `createdAt`, `updatedAt`) plus a value per schema field,
+ * keyed by field name. Until the real entry API lands these are mock-generated.
+ */
+export type EntryRecord = {
+    /** Entry id (the `:entryId` route segment). */
+    id: string;
+    /** Publication status. */
+    status: 'draft' | 'published';
+    /** ISO creation timestamp. */
+    createdAt: string;
+    /** ISO last-updated timestamp. */
+    updatedAt: string;
+    /** Field values, keyed by field name. */
+    values: Record<string, unknown>;
+};

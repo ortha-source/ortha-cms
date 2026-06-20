@@ -20,6 +20,9 @@
             "path": "../../utils/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../query-builder/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../identity/admin/tsconfig.lib.json"
         },
         {

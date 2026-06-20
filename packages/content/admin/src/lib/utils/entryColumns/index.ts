@@ -1,0 +1,60 @@
+import type { ContentField, ContentTypeDetail } from '../../types/contentType';
+
+/** One selectable table column: a schema field, or an envelope column. */
+export type EntryColumn =
+    | { id: string; kind: 'field'; field: ContentField }
+    | { id: 'status'; kind: 'status' }
+    | { id: 'updatedAt'; kind: 'updated' };
+
+/** Title-cases a machine field name for a fallback label (`postedAt` → `Posted At`). */
+function humanize(name: string): string {
+    return name
+        .replace(/[_-]+/g, ' ')
+        .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+        .replace(/^\w/, (c) => c.toUpperCase());
+}
+
+/** The display label for a field — its admin label, else a humanized name. */
+export function fieldLabel(field: ContentField): string {
+    const admin = field.admin.label;
+    return typeof admin === 'string' && admin.length > 0
+        ? admin
+        : humanize(field.name);
+}
+
+/** Field types that render poorly in a cell, so they're off by default. */
+const HEAVY_TYPES = new Set(['richtext', 'json', 'media']);
+
+/** How many schema fields to show by default before the user opts into more. */
+const DEFAULT_FIELD_COLUMNS = 4;
+
+/**
+ * The available columns for a collection's table and the smart default
+ * selection. Available columns = every schema field (in declaration order)
+ * plus the **Status** and **Updated** envelope columns. The default shows the
+ * first few non-heavy fields (excluding richtext/json/media, which don't fit a
+ * cell) plus Status and Updated — the user widens this via the column picker,
+ * and {@link useEntryColumns} persists the choice.
+ */
+export function entryColumns(schema: ContentTypeDetail): {
+    columns: EntryColumn[];
+    defaults: string[];
+} {
+    const fieldColumns: EntryColumn[] = schema.fields.map((field) => ({
+        id: field.name,
+        kind: 'field',
+        field
+    }));
+    const columns: EntryColumn[] = [
+        ...fieldColumns,
+        { id: 'status', kind: 'status' },
+        { id: 'updatedAt', kind: 'updated' }
+    ];
+
+    const defaultFields = schema.fields
+        .filter((field) => !HEAVY_TYPES.has(field.type))
+        .slice(0, DEFAULT_FIELD_COLUMNS)
+        .map((field) => field.name);
+
+    return { columns, defaults: [...defaultFields, 'status', 'updatedAt'] };
+}

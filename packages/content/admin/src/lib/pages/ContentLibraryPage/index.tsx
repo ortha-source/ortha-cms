@@ -8,7 +8,7 @@ import {
     AlertTitle,
     Container
 } from '@ortha-cms/design-system';
-import { History, Trash2 } from 'lucide-react';
+import { FilePlus2, FileText, History, Trash2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import { useContentTypes } from '../../api/useContentTypes';
@@ -24,7 +24,9 @@ import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
+    ENTRY_PARAM,
     HISTORY_SEGMENT,
+    NEW_SEGMENT,
     SEARCH_SHORTCUT_KEY,
     TRASH_SEGMENT,
     TYPE_PARAM
@@ -55,6 +57,22 @@ const messages = defineMessages({
     trashBody: {
         id: 'content.trash.body',
         defaultMessage: 'Deleted entries will be recoverable here soon.'
+    },
+    createTitle: {
+        id: 'content.entry.createTitle',
+        defaultMessage: 'Create entry'
+    },
+    createBody: {
+        id: 'content.entry.createBody',
+        defaultMessage: 'The form for adding a new record lands next.'
+    },
+    entryTitle: {
+        id: 'content.entry.editTitle',
+        defaultMessage: 'Edit entry'
+    },
+    entryBody: {
+        id: 'content.entry.editBody',
+        defaultMessage: 'The entry editor lands next.'
     }
 });
 
@@ -199,6 +217,36 @@ export function ContentLibraryPage() {
                         <Route
                             path={`:${TYPE_PARAM}`}
                             element={<ContentTypeView types={scopedTypes} />}
+                        />
+                        {/* Create + entry-detail stubs. The static `new`
+                            segment outranks `:entryId`, so the order is safe. */}
+                        <Route
+                            path={`:${TYPE_PARAM}/${NEW_SEGMENT}`}
+                            element={
+                                <ContentComingSoon
+                                    icon={FilePlus2}
+                                    title={intl.formatMessage(
+                                        messages.createTitle
+                                    )}
+                                    description={intl.formatMessage(
+                                        messages.createBody
+                                    )}
+                                />
+                            }
+                        />
+                        <Route
+                            path={`:${TYPE_PARAM}/:${ENTRY_PARAM}`}
+                            element={
+                                <ContentComingSoon
+                                    icon={FileText}
+                                    title={intl.formatMessage(
+                                        messages.entryTitle
+                                    )}
+                                    description={intl.formatMessage(
+                                        messages.entryBody
+                                    )}
+                                />
+                            }
                         />
                         <Route path="*" element={<Navigate to="." replace />} />
                     </Routes>

@@ -12,13 +12,10 @@ import {
 import { FileQuestion, Inbox } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
 import { TYPE_PARAM } from '../../constants';
+import { CollectionRecordsView } from '../CollectionRecordsView';
 
 /** Intl descriptors for the selected-type view, co-located here. */
 const messages = defineMessages({
-    collectionBadge: {
-        id: 'content.type.collectionBadge',
-        defaultMessage: 'Collection'
-    },
     pageBadge: {
         id: 'content.type.pageBadge',
         defaultMessage: 'Page'
@@ -79,10 +76,11 @@ export function ContentTypeView({ types }: ContentTypeViewProps) {
         );
     }
 
-    const badge =
-        type.kind === 'single'
-            ? intl.formatMessage(messages.pageBadge)
-            : intl.formatMessage(messages.collectionBadge);
+    // Collections get the dynamic records table; singles (one-entry pages)
+    // keep the placeholder until their single-entry editor lands.
+    if (type.kind === 'collection') {
+        return <CollectionRecordsView type={type} />;
+    }
 
     return (
         <Container className="py-8">
@@ -90,7 +88,9 @@ export function ContentTypeView({ types }: ContentTypeViewProps) {
                 <h1 className="text-2xl font-semibold tracking-[-0.01em]">
                     {type.label}
                 </h1>
-                <Badge variant="secondary">{badge}</Badge>
+                <Badge variant="secondary">
+                    {intl.formatMessage(messages.pageBadge)}
+                </Badge>
             </div>
             {type.description ? (
                 <p className="mt-1 text-muted-foreground">{type.description}</p>

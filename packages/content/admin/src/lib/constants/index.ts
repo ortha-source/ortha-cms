@@ -28,3 +28,33 @@ export const TYPE_PARAM = 'typeName';
 
 /** Key that, with ⌘/Ctrl, toggles the search command palette. */
 export const SEARCH_SHORTCUT_KEY = 'k';
+
+/**
+ * Sub-route segment under a collection for the create-entry view
+ * (`/workspaces/:id/content/:typeName/new`). A static segment, so React Router
+ * ranks it above the `:${ENTRY_PARAM}` route.
+ */
+export const NEW_SEGMENT = 'new';
+
+/**
+ * Route param holding the selected entry's id, under a collection
+ * (`/workspaces/:id/content/:typeName/:entryId`).
+ */
+export const ENTRY_PARAM = 'entryId';
+
+/**
+ * Query-param name holding a collection table's text search. The records view's
+ * URL source of truth (via `useTableUrlState`), alongside `filter`/`page`/
+ * `pageSize`.
+ */
+export const SEARCH_PARAM = 'q';
+
+/** Default rows-per-page for a collection's records table. */
+export const DEFAULT_PAGE_SIZE = 10;
+
+/**
+ * `localStorage` key prefix for a collection's chosen table columns, keyed per
+ * type-name (`ortha:content:columns:<typeName>`). Mirrors the per-workspace
+ * favorites key — there is no column-preferences server yet.
+ */
+export const COLUMNS_STORAGE_PREFIX = 'ortha:content:columns:';

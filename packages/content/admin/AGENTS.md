@@ -5,16 +5,25 @@ admin counterpart to `@ortha-cms/content-server` (which owns the content
 registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
 `/workspaces/:id/content/*` and ships the library's **landing + navigation
 shell**: a second sidebar listing the workspace's content types, a ⌘K search
-palette, and pin-to-favorite. The per-type entry list/editor is a later
-milestone — selecting a type today shows a placeholder header + "entries coming
-soon".
+palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
+table (search, query-builder filter, persisted column picker, pagination, and an
+**Add record** action); selecting a **single** (page) still shows the
+"entries coming soon" placeholder until its single-entry editor lands. The entry
+**list is mock-backed** for now (`useContentEntries`) — the table, filters, and
+schema-driven columns are real, only the rows are fabricated until the server's
+`GET /api/content/:typeName` lands. Creating/opening an entry routes to a
+placeholder stub.
 
 ## Layout (the second sidebar)
 
 `ContentLibraryPage` owns a two-pane layout inside the shell's content area
 (beside the 56px workspace rail): a sticky **`ContentSidebar`** on the left and
 an outlet driven by nested routes on the right (`index` → `ContentWelcome`,
-`:typeName` → `ContentTypeView`). The sidebar splits types via
+`:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
+create/edit placeholder stubs; the static `new` segment outranks the
+`:entryId` param). `ContentTypeView` branches on `kind`: a collection renders
+`CollectionRecordsView` (the records table), a single keeps the placeholder. The
+sidebar splits types via
 `groupContentTypes` into **collapsible** groups — **Favorites** (shown only when
 something is pinned), **Collections** (`kind: 'collection'`), **Pages**
 (`kind: 'single'`) — built on the design-system `Collapsible`. Each row links to
@@ -37,6 +46,18 @@ global ⌘K / Ctrl+K shortcut (owned by the page).
   type-names in `localStorage`, **keyed per workspace** (`ortha:content:
 favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   server yet — that is the planned migration point.
+- **Records table data layer** (per-collection): `useContentSchema`
+  (`GET /api/content-schema/:name`, the full field schema) feeds both the columns
+  and the query-builder filter fields (`filterFieldsFromSchema`). `useContentEntries`
+  is the **single mock boundary** — it fabricates rows via `utils/mockEntries`
+  and applies search → query-builder filter (`utils/applyFilterTree`, evaluating
+  the same wire JSON the server's `parseFilterTree` consumes) → pagination,
+  returning the `{ items, total, page, pageSize }` envelope. Swap its body for an
+  `apiClient` call when the entry API lands; callers stay unchanged. URL state
+  (search/filter/page) is owned by `useTableUrlState` (`@ortha-cms/utils-admin`),
+  mirroring the Members page. `useEntryColumns` persists the chosen columns in
+  `localStorage` (`ortha:content:columns:<typeName>`), seeded from a smart
+  default (`utils/entryColumns`, excluding richtext/json/media).
 - The design-system `command` + `collapsible` primitives this plugin relies on
   were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 

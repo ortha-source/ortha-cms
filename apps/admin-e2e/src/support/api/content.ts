@@ -10,6 +10,22 @@ interface ContentTypeSummary {
     path?: string;
 }
 
+/** One field as `GET /api/content-schema/:name` returns it. */
+interface ContentFieldSchema {
+    name: string;
+    type: string;
+    required: boolean;
+    validation: Record<string, unknown>;
+    admin: Record<string, unknown>;
+    options?: string[];
+    relation?: { to: string; many: boolean; onDelete?: string };
+}
+
+/** A content type with its full field schema (the `:name` detail route). */
+interface ContentTypeDetail extends ContentTypeSummary {
+    fields: ContentFieldSchema[];
+}
+
 /**
  * The content-type catalogue the schema endpoint returns: two collections
  * (Blog posts, Products) and two pages (Home, About). Slugs line up with the
@@ -21,6 +37,86 @@ export const CONTENT_SCHEMA_SEED: ContentTypeSummary[] = [
     { name: 'home', kind: 'single', label: 'Home', path: '/' },
     { name: 'about', kind: 'single', label: 'About', path: '/about' }
 ];
+
+/**
+ * Full field schemas for the seed collections, returned by the
+ * `GET /api/content-schema/:name` detail route the records table reads. The
+ * field order drives the default columns (first four non-heavy fields + Status +
+ * Updated), and `category`'s options drive the select filter + cell badge.
+ */
+export const CONTENT_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    blog_post: {
+        name: 'blog_post',
+        kind: 'collection',
+        label: 'Blog posts',
+        fields: [
+            {
+                name: 'title',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Title' }
+            },
+            {
+                name: 'excerpt',
+                type: 'richtext',
+                required: false,
+                validation: {},
+                admin: { label: 'Excerpt' }
+            },
+            {
+                name: 'price',
+                type: 'money',
+                required: false,
+                validation: {},
+                admin: { label: 'Price' }
+            },
+            {
+                name: 'published',
+                type: 'boolean',
+                required: false,
+                validation: {},
+                admin: { label: 'Published' }
+            },
+            {
+                name: 'category',
+                type: 'select',
+                required: false,
+                validation: {},
+                admin: { label: 'Category' },
+                options: ['news', 'guide', 'release']
+            },
+            {
+                name: 'publishedAt',
+                type: 'datetime',
+                required: false,
+                validation: {},
+                admin: { label: 'Published at' }
+            }
+        ]
+    },
+    product: {
+        name: 'product',
+        kind: 'collection',
+        label: 'Products',
+        fields: [
+            {
+                name: 'name',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Name' }
+            },
+            {
+                name: 'price',
+                type: 'money',
+                required: true,
+                validation: {},
+                admin: { label: 'Price' }
+            }
+        ]
+    }
+};
 
 const ADA: WorkspaceView['members'][number] = {
     id: 'u_ada',
@@ -91,6 +187,44 @@ export async function mockContentSchema(
             body: JSON.stringify(
                 status >= 400 ? { message: 'Server error' } : types
             )
+        });
+    });
+}
+
+interface ContentSchemaDetailOptions {
+    /** Detail schemas keyed by type name. Defaults to {@link CONTENT_DETAIL_SEED}. */
+    details?: Record<string, ContentTypeDetail>;
+    /** Response status; use a 5xx to exercise the error state. */
+    status?: number;
+}
+
+/**
+ * Stub `GET /api/content-schema/:name` — the full field schema the records table
+ * reads via `useContentSchema`. Resolves the `:name` from the URL against
+ * {@link CONTENT_DETAIL_SEED}; an unknown name 404s. Register alongside
+ * {@link mockContentSchema} for any test that opens a collection.
+ */
+export async function mockContentSchemaDetail(
+    page: Page,
+    { details = CONTENT_DETAIL_SEED, status = 200 }: ContentSchemaDetailOptions = {}
+): Promise<void> {
+    await page.route(/\/api\/content-schema\/([^/?]+)/, async (route) => {
+        if (status >= 400) {
+            await route.fulfill({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Server error' })
+            });
+            return;
+        }
+        const name = decodeURIComponent(
+            new URL(route.request().url()).pathname.split('/').pop() ?? ''
+        );
+        const detail = details[name];
+        await route.fulfill({
+            status: detail ? 200 : 404,
+            contentType: 'application/json',
+            body: JSON.stringify(detail ?? { message: 'Not found' })
         });
     });
 }

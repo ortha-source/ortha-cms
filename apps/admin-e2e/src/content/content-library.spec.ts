@@ -5,7 +5,8 @@ import {
     LIBRARY_WORKSPACE,
     SCOPED_WORKSPACE,
     UNGRANTED_WORKSPACE,
-    mockContentSchema
+    mockContentSchema,
+    mockContentSchemaDetail
 } from '../support/api/content';
 
 /**
@@ -18,6 +19,7 @@ test.describe('Content Library', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockContentSchema(page);
+        await mockContentSchemaDetail(page);
     });
 
     test('renders the sidebar with Workspace and Manage sections', async ({
@@ -57,23 +59,21 @@ test.describe('Content Library', () => {
         await expect(contentLibraryPage.typeLink('Products')).toBeVisible();
     });
 
-    test('selecting a type shows its placeholder pane', async ({
+    test('selecting a single (page) shows its placeholder pane', async ({
         page,
         contentLibraryPage
     }) => {
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
 
-        await contentLibraryPage.expandGroup('Collections');
-        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.expandGroup('Pages');
+        await contentLibraryPage.typeLink('Home').click();
 
-        await expect(
-            contentLibraryPage.viewHeading('Blog posts')
-        ).toBeVisible();
+        await expect(contentLibraryPage.viewHeading('Home')).toBeVisible();
         await expect(
             contentLibraryPage.paneText('Entries coming soon')
         ).toBeVisible();
-        await expect(page).toHaveURL(/\/content\/blog_post$/);
+        await expect(page).toHaveURL(/\/content\/home$/);
     });
 
     test('only shows content types granted to the workspace', async ({
@@ -169,5 +169,114 @@ test.describe('Content Library', () => {
         await mockContentSchema(page);
         await contentLibraryPage.retry.click();
         await expect(contentLibraryPage.sidebar).toBeVisible();
+    });
+
+    test('selecting a collection shows its records table', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+
+        await expect(page).toHaveURL(/\/content\/blog_post$/);
+        await expect(
+            contentLibraryPage.viewHeading('Blog posts')
+        ).toBeVisible();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+        await expect(contentLibraryPage.addRecord).toBeVisible();
+        // Default page size is 10; the seed has more rows than one page.
+        await expect(contentLibraryPage.recordRows('Blog posts')).toHaveCount(
+            10
+        );
+        // Default columns: the first four non-heavy fields + Status + Updated.
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Title')
+        ).toBeVisible();
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Status')
+        ).toBeVisible();
+        // The richtext "Excerpt" field is heavy → hidden by default.
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
+        ).toHaveCount(0);
+    });
+
+    test('searching with no matches shows the empty state', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        await contentLibraryPage.recordsSearch.fill('zzz-no-such-record');
+        await expect(contentLibraryPage.noRecordsMatch).toBeVisible();
+        // The search is reflected in the URL (deep-linkable).
+        await expect(page).toHaveURL(/[?&]q=zzz-no-such-record/);
+    });
+
+    test('the column picker toggles a column and persists it', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        // Reveal the heavy "Excerpt" column via the picker.
+        await contentLibraryPage.columnsButton.click();
+        await contentLibraryPage.columnOption('Excerpt').click();
+        await page.keyboard.press('Escape');
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
+        ).toBeVisible();
+
+        // The choice survives a reload (persisted per type in localStorage).
+        await page.reload();
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
+        ).toBeVisible();
+    });
+
+    test('Add record and row click route to their stubs', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        // Add record → the create-entry stub.
+        await contentLibraryPage.addRecord.click();
+        await expect(page).toHaveURL(/\/content\/blog_post\/new$/);
+        await expect(
+            contentLibraryPage.paneText('Create entry')
+        ).toBeVisible();
+
+        // Back to the table, then a row → the entry-detail stub.
+        await page.goBack();
+        await contentLibraryPage.recordRows('Blog posts').first().click();
+        await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
+        await expect(contentLibraryPage.paneText('Edit entry')).toBeVisible();
     });
 });
