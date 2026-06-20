@@ -129,7 +129,7 @@ export function CollectionRecordsTable({
           : false;
 
     return (
-        <div className="w-full rounded-xl border p-4">
+        <div className="w-full rounded-xl border">
             <Table aria-label={intl.formatMessage(messages.caption, { label })}>
                 <TableHeader>
                     <TableRow>

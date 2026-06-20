@@ -88,7 +88,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
 
     if (isPending) {
         return (
-            <Container className="py-8">
+            <Container className="max-w-none py-8">
                 <ContainerHeader title={type.label} />
                 <CollectionRecordsSkeleton />
             </Container>
@@ -97,7 +97,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
 
     if (isError || !schema) {
         return (
-            <Container className="py-8">
+            <Container className="max-w-none py-8">
                 <ContainerHeader title={type.label} />
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -252,7 +252,7 @@ function LoadedRecordsView({
     const openCreate = () => navigate(`${typePath}/${NEW_SEGMENT}`);
 
     return (
-        <Container className="py-8">
+        <Container className="max-w-none py-8">
             <ContainerHeader
                 title={schema.label}
                 subtitle={intl.formatMessage(messages.subtitle, {

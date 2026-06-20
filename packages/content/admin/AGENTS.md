@@ -72,8 +72,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   drag-and-drop / keyboard reorderable rows (a `DndContext` + vertical
   `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
   `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
-  table header itself is static. The table is wrapped in a full-width, padded
-  (`p-4`) bordered card.
+  table header itself is static. The records view spans full width (`Container`
+  overridden to `max-w-none`); the table sits in a full-width bordered card whose
+  outer padding comes from the `Container` (`px-4 sm:px-6 py-8`), not the card.
 - The design-system `command` + `collapsible` primitives this plugin relies on
   were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 
