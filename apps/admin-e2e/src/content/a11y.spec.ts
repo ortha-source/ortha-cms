@@ -1,7 +1,11 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { LIBRARY_WORKSPACE, mockContentSchema } from '../support/api/content';
+import {
+    LIBRARY_WORKSPACE,
+    mockContentSchema,
+    mockContentSchemaDetail
+} from '../support/api/content';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -14,6 +18,7 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await mockContentSchema(page);
+        await mockContentSchemaDetail(page);
     });
 
     test('sidebar + welcome pane', async ({ contentLibraryPage, makeAxe }) => {
@@ -30,6 +35,8 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await contentLibraryPage.expandGroup('Collections');
         await contentLibraryPage.typeLink('Blog posts').click();
         await contentLibraryPage.viewHeading('Blog posts').waitFor();
+        // Scan the real records table (checkboxes + drag handles), not a stub.
+        await contentLibraryPage.recordsTable('Blog posts').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

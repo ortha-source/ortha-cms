@@ -15,20 +15,16 @@
  */
 
 import { joinTableOf, type AnyContentType } from '@ortha-cms/content-server/define';
-import { author } from './collections/author';
-import { post } from './collections/post';
-import { tag } from './collections/tag';
-import { home } from './pages/home';
+import { article } from './collections/article';
+import { landing } from './pages/landing';
 
 /** Every content type registered with ContentPlugin, in one place. */
-export const contentTypes: readonly AnyContentType[] = [author, tag, post, home];
+export const contentTypes: readonly AnyContentType[] = [article, landing];
 
 // --- drizzle-kit schema: physical tables re-exported for migration diffing ---
-export const authors = author.table;
-export const tags = tag.table;
-export const posts = post.table;
-/** post.tags many-to-many join. */
-export const postTags = joinTableOf(post, 'tags');
-export const homePage = home.table;
-/** home.featuredPosts many-to-many join. */
-export const homeFeaturedPosts = joinTableOf(home, 'featuredPosts');
+export const articles = article.table;
+/** article.related many-to-many self-join. */
+export const articleRelated = joinTableOf(article, 'related');
+export const landingPage = landing.table;
+/** landing.picks many-to-many join. */
+export const landingPicks = joinTableOf(landing, 'picks');

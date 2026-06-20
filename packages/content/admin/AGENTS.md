@@ -6,8 +6,10 @@ registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
 `/workspaces/:id/content/*` and ships the library's **landing + navigation
 shell**: a second sidebar listing the workspace's content types, a ⌘K search
 palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
-table (search, query-builder filter, persisted column picker, pagination, and an
-**Add record** action); selecting a **single** (page) still shows the
+table (search, query-builder filter, a persisted column picker with
+**drag-and-drop / keyboard reordering**, **row selection** with a select-all and
+a "{n} selected" bar, pagination, and an **Add record** action); selecting a
+**single** (page) still shows the
 "entries coming soon" placeholder until its single-entry editor lands. The entry
 **list is mock-backed** for now (`useContentEntries`) — the table, filters, and
 schema-driven columns are real, only the rows are fabricated until the server's
@@ -55,9 +57,20 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   returning the `{ items, total, page, pageSize }` envelope. Swap its body for an
   `apiClient` call when the entry API lands; callers stay unchanged. URL state
   (search/filter/page) is owned by `useTableUrlState` (`@ortha-cms/utils-admin`),
-  mirroring the Members page. `useEntryColumns` persists the chosen columns in
-  `localStorage` (`ortha:content:columns:<typeName>`), seeded from a smart
-  default (`utils/entryColumns`, excluding richtext/json/media).
+  mirroring the Members page. `useEntryColumns` persists the **ordered** visible
+  columns in `localStorage` (`ortha:content:columns:<typeName>`) — the stored
+  array is both the visibility set and the display order, so it powers the column
+  picker *and* drag-to-reorder (`reorder` via `@dnd-kit/sortable`'s `arrayMove`);
+  it is seeded from a smart default (`utils/entryColumns`, excluding
+  richtext/json/media) and reconciled against the live schema on load. Row
+  selection is local component state (a `Set<string>` by id) in
+  `CollectionRecordsView`, surfaced through the table's leading checkbox column
+  and the `CollectionRecordsSelectionBar`.
+- The records header is drag-and-drop / keyboard reorderable via **@dnd-kit**
+  (`core` + `sortable` + `utilities`) — a `DndContext` + horizontal
+  `SortableContext` in `CollectionRecordsTable`, with a `GripVertical` handle per
+  data column (the selection checkbox column stays fixed). Keyboard reordering
+  uses dnd-kit's `KeyboardSensor` + `sortableKeyboardCoordinates`.
 - The design-system `command` + `collapsible` primitives this plugin relies on
   were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 

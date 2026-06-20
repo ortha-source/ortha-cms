@@ -13,7 +13,7 @@ const ADMIN_EMAIL = 'content-types-admin@example.com';
 const PASSWORD = 'SecurePass123!';
 
 /** The code-defined types registered with ContentPlugin (see apps/server/src/content.ts). */
-const REGISTRY_NAMES = ['author', 'home', 'post', 'tag'];
+const REGISTRY_NAMES = ['article', 'landing'];
 
 interface Descriptor {
     name: string;
@@ -73,8 +73,8 @@ describe('Content catalogue handover (GET /api/content-types + grants)', () => {
         const byName = Object.fromEntries(
             (res.body as Descriptor[]).map((d) => [d.name, d])
         );
-        expect(byName.home).toMatchObject({ kind: 'single', path: '/' });
-        expect(byName.post).toMatchObject({ kind: 'collection' });
+        expect(byName.landing).toMatchObject({ kind: 'single', path: '/' });
+        expect(byName.article).toMatchObject({ kind: 'collection' });
     });
 
     it('grants a workspace the real registry slugs on content mode "all"', async () => {
@@ -97,11 +97,11 @@ describe('Content catalogue handover (GET /api/content-types + grants)', () => {
             .where(eq(workspaceContent.workspaceId, res.body.id));
 
         expect(rows.map((r) => r.slug).sort()).toEqual(REGISTRY_NAMES);
-        // post/author/tag are collections; home is the single.
+        // article is the collection; landing is the single.
         const kindBySlug = Object.fromEntries(
             rows.map((r) => [r.slug, r.kind])
         );
-        expect(kindBySlug.post).toBe('collection');
-        expect(kindBySlug.home).toBe('single');
+        expect(kindBySlug.article).toBe('collection');
+        expect(kindBySlug.landing).toBe('single');
     });
 });

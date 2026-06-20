@@ -151,6 +151,42 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByText('No records match');
     }
 
+    /** Every column header in the records table (incl. the leading checkbox). */
+    columnHeaders(table: string): Locator {
+        return this.recordsTable(table).getByRole('columnheader');
+    }
+
+    /** The drag handle for a column header, used to reorder it. */
+    reorderHandle(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Reorder ${label} column`
+        });
+    }
+
+    /** The header select-all checkbox. */
+    get selectAll(): Locator {
+        return this.page.getByRole('checkbox', {
+            name: 'Select all rows on this page'
+        });
+    }
+
+    /** The selection checkbox in a given data row. */
+    rowCheckbox(table: string, index: number): Locator {
+        return this.recordRows(table)
+            .nth(index)
+            .getByRole('checkbox', { name: 'Select row' });
+    }
+
+    /** The "{n} selected" count text in the selection bar. */
+    get selectionCount(): Locator {
+        return this.page.getByText(/\d+ selected/);
+    }
+
+    /** The selection bar's Clear button. */
+    get clearSelection(): Locator {
+        return this.page.getByRole('button', { name: 'Clear' });
+    }
+
     /** Visible text in the selected-type / placeholder pane. */
     paneText(text: string): Locator {
         return this.page.getByText(text);

@@ -279,4 +279,98 @@ test.describe('Content Library', () => {
         await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
         await expect(contentLibraryPage.paneText('Edit entry')).toBeVisible();
     });
+
+    test('reorders a column via the keyboard and persists it', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        // Default order: a leading checkbox column (empty header text), then the
+        // first four non-heavy fields + Status + Updated.
+        const expectedBefore = [
+            '',
+            'Title',
+            'Price',
+            'Published',
+            'Category',
+            'Status',
+            'Updated'
+        ];
+        await expect(
+            contentLibraryPage.columnHeaders('Blog posts')
+        ).toHaveText(expectedBefore);
+
+        // Pick up "Title" with the keyboard and move it one slot right. dnd-kit
+        // schedules each keyboard move on an animation frame, so let the drag
+        // start and the move settle between key presses.
+        await contentLibraryPage.reorderHandle('Title').focus();
+        await page.keyboard.press('Space');
+        await page.waitForTimeout(200);
+        await page.keyboard.press('ArrowRight');
+        await page.waitForTimeout(200);
+        await page.keyboard.press('Space');
+        await page.waitForTimeout(200);
+
+        const expectedAfter = [
+            '',
+            'Price',
+            'Title',
+            'Published',
+            'Category',
+            'Status',
+            'Updated'
+        ];
+        await expect(
+            contentLibraryPage.columnHeaders('Blog posts')
+        ).toHaveText(expectedAfter);
+
+        // The new order survives a reload (persisted per type in localStorage).
+        await page.reload();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+        await expect(
+            contentLibraryPage.columnHeaders('Blog posts')
+        ).toHaveText(expectedAfter);
+    });
+
+    test('selects rows, select-all, and clears the selection', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        // No selection bar until something is selected.
+        await expect(contentLibraryPage.selectionCount).toHaveCount(0);
+
+        // Selecting a row shows the bar; the checkbox click must not navigate.
+        await contentLibraryPage.rowCheckbox('Blog posts', 0).click();
+        await expect(contentLibraryPage.selectionCount).toHaveText('1 selected');
+        await expect(page).toHaveURL(/\/content\/blog_post$/);
+
+        // Select-all covers the whole page (default page size 10).
+        await contentLibraryPage.selectAll.click();
+        await expect(contentLibraryPage.selectionCount).toHaveText(
+            '10 selected'
+        );
+
+        // Clear empties the selection and hides the bar.
+        await contentLibraryPage.clearSelection.click();
+        await expect(contentLibraryPage.selectionCount).toHaveCount(0);
+    });
 });

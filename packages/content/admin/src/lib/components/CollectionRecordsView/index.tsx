@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Filter, Plus } from 'lucide-react';
@@ -36,6 +36,7 @@ import { CollectionRecordsColumnPicker } from './CollectionRecordsColumnPicker';
 import { CollectionRecordsPagination } from './CollectionRecordsPagination';
 import { CollectionRecordsEmpty } from './CollectionRecordsEmpty';
 import { CollectionRecordsSkeleton } from './CollectionRecordsSkeleton';
+import { CollectionRecordsSelectionBar } from './CollectionRecordsSelectionBar';
 
 /** Intl descriptors for {@link CollectionRecordsView}, co-located. */
 const messages = defineMessages({
@@ -154,15 +155,50 @@ function LoadedRecordsView({
         () => entryColumns(schema),
         [schema]
     );
-    const { isVisible, toggle, visible } = useEntryColumns(type.name, defaults);
-    // Keep available-column order; fall back to defaults if the stored set went
-    // empty (e.g. a schema change removed every persisted column).
-    const visibleColumns = useMemo(() => {
-        const shown = columns.filter((column) => isVisible(column.id));
-        return shown.length > 0
-            ? shown
-            : columns.filter((column) => defaults.includes(column.id));
-    }, [columns, defaults, isVisible]);
+    const availableIds = useMemo(
+        () => columns.map((column) => column.id),
+        [columns]
+    );
+    const { isVisible, toggle, visible, reorder } = useEntryColumns(
+        type.name,
+        availableIds,
+        defaults
+    );
+    // Render columns in the persisted visible order (reconcile() guarantees the
+    // ids are available, so the lookup never misses).
+    const columnById = useMemo(
+        () => new Map(columns.map((column) => [column.id, column])),
+        [columns]
+    );
+    const visibleColumns = useMemo(
+        () =>
+            visible
+                .map((id) => columnById.get(id))
+                .filter((column) => column !== undefined),
+        [visible, columnById]
+    );
+
+    // Row selection — by id, persisting across paging; cleared via the bar.
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const toggleRow = useCallback((id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+    const setPageSelection = useCallback((ids: string[], select: boolean) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) {
+                if (select) next.add(id);
+                else next.delete(id);
+            }
+            return next;
+        });
+    }, []);
+    const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
     const filterFields = useMemo(
         () => filterFieldsFromSchema(schema),
@@ -297,11 +333,21 @@ function LoadedRecordsView({
                 />
             ) : (
                 <>
+                    {selectedIds.size > 0 && (
+                        <CollectionRecordsSelectionBar
+                            count={selectedIds.size}
+                            onClear={clearSelection}
+                        />
+                    )}
                     <CollectionRecordsTable
                         label={schema.label}
                         entries={entries}
                         columns={visibleColumns}
                         typePath={typePath}
+                        selectedIds={selectedIds}
+                        onToggleRow={toggleRow}
+                        onTogglePage={setPageSelection}
+                        onReorder={reorder}
                     />
                     <CollectionRecordsPagination
                         page={page}
