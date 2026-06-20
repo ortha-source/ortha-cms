@@ -19,6 +19,18 @@ export interface ContentTypeOptions<
     label?: string;
     /** Short description shown in pickers (workspace wizard, admin). */
     description?: string;
+    /**
+     * Track when an entry was published: adds a reserved, nullable
+     * `published_at` envelope column the platform owns. Authors cannot define
+     * it as a field, and clients cannot set it directly.
+     */
+    publishable?: boolean;
+    /**
+     * Soft-delete: adds a reserved, nullable `deleted_at` envelope column. A
+     * deleted entry is tombstoned (its `deleted_at` set) rather than removed.
+     * Authors cannot define it as a field, and clients cannot set it directly.
+     */
+    paranoid?: boolean;
     /** The field map — keys become column names (snake_cased). */
     fields: TFields;
 }
@@ -45,6 +57,10 @@ export interface ContentType<
     readonly description?: string;
     /** Route path — singles only. */
     readonly path?: string;
+    /** Tracks publish time via a `published_at` envelope column. */
+    readonly publishable: boolean;
+    /** Soft-deletes via a `deleted_at` envelope column. */
+    readonly paranoid: boolean;
     readonly fields: TFields;
     /** The generated Postgres table (`content_<name>`). */
     readonly table: PgTable;
@@ -65,6 +81,10 @@ export interface EntryEnvelope {
     status: 'draft' | 'published';
     createdAt: Date;
     updatedAt: Date;
+    /** Publish timestamp — present (nullable) only on `publishable` types. */
+    publishedAt: Date | null;
+    /** Soft-delete tombstone — present (nullable) only on `paranoid` types. */
+    deletedAt: Date | null;
 }
 
 /** The field values of a content type, null-aware via each field's `required`. */

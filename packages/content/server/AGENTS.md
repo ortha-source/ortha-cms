@@ -6,7 +6,7 @@ runtime **registry**, serves that schema to the admin, and validates entry
 values against it. It owns **no database connection and no migrations of its
 own** — the HOST owns the generated tables and their migrations (see below).
 
-## The DSL (`collection()` / `single()` + `f.*`)
+## The DSL (`collection()` / `single()` + `field.*`)
 
 Content types are declared in code, in the host app (collections in
 `apps/server/src/collections`, pages/singles in `apps/server/src/pages`):
@@ -15,9 +15,9 @@ Content types are declared in code, in the host app (collections in
 export const post = collection('post', {
     label: 'Blog posts',
     fields: {
-        title: f.text({ required: true, minLength: 3 }),
-        author: f.relation({ to: () => author, required: true, onDelete: 'restrict' }),
-        tags: f.relation({ to: () => tag, many: true })
+        title: field.text({ required: true, minLength: 3 }),
+        author: field.relation({ to: () => author, required: true, onDelete: 'restrict' }),
+        tags: field.relation({ to: () => tag, many: true })
     }
 });
 ```
@@ -25,8 +25,8 @@ export const post = collection('post', {
 - `collection()` (multi-entry) and `single()` (one entry, routed at `path`)
   normalize options, run `assertName` + `assertFields`, build the tables, and
   return a typed `ContentType`.
-- `f.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
-  `datetime`/`select`/`json`/`media`/`relation`) each return a JSON-serializable
+- `field.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
+  `datetime`/`select`/`multiselect`/`json`/`relation`) each return a JSON-serializable
   `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
 - `relation({ to })` takes a **lazy thunk** so mutually-referencing collection
   files can import each other. `onDelete` defaults to `'cascade'` when
@@ -34,15 +34,31 @@ export const post = collection('post', {
   `onDelete: 'set null'` is rejected** at define time — a NOT NULL FK can't be
   nulled on delete.
 
+### Metadata flags (`publishable` / `paranoid`)
+
+Two optional booleans on `collection()` / `single()` add platform-owned envelope
+columns:
+
+- `publishable: true` → a nullable `published_at` (timestamptz) column.
+- `paranoid: true` → a nullable `deleted_at` (timestamptz) column (soft delete).
+
+Both are **nullable with no default** (null = "not yet published" / "not
+deleted"; the service layer stamps them). `published_at` and `deleted_at` are
+**reserved unconditionally** — an author cannot define a field that maps to them
+(rejected by `assertFields`), and a client cannot set them (they aren't in
+`type.fields`, so `EntryValidationService` rejects them as unknown keys). The
+flags are carried on `ContentType` and serialized in the schema summary.
+
 ## Generated storage (`buildTables`)
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per
 **many-relation**. Every table carries the envelope: `id`, `workspace_id`
 (plain uuid, no FK until workspace scoping lands), `status` (`draft`/`published`),
-`created_at`, `updated_at`, plus a `(workspace_id, status)` index. A required
-`boolean` gets `DEFAULT false`. Field/column collisions (two fields snake-casing
-to the same column, or a field clashing with a relation's `<field>_id` or an
-envelope column) are rejected by `assertFields`.
+`created_at`, `updated_at` (plus `published_at` / `deleted_at` when the
+`publishable` / `paranoid` flags are set), plus a `(workspace_id, status)` index.
+A required `boolean` gets `DEFAULT false`. Field/column collisions (two fields
+snake-casing to the same column, a field clashing with a relation's `<field>_id`,
+or a reserved envelope column) are rejected by `assertFields`.
 
 ## The `/define` vs main-barrel split — IMPORTANT
 
@@ -50,7 +66,7 @@ Collection files and the host's drizzle-kit schema entry MUST import from
 `@ortha-cms/content-server/define`, **not** the main barrel. drizzle-kit bundles
 the schema's whole import graph with plain esbuild, which rejects the NestJS
 decorators the main barrel pulls in via its controllers. `/define` re-exports
-only the decorator-free DSL (`collection`, `single`, `f`, `joinTableOf`, types).
+only the decorator-free DSL (`collection`, `single`, `field`, `joinTableOf`, types).
 
 ## Migrations are HOST-owned
 

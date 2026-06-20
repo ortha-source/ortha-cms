@@ -32,6 +32,10 @@ export interface SerializedContentTypeSummary {
     label: string;
     description?: string;
     path?: string;
+    /** Tracks publish time via a `publishedAt` envelope column. */
+    publishable: boolean;
+    /** Soft-deletes via a `deletedAt` envelope column. */
+    paranoid: boolean;
 }
 
 /** Wire shape of a content type with its full field schema. */
@@ -84,7 +88,9 @@ export class ContentTypeRegistry {
             kind: type.kind,
             label: type.label,
             ...(type.description ? { description: type.description } : {}),
-            ...(type.path ? { path: type.path } : {})
+            ...(type.path ? { path: type.path } : {}),
+            publishable: type.publishable,
+            paranoid: type.paranoid
         };
     }
 

@@ -17,8 +17,8 @@ export type FieldType =
     | 'date'
     | 'datetime'
     | 'select'
+    | 'multiselect'
     | 'json'
-    | 'media'
     | 'relation';
 
 /**

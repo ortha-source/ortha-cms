@@ -32,7 +32,6 @@ function fieldTypeFor(field: ContentField): FieldType | null {
         case 'text':
         case 'richtext':
         case 'relation':
-        case 'media':
             return FIELD_TYPE.String;
         case 'number':
         case 'money':
@@ -43,6 +42,7 @@ function fieldTypeFor(field: ContentField): FieldType | null {
         case 'datetime':
             return FIELD_TYPE.Date;
         case 'select':
+        case 'multiselect':
             return FIELD_TYPE.Enum;
         default:
             // `json` (and any future opaque type) has no sensible filter editor.

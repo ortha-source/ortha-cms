@@ -62,7 +62,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   array is both the visibility set and the display order, so it powers the column
   picker *and* drag-to-reorder (`reorder` via `@dnd-kit/sortable`'s `arrayMove`);
   it is seeded from a smart default (`utils/entryColumns`, excluding
-  richtext/json/media) and reconciled against the live schema on load. Row
+  richtext/json) and reconciled against the live schema on load. Row
   selection is local component state (a `Set<string>` by id) in
   `CollectionRecordsView`, surfaced through the table's leading checkbox column
   and the `CollectionRecordsSelectionBar`.

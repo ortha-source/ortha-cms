@@ -52,7 +52,6 @@ function columnFor(
         case 'text':
         case 'richtext':
         case 'select':
-        case 'media':
             builder = text(col);
             break;
         case 'number':
@@ -78,6 +77,7 @@ function columnFor(
             builder = timestamp(col, { withTimezone: true });
             break;
         case 'json':
+        case 'multiselect':
             builder = jsonb(col);
             break;
         case 'relation': {
@@ -100,10 +100,19 @@ export interface BuiltTables {
     joinTables: Record<string, PgTable>;
 }
 
+/** Platform-owned envelope columns toggled by content-type metadata flags. */
+export interface TableMeta {
+    /** Add a nullable `published_at` column. */
+    publishable?: boolean;
+    /** Add a nullable `deleted_at` column (soft delete). */
+    paranoid?: boolean;
+}
+
 /** Builds the main table + join tables for a content type. */
 export function buildTables(
     typeName: string,
-    fields: Record<string, AnyFieldSpec>
+    fields: Record<string, AnyFieldSpec>,
+    meta: TableMeta = {}
 ): BuiltTables {
     const tableName = `content_${snakeCase(typeName)}`;
 
@@ -125,6 +134,17 @@ export function buildTables(
             .notNull()
             .defaultNow()
     };
+
+    // Metadata-driven envelope columns. Nullable with no default: null means
+    // "not yet published" / "not deleted"; the service layer stamps them.
+    if (meta.publishable) {
+        columns['publishedAt'] = timestamp('published_at', {
+            withTimezone: true
+        });
+    }
+    if (meta.paranoid) {
+        columns['deletedAt'] = timestamp('deleted_at', { withTimezone: true });
+    }
 
     for (const [fieldName, spec] of Object.entries(fields)) {
         const column = columnFor(fieldName, spec);

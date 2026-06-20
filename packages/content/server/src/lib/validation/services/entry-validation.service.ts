@@ -125,9 +125,18 @@ function checkField(
             )
                 fail(`must be one of: ${(spec.options ?? []).join(', ')}`);
             break;
-        case 'media':
-            if (typeof value !== 'string') fail('must be an asset id');
+        case 'multiselect': {
+            const allowed = spec.options ?? [];
+            if (
+                !Array.isArray(value) ||
+                value.some(
+                    (item) =>
+                        typeof item !== 'string' || !allowed.includes(item)
+                )
+            )
+                fail(`must be a subset of: ${allowed.join(', ')}`);
             break;
+        }
         case 'json':
             break; // any JSON value is acceptable
         case 'relation': {

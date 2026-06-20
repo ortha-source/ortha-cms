@@ -9,7 +9,7 @@
  */
 
 export { collection, single, joinTableOf } from './lib/collection/define';
-export { f } from './lib/fields';
+export { field } from './lib/fields';
 
 export type {
     AnyContentType,

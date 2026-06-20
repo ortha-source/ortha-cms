@@ -1,5 +1,5 @@
 import { collection } from '../../collection/define';
-import { f } from '../../fields';
+import { field } from '../../fields';
 import { EntryValidationService } from './entry-validation.service';
 
 const UUID = '11111111-1111-1111-1111-111111111111';
@@ -9,16 +9,16 @@ describe('EntryValidationService', () => {
 
     const type = collection('thing', {
         fields: {
-            title: f.text({ required: true, minLength: 3, maxLength: 10 }),
-            slug: f.text({ pattern: '^[a-z-]+$' }),
-            count: f.number({ integer: true, min: 1, max: 5 }),
-            price: f.money({ min: 0 }),
-            active: f.boolean(),
-            publishOn: f.date(),
-            publishAt: f.datetime(),
-            color: f.select({ options: ['red', 'blue'] as const }),
-            author: f.relation({ to: () => type }),
-            tags: f.relation({ to: () => type, many: true })
+            title: field.text({ required: true, minLength: 3, maxLength: 10 }),
+            slug: field.text({ pattern: '^[a-z-]+$' }),
+            count: field.number({ integer: true, min: 1, max: 5 }),
+            price: field.money({ min: 0 }),
+            active: field.boolean(),
+            publishOn: field.date(),
+            publishAt: field.datetime(),
+            color: field.select({ options: ['red', 'blue'] as const }),
+            author: field.relation({ to: () => type }),
+            tags: field.relation({ to: () => type, many: true })
         }
     });
 

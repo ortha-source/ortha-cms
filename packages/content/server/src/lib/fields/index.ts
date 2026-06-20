@@ -1,5 +1,5 @@
 /**
- * Field builders — the `f.*` vocabulary used inside `collection()` /
+ * Field builders — the `field.*` vocabulary used inside `collection()` /
  * `single()` definitions. Each builder normalizes its options into a
  * {@link FieldSpec} and carries the value type as a phantom generic so
  * `InferEntry` can derive row types with correct nullability.
@@ -104,18 +104,18 @@ function select<const O extends SelectFieldOptions>(
     return { ...base('select', options), options: options.options };
 }
 
+/** Several of a fixed set of strings, stored as a jsonb array of options. */
+function multiselect<const O extends SelectFieldOptions>(
+    options: O
+): FieldSpec<'multiselect', WithRequired<O, O['options'][number][]>> {
+    return { ...base('multiselect', options), options: options.options };
+}
+
 /** Arbitrary JSON payload (jsonb). Escape hatch — prefer typed fields. */
 function json<const O extends BaseFieldOptions = BaseFieldOptions>(
     options?: O
 ): FieldSpec<'json', WithRequired<O, unknown>> {
     return base('json', options);
-}
-
-/** Reference to a media asset (asset id; the media plugin resolves it). */
-function media<const O extends BaseFieldOptions = BaseFieldOptions>(
-    options?: O
-): FieldSpec<'media', WithRequired<O, string>> {
-    return base('media', options);
 }
 
 /**
@@ -141,8 +141,8 @@ function relation<const O extends RelationFieldOptions>(
     };
 }
 
-/** The field-builder vocabulary: `f.text()`, `f.relation()`, … */
-export const f = {
+/** The field-builder vocabulary: `field.text()`, `field.relation()`, … */
+export const field = {
     text,
     richtext,
     number,
@@ -151,7 +151,7 @@ export const f = {
     date,
     datetime,
     select,
+    multiselect,
     json,
-    media,
     relation
 };

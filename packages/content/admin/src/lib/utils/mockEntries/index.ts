@@ -6,24 +6,58 @@ import type { ContentField, ContentTypeDetail, EntryRecord } from '../../types/c
  */
 const MOCK_ENTRY_COUNT = 37;
 
-/** A handful of lorem words to build deterministic text values from. */
+/** A content-flavoured vocabulary to build deterministic text values from. */
 const WORDS = [
     'launch',
     'roadmap',
     'design',
     'preview',
     'release',
-    'beta',
+    'platform',
+    'workflow',
+    'content',
+    'editor',
+    'dashboard',
+    'feature',
     'insight',
     'signal',
-    'draft',
-    'sketch',
-    'vision',
+    'strategy',
+    'timeline',
+    'customer',
+    'metrics',
     'update',
     'summary',
-    'guide',
-    'note'
+    'guide'
 ];
+
+/** Title-case a single word. */
+function cap(word: string): string {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+/** Pick a vocabulary word using the row's deterministic generator. */
+function pickWord(next: () => number): string {
+    return WORDS[Math.floor(next() * WORDS.length)];
+}
+
+/** A Title Case phrase of 2–4 words — reads like a real title or name. */
+function titlePhrase(next: () => number): string {
+    const count = 2 + Math.floor(next() * 3);
+    return Array.from({ length: count }, () => cap(pickWord(next))).join(' ');
+}
+
+/** A sentence of 6–12 words, capitalized and period-terminated. */
+function sentence(next: () => number): string {
+    const count = 6 + Math.floor(next() * 7);
+    const body = Array.from({ length: count }, () => pickWord(next)).join(' ');
+    return `${cap(body)}.`;
+}
+
+/** A short paragraph of 2–4 sentences — body copy for richtext. */
+function paragraph(next: () => number): string {
+    const count = 2 + Math.floor(next() * 3);
+    return Array.from({ length: count }, () => sentence(next)).join(' ');
+}
 
 /** Stable 32-bit hash of a string — the seed source for a row's values. */
 function hash(input: string): number {
@@ -72,15 +106,17 @@ function valueFor(field: ContentField, seed: number): unknown {
 
     switch (field.type) {
         case 'text':
-        case 'richtext': {
-            const count = field.type === 'richtext' ? 8 : 3;
-            return Array.from({ length: count }, () => pick(WORDS)).join(' ');
-        }
+            return titlePhrase(next);
+        case 'richtext':
+            return paragraph(next);
         case 'number':
             return Math.floor(next() * 1000);
-        case 'money':
-            // Stored as minor units (cents), matching the server's `money` field.
-            return Math.floor(next() * 100000);
+        case 'money': {
+            // Realistic price points ($X.99) in minor units, matching the
+            // server's `money` field (integer cents).
+            const tiers = [9, 12, 19, 29, 39, 49, 99, 149, 199];
+            return tiers[Math.floor(next() * tiers.length)] * 100 - 1;
+        }
         case 'boolean':
             return next() > 0.5;
         case 'date':
@@ -91,20 +127,26 @@ function valueFor(field: ContentField, seed: number): unknown {
             return field.options && field.options.length > 0
                 ? pick(field.options)
                 : null;
-        case 'media':
-            return fakeId(seed);
+        case 'multiselect': {
+            const opts = field.options ?? [];
+            if (opts.length === 0) return [];
+            const chosen = opts.filter(() => next() > 0.5);
+            return chosen.length > 0 ? chosen : [opts[0]];
+        }
         case 'json':
-            return { sample: pick(WORDS), n: Math.floor(next() * 10) };
+            return {
+                source: pick(['web', 'import', 'api', 'manual'] as const),
+                revision: 1 + Math.floor(next() * 9),
+                tags: Array.from({ length: 1 + Math.floor(next() * 3) }, () =>
+                    pickWord(next)
+                )
+            };
         case 'relation': {
-            const label = `${pick(WORDS)} ${pick(WORDS)}`;
             if (field.relation?.many) {
                 const n = 1 + Math.floor(next() * 3);
-                return Array.from(
-                    { length: n },
-                    (_, i) => `${pick(WORDS)} ${i + 1}`
-                );
+                return Array.from({ length: n }, () => titlePhrase(next));
             }
-            return label;
+            return titlePhrase(next);
         }
         default:
             return null;

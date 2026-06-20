@@ -15,6 +15,10 @@ export type ContentTypeSummaryResponse = {
     label: string;
     description?: string;
     path?: string;
+    /** Tracks publish time via a `publishedAt` envelope column. */
+    publishable?: boolean;
+    /** Soft-deletes via a `deletedAt` envelope column. */
+    paranoid?: boolean;
 };
 
 /**
@@ -33,6 +37,10 @@ export type ContentType = {
     description?: string;
     /** Route path — singles (pages) only. */
     path?: string;
+    /** Tracks publish time via a `publishedAt` envelope column. */
+    publishable?: boolean;
+    /** Soft-deletes via a `deletedAt` envelope column. */
+    paranoid?: boolean;
 };
 
 /**
@@ -44,7 +52,7 @@ export type ContentType = {
 export type ContentField = {
     /** Machine name of the field — the key on an entry record. */
     name: string;
-    /** Field kind: `text`/`richtext`/`number`/`money`/`boolean`/`date`/`datetime`/`select`/`json`/`media`/`relation`. */
+    /** Field kind: `text`/`richtext`/`number`/`money`/`boolean`/`date`/`datetime`/`select`/`multiselect`/`json`/`relation`. */
     type: string;
     /** Whether a value is required. */
     required: boolean;

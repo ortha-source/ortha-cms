@@ -7,7 +7,7 @@ export type {
 } from './lib/utils/content-plugin';
 
 export { collection, single, joinTableOf } from './lib/collection/define';
-export { f } from './lib/fields';
+export { field } from './lib/fields';
 
 export { ContentModule } from './lib/content.module';
 export { CONTENT_REGISTRY, InjectContentRegistry } from './lib/content.tokens';

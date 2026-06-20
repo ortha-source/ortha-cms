@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { IntlShape } from 'react-intl';
-import { FileText, ImageIcon } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../types/contentType';
 
@@ -16,7 +16,7 @@ function isEmpty(value: unknown): boolean {
  * Render one field value into a table cell, by field type: scalars inline
  * (truncated), `boolean`/`select`/`status` as badges, dates via the intl
  * formatter, relations as a label with a `+N` overflow, and the heavy
- * `richtext`/`json`/`media` types as a muted, iconified summary (they don't fit
+ * `richtext`/`json` types as a muted, iconified summary (they don't fit
  * a cell). An empty value renders a muted em-dash. `intl` is passed in so the
  * function stays a pure renderer (no hook).
  */
@@ -38,6 +38,18 @@ export function renderCell(
             );
         case 'select':
             return <Badge variant="secondary">{String(value)}</Badge>;
+        case 'multiselect': {
+            const items = Array.isArray(value) ? value : [value];
+            return (
+                <span className="inline-flex flex-wrap items-center gap-1">
+                    {items.map((item) => (
+                        <Badge key={String(item)} variant="secondary">
+                            {String(item)}
+                        </Badge>
+                    ))}
+                </span>
+            );
+        }
         case 'date':
             return (
                 <span className="text-muted-foreground">
@@ -74,15 +86,6 @@ export function renderCell(
             }
             return <span className="truncate">{String(value)}</span>;
         }
-        case 'media':
-            return (
-                <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <ImageIcon className="size-4" aria-hidden />
-                    <span className="max-w-[12ch] truncate">
-                        {String(value)}
-                    </span>
-                </span>
-            );
         case 'json':
             return (
                 <span className="inline-flex items-center gap-1 text-muted-foreground">

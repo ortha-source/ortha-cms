@@ -23,7 +23,7 @@ export function fieldLabel(field: ContentField): string {
 }
 
 /** Field types that render poorly in a cell, so they're off by default. */
-const HEAVY_TYPES = new Set(['richtext', 'json', 'media']);
+const HEAVY_TYPES = new Set(['richtext', 'json']);
 
 /** How many schema fields to show by default before the user opts into more. */
 const DEFAULT_FIELD_COLUMNS = 4;
@@ -32,7 +32,7 @@ const DEFAULT_FIELD_COLUMNS = 4;
  * The available columns for a collection's table and the smart default
  * selection. Available columns = every schema field (in declaration order)
  * plus the **Status** and **Updated** envelope columns. The default shows the
- * first few non-heavy fields (excluding richtext/json/media, which don't fit a
+ * first few non-heavy fields (excluding richtext/json, which don't fit a
  * cell) plus Status and Updated — the user widens this via the column picker,
  * and {@link useEntryColumns} persists the choice.
  */

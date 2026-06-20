@@ -1,26 +1,26 @@
 import { collection, single } from '../collection/define';
-import { f } from '../fields';
+import { field } from '../fields';
 import { ContentTypeRegistry } from './content-type-registry';
 import type { AnyContentType } from '../types/content-type';
 
-const author = collection('author', { fields: { name: f.text() } });
-const tag = collection('tag', { fields: { name: f.text() } });
+const author = collection('author', { fields: { name: field.text() } });
+const tag = collection('tag', { fields: { name: field.text() } });
 const post = collection('post', {
     fields: {
-        title: f.text({ required: true }),
-        author: f.relation({ to: () => author, onDelete: 'restrict' }),
-        tags: f.relation({ to: () => tag, many: true })
+        title: field.text({ required: true }),
+        author: field.relation({ to: () => author, onDelete: 'restrict' }),
+        tags: field.relation({ to: () => tag, many: true })
     }
 });
 const home = single('home', {
     path: '/',
     description: 'Landing',
-    fields: { headline: f.text() }
+    fields: { headline: field.text() }
 });
 
 describe('ContentTypeRegistry', () => {
     it('throws on duplicate type names', () => {
-        const dup = collection('author', { fields: { name: f.text() } });
+        const dup = collection('author', { fields: { name: field.text() } });
         expect(() => new ContentTypeRegistry([author, dup])).toThrow(
             /Duplicate content type "author"/
         );

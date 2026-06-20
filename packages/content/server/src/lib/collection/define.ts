@@ -27,13 +27,20 @@ function assertName(name: string): void {
     }
 }
 
-/** Envelope columns every generated table carries (see {@link buildTables}). */
+/**
+ * Envelope columns the platform owns (see {@link buildTables}). Reserved
+ * unconditionally — even the metadata-gated `published_at` / `deleted_at`, so a
+ * field name can never collide with a column we might add, and the meaning of
+ * these names stays fixed across the codebase.
+ */
 const RESERVED_COLUMNS = new Set([
     'id',
     'workspace_id',
     'status',
     'created_at',
-    'updated_at'
+    'updated_at',
+    'published_at',
+    'deleted_at'
 ]);
 
 /**
@@ -123,8 +130,8 @@ export function joinTableOf(type: AnyContentType, field: string): PgTable {
  *   export const post = collection('post', {
  *       label: 'Blog posts',
  *       fields: {
- *           title: f.text({ required: true }),
- *           author: f.relation({ to: () => author })
+ *           title: field.text({ required: true }),
+ *           author: field.relation({ to: () => author })
  *       }
  *   });
  */
@@ -134,12 +141,19 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
 ): ContentType<TFields> {
     assertName(name);
     assertFields(name, options.fields);
-    const { table, joinTables } = buildTables(name, options.fields);
+    const publishable = options.publishable ?? false;
+    const paranoid = options.paranoid ?? false;
+    const { table, joinTables } = buildTables(name, options.fields, {
+        publishable,
+        paranoid
+    });
     return {
         name,
         kind: 'collection',
         label: options.label ?? name,
         description: options.description,
+        publishable,
+        paranoid,
         fields: options.fields,
         table,
         joinTables
@@ -161,13 +175,20 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
             `Single "${name}" path must start with "/" (got "${options.path}").`
         );
     }
-    const { table, joinTables } = buildTables(name, options.fields);
+    const publishable = options.publishable ?? false;
+    const paranoid = options.paranoid ?? false;
+    const { table, joinTables } = buildTables(name, options.fields, {
+        publishable,
+        paranoid
+    });
     return {
         name,
         kind: 'single',
         label: options.label ?? name,
         description: options.description,
         path: options.path,
+        publishable,
+        paranoid,
         fields: options.fields,
         table,
         joinTables
