@@ -6,7 +6,7 @@ registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
 `/workspaces/:id/content/*` and ships the library's **landing + navigation
 shell**: a second sidebar listing the workspace's content types, a ⌘K search
 palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
-table (search, query-builder filter, a persisted column picker with
+table (search, query-builder filter, a column picker with
 **drag-and-drop / keyboard reordering**, **row selection** with a select-all and
 a "{n} selected" bar, pagination, and an **Add record** action); selecting a
 **single** (page) still shows the
@@ -57,13 +57,14 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   returning the `{ items, total, page, pageSize }` envelope. Swap its body for an
   `apiClient` call when the entry API lands; callers stay unchanged. URL state
   (search/filter/page) is owned by `useTableUrlState` (`@ortha-cms/utils-admin`),
-  mirroring the Members page. `useEntryColumns` persists the **ordered** visible
-  columns in `localStorage` (`ortha:content:columns:<typeName>`) — the stored
-  array is both the visibility set and the display order, so it powers the column
-  picker's toggles *and* its drag-to-reorder (`reorder` via
-  `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart default
-  (`utils/entryColumns`, excluding richtext/json) and reconciled against the live
-  schema on load. Row selection is local component state (a `Set<string>` by id)
+  mirroring the Members page. `useEntryColumns` holds the **ordered** visible
+  columns in component state (**not persisted** — the choice lasts the session
+  and resets on reload) — the array is both the visibility set and the display
+  order, so it powers the column picker's toggles *and* its drag-to-reorder
+  (`reorder` via `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart
+  default (`utils/entryColumns`, excluding richtext/json) narrowed to the live
+  schema, and re-seeded when the open type changes. Row selection is local
+  component state (a `Set<string>` by id)
   in `CollectionRecordsView`, surfaced through the table's leading checkbox column
   and the `CollectionRecordsSelectionBar`.
 - Column **order and visibility** are both chosen in

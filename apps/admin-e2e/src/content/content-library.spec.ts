@@ -225,7 +225,7 @@ test.describe('Content Library', () => {
         await expect(page).toHaveURL(/[?&]q=zzz-no-such-record/);
     });
 
-    test('the column picker toggles a column and persists it', async ({
+    test('the column picker toggles a column', async ({
         page,
         contentLibraryPage
     }) => {
@@ -242,12 +242,6 @@ test.describe('Content Library', () => {
         await contentLibraryPage.columnsButton.click();
         await contentLibraryPage.columnOption('Excerpt').click();
         await page.keyboard.press('Escape');
-        await expect(
-            contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
-        ).toBeVisible();
-
-        // The choice survives a reload (persisted per type in localStorage).
-        await page.reload();
         await expect(
             contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
         ).toBeVisible();
@@ -280,7 +274,7 @@ test.describe('Content Library', () => {
         await expect(contentLibraryPage.paneText('Edit entry')).toBeVisible();
     });
 
-    test('reorders a column via the keyboard and persists it', async ({
+    test('reorders a column via the keyboard', async ({
         page,
         contentLibraryPage
     }) => {
@@ -331,15 +325,6 @@ test.describe('Content Library', () => {
             'Status',
             'Updated'
         ];
-        await expect(
-            contentLibraryPage.columnHeaders('Blog posts')
-        ).toHaveText(expectedAfter);
-
-        // The new order survives a reload (persisted per type in localStorage).
-        await page.reload();
-        await expect(
-            contentLibraryPage.recordsTable('Blog posts')
-        ).toBeVisible();
         await expect(
             contentLibraryPage.columnHeaders('Blog posts')
         ).toHaveText(expectedAfter);

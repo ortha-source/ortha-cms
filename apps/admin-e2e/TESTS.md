@@ -160,9 +160,9 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | shows the error state and recovers on retry |
 | selecting a collection shows its records table |
 | searching with no matches shows the empty state |
-| the column picker toggles a column and persists it |
+| the column picker toggles a column |
 | Add record and row click route to their stubs |
-| reorders a column via the keyboard and persists it |
+| reorders a column via the keyboard |
 | selects rows, select-all, and clears the selection |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->

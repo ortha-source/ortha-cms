@@ -51,10 +51,3 @@ export const SEARCH_PARAM = 'q';
 
 /** Default rows-per-page for a collection's records table. */
 export const DEFAULT_PAGE_SIZE = 10;
-
-/**
- * `localStorage` key prefix for a collection's chosen table columns, keyed per
- * type-name (`ortha:content:columns:<typeName>`). Mirrors the per-workspace
- * favorites key — there is no column-preferences server yet.
- */
-export const COLUMNS_STORAGE_PREFIX = 'ortha:content:columns:';
