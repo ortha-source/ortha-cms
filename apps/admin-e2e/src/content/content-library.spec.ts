@@ -308,16 +308,19 @@ test.describe('Content Library', () => {
             contentLibraryPage.columnHeaders('Blog posts')
         ).toHaveText(expectedBefore);
 
-        // Pick up "Title" with the keyboard and move it one slot right. dnd-kit
-        // schedules each keyboard move on an animation frame, so let the drag
-        // start and the move settle between key presses.
+        // Reordering lives in the column picker (a vertical list), so open it,
+        // pick up "Title" with the keyboard, and move it one slot down — which is
+        // one slot right in the table. dnd-kit schedules each keyboard move on an
+        // animation frame, so let the drag start and the move settle between keys.
+        await contentLibraryPage.columnsButton.click();
         await contentLibraryPage.reorderHandle('Title').focus();
         await page.keyboard.press('Space');
         await page.waitForTimeout(200);
-        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowDown');
         await page.waitForTimeout(200);
         await page.keyboard.press('Space');
         await page.waitForTimeout(200);
+        await page.keyboard.press('Escape');
 
         const expectedAfter = [
             '',

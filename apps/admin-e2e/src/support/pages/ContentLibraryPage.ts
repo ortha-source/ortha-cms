@@ -126,7 +126,7 @@ export class ContentLibraryPage extends BasePage {
 
     /** A column-picker checkbox option by its label. */
     columnOption(label: string): Locator {
-        return this.page.getByRole('menuitemcheckbox', { name: label });
+        return this.page.getByRole('checkbox', { name: label, exact: true });
     }
 
     /** A column header cell in the records table by label. */
@@ -156,7 +156,7 @@ export class ContentLibraryPage extends BasePage {
         return this.recordsTable(table).getByRole('columnheader');
     }
 
-    /** The drag handle for a column header, used to reorder it. */
+    /** The drag handle for a column row in the column picker, used to reorder it. */
     reorderHandle(label: string): Locator {
         return this.page.getByRole('button', {
             name: `Reorder ${label} column`

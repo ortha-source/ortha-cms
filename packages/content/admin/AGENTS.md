@@ -60,17 +60,20 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   mirroring the Members page. `useEntryColumns` persists the **ordered** visible
   columns in `localStorage` (`ortha:content:columns:<typeName>`) — the stored
   array is both the visibility set and the display order, so it powers the column
-  picker *and* drag-to-reorder (`reorder` via `@dnd-kit/sortable`'s `arrayMove`);
-  it is seeded from a smart default (`utils/entryColumns`, excluding
-  richtext/json) and reconciled against the live schema on load. Row
-  selection is local component state (a `Set<string>` by id) in
-  `CollectionRecordsView`, surfaced through the table's leading checkbox column
+  picker's toggles *and* its drag-to-reorder (`reorder` via
+  `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart default
+  (`utils/entryColumns`, excluding richtext/json) and reconciled against the live
+  schema on load. Row selection is local component state (a `Set<string>` by id)
+  in `CollectionRecordsView`, surfaced through the table's leading checkbox column
   and the `CollectionRecordsSelectionBar`.
-- The records header is drag-and-drop / keyboard reorderable via **@dnd-kit**
-  (`core` + `sortable` + `utilities`) — a `DndContext` + horizontal
-  `SortableContext` in `CollectionRecordsTable`, with a `GripVertical` handle per
-  data column (the selection checkbox column stays fixed). Keyboard reordering
-  uses dnd-kit's `KeyboardSensor` + `sortableKeyboardCoordinates`.
+- Column **order and visibility** are both chosen in
+  `CollectionRecordsColumnPicker` — a `Popover` (not a `DropdownMenu`, whose menu
+  semantics fight dnd-kit's keyboard sensor) listing visible columns first as
+  drag-and-drop / keyboard reorderable rows (a `DndContext` + vertical
+  `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
+  `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
+  table header itself is static. The table is wrapped in a full-width, padded
+  (`p-4`) bordered card.
 - The design-system `command` + `collapsible` primitives this plugin relies on
   were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 

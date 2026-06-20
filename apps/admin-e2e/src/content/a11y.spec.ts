@@ -35,8 +35,19 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await contentLibraryPage.expandGroup('Collections');
         await contentLibraryPage.typeLink('Blog posts').click();
         await contentLibraryPage.viewHeading('Blog posts').waitFor();
-        // Scan the real records table (checkboxes + drag handles), not a stub.
+        // Scan the real records table (selection checkboxes), not a stub.
         await contentLibraryPage.recordsTable('Blog posts').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('column picker — open', async ({ contentLibraryPage, makeAxe }) => {
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.recordsTable('Blog posts').waitFor();
+        // The picker holds the column toggles + drag handles; scan that surface.
+        await contentLibraryPage.columnsButton.click();
+        await contentLibraryPage.columnOption('Title').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

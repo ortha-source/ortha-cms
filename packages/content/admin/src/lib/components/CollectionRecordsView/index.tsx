@@ -277,8 +277,10 @@ function LoadedRecordsView({
                     <div className="flex items-center gap-2">
                         <CollectionRecordsColumnPicker
                             columns={columns}
+                            visible={visible}
                             isVisible={isVisible}
                             onToggle={toggle}
+                            onReorder={reorder}
                             visibleCount={visible.length}
                         />
                         <QueryBuilderDrawer
@@ -347,7 +349,6 @@ function LoadedRecordsView({
                         selectedIds={selectedIds}
                         onToggleRow={toggleRow}
                         onTogglePage={setPageSelection}
-                        onReorder={reorder}
                     />
                     <CollectionRecordsPagination
                         page={page}
