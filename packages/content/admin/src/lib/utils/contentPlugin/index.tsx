@@ -5,6 +5,7 @@ import {
     WORKSPACE_SIDEBAR_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { Library } from 'lucide-react';
+import { CONTENT_READ, CONTENT_SEGMENT } from '../../constants';
 
 const ContentLibraryPage = lazy(() =>
     import('../../pages/ContentLibraryPage').then((module) => ({
@@ -35,9 +36,10 @@ export function ContentPlugin(): ContentAdminPlugin {
                     {
                         labelId: 'content.nav.label',
                         defaultLabel: 'Content Library',
-                        to: 'content',
+                        to: CONTENT_SEGMENT,
                         order: 10,
-                        icon: Library
+                        icon: Library,
+                        permission: CONTENT_READ
                     }
                 ]
             },
@@ -45,7 +47,7 @@ export function ContentPlugin(): ContentAdminPlugin {
                 slot: WORKSPACE_ROUTE_SLOT,
                 items: [
                     {
-                        path: 'content/*',
+                        path: `${CONTENT_SEGMENT}/*`,
                         element: (
                             <Suspense fallback={null}>
                                 <ContentLibraryPage />

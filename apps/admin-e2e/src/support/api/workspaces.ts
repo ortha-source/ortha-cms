@@ -8,7 +8,7 @@ interface WorkspaceMemberView {
 }
 
 /** A workspace as the server's workspace endpoints return it. */
-interface WorkspaceView {
+export interface WorkspaceView {
     id: string;
     name: string;
     slug: string;
@@ -16,6 +16,8 @@ interface WorkspaceView {
     color: string;
     status: 'active' | 'archived';
     members: WorkspaceMemberView[];
+    /** Granted content-type slugs; the Content Library scopes itself to these. */
+    content?: string[];
 }
 
 const member = (

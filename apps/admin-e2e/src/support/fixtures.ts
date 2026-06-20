@@ -7,6 +7,7 @@ import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
 import { MembersPage } from './pages/MembersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
+import { ContentLibraryPage } from './pages/ContentLibraryPage';
 
 interface Fixtures {
     loginPage: LoginPage;
@@ -16,6 +17,7 @@ interface Fixtures {
     membersPage: MembersPage;
     userDetailPage: UserDetailPage;
     activityLogPage: ActivityLogPage;
+    contentLibraryPage: ContentLibraryPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, pre-tagged for
      * WCAG 2.1 A/AA (the team's best-practice target). Call it per assertion so
@@ -49,6 +51,9 @@ export const test = base.extend<Fixtures>({
     },
     activityLogPage: async ({ page }, use) => {
         await use(new ActivityLogPage(page));
+    },
+    contentLibraryPage: async ({ page }, use) => {
+        await use(new ContentLibraryPage(page));
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>

@@ -49,10 +49,12 @@ switcher) that opens when a card is clicked.
   `WorkspaceSwitcher` chip (accent-tinted, opens `WorkspaceSwitcherPopover`) over
   the slot-driven section nav. Creating a workspace lives in the popover footer,
   so the rail has no bottom action. `WorkspaceSidebarButton`'s `to` is
-  **relative** to the workspace base; active state (`useMatch`) fills it
-  `--primary` with a left marker bar, and `useHasPermission` gates it.
+  **relative** to the workspace base; active state (`useMatch`) fills it the
+  neutral `--accent` with a solid black (`--foreground`) left marker bar, and
+  `useHasPermission` gates it.
 - The **only** color in the rail is the workspace accent — on the switcher chip
-  and the popover's workspace chips. Active sections are grayscale (`--primary`).
+  and the popover's workspace chips. Active sections are a grayscale fade
+  (`--accent`), never the near-black `--primary`.
 - Workspaces owns the last-section **Settings** entry (`order: 100`) + its
   `/workspaces/:id/settings` page; the other rail sections come from the feature
   plugins.

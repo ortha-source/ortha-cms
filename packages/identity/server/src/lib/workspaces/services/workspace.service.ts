@@ -212,9 +212,9 @@ export class WorkspaceService {
     private async toViews(
         rows: (typeof workspaces.$inferSelect)[]
     ): Promise<WorkspaceView[]> {
-        const membersByWorkspace = await this.members.loadByWorkspace(
-            rows.map((row) => row.id)
-        );
+        const ids = rows.map((row) => row.id);
+        const membersByWorkspace = await this.members.loadByWorkspace(ids);
+        const contentByWorkspace = await this.content.loadByWorkspace(ids);
         return rows.map((row) => ({
             id: row.id,
             name: row.name,
@@ -222,7 +222,8 @@ export class WorkspaceService {
             description: row.description ?? '',
             color: row.color,
             status: row.status,
-            members: membersByWorkspace.get(row.id) ?? []
+            members: membersByWorkspace.get(row.id) ?? [],
+            content: contentByWorkspace.get(row.id) ?? []
         }));
     }
 }

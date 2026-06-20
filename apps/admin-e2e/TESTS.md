@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_113 test cases across 17 spec files._
+_125 test cases across 19 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -129,6 +129,34 @@ _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
 | /identity redirects to the sign-in page |
 | an unknown path redirects to home |
 | serves the home page inside the shell at / |
+
+<!-- source: apps/admin-e2e/src/content/a11y.spec.ts -->
+_<sub>apps/admin-e2e/src/content/a11y.spec.ts</sub>_
+
+## Content Library accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| sidebar + welcome pane |
+| expanded group + selected type |
+| search palette — open |
+
+<!-- source: apps/admin-e2e/src/content/content-library.spec.ts -->
+_<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
+
+## Content Library
+
+| Test case |
+| --- |
+| renders the sidebar with Workspace and Manage sections |
+| groups start collapsed and expand on click |
+| selecting a type shows its placeholder pane |
+| only shows content types granted to the workspace |
+| pinning a type adds it to a Favorites section |
+| opens the search palette and navigates to a type |
+| the Ctrl/⌘+K shortcut opens and Escape closes the palette |
+| shows the empty state when the workspace has no content |
+| shows the error state and recovers on retry |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_

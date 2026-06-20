@@ -92,6 +92,22 @@ export {
     DialogDescription
 } from './lib/components/ui/dialog';
 export {
+    Command,
+    CommandDialog,
+    CommandInput,
+    CommandList,
+    CommandEmpty,
+    CommandGroup,
+    CommandItem,
+    CommandSeparator,
+    CommandShortcut
+} from './lib/components/ui/command';
+export {
+    Collapsible,
+    CollapsibleTrigger,
+    CollapsibleContent
+} from './lib/components/ui/collapsible';
+export {
     Drawer,
     DrawerPortal,
     DrawerOverlay,

@@ -23,6 +23,8 @@ export interface WorkspaceView {
     color: string;
     status: 'active' | 'archived';
     members: WorkspaceMemberView[];
+    /** Granted content-type slugs; absent on older responses. */
+    content?: string[];
 }
 
 const STATUS: Record<WorkspaceView['status'], WorkspaceStatus> = {
@@ -54,7 +56,8 @@ export function toWorkspace(view: WorkspaceView): Workspace {
         description: view.description,
         color: view.color as AvatarColor,
         status: STATUS[view.status],
-        members: view.members.map(toMember)
+        members: view.members.map(toMember),
+        content: view.content ?? []
     };
 }
 

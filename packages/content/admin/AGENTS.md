@@ -2,9 +2,43 @@
 
 The **Content Library feature plugin** for the Ortha CMS admin UI. It is the
 admin counterpart to `@ortha-cms/content-server` (which owns the content
-registry, schema, and `CONTENT_CATALOG`). Today it ships a scaffold: a rail
-button + placeholder page mounted **inside a workspace**; the real entry
-browsing/editing experience lands later.
+registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
+`/workspaces/:id/content/*` and ships the library's **landing + navigation
+shell**: a second sidebar listing the workspace's content types, a ⌘K search
+palette, and pin-to-favorite. The per-type entry list/editor is a later
+milestone — selecting a type today shows a placeholder header + "entries coming
+soon".
+
+## Layout (the second sidebar)
+
+`ContentLibraryPage` owns a two-pane layout inside the shell's content area
+(beside the 56px workspace rail): a sticky **`ContentSidebar`** on the left and
+an outlet driven by nested routes on the right (`index` → `ContentWelcome`,
+`:typeName` → `ContentTypeView`). The sidebar splits types via
+`groupContentTypes` into **collapsible** groups — **Favorites** (shown only when
+something is pinned), **Collections** (`kind: 'collection'`), **Pages**
+(`kind: 'single'`) — built on the design-system `Collapsible`. Each row links to
+its type and carries a pin toggle. The **`ContentSearchDialog`** is a
+`CommandDialog` (cmdk) palette opened from the sidebar's search trigger or the
+global ⌘K / Ctrl+K shortcut (owned by the page).
+
+## Data + favorites
+
+- `useContentTypes` (`src/lib/api/useContentTypes/`) reads the registry's source
+  of truth, **`GET /api/content-schema`** — **not** the workspace wizard's
+  `/api/content-types` mock. Gated on `content:read` (the rail item carries the
+  same `permission`).
+- **Scoped to the workspace.** The schema list is global, so the page filters it
+  to the open workspace's granted content slugs — `Workspace.content` from
+  `@ortha-cms/workspaces-admin` (surfaced by `GET /api/workspaces`, sourced from
+  the `workspace_content` grants written by the create wizard). Only related
+  collections/pages show; an ungranted `:typeName` renders the not-found state.
+- `useContentFavorites` (`src/lib/hooks/useContentFavorites/`) persists pinned
+  type-names in `localStorage`, **keyed per workspace** (`ortha:content:
+favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
+  server yet — that is the planned migration point.
+- The design-system `command` + `collapsible` primitives this plugin relies on
+  were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 
 ## Package
 
@@ -31,6 +65,19 @@ Follows the workspaces-admin conventions: `type` over `interface`; JSDoc on
 exports; `<name>/index.ts(x)` folders (pages in `src/lib/pages/<Name>/`, the
 factory in `src/lib/utils/contentPlugin/`); co-located `react-intl` messages
 namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
+
+- **A component used by only one other component nests inside that parent's
+  folder** (it is not a render method on the parent and not a top-level
+  component). So the search palette's result row lives at
+  `components/ContentSearchDialog/ContentSearchItem/`, not as a `renderItem`
+  closure inside the dialog.
+- **No magic string literals for route segments, route params, keyboard keys, or
+  permissions** — define them as named constants in `src/lib/constants/` and
+  import them wherever they're used. `CONTENT_SEGMENT` is the single source of
+  truth for the `content` mount path, shared by `contentPlugin` (slot `to` +
+  route `path`) and `ContentLibraryPage` (`basePath`); `HISTORY_SEGMENT` /
+  `TRASH_SEGMENT` / `TYPE_PARAM` drive the nested routes and the sidebar links;
+  `SEARCH_SHORTCUT_KEY` is the ⌘K key; `CONTENT_READ` is the permission gate.
 
 ## Commands
 
