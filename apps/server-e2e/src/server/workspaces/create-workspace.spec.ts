@@ -79,6 +79,7 @@ describe('POST /api/workspaces', () => {
 
             expect(Object.keys(res.body).sort()).toEqual([
                 'color',
+                'content',
                 'description',
                 'id',
                 'members',

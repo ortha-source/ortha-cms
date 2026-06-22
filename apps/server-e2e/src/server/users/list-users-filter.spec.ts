@@ -208,7 +208,11 @@ describe('GET /api/users (query-builder filter)', () => {
 
     it('rejects an oversized `in` list with 400 (DoS guard)', async () => {
         const agent = await adminAgent();
-        const huge = Array.from({ length: 5000 }, (_, i) => `v${i}`);
+        // Just over the engine's 100-element cap (DEFAULT_MAX_IN_LIST) so the
+        // request reaches the guard and 400s. A far larger list would overflow
+        // Node's 16KB max-http-header-size and reset the socket (ECONNRESET)
+        // before the guard ever runs.
+        const huge = Array.from({ length: 101 }, (_, i) => `v${i}`);
         await getFiltered(agent, {
             field: 'email',
             op: 'in',
