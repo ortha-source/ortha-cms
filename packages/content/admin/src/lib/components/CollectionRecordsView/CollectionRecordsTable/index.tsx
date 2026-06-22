@@ -14,6 +14,7 @@ import {
 import type { EntryRecord } from '../../../types/contentType';
 import { fieldLabel, type EntryColumn } from '../../../utils/entryColumns';
 import { renderCell } from './renderCell';
+import { CollectionRecordsRowActions } from './CollectionRecordsRowActions';
 
 /** The current table sort: a column id and direction, or none. */
 export type TableSort = { key: string; dir: 'asc' | 'desc' } | null;
@@ -22,6 +23,7 @@ export type TableSort = { key: string; dir: 'asc' | 'desc' } | null;
 const messages = defineMessages({
     status: { id: 'content.records.column.status', defaultMessage: 'Status' },
     updated: { id: 'content.records.column.updated', defaultMessage: 'Updated' },
+    actions: { id: 'content.records.column.actions', defaultMessage: 'Actions' },
     caption: {
         id: 'content.records.table.caption',
         defaultMessage: '{label} records'
@@ -103,6 +105,7 @@ export function CollectionRecordsTable({
     entries,
     columns,
     typePath,
+    publishable,
     selectedIds,
     onToggleRow,
     onTogglePage,
@@ -117,6 +120,8 @@ export function CollectionRecordsTable({
     columns: EntryColumn[];
     /** Absolute path to this type, e.g. `/workspaces/:id/content/:typeName`. */
     typePath: string;
+    /** Whether the type has a publish workflow (drives the row Publish/Unpublish action). */
+    publishable: boolean;
     /** Currently selected record ids. */
     selectedIds: Set<string>;
     /** Toggle one row's selection. */
@@ -204,6 +209,10 @@ export function CollectionRecordsTable({
                                 </TableHead>
                             );
                         })}
+                        {/* Trailing, non-sortable actions column. */}
+                        <TableHead scope="col" className="w-10 text-right">
+                            {intl.formatMessage(messages.actions)}
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -254,6 +263,18 @@ export function CollectionRecordsTable({
                                         )}
                                     </TableCell>
                                 ))}
+                                {/* Row actions — stop propagation so opening the
+                                    menu doesn't trigger the row's navigation. */}
+                                <TableCell
+                                    className="text-right"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
+                                    <CollectionRecordsRowActions
+                                        record={record}
+                                        typePath={typePath}
+                                        publishable={publishable}
+                                    />
+                                </TableCell>
                             </TableRow>
                         );
                     })}

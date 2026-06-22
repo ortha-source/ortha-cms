@@ -372,6 +372,7 @@ function LoadedRecordsView({
                         entries={entries}
                         columns={visibleColumns}
                         typePath={typePath}
+                        publishable={schema.publishable ?? false}
                         selectedIds={selectedIds}
                         onToggleRow={toggleRow}
                         onTogglePage={setPageSelection}

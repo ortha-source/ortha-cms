@@ -190,6 +190,18 @@ export class ContentLibraryPage extends BasePage {
             .getByRole('checkbox', { name: 'Select row' });
     }
 
+    /** The row-actions menu trigger (kebab) in a given data row. */
+    rowActions(table: string, index: number): Locator {
+        return this.recordRows(table)
+            .nth(index)
+            .getByRole('button', { name: 'Actions for this record' });
+    }
+
+    /** A row-actions menu item by its label (the menu must be open). */
+    actionItem(label: string | RegExp): Locator {
+        return this.page.getByRole('menuitem', { name: label });
+    }
+
     /** The "{n} selected" count text in the selection bar. */
     get selectionCount(): Locator {
         return this.page.getByText(/\d+ selected/);
