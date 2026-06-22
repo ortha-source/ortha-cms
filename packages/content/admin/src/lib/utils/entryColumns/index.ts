@@ -45,9 +45,13 @@ export function entryColumns(schema: ContentTypeDetail): {
         kind: 'field',
         field
     }));
+    // Status is a publish-state column — offer it only for publishable types.
+    const statusColumn: EntryColumn[] = schema.publishable
+        ? [{ id: 'status', kind: 'status' }]
+        : [];
     const columns: EntryColumn[] = [
         ...fieldColumns,
-        { id: 'status', kind: 'status' },
+        ...statusColumn,
         { id: 'updatedAt', kind: 'updated' }
     ];
 
@@ -56,5 +60,12 @@ export function entryColumns(schema: ContentTypeDetail): {
         .slice(0, DEFAULT_FIELD_COLUMNS)
         .map((field) => field.name);
 
-    return { columns, defaults: [...defaultFields, 'status', 'updatedAt'] };
+    return {
+        columns,
+        defaults: [
+            ...defaultFields,
+            ...(schema.publishable ? ['status'] : []),
+            'updatedAt'
+        ]
+    };
 }

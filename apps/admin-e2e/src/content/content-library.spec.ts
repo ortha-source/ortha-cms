@@ -6,7 +6,8 @@ import {
     SCOPED_WORKSPACE,
     UNGRANTED_WORKSPACE,
     mockContentSchema,
-    mockContentSchemaDetail
+    mockContentSchemaDetail,
+    mockContentEntries
 } from '../support/api/content';
 
 /**
@@ -20,6 +21,7 @@ test.describe('Content Library', () => {
         await mockSignedIn(page);
         await mockContentSchema(page);
         await mockContentSchemaDetail(page);
+        await mockContentEntries(page);
     });
 
     test('renders the sidebar with Workspace and Manage sections', async ({
@@ -296,7 +298,8 @@ test.describe('Content Library', () => {
             'Published',
             'Category',
             'Status',
-            'Updated'
+            'Updated',
+            'Actions'
         ];
         await expect(
             contentLibraryPage.columnHeaders('Blog posts')
@@ -323,7 +326,8 @@ test.describe('Content Library', () => {
             'Published',
             'Category',
             'Status',
-            'Updated'
+            'Updated',
+            'Actions'
         ];
         await expect(
             contentLibraryPage.columnHeaders('Blog posts')
@@ -399,5 +403,30 @@ test.describe('Content Library', () => {
         // Clear empties the selection and hides the bar.
         await contentLibraryPage.clearSelection.click();
         await expect(contentLibraryPage.selectionCount).toHaveCount(0);
+    });
+
+    test('row actions menu offers Edit, Publish, and Copy ID', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+
+        // Opening the actions menu must not navigate the row.
+        await contentLibraryPage.rowActions('Blog posts', 0).click();
+        await expect(page).toHaveURL(/\/content\/blog_post$/);
+
+        await expect(contentLibraryPage.actionItem('Edit')).toBeVisible();
+        // Blog posts is publishable → a Publish/Unpublish item is present.
+        await expect(
+            contentLibraryPage.actionItem(/Publish|Unpublish/)
+        ).toBeVisible();
+        await expect(contentLibraryPage.actionItem('Copy ID')).toBeVisible();
     });
 });

@@ -7,12 +7,15 @@ import {
  * The site landing page — a single (one entry, routed at `/`). Mirrors
  * {@link article}'s field coverage: every scalar field type, each named and
  * labelled after its type. No relations for now.
+ *
+ * Intentionally **not** `publishable` (and not `paranoid`): a singleton config
+ * page is always live, with no draft/published workflow — so it exercises the
+ * no-`status` path (no status column, filter, or sort) end to end.
  */
 export const landing = single('landing', {
     label: 'Landing',
     description: 'The site landing page — every field type, end to end.',
     path: '/',
-    publishable: true,
     fields: {
         text: field.text({
             required: true,

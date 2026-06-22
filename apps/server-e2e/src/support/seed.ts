@@ -11,6 +11,10 @@ import {
     workspaces,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
+// Host-owned generated content tables. Importing the host app is permitted in
+// the support harness (it's exempt from the module-boundary rule); specs reach
+// these only through the helpers below.
+import { articles, landingPage } from '../../../server/src/content';
 // HashingService is internal to the identity plugin (not re-exported). We reach
 // for the class to pull the SAME provider instance out of the DI container, so
 // seeded password hashes are produced by the exact code login verifies against
@@ -299,6 +303,33 @@ export async function countActivityRows(): Promise<number> {
  */
 export async function resetDb(): Promise<void> {
     await getPool().query(
-        'TRUNCATE TABLE users, workspaces, activity_events RESTART IDENTITY CASCADE'
+        'TRUNCATE TABLE users, workspaces, activity_events, ' +
+            'content_article, content_landing RESTART IDENTITY CASCADE'
     );
+}
+
+/**
+ * Insert rows into the `article` collection (publishable + paranoid). Each row
+ * needs at least `text` + `select` (the type's required fields); `status`
+ * defaults to `draft`. Returns nothing — assertions go through the HTTP API.
+ */
+export async function seedArticles(
+    rows: Record<string, unknown>[]
+): Promise<void> {
+    if (rows.length === 0) return;
+    // The generated table's column set is dynamic, so the insert values aren't
+    // statically typed — the column names match the field names by construction.
+    await getDatabase()
+        .insert(articles)
+        .values(rows as never);
+}
+
+/** Insert rows into the `landing` page (non-publishable: no `status` column). */
+export async function seedLanding(
+    rows: Record<string, unknown>[]
+): Promise<void> {
+    if (rows.length === 0) return;
+    await getDatabase()
+        .insert(landingPage)
+        .values(rows as never);
 }

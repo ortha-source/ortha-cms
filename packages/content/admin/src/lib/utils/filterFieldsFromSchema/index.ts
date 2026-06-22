@@ -52,9 +52,9 @@ function fieldTypeFor(field: ContentField): FieldType | null {
 
 /**
  * Derive the query-builder filter surface from a content type's schema. Each
- * filterable field maps to a {@link FilterField} whose `id` is the field name
- * (what {@link applyFilterTree} reads off a record), with a synthetic **Status**
- * enum prepended for the envelope column. `json` fields are skipped (no editor);
+ * filterable field maps to a {@link FilterField} whose `id` is the field name,
+ * with a synthetic **Status** enum prepended **only for publishable types** (a
+ * non-publishable type has no publish state). `json` fields are skipped (no editor);
  * `select` fields become enums offering their declared options. Labels are
  * runtime descriptors since the field set is dynamic.
  */
@@ -93,5 +93,6 @@ export function filterFieldsFromSchema(
         return [{ id: field.name, label, type }];
     });
 
-    return [status, ...fields];
+    // The synthetic Status filter only applies to publishable types.
+    return schema.publishable ? [status, ...fields] : fields;
 }

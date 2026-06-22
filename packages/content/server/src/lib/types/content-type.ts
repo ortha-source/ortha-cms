@@ -71,20 +71,26 @@ export interface ContentType<
 /** Any content type, regardless of its field map. */
 export type AnyContentType = ContentType<Record<string, AnyFieldSpec>>;
 
-/** Envelope columns every entry row carries. */
+/**
+ * Envelope columns an entry row carries. `id`/`workspaceId`/`createdAt`/
+ * `updatedAt` are always present; `status`/`publishedAt` exist only on
+ * `publishable` types, `deletedAt` only on `paranoid` types — hence optional.
+ * A fully type-level guarantee ("`status` ⟺ `publishable`") would require the
+ * flags to be literal-typed generics on the content type, a larger refactor.
+ */
 export interface EntryEnvelope {
     /** Primary key. */
     id: string;
     /** Owning workspace (plain uuid until workspace scoping lands). */
     workspaceId: string | null;
-    /** Publish state. */
-    status: 'draft' | 'published';
     createdAt: Date;
     updatedAt: Date;
+    /** Publish state — present only on `publishable` types. */
+    status?: 'draft' | 'published';
     /** Publish timestamp — present (nullable) only on `publishable` types. */
-    publishedAt: Date | null;
+    publishedAt?: Date | null;
     /** Soft-delete tombstone — present (nullable) only on `paranoid` types. */
-    deletedAt: Date | null;
+    deletedAt?: Date | null;
 }
 
 /** The field values of a content type, null-aware via each field's `required`. */
