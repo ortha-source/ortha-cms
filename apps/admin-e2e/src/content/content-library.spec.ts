@@ -6,7 +6,8 @@ import {
     SCOPED_WORKSPACE,
     UNGRANTED_WORKSPACE,
     mockContentSchema,
-    mockContentSchemaDetail
+    mockContentSchemaDetail,
+    mockContentEntries
 } from '../support/api/content';
 
 /**
@@ -20,6 +21,7 @@ test.describe('Content Library', () => {
         await mockSignedIn(page);
         await mockContentSchema(page);
         await mockContentSchemaDetail(page);
+        await mockContentEntries(page);
     });
 
     test('renders the sidebar with Workspace and Manage sections', async ({

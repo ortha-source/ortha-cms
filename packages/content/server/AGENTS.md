@@ -39,11 +39,15 @@ export const post = collection('post', {
 Two optional booleans on `collection()` / `single()` add platform-owned envelope
 columns:
 
-- `publishable: true` → a nullable `published_at` (timestamptz) column.
+- `publishable: true` → a `status` (`draft`/`published`, `DEFAULT 'draft'`)
+  **and** a nullable `published_at` (timestamptz) column — the two halves of the
+  publish workflow. A **non-publishable** type has neither: it carries no publish
+  state and every row is simply live.
 - `paranoid: true` → a nullable `deleted_at` (timestamptz) column (soft delete).
 
-Both are **nullable with no default** (null = "not yet published" / "not
-deleted"; the service layer stamps them). `published_at` and `deleted_at` are
+`published_at`/`deleted_at` are **nullable with no default** (null = "not yet
+published" / "not deleted"; the service layer stamps them). `status`,
+`published_at`, and `deleted_at` are
 **reserved unconditionally** — an author cannot define a field that maps to them
 (rejected by `assertFields`), and a client cannot set them (they aren't in
 `type.fields`, so `EntryValidationService` rejects them as unknown keys). The
@@ -52,10 +56,11 @@ flags are carried on `ContentType` and serialized in the schema summary.
 ## Generated storage (`buildTables`)
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per
-**many-relation**. Every table carries the envelope: `id`, `workspace_id`
-(plain uuid, no FK until workspace scoping lands), `status` (`draft`/`published`),
-`created_at`, `updated_at` (plus `published_at` / `deleted_at` when the
-`publishable` / `paranoid` flags are set), plus a `(workspace_id, status)` index.
+**many-relation**. Every table carries the base envelope: `id`, `workspace_id`
+(plain uuid, no FK until workspace scoping lands), `created_at`, `updated_at`.
+A `publishable` type additionally gets `status` (`draft`/`published`) +
+`published_at`; a `paranoid` type gets `deleted_at`. The list index is
+`(workspace_id, status)` for publishable types, else `(workspace_id)`.
 A required `boolean` gets `DEFAULT false`. Field/column collisions (two fields
 snake-casing to the same column, a field clashing with a relation's `<field>_id`,
 or a reserved envelope column) are rejected by `assertFields`.
@@ -78,12 +83,21 @@ dropping the table from the diff), runs `db:generate` against its own
 carries a `migrations` descriptor (`__drizzle_migrations_content`) so the
 standard `db:migrate` applies them with every other plugin's.
 
-## HTTP surface (`/api/content-schema`)
+## HTTP surface (`/api/content-schema`, `/api/content`)
 
 - `GET /content-schema` — summaries of every type (wizard-compatible).
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
   props); 404 if unknown.
-- Both gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)` (`content:read`,
+- `GET /content/:typeName` — one page of a collection's entries
+  (`?search=&filter=&sort=&page=&pageSize=` → `{ items, total, page, pageSize }`).
+  Resolves `:typeName` via the registry (404 if unknown), then runs the **generic**
+  pipeline in `entries/` (`EntriesService`): an ILIKE search over text-like
+  columns, the query-builder `?filter=` tree (translated against a `FilterSchema`
+  **derived per-request** from the type's fields by `buildEntryFilterSchema`), a
+  whitelisted sort with an `id` tiebreaker, and `LIMIT/OFFSET`. `status` is
+  searchable/filterable/sortable and returned **only on publishable types**;
+  paranoid types exclude soft-deleted rows. A malformed filter → 400.
+- All gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)` (`content:read`,
   granted to all three system roles).
 
 ## Architecture
@@ -93,8 +107,10 @@ standard `db:migrate` applies them with every other plugin's.
   builds the registry **eagerly** — duplicate names and unresolvable relation
   targets throw at construction, failing boot rather than the first request.
 - Register **after** `DatabasePlugin` + `IdentityPlugin` (it uses identity's
-  `PermissionsGuard`). Depends on `@ortha-cms/identity-server` (guards) and
-  `@ortha-cms/bootstrap-server`; owns no `@ortha-cms/database` dependency.
+  `PermissionsGuard` and, for the entries list, the shared Drizzle client).
+  Depends on `@ortha-cms/identity-server` (guards), `@ortha-cms/bootstrap-server`,
+  `@ortha-cms/database` (`@InjectDatabase()` in `EntriesService`), and
+  `@ortha-cms/utils-server` (the `?filter=` engine).
 - `EntryValidationService` is the server-side authority for entry values (the
   admin renders the same rules as a courtesy). It is exported but not yet wired
   to a write controller — that lands with the entry CRUD milestone.

@@ -8,6 +8,8 @@ interface ContentTypeSummary {
     label: string;
     description?: string;
     path?: string;
+    /** Has a draft/published `status` envelope column. */
+    publishable?: boolean;
 }
 
 /** One field as `GET /api/content-schema/:name` returns it. */
@@ -49,6 +51,7 @@ export const CONTENT_DETAIL_SEED: Record<string, ContentTypeDetail> = {
         name: 'blog_post',
         kind: 'collection',
         label: 'Blog posts',
+        publishable: true,
         fields: [
             {
                 name: 'title',
@@ -99,6 +102,7 @@ export const CONTENT_DETAIL_SEED: Record<string, ContentTypeDetail> = {
         name: 'product',
         kind: 'collection',
         label: 'Products',
+        publishable: true,
         fields: [
             {
                 name: 'name',
@@ -225,6 +229,186 @@ export async function mockContentSchemaDetail(
             status: detail ? 200 : 404,
             contentType: 'application/json',
             body: JSON.stringify(detail ?? { message: 'Not found' })
+        });
+    });
+}
+
+/** One fabricated entry row, as `GET /api/content/:name` returns it. */
+interface EntryRecord {
+    id: string;
+    status?: 'draft' | 'published';
+    createdAt: string;
+    updatedAt: string;
+    values: Record<string, unknown>;
+}
+
+/** Rows per page the records table requests by default. */
+const ENTRY_PAGE_SIZE = 10;
+/** How many rows each collection gets — enough to exceed one page. */
+const ENTRY_COUNT = 23;
+
+/** A deterministic value for one field at row `i` — type-shaped, stable per run. */
+function valueFor(field: ContentFieldSchema, i: number): unknown {
+    const label =
+        typeof field.admin.label === 'string' ? field.admin.label : field.name;
+    const day = new Date(Date.UTC(2026, 0, 1 + (i % 27)));
+    switch (field.type) {
+        case 'text':
+            // Zero-padded ordinal so the rendered cells sort lexicographically.
+            return `${label} ${String(i + 1).padStart(2, '0')}`;
+        case 'richtext':
+            return `Body copy for row ${i + 1}.`;
+        case 'number':
+            return (i * 7) % 100;
+        case 'money':
+            return ((i % 9) + 1) * 1000 - 1;
+        case 'boolean':
+            return i % 2 === 0;
+        case 'date':
+            return day.toISOString().slice(0, 10);
+        case 'datetime':
+            return day.toISOString();
+        case 'select':
+            return field.options?.length
+                ? field.options[i % field.options.length]
+                : null;
+        case 'multiselect':
+            return field.options?.length
+                ? [field.options[i % field.options.length]]
+                : [];
+        case 'json':
+            return { row: i + 1 };
+        case 'relation':
+            return field.relation?.many ? [`Ref ${i + 1}`] : `Ref ${i + 1}`;
+        default:
+            return null;
+    }
+}
+
+/** Generate the deterministic entry list for a collection from its schema. */
+function entriesFor(detail: ContentTypeDetail): EntryRecord[] {
+    return Array.from({ length: ENTRY_COUNT }, (_, i) => {
+        const values: Record<string, unknown> = {};
+        for (const field of detail.fields) values[field.name] = valueFor(field, i);
+        const day = new Date(Date.UTC(2026, 0, 1 + (i % 27))).toISOString();
+        return {
+            id: `${detail.name}-${String(i + 1).padStart(2, '0')}`,
+            ...(detail.publishable
+                ? { status: i % 3 === 0 ? 'draft' : 'published' }
+                : {}),
+            createdAt: day,
+            updatedAt: day,
+            values
+        } as EntryRecord;
+    });
+}
+
+/** True when any of a record's textual values (or status) contains the needle. */
+function matchesSearch(record: EntryRecord, search: string): boolean {
+    const needle = search.toLowerCase();
+    if (record.status?.includes(needle)) return true;
+    return Object.values(record.values).some((value) => {
+        if (value == null) return false;
+        const text = Array.isArray(value)
+            ? value.join(' ')
+            : typeof value === 'object'
+              ? JSON.stringify(value)
+              : String(value);
+        return text.toLowerCase().includes(needle);
+    });
+}
+
+/** The comparable value for a record under a sort column. */
+function sortValue(record: EntryRecord, columnId: string): string | number {
+    if (columnId === 'status') return record.status ?? '';
+    if (columnId === 'updatedAt') return Date.parse(record.updatedAt);
+    const value = record.values[columnId];
+    if (value == null) return '';
+    return typeof value === 'number' ? value : String(value);
+}
+
+/** Sort a copy of `rows` by a sort spec (`col` asc, `-col` desc). */
+function applySort(rows: EntryRecord[], sort: string): EntryRecord[] {
+    if (!sort) return rows;
+    const desc = sort.startsWith('-');
+    const columnId = desc ? sort.slice(1) : sort;
+    if (!columnId) return rows;
+    const factor = desc ? -1 : 1;
+    return [...rows].sort((a, b) => {
+        const av = sortValue(a, columnId);
+        const bv = sortValue(b, columnId);
+        const cmp =
+            typeof av === 'number' && typeof bv === 'number'
+                ? av - bv
+                : String(av).localeCompare(String(bv));
+        return cmp * factor;
+    });
+}
+
+interface ContentEntriesOptions {
+    /** Detail schemas to fabricate rows from. Defaults to {@link CONTENT_DETAIL_SEED}. */
+    details?: Record<string, ContentTypeDetail>;
+    /** Response status; use a 5xx to exercise the error state. */
+    status?: number;
+}
+
+/**
+ * Stub `GET /api/content/:name` — the records-list endpoint `useContentEntries`
+ * reads. Fabricates a deterministic row set from the type's detail schema, then
+ * applies the request's `?search=` / `?sort=` / `?page=` / `?pageSize=` exactly
+ * as the server would, returning the `{ items, total, page, pageSize }` envelope.
+ * Register alongside {@link mockContentSchemaDetail} for any test that opens a
+ * collection's records table.
+ */
+export async function mockContentEntries(
+    page: Page,
+    { details = CONTENT_DETAIL_SEED, status = 200 }: ContentEntriesOptions = {}
+): Promise<void> {
+    await page.route(/\/api\/content\/([^/?]+)(\?.*)?$/, async (route) => {
+        if (status >= 400) {
+            await route.fulfill({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Server error' })
+            });
+            return;
+        }
+        const url = new URL(route.request().url());
+        const name = decodeURIComponent(
+            url.pathname.split('/').pop() ?? ''
+        ).split('?')[0];
+        const detail = details[name];
+        if (!detail) {
+            await route.fulfill({
+                status: 404,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Not found' })
+            });
+            return;
+        }
+
+        const params = url.searchParams;
+        const search = params.get('search') ?? '';
+        const sort = params.get('sort') ?? '';
+        const pageNum = Number(params.get('page') ?? '1');
+        const pageSize = Number(params.get('pageSize') ?? String(ENTRY_PAGE_SIZE));
+
+        const all = entriesFor(detail);
+        const searched = search
+            ? all.filter((row) => matchesSearch(row, search))
+            : all;
+        const sorted = applySort(searched, sort);
+        const start = (pageNum - 1) * pageSize;
+
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                items: sorted.slice(start, start + pageSize),
+                total: sorted.length,
+                page: pageNum,
+                pageSize
+            })
         });
     });
 }

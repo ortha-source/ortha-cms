@@ -4,7 +4,8 @@ import { mockWorkspaces } from '../support/api/workspaces';
 import {
     LIBRARY_WORKSPACE,
     mockContentSchema,
-    mockContentSchemaDetail
+    mockContentSchemaDetail,
+    mockContentEntries
 } from '../support/api/content';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -19,6 +20,7 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await mockContentSchema(page);
         await mockContentSchemaDetail(page);
+        await mockContentEntries(page);
     });
 
     test('sidebar + welcome pane', async ({ contentLibraryPage, makeAxe }) => {

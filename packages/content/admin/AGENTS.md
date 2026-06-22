@@ -11,10 +11,9 @@ table (search, query-builder filter, **click-to-sort headers**, a column picker 
 a "{n} selected" bar, pagination, and an **Add record** action); selecting a
 **single** (page) still shows the
 "entries coming soon" placeholder until its single-entry editor lands. The entry
-**list is mock-backed** for now (`useContentEntries`) — the table, filters, and
-schema-driven columns are real, only the rows are fabricated until the server's
-`GET /api/content/:typeName` lands. Creating/opening an entry routes to a
-placeholder stub.
+list is **served by the API** (`useContentEntries` → `GET /api/content/:typeName`):
+search, query-builder filter, sort, and pagination all run server-side. Creating/
+opening an entry routes to a placeholder stub.
 
 ## Layout (the second sidebar)
 
@@ -51,12 +50,14 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
 - **Records table data layer** (per-collection): `useContentSchema`
   (`GET /api/content-schema/:name`, the full field schema) feeds both the columns
   and the query-builder filter fields (`filterFieldsFromSchema`). `useContentEntries`
-  is the **single mock boundary** — it fabricates rows via `utils/mockEntries`
-  and applies search → query-builder filter (`utils/applyFilterTree`, evaluating
-  the same wire JSON the server's `parseFilterTree` consumes) → **type-aware sort**
-  → pagination, returning the `{ items, total, page, pageSize }` envelope. Swap
-  its body for an `apiClient` call when the entry API lands; callers stay
-  unchanged. Sort is a URL param (`?sort=<columnId>` asc, `?sort=-<columnId>`
+  fetches `GET /api/content/:name` with `{ search, filter, sort, page, pageSize }`
+  → the `{ items, total, page, pageSize }` envelope; the **server** runs search →
+  query-builder filter → sort → pagination (this hook owns no row logic). The
+  schema gates the query (disabled until it resolves) and supplies the type name.
+  **`status` is publishable-only**: `entryColumns` offers a Status column and
+  `filterFieldsFromSchema` prepends a Status filter **only when `schema.publishable`**
+  (a non-publishable type has no publish state). Sort is a URL param
+  (`?sort=<columnId>` asc, `?sort=-<columnId>`
   desc); a header click cycles asc → desc → off, sets `aria-sort` on the
   `<th>`, and resets the page. URL state (search/filter/sort/page) is owned by
   `useTableUrlState` (`@ortha-cms/utils-admin`),

@@ -121,10 +121,6 @@ export function buildTables(
         id: uuid('id').primaryKey().defaultRandom(),
         /** Owning workspace. Plain uuid (no FK) until workspace scoping lands. */
         workspaceId: uuid('workspace_id'),
-        /** Publish state. */
-        status: text('status', { enum: ['draft', 'published'] })
-            .notNull()
-            .default('draft'),
         /** Row creation timestamp. */
         createdAt: timestamp('created_at', { withTimezone: true })
             .notNull()
@@ -135,13 +131,20 @@ export function buildTables(
             .defaultNow()
     };
 
-    // Metadata-driven envelope columns. Nullable with no default: null means
-    // "not yet published" / "not deleted"; the service layer stamps them.
+    // Publish workflow is opt-in: only a `publishable` type carries a
+    // draft/published `status` and the `published_at` stamp — two halves of
+    // the same concept. A non-publishable type has no publish state; every row
+    // is simply live. `published_at` is nullable with no default (null = "not
+    // yet published"; the service layer stamps it).
     if (meta.publishable) {
+        columns['status'] = text('status', { enum: ['draft', 'published'] })
+            .notNull()
+            .default('draft');
         columns['publishedAt'] = timestamp('published_at', {
             withTimezone: true
         });
     }
+    // Soft delete: nullable `deleted_at` (null = "not deleted"; service stamps it).
     if (meta.paranoid) {
         columns['deletedAt'] = timestamp('deleted_at', { withTimezone: true });
     }
@@ -153,13 +156,16 @@ export function buildTables(
 
     const table = pgTable(tableName, columns, (t) => {
         const cols = t as unknown as Record<string, AnyPgColumn>;
-        return [
-            // every list view filters by workspace + status
-            index(`${tableName}_workspace_status_idx`).on(
-                cols['workspaceId'],
-                cols['status']
-            )
-        ];
+        // Every list view filters by workspace; publishable types also filter
+        // by status, so fold it into the index only where the column exists.
+        return meta.publishable
+            ? [
+                  index(`${tableName}_workspace_status_idx`).on(
+                      cols['workspaceId'],
+                      cols['status']
+                  )
+              ]
+            : [index(`${tableName}_workspace_idx`).on(cols['workspaceId'])];
     });
 
     const joinTables: Record<string, PgTable> = {};

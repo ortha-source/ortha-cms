@@ -77,14 +77,14 @@ export type ContentTypeDetail = ContentType & {
 
 /**
  * One collection entry as the admin renders it: the storage envelope
- * (`id`, `status`, `createdAt`, `updatedAt`) plus a value per schema field,
- * keyed by field name. Until the real entry API lands these are mock-generated.
+ * (`id`, `createdAt`, `updatedAt`, and `status` for publishable types) plus a
+ * value per schema field, keyed by field name. Served by `GET /api/content/:name`.
  */
 export type EntryRecord = {
     /** Entry id (the `:entryId` route segment). */
     id: string;
-    /** Publication status. */
-    status: 'draft' | 'published';
+    /** Publication status — present only on `publishable` types. */
+    status?: 'draft' | 'published';
     /** ISO creation timestamp. */
     createdAt: string;
     /** ISO last-updated timestamp. */

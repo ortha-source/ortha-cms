@@ -24,6 +24,7 @@ interface SerializedField {
     name: string;
     type: string;
     required: boolean;
+    options?: string[];
     relation?: SerializedRelation;
 }
 
@@ -121,20 +122,19 @@ describe('Content schema (GET /api/content-schema)', () => {
             const byName: Record<string, SerializedField> = Object.fromEntries(
                 (res.body.fields as SerializedField[]).map((f) => [f.name, f])
             );
-            expect(byName.title).toMatchObject({ type: 'text', required: true });
-
-            // A single relation reports its FK onDelete (optional ⇒ 'set null')...
-            expect(byName.hero.relation).toMatchObject({
-                to: 'landing',
-                many: false,
-                onDelete: 'set null'
+            // The reference collection exercises every scalar field type.
+            expect(byName.text).toMatchObject({ type: 'text', required: true });
+            expect(byName.number).toMatchObject({ type: 'number' });
+            expect(byName.select).toMatchObject({
+                type: 'select',
+                required: true
             });
-            // ...a many relation omits onDelete (join rows always cascade).
-            expect(byName.related.relation).toMatchObject({
-                to: 'article',
-                many: true
-            });
-            expect(byName.related.relation?.onDelete).toBeUndefined();
+            // The serialized `select` carries its declared options.
+            expect(byName.select.options).toEqual([
+                'article',
+                'tutorial',
+                'changelog'
+            ]);
         });
 
         it('404s an unknown content type', async () => {

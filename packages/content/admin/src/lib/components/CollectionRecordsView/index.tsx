@@ -73,10 +73,10 @@ const messages = defineMessages({
 /**
  * The records experience for a collection: a searchable, filterable, paginated,
  * deep-linkable table of its entries, with a column picker and an "Add record"
- * action. It loads the type's full field schema, then renders the table against
- * mock entries (until the real entry API lands). Loading/error states stand in
- * while the schema resolves; the table itself only mounts once the schema is
- * known, so columns seed correctly on first render.
+ * action. It loads the type's full field schema, then the entries page from
+ * `GET /api/content/:name` (search/filter/sort/paginate happen server-side).
+ * Loading/error states stand in while the schema resolves; the table itself
+ * only mounts once the schema is known, so columns seed correctly on first render.
  */
 export function CollectionRecordsView({ type }: { type: ContentType }) {
     const intl = useIntl();
