@@ -45,7 +45,11 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
             member('u_ada', 'Ada Lovelace', 'ada@ortha.dev'),
             member('u_grace', 'Grace Hopper', 'grace@ortha.dev'),
             member('u_alan', 'Alan Turing', 'alan@ortha.dev')
-        ]
+        ],
+        // Granted content types (slugs line up with the content support mock's
+        // CONTENT_SCHEMA_SEED) so opening this workspace renders the Content
+        // Library rather than the "no content types" empty state.
+        content: ['blog_post', 'product', 'home', 'about']
     },
     {
         id: 'ws_docs',

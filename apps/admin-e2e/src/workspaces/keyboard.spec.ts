@@ -35,7 +35,8 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(workspacesPage.openButton('Marketing site')).toBeFocused();
         await page.keyboard.press('Enter');
 
-        await expect(page).toHaveURL('/');
+        // Opening a workspace lands on its first rail section (Content Library).
+        await expect(page).toHaveURL('/workspaces/ws_marketing/content');
     });
 
     test('the status filter radiogroup moves with arrow keys', async ({

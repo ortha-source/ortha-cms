@@ -1,6 +1,7 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
+import { mockContentSchema } from '../support/api/content';
 
 /**
  * The Workspaces page (`@ortha-cms/workspaces-admin`). The grid reads
@@ -138,15 +139,21 @@ test.describe('Workspaces page', () => {
         page,
         workspacesPage
     }) => {
+        // The Content Library (the workspace's first rail section) reads the
+        // type catalogue from `GET /api/content-schema`; stub it so the landing
+        // pane renders for the granted workspace.
+        await mockContentSchema(page);
         await workspacesPage.goto();
 
         await workspacesPage.openButton('Marketing site').click();
 
         // The card opens the workspace shell, which redirects the base to its
-        // first rail section (Content Library).
+        // first rail section (Content Library) and shows its welcome pane.
         await expect(page).toHaveURL('/workspaces/ws_marketing/content');
         await expect(
-            page.getByRole('heading', { name: 'Content Library' })
+            page.getByText(
+                'Select a collection or page from the sidebar to get started in Marketing site.'
+            )
         ).toBeVisible();
     });
 
