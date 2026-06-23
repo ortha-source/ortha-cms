@@ -22,7 +22,8 @@ import {
     type PgColumnBuilderBase,
     type PgTable
 } from 'drizzle-orm/pg-core';
-import type { AnyFieldSpec } from '../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
+import { ENTRY_STATUS } from '../types/content-type';
 
 /** camelCase / kebab-case → snake_case column-safe identifier. */
 export function snakeCase(value: string): string {
@@ -49,38 +50,38 @@ function columnFor(
     const col = snakeCase(fieldName);
     let builder;
     switch (spec.type) {
-        case 'text':
-        case 'richtext':
-        case 'select':
-        case 'media':
+        case CONTENT_FIELD_TYPE.Text:
+        case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.Select:
             builder = text(col);
             break;
-        case 'number':
+        case CONTENT_FIELD_TYPE.Number:
             builder = spec.validation.integer
                 ? integer(col)
                 : doublePrecision(col);
             break;
-        case 'money':
+        case CONTENT_FIELD_TYPE.Money:
             // integer minor units — exact arithmetic, no float drift
             builder = integer(col);
             break;
-        case 'boolean':
+        case CONTENT_FIELD_TYPE.Boolean:
             // A required boolean defaults to false so an omitted value is a
             // concrete `false` rather than a NOT NULL violation.
             builder = spec.required
                 ? pgBoolean(col).default(false)
                 : pgBoolean(col);
             break;
-        case 'date':
+        case CONTENT_FIELD_TYPE.Date:
             builder = pgDate(col);
             break;
-        case 'datetime':
+        case CONTENT_FIELD_TYPE.Datetime:
             builder = timestamp(col, { withTimezone: true });
             break;
-        case 'json':
+        case CONTENT_FIELD_TYPE.Json:
+        case CONTENT_FIELD_TYPE.Multiselect:
             builder = jsonb(col);
             break;
-        case 'relation': {
+        case CONTENT_FIELD_TYPE.Relation: {
             if (spec.relation?.many) return null; // join table instead
             // Lazy reference: the thunk resolves at query/diff time, so
             // mutually-referencing collections can import each other.
@@ -100,10 +101,19 @@ export interface BuiltTables {
     joinTables: Record<string, PgTable>;
 }
 
+/** Platform-owned envelope columns toggled by content-type metadata flags. */
+export interface TableMeta {
+    /** Add a nullable `published_at` column. */
+    publishable?: boolean;
+    /** Add a nullable `deleted_at` column (soft delete). */
+    paranoid?: boolean;
+}
+
 /** Builds the main table + join tables for a content type. */
 export function buildTables(
     typeName: string,
-    fields: Record<string, AnyFieldSpec>
+    fields: Record<string, AnyFieldSpec>,
+    meta: TableMeta = {}
 ): BuiltTables {
     const tableName = `content_${snakeCase(typeName)}`;
 
@@ -112,10 +122,6 @@ export function buildTables(
         id: uuid('id').primaryKey().defaultRandom(),
         /** Owning workspace. Plain uuid (no FK) until workspace scoping lands. */
         workspaceId: uuid('workspace_id'),
-        /** Publish state. */
-        status: text('status', { enum: ['draft', 'published'] })
-            .notNull()
-            .default('draft'),
         /** Row creation timestamp. */
         createdAt: timestamp('created_at', { withTimezone: true })
             .notNull()
@@ -126,6 +132,26 @@ export function buildTables(
             .defaultNow()
     };
 
+    // Publish workflow is opt-in: only a `publishable` type carries a
+    // draft/published `status` and the `published_at` stamp — two halves of
+    // the same concept. A non-publishable type has no publish state; every row
+    // is simply live. `published_at` is nullable with no default (null = "not
+    // yet published"; the service layer stamps it).
+    if (meta.publishable) {
+        columns['status'] = text('status', {
+            enum: [ENTRY_STATUS.Draft, ENTRY_STATUS.Published]
+        })
+            .notNull()
+            .default(ENTRY_STATUS.Draft);
+        columns['publishedAt'] = timestamp('published_at', {
+            withTimezone: true
+        });
+    }
+    // Soft delete: nullable `deleted_at` (null = "not deleted"; service stamps it).
+    if (meta.paranoid) {
+        columns['deletedAt'] = timestamp('deleted_at', { withTimezone: true });
+    }
+
     for (const [fieldName, spec] of Object.entries(fields)) {
         const column = columnFor(fieldName, spec);
         if (column) columns[fieldName] = column;
@@ -133,18 +159,22 @@ export function buildTables(
 
     const table = pgTable(tableName, columns, (t) => {
         const cols = t as unknown as Record<string, AnyPgColumn>;
-        return [
-            // every list view filters by workspace + status
-            index(`${tableName}_workspace_status_idx`).on(
-                cols['workspaceId'],
-                cols['status']
-            )
-        ];
+        // Every list view filters by workspace; publishable types also filter
+        // by status, so fold it into the index only where the column exists.
+        return meta.publishable
+            ? [
+                  index(`${tableName}_workspace_status_idx`).on(
+                      cols['workspaceId'],
+                      cols['status']
+                  )
+              ]
+            : [index(`${tableName}_workspace_idx`).on(cols['workspaceId'])];
     });
 
     const joinTables: Record<string, PgTable> = {};
     for (const [fieldName, spec] of Object.entries(fields)) {
-        if (spec.type !== 'relation' || !spec.relation?.many) continue;
+        if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation?.many)
+            continue;
         const joinName = `${tableName}_${snakeCase(fieldName)}`;
         joinTables[fieldName] = pgTable(
             joinName,

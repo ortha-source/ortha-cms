@@ -6,12 +6,13 @@
  */
 
 import type { PgTable } from 'drizzle-orm/pg-core';
-import type { AnyFieldSpec } from '../types/fields';
-import type {
-    AnyContentType,
-    ContentType,
-    ContentTypeOptions,
-    SingleOptions
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
+import {
+    CONTENT_TYPE_KIND,
+    type AnyContentType,
+    type ContentType,
+    type ContentTypeOptions,
+    type SingleOptions
 } from '../types/content-type';
 import { buildTables, snakeCase } from './table-builder';
 
@@ -27,13 +28,20 @@ function assertName(name: string): void {
     }
 }
 
-/** Envelope columns every generated table carries (see {@link buildTables}). */
+/**
+ * Envelope columns the platform owns (see {@link buildTables}). Reserved
+ * unconditionally — even the metadata-gated `published_at` / `deleted_at`, so a
+ * field name can never collide with a column we might add, and the meaning of
+ * these names stays fixed across the codebase.
+ */
 const RESERVED_COLUMNS = new Set([
     'id',
     'workspace_id',
     'status',
     'created_at',
-    'updated_at'
+    'updated_at',
+    'published_at',
+    'deleted_at'
 ]);
 
 /**
@@ -43,7 +51,7 @@ const RESERVED_COLUMNS = new Set([
  * collision detection sees the real column name, not the bare field name.
  */
 function mainColumnName(fieldName: string, spec: AnyFieldSpec): string | null {
-    if (spec.type === 'relation') {
+    if (spec.type === CONTENT_FIELD_TYPE.Relation) {
         if (spec.relation?.many) return null;
         return `${snakeCase(fieldName)}_id`;
     }
@@ -66,7 +74,7 @@ function assertFields(
         // contradiction: the FK column is NOT NULL, so nulling it on a
         // parent delete always fails — the delete can never succeed.
         if (
-            spec.type === 'relation' &&
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
             spec.relation &&
             !spec.relation.many &&
             spec.required &&
@@ -123,8 +131,8 @@ export function joinTableOf(type: AnyContentType, field: string): PgTable {
  *   export const post = collection('post', {
  *       label: 'Blog posts',
  *       fields: {
- *           title: f.text({ required: true }),
- *           author: f.relation({ to: () => author })
+ *           title: field.text({ required: true }),
+ *           author: field.relation({ to: () => author })
  *       }
  *   });
  */
@@ -134,12 +142,19 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
 ): ContentType<TFields> {
     assertName(name);
     assertFields(name, options.fields);
-    const { table, joinTables } = buildTables(name, options.fields);
+    const publishable = options.publishable ?? false;
+    const paranoid = options.paranoid ?? false;
+    const { table, joinTables } = buildTables(name, options.fields, {
+        publishable,
+        paranoid
+    });
     return {
         name,
-        kind: 'collection',
+        kind: CONTENT_TYPE_KIND.Collection,
         label: options.label ?? name,
         description: options.description,
+        publishable,
+        paranoid,
         fields: options.fields,
         table,
         joinTables
@@ -161,13 +176,20 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
             `Single "${name}" path must start with "/" (got "${options.path}").`
         );
     }
-    const { table, joinTables } = buildTables(name, options.fields);
+    const publishable = options.publishable ?? false;
+    const paranoid = options.paranoid ?? false;
+    const { table, joinTables } = buildTables(name, options.fields, {
+        publishable,
+        paranoid
+    });
     return {
         name,
-        kind: 'single',
+        kind: CONTENT_TYPE_KIND.Single,
         label: options.label ?? name,
         description: options.description,
         path: options.path,
+        publishable,
+        paranoid,
         fields: options.fields,
         table,
         joinTables

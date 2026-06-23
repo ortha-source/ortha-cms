@@ -6,7 +6,7 @@
 
 import { Injectable } from '@nestjs/common';
 import type { AnyContentType } from '../../types/content-type';
-import type { AnyFieldSpec } from '../../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 
 /** One failed rule on one field. */
 export interface ValidationIssue {
@@ -74,8 +74,8 @@ function checkField(
 
     const v = spec.validation;
     switch (spec.type) {
-        case 'text':
-        case 'richtext': {
+        case CONTENT_FIELD_TYPE.Text:
+        case CONTENT_FIELD_TYPE.RichText: {
             if (typeof value !== 'string') {
                 fail('must be a string');
                 break;
@@ -88,8 +88,8 @@ function checkField(
                 fail(`must match pattern ${v.pattern}`);
             break;
         }
-        case 'number':
-        case 'money': {
+        case CONTENT_FIELD_TYPE.Number:
+        case CONTENT_FIELD_TYPE.Money: {
             if (typeof value !== 'number' || Number.isNaN(value)) {
                 fail('must be a number');
                 break;
@@ -102,14 +102,14 @@ function checkField(
                 fail(`must be ≤ ${v.max}`);
             break;
         }
-        case 'boolean':
+        case CONTENT_FIELD_TYPE.Boolean:
             if (typeof value !== 'boolean') fail('must be true or false');
             break;
-        case 'date':
+        case CONTENT_FIELD_TYPE.Date:
             if (typeof value !== 'string' || !DATE_RE.test(value))
                 fail('must be an ISO date (YYYY-MM-DD)');
             break;
-        case 'datetime':
+        case CONTENT_FIELD_TYPE.Datetime:
             if (
                 !(value instanceof Date) &&
                 (typeof value !== 'string' ||
@@ -118,19 +118,28 @@ function checkField(
             )
                 fail('must be an ISO date-time');
             break;
-        case 'select':
+        case CONTENT_FIELD_TYPE.Select:
             if (
                 typeof value !== 'string' ||
                 !(spec.options ?? []).includes(value)
             )
                 fail(`must be one of: ${(spec.options ?? []).join(', ')}`);
             break;
-        case 'media':
-            if (typeof value !== 'string') fail('must be an asset id');
+        case CONTENT_FIELD_TYPE.Multiselect: {
+            const allowed = spec.options ?? [];
+            if (
+                !Array.isArray(value) ||
+                value.some(
+                    (item) =>
+                        typeof item !== 'string' || !allowed.includes(item)
+                )
+            )
+                fail(`must be a subset of: ${allowed.join(', ')}`);
             break;
-        case 'json':
+        }
+        case CONTENT_FIELD_TYPE.Json:
             break; // any JSON value is acceptable
-        case 'relation': {
+        case CONTENT_FIELD_TYPE.Relation: {
             if (spec.relation?.many) {
                 if (
                     !Array.isArray(value) ||

@@ -7,7 +7,7 @@ export type {
 } from './lib/utils/content-plugin';
 
 export { collection, single, joinTableOf } from './lib/collection/define';
-export { f } from './lib/fields';
+export { field } from './lib/fields';
 
 export { ContentModule } from './lib/content.module';
 export { CONTENT_REGISTRY, InjectContentRegistry } from './lib/content.tokens';
@@ -25,16 +25,19 @@ export type {
     ValidationResult
 } from './lib/validation/services/entry-validation.service';
 
+export { CONTENT_TYPE_KIND, ENTRY_STATUS } from './lib/types/content-type';
 export type {
     AnyContentType,
     ContentType,
     ContentTypeKind,
+    EntryStatus,
     ContentTypeOptions,
     EntryEnvelope,
     InferEntry,
     InferValues,
     SingleOptions
 } from './lib/types/content-type';
+export { CONTENT_FIELD_TYPE } from './lib/types/fields';
 export type {
     AdminProps,
     AnyFieldSpec,

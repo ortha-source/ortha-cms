@@ -54,10 +54,18 @@ test.describe('Activity Log page', () => {
 
         await activityLogPage.expandRow('Changed role');
         await expect(detail).toBeVisible();
+        await expect(
+            activityLogPage.expandToggle('Changed role')
+        ).toHaveAttribute('aria-expanded', 'true');
 
-        // Toggling again collapses it.
+        // Toggling again collapses it: the disclosure reports collapsed and the
+        // panel is marked inert. (The detail text keeps a clipped layout box
+        // after the grid-rows close animation, so assert the semantic collapsed
+        // state rather than the text node's geometric visibility.)
         await activityLogPage.expandRow('Changed role');
-        await expect(detail).toBeHidden();
+        await expect(
+            activityLogPage.expandToggle('Changed role')
+        ).toHaveAttribute('aria-expanded', 'false');
     });
 
     test('expands a row by clicking anywhere on the row body', async ({

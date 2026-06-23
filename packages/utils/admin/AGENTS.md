@@ -28,6 +28,11 @@ singletons live in one place instead of inside `bootstrap-admin`.
 - `HTTP_STATUS` — named status codes (`UNAUTHORIZED`, `FORBIDDEN`,
   `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
   bare `401`.
+- `STALE_TIME` — named TanStack Query `staleTime` presets in ms
+  (`None`/`Short`/`Standard`/`Forever`) so data hooks pass
+  `staleTime: STALE_TIME.Standard` instead of a bare `60_000`. The same few
+  durations recur across plugins' hooks; one source keeps "how long is reference
+  data fresh?" a single decision.
 - `createSlot<T>(name)` / `Slot<T>` / `SlotContribution<T>` — the plugin
   extension-point primitive. A slot is a named, shared list: a consumer creates
   it and reads `getItems()`, plugins contribute items via the host, and the host
@@ -50,8 +55,8 @@ singletons live in one place instead of inside `bootstrap-admin`.
 ## Layout
 
 - One concern per folder, each an `index.ts`: `src/lib/apiClient/`,
-  `src/lib/queryClient/`, `src/lib/apiError/`, `src/lib/httpStatus/`,
-  `src/lib/slot/`. The package surface is `src/index.ts`.
+  `src/lib/queryClient/`, `src/lib/staleTime/`, `src/lib/apiError/`,
+  `src/lib/httpStatus/`, `src/lib/slot/`. The package surface is `src/index.ts`.
 
 ## Architecture
 

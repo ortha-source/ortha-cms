@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Alert,
     AlertDescription,
     AlertTitle,
-    Container
+    Button,
+    Container,
+    Drawer,
+    DrawerContent,
+    DrawerTitle
 } from '@ortha-cms/design-system';
-import { History, Trash2 } from 'lucide-react';
+import { FilePlus2, FileText, History, PanelLeft, Trash2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import { useContentTypes } from '../../api/useContentTypes';
@@ -24,7 +28,9 @@ import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
+    ENTRY_PARAM,
     HISTORY_SEGMENT,
+    NEW_SEGMENT,
     SEARCH_SHORTCUT_KEY,
     TRASH_SEGMENT,
     TYPE_PARAM
@@ -55,6 +61,30 @@ const messages = defineMessages({
     trashBody: {
         id: 'content.trash.body',
         defaultMessage: 'Deleted entries will be recoverable here soon.'
+    },
+    createTitle: {
+        id: 'content.entry.createTitle',
+        defaultMessage: 'Create entry'
+    },
+    createBody: {
+        id: 'content.entry.createBody',
+        defaultMessage: 'The form for adding a new record lands next.'
+    },
+    entryTitle: {
+        id: 'content.entry.editTitle',
+        defaultMessage: 'Edit entry'
+    },
+    entryBody: {
+        id: 'content.entry.editBody',
+        defaultMessage: 'The entry editor lands next.'
+    },
+    openNav: {
+        id: 'content.library.openNav',
+        defaultMessage: 'Content menu'
+    },
+    navTitle: {
+        id: 'content.library.navTitle',
+        defaultMessage: 'Content navigation'
     }
 });
 
@@ -78,6 +108,11 @@ export function ContentLibraryPage() {
     } = useContentTypes(canRead);
     const favorites = useContentFavorites(workspace.id);
     const [searchOpen, setSearchOpen] = useState(false);
+    // Mobile only: the nav is a left drawer (inline from `md` up). Close it on
+    // any navigation so tapping a type takes you straight to its view.
+    const [navOpen, setNavOpen] = useState(false);
+    const location = useLocation();
+    useEffect(() => setNavOpen(false), [location.pathname]);
 
     const basePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}`;
 
@@ -152,7 +187,21 @@ export function ContentLibraryPage() {
     return (
         <>
             <LibraryBoard>
+                {/* Mobile-only: a bar that opens the nav drawer. The inline
+                    sidebar hides below `md` so the work area gets full width. */}
+                <div className="md:hidden">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="shadow-none"
+                        onClick={() => setNavOpen(true)}
+                    >
+                        <PanelLeft aria-hidden />
+                        {intl.formatMessage(messages.openNav)}
+                    </Button>
+                </div>
                 <ContentSidebar
+                    className="hidden md:flex"
                     types={scopedTypes}
                     favorites={favorites}
                     basePath={basePath}
@@ -200,10 +249,66 @@ export function ContentLibraryPage() {
                             path={`:${TYPE_PARAM}`}
                             element={<ContentTypeView types={scopedTypes} />}
                         />
+                        {/* Create + entry-detail stubs. The static `new`
+                            segment outranks `:entryId`, so the order is safe. */}
+                        <Route
+                            path={`:${TYPE_PARAM}/${NEW_SEGMENT}`}
+                            element={
+                                <ContentComingSoon
+                                    icon={FilePlus2}
+                                    title={intl.formatMessage(
+                                        messages.createTitle
+                                    )}
+                                    description={intl.formatMessage(
+                                        messages.createBody
+                                    )}
+                                />
+                            }
+                        />
+                        <Route
+                            path={`:${TYPE_PARAM}/:${ENTRY_PARAM}`}
+                            element={
+                                <ContentComingSoon
+                                    icon={FileText}
+                                    title={intl.formatMessage(
+                                        messages.entryTitle
+                                    )}
+                                    description={intl.formatMessage(
+                                        messages.entryBody
+                                    )}
+                                />
+                            }
+                        />
                         <Route path="*" element={<Navigate to="." replace />} />
                     </Routes>
                 </ContentPane>
             </LibraryBoard>
+
+            {/* Mobile nav: the same sidebar in a left drawer. Inert from `md`
+                up, where the inline sidebar is shown instead. */}
+            <Drawer
+                direction="left"
+                open={navOpen}
+                onOpenChange={setNavOpen}
+                shouldScaleBackground={false}
+            >
+                <DrawerContent className="data-[vaul-drawer-direction=left]:w-[17rem]">
+                    <DrawerTitle className="sr-only">
+                        {intl.formatMessage(messages.navTitle)}
+                    </DrawerTitle>
+                    <ContentSidebar
+                        className="flex w-full"
+                        types={scopedTypes}
+                        favorites={favorites}
+                        basePath={basePath}
+                        onOpenSearch={() => {
+                            setNavOpen(false);
+                            setSearchOpen(true);
+                        }}
+                    />
+                </DrawerContent>
+            </Drawer>
+
             <ContentSearchDialog
                 open={searchOpen}
                 onOpenChange={setSearchOpen}
@@ -221,7 +326,7 @@ export function ContentLibraryPage() {
  */
 function LibraryBoard({ children }: { children: ReactNode }) {
     return (
-        <div className="flex h-[calc(100svh-3rem)] gap-3 bg-muted/40 p-3">
+        <div className="flex h-[calc(100svh-3rem)] flex-col gap-3 bg-muted/40 p-3 md:flex-row">
             {children}
         </div>
     );

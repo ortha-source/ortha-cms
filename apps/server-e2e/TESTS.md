@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_181 test cases across 20 spec files._
+_191 test cases across 21 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -243,6 +243,36 @@ _<sub>apps/server-e2e/src/server/content/content-types.spec.ts</sub>_
 | 401s an unauthenticated request |
 | serves the code-defined registry, not the mock catalogue |
 | grants a workspace the real registry slugs on content mode "all" |
+
+<!-- source: apps/server-e2e/src/server/content/list-entries.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
+
+## Content entries (GET /api/content/:typeName)
+
+### authorization
+
+| Test case |
+| --- |
+| 401s an unauthenticated request |
+| 403s a user whose role lacks content:read |
+
+### list pipeline
+
+| Test case |
+| --- |
+| returns the paginated envelope |
+| searches text-like columns (ILIKE) |
+| sorts by a column, descending with the `-` prefix |
+| applies the query-builder `?filter=` tree |
+| 404s an unknown content type |
+| 400s a page size over the cap |
+
+### publishable-only status
+
+| Test case |
+| --- |
+| omits `status` for a non-publishable type |
+| 400s a status filter on a non-publishable type |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

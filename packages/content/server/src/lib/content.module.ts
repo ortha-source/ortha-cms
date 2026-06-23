@@ -7,7 +7,9 @@ import { CONTENT_REGISTRY } from './content.tokens';
 import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
+import { ListEntriesController } from './entries/controllers/list-entries.controller';
 import { EntryValidationService } from './validation/services/entry-validation.service';
+import { EntriesService } from './entries/services/entries.service';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -32,7 +34,8 @@ export class ContentModule {
             global: true,
             controllers: [
                 ListContentSchemaController,
-                GetContentSchemaController
+                GetContentSchemaController,
+                ListEntriesController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },
@@ -45,7 +48,8 @@ export class ContentModule {
                     ): ContentCatalog => ({ list: () => reg.summaries() }),
                     inject: [CONTENT_REGISTRY]
                 },
-                EntryValidationService
+                EntryValidationService,
+                EntriesService
             ],
             exports: [CONTENT_REGISTRY, CONTENT_CATALOG, EntryValidationService]
         };

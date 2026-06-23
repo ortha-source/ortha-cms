@@ -1,7 +1,12 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { LIBRARY_WORKSPACE, mockContentSchema } from '../support/api/content';
+import {
+    LIBRARY_WORKSPACE,
+    mockContentSchema,
+    mockContentSchemaDetail,
+    mockContentEntries
+} from '../support/api/content';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -14,6 +19,8 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await mockContentSchema(page);
+        await mockContentSchemaDetail(page);
+        await mockContentEntries(page);
     });
 
     test('sidebar + welcome pane', async ({ contentLibraryPage, makeAxe }) => {
@@ -30,6 +37,19 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await contentLibraryPage.expandGroup('Collections');
         await contentLibraryPage.typeLink('Blog posts').click();
         await contentLibraryPage.viewHeading('Blog posts').waitFor();
+        // Scan the real records table (selection checkboxes), not a stub.
+        await contentLibraryPage.recordsTable('Blog posts').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('column picker — open', async ({ contentLibraryPage, makeAxe }) => {
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.recordsTable('Blog posts').waitFor();
+        // The picker holds the column toggles + drag handles; scan that surface.
+        await contentLibraryPage.columnsButton.click();
+        await contentLibraryPage.columnOption('Title').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

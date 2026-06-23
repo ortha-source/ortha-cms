@@ -24,6 +24,7 @@ interface SerializedField {
     name: string;
     type: string;
     required: boolean;
+    options?: string[];
     relation?: SerializedRelation;
 }
 
@@ -70,7 +71,7 @@ describe('Content schema (GET /api/content-schema)', () => {
 
         it('401s an unauthenticated detail request', async () => {
             await request(harness.server)
-                .get('/api/content-schema/post')
+                .get('/api/content-schema/article')
                 .expect(401);
         });
 
@@ -82,7 +83,7 @@ describe('Content schema (GET /api/content-schema)', () => {
             });
             const agent = await login(NORIGHTS_EMAIL);
             await agent.get('/api/content-schema').expect(403);
-            await agent.get('/api/content-schema/post').expect(403);
+            await agent.get('/api/content-schema/article').expect(403);
         });
     });
 
@@ -92,21 +93,21 @@ describe('Content schema (GET /api/content-schema)', () => {
             const res = await agent.get('/api/content-schema').expect(200);
 
             const names = res.body.map((t: { name: string }) => t.name).sort();
-            expect(names).toEqual(['author', 'home', 'post', 'tag']);
+            expect(names).toEqual(['article', 'landing']);
 
-            const home = res.body.find(
-                (t: { name: string }) => t.name === 'home'
+            const landing = res.body.find(
+                (t: { name: string }) => t.name === 'landing'
             );
-            expect(home).toMatchObject({ kind: 'single', path: '/' });
-            const post = res.body.find(
-                (t: { name: string }) => t.name === 'post'
+            expect(landing).toMatchObject({ kind: 'single', path: '/' });
+            const article = res.body.find(
+                (t: { name: string }) => t.name === 'article'
             );
-            expect(post).toMatchObject({
+            expect(article).toMatchObject({
                 kind: 'collection',
-                label: 'Blog posts'
+                label: 'Articles'
             });
             // Summaries carry no field schema.
-            expect(post.fields).toBeUndefined();
+            expect(article.fields).toBeUndefined();
         });
     });
 
@@ -114,27 +115,26 @@ describe('Content schema (GET /api/content-schema)', () => {
         it('returns the full field schema for a type', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content-schema/post')
+                .get('/api/content-schema/article')
                 .expect(200);
 
-            expect(res.body.name).toBe('post');
+            expect(res.body.name).toBe('article');
             const byName: Record<string, SerializedField> = Object.fromEntries(
                 (res.body.fields as SerializedField[]).map((f) => [f.name, f])
             );
-            expect(byName.title).toMatchObject({ type: 'text', required: true });
-
-            // A single relation reports its FK onDelete...
-            expect(byName.author.relation).toMatchObject({
-                to: 'author',
-                many: false,
-                onDelete: 'restrict'
+            // The reference collection exercises every scalar field type.
+            expect(byName.text).toMatchObject({ type: 'text', required: true });
+            expect(byName.number).toMatchObject({ type: 'number' });
+            expect(byName.select).toMatchObject({
+                type: 'select',
+                required: true
             });
-            // ...a many relation omits onDelete (join rows always cascade).
-            expect(byName.tags.relation).toMatchObject({
-                to: 'tag',
-                many: true
-            });
-            expect(byName.tags.relation?.onDelete).toBeUndefined();
+            // The serialized `select` carries its declared options.
+            expect(byName.select.options).toEqual([
+                'article',
+                'tutorial',
+                'changelog'
+            ]);
         });
 
         it('404s an unknown content type', async () => {

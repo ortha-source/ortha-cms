@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_125 test cases across 19 spec files._
+_134 test cases across 19 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -139,6 +139,7 @@ _<sub>apps/admin-e2e/src/content/a11y.spec.ts</sub>_
 | --- |
 | sidebar + welcome pane |
 | expanded group + selected type |
+| column picker — open |
 | search palette — open |
 
 <!-- source: apps/admin-e2e/src/content/content-library.spec.ts -->
@@ -150,13 +151,21 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | --- |
 | renders the sidebar with Workspace and Manage sections |
 | groups start collapsed and expand on click |
-| selecting a type shows its placeholder pane |
+| selecting a single (page) shows its placeholder pane |
 | only shows content types granted to the workspace |
 | pinning a type adds it to a Favorites section |
 | opens the search palette and navigates to a type |
 | the Ctrl/⌘+K shortcut opens and Escape closes the palette |
 | shows the empty state when the workspace has no content |
 | shows the error state and recovers on retry |
+| selecting a collection shows its records table |
+| searching with no matches shows the empty state |
+| the column picker toggles a column |
+| Add record and row click route to their stubs |
+| reorders a column via the keyboard |
+| sorts records by a column, toggling asc → desc → off |
+| selects rows, select-all, and clears the selection |
+| row actions menu offers Edit, Publish, and Copy ID |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_

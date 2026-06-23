@@ -6,7 +6,7 @@
  */
 
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
-import type { AnyFieldSpec } from '../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
 
 /** Wire shape of a field, as served to the admin / frontends. */
 export interface SerializedField {
@@ -32,6 +32,10 @@ export interface SerializedContentTypeSummary {
     label: string;
     description?: string;
     path?: string;
+    /** Tracks publish time via a `publishedAt` envelope column. */
+    publishable: boolean;
+    /** Soft-deletes via a `deletedAt` envelope column. */
+    paranoid: boolean;
 }
 
 /** Wire shape of a content type with its full field schema. */
@@ -55,7 +59,8 @@ export class ContentTypeRegistry {
         // missing from `ContentPlugin({ types })` should fail boot.
         for (const type of types) {
             for (const [fieldName, spec] of Object.entries(type.fields)) {
-                if (spec.type !== 'relation' || !spec.relation) continue;
+                if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
+                    continue;
                 const target = spec.relation.to();
                 if (!this.byName.has(target.name)) {
                     throw new Error(
@@ -84,7 +89,9 @@ export class ContentTypeRegistry {
             kind: type.kind,
             label: type.label,
             ...(type.description ? { description: type.description } : {}),
-            ...(type.path ? { path: type.path } : {})
+            ...(type.path ? { path: type.path } : {}),
+            publishable: type.publishable,
+            paranoid: type.paranoid
         };
     }
 

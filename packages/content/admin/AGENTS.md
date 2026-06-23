@@ -5,16 +5,31 @@ admin counterpart to `@ortha-cms/content-server` (which owns the content
 registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
 `/workspaces/:id/content/*` and ships the library's **landing + navigation
 shell**: a second sidebar listing the workspace's content types, a ⌘K search
-palette, and pin-to-favorite. The per-type entry list/editor is a later
-milestone — selecting a type today shows a placeholder header + "entries coming
-soon".
+palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
+table (search, query-builder filter, **click-to-sort headers**, a column picker with
+**drag-and-drop / keyboard reordering**, **row selection** with a select-all and
+a "{n} selected" bar, pagination, and an **Add record** action); selecting a
+**single** (page) still shows the
+"entries coming soon" placeholder until its single-entry editor lands. The entry
+list is **served by the API** (`useContentEntries` → `GET /api/content/:typeName`):
+search, query-builder filter, sort, and pagination all run server-side. Creating/
+opening an entry routes to a placeholder stub.
 
 ## Layout (the second sidebar)
 
 `ContentLibraryPage` owns a two-pane layout inside the shell's content area
 (beside the 56px workspace rail): a sticky **`ContentSidebar`** on the left and
-an outlet driven by nested routes on the right (`index` → `ContentWelcome`,
-`:typeName` → `ContentTypeView`). The sidebar splits types via
+an outlet driven by nested routes on the right. **The sidebar is inline only
+from the `md` breakpoint up**; below it the work area takes the full width and
+the same `ContentSidebar` (passed a `className` override) moves into a left
+`Drawer` opened by a "Content menu" trigger — closed automatically on any
+navigation (a `useLocation` effect) so tapping a type goes straight to its view.
+The routes are (`index` → `ContentWelcome`,
+`:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
+create/edit placeholder stubs; the static `new` segment outranks the
+`:entryId` param). `ContentTypeView` branches on `kind`: a collection renders
+`CollectionRecordsView` (the records table), a single keeps the placeholder. The
+sidebar splits types via
 `groupContentTypes` into **collapsible** groups — **Favorites** (shown only when
 something is pinned), **Collections** (`kind: 'collection'`), **Pages**
 (`kind: 'single'`) — built on the design-system `Collapsible`. Each row links to
@@ -37,6 +52,40 @@ global ⌘K / Ctrl+K shortcut (owned by the page).
   type-names in `localStorage`, **keyed per workspace** (`ortha:content:
 favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   server yet — that is the planned migration point.
+- **Records table data layer** (per-collection): `useContentSchema`
+  (`GET /api/content-schema/:name`, the full field schema) feeds both the columns
+  and the query-builder filter fields (`filterFieldsFromSchema`). `useContentEntries`
+  fetches `GET /api/content/:name` with `{ search, filter, sort, page, pageSize }`
+  → the `{ items, total, page, pageSize }` envelope; the **server** runs search →
+  query-builder filter → sort → pagination (this hook owns no row logic). The
+  schema gates the query (disabled until it resolves) and supplies the type name.
+  **`status` is publishable-only**: `entryColumns` offers a Status column and
+  `filterFieldsFromSchema` prepends a Status filter **only when `schema.publishable`**
+  (a non-publishable type has no publish state). Sort is a URL param
+  (`?sort=<columnId>` asc, `?sort=-<columnId>`
+  desc); a header click cycles asc → desc → off, sets `aria-sort` on the
+  `<th>`, and resets the page. URL state (search/filter/sort/page) is owned by
+  `useTableUrlState` (`@ortha-cms/utils-admin`),
+  mirroring the Members page. `useEntryColumns` holds the **ordered** visible
+  columns in component state (**not persisted** — the choice lasts the session
+  and resets on reload) — the array is both the visibility set and the display
+  order, so it powers the column picker's toggles *and* its drag-to-reorder
+  (`reorder` via `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart
+  default (`utils/entryColumns`, excluding richtext/json) narrowed to the live
+  schema, and re-seeded when the open type changes. Row selection is local
+  component state (a `Set<string>` by id)
+  in `CollectionRecordsView`, surfaced through the table's leading checkbox column
+  and the `CollectionRecordsSelectionBar`.
+- Column **order and visibility** are both chosen in
+  `CollectionRecordsColumnPicker` — a `Popover` (not a `DropdownMenu`, whose menu
+  semantics fight dnd-kit's keyboard sensor) listing visible columns first as
+  drag-and-drop / keyboard reorderable rows (a `DndContext` + vertical
+  `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
+  `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
+  table header itself is static. The records view spans full width (`Container`
+  overridden to `max-w-none`) with a uniform 16px gutter (`p-4 sm:p-4`, overriding
+  the Container's responsive padding); the table sits in a full-width bordered
+  card with no padding of its own.
 - The design-system `command` + `collapsible` primitives this plugin relies on
   were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
 

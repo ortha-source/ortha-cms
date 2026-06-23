@@ -97,6 +97,121 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('heading', { name: label, level: 1 });
     }
 
+    /** The collection records table (by its `{label} records` aria-label). */
+    recordsTable(label: string): Locator {
+        return this.page.getByRole('table', {
+            name: new RegExp(`${label} records`)
+        });
+    }
+
+    /** The data rows of the records table (excludes the header row). */
+    recordRows(label: string): Locator {
+        return this.recordsTable(label).locator('tbody tr');
+    }
+
+    /**
+     * The cells of one body column, by 1-based `<td>` position (the leading
+     * selection checkbox is column 1, so the first data column is 2).
+     */
+    recordColumnCells(label: string, nthChild: number): Locator {
+        return this.recordRows(label).locator(`td:nth-child(${nthChild})`);
+    }
+
+    /** The records search box. */
+    get recordsSearch(): Locator {
+        return this.page.getByRole('searchbox', { name: 'Search records' });
+    }
+
+    /** The "Add record" action in the records header. */
+    get addRecord(): Locator {
+        return this.page.getByRole('button', { name: 'Add record' });
+    }
+
+    /** The column-picker trigger. */
+    get columnsButton(): Locator {
+        return this.page.getByRole('button', { name: 'Columns' });
+    }
+
+    /** A column-picker checkbox option by its label. */
+    columnOption(label: string): Locator {
+        return this.page.getByRole('checkbox', { name: label, exact: true });
+    }
+
+    /** A column header cell in the records table by label. */
+    columnHeader(table: string, label: string): Locator {
+        return this.recordsTable(table).getByRole('columnheader', {
+            name: label
+        });
+    }
+
+    /** The sort button inside a column header, by the column's label. */
+    sortHeader(label: string): Locator {
+        return this.page.getByRole('button', { name: `Sort by ${label}` });
+    }
+
+    /** The filter-drawer trigger ("Filters" / "Filters (N)"). */
+    get filtersButton(): Locator {
+        return this.page.getByRole('button', { name: /Filters/ });
+    }
+
+    /** The records pagination "Next page" control. */
+    get nextPage(): Locator {
+        return this.page.getByRole('button', { name: 'Next page' });
+    }
+
+    /** The records empty/no-match title. */
+    get noRecordsMatch(): Locator {
+        return this.page.getByText('No records match');
+    }
+
+    /** Every column header in the records table (incl. the leading checkbox). */
+    columnHeaders(table: string): Locator {
+        return this.recordsTable(table).getByRole('columnheader');
+    }
+
+    /** The drag handle for a column row in the column picker, used to reorder it. */
+    reorderHandle(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Reorder ${label} column`
+        });
+    }
+
+    /** The header select-all checkbox. */
+    get selectAll(): Locator {
+        return this.page.getByRole('checkbox', {
+            name: 'Select all rows on this page'
+        });
+    }
+
+    /** The selection checkbox in a given data row. */
+    rowCheckbox(table: string, index: number): Locator {
+        // Each data row carries exactly one checkbox; its accessible name is the
+        // row's own label ("Select <first field value>"), so match by role.
+        return this.recordRows(table).nth(index).getByRole('checkbox');
+    }
+
+    /** The row-actions menu trigger (kebab) in a given data row. */
+    rowActions(table: string, index: number): Locator {
+        return this.recordRows(table)
+            .nth(index)
+            .getByRole('button', { name: 'Actions for this record' });
+    }
+
+    /** A row-actions menu item by its label (the menu must be open). */
+    actionItem(label: string | RegExp): Locator {
+        return this.page.getByRole('menuitem', { name: label });
+    }
+
+    /** The "{n} selected" count text in the selection bar. */
+    get selectionCount(): Locator {
+        return this.page.getByText(/\d+ selected/);
+    }
+
+    /** The selection bar's Clear button. */
+    get clearSelection(): Locator {
+        return this.page.getByRole('button', { name: 'Clear' });
+    }
+
     /** Visible text in the selected-type / placeholder pane. */
     paneText(text: string): Locator {
         return this.page.getByText(text);
