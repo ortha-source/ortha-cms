@@ -9,7 +9,7 @@ export function ContentSidebarSkeleton() {
     return (
         <div
             aria-hidden
-            className="flex h-full w-60 shrink-0 flex-col overflow-hidden"
+            className="hidden h-full w-60 shrink-0 flex-col overflow-hidden md:flex"
         >
             <div className="flex flex-col gap-2 p-2">
                 <Skeleton className="mx-2 h-5 w-20" />

@@ -1,5 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { FileText, History, Search, Table2, Trash2 } from 'lucide-react';
+import { cn } from '@ortha-cms/design-system';
 import type { ContentType } from '../../types/contentType';
 import type { ContentFavorites } from '../../hooks/useContentFavorites';
 import { HISTORY_SEGMENT, TRASH_SEGMENT } from '../../constants';
@@ -61,6 +62,8 @@ type ContentSidebarProps = {
     basePath: string;
     /** Opens the search command palette. */
     onOpenSearch: () => void;
+    /** Extra classes for the root `nav` (e.g. responsive show/hide, width). */
+    className?: string;
 };
 
 /**
@@ -74,7 +77,8 @@ export function ContentSidebar({
     types,
     favorites,
     basePath,
-    onOpenSearch
+    onOpenSearch,
+    className
 }: ContentSidebarProps) {
     const intl = useIntl();
     const { collections, pages } = groupContentTypes(types);
@@ -96,7 +100,10 @@ export function ContentSidebar({
     return (
         <nav
             aria-label={intl.formatMessage(messages.nav)}
-            className="flex h-full w-60 shrink-0 flex-col overflow-hidden"
+            className={cn(
+                'flex h-full w-60 shrink-0 flex-col overflow-hidden',
+                className
+            )}
         >
             <div className="flex flex-col gap-2 p-2">
                 <h2 className="px-2 text-sm font-semibold tracking-[-0.01em]">

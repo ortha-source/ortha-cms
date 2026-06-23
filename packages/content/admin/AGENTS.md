@@ -19,7 +19,12 @@ opening an entry routes to a placeholder stub.
 
 `ContentLibraryPage` owns a two-pane layout inside the shell's content area
 (beside the 56px workspace rail): a sticky **`ContentSidebar`** on the left and
-an outlet driven by nested routes on the right (`index` → `ContentWelcome`,
+an outlet driven by nested routes on the right. **The sidebar is inline only
+from the `md` breakpoint up**; below it the work area takes the full width and
+the same `ContentSidebar` (passed a `className` override) moves into a left
+`Drawer` opened by a "Content menu" trigger — closed automatically on any
+navigation (a `useLocation` effect) so tapping a type goes straight to its view.
+The routes are (`index` → `ContentWelcome`,
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 create/edit placeholder stubs; the static `new` segment outranks the
 `:entryId` param). `ContentTypeView` branches on `kind`: a collection renders
