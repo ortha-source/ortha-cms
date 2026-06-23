@@ -1,4 +1,5 @@
 import type { ContentType } from '../../types/contentType';
+import { CONTENT_TYPE_KIND } from '../../constants';
 
 /** Content types split into the sidebar's two sub-categories. */
 export type GroupedContentTypes = {
@@ -17,7 +18,7 @@ export function groupContentTypes(types: ContentType[]): GroupedContentTypes {
     const collections: ContentType[] = [];
     const pages: ContentType[] = [];
     for (const type of types) {
-        if (type.kind === 'single') {
+        if (type.kind === CONTENT_TYPE_KIND.Single) {
             pages.push(type);
         } else {
             collections.push(type);

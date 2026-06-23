@@ -5,6 +5,7 @@
  * `InferEntry` can derive row types with correct nullability.
  */
 
+import { CONTENT_FIELD_TYPE } from '../types/fields';
 import type {
     BaseFieldOptions,
     FieldSpec,
@@ -49,7 +50,11 @@ function text<const O extends TextFieldOptions = TextFieldOptions>(
             );
         }
     }
-    return base('text', options, { minLength, maxLength, pattern });
+    return base(CONTENT_FIELD_TYPE.Text, options, {
+        minLength,
+        maxLength,
+        pattern
+    });
 }
 
 /** Long-form rich text (block-based in the admin). Stored as text. */
@@ -57,7 +62,7 @@ function richtext<const O extends TextFieldOptions = TextFieldOptions>(
     options?: O
 ): FieldSpec<'richtext', WithRequired<O, string>> {
     const { minLength, maxLength } = options ?? {};
-    return base('richtext', options, { minLength, maxLength });
+    return base(CONTENT_FIELD_TYPE.RichText, options, { minLength, maxLength });
 }
 
 /** Floating-point number (or integer with `integer: true`). */
@@ -65,7 +70,7 @@ function number<const O extends NumberFieldOptions = NumberFieldOptions>(
     options?: O
 ): FieldSpec<'number', WithRequired<O, number>> {
     const { min, max, integer } = options ?? {};
-    return base('number', options, { min, max, integer });
+    return base(CONTENT_FIELD_TYPE.Number, options, { min, max, integer });
 }
 
 /** Money in integer minor units (cents) — exact, no float drift. */
@@ -73,49 +78,55 @@ function money<const O extends MoneyFieldOptions = MoneyFieldOptions>(
     options?: O
 ): FieldSpec<'money', WithRequired<O, number>> {
     const { min, max } = options ?? {};
-    return base('money', options, { min, max, integer: true });
+    return base(CONTENT_FIELD_TYPE.Money, options, { min, max, integer: true });
 }
 
 /** True/false. Stored NOT NULL with default false when `required`. */
 function boolean<const O extends BaseFieldOptions = BaseFieldOptions>(
     options?: O
 ): FieldSpec<'boolean', WithRequired<O, boolean>> {
-    return base('boolean', options);
+    return base(CONTENT_FIELD_TYPE.Boolean, options);
 }
 
 /** Calendar date (no time of day), ISO `YYYY-MM-DD`. */
 function date<const O extends BaseFieldOptions = BaseFieldOptions>(
     options?: O
 ): FieldSpec<'date', WithRequired<O, string>> {
-    return base('date', options);
+    return base(CONTENT_FIELD_TYPE.Date, options);
 }
 
 /** Point in time, stored as timestamptz. */
 function datetime<const O extends BaseFieldOptions = BaseFieldOptions>(
     options?: O
 ): FieldSpec<'datetime', WithRequired<O, Date>> {
-    return base('datetime', options);
+    return base(CONTENT_FIELD_TYPE.Datetime, options);
 }
 
 /** One of a fixed set of strings. The value type narrows to the options. */
 function select<const O extends SelectFieldOptions>(
     options: O
 ): FieldSpec<'select', WithRequired<O, O['options'][number]>> {
-    return { ...base('select', options), options: options.options };
+    return {
+        ...base(CONTENT_FIELD_TYPE.Select, options),
+        options: options.options
+    };
 }
 
 /** Several of a fixed set of strings, stored as a jsonb array of options. */
 function multiselect<const O extends SelectFieldOptions>(
     options: O
 ): FieldSpec<'multiselect', WithRequired<O, O['options'][number][]>> {
-    return { ...base('multiselect', options), options: options.options };
+    return {
+        ...base(CONTENT_FIELD_TYPE.Multiselect, options),
+        options: options.options
+    };
 }
 
 /** Arbitrary JSON payload (jsonb). Escape hatch — prefer typed fields. */
 function json<const O extends BaseFieldOptions = BaseFieldOptions>(
     options?: O
 ): FieldSpec<'json', WithRequired<O, unknown>> {
-    return base('json', options);
+    return base(CONTENT_FIELD_TYPE.Json, options);
 }
 
 /**
@@ -131,7 +142,7 @@ function relation<const O extends RelationFieldOptions>(
     O extends { many: true } ? string[] : WithRequired<O, string>
 > {
     return {
-        ...base('relation', options),
+        ...base(CONTENT_FIELD_TYPE.Relation, options),
         relation: {
             to: options.to,
             many: options.many ?? false,

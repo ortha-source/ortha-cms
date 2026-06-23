@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import { apiClient, toApiError, STALE_TIME } from '@ortha-cms/utils-admin';
 import type { ContentTypeDetail } from '../../types/contentType';
 
 /** Query key for one content type's full field schema. */
@@ -32,7 +32,7 @@ export function useContentSchema(name: string, enabled = true) {
     return useQuery({
         queryKey: contentSchemaKey(name),
         queryFn: () => fetchContentSchema(name),
-        staleTime: 60_000,
+        staleTime: STALE_TIME.Standard,
         enabled
     });
 }

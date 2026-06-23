@@ -22,7 +22,8 @@ import {
     type PgColumnBuilderBase,
     type PgTable
 } from 'drizzle-orm/pg-core';
-import type { AnyFieldSpec } from '../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
+import { ENTRY_STATUS } from '../types/content-type';
 
 /** camelCase / kebab-case → snake_case column-safe identifier. */
 export function snakeCase(value: string): string {
@@ -49,38 +50,38 @@ function columnFor(
     const col = snakeCase(fieldName);
     let builder;
     switch (spec.type) {
-        case 'text':
-        case 'richtext':
-        case 'select':
+        case CONTENT_FIELD_TYPE.Text:
+        case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.Select:
             builder = text(col);
             break;
-        case 'number':
+        case CONTENT_FIELD_TYPE.Number:
             builder = spec.validation.integer
                 ? integer(col)
                 : doublePrecision(col);
             break;
-        case 'money':
+        case CONTENT_FIELD_TYPE.Money:
             // integer minor units — exact arithmetic, no float drift
             builder = integer(col);
             break;
-        case 'boolean':
+        case CONTENT_FIELD_TYPE.Boolean:
             // A required boolean defaults to false so an omitted value is a
             // concrete `false` rather than a NOT NULL violation.
             builder = spec.required
                 ? pgBoolean(col).default(false)
                 : pgBoolean(col);
             break;
-        case 'date':
+        case CONTENT_FIELD_TYPE.Date:
             builder = pgDate(col);
             break;
-        case 'datetime':
+        case CONTENT_FIELD_TYPE.Datetime:
             builder = timestamp(col, { withTimezone: true });
             break;
-        case 'json':
-        case 'multiselect':
+        case CONTENT_FIELD_TYPE.Json:
+        case CONTENT_FIELD_TYPE.Multiselect:
             builder = jsonb(col);
             break;
-        case 'relation': {
+        case CONTENT_FIELD_TYPE.Relation: {
             if (spec.relation?.many) return null; // join table instead
             // Lazy reference: the thunk resolves at query/diff time, so
             // mutually-referencing collections can import each other.
@@ -137,9 +138,11 @@ export function buildTables(
     // is simply live. `published_at` is nullable with no default (null = "not
     // yet published"; the service layer stamps it).
     if (meta.publishable) {
-        columns['status'] = text('status', { enum: ['draft', 'published'] })
+        columns['status'] = text('status', {
+            enum: [ENTRY_STATUS.Draft, ENTRY_STATUS.Published]
+        })
             .notNull()
-            .default('draft');
+            .default(ENTRY_STATUS.Draft);
         columns['publishedAt'] = timestamp('published_at', {
             withTimezone: true
         });
@@ -170,7 +173,8 @@ export function buildTables(
 
     const joinTables: Record<string, PgTable> = {};
     for (const [fieldName, spec] of Object.entries(fields)) {
-        if (spec.type !== 'relation' || !spec.relation?.many) continue;
+        if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation?.many)
+            continue;
         const joinName = `${tableName}_${snakeCase(fieldName)}`;
         joinTables[fieldName] = pgTable(
             joinName,

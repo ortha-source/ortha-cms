@@ -6,6 +6,7 @@ import {
     type FilterEnumValue
 } from '@ortha-cms/query-builder-admin';
 import type { ContentField, ContentTypeDetail } from '../../types/contentType';
+import { CONTENT_FIELD_TYPE, ENTRY_STATUS } from '../../constants';
 import { fieldLabel } from '../entryColumns';
 
 /** Static labels for the synthetic envelope filters, co-located per convention. */
@@ -26,26 +27,30 @@ function descriptor(id: string, defaultMessage: string): MessageDescriptor {
     return { id, defaultMessage };
 }
 
-/** The query-builder field type for a content field, or `null` to skip it. */
+/**
+ * The query-builder field type for a content field, or `null` to skip it.
+ * Mirrors the server's `scalarTypeFor` (`entry-filter-schema.ts`) one-for-one:
+ * only fields the server's filter schema whitelists are offered, so the UI never
+ * presents a filter the API would reject with a 400. `json`/`multiselect` (no
+ * scalar editor) and `relation` (raw FK, no UI yet) are skipped on both sides.
+ */
 function fieldTypeFor(field: ContentField): FieldType | null {
     switch (field.type) {
-        case 'text':
-        case 'richtext':
-        case 'relation':
+        case CONTENT_FIELD_TYPE.Text:
+        case CONTENT_FIELD_TYPE.RichText:
             return FIELD_TYPE.String;
-        case 'number':
-        case 'money':
+        case CONTENT_FIELD_TYPE.Number:
+        case CONTENT_FIELD_TYPE.Money:
             return FIELD_TYPE.Number;
-        case 'boolean':
+        case CONTENT_FIELD_TYPE.Boolean:
             return FIELD_TYPE.Boolean;
-        case 'date':
-        case 'datetime':
+        case CONTENT_FIELD_TYPE.Date:
+        case CONTENT_FIELD_TYPE.Datetime:
             return FIELD_TYPE.Date;
-        case 'select':
-        case 'multiselect':
+        case CONTENT_FIELD_TYPE.Select:
             return FIELD_TYPE.Enum;
         default:
-            // `json` (and any future opaque type) has no sensible filter editor.
+            // json / multiselect / relation have no scalar filter editor.
             return null;
     }
 }
@@ -66,8 +71,8 @@ export function filterFieldsFromSchema(
         label: messages.status,
         type: FIELD_TYPE.Enum,
         enumValues: [
-            { value: 'draft', label: messages.statusDraft },
-            { value: 'published', label: messages.statusPublished }
+            { value: ENTRY_STATUS.Draft, label: messages.statusDraft },
+            { value: ENTRY_STATUS.Published, label: messages.statusPublished }
         ]
     };
 

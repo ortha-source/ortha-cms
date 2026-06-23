@@ -15,10 +15,11 @@ const messages = defineMessages({
 
 /**
  * The selection summary bar shown above the table once one or more rows are
- * selected: a live "{n} selected" count and a Clear action. Bulk actions
+ * selected: a "{n} selected" count and a Clear action. Bulk actions
  * (delete, publish) land with the real entry API; for now this just reflects and
- * clears the selection. The count is a `role="status"` live region so assistive
- * tech hears the selection change.
+ * clears the selection. The count here is **visual only** — the bar mounts and
+ * unmounts with the selection, so it can't be a reliable live region; the
+ * spoken announcement lives in a persistent region in `CollectionRecordsView`.
  */
 export function CollectionRecordsSelectionBar({
     count,
@@ -33,7 +34,7 @@ export function CollectionRecordsSelectionBar({
 
     return (
         <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-2">
-            <span role="status" aria-live="polite" className="text-sm font-medium">
+            <span className="text-sm font-medium">
                 {intl.formatMessage(messages.count, { count })}
             </span>
             <Button

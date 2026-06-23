@@ -1,10 +1,18 @@
 import type { ContentField, ContentTypeDetail } from '../../types/contentType';
+import {
+    COLUMN_KIND,
+    CONTENT_FIELD_TYPE,
+    ENVELOPE_COLUMN
+} from '../../constants';
 
 /** One selectable table column: a schema field, or an envelope column. */
 export type EntryColumn =
-    | { id: string; kind: 'field'; field: ContentField }
-    | { id: 'status'; kind: 'status' }
-    | { id: 'updatedAt'; kind: 'updated' };
+    | { id: string; kind: typeof COLUMN_KIND.Field; field: ContentField }
+    | { id: typeof ENVELOPE_COLUMN.Status; kind: typeof COLUMN_KIND.Status }
+    | {
+          id: typeof ENVELOPE_COLUMN.UpdatedAt;
+          kind: typeof COLUMN_KIND.Updated;
+      };
 
 /** Title-cases a machine field name for a fallback label (`postedAt` → `Posted At`). */
 function humanize(name: string): string {
@@ -23,7 +31,10 @@ export function fieldLabel(field: ContentField): string {
 }
 
 /** Field types that render poorly in a cell, so they're off by default. */
-const HEAVY_TYPES = new Set(['richtext', 'json']);
+const HEAVY_TYPES = new Set<string>([
+    CONTENT_FIELD_TYPE.RichText,
+    CONTENT_FIELD_TYPE.Json
+]);
 
 /** How many schema fields to show by default before the user opts into more. */
 const DEFAULT_FIELD_COLUMNS = 4;
@@ -33,8 +44,9 @@ const DEFAULT_FIELD_COLUMNS = 4;
  * selection. Available columns = every schema field (in declaration order)
  * plus the **Status** and **Updated** envelope columns. The default shows the
  * first few non-heavy fields (excluding richtext/json, which don't fit a
- * cell) plus Status and Updated — the user widens this via the column picker,
- * and {@link useEntryColumns} persists the choice.
+ * cell) plus Status and Updated — the user widens this via the column picker;
+ * {@link useEntryColumns} holds the choice in component state for the session
+ * (it is **not** persisted and resets on reload).
  */
 export function entryColumns(schema: ContentTypeDetail): {
     columns: EntryColumn[];
@@ -42,17 +54,17 @@ export function entryColumns(schema: ContentTypeDetail): {
 } {
     const fieldColumns: EntryColumn[] = schema.fields.map((field) => ({
         id: field.name,
-        kind: 'field',
+        kind: COLUMN_KIND.Field,
         field
     }));
     // Status is a publish-state column — offer it only for publishable types.
     const statusColumn: EntryColumn[] = schema.publishable
-        ? [{ id: 'status', kind: 'status' }]
+        ? [{ id: ENVELOPE_COLUMN.Status, kind: COLUMN_KIND.Status }]
         : [];
     const columns: EntryColumn[] = [
         ...fieldColumns,
         ...statusColumn,
-        { id: 'updatedAt', kind: 'updated' }
+        { id: ENVELOPE_COLUMN.UpdatedAt, kind: COLUMN_KIND.Updated }
     ];
 
     const defaultFields = schema.fields
@@ -64,8 +76,8 @@ export function entryColumns(schema: ContentTypeDetail): {
         columns,
         defaults: [
             ...defaultFields,
-            ...(schema.publishable ? ['status'] : []),
-            'updatedAt'
+            ...(schema.publishable ? [ENVELOPE_COLUMN.Status] : []),
+            ENVELOPE_COLUMN.UpdatedAt
         ]
     };
 }

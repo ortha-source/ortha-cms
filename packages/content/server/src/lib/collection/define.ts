@@ -6,12 +6,13 @@
  */
 
 import type { PgTable } from 'drizzle-orm/pg-core';
-import type { AnyFieldSpec } from '../types/fields';
-import type {
-    AnyContentType,
-    ContentType,
-    ContentTypeOptions,
-    SingleOptions
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
+import {
+    CONTENT_TYPE_KIND,
+    type AnyContentType,
+    type ContentType,
+    type ContentTypeOptions,
+    type SingleOptions
 } from '../types/content-type';
 import { buildTables, snakeCase } from './table-builder';
 
@@ -50,7 +51,7 @@ const RESERVED_COLUMNS = new Set([
  * collision detection sees the real column name, not the bare field name.
  */
 function mainColumnName(fieldName: string, spec: AnyFieldSpec): string | null {
-    if (spec.type === 'relation') {
+    if (spec.type === CONTENT_FIELD_TYPE.Relation) {
         if (spec.relation?.many) return null;
         return `${snakeCase(fieldName)}_id`;
     }
@@ -73,7 +74,7 @@ function assertFields(
         // contradiction: the FK column is NOT NULL, so nulling it on a
         // parent delete always fails — the delete can never succeed.
         if (
-            spec.type === 'relation' &&
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
             spec.relation &&
             !spec.relation.many &&
             spec.required &&
@@ -149,7 +150,7 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
     });
     return {
         name,
-        kind: 'collection',
+        kind: CONTENT_TYPE_KIND.Collection,
         label: options.label ?? name,
         description: options.description,
         publishable,
@@ -183,7 +184,7 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
     });
     return {
         name,
-        kind: 'single',
+        kind: CONTENT_TYPE_KIND.Single,
         label: options.label ?? name,
         description: options.description,
         path: options.path,

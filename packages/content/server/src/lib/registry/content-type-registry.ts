@@ -6,7 +6,7 @@
  */
 
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
-import type { AnyFieldSpec } from '../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
 
 /** Wire shape of a field, as served to the admin / frontends. */
 export interface SerializedField {
@@ -59,7 +59,8 @@ export class ContentTypeRegistry {
         // missing from `ContentPlugin({ types })` should fail boot.
         for (const type of types) {
             for (const [fieldName, spec] of Object.entries(type.fields)) {
-                if (spec.type !== 'relation' || !spec.relation) continue;
+                if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
+                    continue;
                 const target = spec.relation.to();
                 if (!this.byName.has(target.name)) {
                     throw new Error(

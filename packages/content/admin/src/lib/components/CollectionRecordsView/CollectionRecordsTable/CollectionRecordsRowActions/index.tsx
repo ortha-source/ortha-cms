@@ -11,6 +11,7 @@ import {
     toast
 } from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../../types/contentType';
+import { ENTRY_STATUS } from '../../../../constants';
 
 /** Intl descriptors for {@link CollectionRecordsRowActions}, co-located. */
 const messages = defineMessages({
@@ -103,7 +104,7 @@ export function CollectionRecordsRowActions({
 
                 {publishable ? (
                     <DropdownMenuItem onSelect={comingSoon}>
-                        {record.status === 'published' ? (
+                        {record.status === ENTRY_STATUS.Published ? (
                             <>
                                 <Undo2 aria-hidden />
                                 {intl.formatMessage(messages.unpublish)}

@@ -7,19 +7,29 @@
 
 import type { AnyContentType } from './content-type';
 
+/**
+ * Built-in field type identifiers. The runtime object is the single source of
+ * truth; the {@link FieldType} union is derived from it so the two can never
+ * drift, and every `switch`/comparison references `CONTENT_FIELD_TYPE.*`
+ * instead of a bare string literal.
+ */
+export const CONTENT_FIELD_TYPE = {
+    Text: 'text',
+    RichText: 'richtext',
+    Number: 'number',
+    Money: 'money',
+    Boolean: 'boolean',
+    Date: 'date',
+    Datetime: 'datetime',
+    Select: 'select',
+    Multiselect: 'multiselect',
+    Json: 'json',
+    Relation: 'relation'
+} as const;
+
 /** Built-in field type identifiers. */
 export type FieldType =
-    | 'text'
-    | 'richtext'
-    | 'number'
-    | 'money'
-    | 'boolean'
-    | 'date'
-    | 'datetime'
-    | 'select'
-    | 'multiselect'
-    | 'json'
-    | 'relation';
+    (typeof CONTENT_FIELD_TYPE)[keyof typeof CONTENT_FIELD_TYPE];
 
 /**
  * Presentation props forwarded verbatim to the admin (and any other
@@ -147,8 +157,7 @@ export interface FieldSpec<
 export type AnyFieldSpec = FieldSpec<FieldType, unknown>;
 
 /** Value type of a field spec (null-aware via `required`). */
-export type FieldValue<F> =
-    F extends FieldSpec<FieldType, infer V> ? V : never;
+export type FieldValue<F> = F extends FieldSpec<FieldType, infer V> ? V : never;
 
 /** Maps an options object to `V` when `required: true`, else `V | null`. */
 export type WithRequired<O, V> = O extends { required: true } ? V : V | null;

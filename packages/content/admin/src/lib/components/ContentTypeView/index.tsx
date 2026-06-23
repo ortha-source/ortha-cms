@@ -11,7 +11,7 @@ import {
 } from '@ortha-cms/design-system';
 import { FileQuestion, Inbox } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
-import { TYPE_PARAM } from '../../constants';
+import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../constants';
 import { CollectionRecordsView } from '../CollectionRecordsView';
 
 /** Intl descriptors for the selected-type view, co-located here. */
@@ -78,7 +78,7 @@ export function ContentTypeView({ types }: ContentTypeViewProps) {
 
     // Collections get the dynamic records table; singles (one-entry pages)
     // keep the placeholder until their single-entry editor lands.
-    if (type.kind === 'collection') {
+    if (type.kind === CONTENT_TYPE_KIND.Collection) {
         return <CollectionRecordsView type={type} />;
     }
 

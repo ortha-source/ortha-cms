@@ -3,13 +3,14 @@ import type { IntlShape } from 'react-intl';
 import { FileText } from 'lucide-react';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../types/contentType';
+import { CONTENT_FIELD_TYPE } from '../../../constants';
 
 /** The em-dash placeholder for an empty cell. */
 const EMPTY = '—';
 
 /** True for a null/undefined/blank value. */
 function isEmpty(value: unknown): boolean {
-    return value == null || value === '' ;
+    return value == null || value === '';
 }
 
 /**
@@ -30,15 +31,15 @@ export function renderCell(
     }
 
     switch (field.type) {
-        case 'boolean':
+        case CONTENT_FIELD_TYPE.Boolean:
             return (
                 <Badge variant={value ? 'default' : 'secondary'}>
                     {String(value)}
                 </Badge>
             );
-        case 'select':
+        case CONTENT_FIELD_TYPE.Select:
             return <Badge variant="secondary">{String(value)}</Badge>;
-        case 'multiselect': {
+        case CONTENT_FIELD_TYPE.Multiselect: {
             const items = Array.isArray(value) ? value : [value];
             return (
                 <span className="inline-flex flex-wrap items-center gap-1">
@@ -50,13 +51,13 @@ export function renderCell(
                 </span>
             );
         }
-        case 'date':
+        case CONTENT_FIELD_TYPE.Date:
             return (
                 <span className="text-muted-foreground">
                     {intl.formatDate(String(value), { dateStyle: 'medium' })}
                 </span>
             );
-        case 'datetime':
+        case CONTENT_FIELD_TYPE.Datetime:
             return (
                 <span className="text-muted-foreground">
                     {intl.formatDate(String(value), {
@@ -65,14 +66,14 @@ export function renderCell(
                     })}
                 </span>
             );
-        case 'money':
+        case CONTENT_FIELD_TYPE.Money:
             return intl.formatNumber(Number(value) / 100, {
                 style: 'currency',
                 currency: 'USD'
             });
-        case 'number':
+        case CONTENT_FIELD_TYPE.Number:
             return intl.formatNumber(Number(value));
-        case 'relation': {
+        case CONTENT_FIELD_TYPE.Relation: {
             if (Array.isArray(value)) {
                 const [first, ...rest] = value;
                 return (
@@ -86,7 +87,7 @@ export function renderCell(
             }
             return <span className="truncate">{String(value)}</span>;
         }
-        case 'json':
+        case CONTENT_FIELD_TYPE.Json:
             return (
                 <span className="inline-flex items-center gap-1 text-muted-foreground">
                     <FileText className="size-4" aria-hidden />
@@ -95,8 +96,8 @@ export function renderCell(
                     </span>
                 </span>
             );
-        case 'richtext':
-        case 'text':
+        case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.Text:
         default:
             return (
                 <span className="block max-w-[28ch] truncate">

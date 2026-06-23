@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 
 /** Visible-column ids (ordered) + the operations to mutate them. */
@@ -40,12 +40,17 @@ export function useEntryColumns(
         seed(availableColumns, defaultColumns)
     );
 
-    // Re-seed when the open type changes. Keyed on the type-name so a stable
-    // default/available for the same type doesn't re-run.
-    useEffect(() => {
+    // Re-seed when the open type changes (columns are per-type). Using the
+    // "adjust state while rendering" pattern — track the type the current
+    // selection was seeded for and re-seed inline when it changes — so the new
+    // columns read the *fresh* `availableColumns`/`defaultColumns` of this
+    // render. This replaces a `useEffect([typeName])` that had to silence
+    // `exhaustive-deps`; React applies the update before committing, no effect.
+    const [seededFor, setSeededFor] = useState(typeName);
+    if (seededFor !== typeName) {
+        setSeededFor(typeName);
         setVisible(seed(availableColumns, defaultColumns));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [typeName]);
+    }
 
     const isVisible = useCallback(
         (id: string) => visible.includes(id),

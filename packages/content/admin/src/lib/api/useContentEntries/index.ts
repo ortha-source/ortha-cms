@@ -25,10 +25,8 @@ export type ContentEntriesResult = {
 };
 
 /** Query key for a collection's records list. */
-export const contentEntriesKey = (
-    name: string,
-    params: ContentEntriesParams
-) => ['content-entries', name, params] as const;
+export const contentEntriesKey = (name: string, params: ContentEntriesParams) =>
+    ['content-entries', name, params] as const;
 
 /**
  * Loads one page of a collection's records from `GET /api/content/:name`. The

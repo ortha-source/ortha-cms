@@ -5,8 +5,14 @@
  * (`GET /api/content-schema/:name`) lands with the entry editor milestone.
  */
 
+import { CONTENT_TYPE_KIND, ENTRY_STATUS } from '../../constants';
+
 /** Multi-entry collection vs. standalone page — matches the server's `kind`. */
-export type ContentTypeKind = 'collection' | 'single';
+export type ContentTypeKind =
+    (typeof CONTENT_TYPE_KIND)[keyof typeof CONTENT_TYPE_KIND];
+
+/** Publish state of an entry on a publishable type. */
+export type EntryStatus = (typeof ENTRY_STATUS)[keyof typeof ENTRY_STATUS];
 
 /** Wire shape of one content-type summary, as served by `GET /api/content-schema`. */
 export type ContentTypeSummaryResponse = {
@@ -84,7 +90,7 @@ export type EntryRecord = {
     /** Entry id (the `:entryId` route segment). */
     id: string;
     /** Publication status — present only on `publishable` types. */
-    status?: 'draft' | 'published';
+    status?: EntryStatus;
     /** ISO creation timestamp. */
     createdAt: string;
     /** ISO last-updated timestamp. */

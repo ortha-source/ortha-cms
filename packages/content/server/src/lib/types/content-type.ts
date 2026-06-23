@@ -8,8 +8,33 @@
 import type { PgTable } from 'drizzle-orm/pg-core';
 import type { AnyFieldSpec, FieldValue } from './fields';
 
-/** Multi-entry collection vs. standalone page — mirrors the established `ContentTypeDescriptor` contract. */
-export type ContentTypeKind = 'collection' | 'single';
+/**
+ * Multi-entry collection vs. standalone page — mirrors the established
+ * `ContentTypeDescriptor` contract. The runtime object is the source of truth;
+ * the {@link ContentTypeKind} union is derived from it.
+ */
+export const CONTENT_TYPE_KIND = {
+    Collection: 'collection',
+    Single: 'single'
+} as const;
+
+/** Multi-entry collection vs. standalone page. */
+export type ContentTypeKind =
+    (typeof CONTENT_TYPE_KIND)[keyof typeof CONTENT_TYPE_KIND];
+
+/**
+ * Publish-state values carried by the `status` envelope column of a
+ * `publishable` type. The runtime object is the source of truth for the
+ * generated column enum, the filter schema, and the admin — so the set can't
+ * drift across them.
+ */
+export const ENTRY_STATUS = {
+    Draft: 'draft',
+    Published: 'published'
+} as const;
+
+/** Publish state of an entry on a publishable type. */
+export type EntryStatus = (typeof ENTRY_STATUS)[keyof typeof ENTRY_STATUS];
 
 /** Options accepted by `collection()` / `single()`. */
 export interface ContentTypeOptions<

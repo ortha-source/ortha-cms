@@ -13,11 +13,11 @@ import {
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import type { AnyContentType } from '../../types/content-type';
-import type { AnyFieldSpec } from '../../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 import type { ListEntriesQueryDto } from '../dto/list-entries-query.dto';
 import type { EntryListView, EntryRecord } from '../types/entry-list-view';
 import { DEFAULT_PAGE_SIZE } from '../entries.constants';
-import { buildEntryFilterSchema } from './entry-filter-schema';
+import { buildEntryFilterSchema, isScalarField } from './entry-filter-schema';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
@@ -25,7 +25,9 @@ type ContentTable = Record<string, AnyColumn>;
 /** Columns the free-text `search` scans (have searchable textual content). */
 function isTextLike(spec: AnyFieldSpec): boolean {
     return (
-        spec.type === 'text' || spec.type === 'richtext' || spec.type === 'select'
+        spec.type === CONTENT_FIELD_TYPE.Text ||
+        spec.type === CONTENT_FIELD_TYPE.RichText ||
+        spec.type === CONTENT_FIELD_TYPE.Select
     );
 }
 
@@ -91,7 +93,12 @@ export class EntriesService {
         const table = type.table as unknown as ContentTable;
         const schema = buildEntryFilterSchema(type);
         const tree = parseFilterTree(query.filter, schema);
-        const filterSql = await applyFilterTree(tree, schema, type.table, this.db);
+        const filterSql = await applyFilterTree(
+            tree,
+            schema,
+            type.table,
+            this.db
+        );
         return and(
             this.searchPredicate(type, query.search),
             filterSql,
@@ -122,8 +129,11 @@ export class EntriesService {
      * Translate the `?sort=` spec (`col` asc, `-col` desc) into an ORDER BY,
      * always with an `id` tiebreaker so pagination is stable across requests.
      * Sortable = the always-present envelope columns + `status` (publishable
-     * only) + the type's own fields; an unknown or absent column falls back to
-     * `updatedAt` desc.
+     * only) + the type's **scalar** fields. Non-scalar fields (`json`/
+     * `multiselect`, single/many `relation`) are excluded — a many-relation has
+     * no column on the main table at all, so ordering by it would pass
+     * `undefined` to `asc`/`desc`; the others have no meaningful order. An
+     * unknown or excluded column falls back to `updatedAt` desc.
      */
     private orderBy(type: AnyContentType, sort: string | undefined): SQL[] {
         const table = type.table as unknown as ContentTable;
@@ -131,13 +141,17 @@ export class EntriesService {
             'createdAt',
             'updatedAt',
             ...(type.publishable ? ['status'] : []),
-            ...Object.keys(type.fields)
+            ...Object.entries(type.fields)
+                .filter(([, spec]) => isScalarField(spec))
+                .map(([name]) => name)
         ]);
         const isDesc = !!sort && sort.startsWith('-');
         const columnId = sort ? (isDesc ? sort.slice(1) : sort) : '';
 
-        if (sortable.has(columnId)) {
-            const col = table[columnId];
+        // The whitelist only admits scalar columns, but guard against a missing
+        // column defensively so a sort key never reaches `asc(undefined)`.
+        const col = sortable.has(columnId) ? table[columnId] : undefined;
+        if (col) {
             return [isDesc ? desc(col) : asc(col), asc(table['id'])];
         }
         return [desc(table['updatedAt']), asc(table['id'])];
@@ -155,7 +169,11 @@ export class EntriesService {
     ): EntryRecord {
         const values: Record<string, unknown> = {};
         for (const [name, spec] of Object.entries(type.fields)) {
-            if (spec.type === 'relation' && spec.relation?.many) continue;
+            if (
+                spec.type === CONTENT_FIELD_TYPE.Relation &&
+                spec.relation?.many
+            )
+                continue;
             values[name] = row[name] ?? null;
         }
         const record: EntryRecord = {

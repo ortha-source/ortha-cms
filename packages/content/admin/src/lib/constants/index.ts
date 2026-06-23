@@ -58,3 +58,57 @@ export const SORT_PARAM = 'sort';
 
 /** Default rows-per-page for a collection's records table. */
 export const DEFAULT_PAGE_SIZE = 10;
+
+/**
+ * Content field type identifiers — the admin mirror of the server's
+ * `CONTENT_FIELD_TYPE` (`@ortha-cms/content-server`). Kept as a local constant
+ * (the admin deliberately doesn't import across the server boundary, like its
+ * wire types) so every `switch (field.type)` references a named member instead
+ * of a bare string literal. Must stay in lock-step with the server set.
+ */
+export const CONTENT_FIELD_TYPE = {
+    Text: 'text',
+    RichText: 'richtext',
+    Number: 'number',
+    Money: 'money',
+    Boolean: 'boolean',
+    Date: 'date',
+    Datetime: 'datetime',
+    Select: 'select',
+    Multiselect: 'multiselect',
+    Json: 'json',
+    Relation: 'relation'
+} as const;
+
+/** Multi-entry collection vs. standalone page — mirror of the server's `kind`. */
+export const CONTENT_TYPE_KIND = {
+    Collection: 'collection',
+    Single: 'single'
+} as const;
+
+/** Publish state of an entry on a publishable type. */
+export const ENTRY_STATUS = {
+    Draft: 'draft',
+    Published: 'published'
+} as const;
+
+/**
+ * The kinds of column the records table can show: a schema `field`, or one of
+ * the two envelope columns (`status`, `updated`). The discriminant of
+ * {@link EntryColumn}.
+ */
+export const COLUMN_KIND = {
+    Field: 'field',
+    Status: 'status',
+    Updated: 'updated'
+} as const;
+
+/**
+ * Column ids for the platform-owned envelope columns. These double as the
+ * `?sort=` column ids and must match the server's sortable whitelist
+ * (`createdAt`/`updatedAt`/`status`).
+ */
+export const ENVELOPE_COLUMN = {
+    Status: 'status',
+    UpdatedAt: 'updatedAt'
+} as const;

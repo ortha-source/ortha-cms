@@ -4,8 +4,8 @@ import {
     type FilterSchema,
     type ScalarFieldSchema
 } from '@ortha-cms/utils-server';
-import type { AnyContentType } from '../../types/content-type';
-import type { AnyFieldSpec } from '../../types/fields';
+import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 
 /**
  * The filter scalar type for one content field, or `null` to leave it
@@ -16,18 +16,21 @@ import type { AnyFieldSpec } from '../../types/fields';
  */
 function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
     switch (spec.type) {
-        case 'text':
-        case 'richtext':
+        case CONTENT_FIELD_TYPE.Text:
+        case CONTENT_FIELD_TYPE.RichText:
             return { type: ScalarFieldType.String };
-        case 'select':
-            return { type: ScalarFieldType.Enum, enumValues: spec.options ?? [] };
-        case 'number':
-        case 'money':
+        case CONTENT_FIELD_TYPE.Select:
+            return {
+                type: ScalarFieldType.Enum,
+                enumValues: spec.options ?? []
+            };
+        case CONTENT_FIELD_TYPE.Number:
+        case CONTENT_FIELD_TYPE.Money:
             return { type: ScalarFieldType.Number };
-        case 'boolean':
+        case CONTENT_FIELD_TYPE.Boolean:
             return { type: ScalarFieldType.Boolean };
-        case 'date':
-        case 'datetime':
+        case CONTENT_FIELD_TYPE.Date:
+        case CONTENT_FIELD_TYPE.Datetime:
             return { type: ScalarFieldType.Date };
         default:
             // json / multiselect / relation
@@ -36,13 +39,26 @@ function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
 }
 
 /**
+ * Whether a field is backed by a comparable scalar column — the single source of
+ * truth for "can this field be filtered or sorted". `json`/`multiselect` (jsonb)
+ * and `relation` (FK uuid / join table) are not: they have no scalar editor and
+ * ordering them is meaningless. The sort whitelist and the filter schema both
+ * derive from this, so the two can't drift apart.
+ */
+export function isScalarField(spec: AnyFieldSpec): boolean {
+    return scalarTypeFor(spec) !== null;
+}
+
+/**
  * Build the query-builder `FilterSchema` for one content type at request time.
  * Whitelists the always-present envelope columns (`createdAt`/`updatedAt`),
  * plus `status`/`publishedAt` only on publishable types, plus every filterable
- * field — keyed by field name, the same ids the admin's `filterFieldsFromSchema`
- * emits and the same property names the engine resolves to table columns. This
- * is the security boundary: only listed fields/ops reach SQL, and the engine's
- * depth/node caps bound payload blow-up.
+ * field (those `isScalarField` admits — the same set the admin's
+ * `filterFieldsFromSchema` offers), keyed by the property names the engine
+ * resolves to table columns. (`status` has a matching admin filter; the
+ * timestamp envelopes like `publishedAt` are filterable via the API but have no
+ * UI control yet.) This is the security boundary: only listed fields/ops reach
+ * SQL, and the engine's depth/node caps bound payload blow-up.
  */
 export function buildEntryFilterSchema(type: AnyContentType): FilterSchema {
     const fields: FieldSchema = {
@@ -54,7 +70,7 @@ export function buildEntryFilterSchema(type: AnyContentType): FilterSchema {
     if (type.publishable) {
         fields['status'] = {
             type: ScalarFieldType.Enum,
-            enumValues: ['draft', 'published']
+            enumValues: [ENTRY_STATUS.Draft, ENTRY_STATUS.Published]
         };
         fields['publishedAt'] = { type: ScalarFieldType.Date };
     }

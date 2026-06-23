@@ -12,18 +12,21 @@ import {
     TableRow
 } from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../types/contentType';
-import { fieldLabel, type EntryColumn } from '../../../utils/entryColumns';
+import type { EntryColumn } from '../../../utils/entryColumns';
+import { COLUMN_KIND, ENTRY_STATUS } from '../../../constants';
 import { renderCell } from './renderCell';
 import { CollectionRecordsRowActions } from './CollectionRecordsRowActions';
+import { useColumnLabel } from '../../../hooks/useColumnLabel';
 
 /** The current table sort: a column id and direction, or none. */
 export type TableSort = { key: string; dir: 'asc' | 'desc' } | null;
 
 /** Intl descriptors for {@link CollectionRecordsTable}, co-located. */
 const messages = defineMessages({
-    status: { id: 'content.records.column.status', defaultMessage: 'Status' },
-    updated: { id: 'content.records.column.updated', defaultMessage: 'Updated' },
-    actions: { id: 'content.records.column.actions', defaultMessage: 'Actions' },
+    actions: {
+        id: 'content.records.column.actions',
+        defaultMessage: 'Actions'
+    },
     caption: {
         id: 'content.records.table.caption',
         defaultMessage: '{label} records'
@@ -34,7 +37,7 @@ const messages = defineMessages({
     },
     selectRow: {
         id: 'content.records.selectRow',
-        defaultMessage: 'Select row'
+        defaultMessage: 'Select {label}'
     },
     sortBy: {
         id: 'content.records.sortBy',
@@ -42,19 +45,22 @@ const messages = defineMessages({
     }
 });
 
-/** The localized header label for one column. */
-function useColumnLabel() {
-    const intl = useIntl();
-    return (column: EntryColumn): string => {
-        switch (column.kind) {
-            case 'status':
-                return intl.formatMessage(messages.status);
-            case 'updated':
-                return intl.formatMessage(messages.updated);
-            case 'field':
-                return fieldLabel(column.field);
-        }
-    };
+/**
+ * A short label identifying a row for its selection checkbox's accessible name:
+ * the first visible field's text/number value, falling back to the record id —
+ * so each checkbox reads distinctly instead of a column of identical "Select
+ * row" controls a screen-reader user can't tell apart.
+ */
+function rowLabel(record: EntryRecord, columns: EntryColumn[]): string {
+    const firstField = columns.find(
+        (column) => column.kind === COLUMN_KIND.Field
+    );
+    if (firstField) {
+        const value = record.values[firstField.id];
+        if (typeof value === 'string' && value.trim()) return value;
+        if (typeof value === 'number') return String(value);
+    }
+    return record.id;
 }
 
 /** The cell content for one column of one record. */
@@ -67,23 +73,25 @@ function Cell({
 }) {
     const intl = useIntl();
     switch (column.kind) {
-        case 'status':
+        case COLUMN_KIND.Status:
             return (
                 <Badge
                     variant={
-                        record.status === 'published' ? 'default' : 'secondary'
+                        record.status === ENTRY_STATUS.Published
+                            ? 'default'
+                            : 'secondary'
                     }
                 >
                     {record.status}
                 </Badge>
             );
-        case 'updated':
+        case COLUMN_KIND.Updated:
             return (
                 <span className="text-sm text-muted-foreground">
                     {intl.formatDate(record.updatedAt, { dateStyle: 'medium' })}
                 </span>
             );
-        case 'field':
+        case COLUMN_KIND.Field:
             return (
                 <>{renderCell(column.field, record.values[column.id], intl)}</>
             );
@@ -236,7 +244,8 @@ export function CollectionRecordsTable({
                                             onToggleRow(record.id)
                                         }
                                         aria-label={intl.formatMessage(
-                                            messages.selectRow
+                                            messages.selectRow,
+                                            { label: rowLabel(record, columns) }
                                         )}
                                     />
                                 </TableCell>

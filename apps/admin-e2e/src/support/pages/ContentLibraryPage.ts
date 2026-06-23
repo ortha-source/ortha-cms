@@ -185,9 +185,9 @@ export class ContentLibraryPage extends BasePage {
 
     /** The selection checkbox in a given data row. */
     rowCheckbox(table: string, index: number): Locator {
-        return this.recordRows(table)
-            .nth(index)
-            .getByRole('checkbox', { name: 'Select row' });
+        // Each data row carries exactly one checkbox; its accessible name is the
+        // row's own label ("Select <first field value>"), so match by role.
+        return this.recordRows(table).nth(index).getByRole('checkbox');
     }
 
     /** The row-actions menu trigger (kebab) in a given data row. */

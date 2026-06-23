@@ -1,5 +1,7 @@
-/** Publish state a publishable entry row carries. */
-export type EntryStatus = 'draft' | 'published';
+import type { EntryStatus } from '../../types/content-type';
+
+/** Re-exported so list-view consumers get publish state from one source. */
+export type { EntryStatus };
 
 /**
  * One entry as served to the admin records table: the storage envelope plus a

@@ -1,12 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import { apiClient, toApiError, STALE_TIME } from '@ortha-cms/utils-admin';
 import type {
     ContentType,
     ContentTypeSummaryResponse
 } from '../../types/contentType';
 
-/** Query key for the content-type schema list. */
-export const contentTypesKey = ['content-schema'] as const;
+/**
+ * Query key for the content-type catalogue list. Deliberately NOT
+ * `['content-schema']`: that is a prefix of every per-type `useContentSchema`
+ * key (`['content-schema', name]`), so sharing it would make an invalidation of
+ * the list cascade into every loaded per-type schema. A distinct root keeps the
+ * two caches independent.
+ */
+export const contentTypesKey = ['content-types'] as const;
 
 /** Maps one wire summary to the admin model (fields pass through untouched). */
 function toContentType(summary: ContentTypeSummaryResponse): ContentType {
@@ -15,7 +21,9 @@ function toContentType(summary: ContentTypeSummaryResponse): ContentType {
         kind: summary.kind,
         label: summary.label,
         description: summary.description,
-        path: summary.path
+        path: summary.path,
+        publishable: summary.publishable,
+        paranoid: summary.paranoid
     };
 }
 
@@ -45,7 +53,7 @@ export function useContentTypes(enabled = true) {
     return useQuery({
         queryKey: contentTypesKey,
         queryFn: fetchContentTypes,
-        staleTime: 60_000,
+        staleTime: STALE_TIME.Standard,
         enabled
     });
 }
