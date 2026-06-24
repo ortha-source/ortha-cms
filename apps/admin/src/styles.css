@@ -61,10 +61,16 @@
     * {
         @apply border-border;
     }
+    html {
+        /* The shell + work-area islands own their own scrolling, so the page
+           itself never scrolls — clip overflow at the root rather than letting a
+           child push the whole document. */
+        @apply overflow-hidden;
+    }
     body {
         @apply bg-background text-foreground;
     }
     #root {
-        @apply min-h-svh;
+        @apply min-h-svh overflow-x-hidden;
     }
 }
