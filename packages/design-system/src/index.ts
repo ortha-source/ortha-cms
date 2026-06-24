@@ -72,6 +72,11 @@ export {
 } from './lib/components/ui/empty';
 export { Textarea } from './lib/components/ui/textarea';
 export { Calendar, CalendarDayButton } from './lib/components/ui/calendar';
+export { DatePicker, DateTimePicker } from './lib/components/ui/date-picker';
+export type {
+    DatePickerProps,
+    DateTimePickerProps
+} from './lib/components/ui/date-picker';
 export { MultiSelect } from './lib/components/ui/multi-select';
 export type {
     MultiSelectOption,

@@ -1,19 +1,14 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronDownIcon } from 'lucide-react';
-import {
-    Button,
-    Calendar,
-    Input,
-    Popover,
-    PopoverContent,
-    PopoverTrigger
-} from '@ortha-cms/design-system';
+import { DatePicker, DateTimePicker } from '@ortha-cms/design-system';
 
 const messages = defineMessages({
-    placeholder: {
+    datePlaceholder: {
         id: 'content.form.datePlaceholder',
         defaultMessage: 'Select date'
+    },
+    dateTimePlaceholder: {
+        id: 'content.form.dateTimePlaceholder',
+        defaultMessage: 'Select date & time'
     },
     time: { id: 'content.form.time', defaultMessage: 'Time' }
 });
@@ -28,21 +23,36 @@ function toISODate(date: Date): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** The `YYYY-MM-DD` head of the value → a local `Date`, or undefined. */
-function parseDatePart(value: string): Date | undefined {
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+/** A `Date` → `YYYY-MM-DDTHH:mm` (local, no timezone shift). */
+function toISODateTime(date: Date): string {
+    return `${toISODate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** The field's ISO string → a local `Date`, or undefined. */
+function parseValue(value: string): Date | undefined {
+    const match =
+        /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(
+            value
+        );
     if (!match) return undefined;
-    const [, y, m, d] = match;
-    return new Date(Number(y), Number(m) - 1, Number(d));
+    const [, y, mo, d, h, mi, s] = match;
+    return new Date(
+        Number(y),
+        Number(mo) - 1,
+        Number(d),
+        Number(h ?? 0),
+        Number(mi ?? 0),
+        Number(s ?? 0)
+    );
 }
 
 /**
- * The control for a `date` / `datetime` field, on the shadcn date-picker
- * patterns: a `Calendar` in a `Popover` behind an outline button (replacing the
- * native date input), and — for `datetime` — a `type="time"` `Input` beside it.
- * Owns no value: it reads/writes the field's ISO string (`YYYY-MM-DD`, or
- * `YYYY-MM-DDTHH:mm[:ss]` for datetime) via `value`/`onChange`, converting
- * to/from the calendar's `Date` without a timezone shift.
+ * The control for a `date` / `datetime` field: a thin adapter over the
+ * design-system {@link DatePicker} / {@link DateTimePicker} (single trigger; the
+ * datetime variant carries the calendar + a time input as two sections of one
+ * dropdown). Converts between the field's ISO string (`YYYY-MM-DD`, or
+ * `YYYY-MM-DDTHH:mm` for datetime) and the picker's `Date`, with no timezone
+ * shift.
  */
 export function DateField({
     id,
@@ -60,74 +70,30 @@ export function DateField({
     invalid?: boolean;
 }) {
     const intl = useIntl();
-    const [open, setOpen] = useState(false);
+    const date = parseValue(value);
 
-    const date = parseDatePart(value);
-    const time = withTime && value.includes('T') ? value.split('T')[1] : '';
-
-    const commit = (nextDate: Date | undefined, nextTime: string) => {
-        if (!nextDate) {
-            onChange('');
-            return;
-        }
-        const isoDate = toISODate(nextDate);
-        onChange(withTime ? `${isoDate}T${nextTime || '00:00'}` : isoDate);
-    };
-
-    const dateLabel = date
-        ? intl.formatDate(date, { dateStyle: 'long' })
-        : intl.formatMessage(messages.placeholder);
-
-    const picker = (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    id={id}
-                    type="button"
-                    variant="outline"
-                    data-empty={!date}
-                    aria-invalid={invalid}
-                    onBlur={onBlur}
-                    className="w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground"
-                >
-                    {dateLabel}
-                    <ChevronDownIcon
-                        className="size-4 opacity-50"
-                        aria-hidden
-                    />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-                <Calendar
-                    mode="single"
-                    selected={date}
-                    defaultMonth={date}
-                    captionLayout="dropdown"
-                    onSelect={(next) => {
-                        commit(next, time);
-                        if (!withTime) setOpen(false);
-                    }}
-                    autoFocus
-                    className="p-4 [--cell-size:2.6rem]"
-                />
-            </PopoverContent>
-        </Popover>
-    );
-
-    if (!withTime) return picker;
+    if (withTime) {
+        return (
+            <DateTimePicker
+                id={id}
+                value={date}
+                onChange={(next) => onChange(next ? toISODateTime(next) : '')}
+                onBlur={onBlur}
+                invalid={invalid}
+                placeholder={intl.formatMessage(messages.dateTimePlaceholder)}
+                timeLabel={intl.formatMessage(messages.time)}
+            />
+        );
+    }
 
     return (
-        <div className="flex gap-2">
-            <div className="flex-1">{picker}</div>
-            <Input
-                type="time"
-                step="1"
-                value={time}
-                aria-label={intl.formatMessage(messages.time)}
-                aria-invalid={invalid}
-                className="w-36 shadow-none [&::-webkit-calendar-picker-indicator]:hidden"
-                onChange={(event) => commit(date, event.target.value)}
-            />
-        </div>
+        <DatePicker
+            id={id}
+            value={date}
+            onChange={(next) => onChange(next ? toISODate(next) : '')}
+            onBlur={onBlur}
+            invalid={invalid}
+            placeholder={intl.formatMessage(messages.datePlaceholder)}
+        />
     );
 }

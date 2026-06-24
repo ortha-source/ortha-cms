@@ -111,7 +111,7 @@ function MultiSelect({
                 </Button>
             </PopoverTrigger>
             <PopoverContent
-                className="w-[--radix-popover-trigger-width] p-0"
+                className="w-[var(--radix-popover-trigger-width)] max-w-[300px] p-0"
                 align="start"
             >
                 <Command>
