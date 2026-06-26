@@ -113,7 +113,10 @@ export function CollectionRecordsTable({
     entries,
     columns,
     typePath,
+    typeName,
     publishable,
+    paranoid,
+    trashed = false,
     selectedIds,
     onToggleRow,
     onTogglePage,
@@ -128,8 +131,14 @@ export function CollectionRecordsTable({
     columns: EntryColumn[];
     /** Absolute path to this type, e.g. `/workspaces/:id/content/:typeName`. */
     typePath: string;
+    /** The content type's machine name (for the row action mutations). */
+    typeName: string;
     /** Whether the type has a publish workflow (drives the row Publish/Unpublish action). */
     publishable: boolean;
+    /** Whether the type soft-deletes (drives the row delete copy + Restore). */
+    paranoid: boolean;
+    /** Whether this is the trash view (rows aren't editable; trash row actions). */
+    trashed?: boolean;
     /** Currently selected record ids. */
     selectedIds: Set<string>;
     /** Toggle one row's selection. */
@@ -230,10 +239,15 @@ export function CollectionRecordsTable({
                             <TableRow
                                 key={record.id}
                                 data-state={selected ? 'selected' : undefined}
-                                onClick={() =>
-                                    navigate(`${typePath}/${record.id}`)
+                                onClick={
+                                    trashed
+                                        ? undefined
+                                        : () =>
+                                              navigate(
+                                                  `${typePath}/${record.id}`
+                                              )
                                 }
-                                className="cursor-pointer"
+                                className={trashed ? undefined : 'cursor-pointer'}
                             >
                                 <TableCell
                                     onClick={(event) => event.stopPropagation()}
@@ -251,7 +265,7 @@ export function CollectionRecordsTable({
                                 </TableCell>
                                 {columns.map((column, index) => (
                                     <TableCell key={column.id}>
-                                        {index === 0 ? (
+                                        {index === 0 && !trashed ? (
                                             <Link
                                                 to={`${typePath}/${record.id}`}
                                                 className="block hover:underline"
@@ -281,7 +295,10 @@ export function CollectionRecordsTable({
                                     <CollectionRecordsRowActions
                                         record={record}
                                         typePath={typePath}
+                                        typeName={typeName}
                                         publishable={publishable}
+                                        paranoid={paranoid}
+                                        trashed={trashed}
                                     />
                                 </TableCell>
                             </TableRow>

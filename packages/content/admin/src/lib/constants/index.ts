@@ -7,6 +7,18 @@
 /** Permission required to browse content. Granted to all system roles. */
 export const CONTENT_READ = 'content:read';
 
+/** Permission required to create an entry. */
+export const CONTENT_CREATE = 'content:create';
+
+/** Permission required to edit an entry's values. */
+export const CONTENT_UPDATE = 'content:update';
+
+/** Permission required to publish/unpublish an entry. */
+export const CONTENT_PUBLISH = 'content:publish';
+
+/** Permission required to delete/restore an entry. */
+export const CONTENT_DELETE = 'content:delete';
+
 /**
  * Path segment under the workspace shell where the Content Library mounts
  * (`/workspaces/:id/content`). Shared by the plugin's slot contribution and the
@@ -78,6 +90,18 @@ export const CONTENT_FIELD_TYPE = {
     Multiselect: 'multiselect',
     Json: 'json',
     Relation: 'relation'
+} as const;
+
+/**
+ * Per-entry verdicts in a bulk-publish dry run — the admin mirror of the
+ * server's `BULK_VERDICT` (`@ortha-cms/content-server`). Drives the icon/label
+ * for each row in the {@link BulkPublishDialog}. Must stay in lock-step.
+ */
+export const BULK_VERDICT = {
+    Publishable: 'publishable',
+    AlreadyPublished: 'already-published',
+    Blocked: 'blocked',
+    NotFound: 'not-found'
 } as const;
 
 /** Multi-entry collection vs. standalone page — mirror of the server's `kind`. */

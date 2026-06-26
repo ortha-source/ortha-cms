@@ -14,6 +14,8 @@ export type ContentEntriesParams = {
     page: number;
     /** Rows per page. */
     pageSize: number;
+    /** `only` lists soft-deleted rows (the trash view) instead of live ones. */
+    deleted?: 'only';
 };
 
 /** The paginated envelope, matching the admin list-page convention. */
@@ -27,6 +29,14 @@ export type ContentEntriesResult = {
 /** Query key for a collection's records list. */
 export const contentEntriesKey = (name: string, params: ContentEntriesParams) =>
     ['content-entries', name, params] as const;
+
+/**
+ * Query-key prefix for **all** of a type's records-list queries (every
+ * search/filter/sort/page combination). Used to invalidate the whole list after
+ * a write, and to scan the cache for an already-loaded entry.
+ */
+export const contentEntriesPrefix = (name: string) =>
+    ['content-entries', name] as const;
 
 /**
  * Loads one page of a collection's records from `GET /api/content/:name`. The
@@ -46,6 +56,7 @@ async function fetchContentEntries(
                     ...(params.search ? { search: params.search } : {}),
                     ...(params.filter ? { filter: params.filter } : {}),
                     ...(params.sort ? { sort: params.sort } : {}),
+                    ...(params.deleted ? { deleted: params.deleted } : {}),
                     page: params.page,
                     pageSize: params.pageSize
                 }

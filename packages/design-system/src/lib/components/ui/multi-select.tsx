@@ -87,7 +87,7 @@ function MultiSelect({
                     aria-invalid={invalid}
                     disabled={disabled}
                     className={cn(
-                        'h-auto min-h-9 w-full justify-between px-3 py-1.5 font-normal shadow-none hover:bg-background',
+                        'h-auto min-h-9 w-full justify-between px-3 py-1.5 font-normal shadow-none hover:bg-background aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
                         className
                     )}
                 >

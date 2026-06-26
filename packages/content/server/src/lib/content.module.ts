@@ -8,8 +8,15 @@ import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
 import { ListEntriesController } from './entries/controllers/list-entries.controller';
+import { BulkEntriesController } from './entries/controllers/bulk-entries.controller';
+import { CreateEntryController } from './entries/controllers/create-entry.controller';
+import { GetEntryController } from './entries/controllers/get-entry.controller';
+import { UpdateEntryController } from './entries/controllers/update-entry.controller';
+import { PublishEntryController } from './entries/controllers/publish-entry.controller';
+import { DeleteEntryController } from './entries/controllers/delete-entry.controller';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/services/entries.service';
+import { EntryWriterService } from './entries/services/entry-writer.service';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -35,7 +42,17 @@ export class ContentModule {
             controllers: [
                 ListContentSchemaController,
                 GetContentSchemaController,
-                ListEntriesController
+                // Bulk routes carry a literal `bulk` in the `:id` slot, so they
+                // must be registered before the single-item controllers below
+                // (`:typeName/:id/...`) to win the match. The list controller is
+                // unaffected (`GET :typeName` is one segment shorter).
+                BulkEntriesController,
+                ListEntriesController,
+                CreateEntryController,
+                GetEntryController,
+                UpdateEntryController,
+                PublishEntryController,
+                DeleteEntryController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },
@@ -49,7 +66,8 @@ export class ContentModule {
                     inject: [CONTENT_REGISTRY]
                 },
                 EntryValidationService,
-                EntriesService
+                EntriesService,
+                EntryWriterService
             ],
             exports: [CONTENT_REGISTRY, CONTENT_CATALOG, EntryValidationService]
         };

@@ -1,5 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
 import type { EntryRecord } from '../../types/contentType';
+import { contentEntriesPrefix } from '../useContentEntries';
 
 /** What a save submits: the field values, plus the id when updating. */
 export type SaveEntryInput = {
@@ -9,36 +11,44 @@ export type SaveEntryInput = {
     values: Record<string, unknown>;
 };
 
-/** Simulated network latency for the mocked save, in ms. */
-const MOCK_SAVE_LATENCY = 400;
-
 /**
- * Persist a content entry — **mocked** until the entry-write API lands. It
- * mimics the eventual `POST /api/content/:type` (create) /
- * `PATCH /api/content/:type/:id` (update): validates nothing server-side, waits
- * a beat, and echoes back an {@link EntryRecord}. Shaped so the call sites
- * (`ContentEntryView`) don't change when the real `apiClient` request replaces
- * the mock — only this `mutationFn` body does.
+ * Create (`POST /api/content/:type`) or update (`PATCH /api/content/:type/:id`)
+ * one entry — chosen by whether `id` is present. The server validates the values
+ * and returns the saved {@link EntryRecord}; a validation failure surfaces as a
+ * 422 {@link ApiError} whose `details.issues` the caller maps onto the form.
  */
-async function mockSaveEntry(input: SaveEntryInput): Promise<EntryRecord> {
-    await new Promise((resolve) => setTimeout(resolve, MOCK_SAVE_LATENCY));
-    const now = new Date().toISOString();
-    return {
-        id: input.id ?? crypto.randomUUID(),
-        createdAt: now,
-        updatedAt: now,
-        values: input.values
-    };
+async function saveEntry(
+    typeName: string,
+    { id, values }: SaveEntryInput
+): Promise<EntryRecord> {
+    try {
+        const { data } = id
+            ? await apiClient.patch<EntryRecord>(`/content/${typeName}/${id}`, {
+                  values
+              })
+            : await apiClient.post<EntryRecord>(`/content/${typeName}`, {
+                  values
+              });
+        return data;
+    } catch (error) {
+        throw toApiError(error);
+    }
 }
 
 /**
- * Save mutation for one content type. Returns the TanStack mutation; callers
- * use `mutateAsync`/`isPending`. No cache invalidation yet — nothing is
- * persisted server-side, so refetching would drop the change; that wiring lands
- * with the real write API.
+ * Save mutation for one content type. Returns the TanStack mutation; callers use
+ * `mutateAsync`/`isPending`. Invalidates the type's records list on success so a
+ * created/edited row shows up. Publishing is a separate step ({@link
+ * useEntryStatusActions}) so create-then-publish and a standalone publish share
+ * the same validated endpoint.
  */
-export function useSaveEntry(_typeName: string) {
-    return useMutation({
-        mutationFn: (input: SaveEntryInput) => mockSaveEntry(input)
+export function useSaveEntry(typeName: string) {
+    const queryClient = useQueryClient();
+    return useMutation<EntryRecord, ApiError, SaveEntryInput>({
+        mutationFn: (input) => saveEntry(typeName, input),
+        onSuccess: () =>
+            queryClient.invalidateQueries({
+                queryKey: contentEntriesPrefix(typeName)
+            })
     });
 }

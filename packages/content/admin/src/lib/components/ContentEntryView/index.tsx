@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
-import { FileQuestion } from 'lucide-react';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
     Alert,
@@ -10,11 +9,6 @@ import {
     Button,
     Container,
     ContainerHeader,
-    Empty,
-    EmptyDescription,
-    EmptyHeader,
-    EmptyMedia,
-    EmptyTitle,
     Spinner,
     toast
 } from '@ortha-cms/design-system';
@@ -23,9 +17,12 @@ import { CONTENT_SEGMENT } from '../../constants';
 import { useContentSchema } from '../../api/useContentSchema';
 import {
     useContentEntries,
+    contentEntriesPrefix,
     type ContentEntriesResult
 } from '../../api/useContentEntries';
+import { useContentEntry } from '../../api/useContentEntry';
 import { useSaveEntry } from '../../api/useSaveEntry';
+import { useEntryStatusActions } from '../../api/useEntryStatusActions';
 import {
     emptyEntryValues,
     mergeEntryValues
@@ -36,34 +33,24 @@ const messages = defineMessages({
     newTitle: { id: 'content.entry.newTitle', defaultMessage: 'New {label}' },
     loadError: {
         id: 'content.entry.loadError',
-        defaultMessage: 'Couldn’t load this content type. Please try again.'
+        defaultMessage: 'Couldn’t load this entry. Please try again.'
     },
     retry: { id: 'content.entry.retry', defaultMessage: 'Retry' },
-    notFoundTitle: {
-        id: 'content.entry.notFoundTitle',
-        defaultMessage: 'Open this record from the list'
-    },
-    notFoundBody: {
-        id: 'content.entry.notFoundBody',
-        defaultMessage:
-            'Loading a single record directly isn’t available yet — open it from the records table for now.'
-    },
-    backToList: {
-        id: 'content.entry.backToList',
-        defaultMessage: 'Back to records'
-    },
     savedCreate: {
         id: 'content.entry.savedCreate',
-        defaultMessage:
-            '{label} created (not yet persisted — save API pending).'
+        defaultMessage: '{label} created.'
     },
     savedUpdate: {
         id: 'content.entry.savedUpdate',
-        defaultMessage: 'Changes saved (not yet persisted — save API pending).'
+        defaultMessage: 'Changes saved.'
     },
     savedPublish: {
         id: 'content.entry.savedPublish',
-        defaultMessage: 'Published (not yet persisted — save API pending).'
+        defaultMessage: '{label} published.'
+    },
+    deleted: {
+        id: 'content.entry.deleted',
+        defaultMessage: '{label} deleted.'
     }
 });
 
@@ -76,14 +63,15 @@ const ONE_ENTRY = { page: 1, pageSize: 1 } as const;
 /**
  * Hosts the {@link EntryEditor} for all three modes:
  * - `create` (`/:type/new`) → a blank editor;
- * - `edit` (`/:type/:entryId`) → the record's values + metadata, sourced from
- *   the records list cache (the common path: opened from the table). A cache
- *   miss (deep link / reload) shows a notice, since there's no read-one API yet;
+ * - `edit` (`/:type/:entryId`) → the record from `GET /content/:type/:id`, seeded
+ *   instantly from the records-list cache when opened from the table;
  * - `single` (a page) → the type's one entry via the list endpoint, or a blank
  *   create when it has none.
  *
- * Saving is mocked ({@link useSaveEntry}) per this milestone — it toasts and
- * navigates but doesn't persist.
+ * Saving persists via {@link useSaveEntry} (create/update); a publish chains the
+ * dedicated publish endpoint ({@link useEntryStatusActions}) so it runs the same
+ * validated path as the row/bulk publish. A 422 is handed back to the editor's
+ * form as inline field errors (it rejects the `onSave` promise).
  */
 export function ContentEntryView({
     type,
@@ -110,13 +98,12 @@ export function ContentEntryView({
         mode === 'single' && !!schema
     );
 
-    const save = useSaveEntry(type.name);
-
-    // The record being edited, if it's already in the records-list cache.
+    // Seed edit mode from the records-list cache (the common "opened from the
+    // table" path) so the form is instant, then refetch the canonical copy.
     const cachedEntry = useMemo(() => {
         if (mode !== 'edit' || !entryId) return undefined;
         const cached = queryClient.getQueriesData<ContentEntriesResult>({
-            queryKey: ['content-entries', type.name]
+            queryKey: contentEntriesPrefix(type.name)
         });
         for (const [, data] of cached) {
             const hit = data?.items.find((item) => item.id === entryId);
@@ -125,8 +112,17 @@ export function ContentEntryView({
         return undefined;
     }, [mode, entryId, queryClient, type.name]);
 
+    const entryQuery = useContentEntry(type.name, entryId, {
+        initialData: cachedEntry,
+        enabled: mode === 'edit'
+    });
+
+    const save = useSaveEntry(type.name);
+    const status = useEntryStatusActions(type.name);
+
     // The single page's existing row (if any).
     const singleEntry = oneEntryQuery.data?.items[0];
+    const editEntry = entryQuery.data;
 
     // Resolve the editor's initial values, the source record (for metadata), and
     // the id we'd update — memoized so the form re-seeds only on identity change.
@@ -138,24 +134,28 @@ export function ContentEntryView({
         if (mode === 'create') {
             return { values: emptyEntryValues(schema) };
         }
-        const source = mode === 'edit' ? cachedEntry : singleEntry;
+        const source = mode === 'edit' ? editEntry : singleEntry;
         if (source) {
             return {
                 values: mergeEntryValues(schema, source.values),
                 entry: source
             };
         }
-        // A single page with no row yet falls back to a blank create form;
-        // edit with no cached record is a miss (handled below).
+        // A single page with no row yet falls back to a blank create form.
         return mode === 'single' ? { values: emptyEntryValues(schema) } : null;
-    }, [schema, mode, cachedEntry, singleEntry]);
+    }, [schema, mode, editEntry, singleEntry]);
 
     const loading =
-        schemaQuery.isPending || (mode === 'single' && oneEntryQuery.isPending);
+        schemaQuery.isPending ||
+        (mode === 'single' && oneEntryQuery.isPending) ||
+        (mode === 'edit' && entryQuery.isPending);
     const errored =
         schemaQuery.isError ||
         !schema ||
-        (mode === 'single' && oneEntryQuery.isError);
+        (mode === 'single' && oneEntryQuery.isError) ||
+        // Only fatal when there's no record to show — a background refetch
+        // failure on a cache-seeded edit keeps the form usable.
+        (mode === 'edit' && entryQuery.isError && !editEntry);
 
     if (loading) {
         return (
@@ -168,10 +168,10 @@ export function ContentEntryView({
         );
     }
 
-    if (errored || !schema) {
+    if (errored || !schema || !resolved) {
         return (
             <Container className="max-w-none p-4 sm:p-6">
-                <ContainerHeader title={type.label} />
+                <ContainerHeader title={schema?.label ?? type.label} />
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                         <span>{intl.formatMessage(messages.loadError)}</span>
@@ -182,40 +182,13 @@ export function ContentEntryView({
                             onClick={() => {
                                 schemaQuery.refetch();
                                 if (mode === 'single') oneEntryQuery.refetch();
+                                if (mode === 'edit') entryQuery.refetch();
                             }}
                         >
                             {intl.formatMessage(messages.retry)}
                         </Button>
                     </AlertDescription>
                 </Alert>
-            </Container>
-        );
-    }
-
-    // Edit deep-link with no cached record — no read-one API yet.
-    if (!resolved) {
-        return (
-            <Container className="max-w-none p-4 sm:p-6">
-                <ContainerHeader title={schema.label} />
-                <Empty className="mt-6">
-                    <EmptyHeader>
-                        <EmptyMedia variant="icon">
-                            <FileQuestion />
-                        </EmptyMedia>
-                        <EmptyTitle>
-                            {intl.formatMessage(messages.notFoundTitle)}
-                        </EmptyTitle>
-                        <EmptyDescription>
-                            {intl.formatMessage(messages.notFoundBody)}
-                        </EmptyDescription>
-                    </EmptyHeader>
-                    <Button
-                        variant="outline"
-                        onClick={() => navigate(typePath)}
-                    >
-                        {intl.formatMessage(messages.backToList)}
-                    </Button>
-                </Empty>
             </Container>
         );
     }
@@ -227,34 +200,64 @@ export function ContentEntryView({
             ? intl.formatMessage(messages.newTitle, { label: schema.label })
             : schema.label;
 
-    const onSave = (
+    // Persist, then (optionally) publish. Rejects on a server error so the editor
+    // can surface a 422's field issues; resolves on success after toast + nav.
+    const onSave = async (
         values: Record<string, unknown>,
         options: { publish: boolean }
     ) => {
-        save.mutate(
-            { id: resolved.entry?.id, values },
-            {
-                onSuccess: () => {
-                    toast(
-                        intl.formatMessage(
-                            options.publish
-                                ? messages.savedPublish
-                                : isCreate
-                                  ? messages.savedCreate
-                                  : messages.savedUpdate,
-                            { label: schema.label }
-                        )
-                    );
-                    // Collections return to the table; a single page stays put.
-                    if (mode !== 'single') navigate(typePath);
-                }
-            }
+        const saved = await save.mutateAsync({
+            id: resolved.entry?.id,
+            values
+        });
+        const willPublish = options.publish && publishable;
+        if (willPublish) {
+            await status.publish.mutateAsync(saved.id);
+        }
+        toast(
+            intl.formatMessage(
+                willPublish
+                    ? messages.savedPublish
+                    : isCreate
+                      ? messages.savedCreate
+                      : messages.savedUpdate,
+                { label: schema.label }
+            )
         );
+        // Collections return to the table; a single page stays put.
+        if (mode !== 'single') navigate(typePath);
     };
 
-    // A plain full-bleed wrapper (not the design-system `Container`, whose
-    // `mx-auto`/`max-w-6xl` + responsive `sm:px-6 sm:py-8` padding would inset
-    // the editor): the card is flush, padding lives inside each pane.
+    // Entry-level actions are available only when editing an existing collection
+    // row (not on create, not on a single page).
+    const editId = mode === 'edit' ? resolved.entry?.id : undefined;
+
+    const onUnpublish =
+        editId && publishable
+            ? () => {
+                  status.unpublish
+                      .mutateAsync(editId)
+                      .then(() => entryQuery.refetch())
+                      .catch(() => undefined);
+              }
+            : undefined;
+
+    const onDelete = editId
+        ? () => {
+              status.remove
+                  .mutateAsync(editId)
+                  .then(() => {
+                      toast(
+                          intl.formatMessage(messages.deleted, {
+                              label: schema.label
+                          })
+                      );
+                      navigate(typePath);
+                  })
+                  .catch(() => undefined);
+          }
+        : undefined;
+
     return (
         <div className="flex min-h-full flex-col">
             <EntryEditor
@@ -265,8 +268,11 @@ export function ContentEntryView({
                 publishable={publishable}
                 title={title}
                 subtitle={schema.description}
-                saving={save.isPending}
+                saving={save.isPending || status.publish.isPending}
+                mutating={status.unpublish.isPending || status.remove.isPending}
                 onSave={onSave}
+                onUnpublish={onUnpublish}
+                onDelete={onDelete}
                 backTo={mode === 'single' ? undefined : typePath}
             />
         </div>

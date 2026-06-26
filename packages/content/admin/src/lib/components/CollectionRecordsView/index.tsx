@@ -29,7 +29,14 @@ const messages = defineMessages({
  * only mounts once the schema is known (in {@link LoadedRecordsView}), so columns
  * seed correctly on first render.
  */
-export function CollectionRecordsView({ type }: { type: ContentType }) {
+export function CollectionRecordsView({
+    type,
+    trashed = false
+}: {
+    type: ContentType;
+    /** Render the trash view (soft-deleted rows) instead of the live list. */
+    trashed?: boolean;
+}) {
     const intl = useIntl();
     const {
         data: schema,
@@ -68,5 +75,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
         );
     }
 
-    return <LoadedRecordsView type={type} schema={schema} />;
+    return (
+        <LoadedRecordsView type={type} schema={schema} trashed={trashed} />
+    );
 }

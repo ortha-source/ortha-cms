@@ -97,7 +97,8 @@ function rules(field: ContentField) {
 function checkField(
     field: ContentField,
     value: unknown,
-    intl: IntlShape
+    intl: IntlShape,
+    requireRequired: boolean
 ): string | undefined {
     const t = (
         descriptor: Parameters<IntlShape['formatMessage']>[0],
@@ -105,7 +106,11 @@ function checkField(
     ) => intl.formatMessage(descriptor, v);
 
     if (isEmpty(value)) {
-        return field.required ? t(messages.required) : undefined;
+        // `required` is only an error when we're enforcing it (a publish, or a
+        // save of an always-live type) — not while drafting.
+        return requireRequired && field.required
+            ? t(messages.required)
+            : undefined;
     }
 
     const v = rules(field);
@@ -212,15 +217,27 @@ function isParsableJson(value: unknown): boolean {
  * Validate a `values` bag against a content type's field schema. Returns a map
  * of field name → first error message (empty when valid). Unknown/hidden fields
  * aren't validated here — the form only renders schema fields.
+ *
+ * `requireRequired` (default `true`) toggles enforcement of `required`: pass
+ * `false` for the "draft" view, where empty fields are allowed and only the
+ * *format* of a value that's present is checked. Publishing (or saving an
+ * always-live, non-publishable type) validates with it `true`.
  */
 export function validateEntryValues(
     schema: ContentTypeDetail,
     values: Record<string, unknown>,
-    intl: IntlShape
+    intl: IntlShape,
+    options: { requireRequired?: boolean } = {}
 ): Record<string, string> {
+    const requireRequired = options.requireRequired ?? true;
     const errors: Record<string, string> = {};
     for (const field of schema.fields) {
-        const error = checkField(field, values[field.name], intl);
+        const error = checkField(
+            field,
+            values[field.name],
+            intl,
+            requireRequired
+        );
         if (error) errors[field.name] = error;
     }
     return errors;

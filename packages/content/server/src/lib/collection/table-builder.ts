@@ -42,10 +42,20 @@ function idColumnOf(table: PgTable): AnyPgColumn {
     return (table as unknown as { id: AnyPgColumn }).id;
 }
 
-/** Builds the column for one (non-many-relation) field. */
+/**
+ * Builds the column for one (non-many-relation) field.
+ *
+ * `enforceRequired` decides the NOT NULL constraint: a **non-publishable** type
+ * is always live, so a required field is `NOT NULL`. A **publishable** type has
+ * a draft stage where a required field may legitimately be empty — "required"
+ * means "required *to publish*", enforced by `EntryValidationService` at publish
+ * time, not the column. So a publishable type's columns stay nullable even when
+ * the field is required.
+ */
 function columnFor(
     fieldName: string,
-    spec: AnyFieldSpec
+    spec: AnyFieldSpec,
+    enforceRequired: boolean
 ): PgColumnBuilderBase | null {
     const col = snakeCase(fieldName);
     let builder;
@@ -66,7 +76,8 @@ function columnFor(
             break;
         case CONTENT_FIELD_TYPE.Boolean:
             // A required boolean defaults to false so an omitted value is a
-            // concrete `false` rather than a NOT NULL violation.
+            // concrete `false` rather than a NOT NULL violation. The default is
+            // useful regardless of whether NOT NULL is ultimately enforced.
             builder = spec.required
                 ? pgBoolean(col).default(false)
                 : pgBoolean(col);
@@ -92,7 +103,7 @@ function columnFor(
             break;
         }
     }
-    return spec.required ? builder.notNull() : builder;
+    return enforceRequired && spec.required ? builder.notNull() : builder;
 }
 
 /** Result of building a content type's physical schema. */
@@ -152,8 +163,12 @@ export function buildTables(
         columns['deletedAt'] = timestamp('deleted_at', { withTimezone: true });
     }
 
+    // Publishable types keep required columns nullable (a draft may be
+    // incomplete; publish enforces requiredness). Non-publishable types are
+    // always live, so a required field is NOT NULL.
+    const enforceRequired = !meta.publishable;
     for (const [fieldName, spec] of Object.entries(fields)) {
-        const column = columnFor(fieldName, spec);
+        const column = columnFor(fieldName, spec, enforceRequired);
         if (column) columns[fieldName] = column;
     }
 

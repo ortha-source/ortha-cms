@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -19,9 +20,12 @@ import type {
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
+import { entryIssuesFrom } from '../../../utils/entryIssues';
+import { validateEntryValues } from '../../../utils/validateEntryValues';
+import { fieldLabel } from '../../../utils/entryColumns';
 import { EntryFieldInput } from '../../EntryFieldInput';
 import { EntryFieldSections } from './EntryFieldSections';
-import { EntrySidebar } from './EntrySidebar';
+import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 
 const messages = defineMessages({
     backToList: {
@@ -101,7 +105,10 @@ export function EntryEditor({
     title,
     subtitle,
     saving,
+    mutating,
     onSave,
+    onUnpublish,
+    onDelete,
     backTo
 }: {
     schema: ContentTypeDetail;
@@ -112,10 +119,16 @@ export function EntryEditor({
     title: string;
     subtitle?: string;
     saving: boolean;
+    /** Whether an unpublish/delete action is in flight (disables the rail). */
+    mutating?: boolean;
     onSave: (
         values: Record<string, unknown>,
         options: { publish: boolean }
-    ) => void;
+    ) => Promise<void>;
+    /** Revert a published entry to draft — only on a saved publishable entry. */
+    onUnpublish?: () => void;
+    /** Delete the entry — only on a saved entry. */
+    onDelete?: () => void;
     /** Where the "Back to records" link goes; omitted for a single page. */
     backTo?: string;
 }) {
@@ -130,8 +143,39 @@ export function EntryEditor({
         (field) => field.type === CONTENT_FIELD_TYPE.Relation
     );
 
-    const save = (publish: boolean) => () =>
-        form.submit((values) => onSave(values, { publish }));
+    // The publish gate: each field that must hold to publish — every required
+    // field, plus any field whose current value is invalid — with its live
+    // pass/fail. Computed from the strict (required-enforced) validation, so it
+    // mirrors exactly what the publish endpoint will check. Publishable only.
+    const gate = useMemo<PublishGateItem[]>(() => {
+        if (!publishable) return [];
+        const errors = validateEntryValues(schema, form.values, intl);
+        return visible
+            .filter((field) => field.required || errors[field.name])
+            .map((field) => ({
+                label: fieldLabel(field),
+                ok: !errors[field.name],
+                message: errors[field.name]
+            }));
+    }, [publishable, schema, form.values, intl, visible]);
+
+    // A 422 from the server is mapped back onto the form as inline field errors;
+    // other failures fall through to the mutation's own error handling.
+    const submitWith = (publish: boolean) => (values: Record<string, unknown>) =>
+        onSave(values, { publish }).catch((error) => {
+            form.setServerErrors(entryIssuesFrom(error));
+        });
+
+    // A **draft** of a publishable type can be saved incomplete, so it skips the
+    // client validation gate. Publishing — or any save of an always-live,
+    // non-publishable type — enforces the rules before submitting.
+    const save = (publish: boolean) => () => {
+        if (publish || !publishable) {
+            form.submit(submitWith(publish));
+        } else {
+            submitWith(publish)(form.values);
+        }
+    };
 
     return (
         <form
@@ -277,10 +321,15 @@ export function EntryEditor({
             <EntrySidebar
                 entry={entry}
                 publishable={publishable}
+                paranoid={schema.paranoid ?? false}
                 isCreate={isCreate}
                 saving={saving}
+                mutating={mutating}
+                gate={gate}
                 onSaveDraft={save(false)}
                 onPublish={save(true)}
+                onUnpublish={onUnpublish}
+                onDelete={onDelete}
             />
         </form>
     );

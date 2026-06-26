@@ -234,6 +234,14 @@ export function ContentLibraryPage() {
                             path={`:${TYPE_PARAM}`}
                             element={<ContentTypeView types={scopedTypes} />}
                         />
+                        {/* A collection's trash view. The static `trash` segment
+                            outranks `:entryId`, so the order is safe. */}
+                        <Route
+                            path={`:${TYPE_PARAM}/${TRASH_SEGMENT}`}
+                            element={
+                                <ContentTypeView types={scopedTypes} trashed />
+                            }
+                        />
                         {/* Create + entry-edit forms. The static `new` segment
                             outranks `:entryId`, so the order is safe. */}
                         <Route

@@ -32,7 +32,15 @@ const messages = defineMessages({
         id: 'content.records.empty.none.description',
         defaultMessage: 'Add the first record to this collection.'
     },
-    add: { id: 'content.records.empty.add', defaultMessage: 'Add record' }
+    add: { id: 'content.records.empty.add', defaultMessage: 'Add record' },
+    trashTitle: {
+        id: 'content.records.empty.trash.title',
+        defaultMessage: 'Trash is empty'
+    },
+    trashDescription: {
+        id: 'content.records.empty.trash.description',
+        defaultMessage: 'Deleted records will appear here.'
+    }
 });
 
 /**
@@ -42,11 +50,14 @@ const messages = defineMessages({
  */
 export function CollectionRecordsEmpty({
     filtered,
+    trashed = false,
     onClear,
     onAdd
 }: {
     /** Whether a search/filter is currently narrowing the list. */
     filtered: boolean;
+    /** Whether this is the trash view (changes the unfiltered empty copy). */
+    trashed?: boolean;
     /** Clears the search + filter. */
     onClear: () => void;
     /** Opens the create flow. Omitted when the user lacks create permission. */
@@ -54,23 +65,26 @@ export function CollectionRecordsEmpty({
 }) {
     const intl = useIntl();
 
+    const title = filtered
+        ? messages.filteredTitle
+        : trashed
+          ? messages.trashTitle
+          : messages.emptyTitle;
+    const description = filtered
+        ? messages.filteredDescription
+        : trashed
+          ? messages.trashDescription
+          : messages.emptyDescription;
+
     return (
         <Empty className="border">
             <EmptyHeader>
                 <EmptyMedia variant="icon">
                     <Inbox />
                 </EmptyMedia>
-                <EmptyTitle>
-                    {intl.formatMessage(
-                        filtered ? messages.filteredTitle : messages.emptyTitle
-                    )}
-                </EmptyTitle>
+                <EmptyTitle>{intl.formatMessage(title)}</EmptyTitle>
                 <EmptyDescription>
-                    {intl.formatMessage(
-                        filtered
-                            ? messages.filteredDescription
-                            : messages.emptyDescription
-                    )}
+                    {intl.formatMessage(description)}
                 </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>

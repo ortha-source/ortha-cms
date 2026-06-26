@@ -29,7 +29,7 @@ const SegmentedControl = React.forwardRef<
         ref={ref}
         type="single"
         className={cn(
-            'inline-flex items-center gap-0.5 rounded-xl border bg-background p-1',
+            'inline-flex items-center gap-0.5 rounded-xl border bg-background p-1 aria-invalid:border-destructive',
             className
         )}
         {...props}

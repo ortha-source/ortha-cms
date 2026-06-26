@@ -119,6 +119,36 @@ export const CONTENT_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 admin: { label: 'Price' }
             }
         ]
+    },
+    home: {
+        name: 'home',
+        kind: 'single',
+        label: 'Home',
+        path: '/',
+        fields: [
+            {
+                name: 'heading',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Heading' }
+            }
+        ]
+    },
+    about: {
+        name: 'about',
+        kind: 'single',
+        label: 'About',
+        path: '/about',
+        fields: [
+            {
+                name: 'heading',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Heading' }
+            }
+        ]
     }
 };
 
@@ -410,5 +440,114 @@ export async function mockContentEntries(
                 pageSize
             })
         });
+    });
+}
+
+/** A JSON 200 fulfilment helper for the write mocks. */
+function json(route: import('@playwright/test').Route, body: unknown, status = 200) {
+    return route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(body)
+    });
+}
+
+/**
+ * Stub the entry **write** API the editor, row menu, and selection bar drive:
+ * read-one (`GET /api/content/:name/:id`), create (`POST /api/content/:name`),
+ * update (`PATCH`), publish/unpublish/restore, soft/permanent delete, and the
+ * `/bulk/...` routes. Deterministic echoes — enough for the admin to navigate,
+ * toast, and invalidate. The create route `fallback()`s non-POST requests so the
+ * single-segment list mock ({@link mockContentEntries}) still handles `GET`.
+ * Register alongside the list mocks for any test that edits or acts on entries.
+ */
+export async function mockContentEntryWrites(
+    page: Page,
+    { details = CONTENT_DETAIL_SEED }: ContentEntriesOptions = {}
+): Promise<void> {
+    const now = '2026-01-01T00:00:00.000Z';
+
+    // Multi-segment routes: read-one, item writes, and bulk.
+    await page.route(/\/api\/content\/[^/?]+\/.+/, async (route) => {
+        const req = route.request();
+        const method = req.method();
+        const parts = new URL(req.url()).pathname.split('/').filter(Boolean);
+        // ['api','content',name,id|'bulk', action?, sub?]
+        const name = decodeURIComponent(parts[2] ?? '');
+        const id = decodeURIComponent(parts[3] ?? '');
+        const action = parts[4];
+        const detail = details[name];
+        const body = (req.postDataJSON?.() ?? {}) as {
+            ids?: string[];
+            values?: Record<string, unknown>;
+        };
+
+        if (id === 'bulk') {
+            const ids = body.ids ?? [];
+            if (action === 'publish' && parts[5] === 'preview') {
+                return json(route, {
+                    items: ids.map((entryId) => ({
+                        id: entryId,
+                        title: entryId,
+                        status: 'draft',
+                        verdict: 'publishable',
+                        issues: []
+                    }))
+                });
+            }
+            if (action === 'publish') {
+                return json(route, { published: ids, skipped: [] });
+            }
+            // unpublish / delete / restore / purge
+            return json(route, { count: ids.length });
+        }
+
+        const record = (status: 'draft' | 'published') => ({
+            id,
+            ...(detail?.publishable ? { status } : {}),
+            createdAt: now,
+            updatedAt: now,
+            values:
+                body.values ??
+                detail?.fields.reduce<Record<string, unknown>>((acc, f) => {
+                    acc[f.name] = valueFor(f, 0);
+                    return acc;
+                }, {}) ??
+                {}
+        });
+
+        if (method === 'GET') return json(route, record('draft'));
+        if (method === 'PATCH') return json(route, record('draft'));
+        if (method === 'DELETE') return route.fulfill({ status: 204, body: '' });
+        if (method === 'POST') {
+            // publish → published; unpublish/restore → draft
+            return json(route, record(action === 'publish' ? 'published' : 'draft'), 201);
+        }
+        return route.fallback();
+    });
+
+    // Create lives on the single-segment path the list mock also owns; only
+    // claim POST and defer everything else to the list mock.
+    await page.route(/\/api\/content\/[^/?]+(\?.*)?$/, async (route) => {
+        const req = route.request();
+        if (req.method() !== 'POST') return route.fallback();
+        const name = decodeURIComponent(
+            new URL(req.url()).pathname.split('/').pop() ?? ''
+        ).split('?')[0];
+        const detail = details[name];
+        const body = (req.postDataJSON?.() ?? {}) as {
+            values?: Record<string, unknown>;
+        };
+        return json(
+            route,
+            {
+                id: `${name}-new`,
+                ...(detail?.publishable ? { status: 'draft' } : {}),
+                createdAt: now,
+                updatedAt: now,
+                values: body.values ?? {}
+            },
+            201
+        );
     });
 }

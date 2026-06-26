@@ -83,7 +83,7 @@ function DatePicker({
                     disabled={disabled}
                     onBlur={onBlur}
                     className={cn(
-                        'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground',
+                        'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
                         className
                     )}
                 >
@@ -171,7 +171,7 @@ function DateTimePicker({
                     disabled={disabled}
                     onBlur={onBlur}
                     className={cn(
-                        'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground',
+                        'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
                         className
                     )}
                 >

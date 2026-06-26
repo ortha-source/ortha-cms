@@ -21,10 +21,13 @@ singletons live in one place instead of inside `bootstrap-admin`.
 - `queryClient` — the app's single TanStack Query `QueryClient`. The host wires
   it into `QueryClientProvider`; plugins use `useQuery`/`useMutation`.
 - `ApiError` / `toApiError(error)` — a normalized transport error carrying
-  `status: number | null` (`null` for a network failure). `toApiError` unwraps
-  an axios error so call sites never touch axios internals. **Transport only** —
-  it carries the status, not domain meaning; the consumer decides what a code
-  means (e.g. identity treats `401` as invalid credentials).
+  `status: number | null` (`null` for a network failure) and `details` (the
+  parsed response body when the server responded, else `undefined`). `toApiError`
+  unwraps an axios error so call sites never touch axios internals. **Transport
+  only** — it carries the status + raw body, not domain meaning; the consumer
+  decides what a code means and narrows `details` to its endpoint's error shape
+  (e.g. identity treats `401` as invalid credentials; content-admin reads a
+  422's `details.issues` to map field errors).
 - `HTTP_STATUS` — named status codes (`UNAUTHORIZED`, `FORBIDDEN`,
   `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
   bare `401`.

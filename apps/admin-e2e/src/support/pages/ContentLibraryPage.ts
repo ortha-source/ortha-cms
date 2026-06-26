@@ -127,6 +127,18 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('button', { name: 'Add record' });
     }
 
+    /** The entry editor's primary action button (label varies by type/state). */
+    get editorSave(): Locator {
+        return this.page.getByRole('button', {
+            name: /^(Save|Save draft|Save & publish|Publish)$/
+        });
+    }
+
+    /** The entry editor's "Back to records" link (present when editing a row). */
+    get editorBackLink(): Locator {
+        return this.page.getByRole('link', { name: 'Back to records' });
+    }
+
     /** The column-picker trigger. */
     get columnsButton(): Locator {
         return this.page.getByRole('button', { name: 'Columns' });

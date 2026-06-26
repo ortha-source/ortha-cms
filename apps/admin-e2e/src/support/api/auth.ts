@@ -46,7 +46,11 @@ const ALL_PERMISSIONS = [
     'users:update',
     'users:delete',
     'activity:read',
-    'content:read'
+    'content:read',
+    'content:create',
+    'content:update',
+    'content:publish',
+    'content:delete'
 ];
 
 /**
