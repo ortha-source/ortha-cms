@@ -38,7 +38,6 @@ const messages = defineMessages({
         id: 'content.sidebar.statusNew',
         defaultMessage: 'Not saved yet'
     },
-    signedBy: { id: 'content.sidebar.signedBy', defaultMessage: 'Signed by' },
     created: { id: 'content.sidebar.created', defaultMessage: 'Created' },
     updated: { id: 'content.sidebar.updated', defaultMessage: 'Last updated' },
     entryId: { id: 'content.sidebar.entryId', defaultMessage: 'Entry ID' },
@@ -68,8 +67,8 @@ const DETAILS_ID = 'entry-sidebar-details';
 /**
  * The entry editor's right rail — a **single** panel (not separate cards) that
  * holds the primary actions (Save / Save & publish) at the top and,
- * below a separator, a **collapsible Details** block: status, who signed it off,
- * created / last-updated timestamps, and the entry id. The Details toggle lives
+ * below a separator, a **collapsible Details** block: status, created /
+ * last-updated timestamps, and the entry id. The Details toggle lives
  * inside the panel; the actions stay visible regardless. Borderless except for a
  * single left divider, it sits flush beside the content as a full-height pane.
  */
@@ -183,9 +182,6 @@ export function EntrySidebar({
                                 {intl.formatMessage(statusLabel)}
                             </Badge>
                         )}
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.signedBy)}>
-                        <span className="text-muted-foreground">{dash}</span>
                     </MetaRow>
                     <MetaRow label={intl.formatMessage(messages.created)}>
                         {fmt(entry?.createdAt)}

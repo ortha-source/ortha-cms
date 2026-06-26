@@ -110,7 +110,9 @@ export function EntryFieldInput({
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
     const admin = adminProps(field);
-    const description = admin.description;
+    // The error message takes the description's place, so suppress the hint
+    // (and any type-specific fallback hint below) whenever the field is invalid.
+    const description = error ? undefined : admin.description;
     const optional = !field.required
         ? intl.formatMessage(messages.optional)
         : undefined;
@@ -231,7 +233,7 @@ export function EntryFieldInput({
                         onChange={(event) => onChange(event.target.value)}
                         onBlur={onBlur}
                     />
-                    {(description || isJson) && (
+                    {!error && (description || isJson) && (
                         <FieldDescription>
                             {description ??
                                 (isJson
@@ -266,10 +268,14 @@ export function EntryFieldInput({
                             }
                             onBlur={onBlur}
                         />
-                        <FieldDescription>
-                            {description ??
-                                intl.formatMessage(messages.relationManyHint)}
-                        </FieldDescription>
+                        {!error && (
+                            <FieldDescription>
+                                {description ??
+                                    intl.formatMessage(
+                                        messages.relationManyHint
+                                    )}
+                            </FieldDescription>
+                        )}
                         {error && <FieldError>{error}</FieldError>}
                     </Field>
                 );
@@ -280,7 +286,10 @@ export function EntryFieldInput({
                     label={label}
                     value={asText(value)}
                     description={
-                        description ?? intl.formatMessage(messages.relationHint)
+                        error
+                            ? undefined
+                            : (description ??
+                              intl.formatMessage(messages.relationHint))
                     }
                     error={error}
                     onChange={(event) => onChange(event.target.value)}
