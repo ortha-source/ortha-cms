@@ -139,7 +139,10 @@ export function EntryEditor({
             className="flex min-h-0 flex-1 flex-col lg:flex-row"
             onSubmit={(event) => {
                 event.preventDefault();
-                save(false)();
+                // Submitting (e.g. Enter) runs the primary action — publish for
+                // a publishable type, otherwise a plain save — so it matches the
+                // visually-primary button rather than silently saving a draft.
+                save(publishable)();
             }}
         >
             {/* Main column: title + tabs. The card itself is flush (no padding);

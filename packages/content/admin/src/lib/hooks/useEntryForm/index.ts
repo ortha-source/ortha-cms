@@ -13,10 +13,6 @@ export type EntryFormState = {
     setValue: (name: string, value: unknown) => void;
     /** Mark a field touched (typically on blur) so its error can show. */
     touch: (name: string) => void;
-    /** Whether any value differs from the initial values. */
-    isDirty: boolean;
-    /** Whether the values currently pass validation. */
-    isValid: boolean;
     /**
      * Validate and, if clean, hand the values to `onValid`. Otherwise reveals
      * every field's error. Returns whether it submitted.
@@ -70,9 +66,6 @@ export function useEntryForm(
         [submitted, touched, errors]
     );
 
-    const isDirty = values !== seededFrom;
-    const isValid = Object.keys(errors).length === 0;
-
     const submit = useCallback(
         (onValid: (values: Record<string, unknown>) => void) => {
             setSubmitted(true);
@@ -83,5 +76,5 @@ export function useEntryForm(
         [errors, values]
     );
 
-    return { values, errorFor, setValue, touch, isDirty, isValid, submit };
+    return { values, errorFor, setValue, touch, submit };
 }

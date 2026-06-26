@@ -21,10 +21,6 @@ import { CONTENT_FIELD_TYPE } from '../../constants';
 import { DateField } from './DateField';
 
 const messages = defineMessages({
-    optional: {
-        id: 'content.form.optional',
-        defaultMessage: 'Optional'
-    },
     selectPlaceholder: {
         id: 'content.form.selectPlaceholder',
         defaultMessage: 'Select…'
@@ -113,9 +109,6 @@ export function EntryFieldInput({
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
     const description = error ? undefined : admin.description;
-    const optional = !field.required
-        ? intl.formatMessage(messages.optional)
-        : undefined;
 
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Boolean:
@@ -157,14 +150,21 @@ export function EntryFieldInput({
                     <FieldLabel htmlFor={id}>{label}</FieldLabel>
                     <Select
                         value={asText(value) || undefined}
-                        onValueChange={onChange}
+                        onValueChange={(next) => {
+                            onChange(next);
+                            onBlur?.();
+                        }}
                     >
                         <SelectTrigger
                             id={id}
                             aria-invalid={!!error}
                             className={FLAT}
                         >
-                            <SelectValue placeholder={optional ?? label} />
+                            <SelectValue
+                                placeholder={intl.formatMessage(
+                                    messages.selectPlaceholder
+                                )}
+                            />
                         </SelectTrigger>
                         <SelectContent>
                             {(field.options ?? []).map((option) => (
@@ -194,7 +194,10 @@ export function EntryFieldInput({
                         id={id}
                         options={options}
                         value={selected}
-                        onChange={onChange}
+                        onChange={(next) => {
+                            onChange(next);
+                            onBlur?.();
+                        }}
                         invalid={!!error}
                         placeholder={intl.formatMessage(
                             messages.selectPlaceholder
@@ -299,24 +302,6 @@ export function EntryFieldInput({
             );
         }
 
-        case CONTENT_FIELD_TYPE.Number:
-        case CONTENT_FIELD_TYPE.Money:
-            return (
-                <InputField
-                    id={id}
-                    type="number"
-                    inputMode="decimal"
-                    label={label}
-                    value={asText(value)}
-                    description={description}
-                    placeholder={admin.placeholder}
-                    error={error}
-                    onChange={(event) => onChange(event.target.value)}
-                    onBlur={onBlur}
-                    className={FLAT}
-                />
-            );
-
         case CONTENT_FIELD_TYPE.Date:
         case CONTENT_FIELD_TYPE.Datetime:
             return (
@@ -337,8 +322,15 @@ export function EntryFieldInput({
                 </Field>
             );
 
+        case CONTENT_FIELD_TYPE.Number:
+        case CONTENT_FIELD_TYPE.Money:
         case CONTENT_FIELD_TYPE.Text:
-        default:
+        default: {
+            // Number/money use a numeric input; text (and any unlisted type)
+            // a plain one — otherwise the same single-line composite field.
+            const numeric =
+                field.type === CONTENT_FIELD_TYPE.Number ||
+                field.type === CONTENT_FIELD_TYPE.Money;
             return (
                 <InputField
                     id={id}
@@ -350,7 +342,11 @@ export function EntryFieldInput({
                     onChange={(event) => onChange(event.target.value)}
                     onBlur={onBlur}
                     className={FLAT}
+                    {...(numeric
+                        ? { type: 'number', inputMode: 'decimal' as const }
+                        : {})}
                 />
             );
+        }
     }
 }

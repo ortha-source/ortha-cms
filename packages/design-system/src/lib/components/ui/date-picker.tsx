@@ -153,6 +153,9 @@ function DateTimePicker({
     };
 
     const setTime = (time: string) => {
+        // A native time input yields '' when cleared. A datetime always needs a
+        // time, so ignore an empty value rather than coercing it to midnight.
+        if (!time) return;
         onChange(withTimeOf(value ?? new Date(), time));
     };
 

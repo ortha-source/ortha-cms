@@ -177,13 +177,24 @@ function checkField(
     }
 }
 
+/**
+ * Compiled-pattern cache: validation runs on every keystroke across the whole
+ * form, so compile each `pattern` once and reuse it (`null` = uncompilable).
+ */
+const patternCache = new Map<string, RegExp | null>();
+
 /** Tests `value` against `pattern`, treating an unparseable pattern as a pass. */
 function safeMatch(pattern: string, value: string): boolean {
-    try {
-        return new RegExp(pattern).test(value);
-    } catch {
-        return true;
+    let regex = patternCache.get(pattern);
+    if (regex === undefined) {
+        try {
+            regex = new RegExp(pattern);
+        } catch {
+            regex = null;
+        }
+        patternCache.set(pattern, regex);
     }
+    return regex ? regex.test(value) : true;
 }
 
 /** Whether a value is valid JSON: an already-parsed value, or a parsable string. */

@@ -104,6 +104,11 @@ export function EntrySidebar({
         : published
           ? messages.statusPublished
           : messages.statusDraft;
+    const statusVariant = isCreate
+        ? 'outline'
+        : published
+          ? 'default'
+          : 'secondary';
 
     return (
         <aside
@@ -168,34 +173,30 @@ export function EntrySidebar({
                 />
             </button>
 
-            {detailsOpen ? (
-                <dl id={DETAILS_ID} className="flex flex-col gap-3">
-                    <MetaRow label={intl.formatMessage(messages.status)}>
-                        {isCreate ? (
-                            <Badge variant="outline">
-                                {intl.formatMessage(statusLabel)}
-                            </Badge>
-                        ) : (
-                            <Badge
-                                variant={published ? 'default' : 'secondary'}
-                            >
-                                {intl.formatMessage(statusLabel)}
-                            </Badge>
-                        )}
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.created)}>
-                        {fmt(entry?.createdAt)}
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.updated)}>
-                        {fmt(entry?.updatedAt)}
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.entryId)}>
-                        <span className="break-all font-mono text-xs text-muted-foreground">
-                            {entry?.id ?? dash}
-                        </span>
-                    </MetaRow>
-                </dl>
-            ) : null}
+            {/* Kept mounted (toggled with `hidden`) so the toggle's
+                aria-controls always resolves to a real element. */}
+            <dl
+                id={DETAILS_ID}
+                hidden={!detailsOpen}
+                className="flex flex-col gap-3"
+            >
+                <MetaRow label={intl.formatMessage(messages.status)}>
+                    <Badge variant={statusVariant}>
+                        {intl.formatMessage(statusLabel)}
+                    </Badge>
+                </MetaRow>
+                <MetaRow label={intl.formatMessage(messages.created)}>
+                    {fmt(entry?.createdAt)}
+                </MetaRow>
+                <MetaRow label={intl.formatMessage(messages.updated)}>
+                    {fmt(entry?.updatedAt)}
+                </MetaRow>
+                <MetaRow label={intl.formatMessage(messages.entryId)}>
+                    <span className="break-all font-mono text-xs text-muted-foreground">
+                        {entry?.id ?? dash}
+                    </span>
+                </MetaRow>
+            </dl>
         </aside>
     );
 }
