@@ -1,9 +1,15 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { useParams } from 'react-router-dom';
 import { FileText, History, Search, Table2, Trash2 } from 'lucide-react';
 import { cn } from '@ortha-cms/design-system';
 import type { ContentType } from '../../types/contentType';
 import type { ContentFavorites } from '../../hooks/useContentFavorites';
-import { HISTORY_SEGMENT, TRASH_SEGMENT } from '../../constants';
+import {
+    CONTENT_TYPE_KIND,
+    HISTORY_SEGMENT,
+    TRASH_SEGMENT,
+    TYPE_PARAM
+} from '../../constants';
 import { groupContentTypes } from '../../utils/groupContentTypes';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContentSidebarItem } from './ContentSidebarItem';
@@ -82,6 +88,16 @@ export function ContentSidebar({
 }: ContentSidebarProps) {
     const intl = useIntl();
     const { collections, pages } = groupContentTypes(types);
+
+    // Open the group that holds the currently-selected type by default, so
+    // deep-linking straight to a collection/page reveals it in the sidebar.
+    // Falls back to Collections open when nothing (or a non-type route) is open.
+    const selectedName = useParams()[TYPE_PARAM];
+    const selectedType = types.find((type) => type.name === selectedName);
+    const collectionsOpen = selectedType
+        ? selectedType.kind === CONTENT_TYPE_KIND.Collection
+        : true;
+    const pagesOpen = selectedType?.kind === CONTENT_TYPE_KIND.Single;
     // Favorites in pin order, dropping any names no longer in the catalogue.
     const favoriteTypes = favorites.favorites
         .map((name) => types.find((type) => type.name === name))
@@ -147,6 +163,7 @@ export function ContentSidebar({
                             )}
                             icon={Table2}
                             count={collections.length}
+                            defaultOpen={collectionsOpen}
                         >
                             {collections.map(renderItem)}
                         </CollapsibleGroup>
@@ -155,6 +172,7 @@ export function ContentSidebar({
                             label={intl.formatMessage(messages.pagesGroup)}
                             icon={FileText}
                             count={pages.length}
+                            defaultOpen={pagesOpen}
                         >
                             {pages.map(renderItem)}
                         </CollapsibleGroup>

@@ -26,7 +26,10 @@
     --color-destructive: oklch(0.577 0.245 27.325);
     --color-destructive-foreground: oklch(0.985 0 0);
     --color-border: oklch(0.922 0 0);
-    --color-input: oklch(0.922 0 0);
+    /* Darker than --color-border so form controls (inputs, select triggers,
+       textareas via `border-input`) read as clearly editable against the white
+       background, without darkening structural card/divider borders. */
+    --color-input: oklch(0.85 0 0);
     --color-ring: oklch(0.708 0 0);
 
     /* Active-status green (spec #16a34a) — a generic status dot, reusable for
@@ -61,10 +64,16 @@
     * {
         @apply border-border;
     }
+    html {
+        /* The shell + work-area islands own their own scrolling, so the page
+           itself never scrolls — clip overflow at the root rather than letting a
+           child push the whole document. */
+        @apply overflow-hidden;
+    }
     body {
         @apply bg-background text-foreground;
     }
     #root {
-        @apply min-h-svh;
+        @apply min-h-svh overflow-x-hidden;
     }
 }

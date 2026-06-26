@@ -1,7 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Badge,
     Container,
     Empty,
     EmptyDescription,
@@ -9,26 +8,14 @@ import {
     EmptyMedia,
     EmptyTitle
 } from '@ortha-cms/design-system';
-import { FileQuestion, Inbox } from 'lucide-react';
+import { FileQuestion } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
 import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../constants';
 import { CollectionRecordsView } from '../CollectionRecordsView';
+import { ContentEntryView } from '../ContentEntryView';
 
 /** Intl descriptors for the selected-type view, co-located here. */
 const messages = defineMessages({
-    pageBadge: {
-        id: 'content.type.pageBadge',
-        defaultMessage: 'Page'
-    },
-    entriesComingSoonTitle: {
-        id: 'content.type.entriesComingSoonTitle',
-        defaultMessage: 'Entries coming soon'
-    },
-    entriesComingSoonBody: {
-        id: 'content.type.entriesComingSoonBody',
-        defaultMessage:
-            'Browsing and editing entries for this content type lands next.'
-    },
     unknownTitle: {
         id: 'content.type.unknownTitle',
         defaultMessage: 'Unknown content type'
@@ -46,10 +33,10 @@ type ContentTypeViewProps = {
 
 /**
  * The selected content type's pane, resolved from the `:typeName` route param
- * against the already-fetched catalogue (no re-fetch). For this milestone it
- * shows the type's header (label, kind badge, description) and an
- * "entries coming soon" placeholder; the entry list/editor lands later. An
- * unknown param renders a distinct not-found state.
+ * against the already-fetched catalogue (no re-fetch). A **collection** renders
+ * the records table; a **single** (page) renders its one-entry form directly
+ * ({@link ContentEntryView} in `single` mode). An unknown param renders a
+ * distinct not-found state.
  */
 export function ContentTypeView({ types }: ContentTypeViewProps) {
     const intl = useIntl();
@@ -76,39 +63,12 @@ export function ContentTypeView({ types }: ContentTypeViewProps) {
         );
     }
 
-    // Collections get the dynamic records table; singles (one-entry pages)
-    // keep the placeholder until their single-entry editor lands.
+    // Collections get the dynamic records table; a single (one-entry page)
+    // opens straight into its entry form (resolving its one row, or a blank
+    // create form when it has none).
     if (type.kind === CONTENT_TYPE_KIND.Collection) {
         return <CollectionRecordsView type={type} />;
     }
 
-    return (
-        <Container className="py-8">
-            <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-semibold tracking-[-0.01em]">
-                    {type.label}
-                </h1>
-                <Badge variant="secondary">
-                    {intl.formatMessage(messages.pageBadge)}
-                </Badge>
-            </div>
-            {type.description ? (
-                <p className="mt-1 text-muted-foreground">{type.description}</p>
-            ) : null}
-
-            <Empty className="mt-6">
-                <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                        <Inbox />
-                    </EmptyMedia>
-                    <EmptyTitle>
-                        {intl.formatMessage(messages.entriesComingSoonTitle)}
-                    </EmptyTitle>
-                    <EmptyDescription>
-                        {intl.formatMessage(messages.entriesComingSoonBody)}
-                    </EmptyDescription>
-                </EmptyHeader>
-            </Empty>
-        </Container>
-    );
+    return <ContentEntryView type={type} mode="single" />;
 }

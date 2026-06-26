@@ -12,7 +12,7 @@ import {
     DrawerContent,
     DrawerTitle
 } from '@ortha-cms/design-system';
-import { FilePlus2, FileText, History, PanelLeft, Trash2 } from 'lucide-react';
+import { History, PanelLeft, Trash2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import { useContentTypes } from '../../api/useContentTypes';
@@ -23,6 +23,7 @@ import { ContentSearchDialog } from '../../components/ContentSearchDialog';
 import { ContentTypeView } from '../../components/ContentTypeView';
 import { ContentWelcome } from '../../components/ContentWelcome';
 import { ContentComingSoon } from '../../components/ContentComingSoon';
+import { ContentEntryRoute } from '../../components/ContentEntryRoute';
 import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import {
@@ -61,22 +62,6 @@ const messages = defineMessages({
     trashBody: {
         id: 'content.trash.body',
         defaultMessage: 'Deleted entries will be recoverable here soon.'
-    },
-    createTitle: {
-        id: 'content.entry.createTitle',
-        defaultMessage: 'Create entry'
-    },
-    createBody: {
-        id: 'content.entry.createBody',
-        defaultMessage: 'The form for adding a new record lands next.'
-    },
-    entryTitle: {
-        id: 'content.entry.editTitle',
-        defaultMessage: 'Edit entry'
-    },
-    entryBody: {
-        id: 'content.entry.editBody',
-        defaultMessage: 'The entry editor lands next.'
     },
     openNav: {
         id: 'content.library.openNav',
@@ -249,33 +234,23 @@ export function ContentLibraryPage() {
                             path={`:${TYPE_PARAM}`}
                             element={<ContentTypeView types={scopedTypes} />}
                         />
-                        {/* Create + entry-detail stubs. The static `new`
-                            segment outranks `:entryId`, so the order is safe. */}
+                        {/* Create + entry-edit forms. The static `new` segment
+                            outranks `:entryId`, so the order is safe. */}
                         <Route
                             path={`:${TYPE_PARAM}/${NEW_SEGMENT}`}
                             element={
-                                <ContentComingSoon
-                                    icon={FilePlus2}
-                                    title={intl.formatMessage(
-                                        messages.createTitle
-                                    )}
-                                    description={intl.formatMessage(
-                                        messages.createBody
-                                    )}
+                                <ContentEntryRoute
+                                    types={scopedTypes}
+                                    mode="create"
                                 />
                             }
                         />
                         <Route
                             path={`:${TYPE_PARAM}/:${ENTRY_PARAM}`}
                             element={
-                                <ContentComingSoon
-                                    icon={FileText}
-                                    title={intl.formatMessage(
-                                        messages.entryTitle
-                                    )}
-                                    description={intl.formatMessage(
-                                        messages.entryBody
-                                    )}
+                                <ContentEntryRoute
+                                    types={scopedTypes}
+                                    mode="edit"
                                 />
                             }
                         />
@@ -338,7 +313,7 @@ function LibraryBoard({ children }: { children: ReactNode }) {
  */
 function ContentPane({ children }: { children?: ReactNode }) {
     return (
-        <div className="min-w-0 flex-1 overflow-y-auto rounded-xl border bg-background shadow-sm">
+        <div className="min-w-0 flex-1 overflow-auto rounded-xl border bg-background shadow-sm">
             {children}
         </div>
     );

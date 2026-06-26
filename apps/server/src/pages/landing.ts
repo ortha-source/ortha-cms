@@ -21,22 +21,75 @@ export const landing = single('landing', {
             required: true,
             minLength: 3,
             maxLength: 120,
-            admin: { label: 'Text' }
+            admin: {
+                label: 'Text',
+                description: 'The landing page headline (3–120 characters).',
+                placeholder: 'e.g. Welcome to Ortha'
+            }
         }),
-        richtext: field.richtext({ admin: { label: 'Richtext' } }),
-        number: field.number({ integer: true, min: 0, admin: { label: 'Number' } }),
-        money: field.money({ min: 0, admin: { label: 'Money' } }),
-        boolean: field.boolean({ required: true, admin: { label: 'Boolean' } }),
-        date: field.date({ admin: { label: 'Date' } }),
-        datetime: field.datetime({ admin: { label: 'Datetime' } }),
+        richtext: field.richtext({
+            admin: {
+                label: 'Richtext',
+                description: 'Intro copy shown beneath the headline.',
+                placeholder: 'Write the landing intro…'
+            }
+        }),
+        number: field.number({
+            integer: true,
+            min: 0,
+            admin: {
+                label: 'Number',
+                description: 'A non-negative whole number.',
+                placeholder: 'e.g. 3'
+            }
+        }),
+        money: field.money({
+            min: 0,
+            admin: {
+                label: 'Money',
+                description: 'An amount stored in minor units (cents).',
+                placeholder: 'e.g. 1999 for $19.99'
+            }
+        }),
+        boolean: field.boolean({
+            required: true,
+            admin: {
+                label: 'Boolean',
+                description: 'Toggle this section on or off.'
+            }
+        }),
+        date: field.date({
+            admin: {
+                label: 'Date',
+                description: 'A calendar date, no time of day.'
+            }
+        }),
+        datetime: field.datetime({
+            admin: {
+                label: 'Datetime',
+                description: 'A specific point in time (date and time).'
+            }
+        }),
         select: field.select({
             options: ['light', 'dark', 'auto'] as const,
-            admin: { label: 'Select' }
+            admin: {
+                label: 'Select',
+                description: 'Pick the default color theme.'
+            }
         }),
         multiselect: field.multiselect({
             options: ['hero', 'newsletter', 'banner', 'footer'] as const,
-            admin: { label: 'Multiselect' }
+            admin: {
+                label: 'Multiselect',
+                description: 'Choose which sections to render.'
+            }
         }),
-        json: field.json({ admin: { label: 'Json' } }),
+        json: field.json({
+            admin: {
+                label: 'Json',
+                description: 'Arbitrary structured data as raw JSON.',
+                placeholder: '{\n  "key": "value"\n}'
+            }
+        }),
     }
 });

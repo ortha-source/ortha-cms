@@ -9,11 +9,13 @@ palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
 table (search, query-builder filter, **click-to-sort headers**, a column picker with
 **drag-and-drop / keyboard reordering**, **row selection** with a select-all and
 a "{n} selected" bar, pagination, and an **Add record** action); selecting a
-**single** (page) still shows the
-"entries coming soon" placeholder until its single-entry editor lands. The entry
+**single** (page) opens its **entry editor** directly (its one row, or a blank
+create form). The entry
 list is **served by the API** (`useContentEntries` → `GET /api/content/:typeName`):
-search, query-builder filter, sort, and pagination all run server-side. Creating/
-opening an entry routes to a placeholder stub.
+search, query-builder filter, sort, and pagination all run server-side. Creating
+(`/new`) or opening (`/:entryId`) an entry renders the **`EntryEditor`** — a
+tabbed, schema-driven form (see below). Saving is **mocked** (`useSaveEntry`)
+until the entry-write API lands.
 
 ## Layout (the second sidebar)
 
@@ -26,9 +28,10 @@ the same `ContentSidebar` (passed a `className` override) moves into a left
 navigation (a `useLocation` effect) so tapping a type goes straight to its view.
 The routes are (`index` → `ContentWelcome`,
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
-create/edit placeholder stubs; the static `new` segment outranks the
-`:entryId` param). `ContentTypeView` branches on `kind`: a collection renders
-`CollectionRecordsView` (the records table), a single keeps the placeholder. The
+`ContentEntryRoute` (the create / edit editor); the static `new` segment
+outranks the `:entryId` param). `ContentTypeView` branches on `kind`: a
+collection renders `CollectionRecordsView` (the records table), a single renders
+`ContentEntryView` in `single` mode (its one-entry editor). The
 sidebar splits types via
 `groupContentTypes` into **collapsible** groups — **Favorites** (shown only when
 something is pinned), **Collections** (`kind: 'collection'`), **Pages**
@@ -86,8 +89,30 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   overridden to `max-w-none`) with a uniform 16px gutter (`p-4 sm:p-4`, overriding
   the Container's responsive padding); the table sits in a full-width bordered
   card with no padding of its own.
-- The design-system `command` + `collapsible` primitives this plugin relies on
-  were added there via the shadcn skill (consumed from `@ortha-cms/design-system`).
+- **Entry editor** (`/new`, `/:entryId`, and a single page): `ContentEntryView`
+  resolves the initial values per mode — `create` → blank; `edit` → the record
+  from the **records-list cache** (opened from the table; a cache miss shows a
+  notice, as there's no read-one API yet); `single` → the type's one row via the
+  list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
+  form state (`useEntryForm`, with client validation in `utils/validateEntryValues`
+  mirroring the server's rules) and lays out a title header, a **full-width**
+  tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
+  `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
+  toggles/multi-choice; **Relations** = relation fields (empty state otherwise);
+  **Media** + **History** = placeholders; all four tabs always present), and a
+  single monolithic right rail (`EntrySidebar`) that owns the actions
+  (**Save & publish** / **Save draft** for publishable types, else **Save**, plus
+  Cancel) and a **collapsible Details** block (status, signed-by, created/updated,
+  id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
+  control per field type — `date`/`datetime` use a shadcn `Calendar` popover
+  (`EntryFieldInput/DateField`, with a time input for datetime), and
+  `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
+  rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
+  wide content scrolls inside the work-area island, not the page. Saving is mocked
+  (`useSaveEntry`) — no persistence/invalidation yet.
+- The design-system `command` + `collapsible` + `tabs` + `calendar` +
+  `multi-select` primitives this plugin relies on were added there via the
+  shadcn skill (consumed from `@ortha-cms/design-system`).
 
 ## Package
 
