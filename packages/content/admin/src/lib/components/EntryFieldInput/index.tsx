@@ -1,13 +1,13 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Checkbox,
     Field,
     FieldDescription,
     FieldError,
     FieldLabel,
     InputField,
-    Label,
     MultiSelect,
+    SegmentedControl,
+    SegmentedControlItem,
     Select,
     SelectContent,
     SelectItem,
@@ -50,8 +50,19 @@ const messages = defineMessages({
     jsonHint: {
         id: 'content.form.jsonHint',
         defaultMessage: 'Raw JSON.'
+    },
+    enabled: {
+        id: 'content.form.enabled',
+        defaultMessage: 'Enabled'
+    },
+    disabled: {
+        id: 'content.form.disabled',
+        defaultMessage: 'Disabled'
     }
 });
+
+/** Segment values for the boolean enabled/disabled control. */
+const BOOL_SEGMENT = { On: 'on', Off: 'off' } as const;
 
 /** Flat controls — the field surfaces carry a border, never a shadow. */
 const FLAT = 'shadow-none';
@@ -76,8 +87,9 @@ function asText(value: unknown): string {
 /**
  * Renders the right control for one content field, driven by `field.type`:
  * text/number/money/date/datetime/single-relation use the composite
- * {@link InputField}; richtext/json/many-relation use a `Textarea`; `boolean` a
- * `Checkbox`; `select` a `Select`; `multiselect` a checkbox group. Every control
+ * {@link InputField}; richtext/json/many-relation use a `Textarea`; `boolean` an
+ * Enabled/Disabled {@link SegmentedControl}; `select` a `Select`; `multiselect`
+ * the {@link MultiSelect}. Every control
  * is **flat** (border, no shadow). Fully controlled — the form owns
  * `value`/`error`; this is presentation only.
  */
@@ -107,19 +119,29 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Boolean:
             return (
                 <Field data-invalid={!!error}>
-                    <div className="flex items-center gap-2">
-                        <Checkbox
-                            id={id}
-                            checked={value === true}
-                            onCheckedChange={(checked) =>
-                                onChange(checked === true)
-                            }
-                            onBlur={onBlur}
-                            aria-invalid={!!error}
-                            className={FLAT}
-                        />
-                        <Label htmlFor={id}>{label}</Label>
-                    </div>
+                    <FieldLabel id={`${id}-label`}>{label}</FieldLabel>
+                    <SegmentedControl
+                        aria-labelledby={`${id}-label`}
+                        aria-invalid={!!error}
+                        value={
+                            value === true
+                                ? BOOL_SEGMENT.On
+                                : BOOL_SEGMENT.Off
+                        }
+                        onValueChange={(next) => {
+                            // Radix clears the value when the active item is
+                            // re-pressed; ignore that so the field stays set.
+                            if (next) onChange(next === BOOL_SEGMENT.On);
+                            onBlur?.();
+                        }}
+                    >
+                        <SegmentedControlItem value={BOOL_SEGMENT.On}>
+                            {intl.formatMessage(messages.enabled)}
+                        </SegmentedControlItem>
+                        <SegmentedControlItem value={BOOL_SEGMENT.Off}>
+                            {intl.formatMessage(messages.disabled)}
+                        </SegmentedControlItem>
+                    </SegmentedControl>
                     {description && (
                         <FieldDescription>{description}</FieldDescription>
                     )}

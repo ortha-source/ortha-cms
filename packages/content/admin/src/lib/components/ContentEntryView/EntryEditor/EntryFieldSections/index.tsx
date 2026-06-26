@@ -1,105 +1,46 @@
-import { defineMessages, useIntl } from 'react-intl';
-import type { MessageDescriptor } from 'react-intl';
 import {
     Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
+    CardContent
 } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../constants';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { EntryFieldInput } from '../../../EntryFieldInput';
 
-const messages = defineMessages({
-    detailsTitle: {
-        id: 'content.form.section.detailsTitle',
-        defaultMessage: 'Details'
-    },
-    detailsBody: {
-        id: 'content.form.section.detailsBody',
-        defaultMessage: 'The core fields for this record.'
-    },
-    contentTitle: {
-        id: 'content.form.section.contentTitle',
-        defaultMessage: 'Content'
-    },
-    contentBody: {
-        id: 'content.form.section.contentBody',
-        defaultMessage: 'Long-form text and structured data.'
-    },
-    optionsTitle: {
-        id: 'content.form.section.optionsTitle',
-        defaultMessage: 'Options'
-    },
-    optionsBody: {
-        id: 'content.form.section.optionsBody',
-        defaultMessage: 'Toggles and multi-choice selections.'
-    }
-});
-
-/** A field group: which field types it holds, its copy, and its layout. */
-type SectionDef = {
-    key: string;
-    title: MessageDescriptor;
-    body: MessageDescriptor;
-    types: ReadonlySet<string>;
-    /** Short single-line controls flow into a 2-column grid; the rest stack. */
-    grid: boolean;
+/**
+ * Field ordering and layout, by control shape. Fields flow top-to-bottom in
+ * three tiers by `rank`:
+ *   0 — simple inputs (text, number, money, date, datetime)
+ *   1 — choice controls (select, boolean, multi-select)
+ *   2 — large fields (rich text, JSON)
+ * Everything but the large fields shares a two-column grid; large fields span
+ * the full row (`full`). Types not listed fall to the bottom as full-width — a
+ * safe default for any new field type.
+ */
+const FIELD_LAYOUT: Record<string, { rank: number; full: boolean }> = {
+    [CONTENT_FIELD_TYPE.Text]: { rank: 0, full: false },
+    [CONTENT_FIELD_TYPE.Number]: { rank: 0, full: false },
+    [CONTENT_FIELD_TYPE.Money]: { rank: 0, full: false },
+    [CONTENT_FIELD_TYPE.Date]: { rank: 0, full: false },
+    [CONTENT_FIELD_TYPE.Datetime]: { rank: 0, full: false },
+    [CONTENT_FIELD_TYPE.Select]: { rank: 1, full: false },
+    [CONTENT_FIELD_TYPE.Boolean]: { rank: 1, full: false },
+    [CONTENT_FIELD_TYPE.Multiselect]: { rank: 1, full: false },
+    [CONTENT_FIELD_TYPE.RichText]: { rank: 2, full: true },
+    [CONTENT_FIELD_TYPE.Json]: { rank: 2, full: true }
 };
 
-/** The short, single-line scalar controls — laid out in a 2-column grid. */
-const SHORT_TYPES = new Set<string>([
-    CONTENT_FIELD_TYPE.Text,
-    CONTENT_FIELD_TYPE.Number,
-    CONTENT_FIELD_TYPE.Money,
-    CONTENT_FIELD_TYPE.Date,
-    CONTENT_FIELD_TYPE.Datetime,
-    CONTENT_FIELD_TYPE.Select
-]);
+const DEFAULT_LAYOUT = { rank: 3, full: true };
 
-/** Wide controls — full-width, stacked. */
-const LONG_TYPES = new Set<string>([
-    CONTENT_FIELD_TYPE.RichText,
-    CONTENT_FIELD_TYPE.Json
-]);
-
-/** Toggle / multi-choice controls. */
-const CHOICE_TYPES = new Set<string>([
-    CONTENT_FIELD_TYPE.Boolean,
-    CONTENT_FIELD_TYPE.Multiselect
-]);
-
-const SECTIONS: SectionDef[] = [
-    {
-        key: 'details',
-        title: messages.detailsTitle,
-        body: messages.detailsBody,
-        types: SHORT_TYPES,
-        grid: true
-    },
-    {
-        key: 'content',
-        title: messages.contentTitle,
-        body: messages.contentBody,
-        types: LONG_TYPES,
-        grid: false
-    },
-    {
-        key: 'options',
-        title: messages.optionsTitle,
-        body: messages.optionsBody,
-        types: CHOICE_TYPES,
-        grid: false
-    }
-];
+const layoutFor = (type: string) => FIELD_LAYOUT[type] ?? DEFAULT_LAYOUT;
 
 /**
- * The General tab body: the type's fields grouped by control shape into titled
- * {@link Card} sections — short scalars in a two-column grid ("Details"),
- * long-form text/JSON stacked ("Content"), and toggles/multi-choice ("Options").
- * Empty sections are dropped, so a type with only text fields shows one card.
+ * The General tab body: every editable field in **one** card, ordered top-to-
+ * bottom by control shape — simple inputs (text, number, dates) first, then
+ * choice controls (select, boolean, multi-select), then the large fields (rich
+ * text, JSON) last. No section headers: the order alone groups like with like.
+ * The layout is a single CSS grid — compact controls pack two-up, large fields
+ * break to their own full-width row (`sm:col-span-2`).
  * Relation fields are handled by their own tab and excluded by the caller.
  */
 export function EntryFieldSections({
@@ -109,48 +50,30 @@ export function EntryFieldSections({
     fields: ContentField[];
     form: EntryFormState;
 }) {
-    const intl = useIntl();
+    const ordered = [...fields].sort(
+        (a, b) => layoutFor(a.type).rank - layoutFor(b.type).rank
+    );
+
+    if (ordered.length === 0) return null;
 
     return (
-        <div className="flex flex-col gap-6">
-            {SECTIONS.map((section) => {
-                const sectionFields = fields.filter((field) =>
-                    section.types.has(field.type)
-                );
-                if (sectionFields.length === 0) return null;
-                return (
-                    <Card key={section.key} className="shadow-none">
-                        <CardHeader>
-                            <CardTitle className="text-base">
-                                {intl.formatMessage(section.title)}
-                            </CardTitle>
-                            <CardDescription>
-                                {intl.formatMessage(section.body)}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent
-                            className={
-                                section.grid
-                                    ? 'grid gap-x-4 gap-y-5 sm:grid-cols-2'
-                                    : 'flex flex-col gap-5'
-                            }
-                        >
-                            {sectionFields.map((field) => (
-                                <EntryFieldInput
-                                    key={field.name}
-                                    field={field}
-                                    value={form.values[field.name]}
-                                    error={form.errorFor(field.name)}
-                                    onChange={(value) =>
-                                        form.setValue(field.name, value)
-                                    }
-                                    onBlur={() => form.touch(field.name)}
-                                />
-                            ))}
-                        </CardContent>
-                    </Card>
-                );
-            })}
-        </div>
+        <Card className="shadow-none">
+            <CardContent className="grid gap-x-4 gap-y-5 pt-6 sm:grid-cols-2">
+                {ordered.map((field) => (
+                    <div
+                        key={field.name}
+                        className={layoutFor(field.type).full ? 'sm:col-span-2' : undefined}
+                    >
+                        <EntryFieldInput
+                            field={field}
+                            value={form.values[field.name]}
+                            error={form.errorFor(field.name)}
+                            onChange={(value) => form.setValue(field.name, value)}
+                            onBlur={() => form.touch(field.name)}
+                        />
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
     );
 }
