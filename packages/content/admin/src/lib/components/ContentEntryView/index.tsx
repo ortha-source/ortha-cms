@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -51,6 +51,10 @@ const messages = defineMessages({
     deleted: {
         id: 'content.entry.deleted',
         defaultMessage: '{label} deleted.'
+    },
+    actionError: {
+        id: 'content.entry.actionError',
+        defaultMessage: 'Something went wrong. Please try again.'
     }
 });
 
@@ -119,6 +123,11 @@ export function ContentEntryView({
 
     const save = useSaveEntry(type.name);
     const status = useEntryStatusActions(type.name);
+
+    // In create mode, remember the id returned by a successful create so that if
+    // the chained publish (or a later save) fails, a retry **updates** that draft
+    // instead of creating a second row.
+    const [createdId, setCreatedId] = useState<string | undefined>(undefined);
 
     // The single page's existing row (if any).
     const singleEntry = oneEntryQuery.data?.items[0];
@@ -206,10 +215,13 @@ export function ContentEntryView({
         values: Record<string, unknown>,
         options: { publish: boolean }
     ) => {
-        const saved = await save.mutateAsync({
-            id: resolved.entry?.id,
-            values
-        });
+        // Reuse the id of an existing row, or one we already created this
+        // session — so a save after a failed publish updates, never re-creates.
+        const existingId = resolved.entry?.id ?? createdId;
+        const saved = await save.mutateAsync({ id: existingId, values });
+        // Record the new id before chaining publish: if publish then fails, the
+        // draft persists and the user's retry must target it (not POST again).
+        if (!existingId) setCreatedId(saved.id);
         const willPublish = options.publish && publishable;
         if (willPublish) {
             await status.publish.mutateAsync(saved.id);
@@ -232,13 +244,16 @@ export function ContentEntryView({
     // row (not on create, not on a single page).
     const editId = mode === 'edit' ? resolved.entry?.id : undefined;
 
+    const onActionError = () =>
+        toast(intl.formatMessage(messages.actionError));
+
     const onUnpublish =
         editId && publishable
             ? () => {
                   status.unpublish
                       .mutateAsync(editId)
                       .then(() => entryQuery.refetch())
-                      .catch(() => undefined);
+                      .catch(onActionError);
               }
             : undefined;
 
@@ -254,7 +269,7 @@ export function ContentEntryView({
                       );
                       navigate(typePath);
                   })
-                  .catch(() => undefined);
+                  .catch(onActionError);
           }
         : undefined;
 

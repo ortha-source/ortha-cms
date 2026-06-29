@@ -51,6 +51,8 @@ type DatePickerProps = {
     invalid?: boolean;
     disabled?: boolean;
     onBlur?: () => void;
+    /** Ids of the hint/error elements describing the trigger. */
+    'aria-describedby'?: string;
     className?: string;
 };
 
@@ -67,6 +69,7 @@ function DatePicker({
     invalid,
     disabled,
     onBlur,
+    'aria-describedby': ariaDescribedby,
     className
 }: DatePickerProps) {
     const [open, setOpen] = React.useState(false);
@@ -80,6 +83,7 @@ function DatePicker({
                     variant="outline"
                     data-empty={!value}
                     aria-invalid={invalid}
+                    aria-describedby={ariaDescribedby}
                     disabled={disabled}
                     onBlur={onBlur}
                     className={cn(
@@ -139,6 +143,7 @@ function DateTimePicker({
     invalid,
     disabled,
     onBlur,
+    'aria-describedby': ariaDescribedby,
     className
 }: DateTimePickerProps) {
     const [open, setOpen] = React.useState(false);
@@ -168,6 +173,7 @@ function DateTimePicker({
                     variant="outline"
                     data-empty={!value}
                     aria-invalid={invalid}
+                    aria-describedby={ariaDescribedby}
                     disabled={disabled}
                     onBlur={onBlur}
                     className={cn(

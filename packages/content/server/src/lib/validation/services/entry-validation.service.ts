@@ -6,7 +6,11 @@
 
 import { Injectable } from '@nestjs/common';
 import type { AnyContentType } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
+import {
+    CONTENT_FIELD_TYPE,
+    isEmptyFieldValue,
+    type AnyFieldSpec
+} from '../../types/fields';
 
 /** One failed rule on one field. */
 export interface ValidationIssue {
@@ -49,14 +53,8 @@ function compiledPattern(pattern: string): RegExp {
     return re;
 }
 
-function isEmpty(value: unknown): boolean {
-    return (
-        value === undefined ||
-        value === null ||
-        (typeof value === 'string' && value.trim() === '') ||
-        (Array.isArray(value) && value.length === 0)
-    );
-}
+/** The shared empty-value test (see {@link isEmptyFieldValue}). */
+const isEmpty = isEmptyFieldValue;
 
 /** Validates one value against one field spec. */
 function checkField(

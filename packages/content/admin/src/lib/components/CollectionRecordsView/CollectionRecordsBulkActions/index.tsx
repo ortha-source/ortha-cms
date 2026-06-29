@@ -36,6 +36,11 @@ const messages = defineMessages({
         id: 'content.bulk.failed.toast',
         defaultMessage: 'That action didn’t work. Please try again.'
     },
+    noneAffected: {
+        id: 'content.bulk.noneAffected.toast',
+        defaultMessage:
+            'No records were changed — they may have already been updated elsewhere.'
+    },
     deleteTitle: {
         id: 'content.bulk.deleteTitle',
         defaultMessage:
@@ -103,9 +108,13 @@ export function CollectionRecordsBulkActions({
         mutateAsync(ids)
             .then((result) =>
                 toast(
-                    intl.formatMessage(messages[messageId], {
-                        count: result.count
-                    })
+                    // A 0 count means nothing matched (e.g. the rows changed in
+                    // another tab) — don't report "0 records …" as a success.
+                    result.count === 0
+                        ? intl.formatMessage(messages.noneAffected)
+                        : intl.formatMessage(messages[messageId], {
+                              count: result.count
+                          })
                 )
             )
             .catch(() => toast.error(intl.formatMessage(messages.failed)))

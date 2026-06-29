@@ -6,6 +6,10 @@ import type { EntryRecord } from '../../types/contentType';
 export const contentEntryKey = (name: string, id: string) =>
     ['content-entry', name, id] as const;
 
+/** Key prefix matching every read-one query for a type (for invalidation). */
+export const contentEntryPrefix = (name: string) =>
+    ['content-entry', name] as const;
+
 /**
  * Loads one entry from `GET /api/content/:name/:id`. 404s (unknown or
  * soft-deleted) surface as the normalized {@link ApiError}.

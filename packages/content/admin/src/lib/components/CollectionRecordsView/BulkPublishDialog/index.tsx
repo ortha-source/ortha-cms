@@ -52,6 +52,16 @@ const messages = defineMessages({
         defaultMessage:
             'Publish {count, plural, =0 {none} one {# valid} other {# valid}}'
     },
+    summaryReady: {
+        id: 'content.bulkPublish.summaryReady',
+        defaultMessage:
+            '{count, plural, one {# record will publish} other {# records will publish}}.'
+    },
+    summaryNone: {
+        id: 'content.bulkPublish.summaryNone',
+        defaultMessage:
+            'None of the selected records can be published — they’re already published or blocked.'
+    },
     result: {
         id: 'content.bulkPublish.result',
         defaultMessage:
@@ -203,11 +213,29 @@ export function BulkPublishDialog({
                         {intl.formatMessage(messages.error)}
                     </p>
                 ) : (
-                    <ul className="max-h-72 divide-y overflow-auto">
-                        {items.map((item) => (
-                            <VerdictRow key={item.id} item={item} />
-                        ))}
-                    </ul>
+                    <>
+                        <ul className="max-h-72 divide-y overflow-auto">
+                            {items.map((item) => (
+                                <VerdictRow key={item.id} item={item} />
+                            ))}
+                        </ul>
+                        {items.length > 0 && (
+                            // Announced summary so a screen-reader user learns the
+                            // outcome — and why the confirm button is disabled when
+                            // nothing is publishable — without scanning every row.
+                            <p
+                                role="status"
+                                className="text-sm text-muted-foreground"
+                            >
+                                {validCount === 0
+                                    ? intl.formatMessage(messages.summaryNone)
+                                    : intl.formatMessage(
+                                          messages.summaryReady,
+                                          { count: validCount }
+                                      )}
+                            </p>
+                        )}
+                    </>
                 )}
 
                 <DialogFooter>

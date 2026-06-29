@@ -10,6 +10,12 @@ import { validateEntryValues } from '../../utils/validateEntryValues';
 export type EntryFormState = {
     /** Current values, keyed by field name. */
     values: Record<string, unknown>;
+    /**
+     * The **strict** validation errors (required enforced), keyed by field name.
+     * Exposed so callers (e.g. the editor's publish gate) reuse this single
+     * computation rather than re-running validation over the same values.
+     */
+    errors: Record<string, string>;
     /** The error to show for a field (only once touched or after a submit). */
     errorFor: (name: string) => string | undefined;
     /** Set one field's value. */
@@ -17,10 +23,18 @@ export type EntryFormState = {
     /** Mark a field touched (typically on blur) so its error can show. */
     touch: (name: string) => void;
     /**
-     * Validate and, if clean, hand the values to `onValid`. Otherwise reveals
-     * every field's error. Returns whether it submitted.
+     * Validate **strictly** (required enforced) and, if clean, hand the values
+     * to `onValid`; otherwise reveal every field's error. For publish / saving an
+     * always-live type. Returns whether it submitted.
      */
     submit: (onValid: (values: Record<string, unknown>) => void) => boolean;
+    /**
+     * Validate with **required relaxed** (format only) and, if clean, hand the
+     * values to `onValid`; otherwise reveal every field's format error. For
+     * saving a publishable **draft** — incomplete is fine, but a malformed value
+     * is still gated before it reaches the server. Returns whether it submitted.
+     */
+    submitDraft: (onValid: (values: Record<string, unknown>) => void) => boolean;
     /**
      * Apply server-side validation issues (a 422 from the write API) onto the
      * form so they show inline on the right fields, even when client validation
@@ -44,6 +58,9 @@ export function useEntryForm(
     const [values, setValues] = useState(initialValues);
     const [touched, setTouched] = useState<Set<string>>(new Set());
     const [submitted, setSubmitted] = useState(false);
+    // A draft submit reveals format errors across all fields without nagging
+    // about empty required ones (distinct from the strict `submitted`).
+    const [draftSubmitted, setDraftSubmitted] = useState(false);
     // Field-keyed messages the server rejected the last save with.
     const [serverErrors, setServerErrorState] = useState<
         Record<string, string>
@@ -56,6 +73,7 @@ export function useEntryForm(
         setValues(initialValues);
         setTouched(new Set());
         setSubmitted(false);
+        setDraftSubmitted(false);
         setServerErrorState({});
     }
 
@@ -106,15 +124,16 @@ export function useEntryForm(
     const errorFor = useCallback(
         (name: string) =>
             // A server-rejected field wins; then a strict submit reveals full
-            // errors (incl. required); otherwise a touched field shows only its
-            // draft (format) error, so required never nags while editing.
+            // errors (incl. required); a draft submit (or a touched field)
+            // reveals only the draft (format) error, so required never nags
+            // while editing or saving a draft.
             serverErrors[name] ??
             (submitted
                 ? errors[name]
-                : touched.has(name)
+                : draftSubmitted || touched.has(name)
                   ? draftErrors[name]
                   : undefined),
-        [serverErrors, submitted, touched, errors, draftErrors]
+        [serverErrors, submitted, draftSubmitted, touched, errors, draftErrors]
     );
 
     const submit = useCallback(
@@ -127,5 +146,24 @@ export function useEntryForm(
         [errors, values]
     );
 
-    return { values, errorFor, setValue, touch, submit, setServerErrors };
+    const submitDraft = useCallback(
+        (onValid: (values: Record<string, unknown>) => void) => {
+            setDraftSubmitted(true);
+            if (Object.keys(draftErrors).length > 0) return false;
+            onValid(values);
+            return true;
+        },
+        [draftErrors, values]
+    );
+
+    return {
+        values,
+        errors,
+        errorFor,
+        setValue,
+        touch,
+        submit,
+        submitDraft,
+        setServerErrors
+    };
 }

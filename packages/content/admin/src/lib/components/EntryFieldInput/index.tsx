@@ -109,6 +109,10 @@ export function EntryFieldInput({
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
     const description = error ? undefined : admin.description;
+    // Associate the error with the control so a screen reader reads it on focus,
+    // not only when it first appears. (InputField wires its own id internally.)
+    const errorId = `${id}-error`;
+    const describedBy = error ? errorId : undefined;
 
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Boolean:
@@ -118,6 +122,7 @@ export function EntryFieldInput({
                     <SegmentedControl
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
+                        aria-describedby={describedBy}
                         value={
                             value === true
                                 ? BOOL_SEGMENT.On
@@ -140,7 +145,7 @@ export function EntryFieldInput({
                     {description && (
                         <FieldDescription>{description}</FieldDescription>
                     )}
-                    {error && <FieldError>{error}</FieldError>}
+                    {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
             );
 
@@ -158,6 +163,7 @@ export function EntryFieldInput({
                         <SelectTrigger
                             id={id}
                             aria-invalid={!!error}
+                            aria-describedby={describedBy}
                             className={FLAT}
                         >
                             <SelectValue
@@ -177,7 +183,7 @@ export function EntryFieldInput({
                     {description && (
                         <FieldDescription>{description}</FieldDescription>
                     )}
-                    {error && <FieldError>{error}</FieldError>}
+                    {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
             );
 
@@ -199,6 +205,7 @@ export function EntryFieldInput({
                             onBlur?.();
                         }}
                         invalid={!!error}
+                        aria-describedby={describedBy}
                         placeholder={intl.formatMessage(
                             messages.selectPlaceholder
                         )}
@@ -210,7 +217,7 @@ export function EntryFieldInput({
                     {description && (
                         <FieldDescription>{description}</FieldDescription>
                     )}
-                    {error && <FieldError>{error}</FieldError>}
+                    {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
             );
         }
@@ -232,6 +239,7 @@ export function EntryFieldInput({
                         rows={isJson ? 6 : 4}
                         className={isJson ? `${FLAT} font-mono text-xs` : FLAT}
                         aria-invalid={!!error}
+                        aria-describedby={describedBy}
                         placeholder={admin.placeholder}
                         onChange={(event) => onChange(event.target.value)}
                         onBlur={onBlur}
@@ -244,7 +252,7 @@ export function EntryFieldInput({
                                     : null)}
                         </FieldDescription>
                     )}
-                    {error && <FieldError>{error}</FieldError>}
+                    {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
             );
         }
@@ -261,6 +269,7 @@ export function EntryFieldInput({
                             rows={3}
                             className={`${FLAT} font-mono text-xs`}
                             aria-invalid={!!error}
+                            aria-describedby={describedBy}
                             onChange={(event) =>
                                 onChange(
                                     event.target.value
@@ -279,7 +288,7 @@ export function EntryFieldInput({
                                     )}
                             </FieldDescription>
                         )}
-                        {error && <FieldError>{error}</FieldError>}
+                        {error && <FieldError id={errorId}>{error}</FieldError>}
                     </Field>
                 );
             }
@@ -314,11 +323,12 @@ export function EntryFieldInput({
                         onBlur={onBlur}
                         withTime={field.type === CONTENT_FIELD_TYPE.Datetime}
                         invalid={!!error}
+                        aria-describedby={describedBy}
                     />
                     {description && (
                         <FieldDescription>{description}</FieldDescription>
                     )}
-                    {error && <FieldError>{error}</FieldError>}
+                    {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
             );
 

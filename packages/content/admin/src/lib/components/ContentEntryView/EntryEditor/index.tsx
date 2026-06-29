@@ -21,7 +21,6 @@ import type {
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
-import { validateEntryValues } from '../../../utils/validateEntryValues';
 import { fieldLabel } from '../../../utils/entryColumns';
 import { EntryFieldInput } from '../../EntryFieldInput';
 import { EntryFieldSections } from './EntryFieldSections';
@@ -145,19 +144,19 @@ export function EntryEditor({
 
     // The publish gate: each field that must hold to publish — every required
     // field, plus any field whose current value is invalid — with its live
-    // pass/fail. Computed from the strict (required-enforced) validation, so it
-    // mirrors exactly what the publish endpoint will check. Publishable only.
+    // pass/fail. Reuses the form's strict (required-enforced) errors, so it
+    // mirrors exactly what the publish endpoint will check without re-running
+    // validation over the same values. Publishable only.
     const gate = useMemo<PublishGateItem[]>(() => {
         if (!publishable) return [];
-        const errors = validateEntryValues(schema, form.values, intl);
         return visible
-            .filter((field) => field.required || errors[field.name])
+            .filter((field) => field.required || form.errors[field.name])
             .map((field) => ({
                 label: fieldLabel(field),
-                ok: !errors[field.name],
-                message: errors[field.name]
+                ok: !form.errors[field.name],
+                message: form.errors[field.name]
             }));
-    }, [publishable, schema, form.values, intl, visible]);
+    }, [publishable, form.errors, visible]);
 
     // A 422 from the server is mapped back onto the form as inline field errors;
     // other failures fall through to the mutation's own error handling.
@@ -166,14 +165,15 @@ export function EntryEditor({
             form.setServerErrors(entryIssuesFrom(error));
         });
 
-    // A **draft** of a publishable type can be saved incomplete, so it skips the
-    // client validation gate. Publishing — or any save of an always-live,
-    // non-publishable type — enforces the rules before submitting.
+    // A **draft** of a publishable type can be saved incomplete, so it uses the
+    // relaxed (format-only) gate — required isn't enforced, but a malformed value
+    // is still caught client-side. Publishing — or any save of an always-live,
+    // non-publishable type — enforces the full rules before submitting.
     const save = (publish: boolean) => () => {
         if (publish || !publishable) {
             form.submit(submitWith(publish));
         } else {
-            submitWith(publish)(form.values);
+            form.submitDraft(submitWith(publish));
         }
     };
 

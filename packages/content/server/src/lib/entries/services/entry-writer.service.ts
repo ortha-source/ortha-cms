@@ -121,6 +121,7 @@ export class EntryWriterService {
             } as never)
             .where(this.liveWhere(type, id))
             .returning();
+        if (!row) throw this.notFound(type, id);
         return toRecord(type, row as Row);
     }
 
@@ -194,7 +195,66 @@ export class EntryWriterService {
     ): Promise<BulkPublishPreview> {
         this.assertPublishable(type);
         const byId = await this.loadLiveByIds(type, ids);
-        const items = ids.map((id): BulkPublishVerdict => {
+        return { items: this.verdictsFor(type, ids, byId) };
+    }
+
+    /**
+     * Commit a bulk publish. The validation gate is **locked**: the candidate
+     * rows are selected `FOR UPDATE` and re-validated inside one transaction, so
+     * a concurrent edit can't invalidate a row between the dry run and the write
+     * (the single-statement preview-then-update split had that TOCTOU window).
+     * Publishes only the `publishable` ids, reporting which were skipped and why.
+     */
+    async bulkPublish(
+        type: AnyContentType,
+        ids: string[]
+    ): Promise<BulkPublishResult> {
+        this.assertPublishable(type);
+        if (!ids.length) return { published: [], skipped: [] };
+        const t = this.columns(type);
+        const deletedGuard = type.paranoid
+            ? isNull(t['deletedAt'])
+            : undefined;
+        return this.db.transaction(async (tx) => {
+            const rows = (await tx
+                .select()
+                .from(type.table)
+                .where(and(inArray(t['id'], ids), deletedGuard))
+                .for('update')) as Row[];
+            const byId = new Map(rows.map((row) => [row['id'] as string, row]));
+            const items = this.verdictsFor(type, ids, byId);
+            const published = items
+                .filter((item) => item.verdict === BULK_VERDICT.Publishable)
+                .map((item) => item.id);
+            if (published.length) {
+                await tx
+                    .update(type.table)
+                    .set({
+                        status: ENTRY_STATUS.Published,
+                        publishedAt: new Date(),
+                        updatedAt: new Date()
+                    } as never)
+                    .where(and(inArray(t['id'], published), deletedGuard));
+            }
+            const skipped = items
+                .filter((item) => item.verdict !== BULK_VERDICT.Publishable)
+                .map((item) => ({ id: item.id, reason: item.verdict }));
+            return { published, skipped };
+        });
+    }
+
+    /**
+     * Compute the per-entry publish verdict (will-publish / already-published /
+     * blocked / not-found) for `ids` in request order, given the live rows keyed
+     * by id. Pure — the dry run and the committed {@link bulkPublish} share it so
+     * they can't disagree on what's publishable.
+     */
+    private verdictsFor(
+        type: AnyContentType,
+        ids: string[],
+        byId: Map<string, Row>
+    ): BulkPublishVerdict[] {
+        return ids.map((id): BulkPublishVerdict => {
             const row = byId.get(id);
             if (!row) {
                 return {
@@ -230,36 +290,6 @@ export class EntryWriterService {
                 issues: result.issues
             };
         });
-        return { items };
-    }
-
-    /**
-     * Commit a bulk publish: re-run the dry run server-side and publish only the
-     * `publishable` ids in one statement, reporting which were skipped and why.
-     */
-    async bulkPublish(
-        type: AnyContentType,
-        ids: string[]
-    ): Promise<BulkPublishResult> {
-        const preview = await this.previewBulkPublish(type, ids);
-        const published = preview.items
-            .filter((item) => item.verdict === BULK_VERDICT.Publishable)
-            .map((item) => item.id);
-        if (published.length) {
-            const t = this.columns(type);
-            await this.db
-                .update(type.table)
-                .set({
-                    status: ENTRY_STATUS.Published,
-                    publishedAt: new Date(),
-                    updatedAt: new Date()
-                } as never)
-                .where(and(inArray(t['id'], published), isNull(t['deletedAt'])));
-        }
-        const skipped = preview.items
-            .filter((item) => item.verdict !== BULK_VERDICT.Publishable)
-            .map((item) => ({ id: item.id, reason: item.verdict }));
-        return { published, skipped };
     }
 
     /** Revert a set of live entries to draft. */
@@ -277,7 +307,12 @@ export class EntryWriterService {
                 publishedAt: null,
                 updatedAt: new Date()
             } as never)
-            .where(and(inArray(t['id'], ids), isNull(t['deletedAt'])))
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    type.paranoid ? isNull(t['deletedAt']) : undefined
+                )
+            )
             .returning();
         return { count: rows.length };
     }

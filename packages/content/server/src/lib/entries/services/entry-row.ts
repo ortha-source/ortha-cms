@@ -5,7 +5,7 @@
  */
 
 import type { AnyContentType } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE } from '../../types/fields';
+import { CONTENT_FIELD_TYPE, isEmptyFieldValue } from '../../types/fields';
 import type { EntryRecord } from '../types/entry-list-view';
 
 /** A generated content table row seen as a bag of values by property name. */
@@ -36,20 +36,8 @@ export function toRecord(type: AnyContentType, row: Row): EntryRecord {
     return record;
 }
 
-/**
- * An empty value (mirrors the validation service): null/undefined, a blank
- * string, or an empty array. The admin seeds every untouched field with `''`
- * (or `[]`), so a save carries empties the storage layer must treat as "no
- * value" — null — rather than coerce (e.g. `new Date('')` → Invalid Date).
- */
-function isEmpty(value: unknown): boolean {
-    return (
-        value === undefined ||
-        value === null ||
-        (typeof value === 'string' && value.trim() === '') ||
-        (Array.isArray(value) && value.length === 0)
-    );
-}
+/** The shared empty-value test (see {@link isEmptyFieldValue}). */
+const isEmpty = isEmptyFieldValue;
 
 /**
  * Normalize the admin's (string-shaped) `values` bag to the proper JS types the
@@ -82,7 +70,12 @@ export function coerceValues(
                     try {
                         value = JSON.parse(value);
                     } catch {
-                        // Leave the raw string; the admin pre-validates JSON.
+                        // Unparseable: collapse to null rather than persist the
+                        // raw string into the jsonb column (which would store a
+                        // string scalar where consumers expect structured data).
+                        // Mirrors the invalid-date / NaN-number handling below.
+                        // A required Json field then fails validation as empty.
+                        value = null;
                     }
                 }
                 break;
@@ -132,12 +125,22 @@ export function toColumns(
 }
 
 /**
- * A human display label for an entry — the first non-empty `text` field's
- * value, falling back to the id. Used to label rows in the bulk-publish preview.
+ * Field types short enough to label a row by. Text first, then Select — both are
+ * compact strings, unlike richtext (potentially huge HTML).
+ */
+const TITLE_FIELD_TYPES: ReadonlySet<string> = new Set([
+    CONTENT_FIELD_TYPE.Text,
+    CONTENT_FIELD_TYPE.Select
+]);
+
+/**
+ * A human display label for an entry — the first non-empty title-eligible field's
+ * value (see {@link TITLE_FIELD_TYPES}), falling back to the id. Used to label
+ * rows in the bulk-publish preview.
  */
 export function entryTitle(type: AnyContentType, row: Row): string {
     for (const [name, spec] of Object.entries(type.fields)) {
-        if (spec.type !== CONTENT_FIELD_TYPE.Text) continue;
+        if (!TITLE_FIELD_TYPES.has(spec.type)) continue;
         const value = row[name];
         if (typeof value === 'string' && value.trim()) return value;
     }

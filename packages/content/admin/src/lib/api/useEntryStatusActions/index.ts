@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
 import type { EntryRecord } from '../../types/contentType';
 import { contentEntriesPrefix } from '../useContentEntries';
+import { contentEntryPrefix } from '../useContentEntry';
 
 /**
  * Single-entry lifecycle mutations shared by the records row menu and the editor
@@ -12,10 +13,16 @@ import { contentEntriesPrefix } from '../useContentEntries';
  */
 export function useEntryStatusActions(typeName: string) {
     const queryClient = useQueryClient();
-    const invalidate = () =>
+    // Invalidate both the records list and any cached read-one for this type, so
+    // the editor's view of a published/unpublished/restored entry stays fresh.
+    const invalidate = () => {
         queryClient.invalidateQueries({
             queryKey: contentEntriesPrefix(typeName)
         });
+        queryClient.invalidateQueries({
+            queryKey: contentEntryPrefix(typeName)
+        });
+    };
 
     const publish = useMutation<EntryRecord, ApiError, string>({
         mutationFn: (id) =>

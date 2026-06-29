@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
 import type { EntryRecord } from '../../types/contentType';
 import { contentEntriesPrefix } from '../useContentEntries';
+import { contentEntryKey } from '../useContentEntry';
 
 /** What a save submits: the field values, plus the id when updating. */
 export type SaveEntryInput = {
@@ -46,9 +47,15 @@ export function useSaveEntry(typeName: string) {
     const queryClient = useQueryClient();
     return useMutation<EntryRecord, ApiError, SaveEntryInput>({
         mutationFn: (input) => saveEntry(typeName, input),
-        onSuccess: () =>
+        onSuccess: (saved) => {
             queryClient.invalidateQueries({
                 queryKey: contentEntriesPrefix(typeName)
-            })
+            });
+            // Refresh this entry's read-one cache so the editor reflects the
+            // server's canonical copy after an update.
+            queryClient.invalidateQueries({
+                queryKey: contentEntryKey(typeName, saved.id)
+            });
+        }
     });
 }
