@@ -48,7 +48,11 @@ here, make it accessible, and add an admin-e2e suite.
    files. Components `PascalCase` (`MembersTable/index.tsx`); everything else
    `camelCase` named for its export (`useMembers/index.ts`,
    `usersPlugin/index.tsx`, `types/member/index.ts`). No kebab-case, no dotted
-   suffixes.
+   suffixes. **One component per file** — never define a second React component
+   in the same file (no `renderItem` closure, no sibling `function Foo()` above
+   the export). Extract it into its own `<Name>/index.tsx` (with co-located
+   `messages`): nested inside the parent's folder if it has a single consumer,
+   else under `components/`.
 3. **Each `use*` hook owns its endpoint; nothing centralizes the data layer.**
    A hook's `api/use*/` folder holds its request function (via `apiClient`), its
    request/response wire types, and the thin `useQuery`/`useMutation` over them —

@@ -65,6 +65,14 @@ A required `boolean` gets `DEFAULT false`. Field/column collisions (two fields
 snake-casing to the same column, a field clashing with a relation's `<field>_id`,
 or a reserved envelope column) are rejected by `assertFields`.
 
+**Required ⇒ NOT NULL only for non-publishable types.** A publishable type has a
+draft stage, so its required fields stay **nullable** columns — "required" means
+"required *to publish*", enforced by `EntryValidationService` at publish time, not
+the DB (else an incomplete draft couldn't be saved). A non-publishable type is
+always live, so its required fields are `NOT NULL`. `EntryWriterService` mirrors
+this: create/update validate eagerly only for non-publishable types; publish
+re-validates the stored row for publishable ones.
+
 ## The `/define` vs main-barrel split — IMPORTANT
 
 Collection files and the host's drizzle-kit schema entry MUST import from
@@ -89,16 +97,41 @@ standard `db:migrate` applies them with every other plugin's.
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
   props); 404 if unknown.
 - `GET /content/:typeName` — one page of a collection's entries
-  (`?search=&filter=&sort=&page=&pageSize=` → `{ items, total, page, pageSize }`).
+  (`?search=&filter=&sort=&page=&pageSize=&deleted=` → `{ items, total, page, pageSize }`).
   Resolves `:typeName` via the registry (404 if unknown), then runs the **generic**
   pipeline in `entries/` (`EntriesService`): an ILIKE search over text-like
   columns, the query-builder `?filter=` tree (translated against a `FilterSchema`
   **derived per-request** from the type's fields by `buildEntryFilterSchema`), a
   whitelisted sort with an `id` tiebreaker, and `LIMIT/OFFSET`. `status` is
   searchable/filterable/sortable and returned **only on publishable types**;
-  paranoid types exclude soft-deleted rows. A malformed filter → 400.
-- All gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)` (`content:read`,
-  granted to all three system roles).
+  paranoid types exclude soft-deleted rows by default, or list **only** them with
+  `?deleted=only` (the trash view). A malformed filter → 400.
+- **Entry writes** (`EntryWriterService`, generic over the type like the reader;
+  `entry-row.ts` holds the shared row↔record mappers). All validate via
+  `EntryValidationService` — a failure is **422** with `{ message, issues:
+  [{ field, message }] }`. Each resolves `:typeName` (404), guards state-changing
+  requests with `OriginGuard` (CSRF), and is permission-gated:
+    - `POST /content/:typeName` — create a draft (`content:create`).
+    - `GET /content/:typeName/:id` — read one live entry (`content:read`).
+    - `PATCH /content/:typeName/:id` — replace values (`content:update`).
+    - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
+      `status`+`published_at`; publish **re-validates the stored row**; 400 on a
+      non-publishable type (`content:publish`).
+    - `DELETE /content/:typeName/:id` — soft delete (paranoid) or hard delete;
+      `POST .../restore` + `DELETE .../permanent` for paranoid types
+      (`content:delete`).
+    - `POST /content/:typeName/bulk/{publish/preview,publish,unpublish,delete,restore,purge}` —
+      `{ ids }` batch ops; `publish/preview` is a dry run returning a per-entry
+      verdict (will-publish / already-published / blocked+issues / not-found),
+      and `publish` re-validates and publishes only the valid drafts.
+- **Routing order matters:** `BulkEntriesController` is registered **before** the
+  single-item controllers in `ContentModule.forRoot` so the literal `bulk`
+  segment wins over `:id` (single-item `:id` also carries `ParseUUIDPipe` as a
+  backstop). Many-relation values aren't persisted yet (skipped by `toColumns`,
+  matching the reader) — relation writes land with the relations UI.
+- Reads gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)`; writes on the
+  matching `content:create`/`update`/`publish`/`delete` (admin holds all,
+  contributor create/update/publish, viewer read-only).
 
 ## Architecture
 
@@ -112,8 +145,9 @@ standard `db:migrate` applies them with every other plugin's.
   `@ortha-cms/database` (`@InjectDatabase()` in `EntriesService`), and
   `@ortha-cms/utils-server` (the `?filter=` engine).
 - `EntryValidationService` is the server-side authority for entry values (the
-  admin renders the same rules as a courtesy). It is exported but not yet wired
-  to a write controller — that lands with the entry CRUD milestone.
+  admin renders the same rules as a courtesy). `EntryWriterService` calls it on
+  every create/update and re-checks the stored row before any publish, so nothing
+  invalid is written or published.
 - Follows the `server-plugin` skill: feature-then-kind layout, thin controllers,
   permission-by-constant, JSDoc on exports, `interface` for contracts.
 

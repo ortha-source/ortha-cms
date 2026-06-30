@@ -4,8 +4,8 @@ import { BasePage } from './BasePage';
 /**
  * Page object for the Content Library at `/workspaces/:id/content` (from
  * `@ortha-cms/content-admin`) — the second-sidebar nav (collapsible Collections
- * and Pages groups, a Favorites section, a Manage section with History/Trash),
- * the ⌘K search palette, and the selected-type pane. Seed it with
+ * and Pages groups, a Favorites section), the ⌘K search palette, and the
+ * selected-type pane. Seed it with
  * `mockSignedIn`, `mockWorkspaces`, and `mockContentSchema`.
  */
 export class ContentLibraryPage extends BasePage {
@@ -54,11 +54,6 @@ export class ContentLibraryPage extends BasePage {
 
     /** A content-type row link by its label. */
     typeLink(label: string): Locator {
-        return this.sidebar.getByRole('link', { name: label, exact: true });
-    }
-
-    /** A static manage link ("History" / "Trash"). */
-    manageLink(label: string): Locator {
         return this.sidebar.getByRole('link', { name: label, exact: true });
     }
 
@@ -125,6 +120,18 @@ export class ContentLibraryPage extends BasePage {
     /** The "Add record" action in the records header. */
     get addRecord(): Locator {
         return this.page.getByRole('button', { name: 'Add record' });
+    }
+
+    /** The entry editor's primary action button (label varies by type/state). */
+    get editorSave(): Locator {
+        return this.page.getByRole('button', {
+            name: /^(Save|Save draft|Save & publish|Publish)$/
+        });
+    }
+
+    /** The entry editor's "Back to records" link (present when editing a row). */
+    get editorBackLink(): Locator {
+        return this.page.getByRole('link', { name: 'Back to records' });
     }
 
     /** The column-picker trigger. */

@@ -60,7 +60,8 @@ export function DateField({
     onChange,
     onBlur,
     withTime,
-    invalid
+    invalid,
+    'aria-describedby': ariaDescribedby
 }: {
     id: string;
     value: string;
@@ -68,6 +69,8 @@ export function DateField({
     onBlur?: () => void;
     withTime: boolean;
     invalid?: boolean;
+    /** Ids of the hint/error elements describing the trigger. */
+    'aria-describedby'?: string;
 }) {
     const intl = useIntl();
     const date = parseValue(value);
@@ -80,6 +83,7 @@ export function DateField({
                 onChange={(next) => onChange(next ? toISODateTime(next) : '')}
                 onBlur={onBlur}
                 invalid={invalid}
+                aria-describedby={ariaDescribedby}
                 placeholder={intl.formatMessage(messages.dateTimePlaceholder)}
                 timeLabel={intl.formatMessage(messages.time)}
             />
@@ -93,6 +97,7 @@ export function DateField({
             onChange={(next) => onChange(next ? toISODate(next) : '')}
             onBlur={onBlur}
             invalid={invalid}
+            aria-describedby={ariaDescribedby}
             placeholder={intl.formatMessage(messages.datePlaceholder)}
         />
     );

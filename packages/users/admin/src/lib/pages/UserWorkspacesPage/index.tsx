@@ -15,7 +15,7 @@ import { useAddWorkspaceMember } from '../../api/useAddWorkspaceMember';
 import { useRemoveWorkspaceMember } from '../../api/useRemoveWorkspaceMember';
 import { useUserDetailContext } from '../../utils/userDetailContext';
 import { AddToWorkspacesDialog } from '../../components/AddToWorkspacesDialog';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ConfirmDialog } from '@ortha-cms/design-system';
 import { WorkspaceMembershipCard } from '../../components/WorkspaceMembershipCard';
 import type { MemberWorkspace } from '../../types/member';
 

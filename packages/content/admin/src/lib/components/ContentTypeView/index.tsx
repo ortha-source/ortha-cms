@@ -10,7 +10,7 @@ import {
 } from '@ortha-cms/design-system';
 import { FileQuestion } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
-import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../constants';
+import { CONTENT_TYPE_KIND, ENTRY_MODE, TYPE_PARAM } from '../../constants';
 import { CollectionRecordsView } from '../CollectionRecordsView';
 import { ContentEntryView } from '../ContentEntryView';
 
@@ -29,6 +29,8 @@ const messages = defineMessages({
 type ContentTypeViewProps = {
     /** Every content type in the workspace, resolved by the `:typeName` param. */
     types: ContentType[];
+    /** Render the collection's trash view (soft-deleted rows) instead of its list. */
+    trashed?: boolean;
 };
 
 /**
@@ -38,7 +40,7 @@ type ContentTypeViewProps = {
  * ({@link ContentEntryView} in `single` mode). An unknown param renders a
  * distinct not-found state.
  */
-export function ContentTypeView({ types }: ContentTypeViewProps) {
+export function ContentTypeView({ types, trashed = false }: ContentTypeViewProps) {
     const intl = useIntl();
     const typeName = useParams()[TYPE_PARAM];
     const type = types.find((candidate) => candidate.name === typeName);
@@ -63,12 +65,13 @@ export function ContentTypeView({ types }: ContentTypeViewProps) {
         );
     }
 
-    // Collections get the dynamic records table; a single (one-entry page)
-    // opens straight into its entry form (resolving its one row, or a blank
-    // create form when it has none).
+    // Collections get the dynamic records table (or its trash view); a single
+    // (one-entry page) opens straight into its entry form (resolving its one
+    // row, or a blank create form when it has none). Trash applies to
+    // collections only — a single has no records list.
     if (type.kind === CONTENT_TYPE_KIND.Collection) {
-        return <CollectionRecordsView type={type} />;
+        return <CollectionRecordsView type={type} trashed={trashed} />;
     }
 
-    return <ContentEntryView type={type} mode="single" />;
+    return <ContentEntryView type={type} mode={ENTRY_MODE.Single} />;
 }

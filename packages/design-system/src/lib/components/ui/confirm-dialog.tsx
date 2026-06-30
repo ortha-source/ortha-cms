@@ -1,71 +1,61 @@
-import type { ReactNode } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
+import * as React from 'react';
+
+import { Button, type ButtonProps } from './button';
 import {
-    Button,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogTitle,
-    Spinner,
-    type ButtonProps
-} from '@ortha-cms/design-system';
+    DialogTitle
+} from './dialog';
+import { Spinner } from './spinner';
 
-/** Intl descriptors for {@link ConfirmDialog}, co-located with the component. */
-const messages = defineMessages({
-    cancel: {
-        id: 'users.confirm.cancel',
-        defaultMessage: 'Cancel'
-    }
-});
-
-/**
- * A small confirm/cancel modal for the detail page's reversible actions (revoke
- * a session, remove a workspace, change a role, suspend an account). The parent
- * owns `open` and runs the action on `onConfirm`; while `busy`, the dialog can't
- * be dismissed and the confirm button shows a spinner, so a double-submit can't
- * fire a second request.
- */
-export function ConfirmDialog({
-    open,
-    onOpenChange,
-    title,
-    description,
-    confirmLabel,
-    cancelLabel,
-    confirmVariant = 'default',
-    busy = false,
-    onConfirm
-}: {
+/** Props for {@link ConfirmDialog}. */
+type ConfirmDialogProps = {
     /** Whether the dialog is shown. */
     open: boolean;
     /** Called to open/close; ignored while busy. */
     onOpenChange: (open: boolean) => void;
     /** Heading. */
-    title: ReactNode;
+    title: React.ReactNode;
     /** Supporting copy. */
-    description: ReactNode;
+    description: React.ReactNode;
     /** Confirm button label. */
-    confirmLabel: ReactNode;
-    /** Cancel button label; defaults to a translated "Cancel". */
-    cancelLabel?: ReactNode;
+    confirmLabel: React.ReactNode;
+    /** Cancel button label; defaults to `'Cancel'` (pass a localized node). */
+    cancelLabel?: React.ReactNode;
     /** Confirm button variant (e.g. `destructive` for irreversible-feeling acts). */
     confirmVariant?: ButtonProps['variant'];
     /** Disables dismissal and shows a spinner on confirm while the act is in flight. */
     busy?: boolean;
     /** Runs the confirmed action. */
     onConfirm: () => void;
-}) {
-    const intl = useIntl();
+};
 
+/**
+ * A small confirm/cancel modal for destructive or consequential actions. The
+ * parent owns `open` and runs the action on `onConfirm`; while `busy`, the dialog
+ * can't be dismissed and the confirm button shows a spinner, so a double-submit
+ * can't fire a second request. i18n-free — pass localized `title`/`description`/
+ * `confirmLabel` (and `cancelLabel` if the default `'Cancel'` won't do).
+ */
+function ConfirmDialog({
+    open,
+    onOpenChange,
+    title,
+    description,
+    confirmLabel,
+    cancelLabel = 'Cancel',
+    confirmVariant = 'default',
+    busy = false,
+    onConfirm
+}: ConfirmDialogProps) {
     return (
         <Dialog
             open={open}
             onOpenChange={(next) => {
-                if (!busy) {
-                    onOpenChange(next);
-                }
+                if (!busy) onOpenChange(next);
             }}
         >
             <DialogContent>
@@ -79,7 +69,7 @@ export function ConfirmDialog({
                         onClick={() => onOpenChange(false)}
                         disabled={busy}
                     >
-                        {cancelLabel ?? intl.formatMessage(messages.cancel)}
+                        {cancelLabel}
                     </Button>
                     <Button
                         variant={confirmVariant}
@@ -94,3 +84,6 @@ export function ConfirmDialog({
         </Dialog>
     );
 }
+
+export { ConfirmDialog };
+export type { ConfirmDialogProps };

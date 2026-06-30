@@ -7,6 +7,18 @@
 /** Permission required to browse content. Granted to all system roles. */
 export const CONTENT_READ = 'content:read';
 
+/** Permission required to create an entry. */
+export const CONTENT_CREATE = 'content:create';
+
+/** Permission required to edit an entry's values. */
+export const CONTENT_UPDATE = 'content:update';
+
+/** Permission required to publish/unpublish an entry. */
+export const CONTENT_PUBLISH = 'content:publish';
+
+/** Permission required to delete/restore an entry. */
+export const CONTENT_DELETE = 'content:delete';
+
 /**
  * Path segment under the workspace shell where the Content Library mounts
  * (`/workspaces/:id/content`). Shared by the plugin's slot contribution and the
@@ -80,6 +92,18 @@ export const CONTENT_FIELD_TYPE = {
     Relation: 'relation'
 } as const;
 
+/**
+ * Per-entry verdicts in a bulk-publish dry run — the admin mirror of the
+ * server's `BULK_VERDICT` (`@ortha-cms/content-server`). Drives the icon/label
+ * for each row in the {@link BulkPublishDialog}. Must stay in lock-step.
+ */
+export const BULK_VERDICT = {
+    Publishable: 'publishable',
+    AlreadyPublished: 'already-published',
+    Blocked: 'blocked',
+    NotFound: 'not-found'
+} as const;
+
 /** Multi-entry collection vs. standalone page — mirror of the server's `kind`. */
 export const CONTENT_TYPE_KIND = {
     Collection: 'collection',
@@ -91,6 +115,21 @@ export const ENTRY_STATUS = {
     Draft: 'draft',
     Published: 'published'
 } as const;
+
+/**
+ * Which form the entry editor opens: a blank `create` (`/:type/new`), an existing
+ * record `edit` (`/:type/:entryId`), or a `single` page (the type's one entry).
+ * Named so the editor and its route adapters reference a member instead of a bare
+ * string literal.
+ */
+export const ENTRY_MODE = {
+    Create: 'create',
+    Edit: 'edit',
+    Single: 'single'
+} as const;
+
+/** Which form the entry editor opens (see {@link ENTRY_MODE}). */
+export type EntryMode = (typeof ENTRY_MODE)[keyof typeof ENTRY_MODE];
 
 /**
  * The kinds of column the records table can show: a schema `field`, or one of

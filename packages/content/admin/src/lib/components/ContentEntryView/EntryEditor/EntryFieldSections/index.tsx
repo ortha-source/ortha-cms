@@ -1,7 +1,3 @@
-import {
-    Card,
-    CardContent
-} from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../constants';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
@@ -35,7 +31,8 @@ const DEFAULT_LAYOUT = { rank: 3, full: true };
 const layoutFor = (type: string) => FIELD_LAYOUT[type] ?? DEFAULT_LAYOUT;
 
 /**
- * The General tab body: every editable field in **one** card, ordered top-to-
+ * The General tab body: every editable field in **one** flush block (no card
+ * chrome — no border, background, or padding), ordered top-to-
  * bottom by control shape — simple inputs (text, number, dates) first, then
  * choice controls (select, boolean, multi-select), then the large fields (rich
  * text, JSON) last. No section headers: the order alone groups like with like.
@@ -57,23 +54,23 @@ export function EntryFieldSections({
     if (ordered.length === 0) return null;
 
     return (
-        <Card className="shadow-none">
-            <CardContent className="grid gap-x-4 gap-y-5 pt-6 sm:grid-cols-2">
-                {ordered.map((field) => (
-                    <div
-                        key={field.name}
-                        className={layoutFor(field.type).full ? 'sm:col-span-2' : undefined}
-                    >
-                        <EntryFieldInput
-                            field={field}
-                            value={form.values[field.name]}
-                            error={form.errorFor(field.name)}
-                            onChange={(value) => form.setValue(field.name, value)}
-                            onBlur={() => form.touch(field.name)}
-                        />
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
+        <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+            {ordered.map((field) => (
+                <div
+                    key={field.name}
+                    className={
+                        layoutFor(field.type).full ? 'sm:col-span-2' : undefined
+                    }
+                >
+                    <EntryFieldInput
+                        field={field}
+                        value={form.values[field.name]}
+                        error={form.errorFor(field.name)}
+                        onChange={(value) => form.setValue(field.name, value)}
+                        onBlur={() => form.touch(field.name)}
+                    />
+                </div>
+            ))}
+        </div>
     );
 }

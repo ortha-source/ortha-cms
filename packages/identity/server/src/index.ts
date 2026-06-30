@@ -9,6 +9,7 @@ export { IdentityPlugin } from './lib/utils/identity-plugin';
 export type { IdentityServerPlugin } from './lib/utils/identity-plugin';
 export { IdentityModule } from './lib/identity.module';
 export { AuthGuard } from './lib/auth/guards/auth.guard';
+export { OriginGuard } from './lib/auth/guards/origin.guard';
 export { Public } from './lib/auth/decorators/public.decorator';
 export { CurrentUser } from './lib/auth/decorators/current-user.decorator';
 export type { AuthenticatedRequest } from './lib/auth/decorators/current-user.decorator';

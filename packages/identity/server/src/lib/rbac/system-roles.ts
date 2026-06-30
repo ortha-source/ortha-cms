@@ -15,7 +15,11 @@ export const PERMISSIONS = {
     USERS_UPDATE: 'users:update',
     USERS_DELETE: 'users:delete',
     ACTIVITY_READ: 'activity:read',
-    CONTENT_READ: 'content:read'
+    CONTENT_READ: 'content:read',
+    CONTENT_CREATE: 'content:create',
+    CONTENT_UPDATE: 'content:update',
+    CONTENT_PUBLISH: 'content:publish',
+    CONTENT_DELETE: 'content:delete'
 } as const;
 
 /** A `resource:action` permission key drawn from {@link PERMISSIONS}. */
@@ -48,7 +52,10 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
         permissions: [
             PERMISSIONS.WORKSPACES_READ,
             PERMISSIONS.USERS_READ,
-            PERMISSIONS.CONTENT_READ
+            PERMISSIONS.CONTENT_READ,
+            PERMISSIONS.CONTENT_CREATE,
+            PERMISSIONS.CONTENT_UPDATE,
+            PERMISSIONS.CONTENT_PUBLISH
         ]
     },
     {

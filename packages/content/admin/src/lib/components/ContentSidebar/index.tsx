@@ -1,19 +1,13 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { useParams } from 'react-router-dom';
-import { FileText, History, Search, Table2, Trash2 } from 'lucide-react';
+import { FileText, Search, Table2 } from 'lucide-react';
 import { cn } from '@ortha-cms/design-system';
 import type { ContentType } from '../../types/contentType';
 import type { ContentFavorites } from '../../hooks/useContentFavorites';
-import {
-    CONTENT_TYPE_KIND,
-    HISTORY_SEGMENT,
-    TRASH_SEGMENT,
-    TYPE_PARAM
-} from '../../constants';
+import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../constants';
 import { groupContentTypes } from '../../utils/groupContentTypes';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContentSidebarItem } from './ContentSidebarItem';
-import { ContentSidebarLink } from './ContentSidebarLink';
 
 /** Intl descriptors for the content sidebar, co-located here. */
 const messages = defineMessages({
@@ -44,18 +38,6 @@ const messages = defineMessages({
     workspaceGroup: {
         id: 'content.sidebar.workspaceGroup',
         defaultMessage: 'Workspace'
-    },
-    manageGroup: {
-        id: 'content.sidebar.manageGroup',
-        defaultMessage: 'Manage'
-    },
-    history: {
-        id: 'content.sidebar.history',
-        defaultMessage: 'History'
-    },
-    trash: {
-        id: 'content.sidebar.trash',
-        defaultMessage: 'Trash'
     }
 });
 
@@ -176,24 +158,6 @@ export function ContentSidebar({
                         >
                             {pages.map(renderItem)}
                         </CollapsibleGroup>
-                    </div>
-                </div>
-
-                <div className="flex w-full min-w-0 flex-col p-2">
-                    <div className="flex h-8 items-center px-2 text-xs font-medium text-muted-foreground">
-                        {intl.formatMessage(messages.manageGroup)}
-                    </div>
-                    <div className="mt-1 flex w-full min-w-0 flex-col gap-1">
-                        <ContentSidebarLink
-                            to={`${basePath}/${HISTORY_SEGMENT}`}
-                            label={intl.formatMessage(messages.history)}
-                            icon={History}
-                        />
-                        <ContentSidebarLink
-                            to={`${basePath}/${TRASH_SEGMENT}`}
-                            label={intl.formatMessage(messages.trash)}
-                            icon={Trash2}
-                        />
                     </div>
                 </div>
             </div>

@@ -54,6 +54,19 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
     ) => {
         const hasError = !!error || (errors?.some((e) => e?.message) ?? false);
         const isInvalid = invalid ?? hasError;
+        const showError = isInvalid && (error || errors);
+        const errorId = `${id}-error`;
+        const descriptionId = `${id}-description`;
+        // Associate the hint and/or error with the control so a screen reader
+        // announces them on focus (not just when the error first appears).
+        const describedBy =
+            [
+                description ? descriptionId : null,
+                showError ? errorId : null,
+                inputProps['aria-describedby']
+            ]
+                .filter(Boolean)
+                .join(' ') || undefined;
 
         return (
             <Field data-invalid={isInvalid} className={fieldClassName}>
@@ -70,12 +83,17 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
                     ref={ref}
                     aria-invalid={isInvalid}
                     {...inputProps}
+                    aria-describedby={describedBy}
                 />
                 {description && (
-                    <FieldDescription>{description}</FieldDescription>
+                    <FieldDescription id={descriptionId}>
+                        {description}
+                    </FieldDescription>
                 )}
-                {isInvalid && (error || errors) && (
-                    <FieldError errors={errors}>{error}</FieldError>
+                {showError && (
+                    <FieldError id={errorId} errors={errors}>
+                        {error}
+                    </FieldError>
                 )}
             </Field>
         );

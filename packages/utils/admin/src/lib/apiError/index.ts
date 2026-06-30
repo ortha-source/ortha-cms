@@ -10,8 +10,15 @@ import { isAxiosError } from 'axios';
 export class ApiError extends Error {
     /** HTTP status if the server responded; `null` for a network/transport error. */
     readonly status: number | null;
+    /**
+     * The parsed response body when the server responded, else `undefined`.
+     * Opaque here — callers narrow it to their endpoint's error shape (e.g. a
+     * 422's `{ issues: [{ field, message }] }`). The transport layer doesn't
+     * decide its meaning.
+     */
+    readonly details?: unknown;
 
-    constructor(status: number | null, message?: string) {
+    constructor(status: number | null, message?: string, details?: unknown) {
         super(
             message ??
                 (status === null
@@ -20,6 +27,7 @@ export class ApiError extends Error {
         );
         this.name = 'ApiError';
         this.status = status;
+        this.details = details;
     }
 }
 
@@ -33,7 +41,11 @@ export function toApiError(error: unknown): ApiError {
         return error;
     }
     if (isAxiosError(error)) {
-        return new ApiError(error.response?.status ?? null, error.message);
+        return new ApiError(
+            error.response?.status ?? null,
+            error.message,
+            error.response?.data
+        );
     }
     return new ApiError(
         null,

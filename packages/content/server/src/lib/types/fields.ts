@@ -32,6 +32,23 @@ export type FieldType =
     (typeof CONTENT_FIELD_TYPE)[keyof typeof CONTENT_FIELD_TYPE];
 
 /**
+ * The canonical "no value" test for a field value — null/undefined, a blank
+ * (whitespace-only) string, or an empty array. The single definition shared by
+ * the validation service (where an empty value either trips `required` or is
+ * skipped) and the row mappers (where the admin seeds every untouched field with
+ * `''`/`[]`, which storage must collapse to `null` rather than coerce, e.g.
+ * `new Date('')` → Invalid Date). One authority so the two can't drift.
+ */
+export function isEmptyFieldValue(value: unknown): boolean {
+    return (
+        value === undefined ||
+        value === null ||
+        (typeof value === 'string' && value.trim() === '') ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
+/**
  * Presentation props forwarded verbatim to the admin (and any other
  * frontend) via `GET /api/content-schema`. The known keys are what the
  * stock admin reads; everything else passes through untouched, so a

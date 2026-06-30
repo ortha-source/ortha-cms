@@ -29,6 +29,7 @@ import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
+    ENTRY_MODE,
     ENTRY_PARAM,
     HISTORY_SEGMENT,
     NEW_SEGMENT,
@@ -234,6 +235,14 @@ export function ContentLibraryPage() {
                             path={`:${TYPE_PARAM}`}
                             element={<ContentTypeView types={scopedTypes} />}
                         />
+                        {/* A collection's trash view. The static `trash` segment
+                            outranks `:entryId`, so the order is safe. */}
+                        <Route
+                            path={`:${TYPE_PARAM}/${TRASH_SEGMENT}`}
+                            element={
+                                <ContentTypeView types={scopedTypes} trashed />
+                            }
+                        />
                         {/* Create + entry-edit forms. The static `new` segment
                             outranks `:entryId`, so the order is safe. */}
                         <Route
@@ -241,7 +250,7 @@ export function ContentLibraryPage() {
                             element={
                                 <ContentEntryRoute
                                     types={scopedTypes}
-                                    mode="create"
+                                    mode={ENTRY_MODE.Create}
                                 />
                             }
                         />
@@ -250,7 +259,7 @@ export function ContentLibraryPage() {
                             element={
                                 <ContentEntryRoute
                                     types={scopedTypes}
-                                    mode="edit"
+                                    mode={ENTRY_MODE.Edit}
                                 />
                             }
                         />

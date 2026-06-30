@@ -41,6 +41,8 @@ type MultiSelectProps = {
     invalid?: boolean;
     /** Disables the control. */
     disabled?: boolean;
+    /** Ids of the hint/error elements describing the trigger. */
+    'aria-describedby'?: string;
     className?: string;
 };
 
@@ -60,6 +62,7 @@ function MultiSelect({
     id,
     invalid,
     disabled,
+    'aria-describedby': ariaDescribedby,
     className
 }: MultiSelectProps) {
     const [open, setOpen] = React.useState(false);
@@ -85,9 +88,10 @@ function MultiSelect({
                     role="combobox"
                     aria-expanded={open}
                     aria-invalid={invalid}
+                    aria-describedby={ariaDescribedby}
                     disabled={disabled}
                     className={cn(
-                        'h-auto min-h-9 w-full justify-between px-3 py-1.5 font-normal shadow-none hover:bg-background',
+                        'h-auto min-h-9 w-full justify-between px-3 py-1.5 font-normal shadow-none hover:bg-background aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
                         className
                     )}
                 >

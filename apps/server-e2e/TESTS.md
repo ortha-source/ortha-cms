@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_191 test cases across 21 spec files._
+_204 test cases across 22 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -206,6 +206,49 @@ _<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
 | Test case |
 | --- |
 | aborts boot when an email is configured without a password |
+
+<!-- source: apps/server-e2e/src/server/content/content-entries-write.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
+
+## Content entry writes (/api/content/:type)
+
+### create / read / update
+
+| Test case |
+| --- |
+| creates a draft, reads it back, and updates it |
+| saves an incomplete draft of a publishable type, but 422s on publish |
+| allows editing a draft to an incomplete state, but not a published row |
+| 422s an invalid create of a non-publishable (always-live) type |
+| 404s reading an unknown id |
+
+### publish / unpublish
+
+| Test case |
+| --- |
+| publishes then unpublishes a draft |
+| 400s publishing a non-publishable type |
+
+### delete / restore / purge (paranoid)
+
+| Test case |
+| --- |
+| soft-deletes, hides from the list, lists in trash, restores, purges |
+
+### bulk
+
+| Test case |
+| --- |
+| previews then publishes only the valid drafts (and hits the bulk route, not :id) |
+| bulk soft-deletes a set of entries |
+
+### authorization
+
+| Test case |
+| --- |
+| 401s unauthenticated writes |
+| 403s a viewer on create and delete |
+| lets a contributor create but not delete |
 
 <!-- source: apps/server-e2e/src/server/content/content-schema.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-schema.spec.ts</sub>_

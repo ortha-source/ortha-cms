@@ -5,6 +5,7 @@ import {
     count,
     desc,
     ilike,
+    isNotNull,
     isNull,
     or,
     type AnyColumn,
@@ -14,10 +15,14 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import type { AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
-import type { ListEntriesQueryDto } from '../dto/list-entries-query.dto';
-import type { EntryListView, EntryRecord } from '../types/entry-list-view';
+import {
+    DELETED_ONLY,
+    type ListEntriesQueryDto
+} from '../dto/list-entries-query.dto';
+import type { EntryListView } from '../types/entry-list-view';
 import { DEFAULT_PAGE_SIZE } from '../entries.constants';
 import { buildEntryFilterSchema, isScalarField } from './entry-filter-schema';
+import { toRecord } from './entry-row';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
@@ -72,7 +77,7 @@ export class EntriesService {
 
         return {
             items: rows.map((row) =>
-                this.toRecord(type, row as Record<string, unknown>)
+                toRecord(type, row as Record<string, unknown>)
             ),
             total,
             page,
@@ -90,7 +95,6 @@ export class EntriesService {
         type: AnyContentType,
         query: ListEntriesQueryDto
     ): Promise<SQL | undefined> {
-        const table = type.table as unknown as ContentTable;
         const schema = buildEntryFilterSchema(type);
         const tree = parseFilterTree(query.filter, schema);
         const filterSql = await applyFilterTree(
@@ -102,8 +106,25 @@ export class EntriesService {
         return and(
             this.searchPredicate(type, query.search),
             filterSql,
-            type.paranoid ? isNull(table['deletedAt']) : undefined
+            this.deletedPredicate(type, query)
         );
+    }
+
+    /**
+     * The soft-delete guard for paranoid types: the default list excludes
+     * tombstoned rows (`deleted_at IS NULL`); `?deleted=only` flips to the trash
+     * view (`deleted_at IS NOT NULL`). A non-paranoid type has no `deleted_at`,
+     * so the predicate collapses to `undefined`.
+     */
+    private deletedPredicate(
+        type: AnyContentType,
+        query: ListEntriesQueryDto
+    ): SQL | undefined {
+        if (!type.paranoid) return undefined;
+        const table = type.table as unknown as ContentTable;
+        return query.deleted === DELETED_ONLY
+            ? isNotNull(table['deletedAt'])
+            : isNull(table['deletedAt']);
     }
 
     /**
@@ -155,36 +176,5 @@ export class EntriesService {
             return [isDesc ? desc(col) : asc(col), asc(table['id'])];
         }
         return [desc(table['updatedAt']), asc(table['id'])];
-    }
-
-    /**
-     * Map a raw DB row to the admin `EntryRecord`: envelope fields plus a
-     * `values` bag keyed by field name. `status` is emitted only for publishable
-     * types. Many-relations live in join tables and aren't selected here yet
-     * (single relations pass through as their FK uuid).
-     */
-    private toRecord(
-        type: AnyContentType,
-        row: Record<string, unknown>
-    ): EntryRecord {
-        const values: Record<string, unknown> = {};
-        for (const [name, spec] of Object.entries(type.fields)) {
-            if (
-                spec.type === CONTENT_FIELD_TYPE.Relation &&
-                spec.relation?.many
-            )
-                continue;
-            values[name] = row[name] ?? null;
-        }
-        const record: EntryRecord = {
-            id: row['id'] as string,
-            createdAt: (row['createdAt'] as Date).toISOString(),
-            updatedAt: (row['updatedAt'] as Date).toISOString(),
-            values
-        };
-        if (type.publishable) {
-            record.status = row['status'] as EntryRecord['status'];
-        }
-        return record;
     }
 }

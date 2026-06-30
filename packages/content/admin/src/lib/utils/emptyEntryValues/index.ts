@@ -4,13 +4,18 @@ import { CONTENT_FIELD_TYPE } from '../../constants';
 /**
  * The empty form value for one field — a *defined* value per type so every
  * input is controlled from first render (no React "uncontrolled → controlled"
- * warning): booleans default `false`, multi-valued fields an empty array, and
- * every text/scalar field an empty string.
+ * warning): multi-valued fields an empty array, every text/scalar field an empty
+ * string. A **required** boolean defaults to `false` (its column is NOT NULL
+ * DEFAULT false); an **optional** boolean defaults to `null` so an untouched
+ * toggle round-trips as "unset" rather than being silently written `false` — the
+ * editor submits the full values bag and the server replaces the whole document,
+ * and `false` is not "empty", so a fabricated default would persist. The toggle
+ * renders `null` as the off ("Disabled") state, staying controlled.
  */
 export function emptyValueFor(field: ContentField): unknown {
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Boolean:
-            return false;
+            return field.required ? false : null;
         case CONTENT_FIELD_TYPE.Multiselect:
             return [];
         case CONTENT_FIELD_TYPE.Relation:

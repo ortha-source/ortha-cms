@@ -2,14 +2,14 @@ import * as React from 'react';
 import { cn } from '../../utils';
 
 /**
- * Root container for the top navigation bar. Renders a sticky, dark header with
- * a bottom border.
+ * Root container for the top navigation bar. Renders a sticky, light header
+ * (theme tokens, so it follows light/dark mode) with a bottom border.
  */
 function Navbar({ className, ...props }: React.ComponentProps<'header'>) {
     return (
         <header
             className={cn(
-                'sticky top-0 z-50 flex h-12 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-3 text-zinc-100',
+                'sticky top-0 z-50 flex h-12 items-center gap-2 border-b border-border bg-background px-3 text-foreground',
                 className
             )}
             {...props}
@@ -40,10 +40,10 @@ function NavbarNav({ className, ...props }: React.ComponentProps<'nav'>) {
  */
 function navbarItemVariants(active?: boolean) {
     return cn(
-        'inline-flex size-8 items-center justify-center rounded-lg border border-transparent text-zinc-400 transition-all',
-        'hover:bg-zinc-800 hover:text-zinc-50',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900',
-        active && 'bg-zinc-800 text-zinc-50'
+        'inline-flex size-8 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-all',
+        'hover:bg-accent hover:text-accent-foreground',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        active && 'bg-accent text-accent-foreground'
     );
 }
 

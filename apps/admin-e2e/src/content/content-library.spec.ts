@@ -7,7 +7,8 @@ import {
     UNGRANTED_WORKSPACE,
     mockContentSchema,
     mockContentSchemaDetail,
-    mockContentEntries
+    mockContentEntries,
+    mockContentEntryWrites
 } from '../support/api/content';
 
 /**
@@ -22,9 +23,10 @@ test.describe('Content Library', () => {
         await mockContentSchema(page);
         await mockContentSchemaDetail(page);
         await mockContentEntries(page);
+        await mockContentEntryWrites(page);
     });
 
-    test('renders the sidebar with Workspace and Manage sections', async ({
+    test('renders the sidebar with the Workspace section', async ({
         page,
         contentLibraryPage
     }) => {
@@ -37,10 +39,6 @@ test.describe('Content Library', () => {
         ).toBeVisible();
         await expect(contentLibraryPage.group('Collections')).toBeVisible();
         await expect(contentLibraryPage.group('Pages')).toBeVisible();
-        // Manage section with its two static links.
-        await expect(contentLibraryPage.sectionLabel('Manage')).toBeVisible();
-        await expect(contentLibraryPage.manageLink('History')).toBeVisible();
-        await expect(contentLibraryPage.manageLink('Trash')).toBeVisible();
         // No favorites pinned yet → the Favorites section is absent.
         await expect(contentLibraryPage.sectionLabel('Favorites')).toHaveCount(
             0
@@ -61,7 +59,7 @@ test.describe('Content Library', () => {
         await expect(contentLibraryPage.typeLink('Products')).toBeVisible();
     });
 
-    test('selecting a single (page) shows its placeholder pane', async ({
+    test('selecting a single (page) opens its entry editor', async ({
         page,
         contentLibraryPage
     }) => {
@@ -72,9 +70,8 @@ test.describe('Content Library', () => {
         await contentLibraryPage.typeLink('Home').click();
 
         await expect(contentLibraryPage.viewHeading('Home')).toBeVisible();
-        await expect(
-            contentLibraryPage.paneText('Entries coming soon')
-        ).toBeVisible();
+        // A single opens straight into its one-entry editor (its Save action).
+        await expect(contentLibraryPage.editorSave).toBeVisible();
         await expect(page).toHaveURL(/\/content\/home$/);
     });
 
@@ -262,18 +259,18 @@ test.describe('Content Library', () => {
             contentLibraryPage.recordsTable('Blog posts')
         ).toBeVisible();
 
-        // Add record → the create-entry stub.
+        // Add record → the create-entry editor (title "New Blog posts").
         await contentLibraryPage.addRecord.click();
         await expect(page).toHaveURL(/\/content\/blog_post\/new$/);
         await expect(
-            contentLibraryPage.paneText('Create entry')
+            contentLibraryPage.viewHeading('New Blog posts')
         ).toBeVisible();
 
-        // Back to the table, then a row → the entry-detail stub.
+        // Back to the table, then a row → the entry editor for that row.
         await page.goBack();
         await contentLibraryPage.recordRows('Blog posts').first().click();
         await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
-        await expect(contentLibraryPage.paneText('Edit entry')).toBeVisible();
+        await expect(contentLibraryPage.editorBackLink).toBeVisible();
     });
 
     test('reorders a column via the keyboard', async ({

@@ -29,7 +29,14 @@ const messages = defineMessages({
  * only mounts once the schema is known (in {@link LoadedRecordsView}), so columns
  * seed correctly on first render.
  */
-export function CollectionRecordsView({ type }: { type: ContentType }) {
+export function CollectionRecordsView({
+    type,
+    trashed = false
+}: {
+    type: ContentType;
+    /** Render the trash view (soft-deleted rows) instead of the live list. */
+    trashed?: boolean;
+}) {
     const intl = useIntl();
     const {
         data: schema,
@@ -40,7 +47,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
 
     if (isPending) {
         return (
-            <Container className="max-w-none p-4 sm:p-4">
+            <Container className="max-w-none p-6 sm:p-6">
                 <ContainerHeader title={type.label} />
                 <CollectionRecordsSkeleton />
             </Container>
@@ -49,7 +56,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
 
     if (isError || !schema) {
         return (
-            <Container className="max-w-none p-4 sm:p-4">
+            <Container className="max-w-none p-6 sm:p-6">
                 <ContainerHeader title={type.label} />
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -68,5 +75,7 @@ export function CollectionRecordsView({ type }: { type: ContentType }) {
         );
     }
 
-    return <LoadedRecordsView type={type} schema={schema} />;
+    return (
+        <LoadedRecordsView type={type} schema={schema} trashed={trashed} />
+    );
 }

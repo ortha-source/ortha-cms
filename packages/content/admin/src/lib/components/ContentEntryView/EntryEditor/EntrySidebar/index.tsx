@@ -1,202 +1,158 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronDown } from 'lucide-react';
-import {
-    Badge,
-    Button,
-    Separator,
-    Spinner,
-    cn
-} from '@ortha-cms/design-system';
+import { useHasPermission } from '@ortha-cms/identity-admin';
+import { ConfirmDialog } from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../../types/contentType';
-import { ENTRY_STATUS } from '../../../../constants';
+import {
+    CONTENT_CREATE,
+    CONTENT_DELETE,
+    CONTENT_PUBLISH,
+    CONTENT_UPDATE,
+    ENTRY_STATUS
+} from '../../../../constants';
+import {
+    SidebarActionBar,
+    type PrimaryAction
+} from './SidebarActionBar';
+import { PublishGate, type PublishGateItem } from './PublishGate';
+import { DetailsBlock } from './DetailsBlock';
+
+/** Re-exported for the editor, which computes the gate items. */
+export type { PublishGateItem };
 
 const messages = defineMessages({
     aside: {
         id: 'content.sidebar.aside',
         defaultMessage: 'Record actions and details'
     },
-    save: { id: 'content.editor.save', defaultMessage: 'Save' },
-    saveDraft: { id: 'content.editor.saveDraft', defaultMessage: 'Save draft' },
-    publish: { id: 'content.editor.publish', defaultMessage: 'Save & publish' },
-    saving: { id: 'content.editor.saving', defaultMessage: 'Saving…' },
-    detailsShow: {
-        id: 'content.sidebar.detailsShow',
-        defaultMessage: 'Show details'
+    deleteTitle: {
+        id: 'content.sidebar.deleteTitle',
+        defaultMessage: 'Delete this entry?'
     },
-    detailsHide: {
-        id: 'content.sidebar.detailsHide',
-        defaultMessage: 'Hide details'
+    deleteBody: {
+        id: 'content.sidebar.deleteBody',
+        defaultMessage:
+            'It will be moved to the trash, where it can be restored.'
     },
-    status: { id: 'content.sidebar.status', defaultMessage: 'Status' },
-    statusDraft: { id: 'content.sidebar.statusDraft', defaultMessage: 'Draft' },
-    statusPublished: {
-        id: 'content.sidebar.statusPublished',
-        defaultMessage: 'Published'
+    deleteBodyHard: {
+        id: 'content.sidebar.deleteBodyHard',
+        defaultMessage: 'This permanently removes the entry and can’t be undone.'
     },
-    statusNew: {
-        id: 'content.sidebar.statusNew',
-        defaultMessage: 'Not saved yet'
-    },
-    created: { id: 'content.sidebar.created', defaultMessage: 'Created' },
-    updated: { id: 'content.sidebar.updated', defaultMessage: 'Last updated' },
-    entryId: { id: 'content.sidebar.entryId', defaultMessage: 'Entry ID' },
-    empty: { id: 'content.sidebar.empty', defaultMessage: '—' }
+    deleteConfirm: {
+        id: 'content.sidebar.deleteConfirm',
+        defaultMessage: 'Delete'
+    }
 });
 
-/** One label/value row in the details list. */
-function MetaRow({
-    label,
-    children
-}: {
-    label: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <div className="flex flex-col gap-0.5">
-            <dt className="text-xs font-medium text-muted-foreground">
-                {label}
-            </dt>
-            <dd className="text-sm">{children}</dd>
-        </div>
-    );
-}
-
-const DETAILS_ID = 'entry-sidebar-details';
-
 /**
- * The entry editor's right rail — a **single** panel (not separate cards) that
- * holds the primary actions (Save / Save & publish) at the top and,
- * below a separator, a **collapsible Details** block: status, created /
- * last-updated timestamps, and the entry id. The Details toggle lives
- * inside the panel; the actions stay visible regardless. Borderless except for a
- * single left divider, it sits flush beside the content as a full-height pane.
+ * The entry editor's right rail, composed of three nested blocks: a top
+ * {@link SidebarActionBar} (primary button + ⋯ menu), a live {@link PublishGate}
+ * (publishable types only), and a static {@link DetailsBlock}. This component
+ * owns the permission gating + primary/menu derivation and the delete
+ * confirmation; the blocks themselves are presentational.
  */
 export function EntrySidebar({
     entry,
     publishable,
+    paranoid,
     isCreate,
     saving,
+    mutating = false,
+    gate = [],
     onSaveDraft,
-    onPublish
+    onPublish,
+    onUnpublish,
+    onDelete
 }: {
     entry?: EntryRecord;
     publishable: boolean;
+    /** Whether delete is a soft delete (trash) vs a permanent removal. */
+    paranoid: boolean;
     isCreate: boolean;
     saving: boolean;
+    /** Whether an unpublish/delete action is in flight (disables the bar). */
+    mutating?: boolean;
+    /** The publish-gate checks (publishable types only). */
+    gate?: PublishGateItem[];
     /** Save without publishing (the default submit). */
     onSaveDraft: () => void;
     /** Save and mark published — only wired for publishable types. */
     onPublish: () => void;
+    /** Revert a published entry to draft — only on a saved publishable entry. */
+    onUnpublish?: () => void;
+    /** Delete the entry — only on a saved entry. */
+    onDelete?: () => void;
 }) {
     const intl = useIntl();
-    const [detailsOpen, setDetailsOpen] = useState(true);
-    const dash = intl.formatMessage(messages.empty);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
-    const fmt = (iso?: string) =>
-        iso
-            ? intl.formatDate(iso, { dateStyle: 'medium', timeStyle: 'short' })
-            : dash;
+    const canCreate = useHasPermission(CONTENT_CREATE);
+    const canUpdate = useHasPermission(CONTENT_UPDATE);
+    const canPublish = useHasPermission(CONTENT_PUBLISH);
+    const canDelete = useHasPermission(CONTENT_DELETE);
+    const canSave = isCreate ? canCreate : canUpdate;
 
+    const busy = saving || mutating;
     const published = entry?.status === ENTRY_STATUS.Published;
-    const statusLabel = isCreate
-        ? messages.statusNew
-        : published
-          ? messages.statusPublished
-          : messages.statusDraft;
-    const statusVariant = isCreate
-        ? 'outline'
-        : published
-          ? 'default'
-          : 'secondary';
+
+    // The primary button: Publish for a publishable type the user may publish,
+    // else a plain Save (draft / live). Null when the user can't write at all.
+    const primary: PrimaryAction | null =
+        publishable && canPublish && canSave
+            ? { kind: 'publish', onClick: onPublish }
+            : canSave
+              ? {
+                    kind: publishable ? 'saveDraft' : 'save',
+                    onClick: onSaveDraft
+                }
+              : null;
+
+    const showSaveDraft = publishable && canSave;
+    const showPublish = publishable && canPublish && canSave;
+    const showUnpublish =
+        !isCreate && publishable && published && canPublish && !!onUnpublish;
+    const showDelete = !isCreate && canDelete && !!onDelete;
 
     return (
         <aside
-            className="flex w-full shrink-0 flex-col gap-4 p-6 lg:w-80 lg:border-l"
+            className="flex w-full shrink-0 flex-col gap-4 p-6 lg:w-[23rem]"
             aria-label={intl.formatMessage(messages.aside)}
         >
-            {/* Actions */}
-            <div className="flex flex-col gap-2">
-                {publishable ? (
-                    <>
-                        <Button
-                            type="button"
-                            className="w-full"
-                            onClick={onPublish}
-                            disabled={saving}
-                        >
-                            {saving ? <Spinner aria-hidden /> : null}
-                            {intl.formatMessage(messages.publish)}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full shadow-none"
-                            onClick={onSaveDraft}
-                            disabled={saving}
-                        >
-                            {intl.formatMessage(messages.saveDraft)}
-                        </Button>
-                    </>
-                ) : (
-                    <Button
-                        type="button"
-                        className="w-full"
-                        onClick={onSaveDraft}
-                        disabled={saving}
-                    >
-                        {saving ? <Spinner aria-hidden /> : null}
-                        {intl.formatMessage(messages.save)}
-                    </Button>
-                )}
-            </div>
+            <SidebarActionBar
+                primary={primary}
+                busy={busy}
+                saving={saving}
+                showSaveDraft={showSaveDraft}
+                showPublish={showPublish}
+                showUnpublish={showUnpublish}
+                showDelete={showDelete}
+                onSaveDraft={onSaveDraft}
+                onPublish={onPublish}
+                onUnpublish={onUnpublish}
+                onRequestDelete={() => setConfirmDelete(true)}
+            />
 
-            <Separator />
+            {publishable && <PublishGate items={gate} />}
 
-            {/* Details toggle */}
-            <button
-                type="button"
-                className="flex items-center justify-between rounded-md text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-expanded={detailsOpen}
-                aria-controls={DETAILS_ID}
-                onClick={() => setDetailsOpen((open) => !open)}
-            >
-                {intl.formatMessage(
-                    detailsOpen ? messages.detailsHide : messages.detailsShow
-                )}
-                <ChevronDown
-                    aria-hidden
-                    className={cn(
-                        'size-4 text-muted-foreground transition-transform',
-                        !detailsOpen && '-rotate-90'
+            <DetailsBlock entry={entry} isCreate={isCreate} />
+
+            {showDelete && (
+                <ConfirmDialog
+                    open={confirmDelete}
+                    onOpenChange={setConfirmDelete}
+                    title={intl.formatMessage(messages.deleteTitle)}
+                    description={intl.formatMessage(
+                        paranoid ? messages.deleteBody : messages.deleteBodyHard
                     )}
+                    confirmLabel={intl.formatMessage(messages.deleteConfirm)}
+                    confirmVariant="destructive"
+                    busy={busy}
+                    onConfirm={() => {
+                        onDelete?.();
+                        setConfirmDelete(false);
+                    }}
                 />
-            </button>
-
-            {/* Kept mounted (toggled with `hidden`) so the toggle's
-                aria-controls always resolves to a real element. */}
-            <dl
-                id={DETAILS_ID}
-                hidden={!detailsOpen}
-                className="flex flex-col gap-3"
-            >
-                <MetaRow label={intl.formatMessage(messages.status)}>
-                    <Badge variant={statusVariant}>
-                        {intl.formatMessage(statusLabel)}
-                    </Badge>
-                </MetaRow>
-                <MetaRow label={intl.formatMessage(messages.created)}>
-                    {fmt(entry?.createdAt)}
-                </MetaRow>
-                <MetaRow label={intl.formatMessage(messages.updated)}>
-                    {fmt(entry?.updatedAt)}
-                </MetaRow>
-                <MetaRow label={intl.formatMessage(messages.entryId)}>
-                    <span className="break-all font-mono text-xs text-muted-foreground">
-                        {entry?.id ?? dash}
-                    </span>
-                </MetaRow>
-            </dl>
+            )}
         </aside>
     );
 }

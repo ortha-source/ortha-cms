@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Filter, Plus } from 'lucide-react';
+import { ArrowLeft, Filter, Plus, Trash2 } from 'lucide-react';
 import {
     QueryBuilderDrawer,
     countRules,
@@ -11,6 +11,7 @@ import {
 } from '@ortha-cms/query-builder-admin';
 import { useTableUrlState } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Alert,
     AlertDescription,
@@ -24,11 +25,14 @@ import type {
     ContentTypeDetail
 } from '../../../types/contentType';
 import {
+    CONTENT_CREATE,
+    CONTENT_DELETE,
     CONTENT_SEGMENT,
     DEFAULT_PAGE_SIZE,
     NEW_SEGMENT,
     SEARCH_PARAM,
-    SORT_PARAM
+    SORT_PARAM,
+    TRASH_SEGMENT
 } from '../../../constants';
 import { useContentEntries } from '../../../api/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
@@ -40,6 +44,7 @@ import { CollectionRecordsPagination } from '../CollectionRecordsPagination';
 import { CollectionRecordsEmpty } from '../CollectionRecordsEmpty';
 import { CollectionRecordsSkeleton } from '../CollectionRecordsSkeleton';
 import { CollectionRecordsSelectionBar } from '../CollectionRecordsSelectionBar';
+import { CollectionRecordsBulkActions } from '../CollectionRecordsBulkActions';
 
 /** Intl descriptors for {@link LoadedRecordsView}, co-located. */
 const messages = defineMessages({
@@ -49,6 +54,20 @@ const messages = defineMessages({
             '{count, plural, one {# record} other {# records}} in this collection.'
     },
     add: { id: 'content.records.add', defaultMessage: 'Add record' },
+    trashTitle: {
+        id: 'content.records.trashTitle',
+        defaultMessage: '{label} · Trash'
+    },
+    trashSubtitle: {
+        id: 'content.records.trashSubtitle',
+        defaultMessage:
+            '{count, plural, one {# deleted record} other {# deleted records}}.'
+    },
+    viewTrash: { id: 'content.records.viewTrash', defaultMessage: 'Trash' },
+    backToRecords: {
+        id: 'content.records.backToRecords',
+        defaultMessage: 'Back to records'
+    },
     searchLabel: {
         id: 'content.records.searchLabel',
         defaultMessage: 'Search records'
@@ -91,15 +110,22 @@ const messages = defineMessages({
  */
 export function LoadedRecordsView({
     type,
-    schema
+    schema,
+    trashed = false
 }: {
     type: ContentType;
     schema: ContentTypeDetail;
+    /** Render the trash view (soft-deleted rows, restore/purge actions). */
+    trashed?: boolean;
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
     const workspace = useCurrentWorkspace();
     const typePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}/${type.name}`;
+    const canCreate = useHasPermission(CONTENT_CREATE);
+    const canDelete = useHasPermission(CONTENT_DELETE);
+    const paranoid = schema.paranoid ?? false;
+    const publishable = schema.publishable ?? false;
 
     const {
         searchParam,
@@ -202,7 +228,8 @@ export function LoadedRecordsView({
             filter: filterParam || undefined,
             sort: sortParam || undefined,
             page,
-            pageSize
+            pageSize,
+            deleted: trashed ? 'only' : undefined
         });
 
     const total = data?.total ?? 0;
@@ -242,17 +269,49 @@ export function LoadedRecordsView({
     const openCreate = () => navigate(`${typePath}/${NEW_SEGMENT}`);
 
     return (
-        <Container className="max-w-none p-4 sm:p-4">
+        <Container className="max-w-none p-6 sm:p-6">
             <ContainerHeader
-                title={schema.label}
-                subtitle={intl.formatMessage(messages.subtitle, {
-                    count: total
-                })}
+                title={
+                    trashed
+                        ? intl.formatMessage(messages.trashTitle, {
+                              label: schema.label
+                          })
+                        : schema.label
+                }
+                subtitle={intl.formatMessage(
+                    trashed ? messages.trashSubtitle : messages.subtitle,
+                    { count: total }
+                )}
                 actions={
-                    <Button onClick={openCreate}>
-                        <Plus />
-                        {intl.formatMessage(messages.add)}
-                    </Button>
+                    trashed ? (
+                        <Button variant="outline" className="shadow-none" asChild>
+                            <Link to={typePath}>
+                                <ArrowLeft />
+                                {intl.formatMessage(messages.backToRecords)}
+                            </Link>
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            {paranoid && canDelete ? (
+                                <Button
+                                    variant="outline"
+                                    className="shadow-none"
+                                    asChild
+                                >
+                                    <Link to={`${typePath}/${TRASH_SEGMENT}`}>
+                                        <Trash2 />
+                                        {intl.formatMessage(messages.viewTrash)}
+                                    </Link>
+                                </Button>
+                            ) : null}
+                            {canCreate ? (
+                                <Button onClick={openCreate}>
+                                    <Plus />
+                                    {intl.formatMessage(messages.add)}
+                                </Button>
+                            ) : null}
+                        </div>
+                    )
                 }
             />
 
@@ -335,8 +394,9 @@ export function LoadedRecordsView({
             ) : entries.length === 0 ? (
                 <CollectionRecordsEmpty
                     filtered={hasFilters}
+                    trashed={trashed}
                     onClear={clearFilters}
-                    onAdd={openCreate}
+                    onAdd={trashed || !canCreate ? undefined : openCreate}
                 />
             ) : (
                 <>
@@ -344,6 +404,16 @@ export function LoadedRecordsView({
                         <CollectionRecordsSelectionBar
                             count={selectedIds.size}
                             onClear={clearSelection}
+                            actions={
+                                <CollectionRecordsBulkActions
+                                    typeName={type.name}
+                                    ids={[...selectedIds]}
+                                    publishable={publishable}
+                                    paranoid={paranoid}
+                                    trashed={trashed}
+                                    onDone={clearSelection}
+                                />
+                            }
                         />
                     )}
                     <CollectionRecordsTable
@@ -351,7 +421,10 @@ export function LoadedRecordsView({
                         entries={entries}
                         columns={visibleColumns}
                         typePath={typePath}
-                        publishable={schema.publishable ?? false}
+                        typeName={type.name}
+                        publishable={publishable}
+                        paranoid={paranoid}
+                        trashed={trashed}
                         selectedIds={selectedIds}
                         onToggleRow={toggleRow}
                         onTogglePage={setPageSelection}

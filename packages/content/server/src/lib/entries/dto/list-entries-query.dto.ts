@@ -1,6 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+    IsIn,
+    IsInt,
+    IsOptional,
+    IsString,
+    Max,
+    MaxLength,
+    Min
+} from 'class-validator';
 import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../entries.constants';
+
+/** `?deleted=only` flips the list to the trash view (soft-deleted rows). */
+export const DELETED_ONLY = 'only';
 
 /**
  * Query parameters for `GET /api/content/:typeName`. Pagination is 1-based; the
@@ -46,4 +57,13 @@ export class ListEntriesQueryDto {
     @Min(1)
     @Max(MAX_PAGE_SIZE)
     pageSize?: number;
+
+    /**
+     * `only` lists soft-deleted rows (the trash view) instead of live ones.
+     * Meaningful only for paranoid types; ignored otherwise. Absent (the
+     * default) lists live rows.
+     */
+    @IsOptional()
+    @IsIn([DELETED_ONLY])
+    deleted?: typeof DELETED_ONLY;
 }

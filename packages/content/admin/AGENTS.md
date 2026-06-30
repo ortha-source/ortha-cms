@@ -14,8 +14,12 @@ create form). The entry
 list is **served by the API** (`useContentEntries` → `GET /api/content/:typeName`):
 search, query-builder filter, sort, and pagination all run server-side. Creating
 (`/new`) or opening (`/:entryId`) an entry renders the **`EntryEditor`** — a
-tabbed, schema-driven form (see below). Saving is **mocked** (`useSaveEntry`)
-until the entry-write API lands.
+tabbed, schema-driven form (see below). Writes are **live**: create/update
+(`useSaveEntry`), publish/unpublish + soft-delete/restore/purge
+(`useEntryStatusActions`), and their batch forms (`useBulkEntryActions`), all
+against the content-server write API; a server 422 maps back onto the form's
+fields. Each paranoid collection also has a **Trash** view
+(`:typeName/trash`).
 
 ## Layout (the second sidebar)
 
@@ -86,30 +90,44 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
   `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
   table header itself is static. The records view spans full width (`Container`
-  overridden to `max-w-none`) with a uniform 16px gutter (`p-4 sm:p-4`, overriding
+  overridden to `max-w-none`) with a uniform 24px gutter (`p-6 sm:p-6`, overriding
   the Container's responsive padding); the table sits in a full-width bordered
   card with no padding of its own.
 - **Entry editor** (`/new`, `/:entryId`, and a single page): `ContentEntryView`
   resolves the initial values per mode — `create` → blank; `edit` → the record
-  from the **records-list cache** (opened from the table; a cache miss shows a
-  notice, as there's no read-one API yet); `single` → the type's one row via the
-  list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
+  from `GET /content/:type/:id` (`useContentEntry`), seeded instantly from the
+  records-list cache when opened from the table; `single` → the type's one row via
+  the list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
   form state (`useEntryForm`, with client validation in `utils/validateEntryValues`
   mirroring the server's rules) and lays out a title header, a **full-width**
   tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
   `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
   toggles/multi-choice; **Relations** = relation fields (empty state otherwise);
-  **Media** + **History** = placeholders; all four tabs always present), and a
-  single monolithic right rail (`EntrySidebar`) that owns the actions
-  (**Save & publish** / **Save draft** for publishable types, else **Save**, plus
-  Cancel) and a **collapsible Details** block (status, signed-by, created/updated,
-  id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
+  **Media** + **History** = placeholders; all four tabs always present), and the
+  right rail (`EntrySidebar`): a top **action bar** — a primary button
+  (**Publish** for a publishable type the user may publish, else **Save** /
+  **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
+  Unpublish, Delete; each permission-gated) — over stacked **card blocks**: a
+  live **Publish Gate** (`PublishGateItem[]`, computed by `EntryEditor` from the
+  strict `validateEntryValues` — each required/invalid field with its pass/fail,
+  header `blocking`/`ready`; publishable types only) and a static **Details**
+  block (status, created/updated, id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
   control per field type — `date`/`datetime` use a shadcn `Calendar` popover
   (`EntryFieldInput/DateField`, with a time input for datetime), and
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
-  wide content scrolls inside the work-area island, not the page. Saving is mocked
-  (`useSaveEntry`) — no persistence/invalidation yet.
+  wide content scrolls inside the work-area island, not the page.
+- **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
+  actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
+  permanently in trash), and the selection-bar bulk actions are all gated by
+  `useHasPermission` (`content:create`/`update`/`publish`/`delete`). "Save &
+  publish" chains create/update then the dedicated publish endpoint (one validated
+  path). Bulk publish opens **`BulkPublishDialog`** — a dry run
+  (`bulk/publish/preview`) listing each row's verdict before publishing only the
+  valid drafts. Destructive actions confirm through the design-system
+  **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
+  (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
+  extracted by `utils/entryIssues`.
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
@@ -140,11 +158,15 @@ exports; `<name>/index.ts(x)` folders (pages in `src/lib/pages/<Name>/`, the
 factory in `src/lib/utils/contentPlugin/`); co-located `react-intl` messages
 namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
-- **A component used by only one other component nests inside that parent's
-  folder** (it is not a render method on the parent and not a top-level
-  component). So the search palette's result row lives at
-  `components/ContentSearchDialog/ContentSearchItem/`, not as a `renderItem`
-  closure inside the dialog.
+- **One component per file.** Never define a second React component in the same
+  file — not as a `renderItem` closure, not as a sibling `function Foo()` above
+  the export. Extract it. A component used by only one other component **nests
+  inside that parent's folder** (its own `<Name>/index.tsx`, with co-located
+  `messages`); a shared one goes under `components/`. Examples: the search
+  palette's result row lives at
+  `components/ContentSearchDialog/ContentSearchItem/`, and the bulk-publish
+  dialog's row at `components/CollectionRecordsView/BulkPublishDialog/VerdictRow/`
+  — not as functions inside their parent file.
 - **No magic string literals for route segments, route params, keyboard keys, or
   permissions** — define them as named constants in `src/lib/constants/` and
   import them wherever they're used. `CONTENT_SEGMENT` is the single source of
