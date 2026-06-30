@@ -100,6 +100,14 @@ export interface RelationSpec {
     many: boolean;
     /** FK referential action; ignored for `many` (join rows just disappear). */
     onDelete: RelationOnDelete;
+    /**
+     * Enforce a one-to-one relation: a `UNIQUE` constraint on the single FK
+     * column so at most one owner can point at a given target. Nullable-unique,
+     * so any number of owners may have no relation (Postgres permits many NULLs
+     * in a UNIQUE column). Meaningless — and rejected at define time — for a
+     * `many` relation, whose links live in a join table.
+     */
+    unique: boolean;
 }
 
 /** Options shared by every field builder. */
@@ -146,6 +154,11 @@ export interface RelationFieldOptions extends BaseFieldOptions {
     many?: boolean;
     /** FK referential action. Defaults to 'set null' (or 'cascade' when required). */
     onDelete?: RelationOnDelete;
+    /**
+     * One-to-one: add a `UNIQUE` constraint to the single FK column. Defaults
+     * to false. Invalid with `many: true` (rejected at define time).
+     */
+    unique?: boolean;
 }
 
 /**

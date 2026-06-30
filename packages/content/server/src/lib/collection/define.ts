@@ -70,6 +70,22 @@ function assertFields(
     for (const name of names) {
         const spec = fields[name];
 
+        // `unique` enforces one-to-one via a UNIQUE constraint on the single
+        // FK column. A many-relation has no such column (its links live in a
+        // join table), so `unique` is meaningless there — reject it rather
+        // than silently ignore it.
+        if (
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
+            spec.relation?.many &&
+            spec.relation.unique
+        ) {
+            throw new Error(
+                `Relation "${typeName}.${name}" sets unique: true with ` +
+                    `many: true — a many-relation has no FK column to constrain. ` +
+                    `Drop one of them.`
+            );
+        }
+
         // A required single relation with ON DELETE SET NULL is a
         // contradiction: the FK column is NOT NULL, so nulling it on a
         // parent delete always fails — the delete can never succeed.

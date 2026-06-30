@@ -132,8 +132,10 @@ function json<const O extends BaseFieldOptions = BaseFieldOptions>(
 /**
  * Relation to another content type — a real Postgres foreign key.
  * Single (`many: false`) becomes a `<field>_id` uuid FK column;
- * `many: true` becomes a generated join table. `to` is a thunk so
- * mutually-referencing collection files can import each other.
+ * `many: true` becomes a generated join table. `unique: true` adds a
+ * `UNIQUE` constraint to the single FK column for a one-to-one relation.
+ * `to` is a thunk so mutually-referencing collection files can import
+ * each other.
  */
 function relation<const O extends RelationFieldOptions>(
     options: O
@@ -147,7 +149,8 @@ function relation<const O extends RelationFieldOptions>(
             to: options.to,
             many: options.many ?? false,
             onDelete:
-                options.onDelete ?? (options.required ? 'cascade' : 'set null')
+                options.onDelete ?? (options.required ? 'cascade' : 'set null'),
+            unique: options.unique ?? false
         }
     };
 }

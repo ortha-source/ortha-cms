@@ -32,7 +32,20 @@ export const post = collection('post', {
   files can import each other. `onDelete` defaults to `'cascade'` when
   `required`, else `'set null'`. A **required single relation with
   `onDelete: 'set null'` is rejected** at define time — a NOT NULL FK can't be
-  nulled on delete.
+  nulled on delete. `unique: true` makes a single relation **one-to-one** — a
+  `UNIQUE` constraint on the `<field>_id` FK (nullable-unique, so unrelated rows
+  don't collide); combining it with `many: true` is rejected (a join table has
+  no column to constrain).
+
+### Relation cardinalities
+
+The two storage forms cover all four cardinalities. **many-to-one** is a plain
+single relation (`field.relation({ to })`); its inverse is **one-to-many**,
+which carries no storage of its own — model it as the single relation on the
+"many" side (e.g. `comment.article`). **one-to-one** is a single relation with
+`unique: true`. **many-to-many** is `many: true` (the generated join table). See
+the reference collections in `apps/server/src/collections` (`article` wires up
+`author`, `seo_meta`, `tag`, and `comment`).
 
 ### Metadata flags (`publishable` / `paranoid`)
 

@@ -100,6 +100,10 @@ function columnFor(
                 () => idColumnOf(spec.relation!.to().table),
                 { onDelete: spec.relation!.onDelete }
             );
+            // One-to-one: at most one owner may point at a given target.
+            // Nullable-unique — Postgres allows many NULLs, so owners with no
+            // relation don't collide.
+            if (spec.relation!.unique) builder = builder.unique();
             break;
         }
     }
