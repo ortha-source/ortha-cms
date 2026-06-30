@@ -149,9 +149,9 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the sidebar with Workspace and Manage sections |
+| renders the sidebar with the Workspace section |
 | groups start collapsed and expand on click |
-| selecting a single (page) shows its placeholder pane |
+| selecting a single (page) opens its entry editor |
 | only shows content types granted to the workspace |
 | pinning a type adds it to a Favorites section |
 | opens the search palette and navigates to a type |

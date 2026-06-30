@@ -4,8 +4,8 @@ import { BasePage } from './BasePage';
 /**
  * Page object for the Content Library at `/workspaces/:id/content` (from
  * `@ortha-cms/content-admin`) — the second-sidebar nav (collapsible Collections
- * and Pages groups, a Favorites section, a Manage section with History/Trash),
- * the ⌘K search palette, and the selected-type pane. Seed it with
+ * and Pages groups, a Favorites section), the ⌘K search palette, and the
+ * selected-type pane. Seed it with
  * `mockSignedIn`, `mockWorkspaces`, and `mockContentSchema`.
  */
 export class ContentLibraryPage extends BasePage {
@@ -54,11 +54,6 @@ export class ContentLibraryPage extends BasePage {
 
     /** A content-type row link by its label. */
     typeLink(label: string): Locator {
-        return this.sidebar.getByRole('link', { name: label, exact: true });
-    }
-
-    /** A static manage link ("History" / "Trash"). */
-    manageLink(label: string): Locator {
         return this.sidebar.getByRole('link', { name: label, exact: true });
     }
 

@@ -26,7 +26,7 @@ test.describe('Content Library', () => {
         await mockContentEntryWrites(page);
     });
 
-    test('renders the sidebar with Workspace and Manage sections', async ({
+    test('renders the sidebar with the Workspace section', async ({
         page,
         contentLibraryPage
     }) => {
@@ -39,10 +39,6 @@ test.describe('Content Library', () => {
         ).toBeVisible();
         await expect(contentLibraryPage.group('Collections')).toBeVisible();
         await expect(contentLibraryPage.group('Pages')).toBeVisible();
-        // Manage section with its two static links.
-        await expect(contentLibraryPage.sectionLabel('Manage')).toBeVisible();
-        await expect(contentLibraryPage.manageLink('History')).toBeVisible();
-        await expect(contentLibraryPage.manageLink('Trash')).toBeVisible();
         // No favorites pinned yet → the Favorites section is absent.
         await expect(contentLibraryPage.sectionLabel('Favorites')).toHaveCount(
             0
