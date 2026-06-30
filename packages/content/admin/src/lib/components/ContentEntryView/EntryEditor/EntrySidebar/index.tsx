@@ -251,7 +251,7 @@ export function EntrySidebar({
 
     return (
         <aside
-            className="flex w-full shrink-0 flex-col gap-4 p-6 lg:w-96"
+            className="flex w-full shrink-0 flex-col gap-4 p-6 lg:w-[22rem]"
             aria-label={intl.formatMessage(messages.aside)}
         >
             {/* Action bar */}
@@ -411,6 +411,14 @@ export function EntrySidebar({
                 </CardHeader>
                 <CardContent>
                     <dl className="flex flex-col gap-3">
+                        <MetaRow
+                            label={intl.formatMessage(messages.entryId)}
+                            stacked
+                        >
+                            <span className="break-all font-mono text-xs text-muted-foreground">
+                                {entry?.id ?? dash}
+                            </span>
+                        </MetaRow>
                         <MetaRow label={intl.formatMessage(messages.status)}>
                             <Badge variant={statusVariant}>
                                 {intl.formatMessage(statusLabel)}
@@ -421,14 +429,6 @@ export function EntrySidebar({
                         </MetaRow>
                         <MetaRow label={intl.formatMessage(messages.updated)}>
                             {fmt(entry?.updatedAt)}
-                        </MetaRow>
-                        <MetaRow
-                            label={intl.formatMessage(messages.entryId)}
-                            stacked
-                        >
-                            <span className="break-all font-mono text-xs text-muted-foreground">
-                                {entry?.id ?? dash}
-                            </span>
                         </MetaRow>
                     </dl>
                 </CardContent>
