@@ -6,6 +6,7 @@ import {
     ChevronRight,
     ExternalLink,
     MinusCircle,
+    RefreshCw,
     XCircle
 } from 'lucide-react';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
@@ -63,6 +64,10 @@ const messages = defineMessages({
         id: 'content.bulkPublish.blocked',
         defaultMessage:
             '{count, plural, one {# issue} other {# issues}}'
+    },
+    recheck: {
+        id: 'content.bulkPublish.recheck',
+        defaultMessage: 'Re-check'
     },
     openRecord: {
         id: 'content.bulkPublish.openRecord',
@@ -154,7 +159,7 @@ function VerdictRow({
     const canOpen = item.verdict !== BULK_VERDICT.NotFound;
 
     const header = (
-        <div className="flex items-center gap-2 py-2">
+        <div className="flex items-center gap-2 px-3 py-2">
             {hasIssues ? (
                 <CollapsibleTrigger
                     className="group flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -201,15 +206,15 @@ function VerdictRow({
     );
 
     if (!hasIssues) {
-        return <li>{header}</li>;
+        return <li className="rounded-lg border bg-background">{header}</li>;
     }
 
     return (
-        <li>
+        <li className="rounded-lg border bg-background">
             <Collapsible>
                 {header}
                 <CollapsibleContent>
-                    <ul className="mb-2 ml-8 flex flex-col gap-1">
+                    <ul className="mb-3 ml-11 mr-3 flex flex-col gap-1">
                         {item.issues.map((issue, index) => (
                             <li
                                 key={`${issue.field}-${index}`}
@@ -308,6 +313,27 @@ export function BulkPublishDialog({
                     </DialogDescription>
                 </DialogHeader>
 
+                {/* Re-run the dry run to refetch each selected record's status. */}
+                <div className="flex justify-end">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shadow-none"
+                        onClick={() => runPreview(ids)}
+                        disabled={previewPublish.isPending || publish.isPending}
+                    >
+                        <RefreshCw
+                            className={cn(
+                                'size-4',
+                                previewPublish.isPending && 'animate-spin'
+                            )}
+                            aria-hidden
+                        />
+                        {intl.formatMessage(messages.recheck)}
+                    </Button>
+                </div>
+
                 {previewPublish.isPending ? (
                     <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
                         <Spinner aria-hidden />
@@ -322,7 +348,7 @@ export function BulkPublishDialog({
                     </p>
                 ) : (
                     <>
-                        <ul className="max-h-96 divide-y overflow-auto">
+                        <ul className="flex max-h-96 flex-col gap-2 overflow-auto pr-1">
                             {items.map((item) => (
                                 <VerdictRow
                                     key={item.id}
