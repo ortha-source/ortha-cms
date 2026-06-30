@@ -53,9 +53,9 @@ export function RelationFieldSection({
     return (
         <Collapsible
             defaultOpen={defaultOpen}
-            className="group/rel py-4 first:pt-0 last:pb-0"
+            className="group/rel rounded-lg border bg-card"
         >
-            <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/rel:rotate-90" />
                 <span className="flex-1 text-sm font-medium">
                     {fieldLabel(field)}
@@ -65,7 +65,7 @@ export function RelationFieldSection({
                 </span>
             </CollapsibleTrigger>
             <CollapsibleContent>
-                <div className="pl-6 pt-3">
+                <div className="border-t px-3 pb-3 pt-3">
                     <RelationField
                         field={field}
                         value={value}

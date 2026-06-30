@@ -49,8 +49,9 @@ const messages = defineMessages({
 /**
  * One verdict as a collapsible row in {@link BulkPublishDialog}: a header showing
  * the record's title + id, a status icon, the verdict note, and an "open in a new
- * tab" button. Any **validated** record (publishable or blocked) expands to its
- * per-field publish-gate checklist — passed fields included, not just failures.
+ * tab" button. Any record the server gated (publishable, blocked, or
+ * already-published) expands to its per-field publish-gate checklist — passed
+ * fields included, not just failures; only a vanished (not-found) row can't expand.
  */
 export function VerdictRow({
     item,
@@ -97,8 +98,9 @@ export function VerdictRow({
         }
     }[item.verdict];
 
-    // Any validated record (publishable or blocked) carries a per-field
-    // checklist; expand to show it — passed fields included, not just failures.
+    // Any gated record (publishable, blocked, or already-published) carries a
+    // per-field checklist; expand to show it — passed fields included, not just
+    // failures. Only a not-found row has none.
     const hasChecks = item.checks.length > 0;
     // The record may have vanished (NotFound) — nothing to open in that case.
     const canOpen = item.verdict !== BULK_VERDICT.NotFound;

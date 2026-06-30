@@ -151,10 +151,11 @@ export function EntryEditor({
 
     // A 422 from the server is mapped back onto the form as inline field errors;
     // other failures fall through to the mutation's own error handling.
-    const submitWith = (publish: boolean) => (values: Record<string, unknown>) =>
-        onSave(values, { publish }).catch((error) => {
-            form.setServerErrors(entryIssuesFrom(error));
-        });
+    const submitWith =
+        (publish: boolean) => (values: Record<string, unknown>) =>
+            onSave(values, { publish }).catch((error) => {
+                form.setServerErrors(entryIssuesFrom(error));
+            });
 
     // A **draft** of a publishable type can be saved incomplete, so it uses the
     // relaxed (format-only) gate — required isn't enforced, but a malformed value
@@ -230,7 +231,7 @@ export function EntryEditor({
 
                         <TabsContent value={TAB.Relations}>
                             {relationFields.length > 0 ? (
-                                <div className="divide-y">
+                                <div className="flex flex-col gap-3">
                                     {relationFields.map((field) => (
                                         <RelationFieldSection
                                             key={field.name}
@@ -240,7 +241,9 @@ export function EntryEditor({
                                             onChange={(value) =>
                                                 form.setValue(field.name, value)
                                             }
-                                            onBlur={() => form.touch(field.name)}
+                                            onBlur={() =>
+                                                form.touch(field.name)
+                                            }
                                             // A handful stay open; many start
                                             // collapsed to keep the tab tidy.
                                             defaultOpen={
@@ -252,7 +255,9 @@ export function EntryEditor({
                                 </div>
                             ) : (
                                 <p className="text-sm text-muted-foreground">
-                                    {intl.formatMessage(messages.relationsEmpty)}
+                                    {intl.formatMessage(
+                                        messages.relationsEmpty
+                                    )}
                                 </p>
                             )}
                         </TabsContent>

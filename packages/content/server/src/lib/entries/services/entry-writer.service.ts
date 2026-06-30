@@ -109,7 +109,10 @@ export class EntryWriterService {
         }
         const [row] = await this.db
             .update(type.table)
-            .set({ ...toColumns(type, coerced), updatedAt: new Date() } as never)
+            .set({
+                ...toColumns(type, coerced),
+                updatedAt: new Date()
+            } as never)
             .where(this.liveWhere(type, id, workspaceId))
             .returning();
         if (!row) throw this.notFound(type, id);
@@ -177,7 +180,10 @@ export class EntryWriterService {
         const [row] = type.paranoid
             ? await this.db
                   .update(type.table)
-                  .set({ deletedAt: new Date(), updatedAt: new Date() } as never)
+                  .set({
+                      deletedAt: new Date(),
+                      updatedAt: new Date()
+                  } as never)
                   .where(and(eq(t['id'], id), scope, isNull(t['deletedAt'])))
                   .returning()
             : await this.db
@@ -262,9 +268,7 @@ export class EntryWriterService {
         if (!ids.length) return { published: [], skipped: [] };
         const t = this.columns(type);
         const scope = this.scope(type, workspaceId);
-        const deletedGuard = type.paranoid
-            ? isNull(t['deletedAt'])
-            : undefined;
+        const deletedGuard = type.paranoid ? isNull(t['deletedAt']) : undefined;
         return this.db.transaction(async (tx) => {
             const rows = (await tx
                 .select()
@@ -284,7 +288,9 @@ export class EntryWriterService {
                         publishedAt: new Date(),
                         updatedAt: new Date()
                     } as never)
-                    .where(and(inArray(t['id'], published), scope, deletedGuard));
+                    .where(
+                        and(inArray(t['id'], published), scope, deletedGuard)
+                    );
             }
             const skipped = items
                 .filter((item) => item.verdict !== BULK_VERDICT.Publishable)
@@ -319,13 +325,21 @@ export class EntryWriterService {
             const title = entryTitle(type, row);
             const status = row['status'] as EntryStatus;
             if (status === ENTRY_STATUS.Published) {
+                // Already published, so nothing will change — but still surface
+                // its per-field gate (an already-published row is valid, so the
+                // checks all pass) so the dialog can expand it like every other
+                // row instead of leaving it a dead, non-collapsible entry.
+                const result = this.validation.validate(
+                    type,
+                    toRecord(type, row).values
+                );
                 return {
                     id,
                     title,
                     status,
                     verdict: BULK_VERDICT.AlreadyPublished,
                     issues: [],
-                    checks: []
+                    checks: this.buildChecks(type, result.issues)
                 };
             }
             const result = this.validation.validate(
@@ -409,8 +423,13 @@ export class EntryWriterService {
         const rows = type.paranoid
             ? await this.db
                   .update(type.table)
-                  .set({ deletedAt: new Date(), updatedAt: new Date() } as never)
-                  .where(and(inArray(t['id'], ids), scope, isNull(t['deletedAt'])))
+                  .set({
+                      deletedAt: new Date(),
+                      updatedAt: new Date()
+                  } as never)
+                  .where(
+                      and(inArray(t['id'], ids), scope, isNull(t['deletedAt']))
+                  )
                   .returning()
             : await this.db
                   .delete(type.table)

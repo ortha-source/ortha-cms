@@ -23,8 +23,7 @@ export const BULK_VERDICT = {
 } as const;
 
 /** One row's dry-run verdict. */
-export type BulkVerdictKind =
-    (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
+export type BulkVerdictKind = (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
 
 /**
  * One field's publish-gate check: whether it currently passes (and, when it
@@ -54,8 +53,9 @@ export interface BulkPublishVerdict {
     issues: ValidationIssue[];
     /**
      * Per-field publish-gate checks (required fields + any field with an issue),
-     * for a record that was actually validated (`publishable`/`blocked`); empty
-     * for already-published / not-found rows.
+     * for any record the server validated — `publishable`, `blocked`, and
+     * `already-published` (whose checks all pass). Empty only for a `not-found`
+     * row, which has no record to check.
      */
     checks: BulkPublishCheck[];
 }
