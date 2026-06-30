@@ -1,8 +1,21 @@
 import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { AlertCircle, CheckCircle2, MinusCircle, XCircle } from 'lucide-react';
+import {
+    AlertCircle,
+    CheckCircle2,
+    ChevronRight,
+    ExternalLink,
+    MinusCircle,
+    XCircle
+} from 'lucide-react';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
     Button,
+    buttonVariants,
+    cn,
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
     Dialog,
     DialogContent,
     DialogDescription,
@@ -13,7 +26,7 @@ import {
     toast
 } from '@ortha-cms/design-system';
 import type { BulkPublishVerdict } from '../../../types/contentType';
-import { BULK_VERDICT } from '../../../constants';
+import { BULK_VERDICT, CONTENT_SEGMENT } from '../../../constants';
 import { useBulkEntryActions } from '../../../api/useBulkEntryActions';
 
 const messages = defineMessages({
@@ -46,6 +59,19 @@ const messages = defineMessages({
         id: 'content.bulkPublish.notFound',
         defaultMessage: 'No longer available'
     },
+    blocked: {
+        id: 'content.bulkPublish.blocked',
+        defaultMessage:
+            '{count, plural, one {# issue} other {# issues}}'
+    },
+    openRecord: {
+        id: 'content.bulkPublish.openRecord',
+        defaultMessage: 'Open record in a new tab'
+    },
+    toggleIssues: {
+        id: 'content.bulkPublish.toggleIssues',
+        defaultMessage: 'Show publishing issues'
+    },
     cancel: { id: 'content.bulkPublish.cancel', defaultMessage: 'Cancel' },
     confirm: {
         id: 'content.bulkPublish.confirm',
@@ -73,14 +99,26 @@ const messages = defineMessages({
     }
 });
 
-/** Icon + label + (for blocked) the issue list for one verdict row. */
-function VerdictRow({ item }: { item: BulkPublishVerdict }) {
+/**
+ * One verdict as a collapsible row: a header showing the record's title + id, a
+ * status icon, the verdict note, and an "open in a new tab" button; when the
+ * record is **blocked**, the row expands to reveal its validation issues.
+ */
+function VerdictRow({
+    item,
+    recordHref
+}: {
+    item: BulkPublishVerdict;
+    /** Builds the entry-editor URL for a record id. */
+    recordHref: (id: string) => string;
+}) {
     const intl = useIntl();
 
     const meta = {
         [BULK_VERDICT.Publishable]: {
             icon: <CheckCircle2 className="size-4 text-primary" aria-hidden />,
-            note: intl.formatMessage(messages.willPublish)
+            note: intl.formatMessage(messages.willPublish),
+            danger: false
         },
         [BULK_VERDICT.AlreadyPublished]: {
             icon: (
@@ -89,7 +127,8 @@ function VerdictRow({ item }: { item: BulkPublishVerdict }) {
                     aria-hidden
                 />
             ),
-            note: intl.formatMessage(messages.alreadyPublished)
+            note: intl.formatMessage(messages.alreadyPublished),
+            danger: false
         },
         [BULK_VERDICT.NotFound]: {
             icon: (
@@ -98,29 +137,93 @@ function VerdictRow({ item }: { item: BulkPublishVerdict }) {
                     aria-hidden
                 />
             ),
-            note: intl.formatMessage(messages.notFound)
+            note: intl.formatMessage(messages.notFound),
+            danger: false
         },
         [BULK_VERDICT.Blocked]: {
             icon: <XCircle className="size-4 text-destructive" aria-hidden />,
-            note: item.issues
-                .map((issue) => `${issue.field}: ${issue.message}`)
-                .join(', ')
+            note: intl.formatMessage(messages.blocked, {
+                count: item.issues.length
+            }),
+            danger: true
         }
     }[item.verdict];
 
-    return (
-        <li className="flex items-start gap-2 py-1.5 text-sm">
-            <span className="mt-0.5 shrink-0">{meta.icon}</span>
-            <span className="min-w-0 flex-1 truncate">{item.title}</span>
+    const hasIssues = item.issues.length > 0;
+    // The record may have vanished (NotFound) — nothing to open in that case.
+    const canOpen = item.verdict !== BULK_VERDICT.NotFound;
+
+    const header = (
+        <div className="flex items-center gap-2 py-2">
+            {hasIssues ? (
+                <CollapsibleTrigger
+                    className="group flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={intl.formatMessage(messages.toggleIssues)}
+                >
+                    <ChevronRight
+                        className="size-4 transition-transform group-data-[state=open]:rotate-90"
+                        aria-hidden
+                    />
+                </CollapsibleTrigger>
+            ) : (
+                <span className="size-6 shrink-0" aria-hidden />
+            )}
+            <span className="shrink-0">{meta.icon}</span>
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-sm">{item.title}</p>
+                <p className="truncate font-mono text-xs text-muted-foreground">
+                    {item.id}
+                </p>
+            </div>
             <span
-                className={
-                    item.verdict === BULK_VERDICT.Blocked
-                        ? 'shrink-0 text-xs text-destructive'
-                        : 'shrink-0 text-xs text-muted-foreground'
-                }
+                className={cn(
+                    'shrink-0 text-xs',
+                    meta.danger ? 'text-destructive' : 'text-muted-foreground'
+                )}
             >
                 {meta.note}
             </span>
+            {canOpen && (
+                <a
+                    href={recordHref(item.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                        'size-7 shrink-0 text-muted-foreground'
+                    )}
+                    aria-label={intl.formatMessage(messages.openRecord)}
+                >
+                    <ExternalLink className="size-4" aria-hidden />
+                </a>
+            )}
+        </div>
+    );
+
+    if (!hasIssues) {
+        return <li>{header}</li>;
+    }
+
+    return (
+        <li>
+            <Collapsible>
+                {header}
+                <CollapsibleContent>
+                    <ul className="mb-2 ml-8 flex flex-col gap-1">
+                        {item.issues.map((issue, index) => (
+                            <li
+                                key={`${issue.field}-${index}`}
+                                className="text-xs text-destructive"
+                            >
+                                <span className="font-medium">
+                                    {issue.field}
+                                </span>
+                                : {issue.message}
+                            </li>
+                        ))}
+                    </ul>
+                </CollapsibleContent>
+            </Collapsible>
         </li>
     );
 }
@@ -149,8 +252,13 @@ export function BulkPublishDialog({
     onPublished: () => void;
 }) {
     const intl = useIntl();
+    const workspace = useCurrentWorkspace();
     const { previewPublish, publish } = useBulkEntryActions(typeName);
     const { mutate: runPreview, reset: resetPreview } = previewPublish;
+
+    // The entry-editor URL for a record, opened in a new tab from a verdict row.
+    const recordHref = (id: string) =>
+        `/workspaces/${workspace.id}/${CONTENT_SEGMENT}/${typeName}/${id}`;
 
     // Dry-run whenever the dialog opens for the current selection.
     useEffect(() => {
@@ -188,7 +296,7 @@ export function BulkPublishDialog({
                 if (!publish.isPending) onOpenChange(next);
             }}
         >
-            <DialogContent>
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {
@@ -214,9 +322,13 @@ export function BulkPublishDialog({
                     </p>
                 ) : (
                     <>
-                        <ul className="max-h-72 divide-y overflow-auto">
+                        <ul className="max-h-96 divide-y overflow-auto">
                             {items.map((item) => (
-                                <VerdictRow key={item.id} item={item} />
+                                <VerdictRow
+                                    key={item.id}
+                                    item={item}
+                                    recordHref={recordHref}
+                                />
                             ))}
                         </ul>
                         {items.length > 0 && (
