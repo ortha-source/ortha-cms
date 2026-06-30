@@ -121,14 +121,30 @@ const messages = defineMessages({
     }
 });
 
-/** One label/value row in the details list. */
+/**
+ * One label/value row in the details list. Defaults to a side-by-side row (label
+ * left, value right); pass `stacked` for a long value (e.g. a UUID) that should
+ * sit full-width on its own line beneath the label instead of wrapping awkwardly.
+ */
 function MetaRow({
     label,
+    stacked = false,
     children
 }: {
     label: string;
+    stacked?: boolean;
     children: React.ReactNode;
 }) {
+    if (stacked) {
+        return (
+            <div className="flex flex-col gap-1">
+                <dt className="text-xs font-medium text-muted-foreground">
+                    {label}
+                </dt>
+                <dd className="text-sm">{children}</dd>
+            </div>
+        );
+    }
     return (
         <div className="flex items-baseline justify-between gap-3">
             <dt className="text-xs font-medium text-muted-foreground">
@@ -406,7 +422,10 @@ export function EntrySidebar({
                         <MetaRow label={intl.formatMessage(messages.updated)}>
                             {fmt(entry?.updatedAt)}
                         </MetaRow>
-                        <MetaRow label={intl.formatMessage(messages.entryId)}>
+                        <MetaRow
+                            label={intl.formatMessage(messages.entryId)}
+                            stacked
+                        >
                             <span className="break-all font-mono text-xs text-muted-foreground">
                                 {entry?.id ?? dash}
                             </span>
