@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { memberships, roles, users } from '../../schema';
 import type { WorkspaceMemberView } from '../types/views';
@@ -58,6 +58,27 @@ export class MembershipService {
             .map((userId) => ({ workspaceId, userId }));
         if (values.length === 0) return;
         await tx.insert(memberships).values(values).onConflictDoNothing();
+    }
+
+    /**
+     * Whether `userId` is a member of `workspaceId`. The membership link is the
+     * authorization boundary for workspace-scoped resources (e.g. content
+     * entries): a non-member must not read or write a workspace's data even with
+     * a valid session. A single-row existence probe, indexed by the
+     * `(workspace_id, user_id)` unique constraint.
+     */
+    async isMember(userId: string, workspaceId: string): Promise<boolean> {
+        const [row] = await this.db
+            .select({ userId: memberships.userId })
+            .from(memberships)
+            .where(
+                and(
+                    eq(memberships.userId, userId),
+                    eq(memberships.workspaceId, workspaceId)
+                )
+            )
+            .limit(1);
+        return !!row;
     }
 
     /** Groups members by workspace id, owner (earliest membership) first. */

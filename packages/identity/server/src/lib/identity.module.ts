@@ -28,6 +28,7 @@ import { WorkspaceService } from './workspaces/services/workspace.service';
 import { SlugService } from './workspaces/services/slug.service';
 import { MembershipService } from './workspaces/services/membership.service';
 import { ContentGrantService } from './workspaces/services/content-grant.service';
+import { WorkspaceGuard } from './workspaces/guards/workspace.guard';
 import { ListContentTypesController } from './content/controllers/list-content-types.controller';
 
 /**
@@ -82,6 +83,10 @@ export class IdentityModule {
                 SlugService,
                 MembershipService,
                 ContentGrantService,
+                // Resolved by `@UseGuards(WorkspaceGuard)` on workspace-scoped
+                // routes in other plugins; injectable everywhere since this
+                // module is global (same pattern as PermissionsGuard).
+                WorkspaceGuard,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -106,7 +111,13 @@ export class IdentityModule {
                 IDENTITY_CONFIG,
                 RolesService,
                 PermissionsService,
-                AuthService
+                AuthService,
+                // Exported so a feature plugin's `@UseGuards(WorkspaceGuard)`
+                // (instantiated in the consuming module's injector) can resolve
+                // the guard and its `MembershipService` dependency — same reason
+                // PermissionsService is exported for PermissionsGuard.
+                MembershipService,
+                WorkspaceGuard
             ]
         };
     }

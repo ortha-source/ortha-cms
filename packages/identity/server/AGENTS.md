@@ -57,11 +57,19 @@ tokens and full user management land in later tickets (epic #3).
     - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
       (`RootAdminSeeder`), `errors/`.
     - `workspaces/` — `controllers/` (`create`/`list`/`check-slug`, all on
-      `/api/workspaces`), `services/` (`WorkspaceService`), `dto/`, `errors/`.
-      Backs the admin create-wizard: creates a workspace + memberships + content
-      grants, lists workspaces with members, and checks slug availability. The
-      owner comes from the session; the wizard's per-member role is ignored
-      (membership is a pure link — see `memberships`).
+      `/api/workspaces`), `services/` (`WorkspaceService`), `guards/`
+      (`WorkspaceGuard`), `decorators/` (`@CurrentWorkspace()`), `dto/`,
+      `errors/`. Backs the admin create-wizard: creates a workspace + memberships
+      + content grants, lists workspaces with members, and checks slug
+      availability. The owner comes from the session; the wizard's per-member
+      role is ignored (membership is a pure link — see `memberships`). It also
+      provides the **workspace-scoping** primitives other plugins reuse:
+      `WorkspaceGuard` reads the `X-Workspace-Id` header, 400s a missing/malformed
+      id and 403s a non-member (`MembershipService.isMember`), then exposes the id
+      via `@CurrentWorkspace()`. Both are exported from the barrel and the guard
+      is provided in the global module (like `PermissionsGuard`), so a feature
+      plugin (e.g. content) guards its workspace-owned routes with
+      `@UseGuards(WorkspaceGuard)` + `@CurrentWorkspace()`.
     - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
       (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
     - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and

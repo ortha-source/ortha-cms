@@ -135,7 +135,13 @@ export function buildTables(
     const columns: Record<string, PgColumnBuilderBase> = {
         /** Primary key. */
         id: uuid('id').primaryKey().defaultRandom(),
-        /** Owning workspace. Plain uuid (no FK) until workspace scoping lands. */
+        /**
+         * Owning workspace. Stamped on create and filtered on every read/write
+         * by the entries services (scoped via `WorkspaceGuard`'s `X-Workspace-Id`
+         * header), so entries never cross workspaces. Plain uuid, no FK — the
+         * `workspaces` table lives in the identity plugin's schema, which this
+         * package can't reference; isolation is enforced in the app layer.
+         */
         workspaceId: uuid('workspace_id'),
         /** Row creation timestamp. */
         createdAt: timestamp('created_at', { withTimezone: true })

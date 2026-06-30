@@ -7,9 +7,11 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentWorkspace,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    WorkspaceGuard
 } from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
@@ -23,9 +25,10 @@ import type { EntryListView } from '../types/entry-list-view';
  * `?pageSize=`). The `:typeName` is resolved from the registry (404 if unknown),
  * so this single route serves every collection; the service runs the generic SQL
  * pipeline against the type's generated table. Authentication is enforced by the
- * app-wide AuthGuard; read access is gated on `content:read`.
+ * app-wide AuthGuard; `WorkspaceGuard` scopes the request to a workspace the
+ * caller belongs to; read access is gated on `content:read`.
  */
-@UseGuards(PermissionsGuard)
+@UseGuards(WorkspaceGuard, PermissionsGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class ListEntriesController {
@@ -38,12 +41,13 @@ export class ListEntriesController {
     @Get(':typeName')
     list(
         @Param('typeName') typeName: string,
-        @Query() query: ListEntriesQueryDto
+        @Query() query: ListEntriesQueryDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<EntryListView> {
         const type = this.registry.get(typeName);
         if (!type) {
             throw new NotFoundException(`Unknown content type "${typeName}".`);
         }
-        return this.entries.list(type, query);
+        return this.entries.list(type, query, workspaceId);
     }
 }

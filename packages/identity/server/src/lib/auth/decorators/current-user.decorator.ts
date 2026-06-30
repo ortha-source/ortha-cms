@@ -6,9 +6,14 @@ import type { PublicUser } from '../services/auth.service';
  * An Express request after {@link AuthGuard} has run on a guarded route: the
  * authenticated {@link PublicUser} is attached as `user`. On a `@Public()`
  * route the guard sets nothing, so `user` is `undefined`.
+ *
+ * On a workspace-scoped route, `WorkspaceGuard` additionally attaches the
+ * validated `workspaceId` (the caller is a confirmed member); routes without
+ * that guard leave it `undefined`.
  */
 export interface AuthenticatedRequest extends Request {
     user?: PublicUser;
+    workspaceId?: string;
 }
 
 /**
