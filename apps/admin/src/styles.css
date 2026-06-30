@@ -65,15 +65,22 @@
         @apply border-border;
     }
     html {
-        /* The shell + work-area islands own their own scrolling, so the page
-           itself never scrolls — clip overflow at the root rather than letting a
-           child push the whole document. */
-        @apply overflow-hidden;
+        /* The document owns vertical scrolling: the sticky navbar (top-0) and
+           workspace rail (top-12) are anchored to the viewport scrollport, and
+           ordinary pages grow past the fold and scroll. Pages that opt into a
+           fixed-height "island" (e.g. the Content Library) are bounded to the
+           viewport and run their own inner scroll, so they never push the
+           document. Clip the horizontal axis with `clip` (not `hidden`) — it
+           hides sideways overflow without creating a scroll container, so it
+           leaves `position: sticky` intact. */
+        @apply overflow-x-clip;
     }
     body {
         @apply bg-background text-foreground;
     }
     #root {
-        @apply min-h-svh overflow-x-hidden;
+        /* `overflow-x-clip`, not `-hidden`: `hidden` would make #root a scroll
+           container and break the sticky chrome once the document scrolls. */
+        @apply min-h-svh overflow-x-clip;
     }
 }
