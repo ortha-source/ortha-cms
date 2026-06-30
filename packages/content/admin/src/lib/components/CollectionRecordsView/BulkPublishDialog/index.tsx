@@ -2,11 +2,13 @@ import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     AlertCircle,
+    Check,
     CheckCircle2,
     ChevronRight,
     ExternalLink,
     MinusCircle,
     RefreshCw,
+    X,
     XCircle
 } from 'lucide-react';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
@@ -75,7 +77,7 @@ const messages = defineMessages({
     },
     toggleIssues: {
         id: 'content.bulkPublish.toggleIssues',
-        defaultMessage: 'Show publishing issues'
+        defaultMessage: 'Show field checks'
     },
     cancel: { id: 'content.bulkPublish.cancel', defaultMessage: 'Cancel' },
     confirm: {
@@ -154,13 +156,15 @@ function VerdictRow({
         }
     }[item.verdict];
 
-    const hasIssues = item.issues.length > 0;
+    // Any validated record (publishable or blocked) carries a per-field
+    // checklist; expand to show it — passed fields included, not just failures.
+    const hasChecks = item.checks.length > 0;
     // The record may have vanished (NotFound) — nothing to open in that case.
     const canOpen = item.verdict !== BULK_VERDICT.NotFound;
 
     const header = (
         <div className="flex items-center gap-2 px-3 py-2">
-            {hasIssues ? (
+            {hasChecks ? (
                 <CollapsibleTrigger
                     className="group flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={intl.formatMessage(messages.toggleIssues)}
@@ -205,7 +209,7 @@ function VerdictRow({
         </div>
     );
 
-    if (!hasIssues) {
+    if (!hasChecks) {
         return <li className="rounded-lg border bg-background">{header}</li>;
     }
 
@@ -214,16 +218,37 @@ function VerdictRow({
             <Collapsible>
                 {header}
                 <CollapsibleContent>
-                    <ul className="mb-3 ml-11 mr-3 flex flex-col gap-1">
-                        {item.issues.map((issue, index) => (
+                    <ul className="mb-3 ml-11 mr-3 flex flex-col gap-1.5">
+                        {item.checks.map((check) => (
                             <li
-                                key={`${issue.field}-${index}`}
-                                className="text-xs text-destructive"
+                                key={check.field}
+                                className="flex items-start gap-1.5 text-xs"
                             >
-                                <span className="font-medium">
-                                    {issue.field}
+                                {check.ok ? (
+                                    <Check
+                                        className="mt-0.5 size-3.5 shrink-0 text-primary"
+                                        aria-hidden
+                                    />
+                                ) : (
+                                    <X
+                                        className="mt-0.5 size-3.5 shrink-0 text-destructive"
+                                        aria-hidden
+                                    />
+                                )}
+                                <span
+                                    className={
+                                        check.ok
+                                            ? 'text-muted-foreground'
+                                            : 'text-destructive'
+                                    }
+                                >
+                                    <span className="font-medium">
+                                        {check.label}
+                                    </span>
+                                    {!check.ok && check.message
+                                        ? `: ${check.message}`
+                                        : null}
                                 </span>
-                                : {issue.message}
                             </li>
                         ))}
                     </ul>

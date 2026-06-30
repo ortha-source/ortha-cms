@@ -16,11 +16,15 @@ import {
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { AnyContentType, EntryStatus } from '../../types/content-type';
 import { ENTRY_STATUS } from '../../types/content-type';
-import { EntryValidationService } from '../../validation/services/entry-validation.service';
+import {
+    EntryValidationService,
+    type ValidationIssue
+} from '../../validation/services/entry-validation.service';
 import type { EntryRecord } from '../types/entry-list-view';
 import {
     BULK_VERDICT,
     type BulkActionResult,
+    type BulkPublishCheck,
     type BulkPublishPreview,
     type BulkPublishResult,
     type BulkPublishVerdict
@@ -262,7 +266,8 @@ export class EntryWriterService {
                     title: id,
                     status: null,
                     verdict: BULK_VERDICT.NotFound,
-                    issues: []
+                    issues: [],
+                    checks: []
                 };
             }
             const title = entryTitle(type, row);
@@ -273,7 +278,8 @@ export class EntryWriterService {
                     title,
                     status,
                     verdict: BULK_VERDICT.AlreadyPublished,
-                    issues: []
+                    issues: [],
+                    checks: []
                 };
             }
             const result = this.validation.validate(
@@ -287,9 +293,35 @@ export class EntryWriterService {
                 verdict: result.valid
                     ? BULK_VERDICT.Publishable
                     : BULK_VERDICT.Blocked,
-                issues: result.issues
+                issues: result.issues,
+                checks: this.buildChecks(type, result.issues)
             };
         });
+    }
+
+    /**
+     * The per-field publish-gate checklist for one record: every required field
+     * plus any field that has an issue, each marked pass/fail. Mirrors the
+     * editor's Publish Gate so a row can show its passed fields, not just the
+     * failures.
+     */
+    private buildChecks(
+        type: AnyContentType,
+        issues: ValidationIssue[]
+    ): BulkPublishCheck[] {
+        const byField = new Map<string, string>();
+        for (const issue of issues) {
+            if (!byField.has(issue.field))
+                byField.set(issue.field, issue.message);
+        }
+        return Object.entries(type.fields)
+            .filter(([name, spec]) => spec.required || byField.has(name))
+            .map(([name, spec]) => ({
+                field: name,
+                label: spec.admin.label ?? name,
+                ok: !byField.has(name),
+                message: byField.get(name)
+            }));
     }
 
     /** Revert a set of live entries to draft. */

@@ -26,6 +26,22 @@ export const BULK_VERDICT = {
 export type BulkVerdictKind =
     (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
 
+/**
+ * One field's publish-gate check: whether it currently passes (and, when it
+ * doesn't, why). Lets the admin show a full per-record checklist — passed fields
+ * included — not just the failures.
+ */
+export interface BulkPublishCheck {
+    /** Field name. */
+    field: string;
+    /** Human label (admin label, else the field name). */
+    label: string;
+    /** Whether the field passes publish validation. */
+    ok: boolean;
+    /** The failure message when `ok` is false. */
+    message?: string;
+}
+
 /** Per-entry result in a bulk-publish dry run. */
 export interface BulkPublishVerdict {
     id: string;
@@ -36,6 +52,12 @@ export interface BulkPublishVerdict {
     verdict: BulkVerdictKind;
     /** Populated only when `verdict === 'blocked'`. */
     issues: ValidationIssue[];
+    /**
+     * Per-field publish-gate checks (required fields + any field with an issue),
+     * for a record that was actually validated (`publishable`/`blocked`); empty
+     * for already-published / not-found rows.
+     */
+    checks: BulkPublishCheck[];
 }
 
 /** The dry-run response: one verdict per requested id, in request order. */

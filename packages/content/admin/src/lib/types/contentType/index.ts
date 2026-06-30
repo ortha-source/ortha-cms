@@ -115,6 +115,21 @@ export type BulkVerdictKind =
     (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
 
 /**
+ * One field's publish-gate check on a record — pass/fail (and the message when
+ * failing). Mirrors the server's `BulkPublishCheck`.
+ */
+export type BulkPublishCheck = {
+    /** Field name. */
+    field: string;
+    /** Human label (admin label, else the field name). */
+    label: string;
+    /** Whether the field passes publish validation. */
+    ok: boolean;
+    /** The failure message when `ok` is false. */
+    message?: string;
+};
+
+/**
  * One entry's dry-run verdict, as served by `POST /content/:type/bulk/publish/preview`.
  * Mirrors the server's `BulkPublishVerdict`.
  */
@@ -127,6 +142,11 @@ export type BulkPublishVerdict = {
     verdict: BulkVerdictKind;
     /** Populated only when `verdict === 'blocked'`. */
     issues: EntryValidationIssue[];
+    /**
+     * Per-field publish-gate checks (required + invalid fields), pass/fail; empty
+     * for already-published / not-found rows.
+     */
+    checks: BulkPublishCheck[];
 };
 
 /** The dry-run response: one verdict per requested id, in request order. */
