@@ -1,24 +1,10 @@
 import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    AlertCircle,
-    Check,
-    CheckCircle2,
-    ChevronRight,
-    ExternalLink,
-    MinusCircle,
-    RefreshCw,
-    X,
-    XCircle
-} from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
     Button,
-    buttonVariants,
     cn,
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
     Dialog,
     DialogContent,
     DialogDescription,
@@ -28,9 +14,9 @@ import {
     Spinner,
     toast
 } from '@ortha-cms/design-system';
-import type { BulkPublishVerdict } from '../../../types/contentType';
 import { BULK_VERDICT, CONTENT_SEGMENT } from '../../../constants';
 import { useBulkEntryActions } from '../../../api/useBulkEntryActions';
+import { VerdictRow } from './VerdictRow';
 
 const messages = defineMessages({
     title: {
@@ -50,34 +36,9 @@ const messages = defineMessages({
         id: 'content.bulkPublish.error',
         defaultMessage: 'Couldn’t check these records. Please try again.'
     },
-    willPublish: {
-        id: 'content.bulkPublish.willPublish',
-        defaultMessage: 'Will publish'
-    },
-    alreadyPublished: {
-        id: 'content.bulkPublish.alreadyPublished',
-        defaultMessage: 'Already published'
-    },
-    notFound: {
-        id: 'content.bulkPublish.notFound',
-        defaultMessage: 'No longer available'
-    },
-    blocked: {
-        id: 'content.bulkPublish.blocked',
-        defaultMessage:
-            '{count, plural, one {# issue} other {# issues}}'
-    },
     recheck: {
         id: 'content.bulkPublish.recheck',
         defaultMessage: 'Re-check'
-    },
-    openRecord: {
-        id: 'content.bulkPublish.openRecord',
-        defaultMessage: 'Open record in a new tab'
-    },
-    toggleIssues: {
-        id: 'content.bulkPublish.toggleIssues',
-        defaultMessage: 'Show field checks'
     },
     cancel: { id: 'content.bulkPublish.cancel', defaultMessage: 'Cancel' },
     confirm: {
@@ -105,158 +66,6 @@ const messages = defineMessages({
         defaultMessage: 'Publishing didn’t complete. Please try again.'
     }
 });
-
-/**
- * One verdict as a collapsible row: a header showing the record's title + id, a
- * status icon, the verdict note, and an "open in a new tab" button; when the
- * record is **blocked**, the row expands to reveal its validation issues.
- */
-function VerdictRow({
-    item,
-    recordHref
-}: {
-    item: BulkPublishVerdict;
-    /** Builds the entry-editor URL for a record id. */
-    recordHref: (id: string) => string;
-}) {
-    const intl = useIntl();
-
-    const meta = {
-        [BULK_VERDICT.Publishable]: {
-            icon: <CheckCircle2 className="size-4 text-primary" aria-hidden />,
-            note: intl.formatMessage(messages.willPublish),
-            danger: false
-        },
-        [BULK_VERDICT.AlreadyPublished]: {
-            icon: (
-                <MinusCircle
-                    className="size-4 text-muted-foreground"
-                    aria-hidden
-                />
-            ),
-            note: intl.formatMessage(messages.alreadyPublished),
-            danger: false
-        },
-        [BULK_VERDICT.NotFound]: {
-            icon: (
-                <AlertCircle
-                    className="size-4 text-muted-foreground"
-                    aria-hidden
-                />
-            ),
-            note: intl.formatMessage(messages.notFound),
-            danger: false
-        },
-        [BULK_VERDICT.Blocked]: {
-            icon: <XCircle className="size-4 text-destructive" aria-hidden />,
-            note: intl.formatMessage(messages.blocked, {
-                count: item.issues.length
-            }),
-            danger: true
-        }
-    }[item.verdict];
-
-    // Any validated record (publishable or blocked) carries a per-field
-    // checklist; expand to show it — passed fields included, not just failures.
-    const hasChecks = item.checks.length > 0;
-    // The record may have vanished (NotFound) — nothing to open in that case.
-    const canOpen = item.verdict !== BULK_VERDICT.NotFound;
-
-    const header = (
-        <div className="flex items-center gap-2 px-3 py-2">
-            {hasChecks ? (
-                <CollapsibleTrigger
-                    className="group flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={intl.formatMessage(messages.toggleIssues)}
-                >
-                    <ChevronRight
-                        className="size-4 transition-transform group-data-[state=open]:rotate-90"
-                        aria-hidden
-                    />
-                </CollapsibleTrigger>
-            ) : (
-                <span className="size-6 shrink-0" aria-hidden />
-            )}
-            <span className="shrink-0">{meta.icon}</span>
-            <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{item.title}</p>
-                <p className="truncate font-mono text-xs text-muted-foreground">
-                    {item.id}
-                </p>
-            </div>
-            <span
-                className={cn(
-                    'shrink-0 text-xs',
-                    meta.danger ? 'text-destructive' : 'text-muted-foreground'
-                )}
-            >
-                {meta.note}
-            </span>
-            {canOpen && (
-                <a
-                    href={recordHref(item.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={cn(
-                        buttonVariants({ variant: 'ghost', size: 'icon' }),
-                        'size-7 shrink-0 text-muted-foreground'
-                    )}
-                    aria-label={intl.formatMessage(messages.openRecord)}
-                >
-                    <ExternalLink className="size-4" aria-hidden />
-                </a>
-            )}
-        </div>
-    );
-
-    if (!hasChecks) {
-        return <li className="rounded-lg border bg-background">{header}</li>;
-    }
-
-    return (
-        <li className="rounded-lg border bg-background">
-            <Collapsible>
-                {header}
-                <CollapsibleContent>
-                    <ul className="mb-3 ml-11 mr-3 flex flex-col gap-1.5">
-                        {item.checks.map((check) => (
-                            <li
-                                key={check.field}
-                                className="flex items-start gap-1.5 text-xs"
-                            >
-                                {check.ok ? (
-                                    <Check
-                                        className="mt-0.5 size-3.5 shrink-0 text-primary"
-                                        aria-hidden
-                                    />
-                                ) : (
-                                    <X
-                                        className="mt-0.5 size-3.5 shrink-0 text-destructive"
-                                        aria-hidden
-                                    />
-                                )}
-                                <span
-                                    className={
-                                        check.ok
-                                            ? 'text-muted-foreground'
-                                            : 'text-destructive'
-                                    }
-                                >
-                                    <span className="font-medium">
-                                        {check.label}
-                                    </span>
-                                    {!check.ok && check.message
-                                        ? `: ${check.message}`
-                                        : null}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </CollapsibleContent>
-            </Collapsible>
-        </li>
-    );
-}
 
 /**
  * The bulk-publish pre-flight modal. On open it dry-runs a publish over the

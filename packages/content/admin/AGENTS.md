@@ -158,11 +158,15 @@ exports; `<name>/index.ts(x)` folders (pages in `src/lib/pages/<Name>/`, the
 factory in `src/lib/utils/contentPlugin/`); co-located `react-intl` messages
 namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
-- **A component used by only one other component nests inside that parent's
-  folder** (it is not a render method on the parent and not a top-level
-  component). So the search palette's result row lives at
-  `components/ContentSearchDialog/ContentSearchItem/`, not as a `renderItem`
-  closure inside the dialog.
+- **One component per file.** Never define a second React component in the same
+  file — not as a `renderItem` closure, not as a sibling `function Foo()` above
+  the export. Extract it. A component used by only one other component **nests
+  inside that parent's folder** (its own `<Name>/index.tsx`, with co-located
+  `messages`); a shared one goes under `components/`. Examples: the search
+  palette's result row lives at
+  `components/ContentSearchDialog/ContentSearchItem/`, and the bulk-publish
+  dialog's row at `components/CollectionRecordsView/BulkPublishDialog/VerdictRow/`
+  — not as functions inside their parent file.
 - **No magic string literals for route segments, route params, keyboard keys, or
   permissions** — define them as named constants in `src/lib/constants/` and
   import them wherever they're used. `CONTENT_SEGMENT` is the single source of
