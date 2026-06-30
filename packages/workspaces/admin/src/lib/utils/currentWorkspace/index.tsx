@@ -28,9 +28,16 @@ export function CurrentWorkspaceProvider({
     // child effects, leaving the first request unscoped). Idempotent.
     setActiveWorkspaceId(workspace.id);
 
-    // Clear the scope when the shell unmounts so global routes (login, the
-    // workspaces grid) don't carry a stale workspace header.
-    useEffect(() => () => setActiveWorkspaceId(null), []);
+    // Re-assert on mount and clear on unmount. The render-time set above wins the
+    // first-paint race, but under StrictMode (and any future double-invoke) React
+    // runs setup → cleanup → setup; without re-setting here the interim cleanup
+    // would leave the header null for the rest of the session — every
+    // workspace-scoped request then 400s ("Missing X-Workspace-Id"). Keyed on the
+    // id so switching workspaces re-scopes; clears only on real unmount.
+    useEffect(() => {
+        setActiveWorkspaceId(workspace.id);
+        return () => setActiveWorkspaceId(null);
+    }, [workspace.id]);
 
     return (
         <CurrentWorkspaceContext.Provider value={workspace}>
