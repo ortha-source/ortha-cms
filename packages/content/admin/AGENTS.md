@@ -90,7 +90,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
   `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
   table header itself is static. The records view spans full width (`Container`
-  overridden to `max-w-none`) with a uniform 16px gutter (`p-4 sm:p-4`, overriding
+  overridden to `max-w-none`) with a uniform 24px gutter (`p-6 sm:p-6`, overriding
   the Container's responsive padding); the table sits in a full-width bordered
   card with no padding of its own.
 - **Entry editor** (`/new`, `/:entryId`, and a single page): `ContentEntryView`
