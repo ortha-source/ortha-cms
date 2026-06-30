@@ -118,23 +118,27 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
   wide content scrolls inside the work-area island, not the page.
-- **Relation picker** (`EntryEditor/RelationField/`): the Relations tab is a flush
-  (no card/header) `divide-y` stack of **`RelationFieldSection`** — each relation
-  field a **collapsible** section (chevron + label + linked-count; starts collapsed
-  when a type has >3 relation fields) wrapping **`RelationField`**. `RelationField`
-  shows assigned records by **title** (not raw uuid) with a remove control
+- **Relation picker** (`EntryEditor/RelationField/`): the Relations tab is a stack
+  of **`RelationFieldSection`** **rounded-border collapsible cards** — each relation
+  field a section (chevron + label + linked-count; starts collapsed when a type has
+  >3 relation fields) wrapping **`RelationField`**. **Only relations whose target
+  collection is granted to the open workspace are shown** — `EntryEditor` filters by
+  `availableTypeNames` (passed `workspace.content` from `ContentEntryView`). `RelationField`
+  shows assigned records by **title** (not raw uuid; no avatar) with a remove control
   (`RelationItemRow`); a many-relation's rows are **drag/keyboard reorderable**
   (dnd-kit, like the records column picker — the array order is the value, via
-  `SortableRelationItem`). An Assign/Add button opens **`RelationPickerDialog`**: a search box, a **Filters** button
-  mounting the shared **`QueryBuilderDrawer`** over the *target type's* real schema
-  (`useContentSchema(target)` → `filterFieldsFromSchema`), and a paginated candidate
-  list (checkbox rows for a many-relation, click-to-pick for a single). Fully
-  controlled — the form owns the value (single → one id string, many → string[]).
-  Candidate **records are mocked** (`api/useRelationCandidates` + `mockCandidates.ts`),
-  which applies the picker's search **and** the query-builder tree client-side
-  (`utils/evalFilterTree`) and paginates, mirroring `ContentEntriesResult` so it can
-  be swapped for `GET /content/:type` when the relation read API lands. Titles come
-  from `utils/relationLabel` (mirrors the server's `entryTitle`).
+  `SortableRelationItem`). An Assign/Add button opens **`RelationPickerDialog`**: a
+  search box and an **inline, collapsible** query-builder filter (the headless
+  **`QueryBuilder`**, *not* a drawer — a nested modal over the dialog is an a11y
+  hazard) over the *target type's* real schema (`useContentSchema(target)` →
+  `filterFieldsFromSchema`), and a lazily-scrolled candidate list (accessible
+  checkbox group for a many-relation, radio group for a single). Fully controlled —
+  the form owns the value (single → one id string, many → string[]). Candidate
+  **records are mocked** (`api/useRelationCandidates` + `mockCandidates.ts`), which
+  applies the picker's search **and** the query-builder tree client-side
+  (`utils/evalFilterTree`) and windows for lazy scroll, mirroring `ContentEntriesResult`
+  so it can be swapped for `GET /content/:type` when the relation read API lands.
+  Titles come from `utils/relationLabel` (mirrors the server's `entryTitle`).
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by

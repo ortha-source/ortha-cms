@@ -5,6 +5,9 @@ import {
     Badge,
     Button,
     Checkbox,
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
     Dialog,
     DialogContent,
     DialogDescription,
@@ -15,7 +18,7 @@ import {
     Spinner
 } from '@ortha-cms/design-system';
 import {
-    QueryBuilderDrawer,
+    QueryBuilder,
     countRules,
     type FilterGroup
 } from '@ortha-cms/query-builder-admin';
@@ -50,6 +53,10 @@ const messages = defineMessages({
     filtersCount: {
         id: 'content.relations.picker.filtersCount',
         defaultMessage: 'Filters ({count})'
+    },
+    clearFilters: {
+        id: 'content.relations.picker.clearFilters',
+        defaultMessage: 'Clear filters'
     },
     loading: {
         id: 'content.relations.picker.loading',
@@ -88,19 +95,16 @@ function meta(targetName: string, id: string): string {
     return `${targetName} · ${id.slice(0, 8)}`;
 }
 
-/** First character of a title, for the row avatar. */
-function initial(title: string): string {
-    return title.trim().charAt(0).toUpperCase() || '·';
-}
-
 /**
- * The relation picker dialog: a search box, a {@link QueryBuilderDrawer} for
- * advanced filtering over the **target type's** real schema, and a lazily
+ * The relation picker dialog: a search box, an **inline** (collapsible)
+ * query-builder filter over the **target type's** real schema, and a lazily
  * loaded, scrollable candidate list (checkbox rows for a many-relation,
  * click-to-pick for a single relation) that reveals more rows as the user
- * scrolls. Candidate records are mocked (`useRelationCandidates`); the schema and
- * the filter surface are real. The dialog stages its selection and only commits
- * on **Add** (many) or on click (single), so closing discards edits.
+ * scrolls. The filter is a disclosure *inside this one dialog* — not a second
+ * modal/drawer over it — so focus stays in a single overlay (a nested modal is a
+ * known a11y hazard). Candidate records are mocked (`useRelationCandidates`); the
+ * schema and the filter surface are real. The dialog stages its selection and
+ * only commits on **Add** (many) or on click (single), so closing discards edits.
  */
 export function RelationPickerDialog({
     open,
@@ -125,6 +129,7 @@ export function RelationPickerDialog({
     const intl = useIntl();
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterGroup | null>(null);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [limit, setLimit] = useState(PAGE_SIZE);
     const [loadingMore, setLoadingMore] = useState(false);
     const [draft, setDraft] = useState<Set<string>>(new Set());
@@ -140,6 +145,7 @@ export function RelationPickerDialog({
             setDraft(new Set(selectedIds));
             setSearch('');
             setFilter(null);
+            setFiltersOpen(false);
             setLimit(PAGE_SIZE);
             setLoadingMore(false);
         }
@@ -187,7 +193,8 @@ export function RelationPickerDialog({
         apply();
     };
 
-    const filtersActive = !!search.trim() || countRules(filter) > 0;
+    const ruleCount = countRules(filter);
+    const filtersActive = !!search.trim() || ruleCount > 0;
 
     const pick = (candidate: RelationCandidate) => {
         if (many) {
@@ -205,7 +212,7 @@ export function RelationPickerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg gap-4">
+            <DialogContent className="max-h-[85vh] max-w-2xl gap-4">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {
@@ -221,28 +228,31 @@ export function RelationPickerDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            value={search}
-                            onChange={(event) =>
-                                narrow(() => setSearch(event.target.value))
-                            }
-                            className="pl-8 shadow-none"
-                            aria-label={intl.formatMessage(messages.search, {
-                                label: targetLabel
-                            })}
-                            placeholder={intl.formatMessage(messages.search, {
-                                label: targetLabel
-                            })}
-                        />
-                    </div>
-                    <QueryBuilderDrawer
-                        fields={filterFields}
-                        value={filter}
-                        onApply={(next) => narrow(() => setFilter(next))}
-                        trigger={
+                {/* Search + an inline (disclosure) filter — one overlay, no
+                    nested drawer/modal over the dialog. */}
+                <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={search}
+                                onChange={(event) =>
+                                    narrow(() => setSearch(event.target.value))
+                                }
+                                className="pl-8 shadow-none"
+                                aria-label={intl.formatMessage(
+                                    messages.search,
+                                    {
+                                        label: targetLabel
+                                    }
+                                )}
+                                placeholder={intl.formatMessage(
+                                    messages.search,
+                                    { label: targetLabel }
+                                )}
+                            />
+                        </div>
+                        <CollapsibleTrigger asChild>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -250,18 +260,42 @@ export function RelationPickerDialog({
                                 disabled={filterFields.length === 0}
                             >
                                 <Filter className="size-4" />
-                                {countRules(filter) > 0
+                                {ruleCount > 0
                                     ? intl.formatMessage(
                                           messages.filtersCount,
                                           {
-                                              count: countRules(filter)
+                                              count: ruleCount
                                           }
                                       )
                                     : intl.formatMessage(messages.filters)}
                             </Button>
-                        }
-                    />
-                </div>
+                        </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent>
+                        <div className="mt-3 flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
+                            <QueryBuilder
+                                fields={filterFields}
+                                value={filter}
+                                onChange={(next) =>
+                                    narrow(() => setFilter(next))
+                                }
+                            />
+                            {ruleCount > 0 ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="self-start"
+                                    onClick={() =>
+                                        narrow(() => setFilter(null))
+                                    }
+                                >
+                                    {intl.formatMessage(messages.clearFilters)}
+                                </Button>
+                            ) : null}
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
 
                 {/* Result count / selection summary */}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -277,7 +311,7 @@ export function RelationPickerDialog({
 
                 <div
                     onScroll={handleScroll}
-                    className="flex h-72 flex-col overflow-y-auto rounded-lg border"
+                    className="flex h-64 flex-col overflow-y-auto rounded-lg border"
                     aria-busy={isPending || loadingMore}
                 >
                     {isPending ? (
@@ -333,12 +367,6 @@ export function RelationPickerDialog({
                                                     }
                                                 />
                                             )}
-                                            <span
-                                                aria-hidden
-                                                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
-                                            >
-                                                {initial(candidate.title)}
-                                            </span>
                                             <span className="min-w-0 flex-1">
                                                 <span className="block truncate text-sm font-medium">
                                                     {candidate.title}

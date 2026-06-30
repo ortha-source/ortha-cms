@@ -151,7 +151,9 @@ export function ContentEntryView({
             };
         }
         // A single page with no row yet falls back to a blank create form.
-        return mode === ENTRY_MODE.Single ? { values: emptyEntryValues(schema) } : null;
+        return mode === ENTRY_MODE.Single
+            ? { values: emptyEntryValues(schema) }
+            : null;
     }, [schema, mode, editEntry, singleEntry]);
 
     const loading =
@@ -190,8 +192,10 @@ export function ContentEntryView({
                             className="shadow-none"
                             onClick={() => {
                                 schemaQuery.refetch();
-                                if (mode === ENTRY_MODE.Single) oneEntryQuery.refetch();
-                                if (mode === ENTRY_MODE.Edit) entryQuery.refetch();
+                                if (mode === ENTRY_MODE.Single)
+                                    oneEntryQuery.refetch();
+                                if (mode === ENTRY_MODE.Edit)
+                                    entryQuery.refetch();
                             }}
                         >
                             {intl.formatMessage(messages.retry)}
@@ -244,8 +248,7 @@ export function ContentEntryView({
     // row (not on create, not on a single page).
     const editId = mode === ENTRY_MODE.Edit ? resolved.entry?.id : undefined;
 
-    const onActionError = () =>
-        toast(intl.formatMessage(messages.actionError));
+    const onActionError = () => toast(intl.formatMessage(messages.actionError));
 
     const onUnpublish =
         editId && publishable
@@ -289,6 +292,7 @@ export function ContentEntryView({
                 onUnpublish={onUnpublish}
                 onDelete={onDelete}
                 backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                availableTypeNames={workspace.content}
             />
         </div>
     );

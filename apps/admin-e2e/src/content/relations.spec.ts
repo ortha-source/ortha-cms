@@ -3,6 +3,7 @@ import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
     RELATIONS_WORKSPACE,
+    RELATIONS_SCOPED_WORKSPACE,
     RELATIONS_SCHEMA_SEED,
     RELATIONS_DETAIL_SEED,
     mockContentSchema,
@@ -125,18 +126,32 @@ test.describe('Relation picker', () => {
             .toBeGreaterThan(12);
     });
 
-    test('opens the query-builder filter drawer over the target schema', async ({
-        page,
+    test('reveals the inline query-builder filter over the target schema', async ({
         relationsEditorPage
     }) => {
         await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
         await relationsEditorPage.openRelationsTab();
 
         await relationsEditorPage.addRelatedButton.click();
+        // The filter is a disclosure *inside* the one dialog — no nested drawer.
         await relationsEditorPage.filtersButton.click();
+        await expect(relationsEditorPage.addRuleButton).toBeVisible();
+    });
 
-        // The shared query-builder drawer opens with its Apply/Reset footer.
-        await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible();
+    test('hides relations whose target collection the workspace lacks', async ({
+        page,
+        relationsEditorPage
+    }) => {
+        // Scoped workspace grants article/author/seo_meta but not `tag`.
+        await mockWorkspaces(page, [RELATIONS_SCOPED_WORKSPACE]);
+        await relationsEditorPage.gotoNewArticle(RELATIONS_SCOPED_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        await expect(relationsEditorPage.section('Author')).toBeVisible();
+        await expect(relationsEditorPage.section('SEO metadata')).toBeVisible();
+        // `tags` targets the ungranted `tag` collection → hidden.
+        await expect(relationsEditorPage.section('Tags')).toHaveCount(0);
+        await expect(relationsEditorPage.addRelatedButton).toHaveCount(0);
     });
 
     test('removes an assigned relation', async ({ relationsEditorPage }) => {
@@ -187,6 +202,18 @@ test.describe('Relation picker accessibility (axe, WCAG 2.1 A/AA)', () => {
         await relationsEditorPage.openRelationsTab();
         await relationsEditorPage.addRelatedButton.click();
         await relationsEditorPage.candidate('engineering').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('relation picker — inline filter open', async ({
+        relationsEditorPage,
+        makeAxe
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.filtersButton.click();
+        await relationsEditorPage.addRuleButton.waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 });

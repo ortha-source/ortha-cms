@@ -99,7 +99,8 @@ export function EntryEditor({
     onSave,
     onUnpublish,
     onDelete,
-    backTo
+    backTo,
+    availableTypeNames
 }: {
     schema: ContentTypeDetail;
     initialValues: Record<string, unknown>;
@@ -121,6 +122,13 @@ export function EntryEditor({
     onDelete?: () => void;
     /** Where the "Back to records" link goes; omitted for a single page. */
     backTo?: string;
+    /**
+     * Content-type names granted to the open workspace. A relation field is shown
+     * only when its target is in this set — a relation to a collection the
+     * workspace can't access is hidden (you couldn't pick its records anyway).
+     * Undefined = unrestricted (show every relation).
+     */
+    availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
     const form = useEntryForm(schema, initialValues);
@@ -129,9 +137,14 @@ export function EntryEditor({
     const generalFields = visible.filter(
         (field) => field.type !== CONTENT_FIELD_TYPE.Relation
     );
-    const relationFields = visible.filter(
-        (field) => field.type === CONTENT_FIELD_TYPE.Relation
-    );
+    const relationFields = visible.filter((field) => {
+        if (field.type !== CONTENT_FIELD_TYPE.Relation) return false;
+        // Hide a relation whose target collection isn't granted to this
+        // workspace — its records aren't reachable here, so offering it would
+        // only dead-end. `undefined` means unrestricted.
+        if (!availableTypeNames) return true;
+        return availableTypeNames.includes(field.relation?.to ?? '');
+    });
 
     // The publish gate: each field that must hold to publish — every required
     // field, plus any field whose current value is invalid — with its live

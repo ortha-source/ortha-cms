@@ -57,9 +57,14 @@ export class RelationsEditorPage extends BasePage {
         return this.dialog.getByRole('textbox', { name: /Search/ });
     }
 
-    /** The picker's query-builder "Filters" trigger. */
+    /** The picker's query-builder "Filters" disclosure toggle. */
     get filtersButton(): Locator {
         return this.dialog.getByRole('button', { name: /Filters/ });
+    }
+
+    /** The inline query-builder's "Add rule" button — visible once Filters is open. */
+    get addRuleButton(): Locator {
+        return this.dialog.getByRole('button', { name: 'Add rule' });
     }
 
     /**

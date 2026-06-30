@@ -2,16 +2,11 @@ import type { CSSProperties, ReactNode, Ref } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@ortha-cms/design-system';
 
-/** First character of a title, for the row avatar. */
-function initial(title: string): string {
-    return title.trim().charAt(0).toUpperCase() || '·';
-}
-
 /**
- * One assigned related record in a {@link RelationField}: an avatar initial, its
- * display title, and a remove button — plus an optional drag `handle` (supplied
- * by the sortable wrapper for a many-relation). Presentational and controlled —
- * the parent owns the value and handles `onRemove`.
+ * One assigned related record in a {@link RelationField}: its display title and a
+ * remove button — plus an optional drag `handle` (supplied by the sortable
+ * wrapper for a many-relation). Presentational and controlled — the parent owns
+ * the value and handles `onRemove`.
  */
 export function RelationItemRow({
     title,
@@ -44,12 +39,6 @@ export function RelationItemRow({
             }`}
         >
             {handle ?? null}
-            <span
-                aria-hidden
-                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
-            >
-                {initial(title)}
-            </span>
             <p className="min-w-0 flex-1 truncate text-sm font-medium">
                 {title}
             </p>

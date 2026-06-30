@@ -322,6 +322,19 @@ export const RELATIONS_WORKSPACE: WorkspaceView = {
     content: ['article', 'author', 'tag', 'seo_meta']
 };
 
+/**
+ * A relations workspace granted `article` + `author` + `seo_meta` but **not**
+ * `tag` — so the editor must hide `article`'s `tags` relation (its target
+ * collection isn't reachable here).
+ */
+export const RELATIONS_SCOPED_WORKSPACE: WorkspaceView = {
+    ...RELATIONS_WORKSPACE,
+    id: 'ws_rel_scoped',
+    name: 'Relations scoped demo',
+    slug: 'relations-scoped-demo',
+    content: ['article', 'author', 'seo_meta']
+};
+
 /** A workspace granted only a subset — one collection + one page. */
 export const SCOPED_WORKSPACE: WorkspaceView = {
     ...LIBRARY_WORKSPACE,
