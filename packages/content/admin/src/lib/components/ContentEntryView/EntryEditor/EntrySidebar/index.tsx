@@ -251,7 +251,7 @@ export function EntrySidebar({
 
     return (
         <aside
-            className="flex w-full shrink-0 flex-col gap-4 p-6 lg:w-[24rem]"
+            className="flex w-full shrink-0 flex-col gap-4 p-6 lg:w-[23rem]"
             aria-label={intl.formatMessage(messages.aside)}
         >
             {/* Action bar */}
