@@ -15,7 +15,7 @@ import {
 import { useAuth } from '@ortha-cms/identity-admin';
 import { useSetMemberStatus } from '../../api/useSetMemberStatus';
 import { useUserDetailContext } from '../../utils/userDetailContext';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ConfirmDialog } from '@ortha-cms/design-system';
 
 /** Intl descriptors for {@link UserAccessPage}, co-located with the component. */
 const messages = defineMessages({

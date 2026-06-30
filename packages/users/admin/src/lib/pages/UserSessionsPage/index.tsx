@@ -16,7 +16,7 @@ import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useUserSessions, type UserSession } from '../../api/useUserSessions';
 import { useRevokeSession } from '../../api/useRevokeSession';
 import { useUserDetailContext } from '../../utils/userDetailContext';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ConfirmDialog } from '@ortha-cms/design-system';
 import { SessionCard } from '../../components/SessionCard';
 
 /** Intl descriptors for {@link UserSessionsPage}. */

@@ -13,7 +13,7 @@ import {
     toast
 } from '@ortha-cms/design-system';
 import type { ContentType, EntryRecord } from '../../types/contentType';
-import { CONTENT_SEGMENT } from '../../constants';
+import { CONTENT_SEGMENT, ENTRY_MODE, type EntryMode } from '../../constants';
 import { useContentSchema } from '../../api/useContentSchema';
 import {
     useContentEntries,
@@ -58,8 +58,8 @@ const messages = defineMessages({
     }
 });
 
-/** Which form to open: a blank create, an existing record, or a single page. */
-export type EntryMode = 'create' | 'edit' | 'single';
+/** Re-exported for the route adapters that render this view. */
+export type { EntryMode };
 
 /** The one-entry query params reused for `single` resolution. */
 const ONE_ENTRY = { page: 1, pageSize: 1 } as const;
@@ -99,13 +99,13 @@ export function ContentEntryView({
     const oneEntryQuery = useContentEntries(
         schema,
         ONE_ENTRY,
-        mode === 'single' && !!schema
+        mode === ENTRY_MODE.Single && !!schema
     );
 
     // Seed edit mode from the records-list cache (the common "opened from the
     // table" path) so the form is instant, then refetch the canonical copy.
     const cachedEntry = useMemo(() => {
-        if (mode !== 'edit' || !entryId) return undefined;
+        if (mode !== ENTRY_MODE.Edit || !entryId) return undefined;
         const cached = queryClient.getQueriesData<ContentEntriesResult>({
             queryKey: contentEntriesPrefix(type.name)
         });
@@ -118,7 +118,7 @@ export function ContentEntryView({
 
     const entryQuery = useContentEntry(type.name, entryId, {
         initialData: cachedEntry,
-        enabled: mode === 'edit'
+        enabled: mode === ENTRY_MODE.Edit
     });
 
     const save = useSaveEntry(type.name);
@@ -140,10 +140,10 @@ export function ContentEntryView({
         entry?: EntryRecord;
     } | null => {
         if (!schema) return null;
-        if (mode === 'create') {
+        if (mode === ENTRY_MODE.Create) {
             return { values: emptyEntryValues(schema) };
         }
-        const source = mode === 'edit' ? editEntry : singleEntry;
+        const source = mode === ENTRY_MODE.Edit ? editEntry : singleEntry;
         if (source) {
             return {
                 values: mergeEntryValues(schema, source.values),
@@ -151,20 +151,20 @@ export function ContentEntryView({
             };
         }
         // A single page with no row yet falls back to a blank create form.
-        return mode === 'single' ? { values: emptyEntryValues(schema) } : null;
+        return mode === ENTRY_MODE.Single ? { values: emptyEntryValues(schema) } : null;
     }, [schema, mode, editEntry, singleEntry]);
 
     const loading =
         schemaQuery.isPending ||
-        (mode === 'single' && oneEntryQuery.isPending) ||
-        (mode === 'edit' && entryQuery.isPending);
+        (mode === ENTRY_MODE.Single && oneEntryQuery.isPending) ||
+        (mode === ENTRY_MODE.Edit && entryQuery.isPending);
     const errored =
         schemaQuery.isError ||
         !schema ||
-        (mode === 'single' && oneEntryQuery.isError) ||
+        (mode === ENTRY_MODE.Single && oneEntryQuery.isError) ||
         // Only fatal when there's no record to show — a background refetch
         // failure on a cache-seeded edit keeps the form usable.
-        (mode === 'edit' && entryQuery.isError && !editEntry);
+        (mode === ENTRY_MODE.Edit && entryQuery.isError && !editEntry);
 
     if (loading) {
         return (
@@ -190,8 +190,8 @@ export function ContentEntryView({
                             className="shadow-none"
                             onClick={() => {
                                 schemaQuery.refetch();
-                                if (mode === 'single') oneEntryQuery.refetch();
-                                if (mode === 'edit') entryQuery.refetch();
+                                if (mode === ENTRY_MODE.Single) oneEntryQuery.refetch();
+                                if (mode === ENTRY_MODE.Edit) entryQuery.refetch();
                             }}
                         >
                             {intl.formatMessage(messages.retry)}
@@ -205,7 +205,7 @@ export function ContentEntryView({
     const isCreate = resolved.entry === undefined;
     const publishable = schema.publishable ?? false;
     const title =
-        mode === 'create'
+        mode === ENTRY_MODE.Create
             ? intl.formatMessage(messages.newTitle, { label: schema.label })
             : schema.label;
 
@@ -237,12 +237,12 @@ export function ContentEntryView({
             )
         );
         // Collections return to the table; a single page stays put.
-        if (mode !== 'single') navigate(typePath);
+        if (mode !== ENTRY_MODE.Single) navigate(typePath);
     };
 
     // Entry-level actions are available only when editing an existing collection
     // row (not on create, not on a single page).
-    const editId = mode === 'edit' ? resolved.entry?.id : undefined;
+    const editId = mode === ENTRY_MODE.Edit ? resolved.entry?.id : undefined;
 
     const onActionError = () =>
         toast(intl.formatMessage(messages.actionError));
@@ -288,7 +288,7 @@ export function ContentEntryView({
                 onSave={onSave}
                 onUnpublish={onUnpublish}
                 onDelete={onDelete}
-                backTo={mode === 'single' ? undefined : typePath}
+                backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
             />
         </div>
     );

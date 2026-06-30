@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Send, Trash2, Undo2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { Button, Spinner, toast } from '@ortha-cms/design-system';
+import { Button, ConfirmDialog, Spinner, toast } from '@ortha-cms/design-system';
 import { CONTENT_DELETE, CONTENT_PUBLISH } from '../../../constants';
 import { useBulkEntryActions } from '../../../api/useBulkEntryActions';
-import { ConfirmDialog } from '../../ConfirmDialog';
 import { BulkPublishDialog } from '../BulkPublishDialog';
 
 const messages = defineMessages({

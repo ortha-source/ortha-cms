@@ -10,7 +10,7 @@ import {
 } from '@ortha-cms/design-system';
 import { FileQuestion } from 'lucide-react';
 import type { ContentType } from '../../types/contentType';
-import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../constants';
+import { CONTENT_TYPE_KIND, ENTRY_MODE, TYPE_PARAM } from '../../constants';
 import { CollectionRecordsView } from '../CollectionRecordsView';
 import { ContentEntryView } from '../ContentEntryView';
 
@@ -73,5 +73,5 @@ export function ContentTypeView({ types, trashed = false }: ContentTypeViewProps
         return <CollectionRecordsView type={type} trashed={trashed} />;
     }
 
-    return <ContentEntryView type={type} mode="single" />;
+    return <ContentEntryView type={type} mode={ENTRY_MODE.Single} />;
 }

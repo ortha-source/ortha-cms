@@ -117,6 +117,21 @@ export const ENTRY_STATUS = {
 } as const;
 
 /**
+ * Which form the entry editor opens: a blank `create` (`/:type/new`), an existing
+ * record `edit` (`/:type/:entryId`), or a `single` page (the type's one entry).
+ * Named so the editor and its route adapters reference a member instead of a bare
+ * string literal.
+ */
+export const ENTRY_MODE = {
+    Create: 'create',
+    Edit: 'edit',
+    Single: 'single'
+} as const;
+
+/** Which form the entry editor opens (see {@link ENTRY_MODE}). */
+export type EntryMode = (typeof ENTRY_MODE)[keyof typeof ENTRY_MODE];
+
+/**
  * The kinds of column the records table can show: a schema `field`, or one of
  * the two envelope columns (`status`, `updated`). The discriminant of
  * {@link EntryColumn}.

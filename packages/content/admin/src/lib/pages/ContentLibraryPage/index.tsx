@@ -29,6 +29,7 @@ import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
+    ENTRY_MODE,
     ENTRY_PARAM,
     HISTORY_SEGMENT,
     NEW_SEGMENT,
@@ -249,7 +250,7 @@ export function ContentLibraryPage() {
                             element={
                                 <ContentEntryRoute
                                     types={scopedTypes}
-                                    mode="create"
+                                    mode={ENTRY_MODE.Create}
                                 />
                             }
                         />
@@ -258,7 +259,7 @@ export function ContentLibraryPage() {
                             element={
                                 <ContentEntryRoute
                                     types={scopedTypes}
-                                    mode="edit"
+                                    mode={ENTRY_MODE.Edit}
                                 />
                             }
                         />

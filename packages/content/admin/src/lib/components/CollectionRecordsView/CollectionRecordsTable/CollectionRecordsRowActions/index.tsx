@@ -13,6 +13,7 @@ import {
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Button,
+    ConfirmDialog,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -28,7 +29,6 @@ import {
     ENTRY_STATUS
 } from '../../../../constants';
 import { useEntryStatusActions } from '../../../../api/useEntryStatusActions';
-import { ConfirmDialog } from '../../../ConfirmDialog';
 
 /** Intl descriptors for {@link CollectionRecordsRowActions}, co-located. */
 const messages = defineMessages({

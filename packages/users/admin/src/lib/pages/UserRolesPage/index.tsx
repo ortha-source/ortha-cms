@@ -16,7 +16,7 @@ import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useUpdateMember } from '../../api/useUpdateMember';
 import { useUserDetailContext } from '../../utils/userDetailContext';
 import { RolePicker } from '../../components/RolePicker';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ConfirmDialog } from '@ortha-cms/design-system';
 import type { MemberRole } from '../../types/member';
 
 /** Intl descriptors for {@link UserRolesPage}, co-located with the component. */

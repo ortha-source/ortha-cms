@@ -124,8 +124,8 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   publish" chains create/update then the dedicated publish endpoint (one validated
   path). Bulk publish opens **`BulkPublishDialog`** — a dry run
   (`bulk/publish/preview`) listing each row's verdict before publishing only the
-  valid drafts. Destructive actions confirm through the shared
-  **`ConfirmDialog`**. Mutations invalidate the type's records list
+  valid drafts. Destructive actions confirm through the design-system
+  **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
   (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
   extracted by `utils/entryIssues`.
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
