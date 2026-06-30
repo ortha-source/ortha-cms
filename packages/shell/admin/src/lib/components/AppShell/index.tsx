@@ -46,10 +46,7 @@ export function AppShell() {
                     <Logo showLabel={false} aria-hidden />
                     <span className="text-sm font-medium">Ortha Studio</span>
                 </NavbarBrand>
-                <Separator
-                    orientation="vertical"
-                    className="mx-1 h-6 bg-zinc-700"
-                />
+                <Separator orientation="vertical" className="mx-1 h-6" />
                 <NavbarNav aria-label={intl.formatMessage(messages.primaryNav)}>
                     {navItems.map((item) => (
                         <NavbarNavButton key={item.to} item={item} />
