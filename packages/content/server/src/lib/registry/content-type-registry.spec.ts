@@ -57,20 +57,22 @@ describe('ContentTypeRegistry', () => {
             });
         });
 
-        it('reports onDelete for a single relation but omits it for a many relation', () => {
+        it('reports onDelete + unique for a single relation but omits them for a many relation', () => {
             const fields = registry.serialize('post')!.fields;
             const byName = Object.fromEntries(fields.map((x) => [x.name, x]));
 
             expect(byName['author'].relation).toEqual({
                 to: 'author',
                 many: false,
-                onDelete: 'restrict'
+                onDelete: 'restrict',
+                unique: false
             });
             expect(byName['tags'].relation).toEqual({
                 to: 'tag',
                 many: true
             });
             expect(byName['tags'].relation?.onDelete).toBeUndefined();
+            expect(byName['tags'].relation?.unique).toBeUndefined();
         });
 
         it('returns undefined for an unknown type', () => {

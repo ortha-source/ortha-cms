@@ -17,12 +17,12 @@ export interface SerializedField {
     admin: Record<string, unknown>;
     options?: readonly string[];
     /**
-     * `onDelete` is the FK referential action — meaningful only for a single
-     * relation. For a many-relation the link lives in a join table whose rows
-     * always cascade, so `onDelete` is omitted rather than reported as the
-     * (inert) spec value.
+     * `onDelete` and `unique` describe the FK column of a single relation —
+     * meaningful only when `many` is false. For a many-relation the link lives
+     * in a join table whose rows always cascade and have no column to make
+     * unique, so both are omitted rather than reported as (inert) spec values.
      */
-    relation?: { to: string; many: boolean; onDelete?: string };
+    relation?: { to: string; many: boolean; onDelete?: string; unique?: boolean };
 }
 
 /** Wire shape of a content type (summary, wizard-compatible). */
@@ -112,11 +112,15 @@ export class ContentTypeRegistry {
                       relation: {
                           to: spec.relation.to().name,
                           many: spec.relation.many,
-                          // onDelete only applies to a single FK column; a
-                          // many-relation's join rows always cascade.
+                          // onDelete / unique only apply to a single FK column;
+                          // a many-relation's join rows always cascade and have
+                          // no column to constrain.
                           ...(spec.relation.many
                               ? {}
-                              : { onDelete: spec.relation.onDelete })
+                              : {
+                                    onDelete: spec.relation.onDelete,
+                                    unique: spec.relation.unique
+                                })
                       }
                   }
                 : {})

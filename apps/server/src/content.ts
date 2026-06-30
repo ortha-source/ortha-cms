@@ -14,13 +14,35 @@
  * `npx nx run server:db:generate --name=<change>`, committing the SQL.
  */
 
-import { type AnyContentType } from '@ortha-cms/content-server/define';
+import {
+    joinTableOf,
+    type AnyContentType,
+} from '@ortha-cms/content-server/define';
 import { article } from './collections/article';
+import { author } from './collections/author';
+import { tag } from './collections/tag';
+import { seoMeta } from './collections/seo-meta';
+import { comment } from './collections/comment';
 import { landing } from './pages/landing';
 
 /** Every content type registered with ContentPlugin, in one place. */
-export const contentTypes: readonly AnyContentType[] = [article, landing];
+export const contentTypes: readonly AnyContentType[] = [
+    article,
+    author,
+    tag,
+    seoMeta,
+    comment,
+    landing,
+];
 
 // --- drizzle-kit schema: physical tables re-exported for migration diffing ---
 export const articles = article.table;
+export const authors = author.table;
+export const tags = tag.table;
+export const seoMetas = seoMeta.table;
+export const comments = comment.table;
 export const landingPage = landing.table;
+// Join table for the article ⇄ tag many-to-many. `joinTableOf` throws if the
+// `tags` many-relation is renamed/removed, instead of silently dropping the
+// table from the drizzle-kit diff.
+export const articleTags = joinTableOf(article, 'tags');

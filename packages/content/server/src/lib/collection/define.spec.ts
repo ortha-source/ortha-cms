@@ -71,6 +71,23 @@ describe('collection() / single() validation', () => {
         ).not.toThrow();
     });
 
+    it('rejects a many-relation with unique: true', () => {
+        expect(() =>
+            collection('post', {
+                fields: {
+                    tags: field.relation({ to: stub, many: true, unique: true })
+                }
+            })
+        ).toThrow(/unique: true with .*many: true/);
+    });
+
+    it('allows a unique single relation (one-to-one)', () => {
+        const post = collection('post', {
+            fields: { seo: field.relation({ to: stub, unique: true }) }
+        });
+        expect(post.fields.seo.relation?.unique).toBe(true);
+    });
+
     it('requires a single() path to start with "/"', () => {
         expect(() =>
             single('home', { path: 'home', fields: { title: field.text() } })

@@ -2,11 +2,22 @@ import {
     collection,
     field,
 } from '@ortha-cms/content-server/define';
+import { author } from './author';
+import { tag } from './tag';
+import { seoMeta } from './seo-meta';
 
 /**
  * Articles — the reference collection. Exercises **every** scalar field type in
- * the `field.*` vocabulary, with each field named and labelled after its type so
- * the admin records table shows one column per field type. No relations for now.
+ * the `field.*` vocabulary, then every relation cardinality:
+ *
+ * - **many-to-one** — `author` (a single FK; many articles share one author).
+ * - **one-to-many** — the inverse of `author`, and `comment.article` (one
+ *   article has many comments; the FK lives on `comment`).
+ * - **one-to-one** — `seo` (a single FK with a `UNIQUE` constraint).
+ * - **many-to-many** — `tags` (a generated `content_article_tags` join table).
+ *
+ * Relation thunks (`to: () => …`) keep the imports lazy so collections can
+ * reference each other without import-order pain.
  */
 export const article = collection('article', {
     label: 'Articles',
@@ -88,6 +99,37 @@ export const article = collection('article', {
                 label: 'Json',
                 description: 'Arbitrary structured data as raw JSON.',
                 placeholder: '{\n  "key": "value"\n}'
+            }
+        }),
+        // many-to-one: many articles → one author. Single FK column
+        // `author_id`; deleting an author nulls it (the article survives).
+        author: field.relation({
+            to: () => author,
+            onDelete: 'set null',
+            admin: {
+                label: 'Author',
+                description: 'The author who wrote this article (many-to-one).'
+            }
+        }),
+        // one-to-one: an article owns at most one SEO record. `unique: true`
+        // adds a UNIQUE constraint on the `seo_id` FK; deleting the record nulls
+        // it (default onDelete for an optional relation).
+        seo: field.relation({
+            to: () => seoMeta,
+            unique: true,
+            admin: {
+                label: 'SEO metadata',
+                description: 'Search-engine metadata for this article (one-to-one).'
+            }
+        }),
+        // many-to-many: an article links to any number of tags via the
+        // generated `content_article_tags` join table.
+        tags: field.relation({
+            to: () => tag,
+            many: true,
+            admin: {
+                label: 'Tags',
+                description: 'Labels applied to this article (many-to-many).'
             }
         }),
     }
