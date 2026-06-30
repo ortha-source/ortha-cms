@@ -321,9 +321,9 @@ export function EntrySidebar({
 
             {/* Publish gate — publishable types only */}
             {publishable && (
-                <Card className="shadow-none">
+                <Card className="border-border/60 bg-muted/20 shadow-none">
                     <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-                        <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">
                             {intl.formatMessage(messages.gateTitle)}
                         </CardTitle>
                         <span
@@ -387,9 +387,9 @@ export function EntrySidebar({
             )}
 
             {/* Details */}
-            <Card className="shadow-none">
+            <Card className="border-border/60 bg-muted/20 shadow-none">
                 <CardHeader>
-                    <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <CardTitle className="text-xs font-medium text-muted-foreground">
                         {intl.formatMessage(messages.detailsTitle)}
                     </CardTitle>
                 </CardHeader>
