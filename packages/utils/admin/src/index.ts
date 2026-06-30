@@ -1,4 +1,4 @@
-export { apiClient } from './lib/apiClient';
+export { apiClient, setActiveWorkspaceId } from './lib/apiClient';
 export { queryClient } from './lib/queryClient';
 export { STALE_TIME } from './lib/staleTime';
 export { HTTP_STATUS } from './lib/httpStatus';

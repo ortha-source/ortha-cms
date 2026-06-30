@@ -9,10 +9,12 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentWorkspace,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    WorkspaceGuard
 } from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
@@ -29,9 +31,10 @@ import { resolveType } from './resolve-type';
  * - `DELETE /api/content/:typeName/:id/permanent` — permanently remove a
  *   tombstoned row (paranoid only); 204.
  *
- * `OriginGuard` defends these state-changing writes.
+ * `OriginGuard` defends these state-changing writes; `WorkspaceGuard` scopes them
+ * to a workspace the caller belongs to.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
 @Controller('content')
 export class DeleteEntryController {
@@ -45,28 +48,31 @@ export class DeleteEntryController {
     @HttpCode(HttpStatus.NO_CONTENT)
     async remove(
         @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<void> {
         const type = resolveType(this.registry, typeName);
-        await this.writer.remove(type, id);
+        await this.writer.remove(type, id, workspaceId);
     }
 
     @Post(':typeName/:id/restore')
     restore(
         @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.restore(type, id);
+        return this.writer.restore(type, id, workspaceId);
     }
 
     @Delete(':typeName/:id/permanent')
     @HttpCode(HttpStatus.NO_CONTENT)
     async purge(
         @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<void> {
         const type = resolveType(this.registry, typeName);
-        await this.writer.purge(type, id);
+        await this.writer.purge(type, id, workspaceId);
     }
 }

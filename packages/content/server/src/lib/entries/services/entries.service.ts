@@ -4,6 +4,7 @@ import {
     asc,
     count,
     desc,
+    eq,
     ilike,
     isNotNull,
     isNull,
@@ -51,15 +52,18 @@ export class EntriesService {
      * One page of a collection's entries: search → filter → sort → paginate, run
      * in SQL against the type's generated table, returned as the
      * `{ items, total, page, pageSize }` envelope the admin records table renders.
+     * Scoped to `workspaceId` — only the calling workspace's entries are counted
+     * or listed.
      */
     async list(
         type: AnyContentType,
-        query: ListEntriesQueryDto
+        query: ListEntriesQueryDto,
+        workspaceId: string
     ): Promise<EntryListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
 
-        const where = await this.listWhere(type, query);
+        const where = await this.listWhere(type, query, workspaceId);
         const orderBy = this.orderBy(type, query.sort);
 
         // Count and page rows share the WHERE but are independent — run them
@@ -86,14 +90,17 @@ export class EntriesService {
     }
 
     /**
-     * The full WHERE: free-text search AND the query-builder `?filter=` tree AND
-     * (for paranoid types) the not-deleted guard. `and(undefined, …)` collapses
-     * empties, so an unfiltered list still scans the whole table. A malformed
-     * filter throws a `FilterException` (HTTP 400).
+     * The full WHERE: the workspace scope AND free-text search AND the
+     * query-builder `?filter=` tree AND (for paranoid types) the not-deleted
+     * guard. `and(undefined, …)` collapses empties, so an unfiltered list still
+     * scans the workspace's whole table. The workspace predicate is always
+     * present, so an entry never leaks across workspaces. A malformed filter
+     * throws a `FilterException` (HTTP 400).
      */
     private async listWhere(
         type: AnyContentType,
-        query: ListEntriesQueryDto
+        query: ListEntriesQueryDto,
+        workspaceId: string
     ): Promise<SQL | undefined> {
         const schema = buildEntryFilterSchema(type);
         const tree = parseFilterTree(query.filter, schema);
@@ -103,7 +110,9 @@ export class EntriesService {
             type.table,
             this.db
         );
+        const table = type.table as unknown as ContentTable;
         return and(
+            eq(table['workspaceId'], workspaceId),
             this.searchPredicate(type, query.search),
             filterSql,
             this.deletedPredicate(type, query)

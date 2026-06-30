@@ -8,10 +8,12 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentWorkspace,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    WorkspaceGuard
 } from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
@@ -29,10 +31,11 @@ import { resolveType } from './resolve-type';
  * single-item controllers** (see `content.module.ts`): the literal `bulk`
  * segment sits in the same slot as those controllers' `:id`, so it must match
  * first — otherwise `/bulk/publish` would resolve as `:id='bulk'` (and trip the
- * single-item `ParseUUIDPipe`). Per-route permissions: publish/unpublish need
+ * single-item `ParseUUIDPipe`). `WorkspaceGuard` scopes every action to a
+ * workspace the caller belongs to. Per-route permissions: publish/unpublish need
  * `content:publish`, delete/restore need `content:delete`.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
 @Controller('content')
 export class BulkEntriesController {
     constructor(
@@ -47,10 +50,11 @@ export class BulkEntriesController {
     @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
     previewPublish(
         @Param('typeName') typeName: string,
-        @Body() body: BulkIdsDto
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<BulkPublishPreview> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.previewBulkPublish(type, body.ids);
+        return this.writer.previewBulkPublish(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/publish')
@@ -58,10 +62,11 @@ export class BulkEntriesController {
     @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
     publish(
         @Param('typeName') typeName: string,
-        @Body() body: BulkIdsDto
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<BulkPublishResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkPublish(type, body.ids);
+        return this.writer.bulkPublish(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/unpublish')
@@ -69,10 +74,11 @@ export class BulkEntriesController {
     @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
     unpublish(
         @Param('typeName') typeName: string,
-        @Body() body: BulkIdsDto
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkUnpublish(type, body.ids);
+        return this.writer.bulkUnpublish(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/delete')
@@ -80,10 +86,11 @@ export class BulkEntriesController {
     @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
     remove(
         @Param('typeName') typeName: string,
-        @Body() body: BulkIdsDto
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkRemove(type, body.ids);
+        return this.writer.bulkRemove(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/restore')
@@ -91,10 +98,11 @@ export class BulkEntriesController {
     @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
     restore(
         @Param('typeName') typeName: string,
-        @Body() body: BulkIdsDto
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkRestore(type, body.ids);
+        return this.writer.bulkRestore(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/purge')
@@ -102,9 +110,10 @@ export class BulkEntriesController {
     @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
     purge(
         @Param('typeName') typeName: string,
-        @Body() body: BulkIdsDto
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkPurge(type, body.ids);
+        return this.writer.bulkPurge(type, body.ids, workspaceId);
     }
 }

@@ -4,7 +4,13 @@ import {
     createTestApp,
     type TestApp
 } from '../../support/test-app';
-import { resetDb, seedActiveUser } from '../../support/seed';
+import {
+    resetDb,
+    seedActiveUser,
+    seedMembership,
+    seedWorkspace,
+    type SeededUser
+} from '../../support/seed';
 
 const ADMIN_EMAIL = 'content-write-admin@example.com';
 const CONTRIB_EMAIL = 'content-write-contrib@example.com';
@@ -22,6 +28,10 @@ const VALID = { text: 'Hello world', select: 'article' } as const;
  */
 describe('Content entry writes (/api/content/:type)', () => {
     let harness: TestApp;
+    let admin: SeededUser;
+    // The workspace under test — stamped onto every write via the agent's
+    // default `X-Workspace-Id` header (see `login`).
+    let workspaceId: string;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -33,19 +43,29 @@ describe('Content entry writes (/api/content/:type)', () => {
 
     beforeEach(async () => {
         await resetDb();
-        await seedActiveUser(harness.app, {
+        admin = await seedActiveUser(harness.app, {
             email: ADMIN_EMAIL,
             password: PASSWORD,
             role: 'admin'
         });
+        const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
+        workspaceId = ws.id;
+        await seedMembership(admin.id, workspaceId);
     });
 
+    /**
+     * Log in and return an agent carrying both the session cookie and the
+     * `X-Workspace-Id` header on every request (`agent.set` registers a default
+     * applied to all requests), so entry writes/reads are scoped to the
+     * workspace under test.
+     */
     async function login(email: string) {
         const agent = request.agent(harness.server);
         await agent
             .post('/api/auth/login')
             .send({ email, password: PASSWORD })
             .expect(201);
+        agent.set('X-Workspace-Id', workspaceId);
         return agent;
     }
 
@@ -267,11 +287,14 @@ describe('Content entry writes (/api/content/:type)', () => {
         });
 
         it('403s a viewer on create and delete', async () => {
-            await seedActiveUser(harness.app, {
+            const viewer = await seedActiveUser(harness.app, {
                 email: VIEWER_EMAIL,
                 password: PASSWORD,
                 role: 'viewer'
             });
+            // Member of the workspace, so the 403 is the PermissionsGuard (no
+            // content:write), not a WorkspaceGuard rejection.
+            await seedMembership(viewer.id, workspaceId);
             const agent = await login(VIEWER_EMAIL);
             await agent
                 .post('/api/content/article')
@@ -285,11 +308,12 @@ describe('Content entry writes (/api/content/:type)', () => {
         });
 
         it('lets a contributor create but not delete', async () => {
-            await seedActiveUser(harness.app, {
+            const contributor = await seedActiveUser(harness.app, {
                 email: CONTRIB_EMAIL,
                 password: PASSWORD,
                 role: 'contributor'
             });
+            await seedMembership(contributor.id, workspaceId);
             const agent = await login(CONTRIB_EMAIL);
             const id = await createArticle(agent);
             await agent.delete(`/api/content/article/${id}`).expect(403);

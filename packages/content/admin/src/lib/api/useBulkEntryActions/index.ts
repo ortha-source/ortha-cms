@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type {
     BulkActionResult,
     BulkPublishPreview,
@@ -15,9 +16,10 @@ import { contentEntriesPrefix } from '../useContentEntries';
  */
 export function useBulkEntryActions(typeName: string) {
     const queryClient = useQueryClient();
+    const workspace = useCurrentWorkspace();
     const invalidate = () =>
         queryClient.invalidateQueries({
-            queryKey: contentEntriesPrefix(typeName)
+            queryKey: contentEntriesPrefix(workspace.id, typeName)
         });
 
     const post = <T>(suffix: string, ids: string[]) =>

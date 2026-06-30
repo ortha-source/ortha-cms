@@ -312,24 +312,37 @@ export async function resetDb(): Promise<void> {
  * Insert rows into the `article` collection (publishable + paranoid). Each row
  * needs at least `text` + `select` (the type's required fields); `status`
  * defaults to `draft`. Returns nothing — assertions go through the HTTP API.
+ *
+ * Entries are workspace-scoped: pass `workspaceId` to stamp the owning
+ * workspace's `workspace_id` on every row (the value the `WorkspaceGuard`
+ * filters by). A per-row `workspaceId` still takes precedence. Omit it only for
+ * the "orphan row is invisible" path — rows with a null `workspace_id` are
+ * visible to no request.
  */
 export async function seedArticles(
-    rows: Record<string, unknown>[]
+    rows: Record<string, unknown>[],
+    workspaceId?: string
 ): Promise<void> {
     if (rows.length === 0) return;
     // The generated table's column set is dynamic, so the insert values aren't
     // statically typed — the column names match the field names by construction.
+    // `workspaceId` (the default) merges first so a per-row override wins.
     await getDatabase()
         .insert(articles)
-        .values(rows as never);
+        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
 }
 
-/** Insert rows into the `landing` page (non-publishable: no `status` column). */
+/**
+ * Insert rows into the `landing` page (non-publishable: no `status` column).
+ * Pass `workspaceId` to stamp the owning workspace on every row (a per-row
+ * `workspaceId` still wins); see {@link seedArticles}.
+ */
 export async function seedLanding(
-    rows: Record<string, unknown>[]
+    rows: Record<string, unknown>[],
+    workspaceId?: string
 ): Promise<void> {
     if (rows.length === 0) return;
     await getDatabase()
         .insert(landingPage)
-        .values(rows as never);
+        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
 }

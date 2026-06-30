@@ -70,7 +70,8 @@ flags are carried on `ContentType` and serialized in the schema summary.
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per
 **many-relation**. Every table carries the base envelope: `id`, `workspace_id`
-(plain uuid, no FK until workspace scoping lands), `created_at`, `updated_at`.
+(plain uuid, no FK — the `workspaces` table is identity-owned; entries are
+scoped to it in the app layer, see HTTP surface), `created_at`, `updated_at`.
 A `publishable` type additionally gets `status` (`draft`/`published`) +
 `published_at`; a `paranoid` type gets `deleted_at`. The list index is
 `(workspace_id, status)` for publishable types, else `(workspace_id)`.
@@ -105,6 +106,16 @@ carries a `migrations` descriptor (`__drizzle_migrations_content`) so the
 standard `db:migrate` applies them with every other plugin's.
 
 ## HTTP surface (`/api/content-schema`, `/api/content`)
+
+**Every `/content/:typeName…` entry route is workspace-scoped.** Each carries
+identity's `WorkspaceGuard` (before `OriginGuard`/`PermissionsGuard`): it reads
+the `X-Workspace-Id` header (400 if missing/malformed), 403s a caller who isn't a
+member of that workspace, and exposes the id via `@CurrentWorkspace()`. The
+entries services thread it through — `create` stamps `workspace_id`, and the
+list + every read/write/bulk op filters by it — so an entry never leaks across
+workspaces and an id from another workspace reads as a 404. The
+`/content-schema` routes are **not** scoped (content types are code-defined and
+global).
 
 - `GET /content-schema` — summaries of every type (wizard-compatible).
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
