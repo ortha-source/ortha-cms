@@ -9,7 +9,10 @@ import {
     seedActiveUser,
     seedArticles,
     seedLanding,
-    seedUserWithEmptyRole
+    seedMembership,
+    seedUserWithEmptyRole,
+    seedWorkspace,
+    type SeededUser
 } from '../../support/seed';
 
 const ADMIN_EMAIL = 'entries-admin@example.com';
@@ -32,6 +35,12 @@ interface EntryItem {
  */
 describe('Content entries (GET /api/content/:typeName)', () => {
     let harness: TestApp;
+    let admin: SeededUser;
+    // The workspace under test. Every request carries its id as the
+    // `X-Workspace-Id` header (set as an agent default in `login`), and the
+    // seeded rows below belong to it — without this the WorkspaceGuard hides
+    // every entry.
+    let workspaceId: string;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -43,25 +52,38 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
     beforeEach(async () => {
         await resetDb();
-        await seedActiveUser(harness.app, {
+        admin = await seedActiveUser(harness.app, {
             email: ADMIN_EMAIL,
             password: PASSWORD,
             role: 'admin'
         });
-        await seedArticles([
-            { text: 'Alpha', select: 'article', status: 'published' },
-            { text: 'Bravo', select: 'tutorial', status: 'draft' },
-            { text: 'Charlie', select: 'article', status: 'published' }
-        ]);
-        await seedLanding([{ text: 'Home page', select: 'light' }]);
+        const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
+        workspaceId = ws.id;
+        await seedMembership(admin.id, workspaceId);
+        await seedArticles(
+            [
+                { text: 'Alpha', select: 'article', status: 'published' },
+                { text: 'Bravo', select: 'tutorial', status: 'draft' },
+                { text: 'Charlie', select: 'article', status: 'published' }
+            ],
+            workspaceId
+        );
+        await seedLanding([{ text: 'Home page', select: 'light' }], workspaceId);
     });
 
-    async function login(email: string) {
+    /**
+     * Log in and return an agent that carries both the session cookie and the
+     * `X-Workspace-Id` header on every request (`agent.set` registers a default
+     * applied to all requests). Pass a `workspace` to scope to a different
+     * workspace; defaults to the suite's `workspaceId`.
+     */
+    async function login(email: string, workspace: string = workspaceId) {
         const agent = request.agent(harness.server);
         await agent
             .post('/api/auth/login')
             .send({ email, password: PASSWORD })
             .expect(201);
+        agent.set('X-Workspace-Id', workspace);
         return agent;
     }
 
@@ -73,11 +95,15 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         });
 
         it('403s a user whose role lacks content:read', async () => {
-            await seedUserWithEmptyRole(harness.app, {
+            const noRights = await seedUserWithEmptyRole(harness.app, {
                 email: NORIGHTS_EMAIL,
                 password: PASSWORD,
                 roleKey: 'entries-spec-no-perms'
             });
+            // Member of the workspace, so the WorkspaceGuard passes and the 403
+            // comes from the PermissionsGuard (the missing content:read) — not
+            // from a workspace mismatch.
+            await seedMembership(noRights.id, workspaceId);
             const agent = await login(NORIGHTS_EMAIL);
             await agent.get('/api/content/article').expect(403);
         });
@@ -176,6 +202,68 @@ describe('Content entries (GET /api/content/:typeName)', () => {
                     })
                 })
                 .expect(400);
+        });
+    });
+
+    describe('workspace isolation', () => {
+        it("does not leak workspace A's entries when listing with workspace B's header", async () => {
+            // A second workspace the SAME admin also belongs to, with its own
+            // single article. This is the core regression: the list must filter
+            // by the request's workspace, never bleed rows across workspaces.
+            const wsB = await seedWorkspace({ name: 'WS Two', slug: 'ws-two' });
+            await seedMembership(admin.id, wsB.id);
+            await seedArticles(
+                [{ text: 'Delta', select: 'article', status: 'published' }],
+                wsB.id
+            );
+
+            // Workspace A (the suite default) sees only its three rows…
+            const agentA = await login(ADMIN_EMAIL);
+            const resA = await agentA.get('/api/content/article').expect(200);
+            expect(resA.body.total).toBe(3);
+            const textsA = (resA.body.items as EntryItem[]).map(
+                (item) => item.values.text
+            );
+            expect(textsA.sort()).toEqual(['Alpha', 'Bravo', 'Charlie']);
+            expect(textsA).not.toContain('Delta');
+
+            // …and workspace B sees only its one row.
+            const agentB = await login(ADMIN_EMAIL, wsB.id);
+            const resB = await agentB.get('/api/content/article').expect(200);
+            expect(resB.body.total).toBe(1);
+            expect((resB.body.items as EntryItem[])[0].values.text).toBe(
+                'Delta'
+            );
+        });
+
+        it('400s a request with no X-Workspace-Id header', async () => {
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                .expect(201);
+            // Logged in but no workspace header → WorkspaceGuard 400s.
+            await agent.get('/api/content/article').expect(400);
+        });
+
+        it('400s a malformed (non-UUID) X-Workspace-Id header', async () => {
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                .expect(201);
+            agent.set('X-Workspace-Id', 'not-a-uuid');
+            await agent.get('/api/content/article').expect(400);
+        });
+
+        it('403s a workspace the user is not a member of', async () => {
+            // A real workspace, but the admin holds no membership in it.
+            const stranger = await seedWorkspace({
+                name: 'WS Stranger',
+                slug: 'ws-stranger'
+            });
+            const agent = await login(ADMIN_EMAIL, stranger.id);
+            await agent.get('/api/content/article').expect(403);
         });
     });
 });

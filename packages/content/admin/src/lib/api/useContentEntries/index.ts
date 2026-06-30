@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { ContentTypeDetail, EntryRecord } from '../../types/contentType';
 
 /** List params for a collection's records, mirroring the Members list shape. */
@@ -26,17 +27,25 @@ export type ContentEntriesResult = {
     pageSize: number;
 };
 
-/** Query key for a collection's records list. */
-export const contentEntriesKey = (name: string, params: ContentEntriesParams) =>
-    ['content-entries', name, params] as const;
+/**
+ * Query key for a collection's records list, **scoped to the workspace** — two
+ * workspaces never share a cache entry, so switching workspaces can't surface
+ * the other's rows from cache (the request, and its `X-Workspace-Id` header,
+ * never fires on a cache hit).
+ */
+export const contentEntriesKey = (
+    workspaceId: string,
+    name: string,
+    params: ContentEntriesParams
+) => ['content-entries', workspaceId, name, params] as const;
 
 /**
- * Query-key prefix for **all** of a type's records-list queries (every
- * search/filter/sort/page combination). Used to invalidate the whole list after
- * a write, and to scan the cache for an already-loaded entry.
+ * Query-key prefix for **all** of a workspace's records-list queries for a type
+ * (every search/filter/sort/page combination). Used to invalidate the whole
+ * list after a write, and to scan the cache for an already-loaded entry.
  */
-export const contentEntriesPrefix = (name: string) =>
-    ['content-entries', name] as const;
+export const contentEntriesPrefix = (workspaceId: string, name: string) =>
+    ['content-entries', workspaceId, name] as const;
 
 /**
  * Loads one page of a collection's records from `GET /api/content/:name`. The
@@ -79,8 +88,9 @@ export function useContentEntries(
     params: ContentEntriesParams,
     enabled = true
 ) {
+    const workspace = useCurrentWorkspace();
     return useQuery({
-        queryKey: contentEntriesKey(schema?.name ?? '', params),
+        queryKey: contentEntriesKey(workspace.id, schema?.name ?? '', params),
         enabled: enabled && !!schema,
         placeholderData: keepPreviousData,
         // Guarded by `enabled: !!schema`, so the name is always defined here.

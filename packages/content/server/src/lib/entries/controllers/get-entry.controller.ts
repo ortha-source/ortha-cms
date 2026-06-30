@@ -6,9 +6,11 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentWorkspace,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    WorkspaceGuard
 } from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
@@ -19,9 +21,10 @@ import { resolveType } from './resolve-type';
 /**
  * `GET /api/content/:typeName/:id` — one live entry by id (404 if unknown or
  * soft-deleted), so the editor can open an entry by deep link without relying on
- * the records-list cache. Gated on `content:read`.
+ * the records-list cache. `WorkspaceGuard` scopes it to a workspace the caller
+ * belongs to; gated on `content:read`.
  */
-@UseGuards(PermissionsGuard)
+@UseGuards(WorkspaceGuard, PermissionsGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class GetEntryController {
@@ -34,9 +37,10 @@ export class GetEntryController {
     @Get(':typeName/:id')
     getOne(
         @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.getOne(type, id);
+        return this.writer.getOne(type, id, workspaceId);
     }
 }

@@ -6,10 +6,12 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentWorkspace,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    WorkspaceGuard
 } from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
@@ -22,9 +24,10 @@ import { resolveType } from './resolve-type';
  * workflow for a single entry. Publish revalidates the stored row (a 422 if the
  * draft no longer passes), then stamps `status='published'` + `published_at`;
  * unpublish reverts to draft. Both 400 on a non-publishable type and 404 on a
- * missing live row. `OriginGuard` defends the writes; `content:publish` gates them.
+ * missing live row. `OriginGuard` defends the writes; `WorkspaceGuard` scopes
+ * them to a workspace the caller belongs to; `content:publish` gates them.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
 @Controller('content')
 export class PublishEntryController {
@@ -37,18 +40,20 @@ export class PublishEntryController {
     @Post(':typeName/:id/publish')
     publish(
         @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.publish(type, id);
+        return this.writer.publish(type, id, workspaceId);
     }
 
     @Post(':typeName/:id/unpublish')
     unpublish(
         @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.unpublish(type, id);
+        return this.writer.unpublish(type, id, workspaceId);
     }
 }

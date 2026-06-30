@@ -107,14 +107,14 @@ export function ContentEntryView({
     const cachedEntry = useMemo(() => {
         if (mode !== ENTRY_MODE.Edit || !entryId) return undefined;
         const cached = queryClient.getQueriesData<ContentEntriesResult>({
-            queryKey: contentEntriesPrefix(type.name)
+            queryKey: contentEntriesPrefix(workspace.id, type.name)
         });
         for (const [, data] of cached) {
             const hit = data?.items.find((item) => item.id === entryId);
             if (hit) return hit;
         }
         return undefined;
-    }, [mode, entryId, queryClient, type.name]);
+    }, [mode, entryId, queryClient, type.name, workspace.id]);
 
     const entryQuery = useContentEntry(type.name, entryId, {
         initialData: cachedEntry,

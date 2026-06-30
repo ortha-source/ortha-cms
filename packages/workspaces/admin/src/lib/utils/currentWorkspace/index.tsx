@@ -1,4 +1,5 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { setActiveWorkspaceId } from '@ortha-cms/utils-admin';
 import type { Workspace } from '../../types/workspace';
 
 /**
@@ -21,6 +22,16 @@ export function CurrentWorkspaceProvider({
     workspace,
     children
 }: CurrentWorkspaceProviderProps) {
+    // Sync the shared apiClient's workspace header during render — the parent
+    // renders before its children, so the header is set before any child's
+    // data hook fires its first request (a useEffect here runs *after* those
+    // child effects, leaving the first request unscoped). Idempotent.
+    setActiveWorkspaceId(workspace.id);
+
+    // Clear the scope when the shell unmounts so global routes (login, the
+    // workspaces grid) don't carry a stale workspace header.
+    useEffect(() => () => setActiveWorkspaceId(null), []);
+
     return (
         <CurrentWorkspaceContext.Provider value={workspace}>
             {children}

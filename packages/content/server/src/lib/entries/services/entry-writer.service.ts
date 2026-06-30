@@ -50,26 +50,33 @@ export class EntryWriterService {
     ) {}
 
     /**
-     * Create an entry. A publishable type starts as a **draft** and may be
-     * incomplete — validation is deferred to publish. A non-publishable type is
-     * always live, so its values must validate now.
+     * Create an entry **owned by `workspaceId`** (stamped onto the row so the
+     * reader's workspace filter and every later scoped write see it). A
+     * publishable type starts as a **draft** and may be incomplete — validation
+     * is deferred to publish. A non-publishable type is always live, so its
+     * values must validate now.
      */
     async create(
         type: AnyContentType,
-        values: Record<string, unknown>
+        values: Record<string, unknown>,
+        workspaceId: string
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         if (!type.publishable) this.assertValid(type, coerced);
         const [row] = await this.db
             .insert(type.table)
-            .values(toColumns(type, coerced) as never)
+            .values({ ...toColumns(type, coerced), workspaceId } as never)
             .returning();
         return toRecord(type, row as Row);
     }
 
-    /** Read one live entry, or 404. */
-    async getOne(type: AnyContentType, id: string): Promise<EntryRecord> {
-        const row = await this.findLive(type, id);
+    /** Read one live entry in the workspace, or 404. */
+    async getOne(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<EntryRecord> {
+        const row = await this.findLive(type, id, workspaceId);
         if (!row) throw this.notFound(type, id);
         return toRecord(type, row);
     }
@@ -83,7 +90,8 @@ export class EntryWriterService {
     async update(
         type: AnyContentType,
         id: string,
-        values: Record<string, unknown>
+        values: Record<string, unknown>,
+        workspaceId: string
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         if (!type.publishable) {
@@ -93,7 +101,7 @@ export class EntryWriterService {
             // A draft may be saved incomplete, but a **published** row must stay
             // valid — you can't null out a required field on live content
             // without unpublishing first.
-            const current = await this.findLive(type, id);
+            const current = await this.findLive(type, id, workspaceId);
             if (!current) throw this.notFound(type, id);
             if (current['status'] === ENTRY_STATUS.Published) {
                 this.assertValid(type, coerced);
@@ -102,16 +110,20 @@ export class EntryWriterService {
         const [row] = await this.db
             .update(type.table)
             .set({ ...toColumns(type, coerced), updatedAt: new Date() } as never)
-            .where(this.liveWhere(type, id))
+            .where(this.liveWhere(type, id, workspaceId))
             .returning();
         if (!row) throw this.notFound(type, id);
         return toRecord(type, row as Row);
     }
 
     /** Validate the stored row, then mark it published (publishable types only). */
-    async publish(type: AnyContentType, id: string): Promise<EntryRecord> {
+    async publish(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<EntryRecord> {
         this.assertPublishable(type);
-        const current = await this.findLive(type, id);
+        const current = await this.findLive(type, id, workspaceId);
         if (!current) throw this.notFound(type, id);
         // Re-validate stored values: a row saved as a draft before its schema
         // tightened must not slip through to published.
@@ -123,14 +135,18 @@ export class EntryWriterService {
                 publishedAt: new Date(),
                 updatedAt: new Date()
             } as never)
-            .where(this.liveWhere(type, id))
+            .where(this.liveWhere(type, id, workspaceId))
             .returning();
         if (!row) throw this.notFound(type, id);
         return toRecord(type, row as Row);
     }
 
     /** Revert a live entry to draft (publishable types only). */
-    async unpublish(type: AnyContentType, id: string): Promise<EntryRecord> {
+    async unpublish(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<EntryRecord> {
         this.assertPublishable(type);
         const [row] = await this.db
             .update(type.table)
@@ -139,7 +155,7 @@ export class EntryWriterService {
                 publishedAt: null,
                 updatedAt: new Date()
             } as never)
-            .where(this.liveWhere(type, id))
+            .where(this.liveWhere(type, id, workspaceId))
             .returning();
         if (!row) throw this.notFound(type, id);
         return toRecord(type, row as Row);
@@ -147,43 +163,70 @@ export class EntryWriterService {
 
     /**
      * Delete an entry: soft (stamp `deleted_at`) for a paranoid type, hard
-     * `DELETE` otherwise. 404 if there's no live row to remove.
+     * `DELETE` otherwise. 404 if there's no live row to remove **in this
+     * workspace** — an id from another workspace is indistinguishable from a
+     * missing one.
      */
-    async remove(type: AnyContentType, id: string): Promise<void> {
+    async remove(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<void> {
         const t = this.columns(type);
+        const scope = this.scope(type, workspaceId);
         const [row] = type.paranoid
             ? await this.db
                   .update(type.table)
                   .set({ deletedAt: new Date(), updatedAt: new Date() } as never)
-                  .where(and(eq(t['id'], id), isNull(t['deletedAt'])))
+                  .where(and(eq(t['id'], id), scope, isNull(t['deletedAt'])))
                   .returning()
             : await this.db
                   .delete(type.table)
-                  .where(eq(t['id'], id))
+                  .where(and(eq(t['id'], id), scope))
                   .returning();
         if (!row) throw this.notFound(type, id);
     }
 
     /** Clear a soft-deleted entry's tombstone (paranoid types only), or 404. */
-    async restore(type: AnyContentType, id: string): Promise<EntryRecord> {
+    async restore(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<EntryRecord> {
         this.assertParanoid(type);
         const t = this.columns(type);
         const [row] = await this.db
             .update(type.table)
             .set({ deletedAt: null, updatedAt: new Date() } as never)
-            .where(and(eq(t['id'], id), isNotNull(t['deletedAt'])))
+            .where(
+                and(
+                    eq(t['id'], id),
+                    this.scope(type, workspaceId),
+                    isNotNull(t['deletedAt'])
+                )
+            )
             .returning();
         if (!row) throw this.notFound(type, id);
         return toRecord(type, row as Row);
     }
 
     /** Permanently delete a tombstoned entry (paranoid types only), or 404. */
-    async purge(type: AnyContentType, id: string): Promise<void> {
+    async purge(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<void> {
         this.assertParanoid(type);
         const t = this.columns(type);
         const [row] = await this.db
             .delete(type.table)
-            .where(and(eq(t['id'], id), isNotNull(t['deletedAt'])))
+            .where(
+                and(
+                    eq(t['id'], id),
+                    this.scope(type, workspaceId),
+                    isNotNull(t['deletedAt'])
+                )
+            )
             .returning();
         if (!row) throw this.notFound(type, id);
     }
@@ -195,10 +238,11 @@ export class EntryWriterService {
      */
     async previewBulkPublish(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<BulkPublishPreview> {
         this.assertPublishable(type);
-        const byId = await this.loadLiveByIds(type, ids);
+        const byId = await this.loadLiveByIds(type, ids, workspaceId);
         return { items: this.verdictsFor(type, ids, byId) };
     }
 
@@ -211,11 +255,13 @@ export class EntryWriterService {
      */
     async bulkPublish(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<BulkPublishResult> {
         this.assertPublishable(type);
         if (!ids.length) return { published: [], skipped: [] };
         const t = this.columns(type);
+        const scope = this.scope(type, workspaceId);
         const deletedGuard = type.paranoid
             ? isNull(t['deletedAt'])
             : undefined;
@@ -223,7 +269,7 @@ export class EntryWriterService {
             const rows = (await tx
                 .select()
                 .from(type.table)
-                .where(and(inArray(t['id'], ids), deletedGuard))
+                .where(and(inArray(t['id'], ids), scope, deletedGuard))
                 .for('update')) as Row[];
             const byId = new Map(rows.map((row) => [row['id'] as string, row]));
             const items = this.verdictsFor(type, ids, byId);
@@ -238,7 +284,7 @@ export class EntryWriterService {
                         publishedAt: new Date(),
                         updatedAt: new Date()
                     } as never)
-                    .where(and(inArray(t['id'], published), deletedGuard));
+                    .where(and(inArray(t['id'], published), scope, deletedGuard));
             }
             const skipped = items
                 .filter((item) => item.verdict !== BULK_VERDICT.Publishable)
@@ -327,7 +373,8 @@ export class EntryWriterService {
     /** Revert a set of live entries to draft. */
     async bulkUnpublish(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<BulkActionResult> {
         this.assertPublishable(type);
         if (!ids.length) return { count: 0 };
@@ -342,6 +389,7 @@ export class EntryWriterService {
             .where(
                 and(
                     inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
                     type.paranoid ? isNull(t['deletedAt']) : undefined
                 )
             )
@@ -352,19 +400,21 @@ export class EntryWriterService {
     /** Delete a set of entries: soft for paranoid types, hard otherwise. */
     async bulkRemove(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<BulkActionResult> {
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
+        const scope = this.scope(type, workspaceId);
         const rows = type.paranoid
             ? await this.db
                   .update(type.table)
                   .set({ deletedAt: new Date(), updatedAt: new Date() } as never)
-                  .where(and(inArray(t['id'], ids), isNull(t['deletedAt'])))
+                  .where(and(inArray(t['id'], ids), scope, isNull(t['deletedAt'])))
                   .returning()
             : await this.db
                   .delete(type.table)
-                  .where(inArray(t['id'], ids))
+                  .where(and(inArray(t['id'], ids), scope))
                   .returning();
         return { count: rows.length };
     }
@@ -372,14 +422,21 @@ export class EntryWriterService {
     /** Permanently delete a set of tombstoned entries (paranoid types only). */
     async bulkPurge(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<BulkActionResult> {
         this.assertParanoid(type);
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
         const rows = await this.db
             .delete(type.table)
-            .where(and(inArray(t['id'], ids), isNotNull(t['deletedAt'])))
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
+                    isNotNull(t['deletedAt'])
+                )
+            )
             .returning();
         return { count: rows.length };
     }
@@ -387,7 +444,8 @@ export class EntryWriterService {
     /** Restore a set of soft-deleted entries (paranoid types only). */
     async bulkRestore(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<BulkActionResult> {
         this.assertParanoid(type);
         if (!ids.length) return { count: 0 };
@@ -395,7 +453,13 @@ export class EntryWriterService {
         const rows = await this.db
             .update(type.table)
             .set({ deletedAt: null, updatedAt: new Date() } as never)
-            .where(and(inArray(t['id'], ids), isNotNull(t['deletedAt'])))
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
+                    isNotNull(t['deletedAt'])
+                )
+            )
             .returning();
         return { count: rows.length };
     }
@@ -405,32 +469,51 @@ export class EntryWriterService {
         return type.table as unknown as Record<string, AnyColumn>;
     }
 
-    /** `id = :id` AND (for paranoid types) `deleted_at IS NULL`. */
-    private liveWhere(type: AnyContentType, id: string): SQL | undefined {
+    /**
+     * `workspace_id = :workspaceId` — the ownership predicate every read and
+     * write AND-s in, so a request scoped to one workspace can neither see nor
+     * mutate another's rows.
+     */
+    private scope(type: AnyContentType, workspaceId: string): SQL {
+        return eq(this.columns(type)['workspaceId'], workspaceId);
+    }
+
+    /**
+     * `id = :id` AND the workspace scope AND (for paranoid types)
+     * `deleted_at IS NULL`.
+     */
+    private liveWhere(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): SQL | undefined {
         const t = this.columns(type);
         return and(
             eq(t['id'], id),
+            this.scope(type, workspaceId),
             type.paranoid ? isNull(t['deletedAt']) : undefined
         );
     }
 
-    /** Fetch one live row by id, or undefined. */
+    /** Fetch one live row by id in the workspace, or undefined. */
     private async findLive(
         type: AnyContentType,
-        id: string
+        id: string,
+        workspaceId: string
     ): Promise<Row | undefined> {
         const [row] = await this.db
             .select()
             .from(type.table)
-            .where(this.liveWhere(type, id))
+            .where(this.liveWhere(type, id, workspaceId))
             .limit(1);
         return row as Row | undefined;
     }
 
-    /** Fetch the live rows for a set of ids, keyed by id. */
+    /** Fetch the workspace's live rows for a set of ids, keyed by id. */
     private async loadLiveByIds(
         type: AnyContentType,
-        ids: string[]
+        ids: string[],
+        workspaceId: string
     ): Promise<Map<string, Row>> {
         if (!ids.length) return new Map();
         const t = this.columns(type);
@@ -440,6 +523,7 @@ export class EntryWriterService {
             .where(
                 and(
                     inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
                     type.paranoid ? isNull(t['deletedAt']) : undefined
                 )
             )) as Row[];

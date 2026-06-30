@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_204 test cases across 22 spec files._
+_208 test cases across 22 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -316,6 +316,15 @@ _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
 | --- |
 | omits `status` for a non-publishable type |
 | 400s a status filter on a non-publishable type |
+
+### workspace isolation
+
+| Test case |
+| --- |
+| does not leak workspace A's entries when listing with workspace B's header |
+| 400s a request with no X-Workspace-Id header |
+| 400s a malformed (non-UUID) X-Workspace-Id header |
+| 403s a workspace the user is not a member of |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

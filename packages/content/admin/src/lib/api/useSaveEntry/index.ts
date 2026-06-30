@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, toApiError, type ApiError } from '@ortha-cms/utils-admin';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { EntryRecord } from '../../types/contentType';
 import { contentEntriesPrefix } from '../useContentEntries';
 import { contentEntryKey } from '../useContentEntry';
@@ -45,16 +46,17 @@ async function saveEntry(
  */
 export function useSaveEntry(typeName: string) {
     const queryClient = useQueryClient();
+    const workspace = useCurrentWorkspace();
     return useMutation<EntryRecord, ApiError, SaveEntryInput>({
         mutationFn: (input) => saveEntry(typeName, input),
         onSuccess: (saved) => {
             queryClient.invalidateQueries({
-                queryKey: contentEntriesPrefix(typeName)
+                queryKey: contentEntriesPrefix(workspace.id, typeName)
             });
             // Refresh this entry's read-one cache so the editor reflects the
             // server's canonical copy after an update.
             queryClient.invalidateQueries({
-                queryKey: contentEntryKey(typeName, saved.id)
+                queryKey: contentEntryKey(workspace.id, typeName, saved.id)
             });
         }
     });
