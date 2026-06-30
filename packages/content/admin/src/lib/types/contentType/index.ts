@@ -69,7 +69,7 @@ export type ContentField = {
     /** Allowed values — present only for `select`. */
     options?: readonly string[];
     /** Relation target — present only for `relation`. */
-    relation?: { to: string; many: boolean; onDelete?: string };
+    relation?: { to: string; many: boolean; onDelete?: string; unique?: boolean };
 };
 
 /**

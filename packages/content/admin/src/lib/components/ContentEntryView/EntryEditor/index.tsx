@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import {
     Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -22,9 +21,9 @@ import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
-import { EntryFieldInput } from '../../EntryFieldInput';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
+import { RelationFieldSection } from './RelationFieldSection';
 
 const messages = defineMessages({
     backToList: {
@@ -43,14 +42,6 @@ const messages = defineMessages({
     tabHistory: {
         id: 'content.editor.tabHistory',
         defaultMessage: 'History'
-    },
-    relationsTitle: {
-        id: 'content.editor.relationsTitle',
-        defaultMessage: 'Relations'
-    },
-    relationsBody: {
-        id: 'content.editor.relationsBody',
-        defaultMessage: 'Links from this record to other content.'
     },
     relationsEmpty: {
         id: 'content.editor.relationsEmpty',
@@ -238,49 +229,32 @@ export function EntryEditor({
                         </TabsContent>
 
                         <TabsContent value={TAB.Relations}>
-                            <Card className="shadow-none">
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {intl.formatMessage(
-                                            messages.relationsTitle
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {intl.formatMessage(
-                                            messages.relationsBody
-                                        )}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex flex-col gap-5">
-                                    {relationFields.length > 0 ? (
-                                        relationFields.map((field) => (
-                                            <EntryFieldInput
-                                                key={field.name}
-                                                field={field}
-                                                value={form.values[field.name]}
-                                                error={form.errorFor(
-                                                    field.name
-                                                )}
-                                                onChange={(value) =>
-                                                    form.setValue(
-                                                        field.name,
-                                                        value
-                                                    )
-                                                }
-                                                onBlur={() =>
-                                                    form.touch(field.name)
-                                                }
-                                            />
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            {intl.formatMessage(
-                                                messages.relationsEmpty
-                                            )}
-                                        </p>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            {relationFields.length > 0 ? (
+                                <div className="divide-y">
+                                    {relationFields.map((field) => (
+                                        <RelationFieldSection
+                                            key={field.name}
+                                            field={field}
+                                            value={form.values[field.name]}
+                                            error={form.errorFor(field.name)}
+                                            onChange={(value) =>
+                                                form.setValue(field.name, value)
+                                            }
+                                            onBlur={() => form.touch(field.name)}
+                                            // A handful stay open; many start
+                                            // collapsed to keep the tab tidy.
+                                            defaultOpen={
+                                                relationFields.length <= 3 ||
+                                                field.required
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    {intl.formatMessage(messages.relationsEmpty)}
+                                </p>
+                            )}
                         </TabsContent>
 
                         <TabsContent value={TAB.Media}>

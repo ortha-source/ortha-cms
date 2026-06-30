@@ -20,7 +20,12 @@ interface ContentFieldSchema {
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
     options?: string[];
-    relation?: { to: string; many: boolean; onDelete?: string };
+    relation?: {
+        to: string;
+        many: boolean;
+        onDelete?: string;
+        unique?: boolean;
+    };
 }
 
 /** A content type with its full field schema (the `:name` detail route). */
@@ -152,6 +157,144 @@ export const CONTENT_DETAIL_SEED: Record<string, ContentTypeDetail> = {
     }
 };
 
+/**
+ * Schema seed for the **relations** suite. The type names line up with the
+ * admin's baked-in relation-candidate mock (`useRelationCandidates`) — `author`,
+ * `tag`, `seo_meta` — so opening `article`'s editor and picking a relation shows
+ * real candidate rows. `article` exercises every cardinality: a single
+ * many-to-one (`author`), a unique one-to-one (`seo`), and a many-to-many
+ * (`tags`).
+ */
+export const RELATIONS_SCHEMA_SEED: ContentTypeSummary[] = [
+    {
+        name: 'article',
+        kind: 'collection',
+        label: 'Articles',
+        publishable: true
+    },
+    { name: 'author', kind: 'collection', label: 'Authors' },
+    { name: 'tag', kind: 'collection', label: 'Tags' },
+    { name: 'seo_meta', kind: 'collection', label: 'SEO metadata' }
+];
+
+/** Full field schemas for the relations suite (article + its three targets). */
+export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    article: {
+        name: 'article',
+        kind: 'collection',
+        label: 'Articles',
+        publishable: true,
+        fields: [
+            {
+                name: 'title',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Title' }
+            },
+            {
+                name: 'author',
+                type: 'relation',
+                required: false,
+                validation: {},
+                admin: { label: 'Author' },
+                relation: { to: 'author', many: false, onDelete: 'set null' }
+            },
+            {
+                name: 'seo',
+                type: 'relation',
+                required: false,
+                validation: {},
+                admin: { label: 'SEO metadata' },
+                relation: {
+                    to: 'seo_meta',
+                    many: false,
+                    onDelete: 'set null',
+                    unique: true
+                }
+            },
+            {
+                name: 'tags',
+                type: 'relation',
+                required: false,
+                validation: {},
+                admin: { label: 'Tags' },
+                relation: { to: 'tag', many: true }
+            }
+        ]
+    },
+    author: {
+        name: 'author',
+        kind: 'collection',
+        label: 'Authors',
+        fields: [
+            {
+                name: 'name',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Name' }
+            },
+            {
+                name: 'email',
+                type: 'text',
+                required: false,
+                validation: {},
+                admin: { label: 'Email' }
+            },
+            {
+                name: 'bio',
+                type: 'richtext',
+                required: false,
+                validation: {},
+                admin: { label: 'Bio' }
+            }
+        ]
+    },
+    tag: {
+        name: 'tag',
+        kind: 'collection',
+        label: 'Tags',
+        fields: [
+            {
+                name: 'name',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Name' }
+            },
+            {
+                name: 'slug',
+                type: 'text',
+                required: false,
+                validation: {},
+                admin: { label: 'Slug' }
+            }
+        ]
+    },
+    seo_meta: {
+        name: 'seo_meta',
+        kind: 'collection',
+        label: 'SEO metadata',
+        fields: [
+            {
+                name: 'metaTitle',
+                type: 'text',
+                required: false,
+                validation: {},
+                admin: { label: 'Meta title' }
+            },
+            {
+                name: 'metaDescription',
+                type: 'text',
+                required: false,
+                validation: {},
+                admin: { label: 'Meta description' }
+            }
+        ]
+    }
+};
+
 const ADA: WorkspaceView['members'][number] = {
     id: 'u_ada',
     name: 'Ada Lovelace',
@@ -168,6 +311,15 @@ export const LIBRARY_WORKSPACE: WorkspaceView = {
     status: 'active',
     members: [ADA],
     content: ['blog_post', 'product', 'home', 'about']
+};
+
+/** A workspace granted the relations-suite types (article + its targets). */
+export const RELATIONS_WORKSPACE: WorkspaceView = {
+    ...LIBRARY_WORKSPACE,
+    id: 'ws_rel',
+    name: 'Relations demo',
+    slug: 'relations-demo',
+    content: ['article', 'author', 'tag', 'seo_meta']
 };
 
 /** A workspace granted only a subset — one collection + one page. */
@@ -240,7 +392,10 @@ interface ContentSchemaDetailOptions {
  */
 export async function mockContentSchemaDetail(
     page: Page,
-    { details = CONTENT_DETAIL_SEED, status = 200 }: ContentSchemaDetailOptions = {}
+    {
+        details = CONTENT_DETAIL_SEED,
+        status = 200
+    }: ContentSchemaDetailOptions = {}
 ): Promise<void> {
     await page.route(/\/api\/content-schema\/([^/?]+)/, async (route) => {
         if (status >= 400) {
@@ -319,7 +474,8 @@ function valueFor(field: ContentFieldSchema, i: number): unknown {
 function entriesFor(detail: ContentTypeDetail): EntryRecord[] {
     return Array.from({ length: ENTRY_COUNT }, (_, i) => {
         const values: Record<string, unknown> = {};
-        for (const field of detail.fields) values[field.name] = valueFor(field, i);
+        for (const field of detail.fields)
+            values[field.name] = valueFor(field, i);
         const day = new Date(Date.UTC(2026, 0, 1 + (i % 27))).toISOString();
         return {
             id: `${detail.name}-${String(i + 1).padStart(2, '0')}`,
@@ -421,7 +577,9 @@ export async function mockContentEntries(
         const search = params.get('search') ?? '';
         const sort = params.get('sort') ?? '';
         const pageNum = Number(params.get('page') ?? '1');
-        const pageSize = Number(params.get('pageSize') ?? String(ENTRY_PAGE_SIZE));
+        const pageSize = Number(
+            params.get('pageSize') ?? String(ENTRY_PAGE_SIZE)
+        );
 
         const all = entriesFor(detail);
         const searched = search
@@ -444,7 +602,11 @@ export async function mockContentEntries(
 }
 
 /** A JSON 200 fulfilment helper for the write mocks. */
-function json(route: import('@playwright/test').Route, body: unknown, status = 200) {
+function json(
+    route: import('@playwright/test').Route,
+    body: unknown,
+    status = 200
+) {
     return route.fulfill({
         status,
         contentType: 'application/json',
@@ -518,10 +680,15 @@ export async function mockContentEntryWrites(
 
         if (method === 'GET') return json(route, record('draft'));
         if (method === 'PATCH') return json(route, record('draft'));
-        if (method === 'DELETE') return route.fulfill({ status: 204, body: '' });
+        if (method === 'DELETE')
+            return route.fulfill({ status: 204, body: '' });
         if (method === 'POST') {
             // publish → published; unpublish/restore → draft
-            return json(route, record(action === 'publish' ? 'published' : 'draft'), 201);
+            return json(
+                route,
+                record(action === 'publish' ? 'published' : 'draft'),
+                201
+            );
         }
         return route.fallback();
     });
