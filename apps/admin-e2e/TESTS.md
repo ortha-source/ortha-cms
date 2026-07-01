@@ -342,7 +342,7 @@ _<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the tabs and the current general values |
+| renders the section nav and the current general values |
 | saves an edited name (save enables only when dirty) |
 | assigns an unassigned member and removes an existing one |
 | grants a content type and revokes an empty one |

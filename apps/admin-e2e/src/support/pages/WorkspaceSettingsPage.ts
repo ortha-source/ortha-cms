@@ -3,9 +3,10 @@ import { BasePage } from './BasePage';
 
 /**
  * Page object for the workspace settings page at `/workspaces/:id/settings`
- * (from `@ortha-cms/workspaces-admin`). A tabbed page — General, Members,
- * Content, and Danger zone — mounted inside the workspace shell. Backed by
- * `mockWorkspaceSettingsApi` (the stateful settings mock).
+ * (from `@ortha-cms/workspaces-admin`). A left-rail page — General, Members,
+ * Content, and Danger zone are nested routes reached from the side nav —
+ * mounted inside the workspace shell. Backed by `mockWorkspaceSettingsApi` (the
+ * stateful settings mock).
  */
 export class WorkspaceSettingsPage extends BasePage {
     /** The page's `<h1>`. */
@@ -25,14 +26,23 @@ export class WorkspaceSettingsPage extends BasePage {
         await this.heading.waitFor();
     }
 
-    // --- tabs ---
+    // --- left-rail section nav ---
 
-    tab(name: string): Locator {
-        return this.page.getByRole('tab', { name });
+    /** The settings side-rail nav (scopes section links away from the navbar). */
+    get sectionNav(): Locator {
+        return this.page.getByRole('navigation', {
+            name: 'Workspace settings sections'
+        });
     }
 
-    async openTab(name: string) {
-        await this.tab(name).click();
+    /** A section entry in the left rail (a link). */
+    navItem(name: string): Locator {
+        return this.sectionNav.getByRole('link', { name });
+    }
+
+    /** Navigate to a section by clicking its rail entry. */
+    async openSection(name: string) {
+        await this.navItem(name).click();
     }
 
     // --- general ---

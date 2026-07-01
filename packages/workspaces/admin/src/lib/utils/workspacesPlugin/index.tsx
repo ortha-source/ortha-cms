@@ -130,7 +130,11 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                 slot: WORKSPACE_ROUTE_SLOT,
                 items: [
                     {
-                        path: 'settings',
+                        // A wildcard so the page owns its own nested section
+                        // routes (`settings/general`, `/members`, …) behind the
+                        // left rail — same shape as the content library's
+                        // `content/*`.
+                        path: 'settings/*',
                         element: (
                             <Suspense fallback={null}>
                                 <WorkspaceSettingsPage />

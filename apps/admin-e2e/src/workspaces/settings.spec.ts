@@ -29,9 +29,10 @@ function seed(): WorkspaceView {
 
 /**
  * The workspace settings page (`@ortha-cms/workspaces-admin`), mounted in the
- * shell at `/workspaces/:id/settings`. Drives the four tabs — General, Members,
- * Content, Danger zone — against the stateful `mockWorkspaceSettingsApi`, plus
- * the read-only (viewer) variant and an accessibility scan.
+ * shell at `/workspaces/:id/settings`. Drives the four left-rail sections —
+ * General, Members, Content, Danger zone — against the stateful
+ * `mockWorkspaceSettingsApi`, plus the read-only (viewer) variant and an
+ * accessibility scan.
  */
 test.describe('Workspace settings page', () => {
     test.describe('as an admin', () => {
@@ -42,16 +43,16 @@ test.describe('Workspace settings page', () => {
             });
         });
 
-        test('renders the tabs and the current general values', async ({
+        test('renders the section nav and the current general values', async ({
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
 
-            await expect(workspaceSettingsPage.tab('General')).toBeVisible();
-            await expect(workspaceSettingsPage.tab('Members')).toBeVisible();
-            await expect(workspaceSettingsPage.tab('Content')).toBeVisible();
+            await expect(workspaceSettingsPage.navItem('General')).toBeVisible();
+            await expect(workspaceSettingsPage.navItem('Members')).toBeVisible();
+            await expect(workspaceSettingsPage.navItem('Content')).toBeVisible();
             await expect(
-                workspaceSettingsPage.tab('Danger zone')
+                workspaceSettingsPage.navItem('Danger zone')
             ).toBeVisible();
 
             await expect(workspaceSettingsPage.nameInput).toHaveValue(
@@ -87,7 +88,7 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openTab('Members');
+            await workspaceSettingsPage.openSection('Members');
 
             // The owner (first member) is badged and has no remove control.
             await expect(workspaceSettingsPage.ownerBadge()).toBeVisible();
@@ -119,7 +120,7 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openTab('Content');
+            await workspaceSettingsPage.openSection('Content');
 
             // Grant an ungranted type via the picker.
             await workspaceSettingsPage.addContentButton.click();
@@ -140,7 +141,7 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openTab('Content');
+            await workspaceSettingsPage.openSection('Content');
 
             // product is locked (has entries) → the server answers 409.
             await workspaceSettingsPage.contentRemoveButton('Products').click();
@@ -159,7 +160,7 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openTab('Danger zone');
+            await workspaceSettingsPage.openSection('Danger zone');
 
             await workspaceSettingsPage.archiveButton.click();
             await workspaceSettingsPage.dialogConfirm('Archive').click();
@@ -178,7 +179,7 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openTab('Danger zone');
+            await workspaceSettingsPage.openSection('Danger zone');
 
             await workspaceSettingsPage.deleteButton.click();
             await workspaceSettingsPage.dialogConfirm('Delete workspace').click();
@@ -204,15 +205,15 @@ test.describe('Workspace settings page', () => {
             await expect(workspaceSettingsPage.saveButton).toBeHidden();
             // Danger zone requires update or delete — hidden for a viewer.
             await expect(
-                workspaceSettingsPage.tab('Danger zone')
+                workspaceSettingsPage.navItem('Danger zone')
             ).toBeHidden();
 
             // Members tab offers no directory search.
-            await workspaceSettingsPage.openTab('Members');
+            await workspaceSettingsPage.openSection('Members');
             await expect(workspaceSettingsPage.memberSearch).toBeHidden();
 
             // Content tab offers no add control.
-            await workspaceSettingsPage.openTab('Content');
+            await workspaceSettingsPage.openSection('Content');
             await expect(
                 workspaceSettingsPage.addContentButton
             ).toBeHidden();

@@ -1,26 +1,13 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import {
-    Badge,
-    Container,
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger
-} from '@ortha-cms/design-system';
+import { Badge, Container } from '@ortha-cms/design-system';
 import { useCurrentWorkspace } from '../../utils/currentWorkspace';
+import { WorkspaceSettingsRail } from '../../components/WorkspaceSettingsRail';
 import { WorkspaceGeneralSettings } from '../../components/WorkspaceGeneralSettings';
 import { WorkspaceMembersSettings } from '../../components/WorkspaceMembersSettings';
 import { WorkspaceContentSettings } from '../../components/WorkspaceContentSettings';
 import { WorkspaceDangerSettings } from '../../components/WorkspaceDangerSettings';
-
-/** Tab ids for the settings page, kept as constants so they don't drift. */
-const TAB = {
-    General: 'general',
-    Members: 'members',
-    Content: 'content',
-    Danger: 'danger'
-} as const;
 
 /** Intl descriptors for the workspace settings page, co-located here. */
 const messages = defineMessages({
@@ -35,32 +22,19 @@ const messages = defineMessages({
     archivedBadge: {
         id: 'workspaces.settings.archivedBadge',
         defaultMessage: 'Archived'
-    },
-    tabGeneral: {
-        id: 'workspaces.settings.tab.general',
-        defaultMessage: 'General'
-    },
-    tabMembers: {
-        id: 'workspaces.settings.tab.members',
-        defaultMessage: 'Members'
-    },
-    tabContent: {
-        id: 'workspaces.settings.tab.content',
-        defaultMessage: 'Content'
-    },
-    tabDanger: {
-        id: 'workspaces.settings.tab.danger',
-        defaultMessage: 'Danger zone'
     }
 });
 
 /**
- * Workspace settings, mounted inside the shell at `/workspaces/:id/settings`
- * (the rail's footer entry). A tabbed page — General (name/description/color),
- * Members, Content types, and a Danger zone (archive/delete). Reads the open
- * workspace from context; edits are gated by `workspaces:update` /
- * `workspaces:delete`, so a viewer sees a read-only page and the Danger tab only
- * appears when the user can act on it.
+ * Workspace settings, mounted inside the shell at `/workspaces/:id/settings/*`
+ * (the rail's footer entry). A left-rail layout — General, Members, Content, and
+ * a Danger zone — each its own nested route beside the sticky
+ * {@link WorkspaceSettingsRail}, mirroring the user-detail settings page. The
+ * page width is the shared `Container`; the rail narrows the content column.
+ *
+ * Reads the open workspace from context; edits are gated by `workspaces:update`
+ * / `workspaces:delete`, so a viewer sees a read-only page and the Danger
+ * section (rail entry + route) only exists when the user can act on it.
  */
 export function WorkspaceSettingsPage() {
     const intl = useIntl();
@@ -70,69 +44,85 @@ export function WorkspaceSettingsPage() {
     const showDanger = canUpdate || canDelete;
 
     return (
-        <Container className="py-8">
-            <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-semibold tracking-[-0.01em]">
-                    {intl.formatMessage(messages.title)}
-                </h1>
-                {workspace.status === 'Archived' ? (
-                    <Badge variant="secondary">
-                        {intl.formatMessage(messages.archivedBadge)}
-                    </Badge>
-                ) : null}
-            </div>
-            <p className="mt-1 text-muted-foreground">
-                {intl.formatMessage(messages.subtitle, {
-                    workspace: workspace.name
-                })}
-            </p>
-
-            <Tabs defaultValue={TAB.General} className="mt-6">
-                <TabsList>
-                    <TabsTrigger value={TAB.General}>
-                        {intl.formatMessage(messages.tabGeneral)}
-                    </TabsTrigger>
-                    <TabsTrigger value={TAB.Members}>
-                        {intl.formatMessage(messages.tabMembers)}
-                    </TabsTrigger>
-                    <TabsTrigger value={TAB.Content}>
-                        {intl.formatMessage(messages.tabContent)}
-                    </TabsTrigger>
-                    {showDanger ? (
-                        <TabsTrigger value={TAB.Danger}>
-                            {intl.formatMessage(messages.tabDanger)}
-                        </TabsTrigger>
+        <Container className="space-y-6 py-8">
+            <div>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-semibold tracking-[-0.01em]">
+                        {intl.formatMessage(messages.title)}
+                    </h1>
+                    {workspace.status === 'Archived' ? (
+                        <Badge variant="secondary">
+                            {intl.formatMessage(messages.archivedBadge)}
+                        </Badge>
                     ) : null}
-                </TabsList>
+                </div>
+                <p className="mt-1 text-muted-foreground">
+                    {intl.formatMessage(messages.subtitle, {
+                        workspace: workspace.name
+                    })}
+                </p>
+            </div>
 
-                <TabsContent value={TAB.General} className="mt-4">
-                    <WorkspaceGeneralSettings
-                        workspace={workspace}
-                        canUpdate={canUpdate}
-                    />
-                </TabsContent>
-                <TabsContent value={TAB.Members} className="mt-4">
-                    <WorkspaceMembersSettings
-                        workspace={workspace}
-                        canUpdate={canUpdate}
-                    />
-                </TabsContent>
-                <TabsContent value={TAB.Content} className="mt-4">
-                    <WorkspaceContentSettings
-                        workspace={workspace}
-                        canUpdate={canUpdate}
-                    />
-                </TabsContent>
-                {showDanger ? (
-                    <TabsContent value={TAB.Danger} className="mt-4">
-                        <WorkspaceDangerSettings
-                            workspace={workspace}
-                            canUpdate={canUpdate}
-                            canDelete={canDelete}
+            <div className="grid gap-8 md:grid-cols-[14rem_minmax(0,1fr)]">
+                <WorkspaceSettingsRail
+                    workspaceId={workspace.id}
+                    showDanger={showDanger}
+                />
+                <div className="min-w-0">
+                    <Routes>
+                        <Route
+                            index
+                            element={<Navigate to="general" replace />}
                         />
-                    </TabsContent>
-                ) : null}
-            </Tabs>
+                        <Route
+                            path="general"
+                            element={
+                                <WorkspaceGeneralSettings
+                                    workspace={workspace}
+                                    canUpdate={canUpdate}
+                                />
+                            }
+                        />
+                        <Route
+                            path="members"
+                            element={
+                                <WorkspaceMembersSettings
+                                    workspace={workspace}
+                                    canUpdate={canUpdate}
+                                />
+                            }
+                        />
+                        <Route
+                            path="content"
+                            element={
+                                <WorkspaceContentSettings
+                                    workspace={workspace}
+                                    canUpdate={canUpdate}
+                                />
+                            }
+                        />
+                        <Route
+                            path="danger"
+                            element={
+                                showDanger ? (
+                                    <WorkspaceDangerSettings
+                                        workspace={workspace}
+                                        canUpdate={canUpdate}
+                                        canDelete={canDelete}
+                                    />
+                                ) : (
+                                    <Navigate to="../general" replace />
+                                )
+                            }
+                        />
+                        {/* Unknown sub-path falls back to the first section. */}
+                        <Route
+                            path="*"
+                            element={<Navigate to="general" replace />}
+                        />
+                    </Routes>
+                </div>
+            </div>
         </Container>
     );
 }
