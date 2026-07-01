@@ -1,0 +1,140 @@
+import type { ReactNode } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
+import {
+    Button,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '@ortha-cms/design-system';
+import {
+    Copy,
+    Download,
+    Eye,
+    FolderInput,
+    Link2,
+    MoreVertical,
+    Pencil,
+    Trash2
+} from 'lucide-react';
+
+/** The set of actions offered for a single asset (each permission-gated). */
+export type AssetActionHandlers = {
+    onOpen: () => void;
+    onDownload: () => void;
+    onCopyLink: () => void;
+    onDuplicate: () => void;
+    onRename: () => void;
+    onMove: () => void;
+    onDelete: () => void;
+};
+
+/** One asset action, used as the discriminant of a single dispatch callback. */
+export type AssetActionKind =
+    | 'open'
+    | 'download'
+    | 'copyLink'
+    | 'duplicate'
+    | 'rename'
+    | 'move'
+    | 'delete';
+
+/** Intl descriptors for {@link AssetActionsMenu}, co-located. */
+const messages = defineMessages({
+    trigger: { id: 'media.asset.actions.trigger', defaultMessage: 'Asset actions' },
+    open: { id: 'media.asset.actions.open', defaultMessage: 'Open' },
+    download: { id: 'media.asset.actions.download', defaultMessage: 'Download' },
+    copyLink: { id: 'media.asset.actions.copyLink', defaultMessage: 'Copy link' },
+    duplicate: { id: 'media.asset.actions.duplicate', defaultMessage: 'Duplicate' },
+    rename: { id: 'media.asset.actions.rename', defaultMessage: 'Rename' },
+    move: { id: 'media.asset.actions.move', defaultMessage: 'Move to…' },
+    delete: { id: 'media.asset.actions.delete', defaultMessage: 'Delete' }
+});
+
+/**
+ * The per-asset action menu — Open, Download, Copy link, Duplicate, Rename, Move,
+ * and a destructive Delete. Shared by the grid tile, the list row, and the detail
+ * drawer so the action set stays identical everywhere. Write actions are hidden
+ * unless the caller passes the matching permission (`canCreate` for Duplicate,
+ * `canUpdate` for Rename/Move, `canDelete` for Delete). Pass `trigger` to
+ * override the default ⋯ button.
+ */
+export function AssetActionsMenu({
+    handlers,
+    canCreate,
+    canUpdate,
+    canDelete,
+    trigger,
+    align = 'end'
+}: {
+    handlers: AssetActionHandlers;
+    canCreate: boolean;
+    canUpdate: boolean;
+    canDelete: boolean;
+    trigger?: ReactNode;
+    align?: 'start' | 'center' | 'end';
+}) {
+    const intl = useIntl();
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                {trigger ?? (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shadow-none"
+                        aria-label={intl.formatMessage(messages.trigger)}
+                    >
+                        <MoreVertical aria-hidden />
+                    </Button>
+                )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={align} className="w-48">
+                <DropdownMenuItem onSelect={handlers.onOpen}>
+                    <Eye aria-hidden />
+                    {intl.formatMessage(messages.open)}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handlers.onDownload}>
+                    <Download aria-hidden />
+                    {intl.formatMessage(messages.download)}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handlers.onCopyLink}>
+                    <Link2 aria-hidden />
+                    {intl.formatMessage(messages.copyLink)}
+                </DropdownMenuItem>
+                {canCreate ? (
+                    <DropdownMenuItem onSelect={handlers.onDuplicate}>
+                        <Copy aria-hidden />
+                        {intl.formatMessage(messages.duplicate)}
+                    </DropdownMenuItem>
+                ) : null}
+                {canUpdate ? (
+                    <>
+                        <DropdownMenuItem onSelect={handlers.onRename}>
+                            <Pencil aria-hidden />
+                            {intl.formatMessage(messages.rename)}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handlers.onMove}>
+                            <FolderInput aria-hidden />
+                            {intl.formatMessage(messages.move)}
+                        </DropdownMenuItem>
+                    </>
+                ) : null}
+                {canDelete ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={handlers.onDelete}
+                        >
+                            <Trash2 aria-hidden />
+                            {intl.formatMessage(messages.delete)}
+                        </DropdownMenuItem>
+                    </>
+                ) : null}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
