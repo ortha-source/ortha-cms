@@ -85,7 +85,7 @@ export function AssetDetailDrawer({
             <DrawerContent className="flex flex-col">
                 {asset ? (
                     <>
-                        <DrawerHeader className="flex-row items-center justify-between gap-2 border-b">
+                        <DrawerHeader className="flex flex-row items-center justify-between gap-3 border-b">
                             <DrawerTitle className="min-w-0 truncate">
                                 {asset.name}
                             </DrawerTitle>

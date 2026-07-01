@@ -137,7 +137,6 @@ export function MediaLibraryPage() {
     const allSelected =
         store.visibleAssets.length > 0 &&
         store.visibleAssets.every((asset) => store.selectedIds.has(asset.id));
-    const usedBytes = store.assets.reduce((sum, asset) => sum + asset.size, 0);
 
     // A single dispatcher every card / row / drawer forwards asset actions to.
     const handleAssetAction = (kind: AssetActionKind, asset: MediaAsset) => {
@@ -251,7 +250,6 @@ export function MediaLibraryPage() {
                 currentFolderId={store.currentFolderId}
                 counts={store.folderCounts}
                 rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
-                usedBytes={usedBytes}
                 onNavigate={store.navigateTo}
                 onNewFolder={() => setNewFolderOpen(true)}
                 canCreate={canCreate}
@@ -387,12 +385,11 @@ export function MediaLibraryPage() {
                         {intl.formatMessage(messages.navTitle)}
                     </DrawerTitle>
                     <MediaFoldersNav
-                        className="w-full border-0 shadow-none"
+                        className="w-full"
                         folders={store.folders}
                         currentFolderId={store.currentFolderId}
                         counts={store.folderCounts}
                         rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
-                        usedBytes={usedBytes}
                         onNavigate={(folderId) => {
                             store.navigateTo(folderId);
                             setNavOpen(false);
