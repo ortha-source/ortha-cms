@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_237 test cases across 25 spec files._
+_242 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -229,6 +229,16 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | accepts a single relation whose target is in the same workspace |
 | 422s a single relation whose target lives in another workspace |
 | 422s a single relation pointing at a non-existent id |
+
+### join-backed relations (many-to-many + inverse)
+
+| Test case |
+| --- |
+| persists a many-to-many on create and reads it back with titles |
+| replaces the link set on update (unlink + link in one save) |
+| 422s a many-to-many target in another workspace |
+| reads and writes the inverse side (tag.articles) two-way |
+| 404s the relations read for a missing entry |
 
 ### publish / unpublish
 

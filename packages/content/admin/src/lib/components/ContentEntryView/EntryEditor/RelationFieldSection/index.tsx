@@ -6,7 +6,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger
 } from '@ortha-cms/design-system';
-import type { ContentField } from '../../../../types/contentType';
+import type { ContentField, RelationRef } from '../../../../types/contentType';
 import { fieldLabel } from '../../../../utils/entryColumns';
 import { toRelationIds } from '../../../../utils/relationIds';
 import { RelationField } from '../RelationField';
@@ -36,7 +36,8 @@ export function RelationFieldSection({
     error,
     onChange,
     onBlur,
-    defaultOpen
+    defaultOpen,
+    initialRefs
 }: {
     field: ContentField;
     value: unknown;
@@ -45,6 +46,8 @@ export function RelationFieldSection({
     onBlur?: () => void;
     /** Whether the section starts expanded. */
     defaultOpen: boolean;
+    /** Server-resolved links assigned when the entry loaded, for titling. */
+    initialRefs?: readonly RelationRef[];
 }) {
     const intl = useIntl();
     const many = field.relation?.many ?? false;
@@ -90,6 +93,7 @@ export function RelationFieldSection({
                         onChange={onChange}
                         onBlur={onBlur}
                         hideLabel
+                        initialRefs={initialRefs}
                     />
                 </div>
             </CollapsibleContent>

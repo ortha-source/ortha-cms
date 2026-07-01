@@ -15,7 +15,8 @@ import {
 import type {
     ContentField,
     ContentTypeDetail,
-    EntryRecord
+    EntryRecord,
+    RelationRef
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
@@ -100,7 +101,8 @@ export function EntryEditor({
     onUnpublish,
     onDelete,
     backTo,
-    availableTypeNames
+    availableTypeNames,
+    relationRefs
 }: {
     schema: ContentTypeDetail;
     initialValues: Record<string, unknown>;
@@ -129,6 +131,12 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
+    /**
+     * Server-resolved relation links keyed by field name (from
+     * `GET /content/:type/:id/relations`), used to render assigned relations by
+     * title. Absent on create (nothing linked yet).
+     */
+    relationRefs?: Record<string, readonly RelationRef[]>;
 }) {
     const intl = useIntl();
 
@@ -281,6 +289,9 @@ export function EntryEditor({
                                             defaultOpen={
                                                 relationFields.length <= 3 ||
                                                 field.required
+                                            }
+                                            initialRefs={
+                                                relationRefs?.[field.name]
                                             }
                                         />
                                     ))}

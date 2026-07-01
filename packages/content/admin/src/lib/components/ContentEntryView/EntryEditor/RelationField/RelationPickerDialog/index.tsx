@@ -78,8 +78,11 @@ export function RelationPickerDialog({
     many: boolean;
     /** The ids already assigned, used to pre-check rows. */
     selectedIds: string[];
-    /** Commit a new id set (single → one id; many → the chosen set). */
-    onConfirm: (ids: string[]) => void;
+    /**
+     * Commit a new id set (single → one id; many → the chosen set) along with
+     * the candidates picked this round, so the field can title the new rows.
+     */
+    onConfirm: (ids: string[], picked: RelationCandidate[]) => void;
 }) {
     const intl = useIntl();
     const [search, setSearch] = useState('');
@@ -118,18 +121,29 @@ export function RelationPickerDialog({
     // Clear any in-flight lazy-load timer on unmount.
     useEffect(() => () => clearTimeout(loadTimer.current), []);
 
-    const { data: schema, isPending } = useContentSchema(targetName, open);
+    const { data: schema, isPending: schemaPending } = useContentSchema(
+        targetName,
+        open
+    );
     const filterFields = useMemo(
         () => (schema ? filterFieldsFromSchema(schema) : []),
         [schema]
     );
 
-    const { items, total, hasMore } = useRelationCandidates(
+    const {
+        items,
+        total,
+        hasMore,
+        isPending: candidatesPending
+    } = useRelationCandidates(
         targetName,
         schema?.fields ?? [],
-        filterFields,
-        { search, filter, limit }
+        { search, filter, limit },
+        open
     );
+    // The list is "pending" until both the target schema (for titles) and the
+    // first candidate page have arrived.
+    const isPending = schemaPending || candidatesPending;
 
     const handleScroll = (event: UIEvent<HTMLDivElement>) => {
         const el = event.currentTarget;
@@ -167,7 +181,7 @@ export function RelationPickerDialog({
                 return next;
             });
         } else {
-            onConfirm([candidate.id]);
+            onConfirm([candidate.id], [candidate]);
             onOpenChange(false);
         }
     };
@@ -239,7 +253,13 @@ export function RelationPickerDialog({
                         <Button
                             type="button"
                             onClick={() => {
-                                onConfirm([...draft]);
+                                // Pass the picked candidates in the current
+                                // window so the field can title new rows; ids
+                                // outside it keep their load-time titles.
+                                onConfirm(
+                                    [...draft],
+                                    items.filter((item) => draft.has(item.id))
+                                );
                                 onOpenChange(false);
                             }}
                         >

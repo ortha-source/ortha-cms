@@ -154,6 +154,14 @@ global).
       delete / content-revoke emptiness guards (which take it exclusively) so a
       new entry can't be orphaned by a concurrent delete/revoke.
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
+    - `GET /content/:typeName/:id/relations` — the entry's relation links keyed
+      by field name (`{ relations: { <field>: RelationRef[] } }`, `RelationRef =
+      { id, title, status? }`) for **every** relation field — owning
+      single/many **and** inverse back-references — resolved by
+      `RelationLinkService.readLinks` in a bounded set of queries (one
+      `UNION ALL` over the join/inverse sources, then one title lookup per
+      referenced target type). The editor seeds each relation field's value from
+      the ids and renders the links by title (`content:read`).
     - `PATCH /content/:typeName/:id` — replace values (`content:update`).
     - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
       `status`+`published_at`; publish **re-validates the stored row**; 400 on a
@@ -168,8 +176,20 @@ global).
 - **Routing order matters:** `BulkEntriesController` is registered **before** the
   single-item controllers in `ContentModule.forRoot` so the literal `bulk`
   segment wins over `:id` (single-item `:id` also carries `ParseUUIDPipe` as a
-  backstop). Many-relation values aren't persisted yet (skipped by `toColumns`,
-  matching the reader) — relation writes land with the relations UI.
+  backstop).
+- **Relation persistence** (`RelationLinkService`): an owning **single** relation
+  is a plain `<field>_id` FK column (written by `toColumns`, read off the row).
+  Everything **join-backed** — an owning **many-to-many** and the **inverse**
+  side of a two-way relation (which reuses the owning join table, source/target
+  swapped) — is synced by `EntryWriterService` on every create/update **inside
+  one transaction** with the entry row: the submitted id set replaces the record's
+  links (unlink the removed, `ON CONFLICT DO NOTHING` insert the added), so a save
+  is all-or-nothing. `assertRelationTargets` validates **every** referenced
+  target (single, many, inverse-many) exists in the same workspace — a missing or
+  cross-workspace id is a uniform 422 (no enumeration signal). An inverse of a
+  *single* relation (one-to-many) owns no writable link from its side, so it's
+  read-only there. The join table stores a set (no position column), so a
+  many-relation's order isn't persisted across a round-trip.
 - Reads gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)`; writes on the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).

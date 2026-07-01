@@ -12,8 +12,18 @@ import {
     Spinner,
     toast
 } from '@ortha-cms/design-system';
-import type { ContentType, EntryRecord } from '../../types/contentType';
-import { CONTENT_SEGMENT, ENTRY_MODE, type EntryMode } from '../../constants';
+import type {
+    ContentType,
+    ContentTypeDetail,
+    EntryRecord,
+    RelationRef
+} from '../../types/contentType';
+import {
+    CONTENT_FIELD_TYPE,
+    CONTENT_SEGMENT,
+    ENTRY_MODE,
+    type EntryMode
+} from '../../constants';
 import { useContentSchema } from '../../api/useContentSchema';
 import {
     useContentEntries,
@@ -21,6 +31,7 @@ import {
     type ContentEntriesResult
 } from '../../api/useContentEntries';
 import { useContentEntry } from '../../api/useContentEntry';
+import { useEntryRelations } from '../../api/useEntryRelations';
 import { useSaveEntry } from '../../api/useSaveEntry';
 import { useEntryStatusActions } from '../../api/useEntryStatusActions';
 import {
@@ -63,6 +74,28 @@ export type { EntryMode };
 
 /** The one-entry query params reused for `single` resolution. */
 const ONE_ENTRY = { page: 1, pageSize: 1 } as const;
+
+/**
+ * Overlay the server-resolved relation links onto the form's seed values. The
+ * entry row only carries owning **single** FK ids; many-to-many and inverse
+ * links live in join tables and arrive via the relations read, so seed every
+ * relation field from it — a `many` relation as its id array, a single relation
+ * as one id (or `''`). Returns `base` untouched when the links haven't loaded.
+ */
+function seedRelationValues(
+    schema: ContentTypeDetail,
+    base: Record<string, unknown>,
+    relations: Record<string, readonly RelationRef[]> | undefined
+): Record<string, unknown> {
+    if (!relations) return base;
+    const values = { ...base };
+    for (const field of schema.fields) {
+        if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
+        const ids = (relations[field.name] ?? []).map((ref) => ref.id);
+        values[field.name] = field.relation?.many ? ids : (ids[0] ?? '');
+    }
+    return values;
+}
 
 /**
  * Hosts the {@link EntryEditor} for all three modes:
@@ -121,6 +154,21 @@ export function ContentEntryView({
         enabled: mode === ENTRY_MODE.Edit
     });
 
+    // The single page's existing row (if any) — read here so the relations fetch
+    // below can key off its id.
+    const singleEntry = oneEntryQuery.data?.items[0];
+
+    // The entry whose relation links we load: the edit route's id, or the single
+    // page's resolved row. Create mode has none (nothing linked yet).
+    const relationEntryId =
+        mode === ENTRY_MODE.Edit ? entryId : singleEntry?.id;
+    const relationsQuery = useEntryRelations(
+        type.name,
+        relationEntryId,
+        !!schema && mode !== ENTRY_MODE.Create
+    );
+    const relationRefs = relationsQuery.data;
+
     const save = useSaveEntry(type.name);
     const status = useEntryStatusActions(type.name);
 
@@ -129,12 +177,13 @@ export function ContentEntryView({
     // instead of creating a second row.
     const [createdId, setCreatedId] = useState<string | undefined>(undefined);
 
-    // The single page's existing row (if any).
-    const singleEntry = oneEntryQuery.data?.items[0];
     const editEntry = entryQuery.data;
 
     // Resolve the editor's initial values, the source record (for metadata), and
     // the id we'd update — memoized so the form re-seeds only on identity change.
+    // Relation fields are seeded from the dedicated relations read (covering
+    // many-to-many / inverse links the entry row doesn't carry), so the form
+    // holds the full assigned set.
     const resolved = useMemo((): {
         values: Record<string, unknown>;
         entry?: EntryRecord;
@@ -146,7 +195,11 @@ export function ContentEntryView({
         const source = mode === ENTRY_MODE.Edit ? editEntry : singleEntry;
         if (source) {
             return {
-                values: mergeEntryValues(schema, source.values),
+                values: seedRelationValues(
+                    schema,
+                    mergeEntryValues(schema, source.values),
+                    relationRefs
+                ),
                 entry: source
             };
         }
@@ -154,12 +207,16 @@ export function ContentEntryView({
         return mode === ENTRY_MODE.Single
             ? { values: emptyEntryValues(schema) }
             : null;
-    }, [schema, mode, editEntry, singleEntry]);
+    }, [schema, mode, editEntry, singleEntry, relationRefs]);
 
     const loading =
         schemaQuery.isPending ||
         (mode === ENTRY_MODE.Single && oneEntryQuery.isPending) ||
-        (mode === ENTRY_MODE.Edit && entryQuery.isPending);
+        (mode === ENTRY_MODE.Edit && entryQuery.isPending) ||
+        // Only blocks while a relations read is actually in flight (an id is
+        // known); a disabled query — create mode, or a single page with no row
+        // yet — reports pending but isn't fetching, so it never stalls the form.
+        relationsQuery.isLoading;
     const errored =
         schemaQuery.isError ||
         !schema ||
@@ -293,6 +350,7 @@ export function ContentEntryView({
                 onDelete={onDelete}
                 backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
                 availableTypeNames={workspace.content}
+                relationRefs={relationRefs}
             />
         </div>
     );

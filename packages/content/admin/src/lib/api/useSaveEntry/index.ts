@@ -4,6 +4,7 @@ import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { EntryRecord } from '../../types/contentType';
 import { contentEntriesPrefix } from '../useContentEntries';
 import { contentEntryKey } from '../useContentEntry';
+import { entryRelationsPrefix } from '../useEntryRelations';
 
 /** What a save submits: the field values, plus the id when updating. */
 export type SaveEntryInput = {
@@ -57,6 +58,11 @@ export function useSaveEntry(typeName: string) {
             // server's canonical copy after an update.
             queryClient.invalidateQueries({
                 queryKey: contentEntryKey(workspace.id, typeName, saved.id)
+            });
+            // Relation links may have changed (assign/unassign persists with the
+            // save), so drop the type's relations cache — a re-open re-reads them.
+            queryClient.invalidateQueries({
+                queryKey: entryRelationsPrefix(workspace.id, typeName)
             });
         }
     });

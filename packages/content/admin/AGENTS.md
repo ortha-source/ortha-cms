@@ -138,15 +138,27 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   hazard) over the *target type's* real schema (`useContentSchema(target)` →
   `filterFieldsFromSchema`), and a lazily-scrolled candidate list (accessible
   checkbox group for a many-relation, radio group for a single). Fully controlled —
-  the form owns the value (single → one id string, many → string[]). Candidate
-  **records are mocked** (`api/useRelationCandidates` + `mockCandidates.ts`), which
-  applies the picker's search **and** the query-builder tree client-side
-  (`utils/evalFilterTree`) and windows for lazy scroll, mirroring `ContentEntriesResult`
-  so it can be swapped for `GET /content/:type` when the relation read API lands.
-  Titles come from `utils/relationLabel` (mirrors the server's `entryTitle`).
-  `RelationPickerDialog` owns state/data and composes nested pieces:
+  the form owns the value (single → one id string, many → string[]). Candidates
+  are **served by the API** (`api/useRelationCandidates` → `GET /content/:target`,
+  the same list endpoint the records table uses): the picker's search **and** the
+  query-builder filter (serialized via `treeToJsonFilter`) run **server-side**,
+  and the lazy-scroll window is a `pageSize` grown by the dialog. Titles are
+  derived from each row's values by `utils/relationLabel` (mirrors the server's
+  `entryTitle`). `RelationPickerDialog` owns state/data and composes nested pieces:
   **`RelationPickerFilters`** (search + inline query builder) and
   **`RelationCandidateList`** → **`RelationCandidateRow`**.
+- **Assigned relations + titles.** `ContentEntryView` loads the entry's links via
+  `useEntryRelations` (`GET /content/:type/:id/relations` → `{ relations: { <field>:
+  RelationRef[] } }`) — **one request for all relation fields**, covering the
+  many-to-many / inverse links the entry row doesn't carry. `seedRelationValues`
+  overlays the returned ids onto the form seed (single → one id, many → id array),
+  so the form holds the full assigned set; the `RelationRef` titles thread down
+  (`EntryEditor` → `RelationFieldSection` → `RelationField` as `initialRefs`) to
+  render each link by title. A record picked in the dialog carries its own title,
+  so newly-added rows show immediately without a refetch. On save, `useSaveEntry`
+  submits the relation ids (single string / array) with the rest of the document —
+  the server persists the FK columns **and** join-table links in one transaction —
+  and invalidates the type's relations cache (`entryRelationsPrefix`).
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by

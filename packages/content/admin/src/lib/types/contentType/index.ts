@@ -112,6 +112,31 @@ export type EntryRecord = {
 };
 
 /**
+ * One linked record on a relation field, resolved for display — served by
+ * `GET /api/content/:name/:id/relations`. Mirrors the server's `RelationRef`.
+ * Carries the target `id` (what a save submits back) and a pre-derived `title`,
+ * so the editor renders an assigned relation without a per-id round-trip.
+ */
+export type RelationRef = {
+    /** The linked entry's id. */
+    id: string;
+    /** Display title (first text/select field, else the id). */
+    title: string;
+    /** Publish status — present only for publishable target types. */
+    status?: EntryStatus;
+};
+
+/**
+ * One entry's relation links keyed by field name — every relation field (owning
+ * single/many **and** inverse back-references). Served by
+ * `GET /api/content/:name/:id/relations`; mirrors the server's
+ * `EntryRelationsView`.
+ */
+export type EntryRelations = {
+    relations: Record<string, RelationRef[]>;
+};
+
+/**
  * One failed validation rule on one field, as returned in a 422 body's `issues`
  * array. Mirrors the server's `ValidationIssue`.
  */

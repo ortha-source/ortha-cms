@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
-import type { FilterField, FilterGroup } from '@ortha-cms/query-builder-admin';
-import type { ContentField } from '../../types/contentType';
-import { matchesFilterTree } from '../../utils/evalFilterTree';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import {
+    treeToJsonFilter,
+    type FilterGroup
+} from '@ortha-cms/query-builder-admin';
+import type { ContentField, EntryRecord } from '../../types/contentType';
 import { relationLabel } from '../../utils/relationLabel';
-import { MOCK_CANDIDATES } from './mockCandidates';
 
 /** One assignable related record, ready for the picker (title pre-derived). */
 export type RelationCandidate = {
@@ -36,56 +39,108 @@ export type RelationCandidatesResult = {
     total: number;
     /** Whether more matches exist beyond the current window (drives lazy load). */
     hasMore: boolean;
+    /** Whether the first page is still loading (no data yet). */
+    isPending: boolean;
+    /** Whether the candidate query failed. */
+    isError: boolean;
 };
 
-/** Case-insensitive substring match across a record's string values + title. */
-function matchesSearch(candidate: RelationCandidate, search: string): boolean {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return true;
-    if (candidate.title.toLowerCase().includes(needle)) return true;
-    return Object.values(candidate.values).some(
-        (value) =>
-            typeof value === 'string' && value.toLowerCase().includes(needle)
-    );
+/** The list endpoint's envelope for the target type's entries. */
+type EntriesEnvelope = {
+    items: EntryRecord[];
+    total: number;
+};
+
+/**
+ * Fetch the target type's entries as relation candidates from
+ * `GET /api/content/:type` — the same server pipeline the records table uses, so
+ * the picker's free-text `search` and the query-builder `filter` are applied
+ * **server-side**. The lazy-scroll window is a `pageSize` grown by the dialog;
+ * `page` stays 1 so each step re-reads the wider window (kept populated across
+ * steps by `keepPreviousData`).
+ */
+async function fetchRelationCandidates(
+    targetName: string,
+    search: string,
+    filter: string | null,
+    limit: number
+): Promise<EntriesEnvelope> {
+    try {
+        const { data } = await apiClient.get<EntriesEnvelope>(
+            `/content/${targetName}`,
+            {
+                params: {
+                    ...(search ? { search } : {}),
+                    ...(filter ? { filter } : {}),
+                    page: 1,
+                    pageSize: limit
+                }
+            }
+        );
+        return data;
+    } catch (error) {
+        throw toApiError(error);
+    }
 }
 
 /**
- * The assignable records for a relation's target type. **Mocked** (see
- * `mockCandidates.ts`) — there is no relation read API yet — but it applies the
- * picker's free-text search and the **query-builder filter** client-side
- * (`matchesFilterTree`) and paginates, so the experience matches a real
- * server-backed list. `schemaFields` derives each row's title; `filterFields`
- * are passed through to the evaluator. Returns a stable `{ items, total, … }`
- * envelope so this hook can later be replaced by a call to `GET /content/:type`
- * without touching the dialog.
+ * Query key for a relation type's candidate window, **scoped to the workspace**
+ * (candidates are workspace entries, so two workspaces never share the cache).
+ * The serialized filter — not the tree object — keys the entry so an unchanged
+ * filter is a cache hit.
+ */
+export const relationCandidatesKey = (
+    workspaceId: string,
+    targetName: string,
+    params: { search: string; filter: string | null; limit: number }
+) => ['relation-candidates', workspaceId, targetName, params] as const;
+
+/**
+ * The assignable records for a relation's target type, served by
+ * `GET /api/content/:type`. `schemaFields` derives each row's title (mirroring
+ * the server's `entryTitle`); the picker's search and query-builder `filter` run
+ * **server-side**, and the window grows via `limit` (lazy infinite scroll).
+ * Returns the stable `{ items, total, hasMore, … }` envelope the dialog renders.
+ * Disabled (via `enabled`) until the picker opens.
  */
 export function useRelationCandidates(
     targetName: string,
     schemaFields: readonly ContentField[],
-    filterFields: readonly FilterField[],
-    params: RelationCandidatesParams
+    params: RelationCandidatesParams,
+    enabled = true
 ): RelationCandidatesResult {
     const { search = '', filter = null, limit } = params;
+    const workspace = useCurrentWorkspace();
+    // Serialize the query-builder tree to the `?filter=` wire JSON the server
+    // parses (null when the tree has no complete rules).
+    const filterJson = filter ? treeToJsonFilter(filter) : null;
 
-    return useMemo(() => {
-        const seed = MOCK_CANDIDATES[targetName] ?? [];
-        const all: RelationCandidate[] = seed.map((record) => ({
-            id: record.id,
-            title: relationLabel(record.values, schemaFields, record.id),
-            status: record.status,
-            values: record.values
-        }));
+    const query = useQuery({
+        queryKey: relationCandidatesKey(workspace.id, targetName, {
+            search,
+            filter: filterJson,
+            limit
+        }),
+        enabled: enabled && !!targetName,
+        placeholderData: keepPreviousData,
+        queryFn: () =>
+            fetchRelationCandidates(targetName, search, filterJson, limit)
+    });
 
-        const filtered = all.filter(
-            (candidate) =>
-                matchesSearch(candidate, search) &&
-                matchesFilterTree(candidate, filter, filterFields)
-        );
+    const rows = query.data?.items ?? [];
+    const items: RelationCandidate[] = rows.map((record) => ({
+        id: record.id,
+        title: relationLabel(record.values, schemaFields, record.id),
+        status: record.status,
+        values: record.values
+    }));
+    const total = query.data?.total ?? 0;
 
-        return {
-            items: filtered.slice(0, limit),
-            total: filtered.length,
-            hasMore: filtered.length > limit
-        };
-    }, [targetName, schemaFields, filterFields, search, filter, limit]);
+    return {
+        items,
+        total,
+        hasMore: total > items.length,
+        isPending: enabled && query.isPending,
+        isError: query.isError
+    };
 }

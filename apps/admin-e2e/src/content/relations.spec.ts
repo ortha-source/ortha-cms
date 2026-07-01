@@ -6,10 +6,12 @@ import {
     RELATIONS_SCOPED_WORKSPACE,
     RELATIONS_SCHEMA_SEED,
     RELATIONS_DETAIL_SEED,
+    RELATIONS_ENTRIES_SEED,
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
-    mockContentEntryWrites
+    mockContentEntryWrites,
+    mockEntryRelations
 } from '../support/api/content';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -17,8 +19,9 @@ import { expectNoA11yViolations } from '../support/a11y';
  * The relation picker in the entry editor's Relations tab (from
  * `@ortha-cms/content-admin`): assigning single + many relations by **title**,
  * searching and lazily scrolling candidates, the query-builder filter drawer,
- * removing links, and accessibility. The schema is mocked; candidate rows are
- * baked into the admin (`useRelationCandidates`), so picking shows real records.
+ * removing links, and accessibility. The schema **and** the candidate rows are
+ * mocked at the network layer — candidates come from `GET /api/content/:type`
+ * (`RELATIONS_ENTRIES_SEED`), the same list endpoint the records table uses.
  */
 test.describe('Relation picker', () => {
     test.beforeEach(async ({ page }) => {
@@ -26,8 +29,14 @@ test.describe('Relation picker', () => {
         await mockWorkspaces(page, [RELATIONS_WORKSPACE]);
         await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
         await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
-        await mockContentEntries(page, { details: RELATIONS_DETAIL_SEED });
+        // Candidate rows come from the real list endpoint now; seed recognizable
+        // titles (Ada Lovelace, engineering, …) via the entries override.
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED
+        });
         await mockContentEntryWrites(page, { details: RELATIONS_DETAIL_SEED });
+        await mockEntryRelations(page);
     });
 
     test('renders each relation field as a collapsible section', async ({
@@ -207,8 +216,14 @@ test.describe('Relation picker accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockWorkspaces(page, [RELATIONS_WORKSPACE]);
         await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
         await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
-        await mockContentEntries(page, { details: RELATIONS_DETAIL_SEED });
+        // Candidate rows come from the real list endpoint now; seed recognizable
+        // titles (Ada Lovelace, engineering, …) via the entries override.
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED
+        });
         await mockContentEntryWrites(page, { details: RELATIONS_DETAIL_SEED });
+        await mockEntryRelations(page);
     });
 
     test('relations tab — field sections', async ({

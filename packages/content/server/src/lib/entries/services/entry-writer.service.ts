@@ -22,7 +22,7 @@ import {
     EntryValidationService,
     type ValidationIssue
 } from '../../validation/services/entry-validation.service';
-import type { EntryRecord } from '../types/entry-list-view';
+import type { EntryRecord, RelationRef } from '../types/entry-list-view';
 import {
     BULK_VERDICT,
     type BulkActionResult,
@@ -32,6 +32,7 @@ import {
     type BulkPublishVerdict
 } from '../types/bulk-publish';
 import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
+import { RelationLinkService } from './relation-link.service';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -48,7 +49,8 @@ type Row = Record<string, unknown>;
 export class EntryWriterService {
     constructor(
         @InjectDatabase() private readonly db: Database,
-        private readonly validation: EntryValidationService
+        private readonly validation: EntryValidationService,
+        private readonly relations: RelationLinkService
     ) {}
 
     /**
@@ -72,15 +74,41 @@ export class EntryWriterService {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
+        // One transaction: take the workspace's shared content lock (coordinates
+        // with the delete / content-revoke guards so a new entry can't be
+        // orphaned), then write the row and its join-table links (many-to-many /
+        // inverse) together — a failed link write never leaves a half-linked
+        // entry, and both roll back as one.
         const row = await this.db.transaction(async (tx) => {
             await lockWorkspaceShared(tx, workspaceId);
             const [inserted] = await tx
                 .insert(type.table)
                 .values({ ...toColumns(type, coerced), workspaceId } as never)
                 .returning();
-            return inserted;
+            await this.relations.writeLinks(
+                tx,
+                type,
+                (inserted as Row)['id'] as string,
+                coerced
+            );
+            return inserted as Row;
         });
-        return toRecord(type, row as Row);
+        return toRecord(type, row);
+    }
+
+    /**
+     * Read one live entry's relation links, keyed by field name — every relation
+     * field resolved to display-ready refs (id + title) in a bounded set of
+     * queries. 404 if the entry is missing (or soft-deleted) in this workspace.
+     */
+    async getRelations(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<Record<string, RelationRef[]>> {
+        const row = await this.findLive(type, id, workspaceId);
+        if (!row) throw this.notFound(type, id);
+        return this.relations.readLinks(type, row, workspaceId);
     }
 
     /** Read one live entry in the workspace, or 404. */
@@ -121,16 +149,22 @@ export class EntryWriterService {
                 this.assertValid(type, coerced);
             }
         }
-        const [row] = await this.db
-            .update(type.table)
-            .set({
-                ...toColumns(type, coerced),
-                updatedAt: new Date()
-            } as never)
-            .where(this.liveWhere(type, id, workspaceId))
-            .returning();
-        if (!row) throw this.notFound(type, id);
-        return toRecord(type, row as Row);
+        // One transaction: replace the row's columns and re-sync its join-table
+        // links (many-to-many / inverse) atomically, so a save is all-or-nothing.
+        const row = await this.db.transaction(async (tx) => {
+            const [updated] = await tx
+                .update(type.table)
+                .set({
+                    ...toColumns(type, coerced),
+                    updatedAt: new Date()
+                } as never)
+                .where(this.liveWhere(type, id, workspaceId))
+                .returning();
+            if (!updated) throw this.notFound(type, id);
+            await this.relations.writeLinks(tx, type, id, coerced);
+            return updated as Row;
+        });
+        return toRecord(type, row);
     }
 
     /** Validate the stored row, then mark it published (publishable types only). */
@@ -564,17 +598,18 @@ export class EntryWriterService {
     }
 
     /**
-     * Verify every owning single-relation FK points at a target that exists **in
-     * the same workspace**. The FK column has no workspace constraint of its own
-     * (the target table is workspace-scoped only at the app layer), so without
-     * this a caller could reference — or probe the existence of — an entry in
-     * another workspace. Batched one existence query per referenced target type;
-     * a missing or cross-workspace target surfaces as a uniform 422 validation
-     * issue (indistinguishable from a plain "invalid id", so no not-found-vs-
-     * forbidden enumeration signal). Runs on every create/update, draft or not,
-     * because the FK is written eagerly either way. Many-relations and inverse
-     * fields own no FK here, so they're skipped (their links aren't persisted by
-     * {@link toColumns}).
+     * Verify every referenced relation target exists **in the same workspace** —
+     * single FKs, many-to-many links, and the inverse (back-reference) side of a
+     * two-way relation. Neither the FK column nor the join table has a workspace
+     * constraint of its own (the target table is workspace-scoped only at the app
+     * layer), so without this a caller could reference — or probe the existence
+     * of — an entry in another workspace. Batched one existence query per
+     * referenced target type; a missing or cross-workspace target surfaces as a
+     * uniform 422 validation issue (indistinguishable from a plain "invalid id",
+     * so no not-found-vs-forbidden enumeration signal). Runs on every
+     * create/update, draft or not, because links are written eagerly either way.
+     * An inverse-of-single (one-to-many) field owns no writable link from this
+     * side, so it's skipped.
      */
     private async assertRelationTargets(
         type: AnyContentType,
@@ -587,15 +622,30 @@ export class EntryWriterService {
             { field: string; id: string }[]
         >();
         for (const [name, spec] of Object.entries(type.fields)) {
-            if (spec.type !== CONTENT_FIELD_TYPE.Relation) continue;
+            if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
+                continue;
             const relation = spec.relation;
-            if (!relation || relation.many || relation.inverse) continue;
-            const id = values[name];
-            if (typeof id !== 'string' || !id) continue;
+            if (relation.inverse) {
+                // Inverse of a single relation writes nothing from this side;
+                // only the inverse of a many-to-many links (its ids are owner
+                // rows of the referenced type).
+                const owningField =
+                    relation.to().fields[relation.inverse.field];
+                if (!owningField?.relation?.many) continue;
+            }
+            const ids =
+                relation.many || relation.inverse
+                    ? Array.isArray(values[name])
+                        ? (values[name] as unknown[])
+                        : []
+                    : [values[name]];
             const target = relation.to();
             const refs = byTarget.get(target) ?? [];
-            refs.push({ field: name, id });
-            byTarget.set(target, refs);
+            for (const id of ids) {
+                if (typeof id !== 'string' || !id) continue;
+                refs.push({ field: name, id });
+            }
+            if (refs.length) byTarget.set(target, refs);
         }
         if (!byTarget.size) return;
 

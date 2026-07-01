@@ -25,12 +25,11 @@ import {
     FieldError,
     FieldLabel
 } from '@ortha-cms/design-system';
-import type { ContentField } from '../../../../types/contentType';
+import type { ContentField, RelationRef } from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
-import { findMockCandidate } from '../../../../api/useRelationCandidates/mockCandidates';
+import type { RelationCandidate } from '../../../../api/useRelationCandidates';
 import { fieldLabel } from '../../../../utils/entryColumns';
 import { adminProps } from '../../../../utils/adminProps';
-import { relationLabel } from '../../../../utils/relationLabel';
 import { toRelationIds } from '../../../../utils/relationIds';
 import { RelationItemRow } from './RelationItemRow';
 import { SortableRelationItem } from './SortableRelationItem';
@@ -84,11 +83,12 @@ const messages = defineMessages({
 /**
  * A comfortable relation editor for one relation field, replacing the raw id
  * input in the editor's Relations tab. Shows each linked record by its **title**
- * (resolved from the mocked candidates + the target's real schema) with a remove
- * control, and — for a many-relation — drag-and-drop / keyboard **reordering**
- * (the array order is the value). The {@link RelationPickerDialog} handles
- * search, query-builder filtering, and assignment. Fully controlled: a single
- * relation stores one id string, a many-relation a string array.
+ * (from the server-resolved {@link RelationRef}s for the already-assigned links,
+ * and from the picked candidate for anything just added) with a remove control,
+ * and — for a many-relation — drag-and-drop / keyboard **reordering** (the array
+ * order is the value). The {@link RelationPickerDialog} handles search,
+ * query-builder filtering, and assignment. Fully controlled: a single relation
+ * stores one id string, a many-relation a string array.
  */
 export function RelationField({
     field,
@@ -96,7 +96,8 @@ export function RelationField({
     error,
     onChange,
     onBlur,
-    hideLabel = false
+    hideLabel = false,
+    initialRefs = []
 }: {
     field: ContentField;
     value: unknown;
@@ -105,9 +106,16 @@ export function RelationField({
     onBlur?: () => void;
     /** Suppress the built-in label (e.g. when a collapsible header carries it). */
     hideLabel?: boolean;
+    /** Server-resolved links assigned when the entry loaded, for titling. */
+    initialRefs?: readonly RelationRef[];
 }) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    // Titles for records picked this session — the id in `value` is all the form
+    // keeps, so we remember each chosen candidate's title to render its row.
+    const [picked, setPicked] = useState<Map<string, RelationCandidate>>(
+        new Map()
+    );
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -121,21 +129,34 @@ export function RelationField({
     const label = fieldLabel(field);
     const description = adminProps(field).description;
 
-    // The target type's schema labels assigned ids and titles each picker row.
+    // The target type's label titles the picker trigger and dialog.
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
+
+    // A linked record's title: the freshly-picked candidate wins, else the
+    // server-resolved ref from load, else the raw id as a last resort.
+    const refTitles = new Map(initialRefs.map((ref) => [ref.id, ref.title]));
     const titleFor = (id: string) =>
-        relationLabel(
-            findMockCandidate(targetName, id)?.values ?? {},
-            targetSchema?.fields ?? [],
-            id
-        );
+        picked.get(id)?.title ?? refTitles.get(id) ?? id;
 
     const ids = toRelationIds(value, many);
 
     const commit = (next: string[]) => {
         onChange(many ? next : (next[0] ?? ''));
         onBlur?.();
+    };
+
+    // Commit the picker's chosen ids, remembering their titles for display.
+    const confirm = (next: string[], chosen: RelationCandidate[]) => {
+        if (chosen.length) {
+            setPicked((current) => {
+                const merged = new Map(current);
+                for (const candidate of chosen)
+                    merged.set(candidate.id, candidate);
+                return merged;
+            });
+        }
+        commit(next);
     };
 
     const removeId = (id: string) => commit(ids.filter((each) => each !== id));
@@ -269,7 +290,7 @@ export function RelationField({
                 targetLabel={targetLabel}
                 many={many}
                 selectedIds={ids}
-                onConfirm={commit}
+                onConfirm={confirm}
             />
         </Field>
     );

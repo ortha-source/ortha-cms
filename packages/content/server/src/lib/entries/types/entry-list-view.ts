@@ -29,3 +29,28 @@ export interface EntryListView {
     page: number;
     pageSize: number;
 }
+
+/**
+ * One linked record on a relation field, resolved for display: the target id
+ * plus a pre-derived {@link EntryRecord} title (and publish `status` for a
+ * publishable target). Lets the admin render an assigned relation by title —
+ * and seed the form value with the id — without a per-id round-trip.
+ */
+export interface RelationRef {
+    /** The linked entry's id (what a save submits back). */
+    id: string;
+    /** Display title (first text/select field, else the id). */
+    title: string;
+    /** Publish status — present only for publishable target types. */
+    status?: EntryStatus;
+}
+
+/**
+ * The relation links of one entry, keyed by relation field name — every
+ * relation field (owning single/many **and** inverse back-references), so the
+ * editor has a single source for what's linked. A single relation carries at
+ * most one ref; a many/inverse relation carries the ordered set.
+ */
+export interface EntryRelationsView {
+    relations: Record<string, RelationRef[]>;
+}
