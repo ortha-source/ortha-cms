@@ -22,7 +22,14 @@ export interface SerializedField {
      * in a join table whose rows always cascade and have no column to make
      * unique, so both are omitted rather than reported as (inert) spec values.
      */
-    relation?: { to: string; many: boolean; onDelete?: string; unique?: boolean };
+    relation?: {
+        to: string;
+        many: boolean;
+        onDelete?: string;
+        unique?: boolean;
+        /** Present when this field is the inverse side of a two-way relation. */
+        inverse?: { field: string };
+    };
 }
 
 /** Wire shape of a content type (summary, wizard-compatible). */
@@ -68,6 +75,32 @@ export class ContentTypeRegistry {
                             `"${target.name}", which is not registered with ContentPlugin.`
                     );
                 }
+                // An inverse must point at a real relation on the owning type
+                // (`target`) that in turn points back here — else the two sides
+                // would edit different links. Fail boot on a mismatch.
+                if (spec.relation.inverse) {
+                    const owningField =
+                        target.fields[spec.relation.inverse.field];
+                    if (
+                        !owningField ||
+                        owningField.type !== CONTENT_FIELD_TYPE.Relation ||
+                        !owningField.relation ||
+                        owningField.relation.inverse
+                    ) {
+                        throw new Error(
+                            `Inverse relation "${type.name}.${fieldName}" references ` +
+                                `"${target.name}.${spec.relation.inverse.field}", which is not ` +
+                                `a storage-owning relation field.`
+                        );
+                    }
+                    if (owningField.relation.to().name !== type.name) {
+                        throw new Error(
+                            `Inverse relation "${type.name}.${fieldName}" mirrors ` +
+                                `"${target.name}.${spec.relation.inverse.field}", but that field ` +
+                                `targets "${owningField.relation.to().name}", not "${type.name}".`
+                        );
+                    }
+                }
             }
         }
     }
@@ -112,15 +145,16 @@ export class ContentTypeRegistry {
                       relation: {
                           to: spec.relation.to().name,
                           many: spec.relation.many,
-                          // onDelete / unique only apply to a single FK column;
-                          // a many-relation's join rows always cascade and have
-                          // no column to constrain.
-                          ...(spec.relation.many
-                              ? {}
-                              : {
-                                    onDelete: spec.relation.onDelete,
-                                    unique: spec.relation.unique
-                                })
+                          // An inverse owns no column/table, so onDelete/unique
+                          // are inert — report the back-reference instead.
+                          ...(spec.relation.inverse
+                              ? { inverse: { field: spec.relation.inverse.field } }
+                              : spec.relation.many
+                                ? {}
+                                : {
+                                      onDelete: spec.relation.onDelete,
+                                      unique: spec.relation.unique
+                                  })
                       }
                   }
                 : {})

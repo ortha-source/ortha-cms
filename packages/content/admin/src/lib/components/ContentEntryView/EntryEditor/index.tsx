@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import {
     Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -22,9 +21,9 @@ import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
-import { EntryFieldInput } from '../../EntryFieldInput';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
+import { RelationFieldSection } from './RelationFieldSection';
 
 const messages = defineMessages({
     backToList: {
@@ -43,14 +42,6 @@ const messages = defineMessages({
     tabHistory: {
         id: 'content.editor.tabHistory',
         defaultMessage: 'History'
-    },
-    relationsTitle: {
-        id: 'content.editor.relationsTitle',
-        defaultMessage: 'Relations'
-    },
-    relationsBody: {
-        id: 'content.editor.relationsBody',
-        defaultMessage: 'Links from this record to other content.'
     },
     relationsEmpty: {
         id: 'content.editor.relationsEmpty',
@@ -108,7 +99,8 @@ export function EntryEditor({
     onSave,
     onUnpublish,
     onDelete,
-    backTo
+    backTo,
+    availableTypeNames
 }: {
     schema: ContentTypeDetail;
     initialValues: Record<string, unknown>;
@@ -130,6 +122,13 @@ export function EntryEditor({
     onDelete?: () => void;
     /** Where the "Back to records" link goes; omitted for a single page. */
     backTo?: string;
+    /**
+     * Content-type names granted to the open workspace. A relation field is shown
+     * only when its target is in this set — a relation to a collection the
+     * workspace can't access is hidden (you couldn't pick its records anyway).
+     * Undefined = unrestricted (show every relation).
+     */
+    availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
     const form = useEntryForm(schema, initialValues);
@@ -138,9 +137,14 @@ export function EntryEditor({
     const generalFields = visible.filter(
         (field) => field.type !== CONTENT_FIELD_TYPE.Relation
     );
-    const relationFields = visible.filter(
-        (field) => field.type === CONTENT_FIELD_TYPE.Relation
-    );
+    const relationFields = visible.filter((field) => {
+        if (field.type !== CONTENT_FIELD_TYPE.Relation) return false;
+        // Hide a relation whose target collection isn't granted to this
+        // workspace — its records aren't reachable here, so offering it would
+        // only dead-end. `undefined` means unrestricted.
+        if (!availableTypeNames) return true;
+        return availableTypeNames.includes(field.relation?.to ?? '');
+    });
 
     // The publish gate: each field that must hold to publish — every required
     // field, plus any field whose current value is invalid — with its live
@@ -160,10 +164,11 @@ export function EntryEditor({
 
     // A 422 from the server is mapped back onto the form as inline field errors;
     // other failures fall through to the mutation's own error handling.
-    const submitWith = (publish: boolean) => (values: Record<string, unknown>) =>
-        onSave(values, { publish }).catch((error) => {
-            form.setServerErrors(entryIssuesFrom(error));
-        });
+    const submitWith =
+        (publish: boolean) => (values: Record<string, unknown>) =>
+            onSave(values, { publish }).catch((error) => {
+                form.setServerErrors(entryIssuesFrom(error));
+            });
 
     // A **draft** of a publishable type can be saved incomplete, so it uses the
     // relaxed (format-only) gate — required isn't enforced, but a malformed value
@@ -238,49 +243,36 @@ export function EntryEditor({
                         </TabsContent>
 
                         <TabsContent value={TAB.Relations}>
-                            <Card className="shadow-none">
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {intl.formatMessage(
-                                            messages.relationsTitle
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {intl.formatMessage(
-                                            messages.relationsBody
-                                        )}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex flex-col gap-5">
-                                    {relationFields.length > 0 ? (
-                                        relationFields.map((field) => (
-                                            <EntryFieldInput
-                                                key={field.name}
-                                                field={field}
-                                                value={form.values[field.name]}
-                                                error={form.errorFor(
-                                                    field.name
-                                                )}
-                                                onChange={(value) =>
-                                                    form.setValue(
-                                                        field.name,
-                                                        value
-                                                    )
-                                                }
-                                                onBlur={() =>
-                                                    form.touch(field.name)
-                                                }
-                                            />
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            {intl.formatMessage(
-                                                messages.relationsEmpty
-                                            )}
-                                        </p>
+                            {relationFields.length > 0 ? (
+                                <div className="flex flex-col gap-3">
+                                    {relationFields.map((field) => (
+                                        <RelationFieldSection
+                                            key={field.name}
+                                            field={field}
+                                            value={form.values[field.name]}
+                                            error={form.errorFor(field.name)}
+                                            onChange={(value) =>
+                                                form.setValue(field.name, value)
+                                            }
+                                            onBlur={() =>
+                                                form.touch(field.name)
+                                            }
+                                            // A handful stay open; many start
+                                            // collapsed to keep the tab tidy.
+                                            defaultOpen={
+                                                relationFields.length <= 3 ||
+                                                field.required
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    {intl.formatMessage(
+                                        messages.relationsEmpty
                                     )}
-                                </CardContent>
-                            </Card>
+                                </p>
+                            )}
                         </TabsContent>
 
                         <TabsContent value={TAB.Media}>

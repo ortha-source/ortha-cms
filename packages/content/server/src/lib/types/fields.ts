@@ -92,6 +92,18 @@ export interface FieldValidation {
 /** Referential action when a related row is deleted. */
 export type RelationOnDelete = 'cascade' | 'set null' | 'restrict';
 
+/**
+ * Marks a relation field as the **inverse** (back-reference) of a
+ * storage-backed relation owned by another type — the read/write "other side"
+ * of a two-way relation. An inverse field generates **no storage of its own**:
+ * it reuses the owning relation's FK column / join table, so editing either side
+ * mutates the same links and the two can never drift.
+ */
+export interface RelationInverseSpec {
+    /** The field name on the owning type ({@link RelationSpec.to}) that backs the link. */
+    field: string;
+}
+
 /** Runtime relation config carried by a relation field spec. */
 export interface RelationSpec {
     /** Lazy target — a thunk so mutually-referencing files can import each other. */
@@ -108,6 +120,12 @@ export interface RelationSpec {
      * `many` relation, whose links live in a join table.
      */
     unique: boolean;
+    /**
+     * Present only on an **inverse** field: it owns no column/table and reads the
+     * link from {@link to}'s `field` (with source/target swapped). `to` is the
+     * owning type; `onDelete`/`unique` are inert.
+     */
+    inverse?: RelationInverseSpec;
 }
 
 /** Options shared by every field builder. */
@@ -159,6 +177,22 @@ export interface RelationFieldOptions extends BaseFieldOptions {
      * to false. Invalid with `many: true` (rejected at define time).
      */
     unique?: boolean;
+}
+
+/**
+ * Options for `field.relationInverse()` — the back-reference side of a two-way
+ * relation. It stores nothing: it mirrors the link owned by `of`'s `field`.
+ */
+export interface RelationInverseFieldOptions extends BaseFieldOptions {
+    /** Lazy owning content type — the side that declares the storage-backed relation. */
+    of: () => AnyContentType;
+    /** The relation field name on `of` whose link this side mirrors. */
+    field: string;
+    /**
+     * Whether this side is to-many. Defaults to `true` (the common inverse — the
+     * "one"/"far" side of a to-many or many-to-many owns many back-references).
+     */
+    many?: boolean;
 }
 
 /**

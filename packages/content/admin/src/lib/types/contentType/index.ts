@@ -69,7 +69,19 @@ export type ContentField = {
     /** Allowed values — present only for `select`. */
     options?: readonly string[];
     /** Relation target — present only for `relation`. */
-    relation?: { to: string; many: boolean; onDelete?: string };
+    relation?: {
+        to: string;
+        many: boolean;
+        onDelete?: string;
+        unique?: boolean;
+        /**
+         * Present when this field is the **inverse** side of a two-way relation:
+         * `field` is the storage-owning relation on `to`. The picker treats it
+         * like any relation (pick records of `to`); the link is shared with the
+         * owning side.
+         */
+        inverse?: { field: string };
+    };
 };
 
 /**

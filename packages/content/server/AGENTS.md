@@ -37,6 +37,18 @@ export const post = collection('post', {
   don't collide); combining it with `many: true` is rejected (a join table has
   no column to constrain).
 
+### Two-way relations (`relationInverse`)
+
+`field.relationInverse({ of: () => owner, field: 'x' })` declares the **inverse**
+(back-reference) side of a relation whose storage lives on `owner.x`. It emits
+**no column or join table** — reads/writes reuse the owning side's FK/join table
+(source/target swapped), so editing either side mutates the same links and they
+can't drift. The registry validates the pairing at boot (the referenced field
+must be a storage-owning relation on `owner` that points back). Because it's
+virtual, adding one produces **no migration**. Defaults to to-many. Two files
+referencing each other create a TS *inference* cycle — annotate one thunk's
+return `: AnyContentType` to break it (see `apps/server/src/collections/tag.ts`).
+
 ### Relation cardinalities
 
 The two storage forms cover all four cardinalities. **many-to-one** is a plain

@@ -86,4 +86,55 @@ describe('ContentTypeRegistry', () => {
         expect(registry.all()).toHaveLength(2);
         expect(registry.get('missing')).toBeUndefined();
     });
+
+    describe('inverse (two-way) relations', () => {
+        // story.cats (owning, many-to-many) ⇄ cat.stories (inverse).
+        const cat = collection('cat', {
+            fields: {
+                name: field.text(),
+                stories: field.relationInverse({
+                    of: () => story,
+                    field: 'cats'
+                })
+            }
+        });
+        const story = collection('story', {
+            fields: {
+                title: field.text({ required: true }),
+                cats: field.relation({ to: () => cat, many: true })
+            }
+        });
+
+        it('constructs when the inverse mirrors a real owning relation', () => {
+            expect(
+                () => new ContentTypeRegistry([cat, story])
+            ).not.toThrow();
+        });
+
+        it('serializes the back-reference marker', () => {
+            const registry = new ContentTypeRegistry([cat, story]);
+            const fields = registry.serialize('cat')!.fields;
+            const byName = Object.fromEntries(fields.map((x) => [x.name, x]));
+            expect(byName['stories'].relation).toEqual({
+                to: 'story',
+                many: true,
+                inverse: { field: 'cats' }
+            });
+        });
+
+        it('throws when the inverse targets a non-relation field', () => {
+            const bad = collection('bad', {
+                fields: {
+                    // story.title is text, not a relation.
+                    oops: field.relationInverse({
+                        of: () => story,
+                        field: 'title'
+                    })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([cat, story, bad])
+            ).toThrow(/not a storage-owning relation field/);
+        });
+    });
 });

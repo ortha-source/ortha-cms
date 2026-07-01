@@ -52,7 +52,8 @@ const RESERVED_COLUMNS = new Set([
  */
 function mainColumnName(fieldName: string, spec: AnyFieldSpec): string | null {
     if (spec.type === CONTENT_FIELD_TYPE.Relation) {
-        if (spec.relation?.many) return null;
+        // Inverse (virtual) and many-relations have no main-table column.
+        if (spec.relation?.inverse || spec.relation?.many) return null;
         return `${snakeCase(fieldName)}_id`;
     }
     return snakeCase(fieldName);
@@ -88,10 +89,12 @@ function assertFields(
 
         // A required single relation with ON DELETE SET NULL is a
         // contradiction: the FK column is NOT NULL, so nulling it on a
-        // parent delete always fails — the delete can never succeed.
+        // parent delete always fails — the delete can never succeed. (An
+        // inverse field has no FK column, so the rule doesn't apply.)
         if (
             spec.type === CONTENT_FIELD_TYPE.Relation &&
             spec.relation &&
+            !spec.relation.inverse &&
             !spec.relation.many &&
             spec.required &&
             spec.relation.onDelete === 'set null'
