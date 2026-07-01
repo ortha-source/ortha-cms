@@ -14,6 +14,7 @@ import type {
     MoneyFieldOptions,
     NumberFieldOptions,
     RelationFieldOptions,
+    RelationInverseFieldOptions,
     SelectFieldOptions,
     TextFieldOptions,
     WithRequired
@@ -155,6 +156,31 @@ function relation<const O extends RelationFieldOptions>(
     };
 }
 
+/**
+ * The **inverse** side of a two-way relation — a back-reference to the storage
+ * owned by `of`'s `field`. Generates no column/table: it reads and writes the
+ * same link the owning relation does (source/target swapped), so editing either
+ * side stays in sync. `of` is a thunk so the two files can import each other.
+ *
+ * @example
+ *   // article.ts owns:  tags: field.relation({ to: () => tag, many: true })
+ *   // tag.ts mirrors:    articles: field.relationInverse({ of: () => article, field: 'tags' })
+ */
+function relationInverse<const O extends RelationInverseFieldOptions>(
+    options: O
+): FieldSpec<'relation', O extends { many: false } ? string : string[]> {
+    return {
+        ...base(CONTENT_FIELD_TYPE.Relation, options),
+        relation: {
+            to: options.of,
+            many: options.many ?? true,
+            onDelete: 'set null', // inert for a virtual (storage-less) field
+            unique: false,
+            inverse: { field: options.field }
+        }
+    };
+}
+
 /** The field-builder vocabulary: `field.text()`, `field.relation()`, … */
 export const field = {
     text,
@@ -167,5 +193,6 @@ export const field = {
     select,
     multiselect,
     json,
-    relation
+    relation,
+    relationInverse
 };

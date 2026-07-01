@@ -27,7 +27,14 @@ export class RelationsEditorPage extends BasePage {
 
     /** Open the create editor for the seeded `article` collection. */
     async gotoNewArticle(workspaceId: string) {
-        await this.page.goto(`/workspaces/${workspaceId}/content/article/new`);
+        await this.gotoNewType(workspaceId, 'article');
+    }
+
+    /** Open the create editor for any collection by machine name. */
+    async gotoNewType(workspaceId: string, typeName: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/new`
+        );
     }
 
     /** Switch to the Relations tab. */

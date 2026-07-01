@@ -171,3 +171,34 @@ describe('joinTableOf()', () => {
         );
     });
 });
+
+describe('inverse relations', () => {
+    const cols = (type: AnyContentType) =>
+        type.table as unknown as Record<string, unknown>;
+
+    it('adds no column or join table (it reuses the owning side)', () => {
+        const post = collection('post', {
+            fields: {
+                title: field.text(),
+                comments: field.relationInverse({ of: stub, field: 'post' })
+            }
+        });
+        // Virtual: no `comments`/`comments_id` column and no join table.
+        expect(cols(post).comments).toBeUndefined();
+        expect(cols(post).comments_id).toBeUndefined();
+        expect(post.joinTables['comments']).toBeUndefined();
+    });
+
+    it('carries the back-reference in its spec', () => {
+        const post = collection('post', {
+            fields: {
+                articles: field.relationInverse({ of: stub, field: 'tags' })
+            }
+        });
+        expect(post.fields.articles.relation?.inverse).toEqual({
+            field: 'tags'
+        });
+        // Defaults to a to-many back-reference.
+        expect(post.fields.articles.relation?.many).toBe(true);
+    });
+});

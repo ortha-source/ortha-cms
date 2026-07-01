@@ -138,6 +138,30 @@ test.describe('Relation picker', () => {
         await expect(relationsEditorPage.addRuleButton).toBeVisible();
     });
 
+    test('edits a bidirectional (inverse) relation from the other side', async ({
+        relationsEditorPage
+    }) => {
+        // `tag.articles` is the inverse of `article.tags` — the same link,
+        // editable from the tag side.
+        await relationsEditorPage.gotoNewType(RELATIONS_WORKSPACE.id, 'tag');
+        await relationsEditorPage.openRelationsTab();
+
+        // The inverse renders as a normal relation section targeting articles.
+        await expect(relationsEditorPage.section('Articles')).toBeVisible();
+        await relationsEditorPage.addRelatedButton.click();
+        await expect(
+            relationsEditorPage.candidate('Getting started with Ortha')
+        ).toBeVisible();
+        await relationsEditorPage
+            .candidate('Getting started with Ortha')
+            .click();
+        await relationsEditorPage.addSelectedButton.click();
+
+        await expect(
+            relationsEditorPage.assignedRemove('Getting started with Ortha')
+        ).toBeVisible();
+    });
+
     test('hides relations whose target collection the workspace lacks', async ({
         page,
         relationsEditorPage

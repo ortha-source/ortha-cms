@@ -93,6 +93,9 @@ function columnFor(
             builder = jsonb(col);
             break;
         case CONTENT_FIELD_TYPE.Relation: {
+            // An inverse (back-reference) owns no storage — it reuses the owning
+            // side's column/join table.
+            if (spec.relation?.inverse) return null;
             if (spec.relation?.many) return null; // join table instead
             // Lazy reference: the thunk resolves at query/diff time, so
             // mutually-referencing collections can import each other.
@@ -198,7 +201,11 @@ export function buildTables(
 
     const joinTables: Record<string, PgTable> = {};
     for (const [fieldName, spec] of Object.entries(fields)) {
-        if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation?.many)
+        if (
+            spec.type !== CONTENT_FIELD_TYPE.Relation ||
+            !spec.relation?.many ||
+            spec.relation.inverse // inverse reuses the owning side's join table
+        )
             continue;
         const joinName = `${tableName}_${snakeCase(fieldName)}`;
         joinTables[fieldName] = pgTable(

@@ -25,6 +25,7 @@ interface ContentFieldSchema {
         many: boolean;
         onDelete?: string;
         unique?: boolean;
+        inverse?: { field: string };
     };
 }
 
@@ -186,7 +187,10 @@ export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
         publishable: true,
         fields: [
             {
-                name: 'title',
+                // Named `text` to match the app's baked-in article candidate
+                // values (`useRelationCandidates`), so an article's title
+                // resolves when it's the *target* of the tag→articles inverse.
+                name: 'text',
                 type: 'text',
                 required: true,
                 validation: {},
@@ -269,6 +273,19 @@ export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 required: false,
                 validation: {},
                 admin: { label: 'Slug' }
+            },
+            {
+                // Inverse (two-way) of article.tags — editable from the tag side.
+                name: 'articles',
+                type: 'relation',
+                required: false,
+                validation: {},
+                admin: { label: 'Articles' },
+                relation: {
+                    to: 'article',
+                    many: true,
+                    inverse: { field: 'tags' }
+                }
             }
         ]
     },
