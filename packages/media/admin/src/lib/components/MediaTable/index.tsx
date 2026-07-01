@@ -69,14 +69,16 @@ export function MediaTable({
                 <TableHeader>
                     <TableRow className="bg-muted/40">
                         <TableHead className="w-10">
-                            <Checkbox
-                                checked={allSelected}
-                                onCheckedChange={onToggleAll}
-                                disabled={assets.length === 0}
-                                aria-label={intl.formatMessage(
-                                    messages.selectAll
-                                )}
-                            />
+                            <div className="flex items-center justify-center">
+                                <Checkbox
+                                    checked={allSelected}
+                                    onCheckedChange={onToggleAll}
+                                    disabled={assets.length === 0}
+                                    aria-label={intl.formatMessage(
+                                        messages.selectAll
+                                    )}
+                                />
+                            </div>
                         </TableHead>
                         <TableHead>
                             {intl.formatMessage(messages.name)}

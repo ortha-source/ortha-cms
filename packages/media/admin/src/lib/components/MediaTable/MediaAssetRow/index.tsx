@@ -48,15 +48,23 @@ export function MediaAssetRow({
     const handlers = buildAssetHandlers(asset, onAction);
 
     return (
-        <TableRow className={cn(selected && 'bg-muted/50')}>
-            <TableCell className="w-10">
-                <Checkbox
-                    checked={selected}
-                    onCheckedChange={() => onToggleSelect(asset.id)}
-                    aria-label={intl.formatMessage(messages.select, {
-                        name: asset.name
-                    })}
-                />
+        <TableRow
+            className={cn('cursor-pointer', selected && 'bg-muted/50')}
+            onClick={() => onAction('open', asset)}
+        >
+            <TableCell
+                className="w-10"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="flex items-center justify-center">
+                    <Checkbox
+                        checked={selected}
+                        onCheckedChange={() => onToggleSelect(asset.id)}
+                        aria-label={intl.formatMessage(messages.select, {
+                            name: asset.name
+                        })}
+                    />
+                </div>
             </TableCell>
             <TableCell>
                 <div className="flex items-center gap-3">
@@ -67,8 +75,11 @@ export function MediaAssetRow({
                     />
                     <button
                         type="button"
-                        onClick={() => onAction('open', asset)}
-                        className="min-w-0 truncate text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onAction('open', asset);
+                        }}
+                        className="min-w-0 truncate text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label={intl.formatMessage(messages.open, {
                             name: asset.name
                         })}
@@ -96,7 +107,10 @@ export function MediaAssetRow({
                     day: 'numeric'
                 })}
             </TableCell>
-            <TableCell className="w-10 text-right">
+            <TableCell
+                className="w-10 text-right"
+                onClick={(event) => event.stopPropagation()}
+            >
                 <AssetActionsMenu
                     handlers={handlers}
                     canCreate={canCreate}

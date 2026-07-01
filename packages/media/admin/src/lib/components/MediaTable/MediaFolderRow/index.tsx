@@ -40,7 +40,10 @@ export function MediaFolderRow({
     const intl = useIntl();
 
     return (
-        <TableRow className="bg-muted/20">
+        <TableRow
+            className="cursor-pointer bg-muted/20"
+            onClick={() => onOpen(folder.id)}
+        >
             <TableCell className="w-10" />
             <TableCell>
                 <div className="flex items-center gap-3">
@@ -49,8 +52,11 @@ export function MediaFolderRow({
                     </span>
                     <button
                         type="button"
-                        onClick={() => onOpen(folder.id)}
-                        className="min-w-0 truncate text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onOpen(folder.id);
+                        }}
+                        className="min-w-0 truncate text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label={intl.formatMessage(messages.open, {
                             name: folder.name
                         })}
@@ -79,7 +85,10 @@ export function MediaFolderRow({
                     day: 'numeric'
                 })}
             </TableCell>
-            <TableCell className="w-10 text-right">
+            <TableCell
+                className="w-10 text-right"
+                onClick={(event) => event.stopPropagation()}
+            >
                 <FolderActionsMenu
                     onOpen={() => onOpen(folder.id)}
                     onRename={() => onRename(folder)}
