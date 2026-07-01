@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, Plus } from 'lucide-react';
@@ -39,6 +40,12 @@ type WorkspaceSwitcherPopoverProps = {
  * closes it on outside click; `Esc` closes too. Enter motion (fade + slide) is
  * driven by an `entered` flag flipped after mount, and dropped under
  * `prefers-reduced-motion`.
+ *
+ * Rendered through a **portal to `document.body`**: the rail is `sticky` (a
+ * stacking context), so an inline `fixed` panel's `z-index` would be trapped
+ * inside it and a positioned content element later in the DOM (e.g. the content
+ * sidebar's active item) would paint over it. Portaling lifts the panel to the
+ * top level so it always sits above page content.
  */
 export function WorkspaceSwitcherPopover({
     current,
@@ -71,7 +78,7 @@ export function WorkspaceSwitcherPopover({
         navigate(path);
     };
 
-    return (
+    return createPortal(
         <>
             {/* Transparent backdrop: catches outside clicks to close. */}
             <div
@@ -157,6 +164,7 @@ export function WorkspaceSwitcherPopover({
                     </span>
                 </button>
             </div>
-        </>
+        </>,
+        document.body
     );
 }
