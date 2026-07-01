@@ -166,6 +166,69 @@ describe('Content entry writes (/api/content/:type)', () => {
         });
     });
 
+    describe('workspace-scoped relations', () => {
+        /** Create an author in `ws` (as a member of it) and return its id. */
+        async function seedAuthorIn(ws: string, name: string): Promise<string> {
+            // The base workspace already has the admin as a member (beforeEach);
+            // only a *different* workspace needs the membership seeded.
+            if (ws !== workspaceId) await seedMembership(admin.id, ws);
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                .expect(201);
+            agent.set('X-Workspace-Id', ws);
+            const res = await agent
+                .post('/api/content/author')
+                .send({ values: { name } })
+                .expect(201);
+            return res.body.id as string;
+        }
+
+        it('accepts a single relation whose target is in the same workspace', async () => {
+            const localAuthor = await seedAuthorIn(workspaceId, 'Local Ada');
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post('/api/content/article')
+                .send({ values: { ...VALID, author: localAuthor } })
+                .expect(201);
+            expect(res.body.values.author).toBe(localAuthor);
+        });
+
+        it('422s a single relation whose target lives in another workspace', async () => {
+            // An author that exists, but in a workspace the caller can't reach —
+            // referencing it would be a cross-tenant link and an existence oracle.
+            const other = await seedWorkspace({
+                name: 'WS Two',
+                slug: 'ws-two'
+            });
+            const foreignAuthor = await seedAuthorIn(other.id, 'Foreign Grace');
+
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post('/api/content/article')
+                .send({ values: { ...VALID, author: foreignAuthor } })
+                .expect(422);
+            const fields = (res.body.issues as { field: string }[]).map(
+                (issue) => issue.field
+            );
+            expect(fields).toContain('author');
+        });
+
+        it('422s a single relation pointing at a non-existent id', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/content/article')
+                .send({
+                    values: {
+                        ...VALID,
+                        author: '00000000-0000-4000-8000-000000000000'
+                    }
+                })
+                .expect(422);
+        });
+    });
+
     describe('publish / unpublish', () => {
         it('publishes then unpublishes a draft', async () => {
             const agent = await login(ADMIN_EMAIL);

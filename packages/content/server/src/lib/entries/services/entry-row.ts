@@ -14,13 +14,17 @@ type Row = Record<string, unknown>;
 /**
  * Map a raw DB row to the admin {@link EntryRecord}: envelope fields plus a
  * `values` bag keyed by field name. `status` is emitted only for publishable
- * types. Many-relations live in join tables and aren't selected here (single
- * relations pass through as their FK uuid).
+ * types. Relations that own no column — many-relations (their links live in join
+ * tables) and inverse/back-references (they reuse the owning side's storage) —
+ * aren't selected here; an owning single relation passes through as its FK uuid.
  */
 export function toRecord(type: AnyContentType, row: Row): EntryRecord {
     const values: Record<string, unknown> = {};
     for (const [name, spec] of Object.entries(type.fields)) {
-        if (spec.type === CONTENT_FIELD_TYPE.Relation && spec.relation?.many)
+        if (
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
+            (spec.relation?.many || spec.relation?.inverse)
+        )
             continue;
         values[name] = row[name] ?? null;
     }
@@ -89,8 +93,9 @@ export function coerceValues(
  * Project a (coerced) `values` bag onto the columns of a generated table for an
  * insert/update. Includes only keys declared on the type (reserved envelope
  * columns — `status`/`published_at`/`deleted_at`/timestamps — are owned by the
- * service, never the client), skips many-relations (their links live in join
- * tables), collapses empties to `null`, converts a `datetime` to a `Date` for
+ * service, never the client), skips relations that own no column (many-relations,
+ * whose links live in join tables, and inverse/back-references, which reuse the
+ * owning side's storage), collapses empties to `null`, converts a `datetime` to a `Date` for
  * the `timestamptz` column (guarding an invalid date to `null` rather than
  * letting `pg` throw), and drops a `NaN` number to `null`. A field absent from
  * `values` is written as `null` — the editor submits the full bag, so a write
@@ -102,7 +107,10 @@ export function toColumns(
 ): Record<string, unknown> {
     const columns: Record<string, unknown> = {};
     for (const [name, spec] of Object.entries(type.fields)) {
-        if (spec.type === CONTENT_FIELD_TYPE.Relation && spec.relation?.many)
+        if (
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
+            (spec.relation?.many || spec.relation?.inverse)
+        )
             continue;
         let value = values[name];
         if (isEmpty(value)) {

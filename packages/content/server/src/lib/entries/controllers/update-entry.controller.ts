@@ -28,7 +28,7 @@ import { resolveType } from './resolve-type';
  * this state-changing write; `WorkspaceGuard` scopes it to a workspace the caller
  * belongs to; `content:update` gates it.
  */
-@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
 @Controller('content')
 export class UpdateEntryController {

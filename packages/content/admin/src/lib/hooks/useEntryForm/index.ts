@@ -52,9 +52,11 @@ export type EntryFormState = {
  */
 export function useEntryForm(
     schema: ContentTypeDetail,
-    initialValues: Record<string, unknown>
+    initialValues: Record<string, unknown>,
+    options: { ignoreFields?: ReadonlySet<string> } = {}
 ): EntryFormState {
     const intl = useIntl();
+    const { ignoreFields } = options;
     const [values, setValues] = useState(initialValues);
     const [touched, setTouched] = useState<Set<string>>(new Set());
     const [submitted, setSubmitted] = useState(false);
@@ -79,17 +81,18 @@ export function useEntryForm(
 
     // Full errors (required enforced) gate a strict submit and show after one.
     const errors = useMemo(
-        () => validateEntryValues(schema, values, intl),
-        [schema, values, intl]
+        () => validateEntryValues(schema, values, intl, { ignoreFields }),
+        [schema, values, intl, ignoreFields]
     );
     // Draft errors (required relaxed) are what a touched field shows live, so
     // drafting never nags about empty required fields — only their format.
     const draftErrors = useMemo(
         () =>
             validateEntryValues(schema, values, intl, {
-                requireRequired: false
+                requireRequired: false,
+                ignoreFields
             }),
-        [schema, values, intl]
+        [schema, values, intl, ignoreFields]
     );
 
     const setValue = useCallback((name: string, value: unknown) => {

@@ -131,20 +131,38 @@ export function EntryEditor({
     availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
-    const form = useEntryForm(schema, initialValues);
+
+    // Relation fields hidden because their target collection isn't granted to the
+    // open workspace: their records aren't reachable here, so the editor doesn't
+    // render them (see `relationFields`). They must also be excluded from client
+    // validation and the publish gate — otherwise a *required* one is an
+    // un-satisfiable, invisible block that pins the form shut with no way to fill
+    // it. `undefined` availableTypeNames means unrestricted (nothing hidden).
+    const ignoredFields = useMemo(() => {
+        const names = new Set<string>();
+        if (!availableTypeNames) return names;
+        for (const field of schema.fields) {
+            if (isHidden(field)) continue;
+            if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
+            if (!availableTypeNames.includes(field.relation?.to ?? ''))
+                names.add(field.name);
+        }
+        return names;
+    }, [schema, availableTypeNames]);
+
+    const form = useEntryForm(schema, initialValues, {
+        ignoreFields: ignoredFields
+    });
 
     const visible = schema.fields.filter((field) => !isHidden(field));
     const generalFields = visible.filter(
         (field) => field.type !== CONTENT_FIELD_TYPE.Relation
     );
-    const relationFields = visible.filter((field) => {
-        if (field.type !== CONTENT_FIELD_TYPE.Relation) return false;
-        // Hide a relation whose target collection isn't granted to this
-        // workspace — its records aren't reachable here, so offering it would
-        // only dead-end. `undefined` means unrestricted.
-        if (!availableTypeNames) return true;
-        return availableTypeNames.includes(field.relation?.to ?? '');
-    });
+    const relationFields = visible.filter(
+        (field) =>
+            field.type === CONTENT_FIELD_TYPE.Relation &&
+            !ignoredFields.has(field.name)
+    );
 
     // The publish gate: each field that must hold to publish — every required
     // field, plus any field whose current value is invalid — with its live
@@ -154,13 +172,14 @@ export function EntryEditor({
     const gate = useMemo<PublishGateItem[]>(() => {
         if (!publishable) return [];
         return visible
+            .filter((field) => !ignoredFields.has(field.name))
             .filter((field) => field.required || form.errors[field.name])
             .map((field) => ({
                 label: fieldLabel(field),
                 ok: !form.errors[field.name],
                 message: form.errors[field.name]
             }));
-    }, [publishable, form.errors, visible]);
+    }, [publishable, form.errors, visible, ignoredFields]);
 
     // A 422 from the server is mapped back onto the form as inline field errors;
     // other failures fall through to the mutation's own error handling.

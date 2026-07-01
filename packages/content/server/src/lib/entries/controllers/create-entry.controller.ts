@@ -19,9 +19,11 @@ import { resolveType } from './resolve-type';
  * bag. The `:typeName` resolves via the registry (404 if unknown); the body is
  * validated against the type's field specs (422 with the issue list on failure).
  * `OriginGuard` defends this state-changing POST (CSRF); `WorkspaceGuard` scopes
- * it to a workspace the caller belongs to; `content:create` gates it.
+ * it to a workspace the caller belongs to; `content:create` gates it. The
+ * synchronous CSRF + permission guards run before `WorkspaceGuard` so a rejected
+ * request never incurs its membership DB probe.
  */
-@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_CREATE)
 @Controller('content')
 export class CreateEntryController {

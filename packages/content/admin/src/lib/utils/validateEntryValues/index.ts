@@ -222,16 +222,25 @@ function isParsableJson(value: unknown): boolean {
  * `false` for the "draft" view, where empty fields are allowed and only the
  * *format* of a value that's present is checked. Publishing (or saving an
  * always-live, non-publishable type) validates with it `true`.
+ *
+ * `ignoreFields` skips fields by name — used for relation fields the editor
+ * hides because their target collection isn't granted to the open workspace, so
+ * the form doesn't block a save/publish on a field the user can't see or fill.
  */
 export function validateEntryValues(
     schema: ContentTypeDetail,
     values: Record<string, unknown>,
     intl: IntlShape,
-    options: { requireRequired?: boolean } = {}
+    options: {
+        requireRequired?: boolean;
+        ignoreFields?: ReadonlySet<string>;
+    } = {}
 ): Record<string, string> {
     const requireRequired = options.requireRequired ?? true;
+    const ignoreFields = options.ignoreFields;
     const errors: Record<string, string> = {};
     for (const field of schema.fields) {
+        if (ignoreFields?.has(field.name)) continue;
         const error = checkField(
             field,
             values[field.name],

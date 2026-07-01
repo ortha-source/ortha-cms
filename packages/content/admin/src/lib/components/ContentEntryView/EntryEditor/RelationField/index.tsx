@@ -29,7 +29,9 @@ import type { ContentField } from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
 import { findMockCandidate } from '../../../../api/useRelationCandidates/mockCandidates';
 import { fieldLabel } from '../../../../utils/entryColumns';
+import { adminProps } from '../../../../utils/adminProps';
 import { relationLabel } from '../../../../utils/relationLabel';
+import { toRelationIds } from '../../../../utils/relationIds';
 import { RelationItemRow } from './RelationItemRow';
 import { SortableRelationItem } from './SortableRelationItem';
 import { RelationPickerDialog } from './RelationPickerDialog';
@@ -79,12 +81,6 @@ const messages = defineMessages({
     }
 });
 
-/** The ids currently held by this field, normalized to an array. */
-function toIds(value: unknown, many: boolean): string[] {
-    if (many) return Array.isArray(value) ? (value as string[]) : [];
-    return typeof value === 'string' && value ? [value] : [];
-}
-
 /**
  * A comfortable relation editor for one relation field, replacing the raw id
  * input in the editor's Relations tab. Shows each linked record by its **title**
@@ -123,7 +119,7 @@ export function RelationField({
     const many = relation?.many ?? false;
     const targetName = relation?.to ?? '';
     const label = fieldLabel(field);
-    const description = (field.admin as { description?: string }).description;
+    const description = adminProps(field).description;
 
     // The target type's schema labels assigned ids and titles each picker row.
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
@@ -135,7 +131,7 @@ export function RelationField({
             id
         );
 
-    const ids = toIds(value, many);
+    const ids = toRelationIds(value, many);
 
     const commit = (next: string[]) => {
         onChange(many ? next : (next[0] ?? ''));

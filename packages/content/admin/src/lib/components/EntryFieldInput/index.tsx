@@ -17,6 +17,7 @@ import {
 } from '@ortha-cms/design-system';
 import type { ContentField } from '../../types/contentType';
 import { fieldLabel } from '../../utils/entryColumns';
+import { adminProps } from '../../utils/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../constants';
 import { DateField } from './DateField';
 
@@ -62,16 +63,6 @@ const BOOL_SEGMENT = { On: 'on', Off: 'off' } as const;
 
 /** Flat controls — the field surfaces carry a border, never a shadow. */
 const FLAT = 'shadow-none';
-
-/** A field's admin presentation hints, with the loose wire typing. */
-function adminProps(field: ContentField) {
-    return field.admin as {
-        description?: string;
-        placeholder?: string;
-        widget?: string;
-        hidden?: boolean;
-    };
-}
 
 /** The value coerced to a string for text-like controls. */
 function asText(value: unknown): string {

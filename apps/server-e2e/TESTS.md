@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_208 test cases across 22 spec files._
+_211 test cases across 22 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -221,6 +221,14 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | allows editing a draft to an incomplete state, but not a published row |
 | 422s an invalid create of a non-publishable (always-live) type |
 | 404s reading an unknown id |
+
+### workspace-scoped relations
+
+| Test case |
+| --- |
+| accepts a single relation whose target is in the same workspace |
+| 422s a single relation whose target lives in another workspace |
+| 422s a single relation pointing at a non-existent id |
 
 ### publish / unpublish
 

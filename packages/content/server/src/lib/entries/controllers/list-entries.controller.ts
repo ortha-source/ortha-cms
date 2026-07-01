@@ -28,7 +28,7 @@ import type { EntryListView } from '../types/entry-list-view';
  * app-wide AuthGuard; `WorkspaceGuard` scopes the request to a workspace the
  * caller belongs to; read access is gated on `content:read`.
  */
-@UseGuards(WorkspaceGuard, PermissionsGuard)
+@UseGuards(PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class ListEntriesController {

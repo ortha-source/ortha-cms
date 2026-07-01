@@ -50,9 +50,12 @@ function asText(value: unknown): string {
 /** Numeric view (number column, or a date parsed to epoch ms), or NaN. */
 function asNumber(value: unknown): number {
     if (typeof value === 'number') return value;
-    const asDate = Date.parse(String(value));
-    if (!Number.isNaN(asDate)) return asDate;
-    return Number(value);
+    // Try a plain number first: `Date.parse('10')` would otherwise read a bare
+    // numeric string as a calendar year (epoch ms) and break every numeric
+    // comparison. Only a non-numeric string (a date) falls through to Date.parse.
+    const num = Number(value);
+    if (!Number.isNaN(num)) return num;
+    return Date.parse(String(value));
 }
 
 /** Whether one rule holds for a record. Unknown/incomplete rules pass. */
@@ -87,6 +90,9 @@ function evalRule(record: EvaluableRecord, rule: FilterRule): boolean {
             return asNumber(cell) <= asNumber(value);
         case OP.Between: {
             const range = value as { from: string; to: string };
+            // An incomplete range (either bound missing) is a no-op, like every
+            // other partially-filled rule — don't coerce the empty bound to 0.
+            if (isEmpty(range?.from) || isEmpty(range?.to)) return true;
             const n = asNumber(cell);
             return n >= asNumber(range.from) && n <= asNumber(range.to);
         }

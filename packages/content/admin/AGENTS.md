@@ -121,9 +121,14 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
 - **Relation picker** (`EntryEditor/RelationField/`): the Relations tab is a stack
   of **`RelationFieldSection`** **rounded-border collapsible cards** — each relation
   field a section (chevron + label + linked-count; starts collapsed when a type has
-  >3 relation fields) wrapping **`RelationField`**. **Only relations whose target
+  >3 relation fields, but **force-opens with a header alert icon when it holds a
+  validation/server error**, so a save failure is never hidden inside a collapsed
+  section) wrapping **`RelationField`**. **Only relations whose target
   collection is granted to the open workspace are shown** — `EntryEditor` filters by
-  `availableTypeNames` (passed `workspace.content` from `ContentEntryView`). `RelationField`
+  `availableTypeNames` (passed `workspace.content` from `ContentEntryView`) and passes
+  the hidden ones to `useEntryForm` as `ignoreFields`, so a hidden (ungranted)
+  relation is excluded from client validation **and** the publish gate — a required
+  one can't become an un-satisfiable, invisible block. `RelationField`
   shows assigned records by **title** (not raw uuid; no avatar) with a remove control
   (`RelationItemRow`); a many-relation's rows are **drag/keyboard reorderable**
   (dnd-kit, like the records column picker — the array order is the value, via
