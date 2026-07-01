@@ -28,15 +28,17 @@ export function CurrentWorkspaceProvider({
     // child effects, leaving the first request unscoped). Idempotent.
     setActiveWorkspaceId(workspace.id);
 
-    // Re-assert on mount and clear on unmount. The render-time set above wins the
-    // first-paint race, but under StrictMode (and any future double-invoke) React
-    // runs setup → cleanup → setup; without re-setting here the interim cleanup
-    // would leave the header null for the rest of the session — every
-    // workspace-scoped request then 400s ("Missing X-Workspace-Id"). Keyed on the
-    // id so switching workspaces re-scopes; clears only on real unmount.
+    // Re-assert on mount and whenever the open workspace changes, so switching
+    // workspaces re-scopes the shared header. There is deliberately **no unmount
+    // cleanup**: nulling the header on unmount races with in-flight/background
+    // refetches (e.g. a window-focus refetch of a content list after navigating
+    // to the workspaces grid), which would then fire with no `X-Workspace-Id` and
+    // 400 at the guard. A lingering id is harmless — the header is only honored by
+    // workspace-scoped routes, which always live inside a shell that re-sets it on
+    // entry (render-time set above + this effect) before any request runs. This
+    // also sidesteps the StrictMode setup → cleanup → setup interim-null window.
     useEffect(() => {
         setActiveWorkspaceId(workspace.id);
-        return () => setActiveWorkspaceId(null);
     }, [workspace.id]);
 
     return (

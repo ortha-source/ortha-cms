@@ -16,6 +16,7 @@ import {
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { AnyContentType, EntryStatus } from '../../types/content-type';
 import { ENTRY_STATUS } from '../../types/content-type';
+import { CONTENT_FIELD_TYPE } from '../../types/fields';
 import {
     EntryValidationService,
     type ValidationIssue
@@ -62,6 +63,7 @@ export class EntryWriterService {
         workspaceId: string
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
+        await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
         const [row] = await this.db
             .insert(type.table)
@@ -94,6 +96,7 @@ export class EntryWriterService {
         workspaceId: string
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
+        await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) {
             // Always-live type: every write must validate.
             this.assertValid(type, coerced);
@@ -547,6 +550,69 @@ export class EntryWriterService {
                 )
             )) as Row[];
         return new Map(rows.map((row) => [row['id'] as string, row]));
+    }
+
+    /**
+     * Verify every owning single-relation FK points at a target that exists **in
+     * the same workspace**. The FK column has no workspace constraint of its own
+     * (the target table is workspace-scoped only at the app layer), so without
+     * this a caller could reference — or probe the existence of — an entry in
+     * another workspace. Batched one existence query per referenced target type;
+     * a missing or cross-workspace target surfaces as a uniform 422 validation
+     * issue (indistinguishable from a plain "invalid id", so no not-found-vs-
+     * forbidden enumeration signal). Runs on every create/update, draft or not,
+     * because the FK is written eagerly either way. Many-relations and inverse
+     * fields own no FK here, so they're skipped (their links aren't persisted by
+     * {@link toColumns}).
+     */
+    private async assertRelationTargets(
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<void> {
+        // Group referenced ids by target content type so each type is probed once.
+        const byTarget = new Map<
+            AnyContentType,
+            { field: string; id: string }[]
+        >();
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (spec.type !== CONTENT_FIELD_TYPE.Relation) continue;
+            const relation = spec.relation;
+            if (!relation || relation.many || relation.inverse) continue;
+            const id = values[name];
+            if (typeof id !== 'string' || !id) continue;
+            const target = relation.to();
+            const refs = byTarget.get(target) ?? [];
+            refs.push({ field: name, id });
+            byTarget.set(target, refs);
+        }
+        if (!byTarget.size) return;
+
+        const issues: ValidationIssue[] = [];
+        for (const [target, refs] of byTarget) {
+            const t = target.table as unknown as Record<string, AnyColumn>;
+            const ids = [...new Set(refs.map((ref) => ref.id))];
+            const rows = (await this.db
+                .select()
+                .from(target.table)
+                .where(
+                    and(inArray(t['id'], ids), eq(t['workspaceId'], workspaceId))
+                )) as Row[];
+            const present = new Set(rows.map((row) => row['id'] as string));
+            for (const ref of refs) {
+                if (!present.has(ref.id))
+                    issues.push({
+                        field: ref.field,
+                        message: 'must reference an existing entry'
+                    });
+            }
+        }
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
+        }
     }
 
     /** Throw 422 with the issue list when the values fail validation. */

@@ -93,18 +93,27 @@ export function RelationPickerDialog({
         undefined
     );
 
-    // Re-seed the staged selection (and reset search/filter/window) each time the
-    // dialog opens, so a close-without-commit discards edits.
+    // Always-current view of the assigned ids, read by the open-transition reset
+    // below without making it a dependency (see next comment).
+    const selectedRef = useRef(selectedIds);
+    selectedRef.current = selectedIds;
+    const wasOpen = useRef(false);
+
+    // Re-seed the staged selection (and reset search/filter/window) only when the
+    // dialog *transitions* open, so a close-without-commit discards edits. Keyed
+    // on `open` alone — depending on `selectedIds` (a fresh array on every parent
+    // render) would re-fire mid-assignment and wipe the user's staged edits.
     useEffect(() => {
-        if (open) {
-            setDraft(new Set(selectedIds));
+        if (open && !wasOpen.current) {
+            setDraft(new Set(selectedRef.current));
             setSearch('');
             setFilter(null);
             setFiltersOpen(false);
             setLimit(PAGE_SIZE);
             setLoadingMore(false);
         }
-    }, [open, selectedIds]);
+        wasOpen.current = open;
+    }, [open]);
 
     // Clear any in-flight lazy-load timer on unmount.
     useEffect(() => () => clearTimeout(loadTimer.current), []);

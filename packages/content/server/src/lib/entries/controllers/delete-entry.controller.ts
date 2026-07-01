@@ -34,7 +34,7 @@ import { resolveType } from './resolve-type';
  * `OriginGuard` defends these state-changing writes; `WorkspaceGuard` scopes them
  * to a workspace the caller belongs to.
  */
-@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
 @Controller('content')
 export class DeleteEntryController {

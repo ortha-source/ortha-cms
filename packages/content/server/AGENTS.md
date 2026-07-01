@@ -120,7 +120,8 @@ standard `db:migrate` applies them with every other plugin's.
 ## HTTP surface (`/api/content-schema`, `/api/content`)
 
 **Every `/content/:typeName…` entry route is workspace-scoped.** Each carries
-identity's `WorkspaceGuard` (before `OriginGuard`/`PermissionsGuard`): it reads
+identity's `WorkspaceGuard` (after `OriginGuard`/`PermissionsGuard`, so a request
+rejected for CSRF or lacking permission never incurs the membership DB probe): it reads
 the `X-Workspace-Id` header (400 if missing/malformed), 403s a caller who isn't a
 member of that workspace, and exposes the id via `@CurrentWorkspace()`. The
 entries services thread it through — `create` stamps `workspace_id`, and the

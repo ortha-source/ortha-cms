@@ -39,11 +39,18 @@ export function RelationCandidateRow({
             }`}
         >
             {many ? (
-                <Checkbox checked={checked} onCheckedChange={onPick} />
+                // The design-system Checkbox is a Radix button (role="checkbox"),
+                // not a native input — the wrapping <label> doesn't name it, so
+                // label it explicitly with the record title.
+                <Checkbox
+                    checked={checked}
+                    onCheckedChange={onPick}
+                    aria-label={candidate.title}
+                />
             ) : (
                 <input
                     type="radio"
-                    name="relation-candidate"
+                    name={`relation-candidate-${targetName}`}
                     className="size-4 shrink-0 accent-primary"
                     checked={isSelected}
                     onChange={onPick}

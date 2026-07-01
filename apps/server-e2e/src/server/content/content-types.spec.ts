@@ -12,8 +12,20 @@ import { resetDb, seedActiveUser } from '../../support/seed';
 const ADMIN_EMAIL = 'content-types-admin@example.com';
 const PASSWORD = 'SecurePass123!';
 
-/** The code-defined types registered with ContentPlugin (see apps/server/src/content.ts). */
-const REGISTRY_NAMES = ['article', 'landing'];
+/**
+ * The code-defined types registered with ContentPlugin (see
+ * apps/server/src/content.ts), sorted — the assertions compare a `.sort()`ed
+ * list. `article` wires up the `author`/`seo_meta`/`tag`/`comment` reference
+ * collections, so the registry is all six.
+ */
+const REGISTRY_NAMES = [
+    'article',
+    'author',
+    'comment',
+    'landing',
+    'seo_meta',
+    'tag'
+];
 
 interface Descriptor {
     name: string;

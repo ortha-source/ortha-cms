@@ -35,7 +35,7 @@ import { resolveType } from './resolve-type';
  * workspace the caller belongs to. Per-route permissions: publish/unpublish need
  * `content:publish`, delete/restore need `content:delete`.
  */
-@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @Controller('content')
 export class BulkEntriesController {
     constructor(

@@ -27,7 +27,7 @@ import { resolveType } from './resolve-type';
  * missing live row. `OriginGuard` defends the writes; `WorkspaceGuard` scopes
  * them to a workspace the caller belongs to; `content:publish` gates them.
  */
-@UseGuards(WorkspaceGuard, OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
 @Controller('content')
 export class PublishEntryController {

@@ -24,7 +24,7 @@ import { resolveType } from './resolve-type';
  * the records-list cache. `WorkspaceGuard` scopes it to a workspace the caller
  * belongs to; gated on `content:read`.
  */
-@UseGuards(WorkspaceGuard, PermissionsGuard)
+@UseGuards(PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class GetEntryController {
