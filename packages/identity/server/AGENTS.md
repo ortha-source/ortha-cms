@@ -70,7 +70,9 @@ tokens and full user management land in later tickets (epic #3).
       `POST`/`DELETE /:id/members[/:userId]`, and `POST /:id/content` +
       `DELETE /:id/content/:slug` (grant/revoke a content type; revoke **409s
       unless the type is empty in the workspace**, checked via the
-      `CONTENT_ENTRY_COUNTER` port). Each mutation records its own
+      `CONTENT_ENTRY_COUNTER` port) plus
+      `GET /:id/content/:slug/entry-count` (the admin's revoke pre-check, same
+      counter). Each mutation records its own
       `workspace.*` audit event. The owner comes from the session; the wizard's
       per-member role is ignored (membership is a pure link — see
       `memberships`). It also

@@ -29,6 +29,7 @@ import { AddWorkspaceMemberController } from './workspaces/controllers/add-works
 import { RemoveWorkspaceMemberController } from './workspaces/controllers/remove-workspace-member.controller';
 import { AddWorkspaceContentController } from './workspaces/controllers/add-workspace-content.controller';
 import { RemoveWorkspaceContentController } from './workspaces/controllers/remove-workspace-content.controller';
+import { GetWorkspaceContentCountController } from './workspaces/controllers/get-workspace-content-count.controller';
 import { WorkspaceService } from './workspaces/services/workspace.service';
 import { SlugService } from './workspaces/services/slug.service';
 import { MembershipService } from './workspaces/services/membership.service';
@@ -85,6 +86,7 @@ export class IdentityModule {
                 RemoveWorkspaceMemberController,
                 AddWorkspaceContentController,
                 RemoveWorkspaceContentController,
+                GetWorkspaceContentCountController,
                 ListContentTypesController
             ],
             providers: [

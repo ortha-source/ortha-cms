@@ -440,6 +440,17 @@ export class WorkspaceService {
         return view;
     }
 
+    /**
+     * How many entries of content type `slug` the workspace holds, via the
+     * {@link ContentGrantService}'s counter port. Backs the settings UI's
+     * pre-check: the admin reads this before offering a revoke, so a type that
+     * still has entries can be blocked with a clear reason instead of failing
+     * the revoke with a 409. `0` when no content plugin is bound.
+     */
+    countContentEntries(workspaceId: string, slug: string): Promise<number> {
+        return this.content.countEntries(workspaceId, slug);
+    }
+
     /** Loads full views for the given workspace ids, preserving newest-first. */
     private async listViews(ids: string[]): Promise<WorkspaceView[]> {
         const rows = await this.db

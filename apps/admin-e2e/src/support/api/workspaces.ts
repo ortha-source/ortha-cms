@@ -355,6 +355,19 @@ export async function mockWorkspaceSettingsApi(
         return view(route, workspace, 201);
     });
 
+    // Entry count for the revoke pre-check:
+    // GET /api/workspaces/:id/content/:slug/entry-count
+    await page.route(
+        /\/api\/workspaces\/([^/?]+)\/content\/([^/?]+)\/entry-count$/,
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            const [, , , id, , slug] = segments(route.request().url());
+            // A "locked" slug reports a non-zero count, so the dialog blocks it.
+            const count = (lockedContent[id] ?? []).includes(slug) ? 3 : 0;
+            await route.fulfill(json({ count }));
+        }
+    );
+
     // Revoke a content type: DELETE /api/workspaces/:id/content/:slug
     await page.route(
         /\/api\/workspaces\/([^/?]+)\/content\/([^/?]+)$/,

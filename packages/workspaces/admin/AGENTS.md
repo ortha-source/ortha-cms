@@ -74,9 +74,12 @@ switcher) that opens when a card is clicked.
   immutable), **Members** (a directory typeahead that assigns **existing** users
   — no invite-by-email, since the add endpoint links a real id — plus a roster
   with the owner pinned and everyone else removable behind a `ConfirmDialog`),
-  **Content** (grant a code-defined type from a picker; revoke behind a confirm —
-  a revoke the server refuses with `409` when the type still holds entries
-  surfaces the "delete them first" message), and a **Danger zone**
+  **Content** (grant code-defined types through a **search + multi-select
+  dialog** — `AddContentDialog`, tick any number and Add in one go; revoke
+  through `RemoveContentDialog`, which reads
+  `GET /workspaces/:id/content/:slug/entry-count` on open and **blocks** the
+  Remove button with a warning while the type still has entries, so the server
+  `409` is only a safety net), and a **Danger zone**
   (archive/unarchive + permanent delete, each behind a confirm; delete returns to
   the grid).
 - **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
@@ -90,7 +93,8 @@ switcher) that opens when a card is clicked.
   `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
   `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /
   `useRemoveWorkspaceContent` — all invalidating `workspacesKey` on success so
-  the shell (which reads the open workspace from that list) re-resolves. The
+  the shell (which reads the open workspace from that list) re-resolves — plus
+  the read-only `useWorkspaceContentCount` backing the revoke pre-check. The
   avatar-color picker `components/ColorSwatchRow/` is shared by the settings
   General tab and the create wizard's Basics step.
 

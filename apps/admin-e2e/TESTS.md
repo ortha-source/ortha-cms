@@ -346,7 +346,7 @@ _<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_
 | saves an edited name (save enables only when dirty) |
 | assigns an unassigned member and removes an existing one |
 | grants a content type and revokes an empty one |
-| refuses to revoke a content type that still has entries |
+| blocks revoking a content type that still has entries |
 | archives the workspace from the danger zone |
 | deletes the workspace and returns to the grid |
 

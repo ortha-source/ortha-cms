@@ -224,4 +224,36 @@ describe('Workspace content grants', () => {
                 .expect(403);
         });
     });
+
+    describe('GET /api/workspaces/:id/content/:slug/entry-count', () => {
+        it('reports zero for an empty type and the live count after a create', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            const empty = await agent
+                .get(`/api/workspaces/${id}/content/article/entry-count`)
+                .expect(200);
+            expect(empty.body).toEqual({ count: 0 });
+
+            await agent
+                .post('/api/content/article')
+                .set('X-Workspace-Id', id)
+                .send({ values: { text: 'Hello world', select: 'article' } })
+                .expect(201);
+
+            const after = await agent
+                .get(`/api/workspaces/${id}/content/article/entry-count`)
+                .expect(200);
+            expect(after.body).toEqual({ count: 1 });
+        });
+
+        it('forbids a viewer (lacks workspaces:update) with 403', async () => {
+            const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(admin);
+            const { agent } = await loginAs('viewer', 'wsc-viewer3@example.com');
+            await agent
+                .get(`/api/workspaces/${id}/content/article/entry-count`)
+                .expect(403);
+        });
+    });
 });

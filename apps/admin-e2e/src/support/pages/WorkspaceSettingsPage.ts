@@ -93,17 +93,39 @@ export class WorkspaceSettingsPage extends BasePage {
 
     // --- content ---
 
+    /** The trigger that opens the add-content dialog. */
     get addContentButton(): Locator {
-        return this.page.getByRole('button', { name: 'Add content type' });
+        return this.page.getByRole('button', { name: 'Add content types' });
     }
 
-    /** An option inside the add-content popover, by its label. */
-    contentOption(label: string): Locator {
-        return this.page.getByRole('button', { name: label });
+    /** The add dialog's search box. */
+    get addContentSearch(): Locator {
+        return this.dialog.getByPlaceholder('Search content types');
     }
 
+    /** A selectable content-type checkbox in the add dialog, by its label. */
+    contentCheckbox(label: string): Locator {
+        return this.dialog.getByRole('checkbox', { name: new RegExp(label) });
+    }
+
+    /** The add dialog's Save button (label reflects the selected count). */
+    get addContentSave(): Locator {
+        return this.dialog.getByRole('button', { name: /^Add/ });
+    }
+
+    /** The per-row remove control in the granted list. */
     contentRemoveButton(label: string): Locator {
         return this.page.getByRole('button', { name: `Remove ${label}` });
+    }
+
+    /** The Remove button inside the remove-content confirm dialog. */
+    get removeContentConfirm(): Locator {
+        return this.dialog.getByRole('button', { name: 'Remove', exact: true });
+    }
+
+    /** The blocking warning alert shown when a type still has entries. */
+    get removeBlockedAlert(): Locator {
+        return this.dialog.getByRole('alert');
     }
 
     // --- danger ---

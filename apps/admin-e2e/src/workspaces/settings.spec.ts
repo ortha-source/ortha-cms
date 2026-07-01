@@ -122,38 +122,43 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
             await workspaceSettingsPage.openSection('Content');
 
-            // Grant an ungranted type via the picker.
+            // Grant an ungranted type through the search + multi-select dialog.
             await workspaceSettingsPage.addContentButton.click();
-            await workspaceSettingsPage.contentOption('About').click();
+            await workspaceSettingsPage.addContentSearch.fill('About');
+            await workspaceSettingsPage.contentCheckbox('About').click();
+            await workspaceSettingsPage.addContentSave.click();
             await expect(
                 workspaceSettingsPage.toast(/Content type added/)
             ).toBeVisible();
 
-            // Revoke an empty type (blog_post is not locked).
+            // Revoke an empty type (blog_post is not locked): once the entry
+            // count resolves to zero, Remove enables.
             await workspaceSettingsPage.contentRemoveButton('Blog posts').click();
-            await workspaceSettingsPage.dialogConfirm('Remove').click();
+            await expect(
+                workspaceSettingsPage.removeContentConfirm
+            ).toBeEnabled();
+            await workspaceSettingsPage.removeContentConfirm.click();
             await expect(
                 workspaceSettingsPage.toast(/Content type removed/)
             ).toBeVisible();
         });
 
-        test('refuses to revoke a content type that still has entries', async ({
+        test('blocks revoking a content type that still has entries', async ({
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
             await workspaceSettingsPage.openSection('Content');
 
-            // product is locked (has entries) → the server answers 409.
+            // product is locked (reports entries) → the dialog blocks Remove
+            // with a warning instead of letting the request 409.
             await workspaceSettingsPage.contentRemoveButton('Products').click();
-            await workspaceSettingsPage.dialogConfirm('Remove').click();
 
             await expect(
-                workspaceSettingsPage.toast(/still has entries/)
-            ).toBeVisible();
-            // The grant is untouched — its remove control is still present.
+                workspaceSettingsPage.removeBlockedAlert
+            ).toContainText(/still has/);
             await expect(
-                workspaceSettingsPage.contentRemoveButton('Products')
-            ).toBeVisible();
+                workspaceSettingsPage.removeContentConfirm
+            ).toBeDisabled();
         });
 
         test('archives the workspace from the danger zone', async ({

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_232 test cases across 25 spec files._
+_234 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -558,6 +558,13 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-content.spec.ts</sub>_
 | revokes an empty content type and records workspace.content_revoked |
 | refuses (409) to revoke a type that still has entries in the workspace |
 | is a no-op (200) when the type was never granted |
+| forbids a viewer (lacks workspaces:update) with 403 |
+
+### GET /api/workspaces/:id/content/:slug/entry-count
+
+| Test case |
+| --- |
+| reports zero for an empty type and the live count after a create |
 | forbids a viewer (lacks workspaces:update) with 403 |
 
 <!-- source: apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts -->

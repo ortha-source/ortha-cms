@@ -1,12 +1,13 @@
 import { Fragment, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { Plus } from 'lucide-react';
 import {
+    Button,
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
-    ConfirmDialog,
     Separator,
     Spinner,
     toast
@@ -17,7 +18,8 @@ import type { ContentType } from '../../types/wizard';
 import { useContentTypes } from '../../api/useContentTypes';
 import { useAddWorkspaceContent } from '../../api/useAddWorkspaceContent';
 import { useRemoveWorkspaceContent } from '../../api/useRemoveWorkspaceContent';
-import { ContentTypePicker } from './ContentTypePicker';
+import { AddContentDialog } from './AddContentDialog';
+import { RemoveContentDialog } from './RemoveContentDialog';
 import { GrantedContentRow, type GrantedContent } from './GrantedContentRow';
 
 /** HTTP 409 — the server's "content type still has entries" response. */
@@ -38,6 +40,10 @@ const messages = defineMessages({
         defaultMessage:
             'No content types yet. Add one so the Content Library has something to show.'
     },
+    add: {
+        id: 'workspaces.settings.content.add',
+        defaultMessage: 'Add content types'
+    },
     listLabel: {
         id: 'workspaces.settings.content.listLabel',
         defaultMessage: '{count, plural, one {# content type} other {# content types}}'
@@ -53,11 +59,12 @@ const messages = defineMessages({
     },
     added: {
         id: 'workspaces.settings.content.added',
-        defaultMessage: 'Content type added.'
+        defaultMessage:
+            '{count, plural, one {Content type added.} other {# content types added.}}'
     },
     addError: {
         id: 'workspaces.settings.content.addError',
-        defaultMessage: 'Couldn’t add that content type. Please try again.'
+        defaultMessage: 'Couldn’t add those content types. Please try again.'
     },
     removed: {
         id: 'workspaces.settings.content.removed',
@@ -71,19 +78,6 @@ const messages = defineMessages({
         id: 'workspaces.settings.content.notEmpty',
         defaultMessage:
             'This content type still has entries in the workspace. Delete them first, then remove it.'
-    },
-    confirmTitle: {
-        id: 'workspaces.settings.content.confirmTitle',
-        defaultMessage: 'Remove content type?'
-    },
-    confirmBody: {
-        id: 'workspaces.settings.content.confirmBody',
-        defaultMessage:
-            'The workspace will lose access to “{label}”. This is only allowed while it has no entries here; existing records elsewhere are untouched.'
-    },
-    confirmAction: {
-        id: 'workspaces.settings.content.confirmAction',
-        defaultMessage: 'Remove'
     }
 });
 
@@ -97,9 +91,9 @@ export type WorkspaceContentSettingsProps = {
 
 /**
  * The Content-types settings tab: grant a workspace access to code-defined
- * collections/pages and revoke access. A revoke is only allowed when the type
- * holds no entries in the workspace — the server enforces it (409), surfaced
- * here as a clear message. Gated on `workspaces:update`.
+ * collections/pages through a search + multi-select dialog, and revoke access
+ * through a dialog that **blocks** the action (with a reason) while the type
+ * still holds entries. Gated on `workspaces:update`.
  */
 export function WorkspaceContentSettings({
     workspace,
@@ -109,6 +103,7 @@ export function WorkspaceContentSettings({
     const catalog = useContentTypes();
     const addContent = useAddWorkspaceContent();
     const removeContent = useRemoveWorkspaceContent();
+    const [addOpen, setAddOpen] = useState(false);
     const [pendingRemoval, setPendingRemoval] = useState<GrantedContent | null>(
         null
     );
@@ -127,10 +122,19 @@ export function WorkspaceContentSettings({
     }));
     const available = types.filter((type) => !grantedSet.has(type.name));
 
-    const onAdd = async (slug: string) => {
+    const onConfirmAdd = async (slugs: string[]) => {
         try {
-            await addContent.mutateAsync({ workspaceId: workspace.id, slug });
-            toast(intl.formatMessage(messages.added));
+            // The grant endpoint is per-slug; fan out and reconcile once.
+            await Promise.all(
+                slugs.map((slug) =>
+                    addContent.mutateAsync({
+                        workspaceId: workspace.id,
+                        slug
+                    })
+                )
+            );
+            toast(intl.formatMessage(messages.added, { count: slugs.length }));
+            setAddOpen(false);
         } catch {
             toast(intl.formatMessage(messages.addError));
         }
@@ -146,8 +150,8 @@ export function WorkspaceContentSettings({
             });
             toast(intl.formatMessage(messages.removed));
         } catch (error) {
-            // A 409 means the type still has entries in the workspace — an
-            // expected outcome with its own message; anything else is a failure.
+            // The dialog blocks a non-empty revoke up front; this 409 is only a
+            // safety net for an entry created between the check and the confirm.
             toast(
                 intl.formatMessage(
                     error instanceof ApiError && error.status === CONFLICT
@@ -183,11 +187,15 @@ export function WorkspaceContentSettings({
 
                 {canUpdate ? (
                     <div>
-                        <ContentTypePicker
-                            available={available}
-                            onAdd={onAdd}
-                            busy={addContent.isPending || catalog.isPending}
-                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setAddOpen(true)}
+                            disabled={catalog.isPending}
+                        >
+                            <Plus className="size-4" />
+                            {intl.formatMessage(messages.add)}
+                        </Button>
                     </div>
                 ) : (
                     <p className="text-sm text-muted-foreground">
@@ -226,19 +234,21 @@ export function WorkspaceContentSettings({
                 </div>
             </CardContent>
 
-            <ConfirmDialog
-                open={pendingRemoval !== null}
-                onOpenChange={(open) => {
-                    if (!open) setPendingRemoval(null);
-                }}
-                title={intl.formatMessage(messages.confirmTitle)}
-                description={intl.formatMessage(messages.confirmBody, {
-                    label: removalLabel
-                })}
-                confirmLabel={intl.formatMessage(messages.confirmAction)}
-                confirmVariant="destructive"
-                busy={removeContent.isPending}
+            <AddContentDialog
+                open={addOpen}
+                onOpenChange={setAddOpen}
+                available={available}
+                onConfirm={onConfirmAdd}
+                busy={addContent.isPending}
+            />
+
+            <RemoveContentDialog
+                workspaceId={workspace.id}
+                slug={pendingRemoval?.slug ?? null}
+                label={removalLabel}
+                onClose={() => setPendingRemoval(null)}
                 onConfirm={confirmRemoval}
+                busy={removeContent.isPending}
             />
         </Card>
     );
