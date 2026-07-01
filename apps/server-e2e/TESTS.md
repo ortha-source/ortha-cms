@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_211 test cases across 22 spec files._
+_232 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -523,6 +523,65 @@ _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
 | rejects a disallowed Origin with 403 |
 | allows the configured app origin |
 | allows a request with no Origin (non-browser client) |
+
+<!-- source: apps/server-e2e/src/server/workspaces/update-workspace.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/update-workspace.spec.ts</sub>_
+
+## Update workspace (PATCH /api/workspaces/:id)
+
+| Test case |
+| --- |
+| updates name, description, and color and records workspace.updated |
+| applies a partial patch, leaving unspecified fields intact |
+| is a no-op for an empty patch and records nothing |
+| forbids a contributor (lacks workspaces:update) with 403 |
+| 404s for an unknown workspace |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-content.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-content.spec.ts</sub>_
+
+## Workspace content grants
+
+### POST /api/workspaces/:id/content
+
+| Test case |
+| --- |
+| grants a content type and records workspace.content_granted |
+| is idempotent — re-granting records nothing new |
+| 400s for an unknown content-type slug |
+| forbids a viewer (lacks workspaces:update) with 403 |
+
+### DELETE /api/workspaces/:id/content/:slug
+
+| Test case |
+| --- |
+| revokes an empty content type and records workspace.content_revoked |
+| refuses (409) to revoke a type that still has entries in the workspace |
+| is a no-op (200) when the type was never granted |
+| forbids a viewer (lacks workspaces:update) with 403 |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts</sub>_
+
+## Workspace lifecycle (archive / unarchive / delete)
+
+### POST /api/workspaces/:id/archive
+
+| Test case |
+| --- |
+| archives a workspace and records workspace.archived |
+| is idempotent — archiving an archived workspace records nothing new |
+| unarchives back to active and records workspace.unarchived |
+| forbids a contributor (lacks workspaces:update) with 403 |
+| 404s for an unknown workspace |
+
+### DELETE /api/workspaces/:id
+
+| Test case |
+| --- |
+| deletes a workspace and records workspace.deleted |
+| forbids a contributor (lacks workspaces:delete) with 403 |
+| 404s for an unknown workspace |
 
 <!-- source: apps/server-e2e/src/server/workspaces/workspace-members.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_

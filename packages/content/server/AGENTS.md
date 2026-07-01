@@ -176,6 +176,12 @@ global).
   `CONTENT_REGISTRY` token + `EntryValidationService`. `ContentPlugin({ types })`
   builds the registry **eagerly** — duplicate names and unresolvable relation
   targets throw at construction, failing boot rather than the first request.
+- It **binds identity's ports** to the registry: `CONTENT_CATALOG` (the type
+  catalogue, so `GET /api/content-types` + the workspace-grant flow see the real
+  code-defined types) and `CONTENT_ENTRY_COUNTER` (an `EntryCounterService`
+  counting a type's rows in a workspace, so identity's "revoke a content grant
+  only when empty" check sees the real stored entries). Same inversion as
+  `ACTIVITY_RECORDER` — identity owns the port, this plugin binds it.
 - Register **after** `DatabasePlugin` + `IdentityPlugin` (it uses identity's
   `PermissionsGuard` and, for the entries list, the shared Drizzle client).
   Depends on `@ortha-cms/identity-server` (guards), `@ortha-cms/bootstrap-server`,

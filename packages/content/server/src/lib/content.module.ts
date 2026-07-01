@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import {
     CONTENT_CATALOG,
+    CONTENT_ENTRY_COUNTER,
     type ContentCatalog
 } from '@ortha-cms/identity-server';
 import { CONTENT_REGISTRY } from './content.tokens';
@@ -17,6 +18,7 @@ import { DeleteEntryController } from './entries/controllers/delete-entry.contro
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/services/entries.service';
 import { EntryWriterService } from './entries/services/entry-writer.service';
+import { EntryCounterService } from './entries/services/entry-counter.service';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -65,11 +67,22 @@ export class ContentModule {
                     ): ContentCatalog => ({ list: () => reg.summaries() }),
                     inject: [CONTENT_REGISTRY]
                 },
+                // Bind identity's entry-counter port to the registry-backed
+                // counter, so the workspace "revoke content only when empty"
+                // rule sees the real stored entries. Same inversion as the
+                // catalogue above.
+                EntryCounterService,
+                { provide: CONTENT_ENTRY_COUNTER, useExisting: EntryCounterService },
                 EntryValidationService,
                 EntriesService,
                 EntryWriterService
             ],
-            exports: [CONTENT_REGISTRY, CONTENT_CATALOG, EntryValidationService]
+            exports: [
+                CONTENT_REGISTRY,
+                CONTENT_CATALOG,
+                CONTENT_ENTRY_COUNTER,
+                EntryValidationService
+            ]
         };
     }
 }

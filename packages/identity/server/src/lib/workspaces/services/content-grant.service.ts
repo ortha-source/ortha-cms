@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { workspaceContent } from '../../schema';
 import { CONTENT_TYPES } from '../../content/content.constants';
@@ -7,8 +7,15 @@ import {
     CONTENT_CATALOG,
     type ContentCatalog
 } from '../../content/content-catalog';
+import {
+    CONTENT_ENTRY_COUNTER,
+    type ContentEntryCounter
+} from '../../content/content-entry-counter';
 import type { ContentDto } from '../dto/create-workspace.dto';
 import type { Tx } from './tx';
+
+/** A content-type kind, as stored on a `workspace_content` row. */
+export type ContentGrantKind = 'collection' | 'single';
 
 /** A content grant flattened to an explicit (kind, slug) row. */
 interface ContentGrant {
@@ -73,8 +80,73 @@ export class ContentGrantService {
         @InjectDatabase() private readonly db: Database,
         @Optional()
         @Inject(CONTENT_CATALOG)
-        private readonly catalog?: ContentCatalog
+        private readonly catalog?: ContentCatalog,
+        @Optional()
+        @Inject(CONTENT_ENTRY_COUNTER)
+        private readonly counter?: ContentEntryCounter
     ) {}
+
+    /**
+     * Resolves a slug to its catalogue kind, or `null` when the slug names no
+     * known content type. Backs the single-grant add flow (the client sends only
+     * a slug; the server derives the kind and rejects an unknown one).
+     */
+    resolveKind(slug: string): ContentGrantKind | null {
+        const types = this.catalog?.list() ?? CONTENT_TYPES;
+        return types.find((ct) => ct.name === slug)?.kind ?? null;
+    }
+
+    /**
+     * Grants a single `(kind, slug)` to `workspaceId` within `tx`. Idempotent —
+     * a duplicate grant is a no-op. Returns whether a new row was inserted (so
+     * the caller only records an audit event on a real change).
+     */
+    async addGrant(
+        tx: Tx,
+        workspaceId: string,
+        kind: ContentGrantKind,
+        slug: string
+    ): Promise<boolean> {
+        const added = await tx
+            .insert(workspaceContent)
+            .values({ workspaceId, kind, slug })
+            .onConflictDoNothing()
+            .returning({ id: workspaceContent.id });
+        return added.length > 0;
+    }
+
+    /**
+     * Revokes `slug` from `workspaceId` within `tx` (any kind — a slug is unique
+     * across the catalogue). Returns whether a row was removed, so revoking a
+     * grant the workspace never held is a no-op the caller doesn't record.
+     */
+    async removeGrant(
+        tx: Tx,
+        workspaceId: string,
+        slug: string
+    ): Promise<boolean> {
+        const removed = await tx
+            .delete(workspaceContent)
+            .where(
+                and(
+                    eq(workspaceContent.workspaceId, workspaceId),
+                    eq(workspaceContent.slug, slug)
+                )
+            )
+            .returning({ id: workspaceContent.id });
+        return removed.length > 0;
+    }
+
+    /**
+     * How many entries of content type `slug` the workspace holds, via the
+     * injected {@link ContentEntryCounter} port. Returns `0` when no content
+     * plugin is bound (there are no entry tables at all), so the caller treats
+     * the type as empty. Backs the "revoke only when empty" rule.
+     */
+    async countEntries(workspaceId: string, slug: string): Promise<number> {
+        if (!this.counter) return 0;
+        return this.counter.countEntries(workspaceId, slug);
+    }
 
     /**
      * Groups each workspace's granted content slugs by workspace id. Backs the

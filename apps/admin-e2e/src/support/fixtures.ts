@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
+import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
 import { MembersPage } from './pages/MembersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
@@ -14,6 +15,7 @@ interface Fixtures {
     loginPage: LoginPage;
     homePage: HomePage;
     workspacesPage: WorkspacesPage;
+    workspaceSettingsPage: WorkspaceSettingsPage;
     createWorkspacePage: CreateWorkspacePage;
     membersPage: MembersPage;
     userDetailPage: UserDetailPage;
@@ -41,6 +43,9 @@ export const test = base.extend<Fixtures>({
     },
     workspacesPage: async ({ page }, use) => {
         await use(new WorkspacesPage(page));
+    },
+    workspaceSettingsPage: async ({ page }, use) => {
+        await use(new WorkspaceSettingsPage(page));
     },
     createWorkspacePage: async ({ page }, use) => {
         await use(new CreateWorkspacePage(page));

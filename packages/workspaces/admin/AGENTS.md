@@ -59,6 +59,32 @@ switcher) that opens when a card is clicked.
   `/workspaces/:id/settings` page; the other rail sections come from the feature
   plugins.
 
+## Settings page (`/workspaces/:id/settings`)
+
+- A **tabbed** page (`pages/WorkspaceSettingsPage`) — **General** (name /
+  description / avatar color; TanStack Form + the `useWorkspaceProfileSchema`
+  Zod hook, the slug shown read-only since it's immutable), **Members** (a
+  directory typeahead that assigns **existing** users — no invite-by-email, since
+  the add endpoint links a real id — plus a roster with the owner pinned and
+  everyone else removable behind a `ConfirmDialog`), **Content** (grant a
+  code-defined type from a picker; revoke behind a confirm — a revoke the server
+  refuses with `409` when the type still holds entries surfaces the "delete them
+  first" message), and a **Danger zone** (archive/unarchive + permanent delete,
+  each behind a confirm; delete returns to the grid).
+- **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
+  drives every edit (a viewer sees a read-only page with the controls hidden),
+  `workspaces:delete` gates delete; the whole Danger tab only renders when the
+  user can act on it. The section bodies live in top-level
+  `components/Workspace{General,Members,Content,Danger}Settings/` (their
+  one-off parts nested inside).
+- Each area owns its mutation hook under `lib/api/` — `useUpdateWorkspace`,
+  `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
+  `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /
+  `useRemoveWorkspaceContent` — all invalidating `workspacesKey` on success so
+  the shell (which reads the open workspace from that list) re-resolves. The
+  avatar-color picker `components/ColorSwatchRow/` is shared by the settings
+  General tab and the create wizard's Basics step.
+
 ## Create wizard (`/workspaces/new`)
 
 - A full-page, 3-step wizard (Basics → Members → Content), **not** a dialog. The

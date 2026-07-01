@@ -48,5 +48,7 @@ export {
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export { CONTENT_CATALOG } from './lib/content/content-catalog';
 export type { ContentCatalog } from './lib/content/content-catalog';
+export { CONTENT_ENTRY_COUNTER } from './lib/content/content-entry-counter';
+export type { ContentEntryCounter } from './lib/content/content-entry-counter';
 export type { ContentTypeDescriptor } from './lib/content/content.constants';
 export * from './lib/schema';

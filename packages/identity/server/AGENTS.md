@@ -56,13 +56,24 @@ tokens and full user management land in later tickets (epic #3).
       role/permission matrix at the feature root (non-class data).
     - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
       (`RootAdminSeeder`), `errors/`.
-    - `workspaces/` — `controllers/` (`create`/`list`/`check-slug`, all on
-      `/api/workspaces`), `services/` (`WorkspaceService`), `guards/`
-      (`WorkspaceGuard`), `decorators/` (`@CurrentWorkspace()`), `dto/`,
-      `errors/`. Backs the admin create-wizard: creates a workspace + memberships
-      + content grants, lists workspaces with members, and checks slug
-      availability. The owner comes from the session; the wizard's per-member
-      role is ignored (membership is a pure link — see `memberships`). It also
+    - `workspaces/` — `controllers/` (`create`/`list`/`check-slug`/`update`/
+      `set-status` (archive+unarchive)/`delete`/`add-member`/`remove-member`/
+      `add-content`/`remove-content`, all on `/api/workspaces`), `services/`
+      (`WorkspaceService` + granular `SlugService`/`MembershipService`/
+      `ContentGrantService`), `guards/` (`WorkspaceGuard`), `decorators/`
+      (`@CurrentWorkspace()`), `dto/`, `errors/`. Backs the admin create-wizard
+      **and the settings page**: creates a workspace + memberships + content
+      grants, lists workspaces with members, checks slug availability, and edits
+      an existing workspace — `PATCH /:id` (name/description/color,
+      `workspaces:update`), `POST /:id/archive` + `/unarchive` (status,
+      `workspaces:update`), `DELETE /:id` (permanent, `workspaces:delete`),
+      `POST`/`DELETE /:id/members[/:userId]`, and `POST /:id/content` +
+      `DELETE /:id/content/:slug` (grant/revoke a content type; revoke **409s
+      unless the type is empty in the workspace**, checked via the
+      `CONTENT_ENTRY_COUNTER` port). Each mutation records its own
+      `workspace.*` audit event. The owner comes from the session; the wizard's
+      per-member role is ignored (membership is a pure link — see
+      `memberships`). It also
       provides the **workspace-scoping** primitives other plugins reuse:
       `WorkspaceGuard` reads the `X-Workspace-Id` header, 400s a missing/malformed
       id and 403s a non-member (`MembershipService.isMember`), then exposes the id
@@ -73,13 +84,16 @@ tokens and full user management land in later tickets (epic #3).
     - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
       (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
     - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and
-      the `CONTENT_CATALOG` **port** (`content-catalog.ts`). The controller and
-      the workspace create flow (an "all content" grant) resolve against
-      whatever binds the port — `@ortha-cms/content-server`'s code-defined
-      registry in the assembled app — falling back to the `CONTENT_TYPES` mock
-      at the feature root when no content plugin is present. Same inversion as
-      `ACTIVITY_RECORDER`: identity owns the port, the plugin binds it, so the
-      package graph stays acyclic.
+      two **ports**: `CONTENT_CATALOG` (`content-catalog.ts`, what types exist)
+      and `CONTENT_ENTRY_COUNTER` (`content-entry-counter.ts`, how many entries
+      of a type a workspace holds). The controller and the workspace create flow
+      (an "all content" grant) resolve the catalogue against whatever binds it —
+      `@ortha-cms/content-server`'s code-defined registry in the assembled app —
+      falling back to the `CONTENT_TYPES` mock at the feature root when no
+      content plugin is present. The counter backs the "revoke a content grant
+      only when empty" rule (a missing binding means zero entries, so the type
+      reads as empty). Same inversion as `ACTIVITY_RECORDER`: identity owns the
+      ports, the plugin binds them, so the package graph stays acyclic.
   Non-class feature **data** (e.g. the role matrix) stays at the feature root,
   not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
   only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;

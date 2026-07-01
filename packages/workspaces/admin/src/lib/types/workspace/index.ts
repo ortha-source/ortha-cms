@@ -24,6 +24,8 @@ export type WorkspaceMember = {
 export type Workspace = {
     /** Stable workspace id. */
     id: string;
+    /** URL-safe identifier, unique across the system. */
+    slug: string;
     /** Display name. */
     name: string;
     /** Short summary of what the workspace holds. */

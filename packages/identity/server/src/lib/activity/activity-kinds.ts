@@ -8,8 +8,14 @@ export const IDENTITY_ACTIVITY_KINDS = {
     USER_SIGNED_IN: 'user.signed_in',
     USER_SIGNED_OUT: 'user.signed_out',
     WORKSPACE_CREATED: 'workspace.created',
+    WORKSPACE_UPDATED: 'workspace.updated',
+    WORKSPACE_ARCHIVED: 'workspace.archived',
+    WORKSPACE_UNARCHIVED: 'workspace.unarchived',
+    WORKSPACE_DELETED: 'workspace.deleted',
     WORKSPACE_MEMBER_ADDED: 'workspace.member_added',
-    WORKSPACE_MEMBER_REMOVED: 'workspace.member_removed'
+    WORKSPACE_MEMBER_REMOVED: 'workspace.member_removed',
+    WORKSPACE_CONTENT_GRANTED: 'workspace.content_granted',
+    WORKSPACE_CONTENT_REVOKED: 'workspace.content_revoked'
 } as const;
 
 /** An audit kind emitted by identity. */

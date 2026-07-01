@@ -52,6 +52,7 @@ function toMember(view: WorkspaceMemberView, index: number): WorkspaceMember {
 export function toWorkspace(view: WorkspaceView): Workspace {
     return {
         id: view.id,
+        slug: view.slug,
         name: view.name,
         description: view.description,
         color: view.color as AvatarColor,
