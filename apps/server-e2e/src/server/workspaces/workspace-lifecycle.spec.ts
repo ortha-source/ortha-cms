@@ -187,5 +187,48 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
                 .delete('/api/workspaces/00000000-0000-0000-0000-000000000000')
                 .expect(404);
         });
+
+        it('refuses (409) to delete a workspace that still has content entries', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            // Empty workspace: the total entry count is zero.
+            const empty = await agent
+                .get(`/api/workspaces/${id}/entry-count`)
+                .expect(200);
+            expect(empty.body).toEqual({ count: 0 });
+
+            // Create a real article entry (the creator is a member of the
+            // workspace it was created in, so the write is allowed).
+            await agent
+                .post('/api/content/article')
+                .set('X-Workspace-Id', id)
+                .send({ values: { text: 'Hello world', select: 'article' } })
+                .expect(201);
+
+            const after = await agent
+                .get(`/api/workspaces/${id}/entry-count`)
+                .expect(200);
+            expect(after.body).toEqual({ count: 1 });
+
+            // Delete is refused while the workspace still holds content.
+            await agent.delete(`/api/workspaces/${id}`).expect(409);
+
+            // It's still there.
+            const list = await agent.get('/api/workspaces').expect(200);
+            expect(
+                list.body.some((ws: { id: string }) => ws.id === id)
+            ).toBe(true);
+        });
+
+        it('forbids the entry-count read for a contributor (lacks workspaces:delete) with 403', async () => {
+            const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(admin);
+            const { agent } = await loginAs(
+                'contributor',
+                'wsl-contrib3@example.com'
+            );
+            await agent.get(`/api/workspaces/${id}/entry-count`).expect(403);
+        });
     });
 });

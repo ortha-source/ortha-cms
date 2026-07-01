@@ -15,6 +15,7 @@ import {
     MemberNotFoundError,
     SlugTakenError,
     UnknownContentTypeError,
+    WorkspaceNotEmptyError,
     WorkspaceNotFoundError
 } from '../errors';
 import type { WorkspaceView } from '../types/views';
@@ -301,12 +302,30 @@ export class WorkspaceService {
 
     /**
      * Permanently deletes a workspace, recording `workspace.deleted` in-band.
-     * Its memberships and content grants cascade via their FKs. Stored content
+     * Its memberships and content grants cascade via their FKs. Refused with
+     * {@link WorkspaceNotEmptyError} while the workspace still holds any content
      * **entries** (`content_<name>` rows, workspace-scoped by a plain uuid with
-     * no FK) are *not* cascaded — they're left orphaned by design; the admin
-     * warns before deleting. 404s an unknown workspace.
+     * no FK, so a cascade can't reach them) — they must be deleted first, so a
+     * delete never orphans records. 404s an unknown workspace.
+     *
+     * The entry count is probed before the delete, so a highly concurrent create
+     * could in theory slip a row in between; the caller-facing guarantee is the
+     * request-time check, matching {@link revokeContent}.
      */
     async delete(actor: PublicUser, workspaceId: string): Promise<void> {
+        const [existing] = await this.db
+            .select({ id: workspaces.id })
+            .from(workspaces)
+            .where(eq(workspaces.id, workspaceId));
+        if (!existing) {
+            throw new WorkspaceNotFoundError(workspaceId);
+        }
+
+        const entryCount = await this.content.countAllEntries(workspaceId);
+        if (entryCount > 0) {
+            throw new WorkspaceNotEmptyError(workspaceId, entryCount);
+        }
+
         await this.db.transaction(async (tx) => {
             const [workspace] = await tx
                 .select({ name: workspaces.name, slug: workspaces.slug })
@@ -449,6 +468,16 @@ export class WorkspaceService {
      */
     countContentEntries(workspaceId: string, slug: string): Promise<number> {
         return this.content.countEntries(workspaceId, slug);
+    }
+
+    /**
+     * How many entries the workspace holds across **all** content types. Backs
+     * the settings UI's delete pre-check (block Delete, with a reason, until the
+     * workspace is empty) and mirrors the server-side delete guard. `0` when no
+     * content plugin is bound.
+     */
+    countWorkspaceEntries(workspaceId: string): Promise<number> {
+        return this.content.countAllEntries(workspaceId);
     }
 
     /** Loads full views for the given workspace ids, preserving newest-first. */

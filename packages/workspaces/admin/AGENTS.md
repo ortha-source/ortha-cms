@@ -80,8 +80,11 @@ switcher) that opens when a card is clicked.
   `GET /workspaces/:id/content/:slug/entry-count` on open and **blocks** the
   Remove button with a warning while the type still has entries, so the server
   `409` is only a safety net), and a **Danger zone**
-  (archive/unarchive + permanent delete, each behind a confirm; delete returns to
-  the grid).
+  (archive/unarchive behind a confirm; permanent delete through
+  `DeleteWorkspaceDialog`, which reads `GET /workspaces/:id/entry-count` on open
+  and **blocks** Delete with a warning until the workspace holds no content at
+  all — the same block-before-you-act pattern as content revoke, with the server
+  `409` as the safety net; delete returns to the grid).
 - **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
   drives every edit (a viewer sees a read-only page with the controls hidden),
   `workspaces:delete` gates delete; the Danger rail entry **and** its route only
@@ -94,7 +97,8 @@ switcher) that opens when a card is clicked.
   `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /
   `useRemoveWorkspaceContent` — all invalidating `workspacesKey` on success so
   the shell (which reads the open workspace from that list) re-resolves — plus
-  the read-only `useWorkspaceContentCount` backing the revoke pre-check. The
+  the read-only `useWorkspaceContentCount` / `useWorkspaceEntryCount` backing the
+  revoke and delete pre-checks. The
   avatar-color picker `components/ColorSwatchRow/` is shared by the settings
   General tab and the create wizard's Basics step.
 

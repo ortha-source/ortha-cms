@@ -4,6 +4,7 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { ContentEntryCounter } from '@ortha-cms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
+import type { AnyContentType } from '../../types/content-type';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
@@ -31,6 +32,28 @@ export class EntryCounterService implements ContentEntryCounter {
     async countEntries(workspaceId: string, slug: string): Promise<number> {
         const type = this.registry.get(slug);
         if (!type) return 0;
+        return this.countTable(type, workspaceId);
+    }
+
+    /**
+     * Every stored row the workspace holds across **all** content types —
+     * summed over each type's table. Backs the workspace-delete guard (delete is
+     * refused until this is zero). The per-type counts run concurrently.
+     */
+    async countWorkspaceEntries(workspaceId: string): Promise<number> {
+        const counts = await Promise.all(
+            this.registry
+                .all()
+                .map((type) => this.countTable(type, workspaceId))
+        );
+        return counts.reduce((sum, n) => sum + n, 0);
+    }
+
+    /** Counts a single content type's rows in a workspace. */
+    private async countTable(
+        type: AnyContentType,
+        workspaceId: string
+    ): Promise<number> {
         const table = type.table as unknown as ContentTable;
         const [{ total }] = await this.db
             .select({ total: count() })

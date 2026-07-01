@@ -1,4 +1,5 @@
 import {
+    ConflictException,
     Controller,
     Delete,
     HttpCode,
@@ -15,13 +16,14 @@ import { PermissionsGuard } from '../../rbac/guards/permissions.guard';
 import { RequirePermissions } from '../../rbac/decorators/require-permissions.decorator';
 import { PERMISSIONS } from '../../rbac/system-roles';
 import { WorkspaceService } from '../services/workspace.service';
-import { WorkspaceNotFoundError } from '../errors';
+import { WorkspaceNotEmptyError, WorkspaceNotFoundError } from '../errors';
 
 /**
  * `DELETE /api/workspaces/:id` — permanently deletes a workspace (memberships +
  * content grants cascade); requires the stronger `workspaces:delete`. Returns
- * 204; a missing workspace maps to 404. Guarded by `OriginGuard` (CSRF) like the
- * other state-changing routes.
+ * 204; a missing workspace maps to 404, and a workspace that still holds content
+ * entries maps to 409 (delete them first, so nothing is orphaned). Guarded by
+ * `OriginGuard` (CSRF) like the other state-changing routes.
  */
 @UseGuards(OriginGuard, PermissionsGuard)
 @RequirePermissions(PERMISSIONS.WORKSPACES_DELETE)
@@ -40,6 +42,11 @@ export class DeleteWorkspaceController {
         } catch (error) {
             if (error instanceof WorkspaceNotFoundError) {
                 throw new NotFoundException();
+            }
+            if (error instanceof WorkspaceNotEmptyError) {
+                throw new ConflictException(
+                    'Workspace still has content entries'
+                );
             }
             throw error;
         }

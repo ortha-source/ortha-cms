@@ -149,6 +149,16 @@ export class ContentGrantService {
     }
 
     /**
+     * How many entries the workspace holds across **all** content types. Returns
+     * `0` when no content plugin is bound. Backs the "delete only an empty
+     * workspace" rule.
+     */
+    async countAllEntries(workspaceId: string): Promise<number> {
+        if (!this.counter) return 0;
+        return this.counter.countWorkspaceEntries(workspaceId);
+    }
+
+    /**
      * Groups each workspace's granted content slugs by workspace id. Backs the
      * workspace views so the admin can scope its Content Library to the slugs a
      * workspace was linked to at creation.

@@ -142,6 +142,16 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByRole('button', { name: 'Delete workspace' });
     }
 
+    /** The Delete button inside the delete confirm dialog. */
+    get deleteConfirm(): Locator {
+        return this.dialog.getByRole('button', { name: 'Delete workspace' });
+    }
+
+    /** The blocking warning alert shown when the workspace still has content. */
+    get deleteBlockedAlert(): Locator {
+        return this.dialog.getByRole('alert');
+    }
+
     archivedBadge(): Locator {
         return this.page.getByText('Archived', { exact: true });
     }

@@ -23,6 +23,14 @@ export interface ContentEntryCounter {
      * unknown slug resolves to `0`.
      */
     countEntries(workspaceId: string, slug: string): Promise<number>;
+
+    /**
+     * How many entries a workspace holds across **every** content type. Backs
+     * the "a workspace can only be deleted once it holds no content" rule, so a
+     * delete never orphans records. Sums {@link countEntries} over the whole
+     * catalogue; `0` when no content plugin is bound.
+     */
+    countWorkspaceEntries(workspaceId: string): Promise<number>;
 }
 
 /** DI token the content plugin binds to the concrete {@link ContentEntryCounter}. */

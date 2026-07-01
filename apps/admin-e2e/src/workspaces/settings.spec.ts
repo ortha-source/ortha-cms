@@ -187,9 +187,38 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.openSection('Danger zone');
 
             await workspaceSettingsPage.deleteButton.click();
-            await workspaceSettingsPage.dialogConfirm('Delete workspace').click();
+            // The dialog pre-checks the workspace is empty before enabling
+            // Delete (the seed reports zero total entries).
+            await expect(workspaceSettingsPage.deleteConfirm).toBeEnabled();
+            await workspaceSettingsPage.deleteConfirm.click();
 
             await expect(page).toHaveURL('/workspaces');
+        });
+    });
+
+    test.describe('delete guard (workspace still has content)', () => {
+        test.beforeEach(async ({ page }) => {
+            await mockSignedIn(page);
+            await mockWorkspaceSettingsApi(page, [seed()], {
+                // The workspace reports content entries → delete is blocked.
+                workspaceEntryCount: { [WORKSPACE_ID]: 2 }
+            });
+        });
+
+        test('blocks deleting until all content is removed', async ({
+            workspaceSettingsPage
+        }) => {
+            await workspaceSettingsPage.goto(WORKSPACE_ID);
+            await workspaceSettingsPage.openSection('Danger zone');
+
+            await workspaceSettingsPage.deleteButton.click();
+
+            await expect(
+                workspaceSettingsPage.deleteBlockedAlert
+            ).toContainText(/still has/);
+            await expect(
+                workspaceSettingsPage.deleteConfirm
+            ).toBeDisabled();
         });
     });
 

@@ -66,13 +66,16 @@ tokens and full user management land in later tickets (epic #3).
       grants, lists workspaces with members, checks slug availability, and edits
       an existing workspace — `PATCH /:id` (name/description/color,
       `workspaces:update`), `POST /:id/archive` + `/unarchive` (status,
-      `workspaces:update`), `DELETE /:id` (permanent, `workspaces:delete`),
-      `POST`/`DELETE /:id/members[/:userId]`, and `POST /:id/content` +
-      `DELETE /:id/content/:slug` (grant/revoke a content type; revoke **409s
-      unless the type is empty in the workspace**, checked via the
-      `CONTENT_ENTRY_COUNTER` port) plus
-      `GET /:id/content/:slug/entry-count` (the admin's revoke pre-check, same
-      counter). Each mutation records its own
+      `workspaces:update`), `DELETE /:id` (permanent, `workspaces:delete`;
+      **409s while the workspace still holds any content entries**, so a delete
+      never orphans records), `POST`/`DELETE /:id/members[/:userId]`, and
+      `POST /:id/content` + `DELETE /:id/content/:slug` (grant/revoke a content
+      type; revoke **409s unless the type is empty in the workspace**, checked
+      via the `CONTENT_ENTRY_COUNTER` port). Two read-only pre-check endpoints
+      back the admin's block-before-you-act dialogs:
+      `GET /:id/content/:slug/entry-count` (per-type, `workspaces:update`) and
+      `GET /:id/entry-count` (whole-workspace total, `workspaces:delete`). Each
+      mutation records its own
       `workspace.*` audit event. The owner comes from the session; the wizard's
       per-member role is ignored (membership is a pure link — see
       `memberships`). It also

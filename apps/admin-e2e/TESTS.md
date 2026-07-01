@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_155 test cases across 21 spec files._
+_156 test cases across 21 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -349,6 +349,12 @@ _<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_
 | blocks revoking a content type that still has entries |
 | archives the workspace from the danger zone |
 | deletes the workspace and returns to the grid |
+
+### delete guard (workspace still has content)
+
+| Test case |
+| --- |
+| blocks deleting until all content is removed |
 
 ### as a viewer (read-only)
 

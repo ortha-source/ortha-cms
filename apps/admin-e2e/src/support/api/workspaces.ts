@@ -277,9 +277,16 @@ export interface WorkspaceSettingsApiOptions {
     /**
      * Per-workspace content slugs that a revoke must refuse with `409`
      * (`{ [workspaceId]: ['product', …] }`) — the FE analog of a content type
-     * that still holds entries in the workspace.
+     * that still holds entries in the workspace. Also drives the per-slug
+     * entry-count endpoint (a locked slug reports a non-zero count).
      */
     lockedContent?: Record<string, string[]>;
+    /**
+     * Per-workspace **total** content-entry count (`{ [workspaceId]: 2 }`),
+     * returned by `GET /:id/entry-count` — the delete pre-check reads it and
+     * blocks deletion while it's non-zero. Defaults to `0`.
+     */
+    workspaceEntryCount?: Record<string, number>;
 }
 
 /**
@@ -300,7 +307,10 @@ export interface WorkspaceSettingsApiOptions {
 export async function mockWorkspaceSettingsApi(
     page: Page,
     initial: WorkspaceView[],
-    { lockedContent = {} }: WorkspaceSettingsApiOptions = {}
+    {
+        lockedContent = {},
+        workspaceEntryCount = {}
+    }: WorkspaceSettingsApiOptions = {}
 ): Promise<void> {
     const store = initial.map((w) => ({
         ...w,
@@ -396,6 +406,17 @@ export async function mockWorkspaceSettingsApi(
             if (!workspace) return route.fulfill(jsonError(404, 'Not found'));
             workspace.status = action === 'archive' ? 'archived' : 'active';
             return view(route, workspace, 201);
+        }
+    );
+
+    // Total entry count for the delete pre-check:
+    // GET /api/workspaces/:id/entry-count
+    await page.route(
+        /\/api\/workspaces\/([^/?]+)\/entry-count$/,
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            const id = segments(route.request().url())[3];
+            await route.fulfill(json({ count: workspaceEntryCount[id] ?? 0 }));
         }
     );
 

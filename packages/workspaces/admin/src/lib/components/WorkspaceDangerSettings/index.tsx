@@ -12,9 +12,14 @@ import {
     Separator,
     toast
 } from '@ortha-cms/design-system';
+import { ApiError } from '@ortha-cms/utils-admin';
 import type { Workspace } from '../../types/workspace';
 import { useSetWorkspaceStatus } from '../../api/useSetWorkspaceStatus';
 import { useDeleteWorkspace } from '../../api/useDeleteWorkspace';
+import { DeleteWorkspaceDialog } from './DeleteWorkspaceDialog';
+
+/** HTTP 409 — the server's "workspace still has content entries" response. */
+const CONFLICT = 409;
 
 const messages = defineMessages({
     title: {
@@ -73,15 +78,6 @@ const messages = defineMessages({
         defaultMessage:
             'The workspace will be hidden from the default view. Members keep their access and you can unarchive it later.'
     },
-    deleteConfirmTitle: {
-        id: 'workspaces.settings.danger.deleteConfirmTitle',
-        defaultMessage: 'Delete “{name}”?'
-    },
-    deleteConfirmBody: {
-        id: 'workspaces.settings.danger.deleteConfirmBody',
-        defaultMessage:
-            'This permanently deletes the workspace, all {count} memberships, and its content grants. Any content entries created here are left orphaned. This action cannot be undone.'
-    },
     archived: {
         id: 'workspaces.settings.danger.archived',
         defaultMessage: 'Workspace archived.'
@@ -101,6 +97,11 @@ const messages = defineMessages({
     deleteError: {
         id: 'workspaces.settings.danger.deleteError',
         defaultMessage: 'Couldn’t delete the workspace. Please try again.'
+    },
+    deleteNotEmpty: {
+        id: 'workspaces.settings.danger.deleteNotEmpty',
+        defaultMessage:
+            'This workspace still has content. Delete all records first, then delete the workspace.'
     }
 });
 
@@ -157,8 +158,16 @@ export function WorkspaceDangerSettings({
             await remove.mutateAsync(workspace.id);
             toast(intl.formatMessage(messages.deleted));
             navigate('/workspaces');
-        } catch {
-            toast(intl.formatMessage(messages.deleteError));
+        } catch (error) {
+            // The dialog blocks a non-empty delete up front; this 409 is only a
+            // safety net for content created between the check and the confirm.
+            toast(
+                intl.formatMessage(
+                    error instanceof ApiError && error.status === CONFLICT
+                        ? messages.deleteNotEmpty
+                        : messages.deleteError
+                )
+            );
             setConfirmingDelete(false);
         }
     };
@@ -253,19 +262,11 @@ export function WorkspaceDangerSettings({
                 onConfirm={toggleArchive}
             />
 
-            <ConfirmDialog
-                open={confirmingDelete}
-                onOpenChange={setConfirmingDelete}
-                title={intl.formatMessage(messages.deleteConfirmTitle, {
-                    name: workspace.name
-                })}
-                description={intl.formatMessage(messages.deleteConfirmBody, {
-                    count: workspace.members.length
-                })}
-                confirmLabel={intl.formatMessage(messages.deleteAction)}
-                confirmVariant="destructive"
-                busy={remove.isPending}
+            <DeleteWorkspaceDialog
+                workspace={confirmingDelete ? workspace : null}
+                onClose={() => setConfirmingDelete(false)}
                 onConfirm={confirmDelete}
+                busy={remove.isPending}
             />
         </Card>
     );
