@@ -122,8 +122,9 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
             await workspaceSettingsPage.openSection('Content');
 
-            // Grant an ungranted type through the search + multi-select dialog.
-            await workspaceSettingsPage.addContentButton.click();
+            // Grant an ungranted page through the pages search + multi-select
+            // dialog (About is a standalone page).
+            await workspaceSettingsPage.addPagesButton.click();
             await workspaceSettingsPage.addContentSearch.fill('About');
             await workspaceSettingsPage.contentCheckbox('About').click();
             await workspaceSettingsPage.addContentSave.click();
@@ -246,10 +247,13 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.openSection('Members');
             await expect(workspaceSettingsPage.memberSearch).toBeHidden();
 
-            // Content tab offers no add control.
+            // Content tab offers no add controls.
             await workspaceSettingsPage.openSection('Content');
             await expect(
-                workspaceSettingsPage.addContentButton
+                workspaceSettingsPage.addCollectionsButton
+            ).toBeHidden();
+            await expect(
+                workspaceSettingsPage.addPagesButton
             ).toBeHidden();
         });
     });

@@ -74,9 +74,12 @@ switcher) that opens when a card is clicked.
   immutable), **Members** (a directory typeahead that assigns **existing** users
   — no invite-by-email, since the add endpoint links a real id — plus a roster
   with the owner pinned and everyone else removable behind a `ConfirmDialog`),
-  **Content** (grant code-defined types through a **search + multi-select
-  dialog** — `AddContentDialog`, tick any number and Add in one go; revoke
-  through `RemoveContentDialog`, which reads
+  **Content** (the granted types shown as two titled groups — **Collections** and
+  **Pages** (`GrantedContentGroup`, each row its title + description), granted
+  through a **separate search + multi-select popup per kind** — two
+  `AddContentDialog` instances, "Add collections" / "Add pages", each listing
+  only that kind's ungranted types and synced with the grants; revoke through
+  `RemoveContentDialog`, which reads
   `GET /workspaces/:id/content/:slug/entry-count` on open and **blocks** the
   Remove button with a warning while the type still has entries, so the server
   `409` is only a safety net), and a **Danger zone**

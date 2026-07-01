@@ -93,9 +93,14 @@ export class WorkspaceSettingsPage extends BasePage {
 
     // --- content ---
 
-    /** The trigger that opens the add-content dialog. */
-    get addContentButton(): Locator {
-        return this.page.getByRole('button', { name: 'Add content types' });
+    /** The trigger that opens the add-collections dialog. */
+    get addCollectionsButton(): Locator {
+        return this.page.getByRole('button', { name: 'Add collections' });
+    }
+
+    /** The trigger that opens the add-pages dialog. */
+    get addPagesButton(): Locator {
+        return this.page.getByRole('button', { name: 'Add pages' });
     }
 
     /** The add dialog's search box. */

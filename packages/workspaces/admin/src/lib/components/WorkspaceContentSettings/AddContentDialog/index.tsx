@@ -19,15 +19,6 @@ import {
 import type { ContentType } from '../../../types/wizard';
 
 const messages = defineMessages({
-    title: {
-        id: 'workspaces.settings.content.addDialog.title',
-        defaultMessage: 'Add content types'
-    },
-    description: {
-        id: 'workspaces.settings.content.addDialog.description',
-        defaultMessage:
-            'Search and select the collections and pages to grant this workspace.'
-    },
     searchPlaceholder: {
         id: 'workspaces.settings.content.addDialog.searchPlaceholder',
         defaultMessage: 'Search content types'
@@ -64,7 +55,11 @@ export type AddContentDialogProps = {
     open: boolean;
     /** Open/close callback; ignored while saving. */
     onOpenChange: (open: boolean) => void;
-    /** Content types not yet granted — the selectable list. */
+    /** Localized dialog heading (e.g. "Add collections"). */
+    title: string;
+    /** Localized supporting copy. */
+    description: string;
+    /** Content types not yet granted — the selectable list (already one kind). */
     available: ContentType[];
     /** Grants the chosen slugs; resolves when done so the dialog can close. */
     onConfirm: (slugs: string[]) => Promise<void>;
@@ -73,13 +68,16 @@ export type AddContentDialogProps = {
 };
 
 /**
- * A search + multi-select dialog for granting content types: type to filter the
- * catalogue of ungranted collections/pages, tick any number, then Add them in
- * one go. Selection + query reset each time the dialog opens.
+ * A search + multi-select dialog for granting content types of a **single kind**
+ * (collections or pages — the caller pre-filters `available` and labels it via
+ * `title`): type to filter, tick any number, then Add them in one go. Selection
+ * + query reset each time the dialog opens.
  */
 export function AddContentDialog({
     open,
     onOpenChange,
+    title,
+    description,
     available,
     onConfirm,
     busy = false
@@ -129,12 +127,8 @@ export function AddContentDialog({
         >
             <DialogContent className="gap-4">
                 <DialogHeader>
-                    <DialogTitle>
-                        {intl.formatMessage(messages.title)}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {intl.formatMessage(messages.description)}
-                    </DialogDescription>
+                    <DialogTitle>{title}</DialogTitle>
+                    <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
 
                 <InputGroup className="shadow-none">

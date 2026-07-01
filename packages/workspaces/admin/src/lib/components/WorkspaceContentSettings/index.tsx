@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus } from 'lucide-react';
 import {
@@ -8,7 +8,6 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-    Separator,
     Spinner,
     toast
 } from '@ortha-cms/design-system';
@@ -20,7 +19,8 @@ import { useAddWorkspaceContent } from '../../api/useAddWorkspaceContent';
 import { useRemoveWorkspaceContent } from '../../api/useRemoveWorkspaceContent';
 import { AddContentDialog } from './AddContentDialog';
 import { RemoveContentDialog } from './RemoveContentDialog';
-import { GrantedContentRow, type GrantedContent } from './GrantedContentRow';
+import { GrantedContentGroup } from './GrantedContentGroup';
+import type { GrantedContent } from './GrantedContentRow';
 
 /** HTTP 409 — the server's "content type still has entries" response. */
 const CONFLICT = 409;
@@ -35,18 +35,39 @@ const messages = defineMessages({
         defaultMessage:
             'The collections and pages this workspace can work with. Its Content Library is scoped to these.'
     },
-    empty: {
-        id: 'workspaces.settings.content.empty',
+    collections: {
+        id: 'workspaces.settings.content.collections',
+        defaultMessage: 'Collections'
+    },
+    pages: {
+        id: 'workspaces.settings.content.pages',
+        defaultMessage: 'Pages'
+    },
+    collectionsEmpty: {
+        id: 'workspaces.settings.content.collectionsEmpty',
+        defaultMessage: 'No collections granted yet.'
+    },
+    pagesEmpty: {
+        id: 'workspaces.settings.content.pagesEmpty',
+        defaultMessage: 'No pages granted yet.'
+    },
+    addCollections: {
+        id: 'workspaces.settings.content.addCollections',
+        defaultMessage: 'Add collections'
+    },
+    addPages: {
+        id: 'workspaces.settings.content.addPages',
+        defaultMessage: 'Add pages'
+    },
+    addCollectionsBody: {
+        id: 'workspaces.settings.content.addCollectionsBody',
         defaultMessage:
-            'No content types yet. Add one so the Content Library has something to show.'
+            'Search and select the multi-entry collections to grant this workspace.'
     },
-    add: {
-        id: 'workspaces.settings.content.add',
-        defaultMessage: 'Add content types'
-    },
-    listLabel: {
-        id: 'workspaces.settings.content.listLabel',
-        defaultMessage: '{count, plural, one {# content type} other {# content types}}'
+    addPagesBody: {
+        id: 'workspaces.settings.content.addPagesBody',
+        defaultMessage:
+            'Search and select the standalone pages to grant this workspace.'
     },
     readOnly: {
         id: 'workspaces.settings.content.readOnly',
@@ -90,9 +111,10 @@ export type WorkspaceContentSettingsProps = {
 };
 
 /**
- * The Content-types settings tab: grant a workspace access to code-defined
- * collections/pages through a search + multi-select dialog, and revoke access
- * through a dialog that **blocks** the action (with a reason) while the type
+ * The Content-types settings tab: the granted collections and pages shown as
+ * two titled groups (each row with its title + description), granted through a
+ * **separate search + multi-select dialog per kind** (Add collections / Add
+ * pages), and revoked through a dialog that **blocks** the action while the type
  * still holds entries. Gated on `workspaces:update`.
  */
 export function WorkspaceContentSettings({
@@ -103,7 +125,8 @@ export function WorkspaceContentSettings({
     const catalog = useContentTypes();
     const addContent = useAddWorkspaceContent();
     const removeContent = useRemoveWorkspaceContent();
-    const [addOpen, setAddOpen] = useState(false);
+    const [addCollectionsOpen, setAddCollectionsOpen] = useState(false);
+    const [addPagesOpen, setAddPagesOpen] = useState(false);
     const [pendingRemoval, setPendingRemoval] = useState<GrantedContent | null>(
         null
     );
@@ -115,16 +138,26 @@ export function WorkspaceContentSettings({
         return map;
     }, [types]);
 
+    const isPage = (type?: ContentType) => type?.kind === 'single';
     const grantedSet = new Set(workspace.content);
     const granted: GrantedContent[] = workspace.content.map((slug) => ({
         slug,
         type: byName.get(slug)
     }));
-    const available = types.filter((type) => !grantedSet.has(type.name));
+    // An unknown (stale) slug can't be classed by kind — it falls under
+    // Collections, the default bucket.
+    const grantedCollections = granted.filter((g) => !isPage(g.type));
+    const grantedPages = granted.filter((g) => isPage(g.type));
+    const availableCollections = types.filter(
+        (type) => !isPage(type) && !grantedSet.has(type.name)
+    );
+    const availablePages = types.filter(
+        (type) => isPage(type) && !grantedSet.has(type.name)
+    );
 
-    const onConfirmAdd = async (slugs: string[]) => {
+    /** Grants the chosen slugs; returns whether it succeeded (to close on ok). */
+    const grant = async (slugs: string[]): Promise<boolean> => {
         try {
-            // The grant endpoint is per-slug; fan out and reconcile once.
             await Promise.all(
                 slugs.map((slug) =>
                     addContent.mutateAsync({
@@ -134,9 +167,10 @@ export function WorkspaceContentSettings({
                 )
             );
             toast(intl.formatMessage(messages.added, { count: slugs.length }));
-            setAddOpen(false);
+            return true;
         } catch {
             toast(intl.formatMessage(messages.addError));
+            return false;
         }
     };
 
@@ -178,7 +212,7 @@ export function WorkspaceContentSettings({
                     {intl.formatMessage(messages.description)}
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+            <CardContent className="flex flex-col gap-5">
                 {catalog.isError ? (
                     <p className="text-sm text-destructive">
                         {intl.formatMessage(messages.loadError)}
@@ -186,15 +220,24 @@ export function WorkspaceContentSettings({
                 ) : null}
 
                 {canUpdate ? (
-                    <div>
+                    <div className="flex flex-wrap gap-2">
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setAddOpen(true)}
+                            onClick={() => setAddCollectionsOpen(true)}
                             disabled={catalog.isPending}
                         >
                             <Plus className="size-4" />
-                            {intl.formatMessage(messages.add)}
+                            {intl.formatMessage(messages.addCollections)}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setAddPagesOpen(true)}
+                            disabled={catalog.isPending}
+                        >
+                            <Plus className="size-4" />
+                            {intl.formatMessage(messages.addPages)}
                         </Button>
                     </div>
                 ) : (
@@ -203,42 +246,53 @@ export function WorkspaceContentSettings({
                     </p>
                 )}
 
-                <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium">
-                        {intl.formatMessage(messages.listLabel, {
-                            count: granted.length
-                        })}
-                    </span>
-                    {catalog.isPending && granted.length === 0 ? (
-                        <p className="flex items-center gap-2 rounded-xl border px-3 py-4 text-sm text-muted-foreground">
-                            <Spinner className="size-4" />
-                        </p>
-                    ) : granted.length === 0 ? (
-                        <p className="rounded-xl border px-3 py-4 text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.empty)}
-                        </p>
-                    ) : (
-                        <div className="rounded-xl border">
-                            {granted.map((item, index) => (
-                                <Fragment key={item.slug}>
-                                    {index > 0 ? <Separator /> : null}
-                                    <GrantedContentRow
-                                        granted={item}
-                                        canRemove={canUpdate}
-                                        onRemove={() => setPendingRemoval(item)}
-                                    />
-                                </Fragment>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                {catalog.isPending && granted.length === 0 ? (
+                    <p className="flex items-center gap-2 rounded-xl border px-3 py-4 text-sm text-muted-foreground">
+                        <Spinner className="size-4" />
+                    </p>
+                ) : (
+                    <>
+                        <GrantedContentGroup
+                            heading={intl.formatMessage(messages.collections)}
+                            items={grantedCollections}
+                            emptyLabel={intl.formatMessage(
+                                messages.collectionsEmpty
+                            )}
+                            canRemove={canUpdate}
+                            onRemove={setPendingRemoval}
+                        />
+                        <GrantedContentGroup
+                            heading={intl.formatMessage(messages.pages)}
+                            items={grantedPages}
+                            emptyLabel={intl.formatMessage(messages.pagesEmpty)}
+                            canRemove={canUpdate}
+                            onRemove={setPendingRemoval}
+                        />
+                    </>
+                )}
             </CardContent>
 
             <AddContentDialog
-                open={addOpen}
-                onOpenChange={setAddOpen}
-                available={available}
-                onConfirm={onConfirmAdd}
+                open={addCollectionsOpen}
+                onOpenChange={setAddCollectionsOpen}
+                title={intl.formatMessage(messages.addCollections)}
+                description={intl.formatMessage(messages.addCollectionsBody)}
+                available={availableCollections}
+                onConfirm={async (slugs) => {
+                    if (await grant(slugs)) setAddCollectionsOpen(false);
+                }}
+                busy={addContent.isPending}
+            />
+
+            <AddContentDialog
+                open={addPagesOpen}
+                onOpenChange={setAddPagesOpen}
+                title={intl.formatMessage(messages.addPages)}
+                description={intl.formatMessage(messages.addPagesBody)}
+                available={availablePages}
+                onConfirm={async (slugs) => {
+                    if (await grant(slugs)) setAddPagesOpen(false);
+                }}
                 busy={addContent.isPending}
             />
 

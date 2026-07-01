@@ -34,6 +34,8 @@ export type GrantedContentRowProps = {
     canRemove: boolean;
     /** Called when the remove control is pressed. */
     onRemove: () => void;
+    /** Show the kind badge; off under a Collections/Pages group heading. */
+    showKind?: boolean;
 };
 
 /**
@@ -44,7 +46,8 @@ export type GrantedContentRowProps = {
 export function GrantedContentRow({
     granted,
     canRemove,
-    onRemove
+    onRemove,
+    showKind = true
 }: GrantedContentRowProps) {
     const intl = useIntl();
     const { slug, type } = granted;
@@ -68,11 +71,13 @@ export function GrantedContentRow({
                     </span>
                 ) : null}
             </div>
-            <Badge variant="secondary">
-                {intl.formatMessage(
-                    isCollection ? messages.collection : messages.single
-                )}
-            </Badge>
+            {showKind ? (
+                <Badge variant="secondary">
+                    {intl.formatMessage(
+                        isCollection ? messages.collection : messages.single
+                    )}
+                </Badge>
+            ) : null}
             {canRemove ? (
                 <Button
                     type="button"
