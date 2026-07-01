@@ -25,6 +25,10 @@ const messages = defineMessages({
     noResults: {
         id: 'workspaces.settings.members.noResults',
         defaultMessage: 'No people match your search.'
+    },
+    loadError: {
+        id: 'workspaces.settings.members.loadError',
+        defaultMessage: 'Couldn’t load people. Please try again.'
     }
 });
 
@@ -51,7 +55,7 @@ export function MemberDirectorySearch({
 }: MemberDirectorySearchProps) {
     const intl = useIntl();
     const [query, setQuery] = useState('');
-    const { users, loading } = useUsersSearch(query);
+    const { users, loading, isError } = useUsersSearch(query);
 
     const trimmed = query.trim();
     const results = users.filter((user) => !excludeIds.has(user.id));
@@ -93,6 +97,13 @@ export function MemberDirectorySearch({
                     <p className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
                         <Spinner className="size-3.5" />
                         {intl.formatMessage(messages.searching)}
+                    </p>
+                ) : isError ? (
+                    <p
+                        role="alert"
+                        className="px-2 py-2 text-sm text-destructive"
+                    >
+                        {intl.formatMessage(messages.loadError)}
                     </p>
                 ) : results.length === 0 ? (
                     <p className="px-2 py-2 text-sm text-muted-foreground">

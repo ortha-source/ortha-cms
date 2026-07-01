@@ -148,7 +148,11 @@ global).
   `EntryValidationService` — a failure is **422** with `{ message, issues:
   [{ field, message }] }`. Each resolves `:typeName` (404), guards state-changing
   requests with `OriginGuard` (CSRF), and is permission-gated:
-    - `POST /content/:typeName` — create a draft (`content:create`).
+    - `POST /content/:typeName` — create a draft (`content:create`). The insert
+      runs in a transaction that first takes the workspace's **shared** advisory
+      lock (`lockWorkspaceShared` from identity), coordinating with the workspace
+      delete / content-revoke emptiness guards (which take it exclusively) so a
+      new entry can't be orphaned by a concurrent delete/revoke.
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
     - `PATCH /content/:typeName/:id` — replace values (`content:update`).
     - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear

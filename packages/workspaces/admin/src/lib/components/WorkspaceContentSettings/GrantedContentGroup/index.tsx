@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { Separator } from '@ortha-cms/design-system';
 import { GrantedContentRow, type GrantedContent } from '../GrantedContentRow';
 
@@ -41,9 +40,9 @@ export function GrantedContentGroup({
                     {emptyLabel}
                 </p>
             ) : (
-                <div className="rounded-xl border">
+                <ul className="rounded-xl border">
                     {items.map((item, index) => (
-                        <Fragment key={item.slug}>
+                        <li key={item.slug}>
                             {index > 0 ? <Separator /> : null}
                             <GrantedContentRow
                                 granted={item}
@@ -51,9 +50,9 @@ export function GrantedContentGroup({
                                 showKind={false}
                                 onRemove={() => onRemove(item)}
                             />
-                        </Fragment>
+                        </li>
                     ))}
-                </div>
+                </ul>
             )}
         </div>
     );

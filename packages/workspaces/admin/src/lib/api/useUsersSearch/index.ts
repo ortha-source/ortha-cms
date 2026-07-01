@@ -12,6 +12,8 @@ export type UsersSearchResult = {
     users: DirectoryUser[];
     /** Whether a search is currently in flight. */
     loading: boolean;
+    /** Whether the underlying search query failed. */
+    isError: boolean;
 };
 
 /** A page of members from `GET /api/users` — only the fields the typeahead needs. */
@@ -72,6 +74,7 @@ export function useUsersSearch(query: string): UsersSearchResult {
 
     return {
         users: enabled ? (result.data ?? []) : [],
-        loading: enabled && (result.isPending || debounced !== query.trim())
+        loading: enabled && (result.isPending || debounced !== query.trim()),
+        isError: enabled && result.isError
     };
 }

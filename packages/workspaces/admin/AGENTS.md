@@ -73,7 +73,8 @@ switcher) that opens when a card is clicked.
   the `useWorkspaceProfileSchema` Zod hook, the slug shown read-only since it's
   immutable), **Members** (a directory typeahead that assigns **existing** users
   — no invite-by-email, since the add endpoint links a real id — plus a roster
-  with the owner pinned and everyone else removable behind a `ConfirmDialog`),
+  with the owner pinned (from the server's `member.isOwner`, not roster
+  position) and everyone else removable behind a `ConfirmDialog`),
   **Content** (the granted types shown as two titled groups — **Collections** and
   **Pages** (`GrantedContentGroup`, each row its title + description), granted
   through a **separate search + multi-select popup per kind** — two
@@ -140,7 +141,8 @@ switcher) that opens when a card is clicked.
 - **Membership is a pure link; there is no per-member role.** The server ignores
   any role on a member — a user's permissions come from their single global
   role. The Members step adds people (existing or invite-by-email) with no role
-  control; the owner is derived from the session, never the body.
+  control; the owner is derived from the session, never the body, and is
+  returned per-member as `isOwner` on the workspace view.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral

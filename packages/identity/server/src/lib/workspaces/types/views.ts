@@ -6,6 +6,14 @@ export interface WorkspaceMemberView {
     name: string | null;
     /** Email address. */
     email: string;
+    /**
+     * Whether this member is the workspace owner (`workspaces.owner_user_id`).
+     * Derived server-side from the recorded owner, not from roster position, so
+     * it stays correct regardless of membership insertion order. The admin pins
+     * the owner as un-removable. At most one member is the owner; a workspace
+     * whose owner is no longer a member (or was cleared) has none.
+     */
+    isOwner: boolean;
 }
 
 /** A workspace as exposed by the workspace endpoints. */
@@ -22,7 +30,7 @@ export interface WorkspaceView {
     color: string;
     /** Lifecycle state. */
     status: 'active' | 'archived';
-    /** Members, owner first (insertion order). */
+    /** Members, owner first; each flags whether it {@link WorkspaceMemberView.isOwner}. */
     members: WorkspaceMemberView[];
     /**
      * Slugs of the code-defined content types this workspace was granted at

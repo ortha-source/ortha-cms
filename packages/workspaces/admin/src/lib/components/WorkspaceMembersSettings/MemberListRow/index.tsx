@@ -19,7 +19,7 @@ const messages = defineMessages({
 export type MemberListRowProps = {
     /** The member to render. */
     member: WorkspaceMember;
-    /** Whether this member is the workspace owner (first member). */
+    /** Whether this member is the workspace owner (from the recorded owner). */
     isOwner: boolean;
     /** Whether a remove control should be offered. */
     canRemove: boolean;

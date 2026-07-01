@@ -11,6 +11,7 @@ import type { PublicUser } from '../../auth/services/auth.service';
 import type { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import type { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import {
+    CannotRemoveOwnerError,
     ContentTypeNotEmptyError,
     MemberNotFoundError,
     SlugTakenError,
@@ -22,6 +23,7 @@ import type { WorkspaceView } from '../types/views';
 import { SlugService } from './slug.service';
 import { MembershipService } from './membership.service';
 import { ContentGrantService } from './content-grant.service';
+import { lockWorkspaceExclusive } from './workspace-lock';
 
 export type { WorkspaceView, WorkspaceMemberView } from '../types/views';
 
@@ -75,7 +77,8 @@ export class WorkspaceService {
                     name: dto.name,
                     slug: dto.slug,
                     description: dto.description,
-                    color: dto.color
+                    color: dto.color,
+                    ownerUserId: actor.id
                 })
                 .returning({ id: workspaces.id });
             const id = created.id;
@@ -162,7 +165,9 @@ export class WorkspaceService {
      * against **the removed user** (`subjectType: 'user'`), so the event shows
      * in that member's personal activity log; the workspace is carried in
      * `meta.workspaceId`. Removing a non-member is a no-op (records nothing);
-     * the endpoint still returns 204.
+     * the endpoint still returns 204. Removing the recorded owner is refused
+     * with {@link CannotRemoveOwnerError} so a workspace is never left with a
+     * `owner_user_id` that points at a non-member.
      */
     async removeMember(
         actor: PublicUser,
@@ -170,6 +175,14 @@ export class WorkspaceService {
         userId: string
     ): Promise<void> {
         await this.db.transaction(async (tx) => {
+            const [workspace] = await tx
+                .select({ ownerUserId: workspaces.ownerUserId })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (workspace?.ownerUserId === userId) {
+                throw new CannotRemoveOwnerError(workspaceId, userId);
+            }
+
             const removed = await tx
                 .delete(memberships)
                 .where(
@@ -308,28 +321,28 @@ export class WorkspaceService {
      * no FK, so a cascade can't reach them) — they must be deleted first, so a
      * delete never orphans records. 404s an unknown workspace.
      *
-     * The entry count is probed before the delete, so a highly concurrent create
-     * could in theory slip a row in between; the caller-facing guarantee is the
-     * request-time check, matching {@link revokeContent}.
+     * The emptiness check and the delete run in one transaction that first takes
+     * the workspace's exclusive content lock ({@link lockWorkspaceExclusive}), so
+     * a concurrent entry create (which takes the shared lock before inserting)
+     * can't slip a row in between the count and the delete.
      */
     async delete(actor: PublicUser, workspaceId: string): Promise<void> {
-        // One probe: existence + the audit fields, reused after the delete. The
-        // entry count is checked against this pre-transaction read, matching the
-        // request-time (best-effort) guarantee documented above.
-        const [existing] = await this.db
-            .select({ name: workspaces.name, slug: workspaces.slug })
-            .from(workspaces)
-            .where(eq(workspaces.id, workspaceId));
-        if (!existing) {
-            throw new WorkspaceNotFoundError(workspaceId);
-        }
-
-        const entryCount = await this.content.countAllEntries(workspaceId);
-        if (entryCount > 0) {
-            throw new WorkspaceNotEmptyError(workspaceId, entryCount);
-        }
-
         await this.db.transaction(async (tx) => {
+            await lockWorkspaceExclusive(tx, workspaceId);
+
+            const [existing] = await tx
+                .select({ name: workspaces.name, slug: workspaces.slug })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!existing) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+
+            const entryCount = await this.content.countAllEntries(workspaceId);
+            if (entryCount > 0) {
+                throw new WorkspaceNotEmptyError(workspaceId, entryCount);
+            }
+
             await tx.delete(workspaces).where(eq(workspaces.id, workspaceId));
 
             await this.recorder?.record(
@@ -405,29 +418,39 @@ export class WorkspaceService {
      * `workspace.content_revoked` in-band. Revoking a grant the workspace never
      * held is a no-op. 404s an unknown workspace.
      *
-     * The emptiness probe runs before the delete, so a highly concurrent create
-     * could in theory slip an entry in between; grants gate admin visibility,
-     * not writes, so this best-effort check is acceptable here.
+     * Like {@link delete}, the emptiness check and the revoke run in one
+     * transaction holding the workspace's exclusive content lock
+     * ({@link lockWorkspaceExclusive}), so a concurrent entry create can't slip
+     * a row in between the count and the grant removal.
      */
     async revokeContent(
         actor: PublicUser,
         workspaceId: string,
         slug: string
     ): Promise<WorkspaceView> {
-        const [workspace] = await this.db
-            .select({ id: workspaces.id })
-            .from(workspaces)
-            .where(eq(workspaces.id, workspaceId));
-        if (!workspace) {
-            throw new WorkspaceNotFoundError(workspaceId);
-        }
-
-        const entryCount = await this.content.countEntries(workspaceId, slug);
-        if (entryCount > 0) {
-            throw new ContentTypeNotEmptyError(workspaceId, slug, entryCount);
-        }
-
         await this.db.transaction(async (tx) => {
+            await lockWorkspaceExclusive(tx, workspaceId);
+
+            const [workspace] = await tx
+                .select({ id: workspaces.id })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!workspace) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+
+            const entryCount = await this.content.countEntries(
+                workspaceId,
+                slug
+            );
+            if (entryCount > 0) {
+                throw new ContentTypeNotEmptyError(
+                    workspaceId,
+                    slug,
+                    entryCount
+                );
+            }
+
             const removed = await this.content.removeGrant(
                 tx,
                 workspaceId,
@@ -490,7 +513,11 @@ export class WorkspaceService {
         rows: (typeof workspaces.$inferSelect)[]
     ): Promise<WorkspaceView[]> {
         const ids = rows.map((row) => row.id);
-        const membersByWorkspace = await this.members.loadByWorkspace(ids);
+        const owners = new Map(rows.map((row) => [row.id, row.ownerUserId]));
+        const membersByWorkspace = await this.members.loadByWorkspace(
+            ids,
+            owners
+        );
         const contentByWorkspace = await this.content.loadByWorkspace(ids);
         return rows.map((row) => ({
             id: row.id,

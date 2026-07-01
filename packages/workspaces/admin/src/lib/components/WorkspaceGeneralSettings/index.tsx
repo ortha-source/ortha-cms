@@ -112,7 +112,11 @@ export function WorkspaceGeneralSettings({
     const schema = useWorkspaceProfileSchema();
     const update = useUpdateWorkspace();
     const [color, setColor] = useState<AvatarColor>(workspace.color);
-    const colorDirty = color !== workspace.color;
+    // The last saved color — the color dirty baseline. It re-baselines on save
+    // success (before the list refetches and remounts this keyed component) so
+    // a color-only save clears the dirty state and can't be PATCHed twice.
+    const [savedColor, setSavedColor] = useState<AvatarColor>(workspace.color);
+    const colorDirty = color !== savedColor;
 
     const form = useForm({
         defaultValues: {
@@ -128,10 +132,12 @@ export function WorkspaceGeneralSettings({
                     description: value.description.trim(),
                     color
                 });
-                // Re-baseline the form to the saved values so it reads clean
-                // until the next edit; the color re-baselines when the
-                // invalidated list refetches the workspace.
+                // Re-baseline both the form and the color to the saved values so
+                // the section reads clean immediately — before the invalidated
+                // list refetches and remounts this component — preventing a
+                // duplicate PATCH if Save is clicked again.
                 form.reset(value);
+                setSavedColor(color);
                 toast(intl.formatMessage(messages.saved));
             } catch {
                 toast(intl.formatMessage(messages.error));
@@ -142,7 +148,9 @@ export function WorkspaceGeneralSettings({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>{intl.formatMessage(messages.title)}</CardTitle>
+                <CardTitle asChild>
+                    <h2>{intl.formatMessage(messages.title)}</h2>
+                </CardTitle>
                 <CardDescription>
                     {intl.formatMessage(messages.description)}
                 </CardDescription>

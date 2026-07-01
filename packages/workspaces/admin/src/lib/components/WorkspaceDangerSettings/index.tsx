@@ -172,8 +172,8 @@ export function WorkspaceDangerSettings({
     return (
         <Card className="border-destructive/40">
             <CardHeader>
-                <CardTitle className="text-destructive">
-                    {intl.formatMessage(messages.title)}
+                <CardTitle asChild className="text-destructive">
+                    <h2>{intl.formatMessage(messages.title)}</h2>
                 </CardTitle>
                 <CardDescription>
                     {intl.formatMessage(messages.description)}

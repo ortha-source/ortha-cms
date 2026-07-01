@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_236 test cases across 25 spec files._
+_237 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -618,5 +618,6 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 | Test case |
 | --- |
 | removes a member and records workspace.member_removed |
+| refuses to remove the workspace owner with 409 |
 | is a no-op (204) and records nothing when not a member |
 | forbids a viewer (lacks workspaces:update) with 403 |

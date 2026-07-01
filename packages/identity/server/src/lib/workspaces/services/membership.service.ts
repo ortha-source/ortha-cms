@@ -38,7 +38,7 @@ export class MembershipService {
         ownerUserId: string,
         members: MemberInput[]
     ): Promise<void> {
-        const memberIds: string[] = [];
+        const memberIds = [ownerUserId];
         for (const member of members) {
             memberIds.push(
                 member.invited
@@ -47,26 +47,10 @@ export class MembershipService {
             );
         }
 
-        // The owner is inserted first with an explicitly earlier timestamp so it
-        // always sorts ahead of the other initial members. `defaultNow()` is the
-        // transaction clock, identical for every row of a single INSERT, so
-        // without this the owner would tie with the members it's created
-        // alongside and the roster's "earliest membership = owner" pin (index 0)
-        // could land on the wrong person. `clock_timestamp()` advances between
-        // the two statements, giving the owner a strictly smaller `created_at`.
-        await tx
-            .insert(memberships)
-            .values({
-                workspaceId,
-                userId: ownerUserId,
-                createdAt: sql`clock_timestamp()`
-            })
-            .onConflictDoNothing();
-
-        const unique = [...new Set(memberIds)].filter(
-            (id) => id !== ownerUserId
-        );
-        if (unique.length === 0) return;
+        // Owner ownership is recorded explicitly on `workspaces.owner_user_id`
+        // (see the create flow), so the owner's membership carries no special
+        // ordering — it can be inserted alongside the others in one statement.
+        const unique = [...new Set(memberIds)];
         const existing = await tx
             .select({ id: users.id })
             .from(users)
@@ -74,11 +58,7 @@ export class MembershipService {
         const valid = new Set(existing.map((row) => row.id));
         const values = unique
             .filter((id) => valid.has(id))
-            .map((userId) => ({
-                workspaceId,
-                userId,
-                createdAt: sql`clock_timestamp()`
-            }));
+            .map((userId) => ({ workspaceId, userId }));
         if (values.length === 0) return;
         await tx.insert(memberships).values(values).onConflictDoNothing();
     }
@@ -104,9 +84,16 @@ export class MembershipService {
         return !!row;
     }
 
-    /** Groups members by workspace id, owner (earliest membership) first. */
+    /**
+     * Groups members by workspace id, the recorded owner first. `owners` maps
+     * each workspace to its `owner_user_id` (`null` when unset); the matching
+     * member is flagged {@link WorkspaceMemberView.isOwner} and hoisted to the
+     * front. Ownership comes from that map, never from roster position, so a
+     * shared `created_at` on co-inserted memberships can't mislabel the owner.
+     */
     async loadByWorkspace(
-        workspaceIds: string[]
+        workspaceIds: string[],
+        owners: Map<string, string | null>
     ): Promise<Map<string, WorkspaceMemberView[]>> {
         const rows = await this.db
             .select({
@@ -119,15 +106,24 @@ export class MembershipService {
             .from(memberships)
             .innerJoin(users, eq(users.id, memberships.userId))
             .where(inArray(memberships.workspaceId, workspaceIds))
-            // `created_at` puts the owner first (see `link`); the `id` tiebreaker
-            // makes the order fully deterministic across requests for the
-            // remaining members, who would otherwise sort arbitrarily on ties.
+            // A deterministic, stable order for the non-owner members (who would
+            // otherwise sort arbitrarily on `created_at` ties); the owner is
+            // hoisted to the front below regardless of this order.
             .orderBy(memberships.createdAt, memberships.id);
 
         const byWorkspace = new Map<string, WorkspaceMemberView[]>();
         for (const row of rows) {
             const list = byWorkspace.get(row.workspaceId) ?? [];
-            list.push({ id: row.id, name: row.name, email: row.email });
+            const isOwner = owners.get(row.workspaceId) === row.id;
+            const member = {
+                id: row.id,
+                name: row.name,
+                email: row.email,
+                isOwner
+            };
+            // Owner first, preserving the stable order for everyone else.
+            if (isOwner) list.unshift(member);
+            else list.push(member);
             byWorkspace.set(row.workspaceId, list);
         }
         return byWorkspace;

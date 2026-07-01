@@ -159,7 +159,10 @@ export function useWizard(): WizardController {
                 name: displayName,
                 email: user?.email ?? '',
                 initials: initialsOf(displayName),
-                color: snapshot.data.color
+                color: snapshot.data.color,
+                // The creator is the workspace owner; the server confirms this on
+                // refetch, but the optimistic stub reflects it immediately.
+                isOwner: true
             };
             return createMutation.mutateAsync({
                 body: buildCreateWorkspaceBody(snapshot),

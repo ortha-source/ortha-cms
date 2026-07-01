@@ -1,4 +1,5 @@
 import { pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { users } from './users';
 
 /** Lifecycle state of a workspace. New workspaces start `active`. */
 export const workspaceStatus = pgEnum('workspace_status', [
@@ -29,6 +30,18 @@ export const workspaces = pgTable('workspaces', {
     color: text('color').notNull().default('slate'),
     /** Lifecycle state. */
     status: workspaceStatus('status').notNull().default('active'),
+    /**
+     * The workspace owner — the user who created it (or an explicit successor).
+     * Recorded here rather than inferred from "earliest membership": membership
+     * rows share a `created_at` when seeded together, so position is not a
+     * reliable owner signal. The admin pins this member as un-removable and the
+     * server refuses to remove them. `set null` on user delete leaves the
+     * workspace owner-less rather than blocking the account deletion; a nullable
+     * column also lets legacy rows with no recoverable owner stay null.
+     */
+    ownerUserId: uuid('owner_user_id').references(() => users.id, {
+        onDelete: 'set null'
+    }),
     /** Row creation timestamp. */
     createdAt: timestamp('created_at', { withTimezone: true })
         .notNull()

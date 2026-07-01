@@ -229,6 +229,34 @@ describe('Workspace members + activity', () => {
             });
         });
 
+        it('refuses to remove the workspace owner with 409', async () => {
+            const { user, agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            // The creator is the recorded owner and is un-removable.
+            await agent
+                .delete(`/api/workspaces/${id}/members/${user.id}`)
+                .expect(409);
+
+            // The owner keeps their membership and the flag survives.
+            const res = await agent.get('/api/workspaces').expect(200);
+            const workspace = res.body.find(
+                (w: { id: string }) => w.id === id
+            );
+            expect(
+                workspace.members.some(
+                    (m: { id: string; isOwner: boolean }) =>
+                        m.id === user.id && m.isOwner
+                )
+            ).toBe(true);
+
+            // Nothing recorded — the removal never happened.
+            const removed = (await getActivityRows()).filter(
+                (row) => row.kind === 'workspace.member_removed'
+            );
+            expect(removed).toHaveLength(0);
+        });
+
         it('is a no-op (204) and records nothing when not a member', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);

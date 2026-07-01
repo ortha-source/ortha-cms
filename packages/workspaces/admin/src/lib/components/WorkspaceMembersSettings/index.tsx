@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Card,
@@ -123,7 +123,9 @@ export function WorkspaceMembersSettings({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>{intl.formatMessage(messages.title)}</CardTitle>
+                <CardTitle asChild>
+                    <h2>{intl.formatMessage(messages.title)}</h2>
+                </CardTitle>
                 <CardDescription>
                     {intl.formatMessage(messages.description)}
                 </CardDescription>
@@ -147,19 +149,19 @@ export function WorkspaceMembersSettings({
                             count: workspace.members.length
                         })}
                     </span>
-                    <div className="rounded-xl border">
+                    <ul className="rounded-xl border">
                         {workspace.members.map((member, index) => (
-                            <Fragment key={member.id}>
+                            <li key={member.id}>
                                 {index > 0 ? <Separator /> : null}
                                 <MemberListRow
                                     member={member}
-                                    isOwner={index === 0}
+                                    isOwner={member.isOwner}
                                     canRemove={canUpdate}
                                     onRemove={() => setPendingRemoval(member)}
                                 />
-                            </Fragment>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 </div>
             </CardContent>
 

@@ -18,7 +18,12 @@ function seed(): WorkspaceView {
         color: 'violet',
         status: 'active',
         members: [
-            { id: 'u_ada', name: 'Ada Lovelace', email: 'ada@ortha.dev' },
+            {
+                id: 'u_ada',
+                name: 'Ada Lovelace',
+                email: 'ada@ortha.dev',
+                isOwner: true
+            },
             { id: 'u_grace', name: 'Grace Hopper', email: 'grace@ortha.dev' }
         ],
         // blog_post + product granted; home + about are addable. product is

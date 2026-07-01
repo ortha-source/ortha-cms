@@ -2,6 +2,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { FileText, Layers, X } from 'lucide-react';
 import { Badge, Button } from '@ortha-cms/design-system';
 import type { ContentType } from '../../../types/wizard';
+import { isPage } from '..';
 
 const messages = defineMessages({
     collection: {
@@ -52,7 +53,7 @@ export function GrantedContentRow({
     const intl = useIntl();
     const { slug, type } = granted;
     const label = type?.label ?? type?.name ?? slug;
-    const isCollection = type?.kind !== 'single';
+    const isCollection = !isPage(type);
 
     return (
         <div className="flex items-center gap-3 px-3 py-2">

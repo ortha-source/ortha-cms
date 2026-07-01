@@ -15,6 +15,11 @@ export { CurrentUser } from './lib/auth/decorators/current-user.decorator';
 export type { AuthenticatedRequest } from './lib/auth/decorators/current-user.decorator';
 export { WorkspaceGuard } from './lib/workspaces/guards/workspace.guard';
 export { CurrentWorkspace } from './lib/workspaces/decorators/current-workspace.decorator';
+export {
+    lockWorkspaceShared,
+    lockWorkspaceExclusive
+} from './lib/workspaces/services/workspace-lock';
+export type { LockExecutor } from './lib/workspaces/services/workspace-lock';
 export type { PublicUser } from './lib/auth/services/auth.service';
 export {
     PERMISSIONS,

@@ -99,6 +99,14 @@ const messages = defineMessages({
     }
 });
 
+/**
+ * Classifies a content type as a **page** (a standalone `single`) rather than a
+ * multi-entry collection. The single source of this rule, shared by the granted
+ * rows and the add dialog. An unknown (stale) type is treated as a collection —
+ * the default bucket.
+ */
+export const isPage = (type?: ContentType) => type?.kind === 'single';
+
 /** Props for {@link WorkspaceContentSettings}. */
 export type WorkspaceContentSettingsProps = {
     /** The workspace whose content grants are managed. */
@@ -135,7 +143,6 @@ export function WorkspaceContentSettings({
         return map;
     }, [types]);
 
-    const isPage = (type?: ContentType) => type?.kind === 'single';
     const grantedSet = new Set(workspace.content);
     const granted: GrantedContent[] = workspace.content.map((slug) => ({
         slug,
@@ -212,7 +219,9 @@ export function WorkspaceContentSettings({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>{intl.formatMessage(messages.title)}</CardTitle>
+                <CardTitle asChild>
+                    <h2>{intl.formatMessage(messages.title)}</h2>
+                </CardTitle>
                 <CardDescription>
                     {intl.formatMessage(messages.description)}
                 </CardDescription>
@@ -230,7 +239,7 @@ export function WorkspaceContentSettings({
                             type="button"
                             variant="outline"
                             onClick={() => setAddCollectionsOpen(true)}
-                            disabled={catalog.isPending}
+                            disabled={catalog.isPending || catalog.isError}
                         >
                             <Plus className="size-4" />
                             {intl.formatMessage(messages.addCollections)}
@@ -239,7 +248,7 @@ export function WorkspaceContentSettings({
                             type="button"
                             variant="outline"
                             onClick={() => setAddPagesOpen(true)}
-                            disabled={catalog.isPending}
+                            disabled={catalog.isPending || catalog.isError}
                         >
                             <Plus className="size-4" />
                             {intl.formatMessage(messages.addPages)}

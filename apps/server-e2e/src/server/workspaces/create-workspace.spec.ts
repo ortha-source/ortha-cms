@@ -100,11 +100,17 @@ describe('POST /api/workspaces', () => {
             // member when none are supplied.
             expect(res.body.members).toHaveLength(1);
             expect(res.body.members[0]).toEqual(
-                expect.objectContaining({ id: user.id, email: ADMIN_EMAIL })
+                expect.objectContaining({
+                    id: user.id,
+                    email: ADMIN_EMAIL,
+                    // The creator is the recorded owner.
+                    isOwner: true
+                })
             );
             expect(Object.keys(res.body.members[0]).sort()).toEqual([
                 'email',
                 'id',
+                'isOwner',
                 'name'
             ]);
         });

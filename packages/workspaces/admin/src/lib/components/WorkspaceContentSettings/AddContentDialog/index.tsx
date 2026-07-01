@@ -17,6 +17,7 @@ import {
     Spinner
 } from '@ortha-cms/design-system';
 import type { ContentType } from '../../../types/wizard';
+import { isPage } from '..';
 
 const messages = defineMessages({
     searchPlaceholder: {
@@ -160,7 +161,7 @@ export function AddContentDialog({
                     ) : (
                         <ul className="flex flex-col">
                             {filtered.map((type) => {
-                                const isCollection = type.kind !== 'single';
+                                const isCollection = !isPage(type);
                                 const checked = selected.has(type.name);
                                 return (
                                     <li key={type.name}>
