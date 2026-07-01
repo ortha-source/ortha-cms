@@ -93,7 +93,17 @@ describe('Content schema (GET /api/content-schema)', () => {
             const res = await agent.get('/api/content-schema').expect(200);
 
             const names = res.body.map((t: { name: string }) => t.name).sort();
-            expect(names).toEqual(['article', 'landing']);
+            // Every code-defined type (see apps/server/src/content.ts): article
+            // plus its author/seo_meta/tag/comment reference collections, and the
+            // landing single.
+            expect(names).toEqual([
+                'article',
+                'author',
+                'comment',
+                'landing',
+                'seo_meta',
+                'tag'
+            ]);
 
             const landing = res.body.find(
                 (t: { name: string }) => t.name === 'landing'
