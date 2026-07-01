@@ -139,6 +139,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   (`utils/evalFilterTree`) and windows for lazy scroll, mirroring `ContentEntriesResult`
   so it can be swapped for `GET /content/:type` when the relation read API lands.
   Titles come from `utils/relationLabel` (mirrors the server's `entryTitle`).
+  `RelationPickerDialog` owns state/data and composes nested pieces:
+  **`RelationPickerFilters`** (search + inline query builder) and
+  **`RelationCandidateList`** → **`RelationCandidateRow`**.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by
