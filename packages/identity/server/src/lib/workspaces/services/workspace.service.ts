@@ -313,8 +313,11 @@ export class WorkspaceService {
      * request-time check, matching {@link revokeContent}.
      */
     async delete(actor: PublicUser, workspaceId: string): Promise<void> {
+        // One probe: existence + the audit fields, reused after the delete. The
+        // entry count is checked against this pre-transaction read, matching the
+        // request-time (best-effort) guarantee documented above.
         const [existing] = await this.db
-            .select({ id: workspaces.id })
+            .select({ name: workspaces.name, slug: workspaces.slug })
             .from(workspaces)
             .where(eq(workspaces.id, workspaceId));
         if (!existing) {
@@ -327,14 +330,6 @@ export class WorkspaceService {
         }
 
         await this.db.transaction(async (tx) => {
-            const [workspace] = await tx
-                .select({ name: workspaces.name, slug: workspaces.slug })
-                .from(workspaces)
-                .where(eq(workspaces.id, workspaceId));
-            if (!workspace) {
-                throw new WorkspaceNotFoundError(workspaceId);
-            }
-
             await tx.delete(workspaces).where(eq(workspaces.id, workspaceId));
 
             await this.recorder?.record(
@@ -344,7 +339,7 @@ export class WorkspaceService {
                     subjectId: workspaceId,
                     actorId: actor.id,
                     actorEmail: actor.email,
-                    meta: { name: workspace.name, slug: workspace.slug }
+                    meta: { name: existing.name, slug: existing.slug }
                 },
                 tx
             );

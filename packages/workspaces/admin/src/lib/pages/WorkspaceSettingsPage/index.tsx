@@ -78,6 +78,12 @@ export function WorkspaceSettingsPage() {
                             path="general"
                             element={
                                 <WorkspaceGeneralSettings
+                                    // Re-key on the editable fields so an
+                                    // external change (e.g. another admin's edit
+                                    // arriving via a list refetch) re-baselines
+                                    // the form + color state instead of leaving
+                                    // stale values a Save would overwrite.
+                                    key={`${workspace.id}:${workspace.name}:${workspace.description}:${workspace.color}`}
                                     workspace={workspace}
                                     canUpdate={canUpdate}
                                 />

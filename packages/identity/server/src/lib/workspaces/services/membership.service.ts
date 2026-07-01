@@ -38,7 +38,7 @@ export class MembershipService {
         ownerUserId: string,
         members: MemberInput[]
     ): Promise<void> {
-        const memberIds = [ownerUserId];
+        const memberIds: string[] = [];
         for (const member of members) {
             memberIds.push(
                 member.invited
@@ -47,7 +47,26 @@ export class MembershipService {
             );
         }
 
-        const unique = [...new Set(memberIds)];
+        // The owner is inserted first with an explicitly earlier timestamp so it
+        // always sorts ahead of the other initial members. `defaultNow()` is the
+        // transaction clock, identical for every row of a single INSERT, so
+        // without this the owner would tie with the members it's created
+        // alongside and the roster's "earliest membership = owner" pin (index 0)
+        // could land on the wrong person. `clock_timestamp()` advances between
+        // the two statements, giving the owner a strictly smaller `created_at`.
+        await tx
+            .insert(memberships)
+            .values({
+                workspaceId,
+                userId: ownerUserId,
+                createdAt: sql`clock_timestamp()`
+            })
+            .onConflictDoNothing();
+
+        const unique = [...new Set(memberIds)].filter(
+            (id) => id !== ownerUserId
+        );
+        if (unique.length === 0) return;
         const existing = await tx
             .select({ id: users.id })
             .from(users)
@@ -55,7 +74,11 @@ export class MembershipService {
         const valid = new Set(existing.map((row) => row.id));
         const values = unique
             .filter((id) => valid.has(id))
-            .map((userId) => ({ workspaceId, userId }));
+            .map((userId) => ({
+                workspaceId,
+                userId,
+                createdAt: sql`clock_timestamp()`
+            }));
         if (values.length === 0) return;
         await tx.insert(memberships).values(values).onConflictDoNothing();
     }
@@ -96,7 +119,10 @@ export class MembershipService {
             .from(memberships)
             .innerJoin(users, eq(users.id, memberships.userId))
             .where(inArray(memberships.workspaceId, workspaceIds))
-            .orderBy(memberships.createdAt);
+            // `created_at` puts the owner first (see `link`); the `id` tiebreaker
+            // makes the order fully deterministic across requests for the
+            // remaining members, who would otherwise sort arbitrarily on ties.
+            .orderBy(memberships.createdAt, memberships.id);
 
         const byWorkspace = new Map<string, WorkspaceMemberView[]>();
         for (const row of rows) {

@@ -1,18 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Alert,
-    AlertDescription,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    Spinner
-} from '@ortha-cms/design-system';
 import type { Workspace } from '../../../types/workspace';
 import { useWorkspaceEntryCount } from '../../../api/useWorkspaceEntryCount';
+import { BlockingConfirmDialog } from '../../BlockingConfirmDialog';
 
 const messages = defineMessages({
     title: {
@@ -65,7 +54,8 @@ export type DeleteWorkspaceDialogProps = {
  * workspace's total content-entry count and **blocks** the Delete button with a
  * warning while any content remains — so a delete can never orphan records (the
  * server enforces the same rule with a 409). Delete is enabled only once the
- * count is known to be zero.
+ * count is known to be zero. The checking / error / blocked chrome lives in the
+ * shared {@link BlockingConfirmDialog}.
  */
 export function DeleteWorkspaceDialog({
     workspace,
@@ -81,68 +71,26 @@ export function DeleteWorkspaceDialog({
         isError
     } = useWorkspaceEntryCount(workspace?.id ?? '', open);
 
-    const checking = isPending;
-    const hasEntries = typeof count === 'number' && count > 0;
-    const canDelete = open && !isError && !checking && count === 0;
-
     return (
-        <Dialog
+        <BlockingConfirmDialog
             open={open}
-            onOpenChange={(next) => {
-                if (!next && !busy) onClose();
-            }}
-        >
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>
-                        {intl.formatMessage(messages.title, {
-                            name: workspace?.name ?? ''
-                        })}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {intl.formatMessage(messages.description, {
-                            members: workspace?.members.length ?? 0
-                        })}
-                    </DialogDescription>
-                </DialogHeader>
-
-                {checking ? (
-                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Spinner className="size-4" />
-                        {intl.formatMessage(messages.checking)}
-                    </p>
-                ) : isError ? (
-                    <Alert variant="destructive" role="alert">
-                        <AlertDescription>
-                            {intl.formatMessage(messages.checkError)}
-                        </AlertDescription>
-                    </Alert>
-                ) : hasEntries ? (
-                    <Alert variant="destructive" role="alert">
-                        <AlertDescription>
-                            {intl.formatMessage(messages.blocked, { count })}
-                        </AlertDescription>
-                    </Alert>
-                ) : null}
-
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={busy}
-                    >
-                        {intl.formatMessage(messages.cancel)}
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        onClick={onConfirm}
-                        disabled={!canDelete || busy}
-                    >
-                        {busy ? <Spinner /> : null}
-                        {intl.formatMessage(messages.confirm)}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            title={intl.formatMessage(messages.title, {
+                name: workspace?.name ?? ''
+            })}
+            description={intl.formatMessage(messages.description, {
+                members: workspace?.members.length ?? 0
+            })}
+            isChecking={isPending}
+            isError={isError}
+            count={count}
+            checkingLabel={intl.formatMessage(messages.checking)}
+            checkErrorLabel={intl.formatMessage(messages.checkError)}
+            blockedLabel={intl.formatMessage(messages.blocked, { count })}
+            confirmLabel={intl.formatMessage(messages.confirm)}
+            cancelLabel={intl.formatMessage(messages.cancel)}
+            onClose={onClose}
+            onConfirm={onConfirm}
+            busy={busy}
+        />
     );
 }

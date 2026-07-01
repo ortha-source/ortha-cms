@@ -78,6 +78,7 @@ export function MemberDirectorySearch({
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder={intl.formatMessage(messages.placeholder)}
+                        aria-label={intl.formatMessage(messages.placeholder)}
                         autoComplete="off"
                         disabled={busy}
                     />

@@ -92,8 +92,16 @@ export class ContentGrantService {
      * a slug; the server derives the kind and rejects an unknown one).
      */
     resolveKind(slug: string): ContentGrantKind | null {
-        const types = this.catalog?.list() ?? CONTENT_TYPES;
-        return types.find((ct) => ct.name === slug)?.kind ?? null;
+        return this.types().find((ct) => ct.name === slug)?.kind ?? null;
+    }
+
+    /**
+     * The content catalogue resolved once, falling back to the built-in mock
+     * when no content plugin is bound. The single source both {@link resolveKind}
+     * and {@link knownSlugs} read, so the catalogue-vs-mock rule can't drift.
+     */
+    private types() {
+        return this.catalog?.list() ?? CONTENT_TYPES;
     }
 
     /**
@@ -185,7 +193,7 @@ export class ContentGrantService {
 
     /** The catalogue's slugs, split by kind, resolved at grant time. */
     private knownSlugs(): KnownSlugs {
-        const types = this.catalog?.list() ?? CONTENT_TYPES;
+        const types = this.types();
         return {
             collections: types
                 .filter((ct) => ct.kind === 'collection')

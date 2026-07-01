@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { WORKSPACE_COLORS } from '../workspace.constants';
 
 /**
  * Body of `PATCH /api/workspaces/:id` — a partial edit of a workspace's
@@ -22,7 +23,6 @@ export class UpdateWorkspaceDto {
 
     /** New accent color key from the design-system palette. */
     @IsOptional()
-    @IsString()
-    @IsNotEmpty()
+    @IsIn(WORKSPACE_COLORS)
     color?: string;
 }

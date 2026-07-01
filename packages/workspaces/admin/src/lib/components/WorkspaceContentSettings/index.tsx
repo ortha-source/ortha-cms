@@ -11,9 +11,9 @@ import {
     Spinner,
     toast
 } from '@ortha-cms/design-system';
-import { ApiError } from '@ortha-cms/utils-admin';
 import type { Workspace } from '../../types/workspace';
 import type { ContentType } from '../../types/wizard';
+import { isConflict } from '../../utils/isConflict';
 import { useContentTypes } from '../../api/useContentTypes';
 import { useAddWorkspaceContent } from '../../api/useAddWorkspaceContent';
 import { useRemoveWorkspaceContent } from '../../api/useRemoveWorkspaceContent';
@@ -21,9 +21,6 @@ import { AddContentDialog } from './AddContentDialog';
 import { RemoveContentDialog } from './RemoveContentDialog';
 import { GrantedContentGroup } from './GrantedContentGroup';
 import type { GrantedContent } from './GrantedContentRow';
-
-/** HTTP 409 — the server's "content type still has entries" response. */
-const CONFLICT = 409;
 
 const messages = defineMessages({
     title: {
@@ -157,21 +154,29 @@ export function WorkspaceContentSettings({
 
     /** Grants the chosen slugs; returns whether it succeeded (to close on ok). */
     const grant = async (slugs: string[]): Promise<boolean> => {
-        try {
-            await Promise.all(
-                slugs.map((slug) =>
-                    addContent.mutateAsync({
-                        workspaceId: workspace.id,
-                        slug
-                    })
-                )
-            );
-            toast(intl.formatMessage(messages.added, { count: slugs.length }));
-            return true;
-        } catch {
-            toast(intl.formatMessage(messages.addError));
-            return false;
+        // The grant endpoint is per-slug; fan out and reconcile once. Use
+        // allSettled so one failure doesn't discard the grants that did land —
+        // report how many succeeded and only flag the rest as failed.
+        const results = await Promise.allSettled(
+            slugs.map((slug) =>
+                addContent.mutateAsync({ workspaceId: workspace.id, slug })
+            )
+        );
+        const succeeded = results.filter(
+            (result) => result.status === 'fulfilled'
+        ).length;
+        const failed = slugs.length - succeeded;
+
+        if (succeeded > 0) {
+            toast(intl.formatMessage(messages.added, { count: succeeded }));
         }
+        if (failed > 0) {
+            toast(intl.formatMessage(messages.addError));
+        }
+        // Close only when everything landed; on a partial failure the dialog
+        // stays open so the still-ungranted types (the list refetched them out)
+        // remain visible for a retry.
+        return failed === 0;
     };
 
     const confirmRemoval = async () => {
@@ -188,7 +193,7 @@ export function WorkspaceContentSettings({
             // safety net for an entry created between the check and the confirm.
             toast(
                 intl.formatMessage(
-                    error instanceof ApiError && error.status === CONFLICT
+                    isConflict(error)
                         ? messages.notEmpty
                         : messages.removeError
                 )

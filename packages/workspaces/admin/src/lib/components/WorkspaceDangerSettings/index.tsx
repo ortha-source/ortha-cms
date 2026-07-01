@@ -12,14 +12,11 @@ import {
     Separator,
     toast
 } from '@ortha-cms/design-system';
-import { ApiError } from '@ortha-cms/utils-admin';
 import type { Workspace } from '../../types/workspace';
 import { useSetWorkspaceStatus } from '../../api/useSetWorkspaceStatus';
 import { useDeleteWorkspace } from '../../api/useDeleteWorkspace';
+import { isConflict } from '../../utils/isConflict';
 import { DeleteWorkspaceDialog } from './DeleteWorkspaceDialog';
-
-/** HTTP 409 — the server's "workspace still has content entries" response. */
-const CONFLICT = 409;
 
 const messages = defineMessages({
     title: {
@@ -163,7 +160,7 @@ export function WorkspaceDangerSettings({
             // safety net for content created between the check and the confirm.
             toast(
                 intl.formatMessage(
-                    error instanceof ApiError && error.status === CONFLICT
+                    isConflict(error)
                         ? messages.deleteNotEmpty
                         : messages.deleteError
                 )

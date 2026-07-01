@@ -141,6 +141,9 @@ export function AddContentDialog({
                         placeholder={intl.formatMessage(
                             messages.searchPlaceholder
                         )}
+                        aria-label={intl.formatMessage(
+                            messages.searchPlaceholder
+                        )}
                         autoComplete="off"
                     />
                 </InputGroup>

@@ -1,17 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Alert,
-    AlertDescription,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    Spinner
-} from '@ortha-cms/design-system';
 import { useWorkspaceContentCount } from '../../../api/useWorkspaceContentCount';
+import { BlockingConfirmDialog } from '../../BlockingConfirmDialog';
 
 const messages = defineMessages({
     title: {
@@ -68,7 +57,8 @@ export type RemoveContentDialogProps = {
  * entry count in the workspace and **blocks** the Remove button with a warning
  * when the type isn't empty — so the user learns *why* up front instead of
  * hitting the server's 409. Remove is enabled only once the count is known to be
- * zero.
+ * zero. The checking / error / blocked chrome lives in the shared
+ * {@link BlockingConfirmDialog}.
  */
 export function RemoveContentDialog({
     workspaceId,
@@ -86,65 +76,22 @@ export function RemoveContentDialog({
         isError
     } = useWorkspaceContentCount(workspaceId, slug, open);
 
-    // Enable Remove only once we've confirmed the type is empty.
-    const checking = isPending;
-    const hasEntries = typeof count === 'number' && count > 0;
-    const canRemove = open && !isError && !checking && count === 0;
-
     return (
-        <Dialog
+        <BlockingConfirmDialog
             open={open}
-            onOpenChange={(next) => {
-                if (!next && !busy) onClose();
-            }}
-        >
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>
-                        {intl.formatMessage(messages.title, { label })}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {intl.formatMessage(messages.description)}
-                    </DialogDescription>
-                </DialogHeader>
-
-                {checking ? (
-                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Spinner className="size-4" />
-                        {intl.formatMessage(messages.checking)}
-                    </p>
-                ) : isError ? (
-                    <Alert variant="destructive" role="alert">
-                        <AlertDescription>
-                            {intl.formatMessage(messages.checkError)}
-                        </AlertDescription>
-                    </Alert>
-                ) : hasEntries ? (
-                    <Alert variant="destructive" role="alert">
-                        <AlertDescription>
-                            {intl.formatMessage(messages.blocked, { count })}
-                        </AlertDescription>
-                    </Alert>
-                ) : null}
-
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={busy}
-                    >
-                        {intl.formatMessage(messages.cancel)}
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        onClick={onConfirm}
-                        disabled={!canRemove || busy}
-                    >
-                        {busy ? <Spinner /> : null}
-                        {intl.formatMessage(messages.remove)}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            title={intl.formatMessage(messages.title, { label })}
+            description={intl.formatMessage(messages.description)}
+            isChecking={isPending}
+            isError={isError}
+            count={count}
+            checkingLabel={intl.formatMessage(messages.checking)}
+            checkErrorLabel={intl.formatMessage(messages.checkError)}
+            blockedLabel={intl.formatMessage(messages.blocked, { count })}
+            confirmLabel={intl.formatMessage(messages.remove)}
+            cancelLabel={intl.formatMessage(messages.cancel)}
+            onClose={onClose}
+            onConfirm={onConfirm}
+            busy={busy}
+        />
     );
 }
