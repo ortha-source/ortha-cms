@@ -26,8 +26,8 @@ export class MembershipService {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
     /**
-     * Links `owner` plus `members` to `workspaceId` within `tx`. Resolves each
-     * member to a real user id (provisioning pending accounts for invites),
+     * Links the `creator` plus `members` to `workspaceId` within `tx`. Resolves
+     * each member to a real user id (provisioning pending accounts for invites),
      * ignores duplicates, and silently drops ids that don't resolve to a real
      * user so a stale directory id can't abort the whole create on a FK
      * violation.
@@ -35,10 +35,10 @@ export class MembershipService {
     async link(
         tx: Tx,
         workspaceId: string,
-        ownerUserId: string,
+        creatorUserId: string,
         members: MemberInput[]
     ): Promise<void> {
-        const memberIds = [ownerUserId];
+        const memberIds = [creatorUserId];
         for (const member of members) {
             memberIds.push(
                 member.invited
@@ -47,9 +47,8 @@ export class MembershipService {
             );
         }
 
-        // Owner ownership is recorded explicitly on `workspaces.owner_user_id`
-        // (see the create flow), so the owner's membership carries no special
-        // ordering — it can be inserted alongside the others in one statement.
+        // The creator and members are just membership links with no special
+        // role, so they're inserted together in one statement.
         const unique = [...new Set(memberIds)];
         const existing = await tx
             .select({ id: users.id })
@@ -85,15 +84,12 @@ export class MembershipService {
     }
 
     /**
-     * Groups members by workspace id, the recorded owner first. `owners` maps
-     * each workspace to its `owner_user_id` (`null` when unset); the matching
-     * member is flagged {@link WorkspaceMemberView.isOwner} and hoisted to the
-     * front. Ownership comes from that map, never from roster position, so a
-     * shared `created_at` on co-inserted memberships can't mislabel the owner.
+     * Groups members by workspace id in a deterministic order (earliest
+     * membership first, `id` breaking `created_at` ties). Ordering is
+     * presentation-only — a member carries no role.
      */
     async loadByWorkspace(
-        workspaceIds: string[],
-        owners: Map<string, string | null>
+        workspaceIds: string[]
     ): Promise<Map<string, WorkspaceMemberView[]>> {
         const rows = await this.db
             .select({
@@ -106,24 +102,12 @@ export class MembershipService {
             .from(memberships)
             .innerJoin(users, eq(users.id, memberships.userId))
             .where(inArray(memberships.workspaceId, workspaceIds))
-            // A deterministic, stable order for the non-owner members (who would
-            // otherwise sort arbitrarily on `created_at` ties); the owner is
-            // hoisted to the front below regardless of this order.
             .orderBy(memberships.createdAt, memberships.id);
 
         const byWorkspace = new Map<string, WorkspaceMemberView[]>();
         for (const row of rows) {
             const list = byWorkspace.get(row.workspaceId) ?? [];
-            const isOwner = owners.get(row.workspaceId) === row.id;
-            const member = {
-                id: row.id,
-                name: row.name,
-                email: row.email,
-                isOwner
-            };
-            // Owner first, preserving the stable order for everyone else.
-            if (isOwner) list.unshift(member);
-            else list.push(member);
+            list.push({ id: row.id, name: row.name, email: row.email });
             byWorkspace.set(row.workspaceId, list);
         }
         return byWorkspace;

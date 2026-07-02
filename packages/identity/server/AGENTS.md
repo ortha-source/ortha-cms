@@ -71,8 +71,7 @@ tokens and full user management land in later tickets (epic #3).
       never orphans records — the emptiness check and the delete run in one
       transaction under an **exclusive per-workspace advisory lock** that entry
       creates take in shared mode, closing the count-then-write race),
-      `POST`/`DELETE /:id/members[/:userId]` (removing the **owner 409s** — the
-      owner is un-removable), and
+      `POST`/`DELETE /:id/members[/:userId]`, and
       `POST /:id/content` + `DELETE /:id/content/:slug` (grant/revoke a content
       type; revoke **409s unless the type is empty in the workspace**, checked
       via the `CONTENT_ENTRY_COUNTER` port). Two read-only pre-check endpoints
@@ -80,11 +79,10 @@ tokens and full user management land in later tickets (epic #3).
       `GET /:id/content/:slug/entry-count` (per-type, `workspaces:update`) and
       `GET /:id/entry-count` (whole-workspace total, `workspaces:delete`). Each
       mutation records its own
-      `workspace.*` audit event. The owner comes from the session and is
-      recorded on `workspaces.owner_user_id` (not inferred from membership
-      order), so the admin's owner pin stays correct regardless of insertion
-      order; the wizard's per-member role is ignored (membership is a pure
-      link — see `memberships`). It also
+      `workspace.*` audit event. There is **no per-workspace owner** — access is
+      purely the global role's permissions, and membership is a pure link with
+      no role (the creator is just the first member; any member is removable with
+      `workspaces:update`). It also
       provides the **workspace-scoping** primitives other plugins reuse:
       `WorkspaceGuard` reads the `X-Workspace-Id` header, 400s a missing/malformed
       id and 403s a non-member (`MembershipService.isMember`), then exposes the id

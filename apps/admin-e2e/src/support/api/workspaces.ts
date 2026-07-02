@@ -5,8 +5,6 @@ interface WorkspaceMemberView {
     id: string;
     name: string | null;
     email: string;
-    /** Whether this member is the workspace owner (badged, un-removable). */
-    isOwner?: boolean;
 }
 
 /** A workspace as the server's workspace endpoints return it. */
@@ -25,13 +23,8 @@ export interface WorkspaceView {
 const member = (
     id: string,
     name: string,
-    email: string,
-    isOwner = false
-): WorkspaceMemberView => ({ id, name, email, isOwner });
-
-/** A member flagged as the workspace owner (first in each seed roster). */
-const owner = (id: string, name: string, email: string): WorkspaceMemberView =>
-    member(id, name, email, true);
+    email: string
+): WorkspaceMemberView => ({ id, name, email });
 
 /**
  * The default seed the suites assert against: four Active workspaces (Marketing
@@ -49,7 +42,7 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         color: 'violet',
         status: 'active',
         members: [
-            owner('u_ada', 'Ada Lovelace', 'ada@ortha.dev'),
+            member('u_ada', 'Ada Lovelace', 'ada@ortha.dev'),
             member('u_grace', 'Grace Hopper', 'grace@ortha.dev'),
             member('u_alan', 'Alan Turing', 'alan@ortha.dev')
         ],
@@ -67,7 +60,7 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         color: 'teal',
         status: 'active',
         members: [
-            owner('u_grace', 'Grace Hopper', 'grace@ortha.dev'),
+            member('u_grace', 'Grace Hopper', 'grace@ortha.dev'),
             member('u_linus', 'Linus Torvalds', 'linus@ortha.dev'),
             member('u_margaret', 'Margaret Hamilton', 'margaret@ortha.dev'),
             member('u_dennis', 'Dennis Ritchie', 'dennis@ortha.dev'),
@@ -83,7 +76,7 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         color: 'green',
         status: 'active',
         members: [
-            owner('u_margaret', 'Margaret Hamilton', 'margaret@ortha.dev'),
+            member('u_margaret', 'Margaret Hamilton', 'margaret@ortha.dev'),
             member('u_alan', 'Alan Turing', 'alan@ortha.dev')
         ]
     },
@@ -96,7 +89,7 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         color: 'amber',
         status: 'active',
         members: [
-            owner('u_ada', 'Ada Lovelace', 'ada@ortha.dev'),
+            member('u_ada', 'Ada Lovelace', 'ada@ortha.dev'),
             member('u_dennis', 'Dennis Ritchie', 'dennis@ortha.dev'),
             member('u_grace', 'Grace Hopper', 'grace@ortha.dev'),
             member('u_katherine', 'Katherine Johnson', 'katherine@ortha.dev')
@@ -110,7 +103,7 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
             'Retired experiments and old design explorations kept for reference.',
         color: 'slate',
         status: 'archived',
-        members: [owner('u_alan', 'Alan Turing', 'alan@ortha.dev')]
+        members: [member('u_alan', 'Alan Turing', 'alan@ortha.dev')]
     },
     {
         id: 'ws_events',
@@ -121,14 +114,14 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         color: 'rose',
         status: 'archived',
         members: [
-            owner('u_katherine', 'Katherine Johnson', 'katherine@ortha.dev'),
+            member('u_katherine', 'Katherine Johnson', 'katherine@ortha.dev'),
             member('u_linus', 'Linus Torvalds', 'linus@ortha.dev')
         ]
     }
 ];
 
 /** The owner the mocked session attributes a created workspace to. */
-const OWNER = owner(
+const OWNER = member(
     '00000000-0000-0000-0000-000000000001',
     'Admin User',
     'admin@example.com'

@@ -15,13 +15,6 @@ export type WorkspaceMember = {
     email: string;
     /** Accent color tinting the member's avatar. */
     color: AvatarColor;
-    /**
-     * Whether this member is the workspace owner. Comes from the server's
-     * recorded owner (`workspaces.owner_user_id`), never from roster position,
-     * so it stays correct regardless of membership order. The owner is pinned
-     * and can't be removed.
-     */
-    isOwner: boolean;
 };
 
 /**

@@ -3,7 +3,6 @@ import { useAuth } from '@ortha-cms/identity-admin';
 import {
     Avatar,
     AvatarFallback,
-    Badge,
     Separator
 } from '@ortha-cms/design-system';
 import { initialsOf } from '@ortha-cms/utils-admin';
@@ -19,10 +18,6 @@ const messages = defineMessages({
     you: {
         id: 'workspaces.create.members.you',
         defaultMessage: 'You'
-    },
-    owner: {
-        id: 'workspaces.create.members.ownerBadge',
-        defaultMessage: 'Owner'
     },
     empty: {
         id: 'workspaces.create.members.empty',
@@ -93,7 +88,6 @@ export function MembersStep({
                                 </span>
                             ) : null}
                         </div>
-                        <Badge>{intl.formatMessage(messages.owner)}</Badge>
                     </div>
 
                     {members.length > 0 ? (

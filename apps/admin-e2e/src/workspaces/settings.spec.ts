@@ -18,12 +18,7 @@ function seed(): WorkspaceView {
         color: 'violet',
         status: 'active',
         members: [
-            {
-                id: 'u_ada',
-                name: 'Ada Lovelace',
-                email: 'ada@ortha.dev',
-                isOwner: true
-            },
+            { id: 'u_ada', name: 'Ada Lovelace', email: 'ada@ortha.dev' },
             { id: 'u_grace', name: 'Grace Hopper', email: 'grace@ortha.dev' }
         ],
         // blog_post + product granted; home + about are addable. product is
@@ -95,9 +90,6 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
             await workspaceSettingsPage.openSection('Members');
 
-            // The owner (first member) is badged and has no remove control.
-            await expect(workspaceSettingsPage.ownerBadge()).toBeVisible();
-
             // Assign an unassigned directory user.
             await workspaceSettingsPage.memberSearch.fill('Barbara');
             await workspaceSettingsPage.memberOption('Barbara Liskov').click();
@@ -108,7 +100,7 @@ test.describe('Workspace settings page', () => {
                 workspaceSettingsPage.memberRow('barbara@ortha.dev')
             ).toBeVisible();
 
-            // Remove a non-owner member through the confirm dialog.
+            // Remove a member through the confirm dialog.
             await workspaceSettingsPage
                 .memberRemoveButton('Grace Hopper')
                 .click();

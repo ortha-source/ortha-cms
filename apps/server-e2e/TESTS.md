@@ -496,7 +496,7 @@ _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
 
 | Test case |
 | --- |
-| creates a workspace and seeds the owner as its sole member |
+| creates a workspace and seeds the creator as its sole member |
 | rejects a duplicate slug with 409 |
 
 ### authorization
@@ -618,6 +618,6 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 | Test case |
 | --- |
 | removes a member and records workspace.member_removed |
-| refuses to remove the workspace owner with 409 |
+| removes the creator like any other member (no owner protection) |
 | is a no-op (204) and records nothing when not a member |
 | forbids a viewer (lacks workspaces:update) with 403 |

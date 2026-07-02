@@ -11,7 +11,6 @@ import type { PublicUser } from '../../auth/services/auth.service';
 import type { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import type { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import {
-    CannotRemoveOwnerError,
     ContentTypeNotEmptyError,
     MemberNotFoundError,
     SlugTakenError,
@@ -56,9 +55,10 @@ export class WorkspaceService {
     }
 
     /**
-     * Creates a workspace owned by `ownerUserId`, links the given members, and
-     * grants content access — each delegated to its own service inside one
-     * transaction. The wizard's per-member role is ignored.
+     * Creates a workspace, links the creator (`actor`) plus the given members,
+     * and grants content access — each delegated to its own service inside one
+     * transaction. Membership is a pure link with no role; the creator is just
+     * the first member.
      *
      * @throws {SlugTakenError} when the slug is already in use.
      */
@@ -77,8 +77,7 @@ export class WorkspaceService {
                     name: dto.name,
                     slug: dto.slug,
                     description: dto.description,
-                    color: dto.color,
-                    ownerUserId: actor.id
+                    color: dto.color
                 })
                 .returning({ id: workspaces.id });
             const id = created.id;
@@ -165,9 +164,7 @@ export class WorkspaceService {
      * against **the removed user** (`subjectType: 'user'`), so the event shows
      * in that member's personal activity log; the workspace is carried in
      * `meta.workspaceId`. Removing a non-member is a no-op (records nothing);
-     * the endpoint still returns 204. Removing the recorded owner is refused
-     * with {@link CannotRemoveOwnerError} so a workspace is never left with a
-     * `owner_user_id` that points at a non-member.
+     * the endpoint still returns 204.
      */
     async removeMember(
         actor: PublicUser,
@@ -175,14 +172,6 @@ export class WorkspaceService {
         userId: string
     ): Promise<void> {
         await this.db.transaction(async (tx) => {
-            const [workspace] = await tx
-                .select({ ownerUserId: workspaces.ownerUserId })
-                .from(workspaces)
-                .where(eq(workspaces.id, workspaceId));
-            if (workspace?.ownerUserId === userId) {
-                throw new CannotRemoveOwnerError(workspaceId, userId);
-            }
-
             const removed = await tx
                 .delete(memberships)
                 .where(
@@ -513,11 +502,7 @@ export class WorkspaceService {
         rows: (typeof workspaces.$inferSelect)[]
     ): Promise<WorkspaceView[]> {
         const ids = rows.map((row) => row.id);
-        const owners = new Map(rows.map((row) => [row.id, row.ownerUserId]));
-        const membersByWorkspace = await this.members.loadByWorkspace(
-            ids,
-            owners
-        );
+        const membersByWorkspace = await this.members.loadByWorkspace(ids);
         const contentByWorkspace = await this.content.loadByWorkspace(ids);
         return rows.map((row) => ({
             id: row.id,

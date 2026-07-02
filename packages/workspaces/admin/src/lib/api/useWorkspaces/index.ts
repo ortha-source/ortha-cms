@@ -12,8 +12,6 @@ export interface WorkspaceMemberView {
     id: string;
     name: string | null;
     email: string;
-    /** Whether this member is the workspace owner; absent on older responses. */
-    isOwner?: boolean;
 }
 
 /** A workspace as `GET /api/workspaces` returns it. */
@@ -42,8 +40,7 @@ function toMember(view: WorkspaceMemberView, index: number): WorkspaceMember {
         name,
         email: view.email,
         initials: initialsOf(name),
-        color: AVATAR_COLORS[index % AVATAR_COLORS.length],
-        isOwner: view.isOwner ?? false
+        color: AVATAR_COLORS[index % AVATAR_COLORS.length]
     };
 }
 

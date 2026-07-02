@@ -36,13 +36,6 @@
       "when": 1781277782887,
       "tag": "0004_workspace_status_and_content",
       "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1782926191649,
-      "tag": "0005_workspace_owner",
-      "breakpoints": true
     }
   ]
 }

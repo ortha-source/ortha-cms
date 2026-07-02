@@ -1,14 +1,10 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { X } from 'lucide-react';
-import { Badge, Button } from '@ortha-cms/design-system';
+import { Button } from '@ortha-cms/design-system';
 import type { WorkspaceMember } from '../../../types/workspace';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
 
 const messages = defineMessages({
-    owner: {
-        id: 'workspaces.settings.members.ownerBadge',
-        defaultMessage: 'Owner'
-    },
     remove: {
         id: 'workspaces.settings.members.remove',
         defaultMessage: 'Remove {name}'
@@ -19,8 +15,6 @@ const messages = defineMessages({
 export type MemberListRowProps = {
     /** The member to render. */
     member: WorkspaceMember;
-    /** Whether this member is the workspace owner (from the recorded owner). */
-    isOwner: boolean;
     /** Whether a remove control should be offered. */
     canRemove: boolean;
     /** Called when the remove control is pressed. */
@@ -28,13 +22,12 @@ export type MemberListRowProps = {
 };
 
 /**
- * One row in the members roster: avatar, name, email, and either an Owner badge
- * (the owner can't be removed) or a remove button when the current user may
- * manage members.
+ * One row in the members roster: avatar, name, email, and — when the current
+ * user may manage members — a remove button. Access is permission-based, so no
+ * member is special.
  */
 export function MemberListRow({
     member,
-    isOwner,
     canRemove,
     onRemove
 }: MemberListRowProps) {
@@ -55,9 +48,7 @@ export function MemberListRow({
                     {member.email}
                 </span>
             </div>
-            {isOwner ? (
-                <Badge>{intl.formatMessage(messages.owner)}</Badge>
-            ) : canRemove ? (
+            {canRemove ? (
                 <Button
                     type="button"
                     variant="ghost"

@@ -87,10 +87,6 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByRole('button', { name: `Remove ${name}` });
     }
 
-    ownerBadge(): Locator {
-        return this.page.getByText('Owner', { exact: true });
-    }
-
     // --- content ---
 
     /** The trigger that opens the add-collections dialog. */

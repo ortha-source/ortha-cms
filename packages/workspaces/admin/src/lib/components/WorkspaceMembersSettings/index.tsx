@@ -75,9 +75,10 @@ export type WorkspaceMembersSettingsProps = {
 };
 
 /**
- * The Members settings tab: assign existing directory users (the owner pinned
- * and un-removable) and remove members with a confirmation. All controls are
- * gated on `workspaces:update`; without it the roster is read-only.
+ * The Members settings tab: assign existing directory users and remove members
+ * with a confirmation. Access is purely permission-based — every control is
+ * gated on `workspaces:update`, and no member is special; without the permission
+ * the roster is read-only.
  */
 export function WorkspaceMembersSettings({
     workspace,
@@ -155,7 +156,6 @@ export function WorkspaceMembersSettings({
                                 {index > 0 ? <Separator /> : null}
                                 <MemberListRow
                                     member={member}
-                                    isOwner={member.isOwner}
                                     canRemove={canUpdate}
                                     onRemove={() => setPendingRemoval(member)}
                                 />
