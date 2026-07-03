@@ -219,7 +219,7 @@ export class RelationLinkService {
         const join = spec ? this.joinPlanFor(type, field, spec) : null;
         if (!join) return; // single / inverse-of-single: nothing to write here
 
-        await this.assertTargets(join.target, delta.link ?? [], workspaceId);
+        await this.assertTargets(tx, join.target, delta.link ?? [], workspaceId);
         const cols = join.table as unknown as Columns;
         const own = cols[join.ownCol];
         const ref = cols[join.refCol];
@@ -292,7 +292,7 @@ export class RelationLinkService {
             const join = this.joinPlanFor(type, name, spec);
             if (!join || join.ownCol !== 'sourceId') continue; // owning many only
             const ids = dedupe(values[name] as unknown[]);
-            await this.assertTargets(join.target, ids, workspaceId);
+            await this.assertTargets(tx, join.target, ids, workspaceId);
             const cols = join.table as unknown as Columns;
             const own = cols[join.ownCol];
             const ref = cols[join.refCol];
@@ -381,6 +381,7 @@ export class RelationLinkService {
      * signal.
      */
     private async assertTargets(
+        tx: DbTransaction,
         target: AnyContentType,
         ids: string[],
         workspaceId: string
@@ -388,7 +389,10 @@ export class RelationLinkService {
         const unique = [...new Set(ids)].filter((id) => !!id);
         if (!unique.length) return;
         const cols = target.table as unknown as Columns;
-        const rows = (await this.db
+        // Read on the write transaction's own connection (not `this.db`, a
+        // separate pooled connection), so the existence check shares the txn's
+        // snapshot and the workspace advisory lock the write path holds.
+        const rows = (await tx
             .select()
             .from(target.table)
             .where(
