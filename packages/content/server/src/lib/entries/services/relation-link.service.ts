@@ -95,20 +95,22 @@ export class RelationLinkService {
         workspaceId: string,
         pageSize = RELATION_PAGE_SIZE
     ): Promise<Record<string, RelationFieldView>> {
+        // Each relation field is an independent read, so fan them out
+        // concurrently rather than awaiting one before starting the next — a
+        // type with several relations pays one field's latency, not their sum.
+        const fields = Object.entries(type.fields).filter(
+            ([, spec]) =>
+                spec.type === CONTENT_FIELD_TYPE.Relation && spec.relation
+        );
+        const views = await Promise.all(
+            fields.map(([name, spec]) =>
+                this.readField(type, row, name, spec, 1, pageSize, workspaceId)
+            )
+        );
         const out: Record<string, RelationFieldView> = {};
-        for (const [name, spec] of Object.entries(type.fields)) {
-            if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
-                continue;
-            out[name] = await this.readField(
-                type,
-                row,
-                name,
-                spec,
-                1,
-                pageSize,
-                workspaceId
-            );
-        }
+        fields.forEach(([name], i) => {
+            out[name] = views[i];
+        });
         return out;
     }
 
