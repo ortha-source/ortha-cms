@@ -302,7 +302,7 @@ export function EntryEditor({
                     </Link>
                 ) : null}
                 <div className="mb-6 min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-[-0.01em]">
+                    <h1 className="text-xl font-semibold tracking-[-0.01em]">
                         {title}
                     </h1>
                     {subtitle ? (

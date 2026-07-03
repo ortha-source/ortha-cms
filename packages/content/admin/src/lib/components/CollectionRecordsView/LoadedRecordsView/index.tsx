@@ -271,6 +271,7 @@ export function LoadedRecordsView({
     return (
         <Container className="max-w-none p-6 sm:p-6">
             <ContainerHeader
+                titleClassName="text-xl"
                 title={
                     trashed
                         ? intl.formatMessage(messages.trashTitle, {

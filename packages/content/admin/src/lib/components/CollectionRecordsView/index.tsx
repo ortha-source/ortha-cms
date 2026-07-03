@@ -48,7 +48,7 @@ export function CollectionRecordsView({
     if (isPending) {
         return (
             <Container className="max-w-none p-6 sm:p-6">
-                <ContainerHeader title={type.label} />
+                <ContainerHeader titleClassName="text-xl" title={type.label} />
                 <CollectionRecordsSkeleton />
             </Container>
         );
@@ -57,7 +57,7 @@ export function CollectionRecordsView({
     if (isError || !schema) {
         return (
             <Container className="max-w-none p-6 sm:p-6">
-                <ContainerHeader title={type.label} />
+                <ContainerHeader titleClassName="text-xl" title={type.label} />
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                         <span>{intl.formatMessage(messages.error)}</span>
