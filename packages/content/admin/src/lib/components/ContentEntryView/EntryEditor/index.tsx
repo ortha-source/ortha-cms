@@ -212,8 +212,33 @@ export function EntryEditor({
         return names;
     }, [schema, availableTypeNames]);
 
+    // Many/inverse relations are link-managed (staged as deltas), so their key
+    // is dropped from the form values (see `seedRelationValues`). They must be
+    // excluded from values-based validation and the publish gate too — otherwise
+    // a *required* one is a permanent, un-fillable block even though the user has
+    // staged links for it. They still render in the Relations tab (via
+    // `relationFields`, which keys off `ignoredFields` only).
+    const managedRelationNames = useMemo(() => {
+        const names = new Set<string>();
+        for (const field of schema.fields) {
+            if (
+                field.type === CONTENT_FIELD_TYPE.Relation &&
+                (field.relation?.many || field.relation?.inverse)
+            )
+                names.add(field.name);
+        }
+        return names;
+    }, [schema]);
+
+    // Fields excluded from client validation + the gate: ungranted relations
+    // (hidden) plus every link-managed relation (not a form value).
+    const validationIgnored = useMemo(
+        () => new Set([...ignoredFields, ...managedRelationNames]),
+        [ignoredFields, managedRelationNames]
+    );
+
     const form = useEntryForm(schema, initialValues, {
-        ignoreFields: ignoredFields
+        ignoreFields: validationIgnored
     });
 
     const visible = schema.fields.filter((field) => !isHidden(field));
@@ -234,14 +259,14 @@ export function EntryEditor({
     const gate = useMemo<PublishGateItem[]>(() => {
         if (!publishable) return [];
         return visible
-            .filter((field) => !ignoredFields.has(field.name))
+            .filter((field) => !validationIgnored.has(field.name))
             .filter((field) => field.required || form.errors[field.name])
             .map((field) => ({
                 label: fieldLabel(field),
                 ok: !form.errors[field.name],
                 message: form.errors[field.name]
             }));
-    }, [publishable, form.errors, visible, ignoredFields]);
+    }, [publishable, form.errors, visible, validationIgnored]);
 
     // The staged relation deltas to send with the save — only fields with a
     // pending change, serialized to the wire shape. Undefined when nothing staged.
