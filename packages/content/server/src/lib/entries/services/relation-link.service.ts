@@ -8,6 +8,7 @@ import {
     isNull,
     max,
     notInArray,
+    sql,
     type AnyColumn
 } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
@@ -276,13 +277,21 @@ export class RelationLinkService {
         // inverse reuses the same rows and can't renumber them without corrupting
         // the owner's order, so `order` is ignored there.
         if (delta.order?.length && join.ownCol === 'sourceId') {
-            let i = 0;
-            for (const targetId of delta.order) {
-                await tx
-                    .update(join.table)
-                    .set({ position: i++ } as never)
-                    .where(and(eq(own, sourceId), eq(ref, targetId)));
-            }
+            // Renumber the whole list in one UPDATE — position = its index in
+            // `order`, via a CASE keyed on the ref id — instead of an UPDATE per
+            // id inside the locked transaction. The WHERE bounds it to this
+            // source's rows named in `order`; the `else` keeps any unmatched row
+            // untouched.
+            const order = delta.order;
+            const cases = order.map(
+                (targetId, i) => sql`when ${ref} = ${targetId} then ${i}`
+            );
+            await tx
+                .update(join.table)
+                .set({
+                    position: sql`case ${sql.join(cases, sql` `)} else ${cols['position']} end`
+                } as never)
+                .where(and(eq(own, sourceId), inArray(ref, order)));
         }
     }
 
