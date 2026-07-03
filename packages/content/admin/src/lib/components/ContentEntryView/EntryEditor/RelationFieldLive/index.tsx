@@ -99,6 +99,7 @@ export function RelationFieldLive({
 }) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    const [preparing, setPreparing] = useState(false);
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -163,6 +164,27 @@ export function RelationFieldLive({
     };
 
     const removeId = (id: string) => confirm(ids.filter((x) => x !== id), []);
+
+    // Open the picker against the **full** linked set, not just the pages loaded
+    // so far: pull any unfetched link pages first, so an already-linked record on
+    // an unloaded page is shown pre-checked (and reconciled as such) rather than
+    // offered as a brand-new add — which would double-count in the header. Only
+    // this explicit action loads the rest; entry load stays first-page-only.
+    const openPicker = async () => {
+        if (links.hasNextPage && !preparing) {
+            setPreparing(true);
+            try {
+                let more: boolean = links.hasNextPage;
+                while (more) {
+                    const result = await links.fetchNextPage();
+                    more = result.hasNextPage;
+                }
+            } finally {
+                setPreparing(false);
+            }
+        }
+        setOpen(true);
+    };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -252,9 +274,14 @@ export function RelationFieldLive({
                     variant="outline"
                     size="sm"
                     className="shadow-none"
-                    onClick={() => setOpen(true)}
+                    onClick={openPicker}
+                    disabled={preparing}
                 >
-                    <Plus className="size-4" />
+                    {preparing ? (
+                        <Spinner className="size-4" aria-hidden />
+                    ) : (
+                        <Plus className="size-4" />
+                    )}
                     {intl.formatMessage(triggerLabel, { label: targetLabel })}
                 </Button>
             </div>
