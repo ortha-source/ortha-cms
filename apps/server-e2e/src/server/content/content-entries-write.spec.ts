@@ -386,6 +386,39 @@ describe('Content entry writes (/api/content/:type)', () => {
             ]);
         });
 
+        it('merges a link delta onto existing links (append, not override)', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b, c, d, e] = await Promise.all([
+                seedTagIn(workspaceId, 'aa'),
+                seedTagIn(workspaceId, 'bb'),
+                seedTagIn(workspaceId, 'cc'),
+                seedTagIn(workspaceId, 'dd'),
+                seedTagIn(workspaceId, 'ee')
+            ]);
+            // Start with three linked tags.
+            const id = await createArticle(agent, { ...VALID, tags: [a, b, c] });
+
+            // A link delta of two more must MERGE to five — not replace with two.
+            // The save body carries no `tags` in `values`, so the whole-set path
+            // can't wipe them.
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { link: [d, e] } } })
+                .expect(200);
+            expect(
+                (await linkedIds(agent, 'article', id, 'tags')).sort()
+            ).toEqual([a, b, c, d, e].sort());
+
+            // Re-linking already-linked ids is idempotent (no duplicates).
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { link: [a, d] } } })
+                .expect(200);
+            expect(
+                await linkedIds(agent, 'article', id, 'tags')
+            ).toHaveLength(5);
+        });
+
         it('persists order via the reorder delta on save', async () => {
             const agent = await login(ADMIN_EMAIL);
             const a = await seedTagIn(workspaceId, 'aaa');

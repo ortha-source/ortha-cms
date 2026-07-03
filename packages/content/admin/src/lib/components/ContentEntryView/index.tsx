@@ -83,13 +83,14 @@ function isLinkManaged(field: ContentTypeDetail['fields'][number]): boolean {
 }
 
 /**
- * Prepare an **existing** entry's relation fields for the form. An owning
- * **single** relation stays a form value — its FK id already rides in the entry
- * read's `values`, saved back with the document. A many/inverse relation is
- * **link-managed** (paginated + mutated via deltas, never carried in the saved
- * document), so its key is **dropped** from the form: a save then can't wipe the
- * links it never loaded. Only runs for a loaded entry (create keeps its blank
- * staged arrays).
+ * Prepare an entry's relation fields for the form (**every** mode). An owning
+ * **single** relation stays a form value — its FK id rides in the entry read's
+ * `values` (or `''` on create), saved back with the document. A many/inverse
+ * relation is **link-managed** — staged and sent as an append/unlink **delta**,
+ * never in `values` — so its key is **dropped** from the form entirely. This is
+ * what keeps a save from ever *replacing* a many-relation: the editor can't
+ * submit `values[field]`, so the whole-set `writeLinks` path (which an empty
+ * array would clear) is never reached; only the additive delta path runs.
  */
 function seedRelationValues(
     schema: ContentTypeDetail,
@@ -184,7 +185,7 @@ export function ContentEntryView({
     } | null => {
         if (!schema) return null;
         if (mode === ENTRY_MODE.Create) {
-            return { values: emptyEntryValues(schema) };
+            return { values: seedRelationValues(schema, emptyEntryValues(schema)) };
         }
         const source = mode === ENTRY_MODE.Edit ? editEntry : singleEntry;
         if (source) {
@@ -198,7 +199,7 @@ export function ContentEntryView({
         }
         // A single page with no row yet falls back to a blank create form.
         return mode === ENTRY_MODE.Single
-            ? { values: emptyEntryValues(schema) }
+            ? { values: seedRelationValues(schema, emptyEntryValues(schema)) }
             : null;
     }, [schema, mode, editEntry, singleEntry]);
 
