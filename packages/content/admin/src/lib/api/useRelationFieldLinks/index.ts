@@ -1,7 +1,8 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { RelationFieldView } from '../../types/contentType';
+import { entryRelationsKey } from '../useEntryRelations';
 
 /** Links fetched per infinite-scroll page. */
 export const RELATION_LINKS_PAGE_SIZE = 20;
@@ -53,6 +54,7 @@ export function useRelationFieldLinks(
     enabled = true
 ) {
     const workspace = useCurrentWorkspace();
+    const queryClient = useQueryClient();
     const query = useInfiniteQuery({
         queryKey: relationFieldLinksKey(workspace.id, name, id ?? '', field),
         enabled: enabled && !!id && !!field,
@@ -62,7 +64,28 @@ export function useRelationFieldLinks(
         getNextPageParam: (last, pages) => {
             const loaded = pages.reduce((n, p) => n + p.items.length, 0);
             return loaded < last.total ? pages.length + 1 : undefined;
-        }
+        },
+        // Seed page one from the aggregate relations read (`GET …/relations`),
+        // already loaded when the Relations tab opened, so this field doesn't
+        // re-fetch its first page. `staleTime` + the aggregate's own fetch time
+        // keep the seeded page from being refetched immediately; a save still
+        // invalidates it (overriding staleTime) to re-read the canonical set.
+        initialData: () => {
+            const agg = id
+                ? queryClient.getQueryData<Record<string, RelationFieldView>>(
+                      entryRelationsKey(workspace.id, name, id)
+                  )
+                : undefined;
+            const view = agg?.[field];
+            return view ? { pages: [view], pageParams: [1] } : undefined;
+        },
+        initialDataUpdatedAt: () =>
+            id
+                ? queryClient.getQueryState(
+                      entryRelationsKey(workspace.id, name, id)
+                  )?.dataUpdatedAt
+                : undefined,
+        staleTime: 30_000
     });
     const items = query.data?.pages.flatMap((p) => p.items) ?? [];
     return {
