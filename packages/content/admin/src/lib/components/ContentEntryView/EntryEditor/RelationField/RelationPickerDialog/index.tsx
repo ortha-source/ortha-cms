@@ -188,7 +188,7 @@ export function RelationPickerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[85vh] max-w-2xl gap-4">
+            <DialogContent className="flex h-[min(85vh,42rem)] w-full max-w-2xl flex-col gap-4 overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {

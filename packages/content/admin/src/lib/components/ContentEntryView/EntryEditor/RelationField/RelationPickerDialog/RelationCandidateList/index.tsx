@@ -60,7 +60,7 @@ export function RelationCandidateList({
     return (
         <div
             onScroll={onScroll}
-            className="flex h-[28rem] max-h-[60vh] flex-col overflow-y-auto rounded-lg border"
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border"
             aria-busy={isPending || loadingMore}
         >
             {isPending ? (
