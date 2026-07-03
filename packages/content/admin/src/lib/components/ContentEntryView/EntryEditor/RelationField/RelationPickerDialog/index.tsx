@@ -13,6 +13,7 @@ import { countRules, type FilterGroup } from '@ortha-cms/query-builder-admin';
 import { useContentSchema } from '../../../../../api/useContentSchema';
 import {
     useRelationCandidates,
+    MAX_CANDIDATE_WINDOW,
     type RelationCandidate
 } from '../../../../../api/useRelationCandidates';
 import { filterFieldsFromSchema } from '../../../../../utils/filterFieldsFromSchema';
@@ -153,11 +154,15 @@ export function RelationPickerDialog({
         if (
             el.scrollHeight - el.scrollTop - el.clientHeight <= 120 &&
             hasMore &&
-            !loadingMore
+            !loadingMore &&
+            // Stop growing at the server's cap; beyond it, narrow with search/filter.
+            limit < MAX_CANDIDATE_WINDOW
         ) {
             setLoadingMore(true);
             loadTimer.current = setTimeout(() => {
-                setLimit((current) => current + PAGE_SIZE);
+                setLimit((current) =>
+                    Math.min(current + PAGE_SIZE, MAX_CANDIDATE_WINDOW)
+                );
                 setLoadingMore(false);
             }, LAZY_DELAY_MS);
         }

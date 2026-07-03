@@ -8,6 +8,15 @@ import {
 import type { ContentField, EntryRecord } from '../../types/contentType';
 import { relationLabel } from '../../utils/relationLabel';
 
+/**
+ * Largest candidate window the picker may request in one page. Mirrors the
+ * server list endpoint's `MAX_PAGE_SIZE` (`@Max(100)`, which **rejects** an
+ * over-cap `pageSize` with a 400 rather than clamping), so the lazy-scroll
+ * window never grows into a rejected request. Beyond this, the user narrows the
+ * set with search/filter (each shrinks `total`), exactly like the records table.
+ */
+export const MAX_CANDIDATE_WINDOW = 100;
+
 /** One assignable related record, ready for the picker (title pre-derived). */
 export type RelationCandidate = {
     id: string;
@@ -73,7 +82,9 @@ async function fetchRelationCandidates(
                     ...(search ? { search } : {}),
                     ...(filter ? { filter } : {}),
                     page: 1,
-                    pageSize: limit
+                    // Never exceed the server's hard cap — an over-cap pageSize is
+                    // a 400, not a clamp.
+                    pageSize: Math.min(limit, MAX_CANDIDATE_WINDOW)
                 }
             }
         );
