@@ -268,9 +268,12 @@ export class RelationLinkService {
     /**
      * Replace a many-relation's links with exactly `values[field]` (array),
      * position = array index — the **whole-set** write used only when a caller
-     * still submits a relation in the entry body (legacy / bulk). The editor
-     * uses {@link applyDelta} instead. Runs inside the entry's transaction; a
-     * field absent from `values` is left untouched (never wiped).
+     * genuinely submits a relation **array** in the entry body (legacy / bulk).
+     * The editor uses {@link applyDelta} instead. Runs inside the entry's
+     * transaction. **Only an array counts**: a field that's absent or `null`
+     * (`coerceValues` stamps `null` onto every unset field) is left untouched, so
+     * a save that manages a relation purely through deltas can never have its
+     * links cleared here.
      */
     async writeLinks(
         tx: DbTransaction,
@@ -280,12 +283,15 @@ export class RelationLinkService {
         workspaceId: string
     ): Promise<void> {
         for (const [name, spec] of Object.entries(type.fields)) {
-            if (!(name in values)) continue; // not submitted → don't touch
+            // Only a genuinely submitted **array** is a whole-set write. Anything
+            // else — key absent, or `null` (which `coerceValues` stamps onto
+            // every unset field) — means "not managing this relation via the
+            // whole-set path"; skip it so the incremental delta path owns it and
+            // a null can't be read as "clear all links".
+            if (!Array.isArray(values[name])) continue;
             const join = this.joinPlanFor(type, name, spec);
             if (!join || join.ownCol !== 'sourceId') continue; // owning many only
-            const ids = dedupe(
-                Array.isArray(values[name]) ? (values[name] as unknown[]) : []
-            );
+            const ids = dedupe(values[name] as unknown[]);
             await this.assertTargets(join.target, ids, workspaceId);
             const cols = join.table as unknown as Columns;
             const own = cols[join.ownCol];
