@@ -11,7 +11,8 @@ import {
     mockContentSchemaDetail,
     mockContentEntries,
     mockContentEntryWrites,
-    mockEntryRelations
+    mockEntryRelations,
+    spyEntrySave
 } from '../support/api/content';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -185,6 +186,49 @@ test.describe('Relation picker', () => {
         // `tags` targets the ungranted `tag` collection → hidden.
         await expect(relationsEditorPage.section('Tags')).toHaveCount(0);
         await expect(relationsEditorPage.addRelatedButton).toHaveCount(0);
+    });
+
+    test('saves staged links as a relations delta, omitting them from values', async ({
+        page,
+        relationsEditorPage
+    }) => {
+        const spy = await spyEntrySave(page);
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        // Stage two tags (nothing sent yet — staged locally).
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').click();
+        await relationsEditorPage.candidate('design').click();
+        await relationsEditorPage.addSelectedButton.click();
+        await expect(spy.bodies).toHaveLength(0);
+
+        // Save (draft) flushes them as a delta in the save payload.
+        await relationsEditorPage.saveDraft();
+        await expect.poll(() => spy.bodies.length).toBeGreaterThan(0);
+
+        const body = spy.bodies[0];
+        expect(body.relations?.tags?.link?.slice().sort()).toEqual([
+            'tag-01',
+            'tag-02'
+        ]);
+        // A link-managed relation must NOT ride in `values` (that path replaces
+        // the whole set and would wipe links on a later save).
+        expect('tags' in body.values).toBe(false);
+    });
+
+    test('shows a "Changed" badge on a relation with staged edits', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+        await expect(relationsEditorPage.changedBadge).toHaveCount(0);
+
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').click();
+        await relationsEditorPage.addSelectedButton.click();
+
+        await expect(relationsEditorPage.changedBadge.first()).toBeVisible();
     });
 
     test('removes an assigned relation', async ({ relationsEditorPage }) => {

@@ -897,3 +897,75 @@ export async function mockContentEntryWrites(
         );
     });
 }
+
+/** The body of one captured create/update request. */
+export interface CapturedSave {
+    values: Record<string, unknown>;
+    relations?: Record<
+        string,
+        { link?: string[]; unlink?: string[]; order?: string[] }
+    >;
+}
+
+/** Records the bodies sent to the entry create/update endpoints. */
+export interface EntrySaveSpy {
+    readonly bodies: CapturedSave[];
+}
+
+/**
+ * Spy on the entry **save** endpoints — records the JSON body of each
+ * `POST /api/content/:name` (create) and `PATCH /api/content/:name/:id` (update)
+ * so a test can assert what the editor sent (e.g. the staged relation deltas,
+ * and that a link-managed relation is **not** in `values`). Fulfils like the
+ * write mock so the flow continues; non-write methods fall through to the other
+ * mocks. Register **after** {@link mockContentEntryWrites} so it wins the match.
+ */
+export async function spyEntrySave(page: Page): Promise<EntrySaveSpy> {
+    const bodies: CapturedSave[] = [];
+    const now = '2026-01-01T00:00:00.000Z';
+    const record = (id: string, body: CapturedSave) => ({
+        id,
+        status: 'draft' as const,
+        createdAt: now,
+        updatedAt: now,
+        values: body.values ?? {}
+    });
+
+    // Create (single-segment POST).
+    await page.route(/\/api\/content\/[^/?]+(\?.*)?$/, async (route) => {
+        const req = route.request();
+        if (req.method() !== 'POST') return route.fallback();
+        const body = (req.postDataJSON?.() ?? {}) as CapturedSave;
+        bodies.push(body);
+        const name = decodeURIComponent(
+            new URL(req.url()).pathname.split('/').pop() ?? ''
+        ).split('?')[0];
+        await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify(record(`${name}-new`, body))
+        });
+    });
+
+    // Update (`PATCH /content/:name/:id`); other multi-segment writes fall through.
+    await page.route(/\/api\/content\/[^/?]+\/[^/?]+(\?.*)?$/, async (route) => {
+        const req = route.request();
+        if (req.method() !== 'PATCH') return route.fallback();
+        const body = (req.postDataJSON?.() ?? {}) as CapturedSave;
+        bodies.push(body);
+        const id = decodeURIComponent(
+            new URL(req.url()).pathname.split('/').pop() ?? ''
+        );
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(record(id, body))
+        });
+    });
+
+    return {
+        get bodies() {
+            return bodies;
+        }
+    };
+}

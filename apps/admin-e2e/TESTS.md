@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_156 test cases across 21 spec files._
+_158 test cases across 21 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -182,6 +182,8 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | reveals the inline query-builder filter over the target schema |
 | edits a bidirectional (inverse) relation from the other side |
 | hides relations whose target collection the workspace lacks |
+| saves staged links as a relations delta, omitting them from values |
+| shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)

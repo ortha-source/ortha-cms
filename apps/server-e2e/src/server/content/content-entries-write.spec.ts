@@ -496,6 +496,69 @@ describe('Content entry writes (/api/content/:type)', () => {
                 })
                 .expect(422);
         });
+
+        it('links the inverse side (tag.articles) via a delta on save', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const tagId = await seedTagIn(workspaceId, 'engineering');
+            const articleId = await createArticle(agent, VALID);
+
+            // Link from the tag side via a delta — the same join rows the
+            // article owns, so the link shows on both sides.
+            await agent
+                .patch(`/api/content/tag/${tagId}`)
+                .send({
+                    values: { name: 'engineering' },
+                    relations: { articles: { link: [articleId] } }
+                })
+                .expect(200);
+            expect(await linkedIds(agent, 'tag', tagId, 'articles')).toEqual([
+                articleId
+            ]);
+            expect(await linkedIds(agent, 'article', articleId, 'tags')).toEqual(
+                [tagId]
+            );
+        });
+
+        it('applies link, unlink, and order in one delta on save', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b, c, d] = await Promise.all([
+                seedTagIn(workspaceId, 'aa'),
+                seedTagIn(workspaceId, 'bb'),
+                seedTagIn(workspaceId, 'cc'),
+                seedTagIn(workspaceId, 'dd')
+            ]);
+            const id = await createArticle(agent, { ...VALID, tags: [a, b, c] });
+
+            // Unlink a, link d, and reorder — all in a single save.
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: {
+                        tags: { unlink: [a], link: [d], order: [d, c, b] }
+                    }
+                })
+                .expect(200);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                d,
+                c,
+                b
+            ]);
+        });
+
+        it('drops a link when its target is hard-deleted (FK cascade)', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b] = await Promise.all([
+                seedTagIn(workspaceId, 'aa'),
+                seedTagIn(workspaceId, 'bb')
+            ]);
+            const id = await createArticle(agent, { ...VALID, tags: [a, b] });
+
+            // `tag` isn't paranoid, so this hard-deletes the row; the join rows
+            // cascade, so the article's link to it disappears.
+            await agent.delete(`/api/content/tag/${a}`).expect(204);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([b]);
+        });
     });
 
     describe('publish / unpublish', () => {

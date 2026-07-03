@@ -128,4 +128,23 @@ export class RelationsEditorPage extends BasePage {
     get nothingLinked(): Locator {
         return this.page.getByText('Nothing linked yet.');
     }
+
+    /** The yellow "Changed" badge shown on an edited field / relation section. */
+    get changedBadge(): Locator {
+        return this.page.getByText('Changed', { exact: true });
+    }
+
+    /**
+     * Save the entry **as a draft** — opens the editor's ⋯ actions menu and picks
+     * "Save draft" (the relaxed, no-publish save), so a save fires without the
+     * publish gate blocking on empty required fields.
+     */
+    async saveDraft() {
+        await this.page
+            .getByRole('button', { name: 'More actions' })
+            .click();
+        await this.page
+            .getByRole('menuitem', { name: 'Save draft' })
+            .click();
+    }
 }
