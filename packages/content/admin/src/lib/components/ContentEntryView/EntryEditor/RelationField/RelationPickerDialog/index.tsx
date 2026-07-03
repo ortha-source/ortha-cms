@@ -134,7 +134,8 @@ export function RelationPickerDialog({
         items,
         total,
         hasMore,
-        isPending: candidatesPending
+        isPending: candidatesPending,
+        isError: candidatesError
     } = useRelationCandidates(
         targetName,
         schema?.fields ?? [],
@@ -230,6 +231,7 @@ export function RelationPickerDialog({
                 <RelationCandidateList
                     items={items}
                     isPending={isPending}
+                    isError={candidatesError}
                     loadingMore={loadingMore}
                     filtersActive={filtersActive}
                     many={many}

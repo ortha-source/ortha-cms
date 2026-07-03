@@ -16,6 +16,10 @@ const messages = defineMessages({
     noMatches: {
         id: 'content.relations.picker.noMatches',
         defaultMessage: 'No records match your search.'
+    },
+    loadError: {
+        id: 'content.relations.picker.loadError',
+        defaultMessage: 'Couldn’t load records. Check your connection and retry.'
     }
 });
 
@@ -29,6 +33,7 @@ const messages = defineMessages({
 export function RelationCandidateList({
     items,
     isPending,
+    isError,
     loadingMore,
     filtersActive,
     many,
@@ -41,6 +46,8 @@ export function RelationCandidateList({
 }: {
     items: RelationCandidate[];
     isPending: boolean;
+    /** The candidate query failed — show an error, not the empty state. */
+    isError: boolean;
     loadingMore: boolean;
     /** Whether a search/filter is active (drives the empty vs no-matches copy). */
     filtersActive: boolean;
@@ -63,7 +70,11 @@ export function RelationCandidateList({
             className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border"
             aria-busy={isPending || loadingMore}
         >
-            {isPending ? (
+            {isError ? (
+                <p className="flex flex-1 items-center justify-center px-4 text-center text-sm text-destructive">
+                    {intl.formatMessage(messages.loadError)}
+                </p>
+            ) : isPending ? (
                 <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
                     <Spinner className="size-4" />
                     {intl.formatMessage(messages.loading)}
