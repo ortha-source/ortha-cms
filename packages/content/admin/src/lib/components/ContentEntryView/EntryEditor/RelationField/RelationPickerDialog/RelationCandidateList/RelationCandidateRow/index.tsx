@@ -65,14 +65,7 @@ export function RelationCandidateRow({
                 </span>
             </span>
             {candidate.status ? (
-                <Badge
-                    variant={
-                        candidate.status === 'published'
-                            ? 'success'
-                            : 'outline'
-                    }
-                    className="shrink-0 capitalize"
-                >
+                <Badge variant="outline" className="shrink-0 capitalize">
                     {candidate.status}
                 </Badge>
             ) : null}
