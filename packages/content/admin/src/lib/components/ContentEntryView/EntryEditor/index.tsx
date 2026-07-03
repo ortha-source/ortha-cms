@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -15,11 +15,11 @@ import {
 import type {
     ContentField,
     ContentTypeDetail,
-    EntryRecord,
-    RelationFieldView
+    EntryRecord
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
+import { useEntryRelations } from '../../../api/useEntryRelations';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
 import { toRelationIds } from '../../../utils/relationIds';
@@ -102,8 +102,7 @@ export function EntryEditor({
     onUnpublish,
     onDelete,
     backTo,
-    availableTypeNames,
-    relationRefs
+    availableTypeNames
 }: {
     schema: ContentTypeDetail;
     initialValues: Record<string, unknown>;
@@ -132,18 +131,22 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
-    /**
-     * Server-resolved relation links keyed by field name (from
-     * `GET /content/:type/:id/relations`) — each a first page + total, used to
-     * title single relations and seed the section header counts. Absent on
-     * create (nothing linked yet).
-     */
-    relationRefs?: Record<string, RelationFieldView>;
 }) {
     const intl = useIntl();
     // An existing entry edits its many/inverse relations **live** (paginated +
     // deltas); absent while creating, so those fall back to the staged editor.
     const entryId = entry?.id;
+    // Which tab is active, so the relation links are fetched **lazily** — only
+    // once the Relations tab is opened, never on entry load.
+    const [tab, setTab] = useState<string>(TAB.General);
+    // First page + total per relation field, for the header counts and to title
+    // single relations. Gated on the Relations tab being open (and an existing
+    // entry) so it doesn't fire until the user goes looking for relations.
+    const relationRefs = useEntryRelations(
+        schema.name,
+        entryId,
+        tab === TAB.Relations && !!entryId
+    ).data;
 
     // Relation fields hidden because their target collection isn't granted to the
     // open workspace: their records aren't reachable here, so the editor doesn't
@@ -251,7 +254,7 @@ export function EntryEditor({
                 </div>
 
                 <div className="min-w-0">
-                    <Tabs defaultValue={TAB.General}>
+                    <Tabs value={tab} onValueChange={setTab}>
                         <TabsList className="mb-4">
                             <TabsTrigger value={TAB.General}>
                                 {intl.formatMessage(messages.tabGeneral)}

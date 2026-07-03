@@ -15,8 +15,7 @@ import {
 import type {
     ContentType,
     ContentTypeDetail,
-    EntryRecord,
-    RelationFieldView
+    EntryRecord
 } from '../../types/contentType';
 import {
     CONTENT_FIELD_TYPE,
@@ -31,7 +30,6 @@ import {
     type ContentEntriesResult
 } from '../../api/useContentEntries';
 import { useContentEntry } from '../../api/useContentEntry';
-import { useEntryRelations } from '../../api/useEntryRelations';
 import { useSaveEntry } from '../../api/useSaveEntry';
 import { useEntryStatusActions } from '../../api/useEntryStatusActions';
 import {
@@ -84,28 +82,22 @@ function isLinkManaged(field: ContentTypeDetail['fields'][number]): boolean {
 }
 
 /**
- * Seed the form's relation fields from the server links read. An owning
- * **single** relation is a form value (its FK id, saved with the document), so
- * seed it from its first ref. A many/inverse relation is **link-managed** in
- * edit mode — paginated and mutated via deltas, never carried in the saved
- * document — so its key is **dropped** from the form: a save then can't wipe the
- * links it never loaded. Returns `base` untouched when the links haven't loaded
- * (create mode keeps `base`'s empty arrays for its staged picker).
+ * Prepare an **existing** entry's relation fields for the form. An owning
+ * **single** relation stays a form value — its FK id already rides in the entry
+ * read's `values`, saved back with the document. A many/inverse relation is
+ * **link-managed** (paginated + mutated via deltas, never carried in the saved
+ * document), so its key is **dropped** from the form: a save then can't wipe the
+ * links it never loaded. Only runs for a loaded entry (create keeps its blank
+ * staged arrays).
  */
 function seedRelationValues(
     schema: ContentTypeDetail,
-    base: Record<string, unknown>,
-    relations: Record<string, RelationFieldView> | undefined
+    base: Record<string, unknown>
 ): Record<string, unknown> {
-    if (!relations) return base;
     const values = { ...base };
     for (const field of schema.fields) {
         if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
-        if (isLinkManaged(field)) {
-            delete values[field.name];
-        } else {
-            values[field.name] = relations[field.name]?.items[0]?.id ?? '';
-        }
+        if (isLinkManaged(field)) delete values[field.name];
     }
     return values;
 }
@@ -167,20 +159,8 @@ export function ContentEntryView({
         enabled: mode === ENTRY_MODE.Edit
     });
 
-    // The single page's existing row (if any) — read here so the relations fetch
-    // below can key off its id.
+    // The single page's existing row (if any).
     const singleEntry = oneEntryQuery.data?.items[0];
-
-    // The entry whose relation links we load: the edit route's id, or the single
-    // page's resolved row. Create mode has none (nothing linked yet).
-    const relationEntryId =
-        mode === ENTRY_MODE.Edit ? entryId : singleEntry?.id;
-    const relationsQuery = useEntryRelations(
-        type.name,
-        relationEntryId,
-        !!schema && mode !== ENTRY_MODE.Create
-    );
-    const relationRefs = relationsQuery.data;
 
     const save = useSaveEntry(type.name);
     const status = useEntryStatusActions(type.name);
@@ -210,8 +190,7 @@ export function ContentEntryView({
             return {
                 values: seedRelationValues(
                     schema,
-                    mergeEntryValues(schema, source.values),
-                    relationRefs
+                    mergeEntryValues(schema, source.values)
                 ),
                 entry: source
             };
@@ -220,16 +199,12 @@ export function ContentEntryView({
         return mode === ENTRY_MODE.Single
             ? { values: emptyEntryValues(schema) }
             : null;
-    }, [schema, mode, editEntry, singleEntry, relationRefs]);
+    }, [schema, mode, editEntry, singleEntry]);
 
     const loading =
         schemaQuery.isPending ||
         (mode === ENTRY_MODE.Single && oneEntryQuery.isPending) ||
-        (mode === ENTRY_MODE.Edit && entryQuery.isPending) ||
-        // Only blocks while a relations read is actually in flight (an id is
-        // known); a disabled query — create mode, or a single page with no row
-        // yet — reports pending but isn't fetching, so it never stalls the form.
-        relationsQuery.isLoading;
+        (mode === ENTRY_MODE.Edit && entryQuery.isPending);
     const errored =
         schemaQuery.isError ||
         !schema ||
@@ -363,7 +338,6 @@ export function ContentEntryView({
                 onDelete={onDelete}
                 backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
                 availableTypeNames={workspace.content}
-                relationRefs={relationRefs}
             />
         </div>
     );

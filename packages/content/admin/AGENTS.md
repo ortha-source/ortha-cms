@@ -147,10 +147,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `entryTitle`). `RelationPickerDialog` owns state/data and composes nested pieces:
   **`RelationPickerFilters`** (search + inline query builder) and
   **`RelationCandidateList`** → **`RelationCandidateRow`**.
-- **Assigned relations — single vs many/inverse.** `ContentEntryView` loads the
-  entry's links via `useEntryRelations` (`GET /content/:type/:id/relations` →
+- **Assigned relations — single vs many/inverse.** The links read is **lazy**:
+  `EntryEditor` calls `useEntryRelations` (`GET /content/:type/:id/relations` →
   `{ relations: { <field>: { items, total } } }`, each field's **first page** +
-  total). A relation is edited one of two ways, chosen by `RelationFieldSection`:
+  total) **gated on the Relations tab being open** — it never fires on entry
+  load, and single-relation *values* come from the entry read's `values` (their
+  FK id), so a save preserves them even if the tab was never opened. A relation
+  is edited one of two ways, chosen by `RelationFieldSection`:
     - **Single** relations (and **any** relation while creating a not-yet-saved
       entry) are **form-backed**: `seedRelationValues` seeds the value (single →
       its FK id; a new entry's many → an empty staged array), and `RelationField`
