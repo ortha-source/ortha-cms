@@ -36,10 +36,7 @@ import {
     type BulkPublishVerdict
 } from '../types/bulk-publish';
 import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
-import {
-    RelationLinkService,
-    RELATION_PAGE_SIZE
-} from './relation-link.service';
+import { RelationLinkService } from './relation-link.service';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -76,27 +73,30 @@ export class EntryWriterService {
     async create(
         type: AnyContentType,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        relations?: Record<string, RelationDelta>
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
         // One transaction: take the workspace's shared content lock (coordinates
         // with the delete / content-revoke guards so a new entry can't be
-        // orphaned), then write the row and its join-table links (many-to-many /
-        // inverse) together — a failed link write never leaves a half-linked
-        // entry, and both roll back as one.
+        // orphaned), then write the row, its whole-set join-table links (a
+        // many-relation submitted in `values`), and the staged relation deltas —
+        // all together, so a failed link write never leaves a half-linked entry.
         const row = await this.db.transaction(async (tx) => {
             await lockWorkspaceShared(tx, workspaceId);
             const [inserted] = await tx
                 .insert(type.table)
                 .values({ ...toColumns(type, coerced), workspaceId } as never)
                 .returning();
-            await this.relations.writeLinks(
+            const id = (inserted as Row)['id'] as string;
+            await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
+            await this.applyRelationDeltas(
                 tx,
                 type,
-                (inserted as Row)['id'] as string,
-                coerced,
+                id,
+                relations,
                 workspaceId
             );
             return inserted as Row;
@@ -148,39 +148,36 @@ export class EntryWriterService {
     }
 
     /**
-     * Apply an incremental link/unlink/reorder to one many/inverse relation field
-     * and return the field's refreshed first page. 404 if the entry is missing;
-     * 400 if `field` isn't a many/inverse relation (a single relation is edited
-     * via the entry's `values`, not a delta). The delta commits in one
-     * transaction.
+     * Apply the staged per-field relation deltas of a save, inside the entry's
+     * transaction — so the row and every link change commit or roll back as one.
+     * Each field must be a **many/inverse** relation (a single relation is set
+     * through `values`); a single-relation or unknown key is a 400. `applyDelta`
+     * validates the linked ids against the workspace (422 on a bad target).
      */
-    async applyRelationDelta(
+    private async applyRelationDeltas(
+        tx: Parameters<Parameters<Database['transaction']>[0]>[0],
         type: AnyContentType,
         id: string,
-        field: string,
-        delta: RelationDelta,
+        relations: Record<string, RelationDelta> | undefined,
         workspaceId: string
-    ): Promise<RelationFieldView> {
-        const spec = this.relationSpec(type, field);
-        if (!spec.relation?.many && !spec.relation?.inverse) {
-            throw new BadRequestException(
-                `Relation "${type.name}.${field}" is a single relation — set it via the entry's values, not a delta.`
+    ): Promise<void> {
+        if (!relations) return;
+        for (const [field, delta] of Object.entries(relations)) {
+            const spec = this.relationSpec(type, field);
+            if (!spec.relation?.many && !spec.relation?.inverse) {
+                throw new BadRequestException(
+                    `Relation "${type.name}.${field}" is a single relation — set it via the entry's values, not a delta.`
+                );
+            }
+            await this.relations.applyDelta(
+                tx,
+                type,
+                id,
+                field,
+                delta,
+                workspaceId
             );
         }
-        const row = await this.findLive(type, id, workspaceId);
-        if (!row) throw this.notFound(type, id);
-        await this.db.transaction((tx) =>
-            this.relations.applyDelta(tx, type, id, field, delta, workspaceId)
-        );
-        return this.relations.readField(
-            type,
-            row,
-            field,
-            spec,
-            1,
-            RELATION_PAGE_SIZE,
-            workspaceId
-        );
     }
 
     /** Resolve a relation field spec on the type, or 400 if it isn't one. */
@@ -215,7 +212,8 @@ export class EntryWriterService {
         type: AnyContentType,
         id: string,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        relations?: Record<string, RelationDelta>
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
@@ -232,8 +230,9 @@ export class EntryWriterService {
                 this.assertValid(type, coerced);
             }
         }
-        // One transaction: replace the row's columns and re-sync its join-table
-        // links (many-to-many / inverse) atomically, so a save is all-or-nothing.
+        // One transaction: replace the row's columns, re-sync a whole-set
+        // many-relation submitted in `values`, and apply the staged relation
+        // deltas — so a save is all-or-nothing.
         const row = await this.db.transaction(async (tx) => {
             const [updated] = await tx
                 .update(type.table)
@@ -244,11 +243,12 @@ export class EntryWriterService {
                 .where(this.liveWhere(type, id, workspaceId))
                 .returning();
             if (!updated) throw this.notFound(type, id);
-            await this.relations.writeLinks(
+            await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
+            await this.applyRelationDeltas(
                 tx,
                 type,
                 id,
-                coerced,
+                relations,
                 workspaceId
             );
             return updated as Row;

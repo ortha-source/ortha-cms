@@ -166,12 +166,6 @@ global).
       a single relation field's links (`{ items, total }`), ordered by
       `position`. Drives the editor's **infinite-scroll** of a many/inverse
       relation. 400 if `field` isn't a relation (`content:read`).
-    - `POST /content/:typeName/:id/relations/:field` — apply an **incremental**
-      `{ link?, unlink?, order? }` delta to one many/inverse relation, returning
-      the field's refreshed first page. The client sends only the diff, so a
-      relation with thousands of links is never sent (or held) whole; the change
-      commits in one transaction. 400 on a single relation (edit it via the
-      entry's `values`) or an unknown field (`content:update`, `OriginGuard`).
     - `PATCH /content/:typeName/:id` — replace values (`content:update`).
     - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
       `status`+`published_at`; publish **re-validates the stored row**; 400 on a
@@ -191,11 +185,14 @@ global).
   is a plain `<field>_id` FK column (written by `toColumns`, read off the row).
   Everything **join-backed** — an owning **many-to-many** and the **inverse**
   side of a two-way relation (which reuses the owning join table, source/target
-  swapped) — is **paginated** and edited by an **incremental delta** (see the
-  `POST …/relations/:field` route): `applyDelta` unlinks the removed pairs,
-  appends the new ones at `max(position)+1` for their source (`ON CONFLICT DO
-  NOTHING`), and renumbers to `order` (owning side only) — all in one
-  transaction, so a relation with thousands of links is never sent or held whole.
+  swapped) — is **paginated** on read and edited by an **incremental delta**
+  carried in the save body (`SaveEntryDto.relations = { <field>: { link?, unlink?,
+  order? } }`): inside the create/update transaction `applyDelta` unlinks the
+  removed pairs, appends the new ones at `max(position)+1` for their source
+  (`ON CONFLICT DO NOTHING`), and renumbers to `order` (owning side only) — so a
+  relation with thousands of links is never sent or held whole, and the row and
+  its links commit as one. A single-relation or unknown key in `relations` is a
+  400.
   `assertTargets` validates every linked id exists in the same workspace (uniform
   422, no enumeration signal). Join rows carry a float `position` (the source's
   own ordering) so a reorder survives a reload; the inverse reads by it but can't

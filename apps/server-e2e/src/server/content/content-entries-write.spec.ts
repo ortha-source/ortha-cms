@@ -361,47 +361,45 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .expect(404);
         });
 
-        it('links and unlinks via the incremental delta endpoint', async () => {
+        it('links and unlinks via relation deltas on save', async () => {
             const agent = await login(ADMIN_EMAIL);
             const eng = await seedTagIn(workspaceId, 'engineering');
             const design = await seedTagIn(workspaceId, 'design');
-            const id = await createArticle(agent);
 
-            const linked = await agent
-                .post(`/api/content/article/${id}/relations/tags`)
-                .send({ link: [eng, design] })
+            // Link on create, in the same request as the values.
+            const create = await agent
+                .post('/api/content/article')
+                .send({ values: VALID, relations: { tags: { link: [eng, design] } } })
                 .expect(201);
-            expect(linked.body.total).toBe(2);
-            expect(
-                (linked.body.items as { id: string }[])
-                    .map((r) => r.id)
-                    .sort()
-            ).toEqual([eng, design].sort());
+            const id = create.body.id as string;
+            expect((await linkedIds(agent, 'article', id, 'tags')).sort()).toEqual(
+                [eng, design].sort()
+            );
 
+            // Unlink on update, via the save payload.
             await agent
-                .post(`/api/content/article/${id}/relations/tags`)
-                .send({ unlink: [eng] })
-                .expect(201);
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { unlink: [eng] } } })
+                .expect(200);
             expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
                 design
             ]);
         });
 
-        it('persists order via the reorder delta', async () => {
+        it('persists order via the reorder delta on save', async () => {
             const agent = await login(ADMIN_EMAIL);
             const a = await seedTagIn(workspaceId, 'aaa');
             const b = await seedTagIn(workspaceId, 'bbb');
             const c = await seedTagIn(workspaceId, 'ccc');
-            const id = await createArticle(agent);
-            await agent
-                .post(`/api/content/article/${id}/relations/tags`)
-                .send({ link: [a, b, c] })
-                .expect(201);
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [a, b, c]
+            });
 
             await agent
-                .post(`/api/content/article/${id}/relations/tags`)
-                .send({ order: [c, a, b] })
-                .expect(201);
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { order: [c, a, b] } } })
+                .expect(200);
             expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
                 c,
                 a,
@@ -411,15 +409,14 @@ describe('Content entry writes (/api/content/:type)', () => {
 
         it('paginates a field with many links', async () => {
             const agent = await login(ADMIN_EMAIL);
-            const id = await createArticle(agent);
             const tagIds: string[] = [];
             for (let i = 0; i < 5; i++) {
                 tagIds.push(await seedTagIn(workspaceId, `tag-${i}`));
             }
-            await agent
-                .post(`/api/content/article/${id}/relations/tags`)
-                .send({ link: tagIds })
-                .expect(201);
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: tagIds
+            });
 
             const page1 = await agent
                 .get(`/api/content/article/${id}/relations/tags`)
@@ -435,7 +432,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(page3.body.items).toHaveLength(1);
         });
 
-        it('400s a delta on a single relation', async () => {
+        it('400s a relation delta on a single relation', async () => {
             const agent = await login(ADMIN_EMAIL);
             const author = (
                 await agent
@@ -445,12 +442,12 @@ describe('Content entry writes (/api/content/:type)', () => {
             ).body.id as string;
             const id = await createArticle(agent);
             await agent
-                .post(`/api/content/article/${id}/relations/author`)
-                .send({ link: [author] })
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { author: { link: [author] } } })
                 .expect(400);
         });
 
-        it('422s linking a target in another workspace via delta', async () => {
+        it('422s linking a target in another workspace via a delta', async () => {
             const other = await seedWorkspace({
                 name: 'WS Two',
                 slug: 'ws-two'
@@ -459,8 +456,11 @@ describe('Content entry writes (/api/content/:type)', () => {
             const agent = await login(ADMIN_EMAIL);
             const id = await createArticle(agent);
             await agent
-                .post(`/api/content/article/${id}/relations/tags`)
-                .send({ link: [foreignTag] })
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { link: [foreignTag] } }
+                })
                 .expect(422);
         });
     });

@@ -149,8 +149,8 @@ export type EntryRelations = {
 };
 
 /**
- * An incremental change to one many/inverse relation field — the wire body of
- * `POST /api/content/:name/:id/relations/:field`. Only the diff is sent, so a
+ * An incremental change to one many/inverse relation field, sent with the entry
+ * save (`{ relations: { <field>: RelationDelta } }`). Only the diff is sent, so a
  * relation with thousands of links is never transmitted (or held) in full.
  * `order` renumbers the listed ids (owning many-relations only).
  */
@@ -158,6 +158,20 @@ export type RelationDelta = {
     link?: string[];
     unlink?: string[];
     order?: string[];
+};
+
+/**
+ * The editor's **local** staging for one many/inverse relation field — the
+ * pending link/unlink/reorder the user has made but not yet saved. `added`
+ * carries full refs (with titles) so newly-linked rows render immediately;
+ * `removed` are ids unlinked from the server set; `order` is the desired display
+ * order (owning relations only), or `null` when untouched. Serialized to a
+ * {@link RelationDelta} and sent on Save.
+ */
+export type StagedRelation = {
+    added: RelationRef[];
+    removed: string[];
+    order: string[] | null;
 };
 
 /**

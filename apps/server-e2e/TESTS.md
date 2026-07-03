@@ -239,11 +239,11 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 422s a many-to-many target in another workspace |
 | reads and writes the inverse side (tag.articles) two-way |
 | 404s the relations read for a missing entry |
-| links and unlinks via the incremental delta endpoint |
-| persists order via the reorder delta |
+| links and unlinks via relation deltas on save |
+| persists order via the reorder delta on save |
 | paginates a field with many links |
-| 400s a delta on a single relation |
-| 422s linking a target in another workspace via delta |
+| 400s a relation delta on a single relation |
+| 422s linking a target in another workspace via a delta |
 
 ### publish / unpublish
 

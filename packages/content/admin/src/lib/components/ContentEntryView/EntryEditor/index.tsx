@@ -15,7 +15,9 @@ import {
 import type {
     ContentField,
     ContentTypeDetail,
-    EntryRecord
+    EntryRecord,
+    RelationDelta,
+    StagedRelation
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
@@ -79,6 +81,30 @@ function isHidden(field: ContentField): boolean {
     return (field.admin as { hidden?: boolean }).hidden === true;
 }
 
+/** An untouched relation staging — no pending link/unlink/reorder. */
+const EMPTY_STAGED: StagedRelation = { added: [], removed: [], order: null };
+
+/** Stable JSON of a value for dirty comparison (undefined ≡ null). */
+const norm = (value: unknown) => JSON.stringify(value ?? null);
+
+/** Whether a relation staging holds any pending change. */
+function isStagedDirty(staged: StagedRelation): boolean {
+    return (
+        staged.added.length > 0 ||
+        staged.removed.length > 0 ||
+        staged.order !== null
+    );
+}
+
+/** Serialize a relation staging to the wire delta sent on Save. */
+function stagedToWire(staged: StagedRelation): RelationDelta {
+    const delta: RelationDelta = {};
+    if (staged.added.length) delta.link = staged.added.map((a) => a.id);
+    if (staged.removed.length) delta.unlink = staged.removed;
+    if (staged.order) delta.order = staged.order;
+    return delta;
+}
+
 /**
  * The full entry editor: a title header, a tabbed body (**General** = grouped
  * field sections, **Relations** = relation fields, **Media** and **History** =
@@ -116,7 +142,11 @@ export function EntryEditor({
     mutating?: boolean;
     onSave: (
         values: Record<string, unknown>,
-        options: { publish: boolean }
+        options: {
+            publish: boolean;
+            /** Staged many/inverse relation deltas to persist with the save. */
+            relations?: Record<string, RelationDelta>;
+        }
     ) => Promise<void>;
     /** Revert a published entry to draft — only on a saved publishable entry. */
     onUnpublish?: () => void;
@@ -133,8 +163,8 @@ export function EntryEditor({
     availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
-    // An existing entry edits its many/inverse relations **live** (paginated +
-    // deltas); absent while creating, so those fall back to the staged editor.
+    // The existing entry's id, or undefined while creating. Many/inverse
+    // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
     // Which tab is active, so the relation links are fetched **lazily** — only
     // once the Relations tab is opened, never on entry load.
@@ -147,6 +177,22 @@ export function EntryEditor({
         entryId,
         tab === TAB.Relations && !!entryId
     ).data;
+    // Per-field staged relation edits (many/inverse), owned here so they survive
+    // collapsing a section or switching tabs, and sent as `relations` deltas on
+    // Save. Cleared after a successful save.
+    const [relationDeltas, setRelationDeltas] = useState<
+        Record<string, StagedRelation>
+    >({});
+    const stagedFor = (name: string): StagedRelation =>
+        relationDeltas[name] ?? EMPTY_STAGED;
+    const setStaged = (name: string, next: StagedRelation) =>
+        setRelationDeltas((current) => ({ ...current, [name]: next }));
+
+    // A scalar/single field is dirty when its value differs from the seed; a
+    // many/inverse field is dirty when its staging holds any pending change.
+    const isFieldDirty = (name: string) =>
+        norm(form.values[name]) !== norm(initialValues[name]);
+    const isRelationDirty = (name: string) => isStagedDirty(stagedFor(name));
 
     // Relation fields hidden because their target collection isn't granted to the
     // open workspace: their records aren't reachable here, so the editor doesn't
@@ -197,13 +243,26 @@ export function EntryEditor({
             }));
     }, [publishable, form.errors, visible, ignoredFields]);
 
+    // The staged relation deltas to send with the save — only fields with a
+    // pending change, serialized to the wire shape. Undefined when nothing staged.
+    const relationsPayload = (): Record<string, RelationDelta> | undefined => {
+        const out: Record<string, RelationDelta> = {};
+        for (const [name, staged] of Object.entries(relationDeltas)) {
+            if (isStagedDirty(staged)) out[name] = stagedToWire(staged);
+        }
+        return Object.keys(out).length ? out : undefined;
+    };
+
     // A 422 from the server is mapped back onto the form as inline field errors;
-    // other failures fall through to the mutation's own error handling.
+    // other failures fall through to the mutation's own error handling. On
+    // success the staging is cleared (the saved links are now the server set).
     const submitWith =
         (publish: boolean) => (values: Record<string, unknown>) =>
-            onSave(values, { publish }).catch((error) => {
-                form.setServerErrors(entryIssuesFrom(error));
-            });
+            onSave(values, { publish, relations: relationsPayload() })
+                .then(() => setRelationDeltas({}))
+                .catch((error) => {
+                    form.setServerErrors(entryIssuesFrom(error));
+                });
 
     // A **draft** of a publishable type can be saved incomplete, so it uses the
     // relaxed (format-only) gate — required isn't enforced, but a malformed value
@@ -274,6 +333,7 @@ export function EntryEditor({
                             <EntryFieldSections
                                 fields={generalFields}
                                 form={form}
+                                isChanged={isFieldDirty}
                             />
                         </TabsContent>
 
@@ -281,25 +341,37 @@ export function EntryEditor({
                             {relationFields.length > 0 ? (
                                 <div className="flex flex-col gap-3">
                                     {relationFields.map((field) => {
-                                        const live =
-                                            !!entryId &&
-                                            (!!field.relation?.many ||
-                                                !!field.relation?.inverse);
-                                        // Header count: the live total for an
-                                        // edited many/inverse relation, else the
-                                        // staged/single form value's length.
-                                        const count = live
-                                            ? (relationRefs?.[field.name]
-                                                  ?.total ?? 0)
+                                        // A many/inverse relation is staged +
+                                        // link-managed; a single relation is a
+                                        // plain form value.
+                                        const managed =
+                                            !!field.relation?.many ||
+                                            !!field.relation?.inverse;
+                                        const staged = stagedFor(field.name);
+                                        // Header count: server total adjusted by
+                                        // the staged add/remove (managed), else
+                                        // the single form value's length.
+                                        const count = managed
+                                            ? Math.max(
+                                                  0,
+                                                  (relationRefs?.[field.name]
+                                                      ?.total ?? 0) -
+                                                      staged.removed.length +
+                                                      staged.added.length
+                                              )
                                             : toRelationIds(
                                                   form.values[field.name],
-                                                  !!field.relation?.many
+                                                  false
                                               ).length;
+                                        const changed = managed
+                                            ? isRelationDirty(field.name)
+                                            : isFieldDirty(field.name);
                                         return (
                                             <RelationFieldSection
                                                 key={field.name}
                                                 field={field}
                                                 count={count}
+                                                changed={changed}
                                                 typeName={schema.name}
                                                 entryId={entryId}
                                                 value={form.values[field.name]}
@@ -322,6 +394,10 @@ export function EntryEditor({
                                                 initialRefs={
                                                     relationRefs?.[field.name]
                                                         ?.items
+                                                }
+                                                staged={staged}
+                                                onStagedChange={(next) =>
+                                                    setStaged(field.name, next)
                                                 }
                                             />
                                         );

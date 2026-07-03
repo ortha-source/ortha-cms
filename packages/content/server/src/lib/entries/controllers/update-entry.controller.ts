@@ -46,6 +46,12 @@ export class UpdateEntryController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.update(type, id, body.values, workspaceId);
+        return this.writer.update(
+            type,
+            id,
+            body.values,
+            workspaceId,
+            body.relations
+        );
     }
 }

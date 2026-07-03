@@ -17,10 +17,14 @@ import {
     verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { Button, Spinner } from '@ortha-cms/design-system';
-import type { ContentField } from '../../../../types/contentType';
+import type {
+    ContentField,
+    RelationRef,
+    StagedRelation
+} from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
 import { useRelationFieldLinks } from '../../../../api/useRelationFieldLinks';
-import { useRelationDelta } from '../../../../api/useRelationDelta';
+import type { RelationCandidate } from '../../../../api/useRelationCandidates';
 import { RelationItemRow } from '../RelationField/RelationItemRow';
 import { SortableRelationItem } from '../RelationField/SortableRelationItem';
 import { RelationPickerDialog } from '../RelationField/RelationPickerDialog';
@@ -31,7 +35,6 @@ const messages = defineMessages({
         defaultMessage: 'Select {label}'
     },
     add: { id: 'content.relations.live.add', defaultMessage: 'Add related' },
-    change: { id: 'content.relations.live.change', defaultMessage: 'Change' },
     empty: {
         id: 'content.relations.live.empty',
         defaultMessage: 'Nothing linked yet.'
@@ -43,33 +46,56 @@ const messages = defineMessages({
     loadError: {
         id: 'content.relations.live.loadError',
         defaultMessage: 'Couldn’t load linked records.'
-    },
-    more: {
-        id: 'content.relations.live.more',
-        defaultMessage: '{count} more'
     }
 });
 
+/** Apply a {@link StagedRelation} to the server-loaded links → the displayed set. */
+function applyStaged(
+    serverItems: RelationRef[],
+    staged: StagedRelation
+): RelationRef[] {
+    const removed = new Set(staged.removed);
+    const base = serverItems.filter((item) => !removed.has(item.id));
+    const merged = [
+        ...base,
+        ...staged.added.filter((a) => !base.some((b) => b.id === a.id))
+    ];
+    if (!staged.order) return merged;
+    // Reordered ids first (in the stored sequence); anything not in `order`
+    // (e.g. a page loaded after the reorder) keeps its natural order at the end.
+    const rank = new Map(staged.order.map((id, i) => [id, i]));
+    return [...merged].sort(
+        (a, b) =>
+            (rank.get(a.id) ?? Number.POSITIVE_INFINITY) -
+            (rank.get(b.id) ?? Number.POSITIVE_INFINITY)
+    );
+}
+
 /**
- * The **edit-mode** relation editor for one many/inverse relation field: unlike
- * the create-mode {@link RelationField} (which stages a small array in the form
- * and saves it with the entry), this manages the links **live** against an
- * existing entry — the assigned list is **infinite-scroll paginated**
- * (`useRelationFieldLinks`), and assign / unassign / reorder each apply an
- * **incremental delta** immediately (`useRelationDelta`), so a relation holding
- * thousands of links is never loaded or sent whole. Owning many-relations are
- * drag/keyboard reorderable (persisted via `position`); the inverse side reads
- * order but can't reorder it, so its rows aren't sortable.
+ * The relation editor for one **many/inverse** relation field. It shows the
+ * assigned records — the server set (infinite-scroll paginated via
+ * {@link useRelationFieldLinks} on an existing entry; empty while creating) with
+ * the user's **local staging** overlaid — and every assign / unassign / reorder
+ * updates that staging **only** (`onStagedChange`): nothing is sent until the
+ * user hits Save, which submits the whole document plus the relation deltas in
+ * one request. Fully controlled: `staged` is owned by the editor so edits
+ * survive collapsing the section or switching tabs. Owning many-relations
+ * reorder (persisted via `position`); the inverse reads order but isn't sortable.
  */
 export function RelationFieldLive({
     field,
     typeName,
-    entryId
+    entryId,
+    staged,
+    onStagedChange
 }: {
     field: ContentField;
     typeName: string;
-    /** The existing entry's id — required (this is the edit-mode path). */
-    entryId: string;
+    /** The existing entry's id, or undefined while creating (no server set). */
+    entryId?: string;
+    /** The field's pending link/unlink/reorder (editor-owned). */
+    staged: StagedRelation;
+    onStagedChange: (next: StagedRelation) => void;
 }) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
@@ -80,30 +106,63 @@ export function RelationFieldLive({
         })
     );
 
+    const many = field.relation?.many ?? false;
     const targetName = field.relation?.to ?? '';
     // Owning many-relations own their order; an inverse reads it but can't set it.
-    const reorderable = !!field.relation?.many && !field.relation?.inverse;
+    const reorderable = many && !field.relation?.inverse;
 
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
 
-    const links = useRelationFieldLinks(typeName, entryId, field.name);
-    const delta = useRelationDelta(typeName, entryId);
+    const links = useRelationFieldLinks(typeName, entryId, field.name, !!entryId);
+    const serverItems = entryId ? links.items : [];
 
-    const items = links.items;
-    const ids = items.map((item) => item.id);
+    const displayed = applyStaged(serverItems, staged);
+    const ids = displayed.map((item) => item.id);
     const removeLabelFor = (title: string) =>
         intl.formatMessage(messages.remove, { title });
 
-    // Assign the picked records that aren't already linked (server dedupes too).
-    const confirm = (picked: string[]) => {
-        const linked = new Set(ids);
-        const link = picked.filter((id) => !linked.has(id));
-        if (link.length) delta.mutate({ field: field.name, delta: { link } });
+    // Reconcile the picker's chosen set against what's displayed: link the new
+    // ones (remembering their title), unlink the ones it dropped — all into the
+    // staged diff, no request.
+    const confirm = (chosenIds: string[], picked: RelationCandidate[]) => {
+        const chosen = new Set(chosenIds);
+        const toRemove = ids.filter((id) => !chosen.has(id));
+        const toAdd = chosenIds.filter((id) => !ids.includes(id));
+        const byId = new Map(picked.map((c) => [c.id, c]));
+
+        let added = [...staged.added];
+        let removed = [...staged.removed];
+        for (const id of toRemove) {
+            if (added.some((a) => a.id === id))
+                added = added.filter((a) => a.id !== id);
+            else if (!removed.includes(id)) removed = [...removed, id];
+        }
+        for (const id of toAdd) {
+            if (removed.includes(id)) {
+                removed = removed.filter((x) => x !== id); // re-link a server item
+            } else if (
+                !serverItems.some((s) => s.id === id) &&
+                !added.some((a) => a.id === id)
+            ) {
+                const c = byId.get(id);
+                added = [
+                    ...added,
+                    {
+                        id,
+                        title: c?.title ?? id,
+                        ...(c?.status ? { status: c.status } : {})
+                    }
+                ];
+            }
+        }
+        const order = staged.order
+            ? staged.order.filter((x) => !toRemove.includes(x))
+            : null;
+        onStagedChange({ added, removed, order });
     };
 
-    const removeId = (id: string) =>
-        delta.mutate({ field: field.name, delta: { unlink: [id] } });
+    const removeId = (id: string) => confirm(ids.filter((x) => x !== id), []);
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -111,14 +170,10 @@ export function RelationFieldLive({
         const from = ids.indexOf(String(active.id));
         const to = ids.indexOf(String(over.id));
         if (from === -1 || to === -1) return;
-        // Persist the loaded window's new order (positions renumber server-side).
-        delta.mutate({
-            field: field.name,
-            delta: { order: arrayMove(ids, from, to) }
-        });
+        onStagedChange({ ...staged, order: arrayMove(ids, from, to) });
     };
 
-    // Near the bottom → pull the next page (infinite scroll).
+    // Near the bottom → pull the next server page (edit mode only).
     const onScroll = (event: UIEvent<HTMLDivElement>) => {
         const el = event.currentTarget;
         if (
@@ -130,12 +185,7 @@ export function RelationFieldLive({
         }
     };
 
-    const remaining = links.total - items.length;
-    const triggerLabel = field.relation?.many
-        ? messages.add
-        : ids.length > 0
-          ? messages.change
-          : messages.assign;
+    const triggerLabel = many ? messages.add : messages.assign;
 
     return (
         <div className="flex flex-col gap-3">
@@ -143,7 +193,7 @@ export function RelationFieldLive({
                 <p className="text-sm text-destructive">
                     {intl.formatMessage(messages.loadError)}
                 </p>
-            ) : links.isPending ? (
+            ) : links.isLoading ? (
                 <div className="flex justify-center py-4">
                     <Spinner aria-hidden />
                 </div>
@@ -166,7 +216,7 @@ export function RelationFieldLive({
                                 items={ids}
                                 strategy={verticalListSortingStrategy}
                             >
-                                {items.map((item) => (
+                                {displayed.map((item) => (
                                     <SortableRelationItem
                                         key={item.id}
                                         id={item.id}
@@ -178,7 +228,7 @@ export function RelationFieldLive({
                             </SortableContext>
                         </DndContext>
                     ) : (
-                        items.map((item) => (
+                        displayed.map((item) => (
                             <RelationItemRow
                                 key={item.id}
                                 title={item.title}
@@ -192,12 +242,6 @@ export function RelationFieldLive({
                         <div className="flex justify-center py-2">
                             <Spinner aria-hidden />
                         </div>
-                    ) : remaining > 0 ? (
-                        <p className="py-1 text-center text-xs text-muted-foreground">
-                            {intl.formatMessage(messages.more, {
-                                count: remaining
-                            })}
-                        </p>
                     ) : null}
                 </div>
             )}
@@ -209,7 +253,6 @@ export function RelationFieldLive({
                     size="sm"
                     className="shadow-none"
                     onClick={() => setOpen(true)}
-                    disabled={delta.isPending}
                 >
                     <Plus className="size-4" />
                     {intl.formatMessage(triggerLabel, { label: targetLabel })}
@@ -221,9 +264,9 @@ export function RelationFieldLive({
                 onOpenChange={setOpen}
                 targetName={targetName}
                 targetLabel={targetLabel}
-                many={field.relation?.many ?? false}
+                many={many}
                 selectedIds={ids}
-                onConfirm={(picked) => confirm(picked)}
+                onConfirm={confirm}
             />
         </div>
     );

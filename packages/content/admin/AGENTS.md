@@ -160,17 +160,24 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
       renders/edits it, submitted in the entry `values` on save (create's
       whole-set → the server `writeLinks`). Titles come from the loaded
       `RelationRef`s (`initialRefs`) or the picked candidate.
-    - **Many / inverse** relations on an **existing** entry are edited **live** by
-      `RelationFieldLive`: the assigned list is **infinite-scroll paginated**
-      (`useRelationFieldLinks` → `GET …/relations/:field`), and assign / unassign /
-      reorder each fire an **incremental delta immediately** (`useRelationDelta` →
-      `POST …/relations/:field { link?, unlink?, order? }`), so a relation with
-      thousands of links is never loaded or sent whole. `seedRelationValues`
-      **drops** these fields from the form (a save can't wipe links it never
-      loaded); the delta mutation invalidates the field's infinite query, the
-      relations aggregate (header counts), and the records list. Owning
+    - **Many / inverse** relations are edited by `RelationFieldLive` (create and
+      edit alike): the assigned list is the server set — **infinite-scroll
+      paginated** (`useRelationFieldLinks` → `GET …/relations/:field`) on an
+      existing entry, empty while creating — with the user's **local staging**
+      (`StagedRelation` = added refs / removed ids / order) overlaid. Assign /
+      unassign / reorder mutate **only** that staging (owned by `EntryEditor`, so
+      it survives collapsing a section or switching tabs); **nothing is sent until
+      Save**, which serializes each field's staging to a `{ link?, unlink?, order? }`
+      delta and posts it in the entry body — one transaction, one request, a huge
+      relation never sent whole. `seedRelationValues` **drops** these fields from
+      the form (a save can't wipe links it never loaded); a successful save clears
+      the staging and `useSaveEntry` invalidates the field queries. Owning
       many-relations reorder (persisted via `position`); the inverse reads order
       but isn't sortable.
+  A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
+  fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
+  (dirty staging, or a dirty single value) in the section header — so the user
+  sees exactly what a Save will persist.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by

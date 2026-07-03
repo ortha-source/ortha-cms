@@ -17,6 +17,10 @@ export const relationFieldLinksKey = (
     field: string
 ) => ['content-relation-field', workspaceId, name, id, field] as const;
 
+/** Key prefix matching every relation-field query for a type in a workspace. */
+export const relationFieldLinksPrefix = (workspaceId: string, name: string) =>
+    ['content-relation-field', workspaceId, name] as const;
+
 /** One page of a relation field's links. */
 async function fetchRelationPage(
     name: string,

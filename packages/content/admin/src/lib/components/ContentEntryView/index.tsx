@@ -15,7 +15,8 @@ import {
 import type {
     ContentType,
     ContentTypeDetail,
-    EntryRecord
+    EntryRecord,
+    RelationDelta
 } from '../../types/contentType';
 import {
     CONTENT_FIELD_TYPE,
@@ -262,12 +263,19 @@ export function ContentEntryView({
     // can surface a 422's field issues; resolves on success after toast + nav.
     const onSave = async (
         values: Record<string, unknown>,
-        options: { publish: boolean }
+        options: {
+            publish: boolean;
+            relations?: Record<string, RelationDelta>;
+        }
     ) => {
         // Reuse the id of an existing row, or one we already created this
         // session — so a save after a failed publish updates, never re-creates.
         const existingId = resolved.entry?.id ?? createdId;
-        const saved = await save.mutateAsync({ id: existingId, values });
+        const saved = await save.mutateAsync({
+            id: existingId,
+            values,
+            relations: options.relations
+        });
         // Record the new id before chaining publish: if publish then fails, the
         // draft persists and the user's retry must target it (not POST again).
         if (!existingId) setCreatedId(saved.id);
