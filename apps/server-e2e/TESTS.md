@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_242 test cases across 25 spec files._
+_247 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -239,6 +239,11 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 422s a many-to-many target in another workspace |
 | reads and writes the inverse side (tag.articles) two-way |
 | 404s the relations read for a missing entry |
+| links and unlinks via the incremental delta endpoint |
+| persists order via the reorder delta |
+| paginates a field with many links |
+| 400s a delta on a single relation |
+| 422s linking a target in another workspace via delta |
 
 ### publish / unpublish
 

@@ -1,19 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import {
     and,
+    asc,
+    count,
     eq,
     inArray,
     isNull,
+    max,
     notInArray,
-    sql,
-    type AnyColumn,
-    type SQL
+    type AnyColumn
 } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { AnyContentType, EntryStatus } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
-import type { RelationRef } from '../types/entry-list-view';
+import type {
+    RelationDelta,
+    RelationFieldView,
+    RelationRef
+} from '../types/entry-list-view';
 import { entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */
@@ -21,6 +26,9 @@ type Columns = Record<string, AnyColumn>;
 
 /** A generated content row seen as a bag of values by property name. */
 type Row = Record<string, unknown>;
+
+/** Default links per page when the caller doesn't specify one. */
+export const RELATION_PAGE_SIZE = 20;
 
 /**
  * The transaction handle Drizzle hands the `db.transaction(tx => …)` callback —
@@ -32,29 +40,25 @@ export type DbTransaction = Parameters<
 >[0];
 
 /**
- * Where a relation field's links physically live, normalized so the read and
- * write paths treat every join-backed relation the same. `table` is the join
- * table; `ownCol` holds the editing record's id, `refCol` the linked target's —
- * swapped for an inverse field, which reuses the owning side's join table.
+ * Where a join-backed relation field's links physically live, normalized so the
+ * read and write paths treat every one the same. `table` is the join table;
+ * `ownCol` holds the editing record's id, `refCol` the linked target's — swapped
+ * for an inverse of a many-to-many, which reuses the owning side's join table.
  */
 interface JoinPlan {
-    field: string;
     table: PgTable;
-    ownCol: string;
-    refCol: string;
-    /** The content type the linked ids belong to (for title resolution). */
+    /** Property name of the column holding the editing record's id. */
+    ownCol: 'sourceId' | 'targetId';
+    /** Property name of the column holding the linked target's id. */
+    refCol: 'sourceId' | 'targetId';
+    /** The content type the linked ids belong to. */
     target: AnyContentType;
 }
 
-/**
- * Where an inverse-of-single (one-to-many) relation reads from: the owning
- * type's main table, filtered by its FK column. It owns no join table, so its
- * links are the owner rows whose FK points back at the editing record.
- */
-interface InverseColumnPlan {
-    field: string;
+/** Where an inverse-of-single (one-to-many) field reads from: the owner table. */
+interface InversePlan {
     table: PgTable;
-    /** The owning FK column that points back at the editing record. */
+    /** The owning FK column (property name) pointing back at the editing record. */
     fkCol: string;
     target: AnyContentType;
 }
@@ -63,246 +67,346 @@ interface InverseColumnPlan {
  * Reads and writes the relation **links** an entry owns beyond its own columns:
  * many-to-many join rows and the inverse (back-reference) side of a two-way
  * relation. Owning **single** relations are plain `<field>_id` FK columns —
- * written by `toColumns` and read straight off the row — so they need no join
- * plumbing; this service fills the gap for everything that lives in a join
- * table (or, for an inverse-of-single, on another type's table).
+ * written by `toColumns`, read off the row — so they need no join plumbing.
  *
- * Reads resolve **every** relation field to display-ready {@link RelationRef}s
- * (id + title) in a bounded set of queries — one `UNION ALL` over all
- * join/inverse sources, then one lookup per referenced target type. Writes
- * replace a record's links with exactly the submitted ids **inside the caller's
- * transaction**, so the entry row and its links commit or roll back together.
+ * Everything is **paginated**: a relation can hold thousands of links, so reads
+ * return one ordered page + a `total` (never every id), and writes apply an
+ * incremental {@link RelationDelta} (link / unlink / reorder) inside a
+ * transaction — so a huge relation never has to be sent or held in full.
+ * Order is persisted in the join table's `position` column, owned by the
+ * **source** side; the inverse reads by it (stable) but can't reorder it.
  */
 @Injectable()
 export class RelationLinkService {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
+    // ---- reads -------------------------------------------------------------
+
     /**
-     * Replace every join-backed relation link for `sourceId` with exactly the
-     * ids in `values`, running inside the caller's transaction so links commit
-     * atomically with the entry write. Handles owning many-relations and the
-     * inverse side of a many-to-many (the same join rows, roles swapped);
-     * owning single relations are FK columns (already written by `toColumns`),
-     * and an inverse-of-single owns no writable link here, so both are skipped.
+     * First page (+ total) of **every** relation field of `type` for one entry,
+     * keyed by field name — what the editor loads on open. Each field is read
+     * independently (paginated), so a relation with many links contributes only
+     * its first page, not every id.
+     */
+    async readAll(
+        type: AnyContentType,
+        row: Row,
+        workspaceId: string,
+        pageSize = RELATION_PAGE_SIZE
+    ): Promise<Record<string, RelationFieldView>> {
+        const out: Record<string, RelationFieldView> = {};
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
+                continue;
+            out[name] = await this.readField(
+                type,
+                row,
+                name,
+                spec,
+                1,
+                pageSize,
+                workspaceId
+            );
+        }
+        return out;
+    }
+
+    /**
+     * One page of a single relation field's links, ordered by `position`
+     * (owning) and resolved to display-ready refs (id + title). `row` is the
+     * editing entry (its FK columns back a single relation); pass it to avoid a
+     * re-read. Returns `{ items, total }`.
+     */
+    async readField(
+        type: AnyContentType,
+        row: Row,
+        field: string,
+        spec: AnyFieldSpec,
+        page: number,
+        pageSize: number,
+        workspaceId: string
+    ): Promise<RelationFieldView> {
+        if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
+            return { items: [], total: 0 };
+        const offset = (page - 1) * pageSize;
+
+        // Owning single relation: the id is the row's FK value (0 or 1 link).
+        if (!spec.relation.many && !spec.relation.inverse) {
+            const fk = row[field];
+            const ids = typeof fk === 'string' && fk ? [fk] : [];
+            const items =
+                page === 1
+                    ? await this.refsFor(spec.relation.to(), ids, workspaceId)
+                    : [];
+            return { items, total: ids.length };
+        }
+
+        const join = this.joinPlanFor(type, field, spec);
+        if (join) {
+            const cols = join.table as unknown as Columns;
+            const [rows, [{ total }]] = await Promise.all([
+                this.db
+                    .select()
+                    .from(join.table)
+                    .where(eq(cols[join.ownCol], row['id']))
+                    .orderBy(asc(cols['position']), asc(cols[join.refCol]))
+                    .limit(pageSize)
+                    .offset(offset),
+                this.db
+                    .select({ total: count() })
+                    .from(join.table)
+                    .where(eq(cols[join.ownCol], row['id']))
+            ]);
+            const ids = (rows as Row[]).map(
+                (r) => r[join.refCol] as string
+            );
+            return {
+                items: await this.refsFor(join.target, ids, workspaceId),
+                total: Number(total)
+            };
+        }
+
+        const inverse = this.inversePlanFor(spec);
+        if (inverse) {
+            const cols = inverse.table as unknown as Columns;
+            const where = and(
+                eq(cols[inverse.fkCol], row['id']),
+                eq(cols['workspaceId'], workspaceId),
+                cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+            );
+            const [rows, [{ total }]] = await Promise.all([
+                this.db
+                    .select()
+                    .from(inverse.table)
+                    .where(where)
+                    .orderBy(asc(cols['createdAt']), asc(cols['id']))
+                    .limit(pageSize)
+                    .offset(offset),
+                this.db
+                    .select({ total: count() })
+                    .from(inverse.table)
+                    .where(where)
+            ]);
+            return {
+                items: (rows as Row[]).map((r) =>
+                    this.rowToRef(inverse.target, r)
+                ),
+                total: Number(total)
+            };
+        }
+        return { items: [], total: 0 };
+    }
+
+    // ---- writes ------------------------------------------------------------
+
+    /**
+     * Apply an incremental {@link RelationDelta} to one many/inverse relation
+     * field inside `tx`: validate the linked targets are in the workspace, unlink
+     * the removed pairs, append the new ones (`position = max+1` for the source,
+     * `ON CONFLICT DO NOTHING`), then renumber to `order` (owning side only).
+     * A single relation or an inverse-of-single owns no delta-writable link, so
+     * it's a no-op. Returns nothing — read the field back for the new state.
+     */
+    async applyDelta(
+        tx: DbTransaction,
+        type: AnyContentType,
+        sourceId: string,
+        field: string,
+        delta: RelationDelta,
+        workspaceId: string
+    ): Promise<void> {
+        const spec = type.fields[field];
+        const join = spec ? this.joinPlanFor(type, field, spec) : null;
+        if (!join) return; // single / inverse-of-single: nothing to write here
+
+        await this.assertTargets(join.target, delta.link ?? [], workspaceId);
+        const cols = join.table as unknown as Columns;
+        const own = cols[join.ownCol];
+        const ref = cols[join.refCol];
+
+        if (delta.unlink?.length) {
+            await tx
+                .delete(join.table)
+                .where(and(eq(own, sourceId), inArray(ref, delta.unlink)));
+        }
+
+        // Append each new link at the end of its **source's** ordered list. For
+        // an owning relation the source is this entry; for an inverse it's the
+        // linked (owner) row, so each appends to that row's own list.
+        for (const targetId of dedupe(delta.link)) {
+            const physicalSourceId =
+                join.ownCol === 'sourceId' ? sourceId : targetId;
+            const position = await this.nextPosition(
+                tx,
+                join.table,
+                physicalSourceId
+            );
+            await tx
+                .insert(join.table)
+                .values({
+                    [join.ownCol]: sourceId,
+                    [join.refCol]: targetId,
+                    position
+                } as never)
+                .onConflictDoNothing();
+        }
+
+        // Reorder is the owning side's prerogative (its `source_id` axis); the
+        // inverse reuses the same rows and can't renumber them without corrupting
+        // the owner's order, so `order` is ignored there.
+        if (delta.order?.length && join.ownCol === 'sourceId') {
+            let i = 0;
+            for (const targetId of delta.order) {
+                await tx
+                    .update(join.table)
+                    .set({ position: i++ } as never)
+                    .where(and(eq(own, sourceId), eq(ref, targetId)));
+            }
+        }
+    }
+
+    /**
+     * Replace a many-relation's links with exactly `values[field]` (array),
+     * position = array index — the **whole-set** write used only when a caller
+     * still submits a relation in the entry body (legacy / bulk). The editor
+     * uses {@link applyDelta} instead. Runs inside the entry's transaction; a
+     * field absent from `values` is left untouched (never wiped).
      */
     async writeLinks(
         tx: DbTransaction,
         type: AnyContentType,
         sourceId: string,
-        values: Record<string, unknown>
+        values: Record<string, unknown>,
+        workspaceId: string
     ): Promise<void> {
         for (const [name, spec] of Object.entries(type.fields)) {
-            const plan = this.joinPlanFor(type, name, spec);
-            if (!plan) continue;
-            await this.replaceLinks(tx, plan, sourceId, idsOf(values[name]));
-        }
-    }
-
-    /**
-     * Resolve every relation field of `type` for one `row` to display-ready
-     * refs, keyed by field name. Single owning relations come off the row's FK;
-     * everything join-backed (many, inverse) is read in **one `UNION ALL`**, and
-     * titles are filled with **one lookup per referenced target type** — never a
-     * query per link. Scoped to `workspaceId` so a title can't be read across
-     * workspaces.
-     */
-    async readLinks(
-        type: AnyContentType,
-        row: Row,
-        workspaceId: string
-    ): Promise<Record<string, RelationRef[]>> {
-        const sourceId = row['id'] as string;
-
-        // Field → ordered target ids. Single relations resolve straight off the
-        // row; join/inverse relations are gathered by the union query below.
-        const idsByField = new Map<string, string[]>();
-        const targetByField = new Map<string, AnyContentType>();
-
-        const joinReads: SQL[] = [];
-        const inversePlans: InverseColumnPlan[] = [];
-
-        for (const [name, spec] of Object.entries(type.fields)) {
-            if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
-                continue;
-            targetByField.set(name, spec.relation.to());
-            idsByField.set(name, []);
-
+            if (!(name in values)) continue; // not submitted → don't touch
             const join = this.joinPlanFor(type, name, spec);
-            if (join) {
-                const cols = join.table as unknown as Columns;
-                // One SELECT per join-backed field, unioned into a single read
-                // below. `${name}` binds as a parameter (the field label);
-                // `${column}` renders the qualified column reference.
-                joinReads.push(
-                    sql`select ${name} as "field", ${cols[join.refCol]} as "target" from ${join.table} where ${cols[join.ownCol]} = ${sourceId}`
-                );
-                continue;
-            }
-
-            const inverse = this.inversePlanFor(spec);
-            if (inverse) {
-                inversePlans.push({ ...inverse, field: name });
-                continue;
-            }
-
-            // Owning single relation: the target id is the row's FK value.
-            const fk = row[name];
-            if (typeof fk === 'string' && fk) idsByField.get(name)!.push(fk);
-        }
-
-        for (const [field, target] of await this.readJoinLinks(
-            joinReads,
-            inversePlans,
-            sourceId,
-            workspaceId
-        )) {
-            idsByField.get(field)?.push(target);
-        }
-
-        const titles = await this.resolveTitles(
-            idsByField,
-            targetByField,
-            workspaceId
-        );
-
-        const relations: Record<string, RelationRef[]> = {};
-        for (const [field, ids] of idsByField) {
-            relations[field] = ids.map(
-                (id) => titles.get(id) ?? { id, title: id }
+            if (!join || join.ownCol !== 'sourceId') continue; // owning many only
+            const ids = dedupe(
+                Array.isArray(values[name]) ? (values[name] as unknown[]) : []
             );
-        }
-        return relations;
-    }
-
-    /**
-     * Run the combined link read: the join-table `UNION ALL` plus a lookup per
-     * inverse-of-single field (a one-to-many read off the owning table's FK).
-     * Returns flat `[field, targetId]` pairs. The inverse-of-single reads are
-     * workspace-scoped and skip soft-deleted owners.
-     */
-    private async readJoinLinks(
-        joinReads: SQL[],
-        inversePlans: InverseColumnPlan[],
-        sourceId: string,
-        workspaceId: string
-    ): Promise<[string, string][]> {
-        const pairs: [string, string][] = [];
-
-        if (joinReads.length) {
-            // All join/inverse-many reads in one round-trip: `… UNION ALL …`.
-            const statement = sql.join(joinReads, sql` union all `);
-            const result = (await this.db.execute(statement)) as unknown as {
-                rows?: Row[];
-            } & Row[];
-            for (const r of result.rows ?? result)
-                pairs.push([r['field'] as string, r['target'] as string]);
-        }
-
-        for (const plan of inversePlans) {
-            const cols = plan.table as unknown as Columns;
-            const owners = (await this.db
-                .select()
-                .from(plan.table)
-                .where(
-                    and(
-                        eq(cols[plan.fkCol], sourceId),
-                        eq(cols['workspaceId'], workspaceId),
-                        cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
-                    )
-                )) as Row[];
-            for (const owner of owners)
-                pairs.push([plan.field, owner['id'] as string]);
-        }
-
-        return pairs;
-    }
-
-    /**
-     * Batch-resolve a title (and status) for every referenced id: group the ids
-     * by their target content type and run **one** `SELECT … WHERE id IN (…)`
-     * per type, scoped to the workspace. Returns an id → {@link RelationRef} map.
-     */
-    private async resolveTitles(
-        idsByField: Map<string, string[]>,
-        targetByField: Map<string, AnyContentType>,
-        workspaceId: string
-    ): Promise<Map<string, RelationRef>> {
-        const idsByTarget = new Map<AnyContentType, Set<string>>();
-        for (const [field, ids] of idsByField) {
-            if (!ids.length) continue;
-            const target = targetByField.get(field)!;
-            const set = idsByTarget.get(target) ?? new Set<string>();
-            ids.forEach((id) => set.add(id));
-            idsByTarget.set(target, set);
-        }
-
-        const refs = new Map<string, RelationRef>();
-        for (const [target, ids] of idsByTarget) {
-            const cols = target.table as unknown as Columns;
-            const rows = (await this.db
-                .select()
-                .from(target.table)
-                .where(
-                    and(
-                        inArray(cols['id'], [...ids]),
-                        eq(cols['workspaceId'], workspaceId)
-                    )
-                )) as Row[];
-            for (const row of rows) {
-                const ref: RelationRef = {
-                    id: row['id'] as string,
-                    title: entryTitle(target, row)
-                };
-                if (target.publishable)
-                    ref.status = row['status'] as EntryStatus;
-                refs.set(ref.id, ref);
-            }
-        }
-        return refs;
-    }
-
-    /**
-     * Replace the join-table links for one record: unlink the target ids no
-     * longer present, then insert the newcomers idempotently
-     * (`ON CONFLICT DO NOTHING`, so re-saving an unchanged set is a no-op rather
-     * than a unique-constraint error). An empty `refIds` clears every link.
-     */
-    private async replaceLinks(
-        tx: DbTransaction,
-        plan: JoinPlan,
-        ownId: string,
-        refIds: string[]
-    ): Promise<void> {
-        const cols = plan.table as unknown as Columns;
-        const own = cols[plan.ownCol];
-        const ref = cols[plan.refCol];
-        await tx
-            .delete(plan.table)
-            .where(
-                refIds.length
-                    ? and(eq(own, ownId), notInArray(ref, refIds))
-                    : eq(own, ownId)
-            );
-        if (refIds.length) {
+            await this.assertTargets(join.target, ids, workspaceId);
+            const cols = join.table as unknown as Columns;
+            const own = cols[join.ownCol];
+            const ref = cols[join.refCol];
             await tx
-                .insert(plan.table)
-                .values(
-                    refIds.map(
-                        (id) =>
-                            ({
-                                [plan.ownCol]: ownId,
-                                [plan.refCol]: id
-                            }) as never
+                .delete(join.table)
+                .where(
+                    ids.length
+                        ? and(eq(own, sourceId), notInArray(ref, ids))
+                        : eq(own, sourceId)
+                );
+            if (ids.length) {
+                await tx
+                    .insert(join.table)
+                    .values(
+                        ids.map(
+                            (id, i) =>
+                                ({
+                                    [join.ownCol]: sourceId,
+                                    [join.refCol]: id,
+                                    position: i
+                                }) as never
+                        )
                     )
+                    .onConflictDoNothing();
+            }
+        }
+    }
+
+    // ---- helpers -----------------------------------------------------------
+
+    /** Next append position for a source: `max(position) + 1`, else 0. */
+    private async nextPosition(
+        tx: DbTransaction,
+        table: PgTable,
+        sourceId: string
+    ): Promise<number> {
+        const cols = table as unknown as Columns;
+        const [row] = await tx
+            .select({ max: max(cols['position']) })
+            .from(table)
+            .where(eq(cols['sourceId'], sourceId));
+        const current = row?.max;
+        return current == null ? 0 : Number(current) + 1;
+    }
+
+    /**
+     * Resolve `ids` (in order) to display-ready refs via one lookup on the target
+     * type, scoped to the workspace. Ids with no live row drop to an id-only ref.
+     */
+    private async refsFor(
+        target: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<RelationRef[]> {
+        if (!ids.length) return [];
+        const cols = target.table as unknown as Columns;
+        const rows = (await this.db
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], [...new Set(ids)]),
+                    eq(cols['workspaceId'], workspaceId)
                 )
-                .onConflictDoNothing();
+            )) as Row[];
+        const byId = new Map(
+            rows.map((row) => [row['id'] as string, this.rowToRef(target, row)])
+        );
+        return ids.map((id) => byId.get(id) ?? { id, title: id });
+    }
+
+    /** Build a display ref from a full target row. */
+    private rowToRef(target: AnyContentType, row: Row): RelationRef {
+        const ref: RelationRef = {
+            id: row['id'] as string,
+            title: entryTitle(target, row)
+        };
+        if (target.publishable) ref.status = row['status'] as EntryStatus;
+        return ref;
+    }
+
+    /**
+     * Verify every id to be linked exists **in the same workspace** (the join FK
+     * has no workspace constraint of its own). A missing or cross-workspace id is
+     * a uniform 422 — indistinguishable from an invalid id, so no enumeration
+     * signal.
+     */
+    private async assertTargets(
+        target: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<void> {
+        const unique = [...new Set(ids)].filter((id) => !!id);
+        if (!unique.length) return;
+        const cols = target.table as unknown as Columns;
+        const rows = (await this.db
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], unique),
+                    eq(cols['workspaceId'], workspaceId)
+                )
+            )) as Row[];
+        const present = new Set(rows.map((r) => r['id'] as string));
+        const missing = unique.filter((id) => !present.has(id));
+        if (missing.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues: missing.map(() => ({
+                    field: 'relation',
+                    message: 'must reference an existing entry'
+                }))
+            });
         }
     }
 
     /**
      * The join-table plan for a relation field, or `null` when it owns no join
-     * table (an owning single relation — a plain FK column — or an
-     * inverse-of-single, handled by {@link inversePlanFor}). An owning
+     * table (an owning single relation, or an inverse-of-single). An owning
      * many-relation uses its own join table (`source→target`); an inverse of a
      * many-to-many reuses the owning side's join table with the roles swapped.
      */
@@ -317,10 +421,8 @@ export class RelationLinkService {
         if (relation.inverse) {
             const owner = relation.to();
             const owningField = owner.fields[relation.inverse.field];
-            // Only an inverse of a many-to-many has a join table to write.
-            if (!owningField?.relation?.many) return null;
+            if (!owningField?.relation?.many) return null; // inverse-of-single
             return {
-                field,
                 table: owner.joinTables[relation.inverse.field],
                 ownCol: 'targetId',
                 refCol: 'sourceId',
@@ -329,7 +431,6 @@ export class RelationLinkService {
         }
         if (relation.many) {
             return {
-                field,
                 table: type.joinTables[field],
                 ownCol: 'sourceId',
                 refCol: 'targetId',
@@ -340,14 +441,11 @@ export class RelationLinkService {
     }
 
     /**
-     * The inverse-of-single (one-to-many) plan for a relation field, or `null`.
-     * Such a field reads the owner rows whose FK column points back at the
-     * editing record; it owns no join table and isn't written from this side.
+     * The inverse-of-single (one-to-many) plan for a relation field, or `null`:
+     * it reads the owner rows whose FK points back at the editing record, and
+     * owns no writable link from this side.
      */
-    private inversePlanFor(spec: AnyFieldSpec): Omit<
-        InverseColumnPlan,
-        'field'
-    > | null {
+    private inversePlanFor(spec: AnyFieldSpec): InversePlan | null {
         if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation?.inverse)
             return null;
         const owner = spec.relation.to();
@@ -361,20 +459,11 @@ export class RelationLinkService {
     }
 }
 
-/**
- * Normalize a submitted relation value to a de-duplicated id array: a
- * many/inverse value is an array, a single value one id string; empties yield
- * `[]`. Order is preserved (a many-relation's order is meaningful).
- */
-function idsOf(value: unknown): string[] {
-    const raw = Array.isArray(value)
-        ? value
-        : typeof value === 'string' && value
-          ? [value]
-          : [];
+/** De-duplicate a list of ids, preserving order and dropping empties. */
+function dedupe(value: unknown[] | undefined): string[] {
     const seen = new Set<string>();
     const out: string[] = [];
-    for (const item of raw) {
+    for (const item of value ?? []) {
         if (typeof item === 'string' && item && !seen.has(item)) {
             seen.add(item);
             out.push(item);

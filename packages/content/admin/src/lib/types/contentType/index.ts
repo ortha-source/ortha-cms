@@ -127,13 +127,37 @@ export type RelationRef = {
 };
 
 /**
+ * One relation field's links: a **windowed** page of refs plus the `total` count
+ * across the whole set. A many/inverse relation can hold far more links than fit
+ * in one payload, so the editor pages through them (infinite scroll); a single
+ * relation is a `total` of 0/1. Mirrors the server's `RelationFieldView`.
+ */
+export type RelationFieldView = {
+    items: RelationRef[];
+    /** Total links on this field, across all pages. */
+    total: number;
+};
+
+/**
  * One entry's relation links keyed by field name — every relation field (owning
- * single/many **and** inverse back-references). Served by
- * `GET /api/content/:name/:id/relations`; mirrors the server's
+ * single/many **and** inverse back-references), each a first page + total.
+ * Served by `GET /api/content/:name/:id/relations`; mirrors the server's
  * `EntryRelationsView`.
  */
 export type EntryRelations = {
-    relations: Record<string, RelationRef[]>;
+    relations: Record<string, RelationFieldView>;
+};
+
+/**
+ * An incremental change to one many/inverse relation field — the wire body of
+ * `POST /api/content/:name/:id/relations/:field`. Only the diff is sent, so a
+ * relation with thousands of links is never transmitted (or held) in full.
+ * `order` renumbers the listed ids (owning many-relations only).
+ */
+export type RelationDelta = {
+    link?: string[];
+    unlink?: string[];
+    order?: string[];
 };
 
 /**

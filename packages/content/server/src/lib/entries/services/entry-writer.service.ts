@@ -22,7 +22,11 @@ import {
     EntryValidationService,
     type ValidationIssue
 } from '../../validation/services/entry-validation.service';
-import type { EntryRecord, RelationRef } from '../types/entry-list-view';
+import type {
+    EntryRecord,
+    RelationDelta,
+    RelationFieldView
+} from '../types/entry-list-view';
 import {
     BULK_VERDICT,
     type BulkActionResult,
@@ -32,7 +36,10 @@ import {
     type BulkPublishVerdict
 } from '../types/bulk-publish';
 import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
-import { RelationLinkService } from './relation-link.service';
+import {
+    RelationLinkService,
+    RELATION_PAGE_SIZE
+} from './relation-link.service';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -89,7 +96,8 @@ export class EntryWriterService {
                 tx,
                 type,
                 (inserted as Row)['id'] as string,
-                coerced
+                coerced,
+                workspaceId
             );
             return inserted as Row;
         });
@@ -97,18 +105,93 @@ export class EntryWriterService {
     }
 
     /**
-     * Read one live entry's relation links, keyed by field name — every relation
-     * field resolved to display-ready refs (id + title) in a bounded set of
-     * queries. 404 if the entry is missing (or soft-deleted) in this workspace.
+     * First page (+ total) of every relation field's links for one live entry,
+     * keyed by field name — what the editor loads on open. Each field is
+     * paginated, so a relation with many links contributes only its first page.
+     * 404 if the entry is missing (or soft-deleted) in this workspace.
      */
     async getRelations(
         type: AnyContentType,
         id: string,
         workspaceId: string
-    ): Promise<Record<string, RelationRef[]>> {
+    ): Promise<Record<string, RelationFieldView>> {
         const row = await this.findLive(type, id, workspaceId);
         if (!row) throw this.notFound(type, id);
-        return this.relations.readLinks(type, row, workspaceId);
+        return this.relations.readAll(type, row, workspaceId);
+    }
+
+    /**
+     * One page of a single relation field's links (infinite-scroll for a
+     * many/inverse relation). 404 if the entry is missing; 400 if `field` isn't a
+     * relation on the type.
+     */
+    async getRelationField(
+        type: AnyContentType,
+        id: string,
+        field: string,
+        page: number,
+        pageSize: number,
+        workspaceId: string
+    ): Promise<RelationFieldView> {
+        const spec = this.relationSpec(type, field);
+        const row = await this.findLive(type, id, workspaceId);
+        if (!row) throw this.notFound(type, id);
+        return this.relations.readField(
+            type,
+            row,
+            field,
+            spec,
+            page,
+            pageSize,
+            workspaceId
+        );
+    }
+
+    /**
+     * Apply an incremental link/unlink/reorder to one many/inverse relation field
+     * and return the field's refreshed first page. 404 if the entry is missing;
+     * 400 if `field` isn't a many/inverse relation (a single relation is edited
+     * via the entry's `values`, not a delta). The delta commits in one
+     * transaction.
+     */
+    async applyRelationDelta(
+        type: AnyContentType,
+        id: string,
+        field: string,
+        delta: RelationDelta,
+        workspaceId: string
+    ): Promise<RelationFieldView> {
+        const spec = this.relationSpec(type, field);
+        if (!spec.relation?.many && !spec.relation?.inverse) {
+            throw new BadRequestException(
+                `Relation "${type.name}.${field}" is a single relation — set it via the entry's values, not a delta.`
+            );
+        }
+        const row = await this.findLive(type, id, workspaceId);
+        if (!row) throw this.notFound(type, id);
+        await this.db.transaction((tx) =>
+            this.relations.applyDelta(tx, type, id, field, delta, workspaceId)
+        );
+        return this.relations.readField(
+            type,
+            row,
+            field,
+            spec,
+            1,
+            RELATION_PAGE_SIZE,
+            workspaceId
+        );
+    }
+
+    /** Resolve a relation field spec on the type, or 400 if it isn't one. */
+    private relationSpec(type: AnyContentType, field: string) {
+        const spec = type.fields[field];
+        if (spec?.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation) {
+            throw new BadRequestException(
+                `"${field}" is not a relation field on content type "${type.name}".`
+            );
+        }
+        return spec;
     }
 
     /** Read one live entry in the workspace, or 404. */
@@ -161,7 +244,13 @@ export class EntryWriterService {
                 .where(this.liveWhere(type, id, workspaceId))
                 .returning();
             if (!updated) throw this.notFound(type, id);
-            await this.relations.writeLinks(tx, type, id, coerced);
+            await this.relations.writeLinks(
+                tx,
+                type,
+                id,
+                coerced,
+                workspaceId
+            );
             return updated as Row;
         });
         return toRecord(type, row);

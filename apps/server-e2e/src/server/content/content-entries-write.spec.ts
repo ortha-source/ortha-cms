@@ -246,7 +246,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             return res.body.id as string;
         }
 
-        /** The ordered set of linked ids for a field on `/…/:id/relations`. */
+        /** The ordered linked ids for a field on `/…/:id/relations` (first page). */
         async function linkedIds(
             agent: request.Agent,
             type: string,
@@ -256,8 +256,10 @@ describe('Content entry writes (/api/content/:type)', () => {
             const res = await agent
                 .get(`/api/content/${type}/${id}/relations`)
                 .expect(200);
-            const refs = (res.body.relations[field] ?? []) as { id: string }[];
-            return refs.map((ref) => ref.id);
+            const view = (res.body.relations[field] ?? { items: [] }) as {
+                items: { id: string }[];
+            };
+            return view.items.map((ref) => ref.id);
         }
 
         it('persists a many-to-many on create and reads it back with titles', async () => {
@@ -274,12 +276,15 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .get(`/api/content/article/${id}/relations`)
                 .expect(200);
             const tags = res.body.relations.tags as {
-                id: string;
-                title: string;
-            }[];
-            expect(tags.map((t) => t.id).sort()).toEqual([eng, design].sort());
+                items: { id: string; title: string }[];
+                total: number;
+            };
+            expect(tags.total).toBe(2);
+            expect(tags.items.map((t) => t.id).sort()).toEqual(
+                [eng, design].sort()
+            );
             // Titles are resolved server-side (the tag's `name`).
-            expect(tags.map((t) => t.title).sort()).toEqual(
+            expect(tags.items.map((t) => t.title).sort()).toEqual(
                 ['design', 'engineering'].sort()
             );
         });
@@ -354,6 +359,109 @@ describe('Content entry writes (/api/content/:type)', () => {
                     '/api/content/article/00000000-0000-4000-8000-000000000000/relations'
                 )
                 .expect(404);
+        });
+
+        it('links and unlinks via the incremental delta endpoint', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const eng = await seedTagIn(workspaceId, 'engineering');
+            const design = await seedTagIn(workspaceId, 'design');
+            const id = await createArticle(agent);
+
+            const linked = await agent
+                .post(`/api/content/article/${id}/relations/tags`)
+                .send({ link: [eng, design] })
+                .expect(201);
+            expect(linked.body.total).toBe(2);
+            expect(
+                (linked.body.items as { id: string }[])
+                    .map((r) => r.id)
+                    .sort()
+            ).toEqual([eng, design].sort());
+
+            await agent
+                .post(`/api/content/article/${id}/relations/tags`)
+                .send({ unlink: [eng] })
+                .expect(201);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                design
+            ]);
+        });
+
+        it('persists order via the reorder delta', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const a = await seedTagIn(workspaceId, 'aaa');
+            const b = await seedTagIn(workspaceId, 'bbb');
+            const c = await seedTagIn(workspaceId, 'ccc');
+            const id = await createArticle(agent);
+            await agent
+                .post(`/api/content/article/${id}/relations/tags`)
+                .send({ link: [a, b, c] })
+                .expect(201);
+
+            await agent
+                .post(`/api/content/article/${id}/relations/tags`)
+                .send({ order: [c, a, b] })
+                .expect(201);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                c,
+                a,
+                b
+            ]);
+        });
+
+        it('paginates a field with many links', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            const tagIds: string[] = [];
+            for (let i = 0; i < 5; i++) {
+                tagIds.push(await seedTagIn(workspaceId, `tag-${i}`));
+            }
+            await agent
+                .post(`/api/content/article/${id}/relations/tags`)
+                .send({ link: tagIds })
+                .expect(201);
+
+            const page1 = await agent
+                .get(`/api/content/article/${id}/relations/tags`)
+                .query({ page: 1, pageSize: 2 })
+                .expect(200);
+            expect(page1.body.items).toHaveLength(2);
+            expect(page1.body.total).toBe(5);
+
+            const page3 = await agent
+                .get(`/api/content/article/${id}/relations/tags`)
+                .query({ page: 3, pageSize: 2 })
+                .expect(200);
+            expect(page3.body.items).toHaveLength(1);
+        });
+
+        it('400s a delta on a single relation', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const author = (
+                await agent
+                    .post('/api/content/author')
+                    .send({ values: { name: 'Ada' } })
+                    .expect(201)
+            ).body.id as string;
+            const id = await createArticle(agent);
+            await agent
+                .post(`/api/content/article/${id}/relations/author`)
+                .send({ link: [author] })
+                .expect(400);
+        });
+
+        it('422s linking a target in another workspace via delta', async () => {
+            const other = await seedWorkspace({
+                name: 'WS Two',
+                slug: 'ws-two'
+            });
+            const foreignTag = await seedTagIn(other.id, 'foreign');
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .post(`/api/content/article/${id}/relations/tags`)
+                .send({ link: [foreignTag] })
+                .expect(422);
         });
     });
 

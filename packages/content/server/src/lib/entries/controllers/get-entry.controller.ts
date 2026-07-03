@@ -3,6 +3,7 @@ import {
     Get,
     Param,
     ParseUUIDPipe,
+    Query,
     UseGuards
 } from '@nestjs/common';
 import {
@@ -17,8 +18,10 @@ import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { EntryWriterService } from '../services/entry-writer.service';
 import type {
     EntryRecord,
-    EntryRelationsView
+    EntryRelationsView,
+    RelationFieldView
 } from '../types/entry-list-view';
+import { RELATION_PAGE_SIZE } from '../services/relation-link.service';
 import { resolveType } from './resolve-type';
 
 /**
@@ -66,4 +69,44 @@ export class GetEntryController {
             relations: await this.writer.getRelations(type, id, workspaceId)
         };
     }
+
+    /**
+     * `GET /api/content/:typeName/:id/relations/:field` — one page of a single
+     * relation field's links (`{ items, total }`), ordered by position. Drives
+     * the editor's infinite-scroll of a many/inverse relation, so a field with
+     * thousands of links is paged, never loaded whole. `?page=&pageSize=`
+     * (1-based; clamped). 400 if `field` isn't a relation; 404 if the entry is
+     * missing. `content:read`.
+     */
+    @Get(':typeName/:id/relations/:field')
+    getRelationField(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Param('field') field: string,
+        @CurrentWorkspace() workspaceId: string,
+        @Query('page') page?: string,
+        @Query('pageSize') pageSize?: string
+    ): Promise<RelationFieldView> {
+        const type = resolveType(this.registry, typeName);
+        return this.writer.getRelationField(
+            type,
+            id,
+            field,
+            clampInt(page, 1, 1, Number.MAX_SAFE_INTEGER),
+            clampInt(pageSize, RELATION_PAGE_SIZE, 1, 100),
+            workspaceId
+        );
+    }
+}
+
+/** Parse a query int with a default and inclusive bounds. */
+function clampInt(
+    raw: string | undefined,
+    fallback: number,
+    min: number,
+    maxValue: number
+): number {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(maxValue, Math.max(min, Math.trunc(parsed)));
 }

@@ -16,12 +16,13 @@ import type {
     ContentField,
     ContentTypeDetail,
     EntryRecord,
-    RelationRef
+    RelationFieldView
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
+import { toRelationIds } from '../../../utils/relationIds';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 import { RelationFieldSection } from './RelationFieldSection';
@@ -133,12 +134,16 @@ export function EntryEditor({
     availableTypeNames?: readonly string[];
     /**
      * Server-resolved relation links keyed by field name (from
-     * `GET /content/:type/:id/relations`), used to render assigned relations by
-     * title. Absent on create (nothing linked yet).
+     * `GET /content/:type/:id/relations`) — each a first page + total, used to
+     * title single relations and seed the section header counts. Absent on
+     * create (nothing linked yet).
      */
-    relationRefs?: Record<string, readonly RelationRef[]>;
+    relationRefs?: Record<string, RelationFieldView>;
 }) {
     const intl = useIntl();
+    // An existing entry edits its many/inverse relations **live** (paginated +
+    // deltas); absent while creating, so those fall back to the staged editor.
+    const entryId = entry?.id;
 
     // Relation fields hidden because their target collection isn't granted to the
     // open workspace: their records aren't reachable here, so the editor doesn't
@@ -272,29 +277,52 @@ export function EntryEditor({
                         <TabsContent value={TAB.Relations}>
                             {relationFields.length > 0 ? (
                                 <div className="flex flex-col gap-3">
-                                    {relationFields.map((field) => (
-                                        <RelationFieldSection
-                                            key={field.name}
-                                            field={field}
-                                            value={form.values[field.name]}
-                                            error={form.errorFor(field.name)}
-                                            onChange={(value) =>
-                                                form.setValue(field.name, value)
-                                            }
-                                            onBlur={() =>
-                                                form.touch(field.name)
-                                            }
-                                            // A handful stay open; many start
-                                            // collapsed to keep the tab tidy.
-                                            defaultOpen={
-                                                relationFields.length <= 3 ||
-                                                field.required
-                                            }
-                                            initialRefs={
-                                                relationRefs?.[field.name]
-                                            }
-                                        />
-                                    ))}
+                                    {relationFields.map((field) => {
+                                        const live =
+                                            !!entryId &&
+                                            (!!field.relation?.many ||
+                                                !!field.relation?.inverse);
+                                        // Header count: the live total for an
+                                        // edited many/inverse relation, else the
+                                        // staged/single form value's length.
+                                        const count = live
+                                            ? (relationRefs?.[field.name]
+                                                  ?.total ?? 0)
+                                            : toRelationIds(
+                                                  form.values[field.name],
+                                                  !!field.relation?.many
+                                              ).length;
+                                        return (
+                                            <RelationFieldSection
+                                                key={field.name}
+                                                field={field}
+                                                count={count}
+                                                typeName={schema.name}
+                                                entryId={entryId}
+                                                value={form.values[field.name]}
+                                                error={form.errorFor(field.name)}
+                                                onChange={(value) =>
+                                                    form.setValue(
+                                                        field.name,
+                                                        value
+                                                    )
+                                                }
+                                                onBlur={() =>
+                                                    form.touch(field.name)
+                                                }
+                                                // A handful stay open; many start
+                                                // collapsed to keep the tab tidy.
+                                                defaultOpen={
+                                                    relationFields.length <= 3 ||
+                                                    field.required
+                                                }
+                                                initialRefs={
+                                                    relationRefs?.[field.name]
+                                                        ?.items
+                                                }
+                                            />
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <p className="text-sm text-muted-foreground">

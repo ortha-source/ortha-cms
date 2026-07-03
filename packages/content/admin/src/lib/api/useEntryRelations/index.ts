@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import type { EntryRelations, RelationRef } from '../../types/contentType';
+import type {
+    EntryRelations,
+    RelationFieldView
+} from '../../types/contentType';
 
 /**
  * Query key for one entry's relation links, **scoped to the workspace** so two
@@ -20,14 +23,13 @@ export const entryRelationsPrefix = (workspaceId: string, name: string) =>
 
 /**
  * Loads one entry's relation links from `GET /api/content/:name/:id/relations` —
- * every relation field resolved to display-ready {@link RelationRef}s (id +
- * title) in a single request. 404s (unknown or soft-deleted) surface as the
- * normalized {@link ApiError}.
+ * every relation field's **first page** + total, in a single request. 404s
+ * (unknown or soft-deleted) surface as the normalized {@link ApiError}.
  */
 async function fetchEntryRelations(
     name: string,
     id: string
-): Promise<Record<string, RelationRef[]>> {
+): Promise<Record<string, RelationFieldView>> {
     try {
         const { data } = await apiClient.get<EntryRelations>(
             `/content/${name}/${id}/relations`

@@ -8,8 +8,8 @@ import {
 } from '@ortha-cms/design-system';
 import type { ContentField, RelationRef } from '../../../../types/contentType';
 import { fieldLabel } from '../../../../utils/entryColumns';
-import { toRelationIds } from '../../../../utils/relationIds';
 import { RelationField } from '../RelationField';
+import { RelationFieldLive } from '../RelationFieldLive';
 
 const messages = defineMessages({
     linked: {
@@ -25,33 +25,44 @@ const messages = defineMessages({
 
 /**
  * One relation field as a **collapsible** section in the editor's Relations tab:
- * a trigger row (chevron + field label + linked-count) over the
- * {@link RelationField} editor. Collapsing keeps the tab tidy when a type has
- * many relation fields; the count stays visible while collapsed. Controlled —
- * the form owns the value; this only forwards it.
+ * a trigger row (chevron + field label + linked-count) over the field editor.
+ * Branches on `entryId`: an existing entry's many/inverse relation is edited
+ * **live** ({@link RelationFieldLive} — paginated infinite scroll + immediate
+ * link/unlink/reorder deltas); a single relation, or any relation while creating
+ * a not-yet-saved entry, uses the form-backed {@link RelationField}. The `count`
+ * is supplied by the parent (the live total, else the staged value length) so
+ * the header stays right without this component owning the data.
  */
 export function RelationFieldSection({
     field,
-    value,
+    count,
     error,
+    typeName,
+    entryId,
+    value,
     onChange,
     onBlur,
     defaultOpen,
     initialRefs
 }: {
     field: ContentField;
-    value: unknown;
+    /** Linked count shown in the header (live total, or staged value length). */
+    count: number;
     error?: string;
-    onChange: (value: unknown) => void;
+    /** The content type name — for the live (delta) endpoints. */
+    typeName: string;
+    /** The existing entry's id; absent while creating (→ staged editor). */
+    entryId?: string;
+    /** Form value — the staged/single path only. */
+    value?: unknown;
+    onChange?: (value: unknown) => void;
     onBlur?: () => void;
     /** Whether the section starts expanded. */
     defaultOpen: boolean;
-    /** Server-resolved links assigned when the entry loaded, for titling. */
+    /** Server-resolved links for titling — the staged/single path only. */
     initialRefs?: readonly RelationRef[];
 }) {
     const intl = useIntl();
-    const many = field.relation?.many ?? false;
-    const count = toRelationIds(value, many).length;
 
     // Controlled so an error can force the section open: otherwise a save can
     // fail with the offending relation collapsed and its error hidden inside the
@@ -60,6 +71,13 @@ export function RelationFieldSection({
     useEffect(() => {
         if (error) setOpen(true);
     }, [error]);
+
+    // A many/inverse relation on an existing entry is edited live; everything
+    // else (single relations, or any relation on a new/unsaved entry) is
+    // form-backed.
+    const live =
+        !!entryId &&
+        (!!field.relation?.many || !!field.relation?.inverse);
 
     return (
         <Collapsible
@@ -86,15 +104,23 @@ export function RelationFieldSection({
             </CollapsibleTrigger>
             <CollapsibleContent>
                 <div className="border-t px-3 pb-3 pt-3">
-                    <RelationField
-                        field={field}
-                        value={value}
-                        error={error}
-                        onChange={onChange}
-                        onBlur={onBlur}
-                        hideLabel
-                        initialRefs={initialRefs}
-                    />
+                    {live ? (
+                        <RelationFieldLive
+                            field={field}
+                            typeName={typeName}
+                            entryId={entryId}
+                        />
+                    ) : (
+                        <RelationField
+                            field={field}
+                            value={value}
+                            error={error}
+                            onChange={onChange ?? (() => undefined)}
+                            onBlur={onBlur}
+                            hideLabel
+                            initialRefs={initialRefs}
+                        />
+                    )}
                 </div>
             </CollapsibleContent>
         </Collapsible>

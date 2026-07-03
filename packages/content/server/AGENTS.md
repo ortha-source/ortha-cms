@@ -81,7 +81,8 @@ flags are carried on `ContentType` and serialized in the schema summary.
 ## Generated storage (`buildTables`)
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per
-**many-relation**. Every table carries the base envelope: `id`, `workspace_id`
+**many-relation** (`source_id`, `target_id`, and a float `position` for the
+source's ordering of its links). Every table carries the base envelope: `id`, `workspace_id`
 (plain uuid, no FK — the `workspaces` table is identity-owned; entries are
 scoped to it in the app layer, see HTTP surface), `created_at`, `updated_at`.
 A `publishable` type additionally gets `status` (`draft`/`published`) +
@@ -154,14 +155,23 @@ global).
       delete / content-revoke emptiness guards (which take it exclusively) so a
       new entry can't be orphaned by a concurrent delete/revoke.
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
-    - `GET /content/:typeName/:id/relations` — the entry's relation links keyed
-      by field name (`{ relations: { <field>: RelationRef[] } }`, `RelationRef =
-      { id, title, status? }`) for **every** relation field — owning
-      single/many **and** inverse back-references — resolved by
-      `RelationLinkService.readLinks` in a bounded set of queries (one
-      `UNION ALL` over the join/inverse sources, then one title lookup per
-      referenced target type). The editor seeds each relation field's value from
-      the ids and renders the links by title (`content:read`).
+    - `GET /content/:typeName/:id/relations` — every relation field's **first
+      page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
+      `RelationRef = { id, title, status? }`), for owning single/many **and**
+      inverse back-references. `RelationLinkService.readAll` reads each field
+      independently (paginated), so a relation with many links contributes only
+      its first page, never every id. The editor titles single relations and
+      seeds the section counts from it (`content:read`).
+    - `GET /content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
+      a single relation field's links (`{ items, total }`), ordered by
+      `position`. Drives the editor's **infinite-scroll** of a many/inverse
+      relation. 400 if `field` isn't a relation (`content:read`).
+    - `POST /content/:typeName/:id/relations/:field` — apply an **incremental**
+      `{ link?, unlink?, order? }` delta to one many/inverse relation, returning
+      the field's refreshed first page. The client sends only the diff, so a
+      relation with thousands of links is never sent (or held) whole; the change
+      commits in one transaction. 400 on a single relation (edit it via the
+      entry's `values`) or an unknown field (`content:update`, `OriginGuard`).
     - `PATCH /content/:typeName/:id` — replace values (`content:update`).
     - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
       `status`+`published_at`; publish **re-validates the stored row**; 400 on a
@@ -181,15 +191,19 @@ global).
   is a plain `<field>_id` FK column (written by `toColumns`, read off the row).
   Everything **join-backed** — an owning **many-to-many** and the **inverse**
   side of a two-way relation (which reuses the owning join table, source/target
-  swapped) — is synced by `EntryWriterService` on every create/update **inside
-  one transaction** with the entry row: the submitted id set replaces the record's
-  links (unlink the removed, `ON CONFLICT DO NOTHING` insert the added), so a save
-  is all-or-nothing. `assertRelationTargets` validates **every** referenced
-  target (single, many, inverse-many) exists in the same workspace — a missing or
-  cross-workspace id is a uniform 422 (no enumeration signal). An inverse of a
-  *single* relation (one-to-many) owns no writable link from its side, so it's
-  read-only there. The join table stores a set (no position column), so a
-  many-relation's order isn't persisted across a round-trip.
+  swapped) — is **paginated** and edited by an **incremental delta** (see the
+  `POST …/relations/:field` route): `applyDelta` unlinks the removed pairs,
+  appends the new ones at `max(position)+1` for their source (`ON CONFLICT DO
+  NOTHING`), and renumbers to `order` (owning side only) — all in one
+  transaction, so a relation with thousands of links is never sent or held whole.
+  `assertTargets` validates every linked id exists in the same workspace (uniform
+  422, no enumeration signal). Join rows carry a float `position` (the source's
+  own ordering) so a reorder survives a reload; the inverse reads by it but can't
+  set it. An inverse of a *single* relation (one-to-many) owns no writable link
+  from its side. The whole-document write still supports a many-relation
+  submitted in the entry body (`writeLinks`, replace-set, position = array
+  index) — used on **create** and by any legacy/bulk caller; a field absent from
+  the body is left untouched (never wiped).
 - Reads gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)`; writes on the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).

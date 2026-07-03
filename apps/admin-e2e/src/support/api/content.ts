@@ -744,10 +744,11 @@ interface EntryRelationsOptions {
 
 /**
  * Stub `GET /api/content/:name/:id/relations` — the assigned-relations read the
- * editor loads (`useEntryRelations`) to seed each relation field's value and
- * title its rows. Returns `{ relations }` for the requested entry, or an empty
- * map when it isn't in the seed. Register **after** {@link mockContentEntryWrites}
- * so this more specific route wins the `/…/:id/relations` match.
+ * editor loads (`useEntryRelations`) to seed single-relation values and the
+ * section header counts. Wraps each field's seeded refs in the paginated
+ * `{ items, total }` envelope the server now returns. An entry not in the seed
+ * resolves to no links. Register **after** {@link mockContentEntryWrites} so this
+ * more specific route wins the `/…/:id/relations` match.
  */
 export async function mockEntryRelations(
     page: Page,
@@ -763,10 +764,17 @@ export async function mockEntryRelations(
             const key = `${decodeURIComponent(
                 parts[2] ?? ''
             )}/${decodeURIComponent(parts[3] ?? '')}`;
+            const fields = relations[key] ?? {};
+            const view = Object.fromEntries(
+                Object.entries(fields).map(([field, refs]) => [
+                    field,
+                    { items: refs, total: refs.length }
+                ])
+            );
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ relations: relations[key] ?? {} })
+                body: JSON.stringify({ relations: view })
             });
         }
     );

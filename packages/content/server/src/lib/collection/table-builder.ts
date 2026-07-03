@@ -222,7 +222,17 @@ export function buildTables(
                     .notNull()
                     .references(() => idColumnOf(spec.relation!.to().table), {
                         onDelete: 'cascade'
-                    })
+                    }),
+                /**
+                 * Ordinal of this target within its **source's** ordered list —
+                 * the source's own ordering of its many-relation, so a
+                 * drag-reorder survives a reload. Float, so a target can be moved
+                 * between two neighbours without renumbering the whole list.
+                 * Defaults to 0 (append picks `max(position)+1` for the source).
+                 * The inverse side reads by it too (stable), but doesn't own the
+                 * order — a two-way link has one order, the owning side's.
+                 */
+                position: doublePrecision('position').notNull().default(0)
             },
             (t) => {
                 const cols = t as unknown as Record<string, AnyPgColumn>;
@@ -233,7 +243,12 @@ export function buildTables(
                         cols['targetId']
                     ),
                     // reverse lookups: "which entries reference this target?"
-                    index(`${joinName}_target_idx`).on(cols['targetId'])
+                    index(`${joinName}_target_idx`).on(cols['targetId']),
+                    // ordered read of a source's links: `WHERE source_id ORDER BY position`
+                    index(`${joinName}_source_pos_idx`).on(
+                        cols['sourceId'],
+                        cols['position']
+                    )
                 ];
             }
         );

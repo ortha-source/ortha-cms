@@ -12,6 +12,7 @@ import { ListEntriesController } from './entries/controllers/list-entries.contro
 import { BulkEntriesController } from './entries/controllers/bulk-entries.controller';
 import { CreateEntryController } from './entries/controllers/create-entry.controller';
 import { GetEntryController } from './entries/controllers/get-entry.controller';
+import { RelationDeltaController } from './entries/controllers/relation-delta.controller';
 import { UpdateEntryController } from './entries/controllers/update-entry.controller';
 import { PublishEntryController } from './entries/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/controllers/delete-entry.controller';
@@ -53,6 +54,7 @@ export class ContentModule {
                 ListEntriesController,
                 CreateEntryController,
                 GetEntryController,
+                RelationDeltaController,
                 UpdateEntryController,
                 PublishEntryController,
                 DeleteEntryController

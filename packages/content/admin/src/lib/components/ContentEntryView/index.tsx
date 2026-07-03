@@ -16,7 +16,7 @@ import type {
     ContentType,
     ContentTypeDetail,
     EntryRecord,
-    RelationRef
+    RelationFieldView
 } from '../../types/contentType';
 import {
     CONTENT_FIELD_TYPE,
@@ -75,24 +75,37 @@ export type { EntryMode };
 /** The one-entry query params reused for `single` resolution. */
 const ONE_ENTRY = { page: 1, pageSize: 1 } as const;
 
+/** A many/inverse relation whose links are managed live (paginated + deltas). */
+function isLinkManaged(field: ContentTypeDetail['fields'][number]): boolean {
+    return (
+        field.type === CONTENT_FIELD_TYPE.Relation &&
+        (!!field.relation?.many || !!field.relation?.inverse)
+    );
+}
+
 /**
- * Overlay the server-resolved relation links onto the form's seed values. The
- * entry row only carries owning **single** FK ids; many-to-many and inverse
- * links live in join tables and arrive via the relations read, so seed every
- * relation field from it — a `many` relation as its id array, a single relation
- * as one id (or `''`). Returns `base` untouched when the links haven't loaded.
+ * Seed the form's relation fields from the server links read. An owning
+ * **single** relation is a form value (its FK id, saved with the document), so
+ * seed it from its first ref. A many/inverse relation is **link-managed** in
+ * edit mode — paginated and mutated via deltas, never carried in the saved
+ * document — so its key is **dropped** from the form: a save then can't wipe the
+ * links it never loaded. Returns `base` untouched when the links haven't loaded
+ * (create mode keeps `base`'s empty arrays for its staged picker).
  */
 function seedRelationValues(
     schema: ContentTypeDetail,
     base: Record<string, unknown>,
-    relations: Record<string, readonly RelationRef[]> | undefined
+    relations: Record<string, RelationFieldView> | undefined
 ): Record<string, unknown> {
     if (!relations) return base;
     const values = { ...base };
     for (const field of schema.fields) {
         if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
-        const ids = (relations[field.name] ?? []).map((ref) => ref.id);
-        values[field.name] = field.relation?.many ? ids : (ids[0] ?? '');
+        if (isLinkManaged(field)) {
+            delete values[field.name];
+        } else {
+            values[field.name] = relations[field.name]?.items[0]?.id ?? '';
+        }
     }
     return values;
 }

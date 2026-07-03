@@ -46,11 +46,39 @@ export interface RelationRef {
 }
 
 /**
- * The relation links of one entry, keyed by relation field name — every
- * relation field (owning single/many **and** inverse back-references), so the
- * editor has a single source for what's linked. A single relation carries at
- * most one ref; a many/inverse relation carries the ordered set.
+ * One relation field's links: a **windowed** page of resolved refs plus the
+ * `total` count across the whole set. A many/inverse relation can hold far more
+ * links than fit in one payload, so the editor pages through them (infinite
+ * scroll) rather than loading every id; a single relation is a `total` of 0/1.
+ */
+export interface RelationFieldView {
+    items: RelationRef[];
+    /** Total links on this field (across all pages). */
+    total: number;
+}
+
+/**
+ * The relation links of one entry, keyed by relation field name — every relation
+ * field (owning single/many **and** inverse back-references), each a **first
+ * page** of links + its total, so the editor has one source for what's linked
+ * and its counts. Further pages come from the per-field read.
  */
 export interface EntryRelationsView {
-    relations: Record<string, RelationRef[]>;
+    relations: Record<string, RelationFieldView>;
+}
+
+/**
+ * An incremental change to one many/inverse relation field — the wire body of
+ * `POST /content/:type/:id/relations/:field`. Only the diff crosses the wire, so
+ * a relation with thousands of links never has to be sent (or held) in full.
+ * `order` renumbers the listed ids (owning many-relations only); it's ignored
+ * for the inverse side, which doesn't own the order.
+ */
+export interface RelationDelta {
+    /** Target ids to link (append; re-linking an existing pair is a no-op). */
+    link?: string[];
+    /** Target ids to unlink. */
+    unlink?: string[];
+    /** Desired order of the listed target ids (owning many-relations only). */
+    order?: string[];
 }

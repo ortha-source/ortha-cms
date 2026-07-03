@@ -147,18 +147,27 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `entryTitle`). `RelationPickerDialog` owns state/data and composes nested pieces:
   **`RelationPickerFilters`** (search + inline query builder) and
   **`RelationCandidateList`** → **`RelationCandidateRow`**.
-- **Assigned relations + titles.** `ContentEntryView` loads the entry's links via
-  `useEntryRelations` (`GET /content/:type/:id/relations` → `{ relations: { <field>:
-  RelationRef[] } }`) — **one request for all relation fields**, covering the
-  many-to-many / inverse links the entry row doesn't carry. `seedRelationValues`
-  overlays the returned ids onto the form seed (single → one id, many → id array),
-  so the form holds the full assigned set; the `RelationRef` titles thread down
-  (`EntryEditor` → `RelationFieldSection` → `RelationField` as `initialRefs`) to
-  render each link by title. A record picked in the dialog carries its own title,
-  so newly-added rows show immediately without a refetch. On save, `useSaveEntry`
-  submits the relation ids (single string / array) with the rest of the document —
-  the server persists the FK columns **and** join-table links in one transaction —
-  and invalidates the type's relations cache (`entryRelationsPrefix`).
+- **Assigned relations — single vs many/inverse.** `ContentEntryView` loads the
+  entry's links via `useEntryRelations` (`GET /content/:type/:id/relations` →
+  `{ relations: { <field>: { items, total } } }`, each field's **first page** +
+  total). A relation is edited one of two ways, chosen by `RelationFieldSection`:
+    - **Single** relations (and **any** relation while creating a not-yet-saved
+      entry) are **form-backed**: `seedRelationValues` seeds the value (single →
+      its FK id; a new entry's many → an empty staged array), and `RelationField`
+      renders/edits it, submitted in the entry `values` on save (create's
+      whole-set → the server `writeLinks`). Titles come from the loaded
+      `RelationRef`s (`initialRefs`) or the picked candidate.
+    - **Many / inverse** relations on an **existing** entry are edited **live** by
+      `RelationFieldLive`: the assigned list is **infinite-scroll paginated**
+      (`useRelationFieldLinks` → `GET …/relations/:field`), and assign / unassign /
+      reorder each fire an **incremental delta immediately** (`useRelationDelta` →
+      `POST …/relations/:field { link?, unlink?, order? }`), so a relation with
+      thousands of links is never loaded or sent whole. `seedRelationValues`
+      **drops** these fields from the form (a save can't wipe links it never
+      loaded); the delta mutation invalidates the field's infinite query, the
+      relations aggregate (header counts), and the records list. Owning
+      many-relations reorder (persisted via `position`); the inverse reads order
+      but isn't sortable.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by
