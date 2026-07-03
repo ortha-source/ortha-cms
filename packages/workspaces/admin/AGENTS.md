@@ -26,7 +26,7 @@ switcher) that opens when a card is clicked.
   `NAVBAR_START_SLOT`.
 - `useWorkspaces` / `workspacesKey` — TanStack Query list hook + its key.
 - `useCreateWorkspace` — create mutation with optimistic insert at the top;
-  takes `{ body, creator }` (the `creator` seeds the stub's owner).
+  takes `{ body, creator }` (the `creator` seeds the stub's first member).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
 - **Workspace shell slots** — `WORKSPACE_SIDEBAR_SLOT` (the rail's section nav)
   and `WORKSPACE_ROUTE_SLOT` (pages mounted inside the shell), plus the
@@ -58,6 +58,53 @@ switcher) that opens when a card is clicked.
 - Workspaces owns the last-section **Settings** entry (`order: 100`) + its
   `/workspaces/:id/settings` page; the other rail sections come from the feature
   plugins.
+
+## Settings page (`/workspaces/:id/settings/*`)
+
+- A **left-rail** page (`pages/WorkspaceSettingsPage`) mirroring the user-detail
+  settings layout: a shared-width `Container`, a header, then a
+  `grid md:grid-cols-[14rem_minmax(0,1fr)]` with the sticky
+  `components/WorkspaceSettingsRail` (absolute-path `NavLink`s) beside the active
+  section, each a **nested route** (`settings/general` · `/members` · `/content`
+  · `/danger`; the index redirects to `general`). Mounted at `settings/*` so the
+  page owns those child routes (same shape as the content library's `content/*`).
+  The rail narrows the content column, so the page isn't full-width.
+- The sections: **General** (name / description / avatar color; TanStack Form +
+  the `useWorkspaceProfileSchema` Zod hook, the slug shown read-only since it's
+  immutable), **Members** (a directory typeahead that assigns **existing** users
+  — no invite-by-email, since the add endpoint links a real id — plus a roster
+  where every member is removable behind a `ConfirmDialog` (access is purely
+  permission-based; no member is special),
+  **Content** (the granted types shown as two titled groups — **Collections** and
+  **Pages** (`GrantedContentGroup`, each row its title + description), granted
+  through a **separate search + multi-select popup per kind** — two
+  `AddContentDialog` instances, "Add collections" / "Add pages", each listing
+  only that kind's ungranted types and synced with the grants; revoke through
+  `RemoveContentDialog`, which reads
+  `GET /workspaces/:id/content/:slug/entry-count` on open and **blocks** the
+  Remove button with a warning while the type still has entries, so the server
+  `409` is only a safety net), and a **Danger zone**
+  (archive/unarchive behind a confirm; permanent delete through
+  `DeleteWorkspaceDialog`, which reads `GET /workspaces/:id/entry-count` on open
+  and **blocks** Delete with a warning until the workspace holds no content at
+  all — the same block-before-you-act pattern as content revoke, with the server
+  `409` as the safety net; delete returns to the grid).
+- **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
+  drives every edit (a viewer sees a read-only page with the controls hidden),
+  `workspaces:delete` gates delete; the Danger rail entry **and** its route only
+  exist when the user can act on it (the route redirects to `general` otherwise,
+  so a deep link can't reach it). The section bodies live in top-level
+  `components/Workspace{General,Members,Content,Danger}Settings/` (their
+  one-off parts nested inside).
+- Each area owns its mutation hook under `lib/api/` — `useUpdateWorkspace`,
+  `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
+  `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /
+  `useRemoveWorkspaceContent` — all invalidating `workspacesKey` on success so
+  the shell (which reads the open workspace from that list) re-resolves — plus
+  the read-only `useWorkspaceContentCount` / `useWorkspaceEntryCount` backing the
+  revoke and delete pre-checks. The
+  avatar-color picker `components/ColorSwatchRow/` is shared by the settings
+  General tab and the create wizard's Basics step.
 
 ## Create wizard (`/workspaces/new`)
 
@@ -91,10 +138,11 @@ switcher) that opens when a card is clicked.
   `avatarColorForId` from `@ortha-cms/utils-admin` (no local `utils/` copies).
   Generic helpers (`slugify`, `useDebouncedValue`) live in
   `@ortha-cms/utils-admin`, not here.
-- **Membership is a pure link; there is no per-member role.** The server ignores
-  any role on a member — a user's permissions come from their single global
-  role. The Members step adds people (existing or invite-by-email) with no role
-  control; the owner is derived from the session, never the body.
+- **Membership is a pure link; there is no per-member role and no owner.** The
+  server ignores any role on a member — a user's permissions come from their
+  single global role. The Members step adds people (existing or invite-by-email)
+  with no role control; the creator is just the first member (added from the
+  session), with no special status.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral

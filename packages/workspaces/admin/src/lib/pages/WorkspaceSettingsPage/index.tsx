@@ -1,6 +1,13 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Container } from '@ortha-cms/design-system';
+import { useHasPermission } from '@ortha-cms/identity-admin';
+import { Badge, Container } from '@ortha-cms/design-system';
 import { useCurrentWorkspace } from '../../utils/currentWorkspace';
+import { WorkspaceSettingsRail } from '../../components/WorkspaceSettingsRail';
+import { WorkspaceGeneralSettings } from '../../components/WorkspaceGeneralSettings';
+import { WorkspaceMembersSettings } from '../../components/WorkspaceMembersSettings';
+import { WorkspaceContentSettings } from '../../components/WorkspaceContentSettings';
+import { WorkspaceDangerSettings } from '../../components/WorkspaceDangerSettings';
 
 /** Intl descriptors for the workspace settings page, co-located here. */
 const messages = defineMessages({
@@ -12,35 +19,116 @@ const messages = defineMessages({
         id: 'workspaces.settings.subtitle',
         defaultMessage: 'Manage settings for {workspace}.'
     },
-    comingSoon: {
-        id: 'workspaces.settings.comingSoon',
-        defaultMessage: 'Workspace settings are coming soon.'
+    archivedBadge: {
+        id: 'workspaces.settings.archivedBadge',
+        defaultMessage: 'Archived'
     }
 });
 
 /**
- * Placeholder workspace settings page, mounted inside the shell at
- * `/workspaces/:id/settings` (the rail's footer entry). Scaffold only — it reads
- * the open workspace from context and shows a heading; the real settings form
- * lands later.
+ * Workspace settings, mounted inside the shell at `/workspaces/:id/settings/*`
+ * (the rail's footer entry). A left-rail layout — General, Members, Content, and
+ * a Danger zone — each its own nested route beside the sticky
+ * {@link WorkspaceSettingsRail}, mirroring the user-detail settings page. The
+ * page width is the shared `Container`; the rail narrows the content column.
+ *
+ * Reads the open workspace from context; edits are gated by `workspaces:update`
+ * / `workspaces:delete`, so a viewer sees a read-only page and the Danger
+ * section (rail entry + route) only exists when the user can act on it.
  */
 export function WorkspaceSettingsPage() {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
+    const canUpdate = useHasPermission('workspaces:update');
+    const canDelete = useHasPermission('workspaces:delete');
+    const showDanger = canUpdate || canDelete;
 
     return (
-        <Container className="py-8">
-            <h1 className="text-2xl font-semibold tracking-[-0.01em]">
-                {intl.formatMessage(messages.title)}
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-                {intl.formatMessage(messages.subtitle, {
-                    workspace: workspace.name
-                })}
-            </p>
-            <p className="mt-6 text-sm text-muted-foreground">
-                {intl.formatMessage(messages.comingSoon)}
-            </p>
+        <Container className="space-y-6 py-8">
+            <div>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-semibold tracking-[-0.01em]">
+                        {intl.formatMessage(messages.title)}
+                    </h1>
+                    {workspace.status === 'Archived' ? (
+                        <Badge variant="secondary">
+                            {intl.formatMessage(messages.archivedBadge)}
+                        </Badge>
+                    ) : null}
+                </div>
+                <p className="mt-1 text-muted-foreground">
+                    {intl.formatMessage(messages.subtitle, {
+                        workspace: workspace.name
+                    })}
+                </p>
+            </div>
+
+            <div className="grid gap-8 md:grid-cols-[14rem_minmax(0,1fr)]">
+                <WorkspaceSettingsRail
+                    workspaceId={workspace.id}
+                    showDanger={showDanger}
+                />
+                <div className="min-w-0">
+                    <Routes>
+                        <Route
+                            index
+                            element={<Navigate to="general" replace />}
+                        />
+                        <Route
+                            path="general"
+                            element={
+                                <WorkspaceGeneralSettings
+                                    // Re-key on the editable fields so an
+                                    // external change (e.g. another admin's edit
+                                    // arriving via a list refetch) re-baselines
+                                    // the form + color state instead of leaving
+                                    // stale values a Save would overwrite.
+                                    key={`${workspace.id}:${workspace.name}:${workspace.description}:${workspace.color}`}
+                                    workspace={workspace}
+                                    canUpdate={canUpdate}
+                                />
+                            }
+                        />
+                        <Route
+                            path="members"
+                            element={
+                                <WorkspaceMembersSettings
+                                    workspace={workspace}
+                                    canUpdate={canUpdate}
+                                />
+                            }
+                        />
+                        <Route
+                            path="content"
+                            element={
+                                <WorkspaceContentSettings
+                                    workspace={workspace}
+                                    canUpdate={canUpdate}
+                                />
+                            }
+                        />
+                        <Route
+                            path="danger"
+                            element={
+                                showDanger ? (
+                                    <WorkspaceDangerSettings
+                                        workspace={workspace}
+                                        canUpdate={canUpdate}
+                                        canDelete={canDelete}
+                                    />
+                                ) : (
+                                    <Navigate to="../general" replace />
+                                )
+                            }
+                        />
+                        {/* Unknown sub-path falls back to the first section. */}
+                        <Route
+                            path="*"
+                            element={<Navigate to="general" replace />}
+                        />
+                    </Routes>
+                </div>
+            </div>
         </Container>
     );
 }

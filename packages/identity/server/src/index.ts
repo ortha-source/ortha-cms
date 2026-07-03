@@ -15,6 +15,11 @@ export { CurrentUser } from './lib/auth/decorators/current-user.decorator';
 export type { AuthenticatedRequest } from './lib/auth/decorators/current-user.decorator';
 export { WorkspaceGuard } from './lib/workspaces/guards/workspace.guard';
 export { CurrentWorkspace } from './lib/workspaces/decorators/current-workspace.decorator';
+export {
+    lockWorkspaceShared,
+    lockWorkspaceExclusive
+} from './lib/workspaces/services/workspace-lock';
+export type { LockExecutor } from './lib/workspaces/services/workspace-lock';
 export type { PublicUser } from './lib/auth/services/auth.service';
 export {
     PERMISSIONS,
@@ -48,5 +53,7 @@ export {
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export { CONTENT_CATALOG } from './lib/content/content-catalog';
 export type { ContentCatalog } from './lib/content/content-catalog';
+export { CONTENT_ENTRY_COUNTER } from './lib/content/content-entry-counter';
+export type { ContentEntryCounter } from './lib/content/content-entry-counter';
 export type { ContentTypeDescriptor } from './lib/content/content.constants';
 export * from './lib/schema';

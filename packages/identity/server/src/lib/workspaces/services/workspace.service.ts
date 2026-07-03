@@ -9,15 +9,20 @@ import {
 import { IDENTITY_ACTIVITY_KINDS } from '../../activity/activity-kinds';
 import type { PublicUser } from '../../auth/services/auth.service';
 import type { CreateWorkspaceDto } from '../dto/create-workspace.dto';
+import type { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import {
+    ContentTypeNotEmptyError,
     MemberNotFoundError,
     SlugTakenError,
+    UnknownContentTypeError,
+    WorkspaceNotEmptyError,
     WorkspaceNotFoundError
 } from '../errors';
 import type { WorkspaceView } from '../types/views';
 import { SlugService } from './slug.service';
 import { MembershipService } from './membership.service';
 import { ContentGrantService } from './content-grant.service';
+import { lockWorkspaceExclusive } from './workspace-lock';
 
 export type { WorkspaceView, WorkspaceMemberView } from '../types/views';
 
@@ -50,9 +55,10 @@ export class WorkspaceService {
     }
 
     /**
-     * Creates a workspace owned by `ownerUserId`, links the given members, and
-     * grants content access — each delegated to its own service inside one
-     * transaction. The wizard's per-member role is ignored.
+     * Creates a workspace, links the creator (`actor`) plus the given members,
+     * and grants content access — each delegated to its own service inside one
+     * transaction. Membership is a pure link with no role; the creator is just
+     * the first member.
      *
      * @throws {SlugTakenError} when the slug is already in use.
      */
@@ -196,6 +202,289 @@ export class WorkspaceService {
                 tx
             );
         });
+    }
+
+    /**
+     * Applies a partial profile edit (name / description / color) to a
+     * workspace, recording `workspace.updated` in-band. The slug and status are
+     * immutable here (status changes go through {@link setStatus}). A patch with
+     * no fields is a no-op that records nothing but still returns the current
+     * view. 404s an unknown workspace.
+     */
+    async update(
+        actor: PublicUser,
+        workspaceId: string,
+        dto: UpdateWorkspaceDto
+    ): Promise<WorkspaceView> {
+        const patch: Partial<typeof workspaces.$inferInsert> = {};
+        if (dto.name !== undefined) patch.name = dto.name;
+        if (dto.description !== undefined) patch.description = dto.description;
+        if (dto.color !== undefined) patch.color = dto.color;
+
+        await this.db.transaction(async (tx) => {
+            const [workspace] = await tx
+                .select({ id: workspaces.id })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!workspace) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+            if (Object.keys(patch).length === 0) {
+                return; // empty patch — nothing to change, nothing to record
+            }
+
+            await tx
+                .update(workspaces)
+                .set(patch)
+                .where(eq(workspaces.id, workspaceId));
+
+            await this.recorder?.record(
+                {
+                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_UPDATED,
+                    subjectType: 'workspace',
+                    subjectId: workspaceId,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: { fields: Object.keys(patch) }
+                },
+                tx
+            );
+        });
+
+        const [view] = await this.listViews([workspaceId]);
+        return view;
+    }
+
+    /**
+     * Sets a workspace's lifecycle status (archive / unarchive), recording
+     * `workspace.archived` or `workspace.unarchived` in-band. A no-op when the
+     * status already matches (records nothing). 404s an unknown workspace.
+     */
+    async setStatus(
+        actor: PublicUser,
+        workspaceId: string,
+        status: 'active' | 'archived'
+    ): Promise<WorkspaceView> {
+        await this.db.transaction(async (tx) => {
+            const [workspace] = await tx
+                .select({ status: workspaces.status })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!workspace) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+            if (workspace.status === status) {
+                return; // already in the target state — nothing changed
+            }
+
+            await tx
+                .update(workspaces)
+                .set({ status })
+                .where(eq(workspaces.id, workspaceId));
+
+            await this.recorder?.record(
+                {
+                    kind:
+                        status === 'archived'
+                            ? IDENTITY_ACTIVITY_KINDS.WORKSPACE_ARCHIVED
+                            : IDENTITY_ACTIVITY_KINDS.WORKSPACE_UNARCHIVED,
+                    subjectType: 'workspace',
+                    subjectId: workspaceId,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: {}
+                },
+                tx
+            );
+        });
+
+        const [view] = await this.listViews([workspaceId]);
+        return view;
+    }
+
+    /**
+     * Permanently deletes a workspace, recording `workspace.deleted` in-band.
+     * Its memberships and content grants cascade via their FKs. Refused with
+     * {@link WorkspaceNotEmptyError} while the workspace still holds any content
+     * **entries** (`content_<name>` rows, workspace-scoped by a plain uuid with
+     * no FK, so a cascade can't reach them) — they must be deleted first, so a
+     * delete never orphans records. 404s an unknown workspace.
+     *
+     * The emptiness check and the delete run in one transaction that first takes
+     * the workspace's exclusive content lock ({@link lockWorkspaceExclusive}), so
+     * a concurrent entry create (which takes the shared lock before inserting)
+     * can't slip a row in between the count and the delete.
+     */
+    async delete(actor: PublicUser, workspaceId: string): Promise<void> {
+        await this.db.transaction(async (tx) => {
+            await lockWorkspaceExclusive(tx, workspaceId);
+
+            const [existing] = await tx
+                .select({ name: workspaces.name, slug: workspaces.slug })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!existing) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+
+            const entryCount = await this.content.countAllEntries(workspaceId);
+            if (entryCount > 0) {
+                throw new WorkspaceNotEmptyError(workspaceId, entryCount);
+            }
+
+            await tx.delete(workspaces).where(eq(workspaces.id, workspaceId));
+
+            await this.recorder?.record(
+                {
+                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_DELETED,
+                    subjectType: 'workspace',
+                    subjectId: workspaceId,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: { name: existing.name, slug: existing.slug }
+                },
+                tx
+            );
+        });
+    }
+
+    /**
+     * Grants the workspace access to one content type, recording
+     * `workspace.content_granted` in-band. Idempotent (re-granting is a no-op
+     * that records nothing). 404s an unknown workspace; a slug that names no
+     * known content type throws {@link UnknownContentTypeError}.
+     */
+    async grantContent(
+        actor: PublicUser,
+        workspaceId: string,
+        slug: string
+    ): Promise<WorkspaceView> {
+        const kind = this.content.resolveKind(slug);
+        if (!kind) {
+            throw new UnknownContentTypeError(slug);
+        }
+
+        await this.db.transaction(async (tx) => {
+            const [workspace] = await tx
+                .select({ id: workspaces.id })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!workspace) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+
+            const added = await this.content.addGrant(
+                tx,
+                workspaceId,
+                kind,
+                slug
+            );
+            if (!added) {
+                return; // already granted — nothing changed, nothing recorded
+            }
+
+            await this.recorder?.record(
+                {
+                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_CONTENT_GRANTED,
+                    subjectType: 'workspace',
+                    subjectId: workspaceId,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: { slug, kind }
+                },
+                tx
+            );
+        });
+
+        const [view] = await this.listViews([workspaceId]);
+        return view;
+    }
+
+    /**
+     * Revokes a workspace's access to one content type — **only when the type
+     * holds no entries in that workspace** ({@link ContentTypeNotEmptyError}
+     * otherwise), so a revoke never orphans reachable records. Records
+     * `workspace.content_revoked` in-band. Revoking a grant the workspace never
+     * held is a no-op. 404s an unknown workspace.
+     *
+     * Like {@link delete}, the emptiness check and the revoke run in one
+     * transaction holding the workspace's exclusive content lock
+     * ({@link lockWorkspaceExclusive}), so a concurrent entry create can't slip
+     * a row in between the count and the grant removal.
+     */
+    async revokeContent(
+        actor: PublicUser,
+        workspaceId: string,
+        slug: string
+    ): Promise<WorkspaceView> {
+        await this.db.transaction(async (tx) => {
+            await lockWorkspaceExclusive(tx, workspaceId);
+
+            const [workspace] = await tx
+                .select({ id: workspaces.id })
+                .from(workspaces)
+                .where(eq(workspaces.id, workspaceId));
+            if (!workspace) {
+                throw new WorkspaceNotFoundError(workspaceId);
+            }
+
+            const entryCount = await this.content.countEntries(
+                workspaceId,
+                slug
+            );
+            if (entryCount > 0) {
+                throw new ContentTypeNotEmptyError(
+                    workspaceId,
+                    slug,
+                    entryCount
+                );
+            }
+
+            const removed = await this.content.removeGrant(
+                tx,
+                workspaceId,
+                slug
+            );
+            if (!removed) {
+                return; // wasn't granted — nothing changed, nothing recorded
+            }
+
+            await this.recorder?.record(
+                {
+                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_CONTENT_REVOKED,
+                    subjectType: 'workspace',
+                    subjectId: workspaceId,
+                    actorId: actor.id,
+                    actorEmail: actor.email,
+                    meta: { slug }
+                },
+                tx
+            );
+        });
+
+        const [view] = await this.listViews([workspaceId]);
+        return view;
+    }
+
+    /**
+     * How many entries of content type `slug` the workspace holds, via the
+     * {@link ContentGrantService}'s counter port. Backs the settings UI's
+     * pre-check: the admin reads this before offering a revoke, so a type that
+     * still has entries can be blocked with a clear reason instead of failing
+     * the revoke with a 409. `0` when no content plugin is bound.
+     */
+    countContentEntries(workspaceId: string, slug: string): Promise<number> {
+        return this.content.countEntries(workspaceId, slug);
+    }
+
+    /**
+     * How many entries the workspace holds across **all** content types. Backs
+     * the settings UI's delete pre-check (block Delete, with a reason, until the
+     * workspace is empty) and mirrors the server-side delete guard. `0` when no
+     * content plugin is bound.
+     */
+    countWorkspaceEntries(workspaceId: string): Promise<number> {
+        return this.content.countAllEntries(workspaceId);
     }
 
     /** Loads full views for the given workspace ids, preserving newest-first. */

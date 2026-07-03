@@ -22,8 +22,15 @@ import { AuthGuard } from './auth/guards/auth.guard';
 import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
 import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
 import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
+import { UpdateWorkspaceController } from './workspaces/controllers/update-workspace.controller';
+import { SetWorkspaceStatusController } from './workspaces/controllers/set-workspace-status.controller';
+import { DeleteWorkspaceController } from './workspaces/controllers/delete-workspace.controller';
 import { AddWorkspaceMemberController } from './workspaces/controllers/add-workspace-member.controller';
 import { RemoveWorkspaceMemberController } from './workspaces/controllers/remove-workspace-member.controller';
+import { AddWorkspaceContentController } from './workspaces/controllers/add-workspace-content.controller';
+import { RemoveWorkspaceContentController } from './workspaces/controllers/remove-workspace-content.controller';
+import { GetWorkspaceContentCountController } from './workspaces/controllers/get-workspace-content-count.controller';
+import { GetWorkspaceEntryCountController } from './workspaces/controllers/get-workspace-entry-count.controller';
 import { WorkspaceService } from './workspaces/services/workspace.service';
 import { SlugService } from './workspaces/services/slug.service';
 import { MembershipService } from './workspaces/services/membership.service';
@@ -73,8 +80,15 @@ export class IdentityModule {
                 CreateWorkspaceController,
                 ListWorkspacesController,
                 CheckSlugController,
+                UpdateWorkspaceController,
+                SetWorkspaceStatusController,
+                DeleteWorkspaceController,
                 AddWorkspaceMemberController,
                 RemoveWorkspaceMemberController,
+                AddWorkspaceContentController,
+                RemoveWorkspaceContentController,
+                GetWorkspaceContentCountController,
+                GetWorkspaceEntryCountController,
                 ListContentTypesController
             ],
             providers: [

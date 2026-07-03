@@ -11,7 +11,7 @@ import {
 import { useBasicsSchema } from '../../../hooks/useBasicsSchema';
 import type { UseSlugResult } from '../../../hooks/useSlug';
 import type { WizardData } from '../../../types/wizard';
-import { ColorSwatchRow } from '../ColorSwatchRow';
+import { ColorSwatchRow } from '../../ColorSwatchRow';
 import { Monogram } from '../Monogram';
 import { SlugField } from '../SlugField';
 

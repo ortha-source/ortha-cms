@@ -11,6 +11,7 @@ import {
     MaxLength,
     ValidateNested
 } from 'class-validator';
+import { WORKSPACE_COLORS } from '../workspace.constants';
 
 /** A member being granted access. The owner is derived from the session. */
 export class CreateWorkspaceMemberDto {
@@ -100,8 +101,7 @@ export class CreateWorkspaceDto {
     description!: string;
 
     /** Accent color key from the design-system palette. */
-    @IsString()
-    @IsNotEmpty()
+    @IsIn(WORKSPACE_COLORS)
     color!: string;
 
     /** Members to add. The owner (current user) is implied, not listed here. */

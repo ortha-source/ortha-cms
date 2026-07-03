@@ -14,6 +14,7 @@ import {
     type SQL
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { lockWorkspaceShared } from '@ortha-cms/identity-server';
 import type { AnyContentType, EntryStatus } from '../../types/content-type';
 import { ENTRY_STATUS } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
@@ -56,6 +57,12 @@ export class EntryWriterService {
      * publishable type starts as a **draft** and may be incomplete — validation
      * is deferred to publish. A non-publishable type is always live, so its
      * values must validate now.
+     *
+     * The insert runs in a transaction that first takes the workspace's *shared*
+     * content lock ({@link lockWorkspaceShared}): it coordinates with the
+     * workspace delete / content-revoke guards (which take the lock exclusively),
+     * so a new entry can't land between their emptiness check and their mutation
+     * and be orphaned. Shared mode keeps concurrent creates non-blocking.
      */
     async create(
         type: AnyContentType,
@@ -65,10 +72,14 @@ export class EntryWriterService {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
-        const [row] = await this.db
-            .insert(type.table)
-            .values({ ...toColumns(type, coerced), workspaceId } as never)
-            .returning();
+        const row = await this.db.transaction(async (tx) => {
+            await lockWorkspaceShared(tx, workspaceId);
+            const [inserted] = await tx
+                .insert(type.table)
+                .values({ ...toColumns(type, coerced), workspaceId } as never)
+                .returning();
+            return inserted;
+        });
         return toRecord(type, row as Row);
     }
 

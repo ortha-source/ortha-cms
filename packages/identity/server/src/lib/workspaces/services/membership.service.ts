@@ -26,8 +26,8 @@ export class MembershipService {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
     /**
-     * Links `owner` plus `members` to `workspaceId` within `tx`. Resolves each
-     * member to a real user id (provisioning pending accounts for invites),
+     * Links the `creator` plus `members` to `workspaceId` within `tx`. Resolves
+     * each member to a real user id (provisioning pending accounts for invites),
      * ignores duplicates, and silently drops ids that don't resolve to a real
      * user so a stale directory id can't abort the whole create on a FK
      * violation.
@@ -35,10 +35,10 @@ export class MembershipService {
     async link(
         tx: Tx,
         workspaceId: string,
-        ownerUserId: string,
+        creatorUserId: string,
         members: MemberInput[]
     ): Promise<void> {
-        const memberIds = [ownerUserId];
+        const memberIds = [creatorUserId];
         for (const member of members) {
             memberIds.push(
                 member.invited
@@ -47,6 +47,8 @@ export class MembershipService {
             );
         }
 
+        // The creator and members are just membership links with no special
+        // role, so they're inserted together in one statement.
         const unique = [...new Set(memberIds)];
         const existing = await tx
             .select({ id: users.id })
@@ -81,7 +83,11 @@ export class MembershipService {
         return !!row;
     }
 
-    /** Groups members by workspace id, owner (earliest membership) first. */
+    /**
+     * Groups members by workspace id in a deterministic order (earliest
+     * membership first, `id` breaking `created_at` ties). Ordering is
+     * presentation-only — a member carries no role.
+     */
     async loadByWorkspace(
         workspaceIds: string[]
     ): Promise<Map<string, WorkspaceMemberView[]>> {
@@ -96,7 +102,7 @@ export class MembershipService {
             .from(memberships)
             .innerJoin(users, eq(users.id, memberships.userId))
             .where(inArray(memberships.workspaceId, workspaceIds))
-            .orderBy(memberships.createdAt);
+            .orderBy(memberships.createdAt, memberships.id);
 
         const byWorkspace = new Map<string, WorkspaceMemberView[]>();
         for (const row of rows) {

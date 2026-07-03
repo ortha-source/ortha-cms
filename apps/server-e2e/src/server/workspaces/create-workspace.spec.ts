@@ -69,7 +69,7 @@ describe('POST /api/workspaces', () => {
     }
 
     describe('authenticated admin (holds workspaces:create)', () => {
-        it('creates a workspace and seeds the owner as its sole member', async () => {
+        it('creates a workspace and seeds the creator as its sole member', async () => {
             const { user, agent } = await loginAs('admin', ADMIN_EMAIL);
 
             const res = await agent
@@ -96,11 +96,14 @@ describe('POST /api/workspaces', () => {
                     status: 'active'
                 })
             );
-            // The owner comes from the session, not the body, and is the only
+            // The creator comes from the session, not the body, and is the only
             // member when none are supplied.
             expect(res.body.members).toHaveLength(1);
             expect(res.body.members[0]).toEqual(
-                expect.objectContaining({ id: user.id, email: ADMIN_EMAIL })
+                expect.objectContaining({
+                    id: user.id,
+                    email: ADMIN_EMAIL
+                })
             );
             expect(Object.keys(res.body.members[0]).sort()).toEqual([
                 'email',

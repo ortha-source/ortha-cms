@@ -22,7 +22,7 @@ export interface WorkspaceView {
     color: string;
     /** Lifecycle state. */
     status: 'active' | 'archived';
-    /** Members, owner first (insertion order). */
+    /** Members, in a stable order (earliest membership first). */
     members: WorkspaceMemberView[];
     /**
      * Slugs of the code-defined content types this workspace was granted at

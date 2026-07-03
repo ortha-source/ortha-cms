@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_146 test cases across 20 spec files._
+_156 test cases across 21 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -332,6 +332,41 @@ _<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_
 | shows "New workspace" to a user with workspaces:create |
 | hides "New workspace" from a user without the permission |
 | redirects /workspaces/new to the list without the permission |
+
+<!-- source: apps/admin-e2e/src/workspaces/settings.spec.ts -->
+_<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_
+
+## Workspace settings page
+
+### as an admin
+
+| Test case |
+| --- |
+| renders the section nav and the current general values |
+| saves an edited name (save enables only when dirty) |
+| assigns an unassigned member and removes an existing one |
+| grants a content type and revokes an empty one |
+| blocks revoking a content type that still has entries |
+| archives the workspace from the danger zone |
+| deletes the workspace and returns to the grid |
+
+### delete guard (workspace still has content)
+
+| Test case |
+| --- |
+| blocks deleting until all content is removed |
+
+### as a viewer (read-only)
+
+| Test case |
+| --- |
+| hides edit controls and the danger tab |
+
+### accessibility
+
+| Test case |
+| --- |
+| the settings page has no automatically-detectable a11y violations |
 
 <!-- source: apps/admin-e2e/src/workspaces/workspaces.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_

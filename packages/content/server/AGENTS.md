@@ -148,7 +148,11 @@ global).
   `EntryValidationService` — a failure is **422** with `{ message, issues:
   [{ field, message }] }`. Each resolves `:typeName` (404), guards state-changing
   requests with `OriginGuard` (CSRF), and is permission-gated:
-    - `POST /content/:typeName` — create a draft (`content:create`).
+    - `POST /content/:typeName` — create a draft (`content:create`). The insert
+      runs in a transaction that first takes the workspace's **shared** advisory
+      lock (`lockWorkspaceShared` from identity), coordinating with the workspace
+      delete / content-revoke emptiness guards (which take it exclusively) so a
+      new entry can't be orphaned by a concurrent delete/revoke.
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
     - `PATCH /content/:typeName/:id` — replace values (`content:update`).
     - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
@@ -176,6 +180,14 @@ global).
   `CONTENT_REGISTRY` token + `EntryValidationService`. `ContentPlugin({ types })`
   builds the registry **eagerly** — duplicate names and unresolvable relation
   targets throw at construction, failing boot rather than the first request.
+- It **binds identity's ports** to the registry: `CONTENT_CATALOG` (the type
+  catalogue, so `GET /api/content-types` + the workspace-grant flow see the real
+  code-defined types) and `CONTENT_ENTRY_COUNTER` (an `EntryCounterService`
+  counting a type's rows in a workspace — and the workspace's total across all
+  types — so identity's "revoke a content grant only when empty" and "delete a
+  workspace only when it holds no content" checks see the real stored entries).
+  Same inversion as `ACTIVITY_RECORDER` — identity owns the port, this plugin
+  binds it.
 - Register **after** `DatabasePlugin` + `IdentityPlugin` (it uses identity's
   `PermissionsGuard` and, for the entries list, the shared Drizzle client).
   Depends on `@ortha-cms/identity-server` (guards), `@ortha-cms/bootstrap-server`,

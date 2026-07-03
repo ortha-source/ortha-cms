@@ -15,7 +15,7 @@ states.
 
 1. **`playwright.config.ts`** starts the admin dev server (`nx run admin:serve`,
    `reuseExistingServer`) at `http://localhost:4200` and runs `src/**/*.spec.ts`
-   across chromium/firefox/webkit.
+   in chromium.
 2. **`support/fixtures.ts`** extends Playwright's `test` with **page-object**
    fixtures (`loginPage`, `homePage`). Specs import `test`/`expect` from here,
    never from `@playwright/test` directly.
