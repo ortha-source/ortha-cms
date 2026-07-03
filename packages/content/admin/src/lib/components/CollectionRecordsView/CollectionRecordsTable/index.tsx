@@ -78,7 +78,7 @@ function Cell({
                 <Badge
                     variant={
                         record.status === ENTRY_STATUS.Published
-                            ? 'default'
+                            ? 'success'
                             : 'secondary'
                     }
                 >
