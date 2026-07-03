@@ -714,6 +714,11 @@ export class EntryWriterService {
             if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
                 continue;
             const relation = spec.relation;
+            // An owning many-to-many array submitted in `values` is re-validated
+            // in-transaction by `writeLinks` (the same uniform 422), so skip it
+            // here to avoid a duplicate existence probe. The inverse array and
+            // owning single FKs aren't checked in-tx, so they stay validated here.
+            if (relation.many && !relation.inverse) continue;
             if (relation.inverse) {
                 // Inverse of a single relation writes nothing from this side;
                 // only the inverse of a many-to-many links (its ids are owner

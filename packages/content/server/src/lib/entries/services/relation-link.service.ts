@@ -222,7 +222,13 @@ export class RelationLinkService {
         const join = spec ? this.joinPlanFor(type, field, spec) : null;
         if (!join) return; // single / inverse-of-single: nothing to write here
 
-        await this.assertTargets(tx, join.target, delta.link ?? [], workspaceId);
+        await this.assertTargets(
+            tx,
+            join.target,
+            delta.link ?? [],
+            workspaceId,
+            field
+        );
         const cols = join.table as unknown as Columns;
         const own = cols[join.ownCol];
         const ref = cols[join.refCol];
@@ -324,7 +330,7 @@ export class RelationLinkService {
             const join = this.joinPlanFor(type, name, spec);
             if (!join || join.ownCol !== 'sourceId') continue; // owning many only
             const ids = dedupe(values[name] as unknown[]);
-            await this.assertTargets(tx, join.target, ids, workspaceId);
+            await this.assertTargets(tx, join.target, ids, workspaceId, name);
             const cols = join.table as unknown as Columns;
             const own = cols[join.ownCol];
             const ref = cols[join.refCol];
@@ -416,7 +422,8 @@ export class RelationLinkService {
         tx: DbTransaction,
         target: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        field: string
     ): Promise<void> {
         const unique = [...new Set(ids)].filter((id) => !!id);
         if (!unique.length) return;
@@ -439,7 +446,7 @@ export class RelationLinkService {
             throw new UnprocessableEntityException({
                 message: 'Entry validation failed',
                 issues: missing.map(() => ({
-                    field: 'relation',
+                    field,
                     message: 'must reference an existing entry'
                 }))
             });
