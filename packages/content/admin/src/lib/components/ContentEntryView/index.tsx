@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Alert,
     AlertDescription,
@@ -20,8 +21,10 @@ import type {
 } from '../../types/contentType';
 import {
     CONTENT_FIELD_TYPE,
+    CONTENT_PUBLISH,
     CONTENT_SEGMENT,
     ENTRY_MODE,
+    ENTRY_STATUS,
     type EntryMode
 } from '../../constants';
 import { useContentSchema } from '../../api/useContentSchema';
@@ -57,6 +60,10 @@ const messages = defineMessages({
     savedPublish: {
         id: 'content.entry.savedPublish',
         defaultMessage: '{label} published.'
+    },
+    savedDraft: {
+        id: 'content.entry.savedDraft',
+        defaultMessage: '{label} moved to draft.'
     },
     deleted: {
         id: 'content.entry.deleted',
@@ -166,6 +173,7 @@ export function ContentEntryView({
 
     const save = useSaveEntry(type.name);
     const status = useEntryStatusActions(type.name);
+    const canPublish = useHasPermission(CONTENT_PUBLISH);
 
     // In create mode, remember the id returned by a successful create so that if
     // the chained publish (or a later save) fails, a retry **updates** that draft
@@ -281,16 +289,29 @@ export function ContentEntryView({
         // draft persists and the user's retry must target it (not POST again).
         if (!existingId) setCreatedId(saved.id);
         const willPublish = options.publish && publishable;
+        // "Save as draft" on an **already-published** entry reverts it to draft
+        // (unpublish), so the primary action and the draft action are a clean
+        // toggle. Only when the user may publish/unpublish; a plain re-save of a
+        // draft, or a save without the permission, leaves the status untouched.
+        const willUnpublish =
+            !options.publish &&
+            publishable &&
+            canPublish &&
+            resolved.entry?.status === ENTRY_STATUS.Published;
         if (willPublish) {
             await status.publish.mutateAsync(saved.id);
+        } else if (willUnpublish) {
+            await status.unpublish.mutateAsync(saved.id);
         }
         toast(
             intl.formatMessage(
                 willPublish
                     ? messages.savedPublish
-                    : isCreate
-                      ? messages.savedCreate
-                      : messages.savedUpdate,
+                    : willUnpublish
+                      ? messages.savedDraft
+                      : isCreate
+                        ? messages.savedCreate
+                        : messages.savedUpdate,
                 { label: schema.label }
             )
         );
@@ -340,7 +361,11 @@ export function ContentEntryView({
                 publishable={publishable}
                 title={title}
                 subtitle={schema.description}
-                saving={save.isPending || status.publish.isPending}
+                saving={
+                    save.isPending ||
+                    status.publish.isPending ||
+                    status.unpublish.isPending
+                }
                 mutating={status.unpublish.isPending || status.remove.isPending}
                 onSave={onSave}
                 onUnpublish={onUnpublish}
