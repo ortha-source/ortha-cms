@@ -230,25 +230,46 @@ export class RelationLinkService {
                 .where(and(eq(own, sourceId), inArray(ref, delta.unlink)));
         }
 
-        // Append each new link at the end of its **source's** ordered list. For
-        // an owning relation the source is this entry; for an inverse it's the
-        // linked (owner) row, so each appends to that row's own list.
-        for (const targetId of dedupe(delta.link)) {
-            const physicalSourceId =
-                join.ownCol === 'sourceId' ? sourceId : targetId;
-            const position = await this.nextPosition(
-                tx,
-                join.table,
-                physicalSourceId
-            );
+        // Append each new link at the end of its **source's** ordered list.
+        const links = dedupe(delta.link);
+        if (links.length && join.ownCol === 'sourceId') {
+            // Owning relation: every new link shares this entry as its source, so
+            // read the append base once and insert them all in a single
+            // statement (position = base + index) instead of a SELECT+INSERT per
+            // link inside the locked transaction.
+            const base = await this.nextPosition(tx, join.table, sourceId);
             await tx
                 .insert(join.table)
-                .values({
-                    [join.ownCol]: sourceId,
-                    [join.refCol]: targetId,
-                    position
-                } as never)
+                .values(
+                    links.map(
+                        (targetId, i) =>
+                            ({
+                                [join.ownCol]: sourceId,
+                                [join.refCol]: targetId,
+                                position: base + i
+                            }) as never
+                    )
+                )
                 .onConflictDoNothing();
+        } else {
+            // Inverse relation: each link appends to a **different** owner row's
+            // list (its physical source is the linked owner, not this entry), so
+            // each needs its own append base.
+            for (const targetId of links) {
+                const position = await this.nextPosition(
+                    tx,
+                    join.table,
+                    targetId
+                );
+                await tx
+                    .insert(join.table)
+                    .values({
+                        [join.ownCol]: sourceId,
+                        [join.refCol]: targetId,
+                        position
+                    } as never)
+                    .onConflictDoNothing();
+            }
         }
 
         // Reorder is the owning side's prerogative (its `source_id` axis); the
