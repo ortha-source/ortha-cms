@@ -16,7 +16,7 @@ const badgeVariants = cva(
                     'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
                 /** Positive / active state — e.g. a Published status chip. */
                 success:
-                    'border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+                    'border-transparent bg-emerald-100 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-300',
                 /** Attention / pending state — e.g. an unsaved "Changed" badge. */
                 warning:
                     'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-500',
