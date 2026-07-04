@@ -27,3 +27,10 @@ export type {
     EntryStatus
 } from './lib/types/contentType';
 export { ENTRY_MODE, type EntryMode } from './lib/constants';
+
+// Query-key builders, exported so a slot contributor can invalidate the
+// library's caches after its own mutations (e.g. creating a translation).
+export {
+    contentEntriesPrefix
+} from './lib/api/useContentEntries';
+export { contentEntryKey } from './lib/api/useContentEntry';

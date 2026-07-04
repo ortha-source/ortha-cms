@@ -309,7 +309,16 @@ export function LoadedRecordsView({
         updateParams({ [SEARCH_PARAM]: undefined, filter: undefined });
     };
 
-    const openCreate = () => navigate(`${typePath}/${NEW_SEGMENT}`);
+    // Carry the slot-owned URL params (e.g. the active locale) into the create
+    // route, so a record is created in the context the table was showing.
+    const openCreate = () => {
+        const carried = new URLSearchParams();
+        for (const [key, value] of Object.entries(slotParams)) {
+            if (value !== undefined) carried.set(key, value);
+        }
+        const query = carried.toString();
+        navigate(`${typePath}/${NEW_SEGMENT}${query ? `?${query}` : ''}`);
+    };
 
     return (
         <Container className="max-w-none p-6 sm:p-6">
