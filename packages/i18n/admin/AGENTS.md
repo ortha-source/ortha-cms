@@ -21,18 +21,25 @@ content plugin owns).
   page** by the item's `useRowsData` (`useLocaleSummaries` →
   `POST …/locale-summary`) — never a request per row.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT` → `LocaleWidget`** — the entry editor's **locale
-  switcher**, styled like the Details block. On a **saved** record it lists
-  every configured locale: the current one is marked, an existing translation is
-  a switch target (with its publish status → navigates to that sibling's
-  editor, or `?locale=` for singles), and a missing locale is dimmed but
-  selectable → it **navigates to a draft create form** scoped to that locale +
-  the same group (`/:type/new?locale=<slug>&localeGroupId=<gid>` for
-  collections, `?locale=…&localeGroupId=…` for singles), carrying the source's
-  values in router `state.translateFrom`. Creating the sibling is then just the
-  editor's normal **Save (draft) / Publish** (gated `content:create`) — there is
-  **no** dedicated create-translation call. On a **new/unsaved** record the
-  other locales are **disabled** ("Save to add translations") — there's no group
-  to attach to yet.
+  switcher**, styled like the Details block, live in **both** modes. It lists
+  every configured locale: the current one is marked, a locale whose translation
+  already exists is a switch target (with its publish status → navigates to that
+  sibling's editor, or `?locale=` for singles), and a missing locale is dimmed
+  but selectable → it **re-targets the form** to that locale (a draft create form
+  scoped to that locale + the same group:
+  `/:type/new?locale=<slug>&localeGroupId=<gid>` for collections,
+  `?locale=…&localeGroupId=…` for singles), carrying the source's values in
+  router `state.translateFrom`. Creating the sibling is then just the editor's
+  normal **Save (draft) / Publish** (gated `content:create`) — there is **no**
+  dedicated create-translation call.
+    - On a **saved** record the group's members come from `useEntryLocales` (by
+      the saved id).
+    - On a **new/unsaved** record you can still switch the form's target locale
+      before filling it in — re-scoping `?locale=` in place. When the create is
+      a translation into an existing group (the URL carries a `localeGroupId`),
+      the group's members are read by `useLocaleSummaries` (batched by that group
+      id) so an already-existing sibling is a live switch target; a fresh create
+      (no group) simply re-scopes to the picked locale.
 - **`RECORDS_FILTER_FIELDS_SLOT` → `useLocaleFilterFields`** — **Has locale /
   Missing locale / Locale count** filter fields, resolved server-side by the
   i18n plugin's virtual-field subqueries. Empty for a non-i18n type.
@@ -51,9 +58,12 @@ TanStack Query key:
 
 - `useLocales` — `GET /api/i18n/locales`, cached **forever** (server config).
   Exposes `locales` + `defaultLocale`.
-- `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the widget).
-- `useLocaleSummaries` — `POST …/locale-summary` batched over a page's unique
-  group ids (the column); sorted ids key the cache.
+- `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the widget, on
+  a saved record).
+- `useLocaleSummaries` — `POST …/locale-summary` batched over group ids; sorted
+  ids key the cache. Feeds the **Locales column** (a page's unique group ids)
+  **and** the **widget in create mode** (the single `localeGroupId` a translation
+  draft carries in its URL).
 There is **no** create-translation hook — a sibling is created through the
 Content Library's own editor Save/Publish (the widget navigates to a draft form;
 `createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The

@@ -24,16 +24,15 @@ const messages = defineMessages({
 /**
  * One locale's row in the {@link LocaleWidget} switcher. The current locale is
  * marked; an **existing** sibling is a switch target (with its publish status);
- * a **missing** locale is dimmed but selectable to start its draft; a
- * **disabled** locale (create mode, no group yet) is inert. The whole row is
- * the switch affordance — a single `<button>` when actionable.
+ * a **missing** locale is dimmed but selectable to re-target the form to it.
+ * The whole row is the switch affordance — a single `<button>` when actionable,
+ * otherwise a static (current) or inert (no permission) row.
  */
 export function LocaleRow({
     name,
     isCurrent,
     exists,
     status,
-    disabled = false,
     onSelect
 }: {
     /** Display name of the locale. */
@@ -44,8 +43,6 @@ export function LocaleRow({
     exists: boolean;
     /** The sibling row's publish status (publishable types only). */
     status?: EntryStatus;
-    /** Inert row (create mode: no group to attach to yet). */
-    disabled?: boolean;
     /** Switch to / create this locale. Absent = not actionable. */
     onSelect?: () => void;
 }) {
@@ -99,7 +96,7 @@ export function LocaleRow({
         'flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-2 text-sm';
 
     // Actionable rows are a single full-width button (the whole row switches).
-    if (onSelect && !isCurrent && !disabled) {
+    if (onSelect && !isCurrent) {
         return (
             <li>
                 <button
@@ -120,14 +117,14 @@ export function LocaleRow({
         );
     }
 
-    // Current (highlighted) or disabled (dimmed) — static.
+    // Current (highlighted) or non-actionable (no create permission) — static.
     return (
         <li
             aria-current={isCurrent ? 'true' : undefined}
             className={cn(
                 rowClass,
                 isCurrent && 'bg-accent',
-                disabled && 'opacity-50'
+                !isCurrent && 'opacity-50'
             )}
         >
             {body}

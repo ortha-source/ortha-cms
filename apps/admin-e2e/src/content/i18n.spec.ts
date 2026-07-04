@@ -154,4 +154,46 @@ test.describe('Content i18n', () => {
         await expect(page.getByLabel(/Title/)).toHaveValue('');
         await expect(page.getByText('Localized field').first()).toBeAttached();
     });
+
+    test('a brand-new record can be re-targeted to another locale before saving', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.addRecord.click();
+
+        // The create form starts in the default locale; the widget is live even
+        // though nothing is saved yet.
+        await expect(page).toHaveURL(/\/localized_post\/new$/);
+        await expect(contentLibraryPage.localeWidget).toBeVisible();
+
+        // Switch the form's target locale to German (no group yet — a fresh
+        // record, just re-scoped).
+        await contentLibraryPage.createTranslation('Deutsch').click();
+
+        await expect(page).toHaveURL(/\/localized_post\/new\?/);
+        await expect(page).toHaveURL(/locale=de/);
+        await expect(page).not.toHaveURL(/localeGroupId=/);
+    });
+
+    test('a translation draft can jump to an existing sibling', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage
+            .recordsTable('Localized posts')
+            .getByRole('link', { name: /Winter boots/ })
+            .click();
+        await expect(contentLibraryPage.localeWidget).toBeVisible();
+
+        // Start a French translation of group G1 (which already has en + de).
+        await contentLibraryPage.createTranslation('Français').click();
+        await expect(page).toHaveURL(/localeGroupId=G1/);
+
+        // On that draft form the widget still knows the group's members, so the
+        // existing German sibling is a switch target.
+        await contentLibraryPage.switchLocale('Deutsch').click();
+        await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
+    });
 });
