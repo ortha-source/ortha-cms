@@ -229,6 +229,347 @@ describe('Content entry writes (/api/content/:type)', () => {
         });
     });
 
+    describe('join-backed relations (many-to-many + inverse)', () => {
+        /** Create a tag in `ws` (as a member of it) and return its id. */
+        async function seedTagIn(ws: string, name: string): Promise<string> {
+            if (ws !== workspaceId) await seedMembership(admin.id, ws);
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                .expect(201);
+            agent.set('X-Workspace-Id', ws);
+            const res = await agent
+                .post('/api/content/tag')
+                .send({ values: { name } })
+                .expect(201);
+            return res.body.id as string;
+        }
+
+        /** The ordered linked ids for a field on `/…/:id/relations` (first page). */
+        async function linkedIds(
+            agent: request.Agent,
+            type: string,
+            id: string,
+            field: string
+        ): Promise<string[]> {
+            const res = await agent
+                .get(`/api/content/${type}/${id}/relations`)
+                .expect(200);
+            const view = (res.body.relations[field] ?? { items: [] }) as {
+                items: { id: string }[];
+            };
+            return view.items.map((ref) => ref.id);
+        }
+
+        it('persists a many-to-many on create and reads it back with titles', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const eng = await seedTagIn(workspaceId, 'engineering');
+            const design = await seedTagIn(workspaceId, 'design');
+
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [eng, design]
+            });
+
+            const res = await agent
+                .get(`/api/content/article/${id}/relations`)
+                .expect(200);
+            const tags = res.body.relations.tags as {
+                items: { id: string; title: string }[];
+                total: number;
+            };
+            expect(tags.total).toBe(2);
+            expect(tags.items.map((t) => t.id).sort()).toEqual(
+                [eng, design].sort()
+            );
+            // Titles are resolved server-side (the tag's `name`).
+            expect(tags.items.map((t) => t.title).sort()).toEqual(
+                ['design', 'engineering'].sort()
+            );
+        });
+
+        it('replaces the link set on update (unlink + link in one save)', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const eng = await seedTagIn(workspaceId, 'engineering');
+            const design = await seedTagIn(workspaceId, 'design');
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [eng, design]
+            });
+
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: { ...VALID, tags: [design] } })
+                .expect(200);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                design
+            ]);
+
+            // Clearing the array unlinks everything.
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: { ...VALID, tags: [] } })
+                .expect(200);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([]);
+        });
+
+        it('422s a many-to-many target in another workspace', async () => {
+            const other = await seedWorkspace({
+                name: 'WS Two',
+                slug: 'ws-two'
+            });
+            const foreignTag = await seedTagIn(other.id, 'foreign');
+
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post('/api/content/article')
+                .send({ values: { ...VALID, tags: [foreignTag] } })
+                .expect(422);
+            const fields = (res.body.issues as { field: string }[]).map(
+                (issue) => issue.field
+            );
+            expect(fields).toContain('tags');
+        });
+
+        it('404s the relations read for a missing entry', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get(
+                    '/api/content/article/00000000-0000-4000-8000-000000000000/relations'
+                )
+                .expect(404);
+        });
+
+        it('links and unlinks via relation deltas on save', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const eng = await seedTagIn(workspaceId, 'engineering');
+            const design = await seedTagIn(workspaceId, 'design');
+
+            // Link on create, in the same request as the values.
+            const create = await agent
+                .post('/api/content/article')
+                .send({ values: VALID, relations: { tags: { link: [eng, design] } } })
+                .expect(201);
+            const id = create.body.id as string;
+            expect((await linkedIds(agent, 'article', id, 'tags')).sort()).toEqual(
+                [eng, design].sort()
+            );
+
+            // Unlink on update, via the save payload.
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { unlink: [eng] } } })
+                .expect(200);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                design
+            ]);
+        });
+
+        it('merges a link delta onto existing links (append, not override)', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b, c, d, e] = await Promise.all([
+                seedTagIn(workspaceId, 'aa'),
+                seedTagIn(workspaceId, 'bb'),
+                seedTagIn(workspaceId, 'cc'),
+                seedTagIn(workspaceId, 'dd'),
+                seedTagIn(workspaceId, 'ee')
+            ]);
+            // Start with three linked tags.
+            const id = await createArticle(agent, { ...VALID, tags: [a, b, c] });
+
+            // A link delta of two more must MERGE to five — not replace with two.
+            // The save body carries no `tags` in `values`, so the whole-set path
+            // can't wipe them.
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { link: [d, e] } } })
+                .expect(200);
+            expect(
+                (await linkedIds(agent, 'article', id, 'tags')).sort()
+            ).toEqual([a, b, c, d, e].sort());
+
+            // Re-linking already-linked ids is idempotent (no duplicates).
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { link: [a, d] } } })
+                .expect(200);
+            expect(
+                await linkedIds(agent, 'article', id, 'tags')
+            ).toHaveLength(5);
+        });
+
+        it('persists order via the reorder delta on save', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const a = await seedTagIn(workspaceId, 'aaa');
+            const b = await seedTagIn(workspaceId, 'bbb');
+            const c = await seedTagIn(workspaceId, 'ccc');
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [a, b, c]
+            });
+
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { tags: { order: [c, a, b] } } })
+                .expect(200);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                c,
+                a,
+                b
+            ]);
+        });
+
+        it('paginates a field with many links', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const tagIds: string[] = [];
+            for (let i = 0; i < 5; i++) {
+                tagIds.push(await seedTagIn(workspaceId, `tag-${i}`));
+            }
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: tagIds
+            });
+
+            const page1 = await agent
+                .get(`/api/content/article/${id}/relations/tags`)
+                .query({ page: 1, pageSize: 2 })
+                .expect(200);
+            expect(page1.body.items).toHaveLength(2);
+            expect(page1.body.total).toBe(5);
+
+            const page3 = await agent
+                .get(`/api/content/article/${id}/relations/tags`)
+                .query({ page: 3, pageSize: 2 })
+                .expect(200);
+            expect(page3.body.items).toHaveLength(1);
+        });
+
+        it('400s a relation delta on a single relation', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const author = (
+                await agent
+                    .post('/api/content/author')
+                    .send({ values: { name: 'Ada' } })
+                    .expect(201)
+            ).body.id as string;
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({ values: VALID, relations: { author: { link: [author] } } })
+                .expect(400);
+        });
+
+        it('400s a malformed relation delta (non-array unlink), not a 500', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { unlink: 'not-an-array' } }
+                })
+                .expect(400);
+        });
+
+        it('400s a relation delta carrying a non-uuid id', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { link: ['not-a-uuid'] } }
+                })
+                .expect(400);
+        });
+
+        it('422s linking a target in another workspace via a delta', async () => {
+            const other = await seedWorkspace({
+                name: 'WS Two',
+                slug: 'ws-two'
+            });
+            const foreignTag = await seedTagIn(other.id, 'foreign');
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { link: [foreignTag] } }
+                })
+                .expect(422);
+        });
+
+        it('links the inverse side (tag.articles) via a delta on save', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const tagId = await seedTagIn(workspaceId, 'engineering');
+            const articleId = await createArticle(agent, VALID);
+
+            // Link from the tag side via a delta — the same join rows the
+            // article owns, so the link shows on both sides.
+            await agent
+                .patch(`/api/content/tag/${tagId}`)
+                .send({
+                    values: { name: 'engineering' },
+                    relations: { articles: { link: [articleId] } }
+                })
+                .expect(200);
+            expect(await linkedIds(agent, 'tag', tagId, 'articles')).toEqual([
+                articleId
+            ]);
+            expect(await linkedIds(agent, 'article', articleId, 'tags')).toEqual(
+                [tagId]
+            );
+        });
+
+        it('applies link, unlink, and order in one delta on save', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b, c, d] = await Promise.all([
+                seedTagIn(workspaceId, 'aa'),
+                seedTagIn(workspaceId, 'bb'),
+                seedTagIn(workspaceId, 'cc'),
+                seedTagIn(workspaceId, 'dd')
+            ]);
+            const id = await createArticle(agent, { ...VALID, tags: [a, b, c] });
+
+            // Unlink a, link d, and reorder — all in a single save.
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: {
+                        tags: { unlink: [a], link: [d], order: [d, c, b] }
+                    }
+                })
+                .expect(200);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([
+                d,
+                c,
+                b
+            ]);
+        });
+
+        it('keeps a link on soft delete but drops it on purge (FK cascade)', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b] = await Promise.all([
+                seedTagIn(workspaceId, 'aa'),
+                seedTagIn(workspaceId, 'bb')
+            ]);
+            const id = await createArticle(agent, { ...VALID, tags: [a, b] });
+
+            // `tag` is paranoid, so DELETE only soft-deletes the row — the join
+            // rows survive, so the article's link is still there.
+            await agent.delete(`/api/content/tag/${a}`).expect(204);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([a, b]);
+
+            // Purging hard-deletes the row; the join rows cascade, so the
+            // article's link to it finally disappears.
+            await agent.delete(`/api/content/tag/${a}/permanent`).expect(204);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([b]);
+        });
+    });
+
     describe('publish / unpublish', () => {
         it('publishes then unpublishes a draft', async () => {
             const agent = await login(ADMIN_EMAIL);

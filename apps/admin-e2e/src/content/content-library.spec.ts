@@ -45,18 +45,26 @@ test.describe('Content Library', () => {
         );
     });
 
-    test('groups start collapsed and expand on click', async ({
+    test('Collections opens by default; Pages toggles on click', async ({
         page,
         contentLibraryPage
     }) => {
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
 
-        // Collapsed by default — the type rows are hidden.
-        await expect(contentLibraryPage.typeLink('Blog posts')).toBeHidden();
-        await contentLibraryPage.expandGroup('Collections');
+        // Collections is open by default, so its rows show without interaction.
         await expect(contentLibraryPage.typeLink('Blog posts')).toBeVisible();
         await expect(contentLibraryPage.typeLink('Products')).toBeVisible();
+
+        // Pages starts collapsed — its rows are hidden until expanded.
+        await expect(contentLibraryPage.typeLink('Home')).toBeHidden();
+        await contentLibraryPage.expandGroup('Pages');
+        await expect(contentLibraryPage.typeLink('Home')).toBeVisible();
+        await expect(contentLibraryPage.typeLink('About')).toBeVisible();
+
+        // Clicking an open group collapses it again.
+        await contentLibraryPage.group('Pages').click();
+        await expect(contentLibraryPage.typeLink('Home')).toBeHidden();
     });
 
     test('selecting a single (page) opens its entry editor', async ({

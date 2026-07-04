@@ -81,7 +81,8 @@ flags are carried on `ContentType` and serialized in the schema summary.
 ## Generated storage (`buildTables`)
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per
-**many-relation**. Every table carries the base envelope: `id`, `workspace_id`
+**many-relation** (`source_id`, `target_id`, and a float `position` for the
+source's ordering of its links). Every table carries the base envelope: `id`, `workspace_id`
 (plain uuid, no FK — the `workspaces` table is identity-owned; entries are
 scoped to it in the app layer, see HTTP surface), `created_at`, `updated_at`.
 A `publishable` type additionally gets `status` (`draft`/`published`) +
@@ -154,6 +155,17 @@ global).
       delete / content-revoke emptiness guards (which take it exclusively) so a
       new entry can't be orphaned by a concurrent delete/revoke.
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
+    - `GET /content/:typeName/:id/relations` — every relation field's **first
+      page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
+      `RelationRef = { id, title, status? }`), for owning single/many **and**
+      inverse back-references. `RelationLinkService.readAll` reads each field
+      independently (paginated), so a relation with many links contributes only
+      its first page, never every id. The editor titles single relations and
+      seeds the section counts from it (`content:read`).
+    - `GET /content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
+      a single relation field's links (`{ items, total }`), ordered by
+      `position`. Drives the editor's **infinite-scroll** of a many/inverse
+      relation. 400 if `field` isn't a relation (`content:read`).
     - `PATCH /content/:typeName/:id` — replace values (`content:update`).
     - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
       `status`+`published_at`; publish **re-validates the stored row**; 400 on a
@@ -168,8 +180,30 @@ global).
 - **Routing order matters:** `BulkEntriesController` is registered **before** the
   single-item controllers in `ContentModule.forRoot` so the literal `bulk`
   segment wins over `:id` (single-item `:id` also carries `ParseUUIDPipe` as a
-  backstop). Many-relation values aren't persisted yet (skipped by `toColumns`,
-  matching the reader) — relation writes land with the relations UI.
+  backstop).
+- **Relation persistence** (`RelationLinkService`): an owning **single** relation
+  is a plain `<field>_id` FK column (written by `toColumns`, read off the row).
+  Everything **join-backed** — an owning **many-to-many** and the **inverse**
+  side of a two-way relation (which reuses the owning join table, source/target
+  swapped) — is **paginated** on read and edited by an **incremental delta**
+  carried in the save body (`SaveEntryDto.relations = { <field>: { link?, unlink?,
+  order? } }`): inside the create/update transaction `applyDelta` unlinks the
+  removed pairs, appends the new ones at `max(position)+1` for their source
+  (`ON CONFLICT DO NOTHING`), and renumbers to `order` (owning side only) — so a
+  relation with thousands of links is never sent or held whole, and the row and
+  its links commit as one. A `relations` key that owns no writable link from this
+  side — a single relation, an inverse-of-single (one-to-many), or an unknown
+  key — is a **400** (so a delta is never silently dropped); a structurally
+  malformed delta (`link`/`unlink`/`order` not a uuid array) is a **400** at the
+  DTO (`IsRelationDeltaMap`), never a 500.
+  `assertTargets` validates every linked id exists in the same workspace (uniform
+  422, no enumeration signal). Join rows carry a float `position` (the source's
+  own ordering) so a reorder survives a reload; the inverse reads by it but can't
+  set it. An inverse of a *single* relation (one-to-many) owns no writable link
+  from its side. The whole-document write still supports a many-relation
+  submitted in the entry body (`writeLinks`, replace-set, position = array
+  index) — used on **create** and by any legacy/bulk caller; a field absent from
+  the body is left untouched (never wiped).
 - Reads gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)`; writes on the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).

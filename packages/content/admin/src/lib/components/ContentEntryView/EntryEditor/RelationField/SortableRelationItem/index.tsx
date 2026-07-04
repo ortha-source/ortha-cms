@@ -22,12 +22,18 @@ export function SortableRelationItem({
     id,
     title,
     onRemove,
-    removeLabel
+    removeLabel,
+    href,
+    openLabel
 }: {
     id: string;
     title: string;
     onRemove: () => void;
     removeLabel: string;
+    /** Deep link to this record's editor (open-in-new-tab control). */
+    href?: string;
+    /** Accessible label for the open link. */
+    openLabel?: string;
 }) {
     const intl = useIntl();
     const {
@@ -44,6 +50,8 @@ export function SortableRelationItem({
             title={title}
             onRemove={onRemove}
             removeLabel={removeLabel}
+            href={href}
+            openLabel={openLabel}
             rowRef={setNodeRef}
             style={{ transform: CSS.Translate.toString(transform), transition }}
             dragging={isDragging}

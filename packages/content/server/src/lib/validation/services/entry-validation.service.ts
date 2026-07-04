@@ -65,6 +65,20 @@ function checkField(
     const issues: ValidationIssue[] = [];
     const fail = (message: string) => issues.push({ field: name, message });
 
+    // Many/inverse relations are **link-managed**: their links are persisted via
+    // the `relations` delta and never travel in the `values` bag, so this bag
+    // can't speak to them. Validating them here would flag a *required* one as
+    // "is required" on every save (the field is always absent/null), making it
+    // unsaveable and unpublishable. Their requiredness is a matter of the link
+    // set, not this bag — skip them. Owning **single** relations stay a plain
+    // FK id in `values`, so they're still validated below.
+    if (
+        spec.type === CONTENT_FIELD_TYPE.Relation &&
+        (spec.relation?.many || spec.relation?.inverse)
+    ) {
+        return issues;
+    }
+
     if (isEmpty(value)) {
         if (spec.required) fail('is required');
         return issues; // nothing else to check on an empty value

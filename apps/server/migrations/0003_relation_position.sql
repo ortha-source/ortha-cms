@@ -1,0 +1,2 @@
+ALTER TABLE "content_article_tags" ADD COLUMN "position" double precision DEFAULT 0 NOT NULL;--> statement-breakpoint
+CREATE INDEX "content_article_tags_source_pos_idx" ON "content_article_tags" USING btree ("source_id","position");

@@ -6,10 +6,15 @@ import {
     CollapsibleContent,
     CollapsibleTrigger
 } from '@ortha-cms/design-system';
-import type { ContentField } from '../../../../types/contentType';
+import type {
+    ContentField,
+    RelationRef,
+    StagedRelation
+} from '../../../../types/contentType';
 import { fieldLabel } from '../../../../utils/entryColumns';
-import { toRelationIds } from '../../../../utils/relationIds';
+import { ChangedBadge } from '../../../ChangedBadge';
 import { RelationField } from '../RelationField';
+import { RelationFieldLive } from '../RelationFieldLive';
 
 const messages = defineMessages({
     linked: {
@@ -25,30 +30,51 @@ const messages = defineMessages({
 
 /**
  * One relation field as a **collapsible** section in the editor's Relations tab:
- * a trigger row (chevron + field label + linked-count) over the
- * {@link RelationField} editor. Collapsing keeps the tab tidy when a type has
- * many relation fields; the count stays visible while collapsed. Controlled —
- * the form owns the value; this only forwards it.
+ * a trigger row (chevron + label + a "Changed" badge when edited + linked-count)
+ * over the field editor. A **many/inverse** relation is edited by the staged
+ * {@link RelationFieldLive} (create and edit alike — its links are sent as a
+ * delta on Save); a **single** relation uses the form-backed {@link
+ * RelationField}. `count` and `changed` are supplied by the parent so the header
+ * reflects staged edits without this component owning the data.
  */
 export function RelationFieldSection({
     field,
-    value,
+    count,
+    changed,
     error,
+    typeName,
+    entryId,
+    value,
     onChange,
     onBlur,
-    defaultOpen
+    defaultOpen,
+    initialRefs,
+    staged,
+    onStagedChange
 }: {
     field: ContentField;
-    value: unknown;
+    /** Linked count shown in the header (server total ± staged, or value length). */
+    count: number;
+    /** Whether the field has unsaved changes (drives the "Changed" badge). */
+    changed: boolean;
     error?: string;
-    onChange: (value: unknown) => void;
+    /** The content type name — for the live relation's paginated read. */
+    typeName: string;
+    /** The existing entry's id; absent while creating. */
+    entryId?: string;
+    /** Form value — the single-relation path only. */
+    value?: unknown;
+    onChange?: (value: unknown) => void;
     onBlur?: () => void;
     /** Whether the section starts expanded. */
     defaultOpen: boolean;
+    /** Server-resolved links for titling — the single-relation path only. */
+    initialRefs?: readonly RelationRef[];
+    /** Staged link/unlink/reorder — the many/inverse path only. */
+    staged?: StagedRelation;
+    onStagedChange?: (next: StagedRelation) => void;
 }) {
     const intl = useIntl();
-    const many = field.relation?.many ?? false;
-    const count = toRelationIds(value, many).length;
 
     // Controlled so an error can force the section open: otherwise a save can
     // fail with the offending relation collapsed and its error hidden inside the
@@ -57,6 +83,8 @@ export function RelationFieldSection({
     useEffect(() => {
         if (error) setOpen(true);
     }, [error]);
+
+    const live = !!field.relation?.many || !!field.relation?.inverse;
 
     return (
         <Collapsible
@@ -71,6 +99,7 @@ export function RelationFieldSection({
                 <span className="flex-1 text-sm font-medium">
                     {fieldLabel(field)}
                 </span>
+                {changed ? <ChangedBadge /> : null}
                 {error ? (
                     <AlertCircle
                         className="size-4 shrink-0 text-destructive"
@@ -83,14 +112,34 @@ export function RelationFieldSection({
             </CollapsibleTrigger>
             <CollapsibleContent>
                 <div className="border-t px-3 pb-3 pt-3">
-                    <RelationField
-                        field={field}
-                        value={value}
-                        error={error}
-                        onChange={onChange}
-                        onBlur={onBlur}
-                        hideLabel
-                    />
+                    {live ? (
+                        <RelationFieldLive
+                            field={field}
+                            typeName={typeName}
+                            entryId={entryId}
+                            error={error}
+                            staged={
+                                staged ?? {
+                                    added: [],
+                                    removed: [],
+                                    order: null
+                                }
+                            }
+                            onStagedChange={
+                                onStagedChange ?? (() => undefined)
+                            }
+                        />
+                    ) : (
+                        <RelationField
+                            field={field}
+                            value={value}
+                            error={error}
+                            onChange={onChange ?? (() => undefined)}
+                            onBlur={onBlur}
+                            hideLabel
+                            initialRefs={initialRefs}
+                        />
+                    )}
                 </div>
             </CollapsibleContent>
         </Collapsible>

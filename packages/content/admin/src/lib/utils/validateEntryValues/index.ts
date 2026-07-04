@@ -81,6 +81,18 @@ function isEmpty(value: unknown): boolean {
     );
 }
 
+/**
+ * A many/inverse relation is **link-managed** — staged and sent as a delta, not
+ * carried in the form `values` — so it's never a form value to validate. (An
+ * owning single relation stays a plain FK id in `values` and is validated.)
+ */
+function isLinkManaged(field: ContentField): boolean {
+    return (
+        field.type === CONTENT_FIELD_TYPE.Relation &&
+        (!!field.relation?.many || !!field.relation?.inverse)
+    );
+}
+
 /** Reads `validation` props with the loose wire typing the admin sees. */
 function rules(field: ContentField) {
     return field.validation as {
@@ -241,6 +253,10 @@ export function validateEntryValues(
     const errors: Record<string, string> = {};
     for (const field of schema.fields) {
         if (ignoreFields?.has(field.name)) continue;
+        // Link-managed relations aren't form values (they live in the staged
+        // delta), so there's nothing in `values` to validate — and a required
+        // one would otherwise be a permanent, un-fillable "Required" error.
+        if (isLinkManaged(field)) continue;
         const error = checkField(
             field,
             values[field.name],

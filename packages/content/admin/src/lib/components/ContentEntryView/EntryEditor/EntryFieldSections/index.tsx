@@ -2,6 +2,7 @@ import type { ContentField } from '../../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../constants';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { EntryFieldInput } from '../../../EntryFieldInput';
+import { ChangedBadge } from '../../../ChangedBadge';
 
 /**
  * Field ordering and layout, by control shape. Fields flow top-to-bottom in
@@ -42,10 +43,13 @@ const layoutFor = (type: string) => FIELD_LAYOUT[type] ?? DEFAULT_LAYOUT;
  */
 export function EntryFieldSections({
     fields,
-    form
+    form,
+    isChanged
 }: {
     fields: ContentField[];
     form: EntryFormState;
+    /** Whether a field has unsaved edits (drives its "Changed" badge). */
+    isChanged?: (name: string) => boolean;
 }) {
     const ordered = [...fields].sort(
         (a, b) => layoutFor(a.type).rank - layoutFor(b.type).rank
@@ -58,10 +62,15 @@ export function EntryFieldSections({
             {ordered.map((field) => (
                 <div
                     key={field.name}
-                    className={
-                        layoutFor(field.type).full ? 'sm:col-span-2' : undefined
-                    }
+                    className={`relative ${
+                        layoutFor(field.type).full ? 'sm:col-span-2' : ''
+                    }`}
                 >
+                    {isChanged?.(field.name) ? (
+                        <div className="pointer-events-none absolute right-0 top-0">
+                            <ChangedBadge />
+                        </div>
+                    ) : null}
                     <EntryFieldInput
                         field={field}
                         value={form.values[field.name]}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -15,12 +15,16 @@ import {
 import type {
     ContentField,
     ContentTypeDetail,
-    EntryRecord
+    EntryRecord,
+    RelationDelta,
+    StagedRelation
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
+import { useEntryRelations } from '../../../api/useEntryRelations';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
+import { toRelationIds } from '../../../utils/relationIds';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 import { RelationFieldSection } from './RelationFieldSection';
@@ -77,6 +81,30 @@ function isHidden(field: ContentField): boolean {
     return (field.admin as { hidden?: boolean }).hidden === true;
 }
 
+/** An untouched relation staging — no pending link/unlink/reorder. */
+const EMPTY_STAGED: StagedRelation = { added: [], removed: [], order: null };
+
+/** Stable JSON of a value for dirty comparison (undefined ≡ null). */
+const norm = (value: unknown) => JSON.stringify(value ?? null);
+
+/** Whether a relation staging holds any pending change. */
+function isStagedDirty(staged: StagedRelation): boolean {
+    return (
+        staged.added.length > 0 ||
+        staged.removed.length > 0 ||
+        staged.order !== null
+    );
+}
+
+/** Serialize a relation staging to the wire delta sent on Save. */
+function stagedToWire(staged: StagedRelation): RelationDelta {
+    const delta: RelationDelta = {};
+    if (staged.added.length) delta.link = staged.added.map((a) => a.id);
+    if (staged.removed.length) delta.unlink = staged.removed;
+    if (staged.order) delta.order = staged.order;
+    return delta;
+}
+
 /**
  * The full entry editor: a title header, a tabbed body (**General** = grouped
  * field sections, **Relations** = relation fields, **Media** and **History** =
@@ -114,7 +142,11 @@ export function EntryEditor({
     mutating?: boolean;
     onSave: (
         values: Record<string, unknown>,
-        options: { publish: boolean }
+        options: {
+            publish: boolean;
+            /** Staged many/inverse relation deltas to persist with the save. */
+            relations?: Record<string, RelationDelta>;
+        }
     ) => Promise<void>;
     /** Revert a published entry to draft — only on a saved publishable entry. */
     onUnpublish?: () => void;
@@ -131,6 +163,36 @@ export function EntryEditor({
     availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
+    // The existing entry's id, or undefined while creating. Many/inverse
+    // relations are staged locally either way and sent as a delta on Save.
+    const entryId = entry?.id;
+    // Which tab is active, so the relation links are fetched **lazily** — only
+    // once the Relations tab is opened, never on entry load.
+    const [tab, setTab] = useState<string>(TAB.General);
+    // First page + total per relation field, for the header counts and to title
+    // single relations. Gated on the Relations tab being open (and an existing
+    // entry) so it doesn't fire until the user goes looking for relations.
+    const relationRefs = useEntryRelations(
+        schema.name,
+        entryId,
+        tab === TAB.Relations && !!entryId
+    ).data;
+    // Per-field staged relation edits (many/inverse), owned here so they survive
+    // collapsing a section or switching tabs, and sent as `relations` deltas on
+    // Save. Cleared after a successful save.
+    const [relationDeltas, setRelationDeltas] = useState<
+        Record<string, StagedRelation>
+    >({});
+    const stagedFor = (name: string): StagedRelation =>
+        relationDeltas[name] ?? EMPTY_STAGED;
+    const setStaged = (name: string, next: StagedRelation) =>
+        setRelationDeltas((current) => ({ ...current, [name]: next }));
+
+    // A scalar/single field is dirty when its value differs from the seed; a
+    // many/inverse field is dirty when its staging holds any pending change.
+    const isFieldDirty = (name: string) =>
+        norm(form.values[name]) !== norm(initialValues[name]);
+    const isRelationDirty = (name: string) => isStagedDirty(stagedFor(name));
 
     // Relation fields hidden because their target collection isn't granted to the
     // open workspace: their records aren't reachable here, so the editor doesn't
@@ -150,8 +212,33 @@ export function EntryEditor({
         return names;
     }, [schema, availableTypeNames]);
 
+    // Many/inverse relations are link-managed (staged as deltas), so their key
+    // is dropped from the form values (see `seedRelationValues`). They must be
+    // excluded from values-based validation and the publish gate too — otherwise
+    // a *required* one is a permanent, un-fillable block even though the user has
+    // staged links for it. They still render in the Relations tab (via
+    // `relationFields`, which keys off `ignoredFields` only).
+    const managedRelationNames = useMemo(() => {
+        const names = new Set<string>();
+        for (const field of schema.fields) {
+            if (
+                field.type === CONTENT_FIELD_TYPE.Relation &&
+                (field.relation?.many || field.relation?.inverse)
+            )
+                names.add(field.name);
+        }
+        return names;
+    }, [schema]);
+
+    // Fields excluded from client validation + the gate: ungranted relations
+    // (hidden) plus every link-managed relation (not a form value).
+    const validationIgnored = useMemo(
+        () => new Set([...ignoredFields, ...managedRelationNames]),
+        [ignoredFields, managedRelationNames]
+    );
+
     const form = useEntryForm(schema, initialValues, {
-        ignoreFields: ignoredFields
+        ignoreFields: validationIgnored
     });
 
     const visible = schema.fields.filter((field) => !isHidden(field));
@@ -172,22 +259,35 @@ export function EntryEditor({
     const gate = useMemo<PublishGateItem[]>(() => {
         if (!publishable) return [];
         return visible
-            .filter((field) => !ignoredFields.has(field.name))
+            .filter((field) => !validationIgnored.has(field.name))
             .filter((field) => field.required || form.errors[field.name])
             .map((field) => ({
                 label: fieldLabel(field),
                 ok: !form.errors[field.name],
                 message: form.errors[field.name]
             }));
-    }, [publishable, form.errors, visible, ignoredFields]);
+    }, [publishable, form.errors, visible, validationIgnored]);
+
+    // The staged relation deltas to send with the save — only fields with a
+    // pending change, serialized to the wire shape. Undefined when nothing staged.
+    const relationsPayload = (): Record<string, RelationDelta> | undefined => {
+        const out: Record<string, RelationDelta> = {};
+        for (const [name, staged] of Object.entries(relationDeltas)) {
+            if (isStagedDirty(staged)) out[name] = stagedToWire(staged);
+        }
+        return Object.keys(out).length ? out : undefined;
+    };
 
     // A 422 from the server is mapped back onto the form as inline field errors;
-    // other failures fall through to the mutation's own error handling.
+    // other failures fall through to the mutation's own error handling. On
+    // success the staging is cleared (the saved links are now the server set).
     const submitWith =
         (publish: boolean) => (values: Record<string, unknown>) =>
-            onSave(values, { publish }).catch((error) => {
-                form.setServerErrors(entryIssuesFrom(error));
-            });
+            onSave(values, { publish, relations: relationsPayload() })
+                .then(() => setRelationDeltas({}))
+                .catch((error) => {
+                    form.setServerErrors(entryIssuesFrom(error));
+                });
 
     // A **draft** of a publishable type can be saved incomplete, so it uses the
     // relaxed (format-only) gate — required isn't enforced, but a malformed value
@@ -227,7 +327,7 @@ export function EntryEditor({
                     </Link>
                 ) : null}
                 <div className="mb-6 min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-[-0.01em]">
+                    <h1 className="text-lg font-semibold tracking-[-0.01em]">
                         {title}
                     </h1>
                     {subtitle ? (
@@ -238,7 +338,7 @@ export function EntryEditor({
                 </div>
 
                 <div className="min-w-0">
-                    <Tabs defaultValue={TAB.General}>
+                    <Tabs value={tab} onValueChange={setTab}>
                         <TabsList className="mb-4">
                             <TabsTrigger value={TAB.General}>
                                 {intl.formatMessage(messages.tabGeneral)}
@@ -258,32 +358,75 @@ export function EntryEditor({
                             <EntryFieldSections
                                 fields={generalFields}
                                 form={form}
+                                isChanged={isFieldDirty}
                             />
                         </TabsContent>
 
                         <TabsContent value={TAB.Relations}>
                             {relationFields.length > 0 ? (
                                 <div className="flex flex-col gap-3">
-                                    {relationFields.map((field) => (
-                                        <RelationFieldSection
-                                            key={field.name}
-                                            field={field}
-                                            value={form.values[field.name]}
-                                            error={form.errorFor(field.name)}
-                                            onChange={(value) =>
-                                                form.setValue(field.name, value)
-                                            }
-                                            onBlur={() =>
-                                                form.touch(field.name)
-                                            }
-                                            // A handful stay open; many start
-                                            // collapsed to keep the tab tidy.
-                                            defaultOpen={
-                                                relationFields.length <= 3 ||
-                                                field.required
-                                            }
-                                        />
-                                    ))}
+                                    {relationFields.map((field) => {
+                                        // A many/inverse relation is staged +
+                                        // link-managed; a single relation is a
+                                        // plain form value.
+                                        const managed =
+                                            !!field.relation?.many ||
+                                            !!field.relation?.inverse;
+                                        const staged = stagedFor(field.name);
+                                        // Header count: server total adjusted by
+                                        // the staged add/remove (managed), else
+                                        // the single form value's length.
+                                        const count = managed
+                                            ? Math.max(
+                                                  0,
+                                                  (relationRefs?.[field.name]
+                                                      ?.total ?? 0) -
+                                                      staged.removed.length +
+                                                      staged.added.length
+                                              )
+                                            : toRelationIds(
+                                                  form.values[field.name],
+                                                  false
+                                              ).length;
+                                        const changed = managed
+                                            ? isRelationDirty(field.name)
+                                            : isFieldDirty(field.name);
+                                        return (
+                                            <RelationFieldSection
+                                                key={field.name}
+                                                field={field}
+                                                count={count}
+                                                changed={changed}
+                                                typeName={schema.name}
+                                                entryId={entryId}
+                                                value={form.values[field.name]}
+                                                error={form.errorFor(field.name)}
+                                                onChange={(value) =>
+                                                    form.setValue(
+                                                        field.name,
+                                                        value
+                                                    )
+                                                }
+                                                onBlur={() =>
+                                                    form.touch(field.name)
+                                                }
+                                                // A handful stay open; many start
+                                                // collapsed to keep the tab tidy.
+                                                defaultOpen={
+                                                    relationFields.length <= 3 ||
+                                                    field.required
+                                                }
+                                                initialRefs={
+                                                    relationRefs?.[field.name]
+                                                        ?.items
+                                                }
+                                                staged={staged}
+                                                onStagedChange={(next) =>
+                                                    setStaged(field.name, next)
+                                                }
+                                            />
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <p className="text-sm text-muted-foreground">

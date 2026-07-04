@@ -130,7 +130,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   relation is excluded from client validation **and** the publish gate — a required
   one can't become an un-satisfiable, invisible block. `RelationField`
   shows assigned records by **title** (not raw uuid; no avatar) with a remove control
-  (`RelationItemRow`); a many-relation's rows are **drag/keyboard reorderable**
+  and an **open-in-new-tab** link to that record's own editor
+  (`RelationItemRow`, href built by `utils/contentEntryPath`); a many-relation's
+  rows are **drag/keyboard reorderable**
   (dnd-kit, like the records column picker — the array order is the value, via
   `SortableRelationItem`). An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
@@ -138,15 +140,47 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   hazard) over the *target type's* real schema (`useContentSchema(target)` →
   `filterFieldsFromSchema`), and a lazily-scrolled candidate list (accessible
   checkbox group for a many-relation, radio group for a single). Fully controlled —
-  the form owns the value (single → one id string, many → string[]). Candidate
-  **records are mocked** (`api/useRelationCandidates` + `mockCandidates.ts`), which
-  applies the picker's search **and** the query-builder tree client-side
-  (`utils/evalFilterTree`) and windows for lazy scroll, mirroring `ContentEntriesResult`
-  so it can be swapped for `GET /content/:type` when the relation read API lands.
-  Titles come from `utils/relationLabel` (mirrors the server's `entryTitle`).
-  `RelationPickerDialog` owns state/data and composes nested pieces:
+  the form owns the value (single → one id string, many → string[]). Candidates
+  are **served by the API** (`api/useRelationCandidates` → `GET /content/:target`,
+  the same list endpoint the records table uses): the picker's search **and** the
+  query-builder filter (serialized via `treeToJsonFilter`) run **server-side**,
+  and the lazy-scroll window is a `pageSize` grown by the dialog. Titles are
+  derived from each row's values by `utils/relationLabel` (mirrors the server's
+  `entryTitle`). `RelationPickerDialog` owns state/data and composes nested pieces:
   **`RelationPickerFilters`** (search + inline query builder) and
-  **`RelationCandidateList`** → **`RelationCandidateRow`**.
+  **`RelationCandidateList`** → **`RelationCandidateRow`** (each candidate row
+  also carries the same **open-in-new-tab** link to that record's editor).
+- **Assigned relations — single vs many/inverse.** The links read is **lazy**:
+  `EntryEditor` calls `useEntryRelations` (`GET /content/:type/:id/relations` →
+  `{ relations: { <field>: { items, total } } }`, each field's **first page** +
+  total) **gated on the Relations tab being open** — it never fires on entry
+  load, and single-relation *values* come from the entry read's `values` (their
+  FK id), so a save preserves them even if the tab was never opened. A relation
+  is edited one of two ways, chosen by `RelationFieldSection`:
+    - **Single** relations (and **any** relation while creating a not-yet-saved
+      entry) are **form-backed**: `seedRelationValues` seeds the value (single →
+      its FK id; a new entry's many → an empty staged array), and `RelationField`
+      renders/edits it, submitted in the entry `values` on save (create's
+      whole-set → the server `writeLinks`). Titles come from the loaded
+      `RelationRef`s (`initialRefs`) or the picked candidate.
+    - **Many / inverse** relations are edited by `RelationFieldLive` (create and
+      edit alike): the assigned list is the server set — **infinite-scroll
+      paginated** (`useRelationFieldLinks` → `GET …/relations/:field`) on an
+      existing entry, empty while creating — with the user's **local staging**
+      (`StagedRelation` = added refs / removed ids / order) overlaid. Assign /
+      unassign / reorder mutate **only** that staging (owned by `EntryEditor`, so
+      it survives collapsing a section or switching tabs); **nothing is sent until
+      Save**, which serializes each field's staging to a `{ link?, unlink?, order? }`
+      delta and posts it in the entry body — one transaction, one request, a huge
+      relation never sent whole. `seedRelationValues` **drops** these fields from
+      the form (a save can't wipe links it never loaded); a successful save clears
+      the staging and `useSaveEntry` invalidates the field queries. Owning
+      many-relations reorder (persisted via `position`); the inverse reads order
+      but isn't sortable.
+  A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
+  fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
+  (dirty staging, or a dirty single value) in the section header — so the user
+  sees exactly what a Save will persist.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by

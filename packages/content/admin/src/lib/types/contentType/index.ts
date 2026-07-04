@@ -112,6 +112,69 @@ export type EntryRecord = {
 };
 
 /**
+ * One linked record on a relation field, resolved for display — served by
+ * `GET /api/content/:name/:id/relations`. Mirrors the server's `RelationRef`.
+ * Carries the target `id` (what a save submits back) and a pre-derived `title`,
+ * so the editor renders an assigned relation without a per-id round-trip.
+ */
+export type RelationRef = {
+    /** The linked entry's id. */
+    id: string;
+    /** Display title (first text/select field, else the id). */
+    title: string;
+    /** Publish status — present only for publishable target types. */
+    status?: EntryStatus;
+};
+
+/**
+ * One relation field's links: a **windowed** page of refs plus the `total` count
+ * across the whole set. A many/inverse relation can hold far more links than fit
+ * in one payload, so the editor pages through them (infinite scroll); a single
+ * relation is a `total` of 0/1. Mirrors the server's `RelationFieldView`.
+ */
+export type RelationFieldView = {
+    items: RelationRef[];
+    /** Total links on this field, across all pages. */
+    total: number;
+};
+
+/**
+ * One entry's relation links keyed by field name — every relation field (owning
+ * single/many **and** inverse back-references), each a first page + total.
+ * Served by `GET /api/content/:name/:id/relations`; mirrors the server's
+ * `EntryRelationsView`.
+ */
+export type EntryRelations = {
+    relations: Record<string, RelationFieldView>;
+};
+
+/**
+ * An incremental change to one many/inverse relation field, sent with the entry
+ * save (`{ relations: { <field>: RelationDelta } }`). Only the diff is sent, so a
+ * relation with thousands of links is never transmitted (or held) in full.
+ * `order` renumbers the listed ids (owning many-relations only).
+ */
+export type RelationDelta = {
+    link?: string[];
+    unlink?: string[];
+    order?: string[];
+};
+
+/**
+ * The editor's **local** staging for one many/inverse relation field — the
+ * pending link/unlink/reorder the user has made but not yet saved. `added`
+ * carries full refs (with titles) so newly-linked rows render immediately;
+ * `removed` are ids unlinked from the server set; `order` is the desired display
+ * order (owning relations only), or `null` when untouched. Serialized to a
+ * {@link RelationDelta} and sent on Save.
+ */
+export type StagedRelation = {
+    added: RelationRef[];
+    removed: string[];
+    order: string[] | null;
+};
+
+/**
  * One failed validation rule on one field, as returned in a 422 body's `issues`
  * array. Mirrors the server's `ValidationIssue`.
  */

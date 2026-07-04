@@ -322,7 +322,7 @@ function LibraryBoard({ children }: { children: ReactNode }) {
  */
 function ContentPane({ children }: { children?: ReactNode }) {
     return (
-        <div className="min-w-0 flex-1 overflow-auto rounded-xl border bg-background shadow-sm">
+        <div className="min-w-0 flex-1 overflow-auto rounded-xl border bg-background">
             {children}
         </div>
     );

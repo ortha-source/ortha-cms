@@ -19,6 +19,7 @@ import { EntryValidationService } from './validation/services/entry-validation.s
 import { EntriesService } from './entries/services/entries.service';
 import { EntryWriterService } from './entries/services/entry-writer.service';
 import { EntryCounterService } from './entries/services/entry-counter.service';
+import { RelationLinkService } from './entries/services/relation-link.service';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -75,7 +76,8 @@ export class ContentModule {
                 { provide: CONTENT_ENTRY_COUNTER, useExisting: EntryCounterService },
                 EntryValidationService,
                 EntriesService,
-                EntryWriterService
+                EntryWriterService,
+                RelationLinkService
             ],
             exports: [
                 CONTENT_REGISTRY,

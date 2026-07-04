@@ -203,18 +203,19 @@ export function WorkspaceGeneralSettings({
                                                 disabled={!canUpdate}
                                                 aria-invalid={invalid}
                                             />
-                                            <FieldDescription>
-                                                {intl.formatMessage(
-                                                    messages.nameHint
-                                                )}
-                                            </FieldDescription>
                                             {invalid ? (
                                                 <FieldError
                                                     errors={
                                                         field.state.meta.errors
                                                     }
                                                 />
-                                            ) : null}
+                                            ) : (
+                                                <FieldDescription>
+                                                    {intl.formatMessage(
+                                                        messages.nameHint
+                                                    )}
+                                                </FieldDescription>
+                                            )}
                                         </Field>
                                     );
                                 }}
@@ -246,18 +247,19 @@ export function WorkspaceGeneralSettings({
                                                 disabled={!canUpdate}
                                                 aria-invalid={invalid}
                                             />
-                                            <FieldDescription>
-                                                {intl.formatMessage(
-                                                    messages.descriptionHint
-                                                )}
-                                            </FieldDescription>
                                             {invalid ? (
                                                 <FieldError
                                                     errors={
                                                         field.state.meta.errors
                                                     }
                                                 />
-                                            ) : null}
+                                            ) : (
+                                                <FieldDescription>
+                                                    {intl.formatMessage(
+                                                        messages.descriptionHint
+                                                    )}
+                                                </FieldDescription>
+                                            )}
                                         </Field>
                                     );
                                 }}

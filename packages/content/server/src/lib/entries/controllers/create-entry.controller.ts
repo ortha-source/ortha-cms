@@ -40,6 +40,11 @@ export class CreateEntryController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.create(type, body.values, workspaceId);
+        return this.writer.create(
+            type,
+            body.values,
+            workspaceId,
+            body.relations
+        );
     }
 }

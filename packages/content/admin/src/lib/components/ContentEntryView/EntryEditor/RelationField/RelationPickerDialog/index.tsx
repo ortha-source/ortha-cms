@@ -13,6 +13,7 @@ import { countRules, type FilterGroup } from '@ortha-cms/query-builder-admin';
 import { useContentSchema } from '../../../../../api/useContentSchema';
 import {
     useRelationCandidates,
+    MAX_CANDIDATE_WINDOW,
     type RelationCandidate
 } from '../../../../../api/useRelationCandidates';
 import { filterFieldsFromSchema } from '../../../../../utils/filterFieldsFromSchema';
@@ -78,8 +79,11 @@ export function RelationPickerDialog({
     many: boolean;
     /** The ids already assigned, used to pre-check rows. */
     selectedIds: string[];
-    /** Commit a new id set (single → one id; many → the chosen set). */
-    onConfirm: (ids: string[]) => void;
+    /**
+     * Commit a new id set (single → one id; many → the chosen set) along with
+     * the candidates picked this round, so the field can title the new rows.
+     */
+    onConfirm: (ids: string[], picked: RelationCandidate[]) => void;
 }) {
     const intl = useIntl();
     const [search, setSearch] = useState('');
@@ -118,18 +122,30 @@ export function RelationPickerDialog({
     // Clear any in-flight lazy-load timer on unmount.
     useEffect(() => () => clearTimeout(loadTimer.current), []);
 
-    const { data: schema, isPending } = useContentSchema(targetName, open);
+    const { data: schema, isPending: schemaPending } = useContentSchema(
+        targetName,
+        open
+    );
     const filterFields = useMemo(
         () => (schema ? filterFieldsFromSchema(schema) : []),
         [schema]
     );
 
-    const { items, total, hasMore } = useRelationCandidates(
+    const {
+        items,
+        total,
+        hasMore,
+        isPending: candidatesPending,
+        isError: candidatesError
+    } = useRelationCandidates(
         targetName,
         schema?.fields ?? [],
-        filterFields,
-        { search, filter, limit }
+        { search, filter, limit },
+        open
     );
+    // The list is "pending" until both the target schema (for titles) and the
+    // first candidate page have arrived.
+    const isPending = schemaPending || candidatesPending;
 
     const handleScroll = (event: UIEvent<HTMLDivElement>) => {
         const el = event.currentTarget;
@@ -138,11 +154,15 @@ export function RelationPickerDialog({
         if (
             el.scrollHeight - el.scrollTop - el.clientHeight <= 120 &&
             hasMore &&
-            !loadingMore
+            !loadingMore &&
+            // Stop growing at the server's cap; beyond it, narrow with search/filter.
+            limit < MAX_CANDIDATE_WINDOW
         ) {
             setLoadingMore(true);
             loadTimer.current = setTimeout(() => {
-                setLimit((current) => current + PAGE_SIZE);
+                setLimit((current) =>
+                    Math.min(current + PAGE_SIZE, MAX_CANDIDATE_WINDOW)
+                );
                 setLoadingMore(false);
             }, LAZY_DELAY_MS);
         }
@@ -167,14 +187,14 @@ export function RelationPickerDialog({
                 return next;
             });
         } else {
-            onConfirm([candidate.id]);
+            onConfirm([candidate.id], [candidate]);
             onOpenChange(false);
         }
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[85vh] max-w-2xl gap-4">
+            <DialogContent className="flex h-[min(85vh,42rem)] w-full max-w-2xl flex-col gap-4 overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {
@@ -216,6 +236,7 @@ export function RelationPickerDialog({
                 <RelationCandidateList
                     items={items}
                     isPending={isPending}
+                    isError={candidatesError}
                     loadingMore={loadingMore}
                     filtersActive={filtersActive}
                     many={many}
@@ -239,7 +260,13 @@ export function RelationPickerDialog({
                         <Button
                             type="button"
                             onClick={() => {
-                                onConfirm([...draft]);
+                                // Pass the picked candidates in the current
+                                // window so the field can title new rows; ids
+                                // outside it keep their load-time titles.
+                                onConfirm(
+                                    [...draft],
+                                    items.filter((item) => draft.has(item.id))
+                                );
                                 onOpenChange(false);
                             }}
                         >

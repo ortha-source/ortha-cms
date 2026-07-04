@@ -9,6 +9,8 @@ import { collection, field } from '@ortha-cms/content-server/define';
 export const author = collection('author', {
     label: 'Authors',
     description: 'People who write articles.',
+    publishable: true,
+    paranoid: true,
     fields: {
         name: field.text({
             required: true,

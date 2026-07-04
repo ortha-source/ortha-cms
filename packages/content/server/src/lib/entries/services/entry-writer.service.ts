@@ -22,7 +22,11 @@ import {
     EntryValidationService,
     type ValidationIssue
 } from '../../validation/services/entry-validation.service';
-import type { EntryRecord } from '../types/entry-list-view';
+import type {
+    EntryRecord,
+    RelationDelta,
+    RelationFieldView
+} from '../types/entry-list-view';
 import {
     BULK_VERDICT,
     type BulkActionResult,
@@ -32,6 +36,7 @@ import {
     type BulkPublishVerdict
 } from '../types/bulk-publish';
 import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
+import { RelationLinkService } from './relation-link.service';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -48,7 +53,8 @@ type Row = Record<string, unknown>;
 export class EntryWriterService {
     constructor(
         @InjectDatabase() private readonly db: Database,
-        private readonly validation: EntryValidationService
+        private readonly validation: EntryValidationService,
+        private readonly relations: RelationLinkService
     ) {}
 
     /**
@@ -67,20 +73,133 @@ export class EntryWriterService {
     async create(
         type: AnyContentType,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        relations?: Record<string, RelationDelta>
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
+        // One transaction: take the workspace's shared content lock (coordinates
+        // with the delete / content-revoke guards so a new entry can't be
+        // orphaned), then write the row, its whole-set join-table links (a
+        // many-relation submitted in `values`), and the staged relation deltas —
+        // all together, so a failed link write never leaves a half-linked entry.
         const row = await this.db.transaction(async (tx) => {
             await lockWorkspaceShared(tx, workspaceId);
             const [inserted] = await tx
                 .insert(type.table)
                 .values({ ...toColumns(type, coerced), workspaceId } as never)
                 .returning();
-            return inserted;
+            const id = (inserted as Row)['id'] as string;
+            await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
+            await this.applyRelationDeltas(
+                tx,
+                type,
+                id,
+                relations,
+                workspaceId
+            );
+            return inserted as Row;
         });
-        return toRecord(type, row as Row);
+        return toRecord(type, row);
+    }
+
+    /**
+     * First page (+ total) of every relation field's links for one live entry,
+     * keyed by field name — what the editor loads on open. Each field is
+     * paginated, so a relation with many links contributes only its first page.
+     * 404 if the entry is missing (or soft-deleted) in this workspace.
+     */
+    async getRelations(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<Record<string, RelationFieldView>> {
+        const row = await this.findLive(type, id, workspaceId);
+        if (!row) throw this.notFound(type, id);
+        return this.relations.readAll(type, row, workspaceId);
+    }
+
+    /**
+     * One page of a single relation field's links (infinite-scroll for a
+     * many/inverse relation). 404 if the entry is missing; 400 if `field` isn't a
+     * relation on the type.
+     */
+    async getRelationField(
+        type: AnyContentType,
+        id: string,
+        field: string,
+        page: number,
+        pageSize: number,
+        workspaceId: string
+    ): Promise<RelationFieldView> {
+        const spec = this.relationSpec(type, field);
+        const row = await this.findLive(type, id, workspaceId);
+        if (!row) throw this.notFound(type, id);
+        return this.relations.readField(
+            type,
+            row,
+            field,
+            spec,
+            page,
+            pageSize,
+            workspaceId
+        );
+    }
+
+    /**
+     * Apply the staged per-field relation deltas of a save, inside the entry's
+     * transaction — so the row and every link change commit or roll back as one.
+     * Each field must be a **many/inverse** relation (a single relation is set
+     * through `values`); a single-relation or unknown key is a 400. `applyDelta`
+     * validates the linked ids against the workspace (422 on a bad target).
+     */
+    private async applyRelationDeltas(
+        tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+        type: AnyContentType,
+        id: string,
+        relations: Record<string, RelationDelta> | undefined,
+        workspaceId: string
+    ): Promise<void> {
+        if (!relations) return;
+        for (const [field, delta] of Object.entries(relations)) {
+            const spec = this.relationSpec(type, field);
+            const rel = spec.relation;
+            // Only a join-backed relation this side owns can persist a delta: an
+            // owning many-to-many, or the inverse of a many-to-many (it reuses
+            // the owning join table). A single relation (set via `values`) — and,
+            // crucially, the inverse of a *single* relation (one-to-many), which
+            // owns no writable link from this side — must be rejected here, else
+            // `applyDelta` would silently no-op and the save would drop the edit.
+            const writable = rel?.inverse
+                ? !!rel.to().fields[rel.inverse.field]?.relation?.many
+                : !!rel?.many;
+            if (!writable) {
+                throw new BadRequestException(
+                    `Relation "${type.name}.${field}" owns no writable links from this side — ` +
+                        `set a single relation via the entry's values; the inverse of a single relation is read-only.`
+                );
+            }
+            await this.relations.applyDelta(
+                tx,
+                type,
+                id,
+                field,
+                delta,
+                workspaceId
+            );
+        }
+    }
+
+    /** Resolve a relation field spec on the type, or 400 if it isn't one. */
+    private relationSpec(type: AnyContentType, field: string) {
+        const spec = type.fields[field];
+        if (spec?.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation) {
+            throw new BadRequestException(
+                `"${field}" is not a relation field on content type "${type.name}".`
+            );
+        }
+        return spec;
     }
 
     /** Read one live entry in the workspace, or 404. */
@@ -104,7 +223,8 @@ export class EntryWriterService {
         type: AnyContentType,
         id: string,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        relations?: Record<string, RelationDelta>
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
@@ -121,16 +241,30 @@ export class EntryWriterService {
                 this.assertValid(type, coerced);
             }
         }
-        const [row] = await this.db
-            .update(type.table)
-            .set({
-                ...toColumns(type, coerced),
-                updatedAt: new Date()
-            } as never)
-            .where(this.liveWhere(type, id, workspaceId))
-            .returning();
-        if (!row) throw this.notFound(type, id);
-        return toRecord(type, row as Row);
+        // One transaction: replace the row's columns, re-sync a whole-set
+        // many-relation submitted in `values`, and apply the staged relation
+        // deltas — so a save is all-or-nothing.
+        const row = await this.db.transaction(async (tx) => {
+            const [updated] = await tx
+                .update(type.table)
+                .set({
+                    ...toColumns(type, coerced),
+                    updatedAt: new Date()
+                } as never)
+                .where(this.liveWhere(type, id, workspaceId))
+                .returning();
+            if (!updated) throw this.notFound(type, id);
+            await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
+            await this.applyRelationDeltas(
+                tx,
+                type,
+                id,
+                relations,
+                workspaceId
+            );
+            return updated as Row;
+        });
+        return toRecord(type, row);
     }
 
     /** Validate the stored row, then mark it published (publishable types only). */
@@ -564,17 +698,18 @@ export class EntryWriterService {
     }
 
     /**
-     * Verify every owning single-relation FK points at a target that exists **in
-     * the same workspace**. The FK column has no workspace constraint of its own
-     * (the target table is workspace-scoped only at the app layer), so without
-     * this a caller could reference — or probe the existence of — an entry in
-     * another workspace. Batched one existence query per referenced target type;
-     * a missing or cross-workspace target surfaces as a uniform 422 validation
-     * issue (indistinguishable from a plain "invalid id", so no not-found-vs-
-     * forbidden enumeration signal). Runs on every create/update, draft or not,
-     * because the FK is written eagerly either way. Many-relations and inverse
-     * fields own no FK here, so they're skipped (their links aren't persisted by
-     * {@link toColumns}).
+     * Verify every referenced relation target exists **in the same workspace** —
+     * single FKs, many-to-many links, and the inverse (back-reference) side of a
+     * two-way relation. Neither the FK column nor the join table has a workspace
+     * constraint of its own (the target table is workspace-scoped only at the app
+     * layer), so without this a caller could reference — or probe the existence
+     * of — an entry in another workspace. Batched one existence query per
+     * referenced target type; a missing or cross-workspace target surfaces as a
+     * uniform 422 validation issue (indistinguishable from a plain "invalid id",
+     * so no not-found-vs-forbidden enumeration signal). Runs on every
+     * create/update, draft or not, because links are written eagerly either way.
+     * An inverse-of-single (one-to-many) field owns no writable link from this
+     * side, so it's skipped.
      */
     private async assertRelationTargets(
         type: AnyContentType,
@@ -587,15 +722,35 @@ export class EntryWriterService {
             { field: string; id: string }[]
         >();
         for (const [name, spec] of Object.entries(type.fields)) {
-            if (spec.type !== CONTENT_FIELD_TYPE.Relation) continue;
+            if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
+                continue;
             const relation = spec.relation;
-            if (!relation || relation.many || relation.inverse) continue;
-            const id = values[name];
-            if (typeof id !== 'string' || !id) continue;
+            // An owning many-to-many array submitted in `values` is re-validated
+            // in-transaction by `writeLinks` (the same uniform 422), so skip it
+            // here to avoid a duplicate existence probe. The inverse array and
+            // owning single FKs aren't checked in-tx, so they stay validated here.
+            if (relation.many && !relation.inverse) continue;
+            if (relation.inverse) {
+                // Inverse of a single relation writes nothing from this side;
+                // only the inverse of a many-to-many links (its ids are owner
+                // rows of the referenced type).
+                const owningField =
+                    relation.to().fields[relation.inverse.field];
+                if (!owningField?.relation?.many) continue;
+            }
+            const ids =
+                relation.many || relation.inverse
+                    ? Array.isArray(values[name])
+                        ? (values[name] as unknown[])
+                        : []
+                    : [values[name]];
             const target = relation.to();
             const refs = byTarget.get(target) ?? [];
-            refs.push({ field: name, id });
-            byTarget.set(target, refs);
+            for (const id of ids) {
+                if (typeof id !== 'string' || !id) continue;
+                refs.push({ field: name, id });
+            }
+            if (refs.length) byTarget.set(target, refs);
         }
         if (!byTarget.size) return;
 

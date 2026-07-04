@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_156 test cases across 21 spec files._
+_159 test cases across 21 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -150,7 +150,7 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | Test case |
 | --- |
 | renders the sidebar with the Workspace section |
-| groups start collapsed and expand on click |
+| Collections opens by default; Pages toggles on click |
 | selecting a single (page) opens its entry editor |
 | only shows content types granted to the workspace |
 | pinning a type adds it to a Favorites section |
@@ -177,11 +177,14 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | renders each relation field as a collapsible section |
 | assigns a single relation and shows it by title |
 | assigns multiple records to a many relation |
+| offers an open-in-new-tab link on candidate and assigned rows |
 | searches to narrow the candidate list |
 | lazily loads more candidates as the list scrolls |
 | reveals the inline query-builder filter over the target schema |
 | edits a bidirectional (inverse) relation from the other side |
 | hides relations whose target collection the workspace lacks |
+| saves staged links as a relations delta, omitting them from values |
+| shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)
