@@ -1,5 +1,16 @@
-import { Badge, Checkbox } from '@ortha-cms/design-system';
+import { defineMessages, useIntl } from 'react-intl';
+import { ExternalLink } from 'lucide-react';
+import { Badge, Checkbox, buttonVariants, cn } from '@ortha-cms/design-system';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { RelationCandidate } from '../../../../../../../api/useRelationCandidates';
+import { contentEntryPath } from '../../../../../../../utils/contentEntryPath';
+
+const messages = defineMessages({
+    open: {
+        id: 'content.relations.candidate.open',
+        defaultMessage: 'Open {title} in a new tab'
+    }
+});
 
 /** Secondary line for a candidate row, e.g. `tag · b2e3d4c5`. */
 function meta(targetName: string, id: string): string {
@@ -29,6 +40,8 @@ export function RelationCandidateRow({
     targetName: string;
     onPick: () => void;
 }) {
+    const intl = useIntl();
+    const workspace = useCurrentWorkspace();
     const active = many ? checked : isSelected;
     return (
         <label
@@ -69,6 +82,22 @@ export function RelationCandidateRow({
                     {candidate.status}
                 </Badge>
             ) : null}
+            {/* An interactive descendant of the <label>: clicking it opens the
+                record in a new tab and does NOT toggle the selection control. */}
+            <a
+                href={contentEntryPath(workspace.id, targetName, candidate.id)}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                    buttonVariants({ variant: 'ghost', size: 'icon' }),
+                    'size-7 shrink-0 text-muted-foreground hover:text-foreground'
+                )}
+                aria-label={intl.formatMessage(messages.open, {
+                    title: candidate.title
+                })}
+            >
+                <ExternalLink className="size-4" aria-hidden />
+            </a>
         </label>
     );
 }

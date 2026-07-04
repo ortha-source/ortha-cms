@@ -13,6 +13,7 @@ import {
     RequirePermissions,
     WorkspaceGuard
 } from '@ortha-cms/identity-server';
+import { clampInt } from '@ortha-cms/utils-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { EntryWriterService } from '../services/entry-writer.service';
@@ -97,16 +98,4 @@ export class GetEntryController {
             workspaceId
         );
     }
-}
-
-/** Parse a query int with a default and inclusive bounds. */
-function clampInt(
-    raw: string | undefined,
-    fallback: number,
-    min: number,
-    maxValue: number
-): number {
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed)) return fallback;
-    return Math.min(maxValue, Math.max(min, Math.trunc(parsed)));
 }

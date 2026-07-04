@@ -25,12 +25,14 @@ import {
     FieldError,
     FieldLabel
 } from '@ortha-cms/design-system';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { ContentField, RelationRef } from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
 import type { RelationCandidate } from '../../../../api/useRelationCandidates';
 import { fieldLabel } from '../../../../utils/entryColumns';
 import { adminProps } from '../../../../utils/adminProps';
 import { toRelationIds } from '../../../../utils/relationIds';
+import { contentEntryPath } from '../../../../utils/contentEntryPath';
 import { RelationItemRow } from './RelationItemRow';
 import { SortableRelationItem } from './SortableRelationItem';
 import { RelationPickerDialog } from './RelationPickerDialog';
@@ -55,6 +57,10 @@ const messages = defineMessages({
     remove: {
         id: 'content.relations.field.remove',
         defaultMessage: 'Remove {title}'
+    },
+    open: {
+        id: 'content.relations.field.open',
+        defaultMessage: 'Open {title} in a new tab'
     },
     dndInstructions: {
         id: 'content.relations.field.dnd.instructions',
@@ -110,6 +116,7 @@ export function RelationField({
     initialRefs?: readonly RelationRef[];
 }) {
     const intl = useIntl();
+    const workspace = useCurrentWorkspace();
     const [open, setOpen] = useState(false);
     // Titles for records picked this session — the id in `value` is all the form
     // keeps, so we remember each chosen candidate's title to render its row.
@@ -206,6 +213,14 @@ export function RelationField({
 
     const removeLabelFor = (title: string) =>
         intl.formatMessage(messages.remove, { title });
+    const openLabelFor = (title: string) =>
+        intl.formatMessage(messages.open, { title });
+    // Deep link to the related record's own editor (open-in-new-tab), when the
+    // target type is known.
+    const hrefFor = (id: string) =>
+        targetName
+            ? contentEntryPath(workspace.id, targetName, id)
+            : undefined;
 
     return (
         <Field data-invalid={!!error}>
@@ -244,6 +259,8 @@ export function RelationField({
                                             title={title}
                                             onRemove={() => removeId(id)}
                                             removeLabel={removeLabelFor(title)}
+                                            href={hrefFor(id)}
+                                            openLabel={openLabelFor(title)}
                                         />
                                     );
                                 })}
@@ -258,6 +275,8 @@ export function RelationField({
                                     title={title}
                                     onRemove={() => removeId(id)}
                                     removeLabel={removeLabelFor(title)}
+                                    href={hrefFor(id)}
+                                    openLabel={openLabelFor(title)}
                                 />
                             );
                         })

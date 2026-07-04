@@ -130,7 +130,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   relation is excluded from client validation **and** the publish gate — a required
   one can't become an un-satisfiable, invisible block. `RelationField`
   shows assigned records by **title** (not raw uuid; no avatar) with a remove control
-  (`RelationItemRow`); a many-relation's rows are **drag/keyboard reorderable**
+  and an **open-in-new-tab** link to that record's own editor
+  (`RelationItemRow`, href built by `utils/contentEntryPath`); a many-relation's
+  rows are **drag/keyboard reorderable**
   (dnd-kit, like the records column picker — the array order is the value, via
   `SortableRelationItem`). An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
@@ -146,7 +148,8 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   derived from each row's values by `utils/relationLabel` (mirrors the server's
   `entryTitle`). `RelationPickerDialog` owns state/data and composes nested pieces:
   **`RelationPickerFilters`** (search + inline query builder) and
-  **`RelationCandidateList`** → **`RelationCandidateRow`**.
+  **`RelationCandidateList`** → **`RelationCandidateRow`** (each candidate row
+  also carries the same **open-in-new-tab** link to that record's editor).
 - **Assigned relations — single vs many/inverse.** The links read is **lazy**:
   `EntryEditor` calls `useEntryRelations` (`GET /content/:type/:id/relations` →
   `{ relations: { <field>: { items, total } } }`, each field's **first page** +

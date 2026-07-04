@@ -97,6 +97,34 @@ test.describe('Relation picker', () => {
         ).toBeVisible();
     });
 
+    test('offers an open-in-new-tab link on candidate and assigned rows', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        await relationsEditorPage.selectButton('Authors').click();
+        // Each candidate row in the search window links to that record's editor.
+        const candidateLink =
+            relationsEditorPage.candidateOpenLink('Ada Lovelace');
+        await expect(candidateLink).toBeVisible();
+        await expect(candidateLink).toHaveAttribute('target', '_blank');
+        await expect(candidateLink).toHaveAttribute(
+            'href',
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/author-ada`
+        );
+
+        // The same link rides on the assigned preview row after picking.
+        await relationsEditorPage.candidate('Ada Lovelace').click();
+        const previewLink = relationsEditorPage.openLink('Ada Lovelace');
+        await expect(previewLink).toBeVisible();
+        await expect(previewLink).toHaveAttribute('target', '_blank');
+        await expect(previewLink).toHaveAttribute(
+            'href',
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/author-ada`
+        );
+    });
+
     test('searches to narrow the candidate list', async ({
         relationsEditorPage
     }) => {
