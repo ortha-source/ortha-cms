@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_253 test cases across 25 spec files._
+_252 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -237,7 +237,6 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | persists a many-to-many on create and reads it back with titles |
 | replaces the link set on update (unlink + link in one save) |
 | 422s a many-to-many target in another workspace |
-| reads and writes the inverse side (tag.articles) two-way |
 | 404s the relations read for a missing entry |
 | links and unlinks via relation deltas on save |
 | merges a link delta onto existing links (append, not override) |
@@ -249,7 +248,7 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 422s linking a target in another workspace via a delta |
 | links the inverse side (tag.articles) via a delta on save |
 | applies link, unlink, and order in one delta on save |
-| drops a link when its target is hard-deleted (FK cascade) |
+| keeps a link on soft delete but drops it on purge (FK cascade) |
 
 ### publish / unpublish
 

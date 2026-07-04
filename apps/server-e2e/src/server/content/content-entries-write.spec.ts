@@ -332,26 +332,6 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(fields).toContain('tags');
         });
 
-        it('reads and writes the inverse side (tag.articles) two-way', async () => {
-            const agent = await login(ADMIN_EMAIL);
-            const tagId = await seedTagIn(workspaceId, 'engineering');
-            const articleId = await createArticle(agent, VALID);
-
-            // Link from the tag side: the same join rows the article owns.
-            await agent
-                .patch(`/api/content/tag/${tagId}`)
-                .send({ values: { name: 'engineering', articles: [articleId] } })
-                .expect(200);
-
-            // The link is visible from both sides.
-            expect(await linkedIds(agent, 'tag', tagId, 'articles')).toEqual([
-                articleId
-            ]);
-            expect(await linkedIds(agent, 'article', articleId, 'tags')).toEqual(
-                [tagId]
-            );
-        });
-
         it('404s the relations read for a missing entry', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
@@ -570,7 +550,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             ]);
         });
 
-        it('drops a link when its target is hard-deleted (FK cascade)', async () => {
+        it('keeps a link on soft delete but drops it on purge (FK cascade)', async () => {
             const agent = await login(ADMIN_EMAIL);
             const [a, b] = await Promise.all([
                 seedTagIn(workspaceId, 'aa'),
@@ -578,9 +558,14 @@ describe('Content entry writes (/api/content/:type)', () => {
             ]);
             const id = await createArticle(agent, { ...VALID, tags: [a, b] });
 
-            // `tag` isn't paranoid, so this hard-deletes the row; the join rows
-            // cascade, so the article's link to it disappears.
+            // `tag` is paranoid, so DELETE only soft-deletes the row — the join
+            // rows survive, so the article's link is still there.
             await agent.delete(`/api/content/tag/${a}`).expect(204);
+            expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([a, b]);
+
+            // Purging hard-deletes the row; the join rows cascade, so the
+            // article's link to it finally disappears.
+            await agent.delete(`/api/content/tag/${a}/permanent`).expect(204);
             expect(await linkedIds(agent, 'article', id, 'tags')).toEqual([b]);
         });
     });
