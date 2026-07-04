@@ -46,10 +46,13 @@ TanStack Query key:
 - `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the widget).
 - `useLocaleSummaries` — `POST …/locale-summary` batched over a page's unique
   group ids (the column); sorted ids key the cache.
-- `useCreateTranslation` — `POST …/translations`; a 409 surfaces as an
-  `ApiError`. On success invalidates the type's records lists
-  (`contentEntriesPrefix`, re-exported by content-admin), locale panels, and
-  summaries.
+- `useCreateTranslation` — creates a sibling via the **normal create**
+  endpoint, `POST /content/:type` with `{ values, locale, localeGroupId }`
+  (the `LocaleWidget` copies the source's `entry.values` + `entry.localeGroupId`;
+  many-relation links are per-locale in v1, not copied). A duplicate locale is a
+  **409**, an unknown group a **404**. On success invalidates the type's records
+  lists (`contentEntriesPrefix`, re-exported by content-admin), locale panels,
+  and summaries.
 
 ## Conventions
 

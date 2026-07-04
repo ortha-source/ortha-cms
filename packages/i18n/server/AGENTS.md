@@ -26,8 +26,12 @@ The extension owns all locale *behavior*:
   hidden). `?localeFallback=default` widens it to "the requested locale OR the
   default-locale row of a group that has no requested-locale row" (the relation
   picker's mode).
-- **`createColumns`** — stamps the validated `locale` on a create (the group id
-  comes from the column default: a plain create starts a fresh group).
+- **`createColumns`** — stamps the validated `locale` on a create. With no
+  `localeGroupId` the group id comes from the column default (a plain create
+  starts a fresh group); **with** a `localeGroupId` the new row **joins that
+  group** as a sibling translation — verified to name a real group in the
+  workspace first (else **404**), so a typo can't spawn a stray one-row group.
+  This is why sibling creation needs no dedicated endpoint (see HTTP surface).
 - **`afterUpdate`** — inside the save transaction, syncs every **non-`localized`**
   column-backed field to the group's sibling rows, then **re-validates any
   published sibling** via content-server's `EntryValidationService` — a failure
@@ -53,9 +57,11 @@ content's port and reads its `CONTENT_REGISTRY`).
 
 ## HTTP surface (`/api/i18n`)
 
-All content routes are workspace-scoped (identity's `WorkspaceGuard`) and
-permission-gated like the content routes; a `:typeName` that isn't localized is
-a **400** (`resolveI18nType`).
+This plugin's content routes are **reads only** — sibling *creation* goes
+through content-server's `POST /api/content/:type` with a `localeGroupId` (see
+`createColumns` above). All are workspace-scoped (identity's `WorkspaceGuard`)
+and permission-gated; a `:typeName` that isn't localized is a **400**
+(`resolveI18nType`).
 
 - `GET /api/i18n/locales` — the configured locales (session only; no
   per-workspace data).
@@ -66,12 +72,13 @@ a **400** (`resolveI18nType`).
   **batched** per-page read: `{ groupIds }` (cap 100) → per-group live members
   with status. A POST because a page of uuids outgrows a query string; it reads,
   so no `OriginGuard` (`content:read`).
-- `POST /api/i18n/content/:typeName/:id/translations` — **create a
-  translation**: a new draft sibling in the target locale, all field columns +
-  owning many-relation join rows copied as a starting point, same
-  `locale_group_id`. `OriginGuard` + `content:create`; a duplicate locale is a
-  **409** (the `(locale_group_id, locale)` unique index is the arbiter — a
-  concurrent double-create loses cleanly, not a pre-check race).
+
+**Creating a sibling translation:** `POST /api/content/:typeName` with
+`{ values, locale, localeGroupId }` — the client supplies the source's values,
+the extension validates + stamps the group, and the row lands as a fresh draft.
+A duplicate locale in the group is a **409** (the `(locale_group_id, locale)`
+unique index is the arbiter); an unknown group is a **404**. Many-relation
+join-copy is **not** performed (relations are per-locale in v1).
 
 ## Architecture / conventions
 

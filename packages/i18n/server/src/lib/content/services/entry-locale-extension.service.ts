@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     Injectable,
+    NotFoundException,
     UnprocessableEntityException
 } from '@nestjs/common';
 import {
@@ -141,14 +142,63 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         );
     }
 
-    /** @inheritdoc */
-    createColumns(
+    /**
+     * @inheritdoc
+     *
+     * Stamps the validated `locale` (defaulting when absent). When a
+     * `localeGroupId` is given the new row **joins that existing group** (a
+     * sibling translation) — verified to name a real group in the workspace
+     * first (else 404), so a typo can't spawn a stray one-row group. Absent →
+     * the column default (`gen_random_uuid()`) starts a fresh group.
+     */
+    async createColumns(
         type: AnyContentType,
-        _workspaceId: string,
+        workspaceId: string,
         params: EntryScopeParams
-    ): Record<string, unknown> {
+    ): Promise<Record<string, unknown>> {
         if (!type.i18n) return {};
-        return { locale: this.locales.resolve(params.locale).slug };
+        const columns: Record<string, unknown> = {
+            locale: this.locales.resolve(params.locale).slug
+        };
+        if (params.localeGroupId !== undefined) {
+            await this.assertGroupExists(
+                type,
+                params.localeGroupId,
+                workspaceId
+            );
+            columns['localeGroupId'] = params.localeGroupId;
+        }
+        return columns;
+    }
+
+    /**
+     * Assert a translation group has ≥1 live row in this workspace, so a
+     * sibling attaches to a real group. Runs before the create transaction —
+     * the (benign) TOCTOU window is covered by the row staying valid and the
+     * `(locale_group_id, locale)` unique index still guarding duplicates.
+     */
+    private async assertGroupExists(
+        type: AnyContentType,
+        localeGroupId: string,
+        workspaceId: string
+    ): Promise<void> {
+        const table = type.table as unknown as ContentTable;
+        const [row] = await this.db
+            .select({ one: sql`1` })
+            .from(type.table)
+            .where(
+                and(
+                    eq(table['localeGroupId'], localeGroupId),
+                    eq(table['workspaceId'], workspaceId),
+                    ...(type.paranoid ? [isNull(table['deletedAt'])] : [])
+                )
+            )
+            .limit(1);
+        if (!row) {
+            throw new NotFoundException(
+                `No translation group "${localeGroupId}" on "${type.name}".`
+            );
+        }
     }
 
     /** @inheritdoc */

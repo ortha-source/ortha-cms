@@ -6,10 +6,8 @@ import { LocaleRegistryService } from './locales/services/locale-registry.servic
 import { ListLocalesController } from './locales/controllers/list-locales.controller';
 import { EntryLocaleExtensionService } from './content/services/entry-locale-extension.service';
 import { LocaleGroupService } from './content/services/locale-group.service';
-import { TranslationService } from './content/services/translation.service';
 import { GetEntryLocalesController } from './content/controllers/get-entry-locales.controller';
 import { LocaleSummaryController } from './content/controllers/locale-summary.controller';
-import { CreateTranslationController } from './content/controllers/create-translation.controller';
 
 /**
  * NestJS module of the i18n plugin. Registered **global** so its binding of
@@ -27,19 +25,18 @@ export class I18nModule {
             global: true,
             controllers: [
                 ListLocalesController,
+                // Reads only: the per-entry locale panel and the records
+                // table's batched group summary. Sibling *creation* goes
+                // through `POST /api/content/:type` with a `localeGroupId`
+                // (the extension stamps the group), so this plugin owns no
+                // entry-write route.
                 GetEntryLocalesController,
-                // Literal `locale-summary` occupies the `:id` slot of the
-                // translations route's pattern — registered before the
-                // `:id`-parameterized controller so the literal wins (the
-                // `ParseUUIDPipe` on `:id` is the backstop).
-                LocaleSummaryController,
-                CreateTranslationController
+                LocaleSummaryController
             ],
             providers: [
                 { provide: I18N_CONFIG, useValue: config },
                 LocaleRegistryService,
                 LocaleGroupService,
-                TranslationService,
                 EntryLocaleExtensionService,
                 {
                     provide: CONTENT_ENTRY_EXTENSION,

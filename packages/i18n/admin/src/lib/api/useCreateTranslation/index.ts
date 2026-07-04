@@ -5,23 +5,26 @@ import {
     contentEntriesPrefix,
     type EntryRecord
 } from '@ortha-cms/content-admin';
-import { I18N_CONTENT_PATH } from '../../constants';
 import { entryLocalesPrefix } from '../useEntryLocales';
 import { localeSummariesPrefix } from '../useLocaleSummaries';
 
 /** What a create-translation submits. */
 export type CreateTranslationInput = {
-    /** The source entry whose translation group the new row joins. */
-    sourceId: string;
+    /** The source entry's field values, copied as the translation's starting point. */
+    values: Record<string, unknown>;
     /** Target locale slug. */
     locale: string;
+    /** The source entry's translation group the new sibling joins. */
+    localeGroupId: string;
 };
 
 /**
- * Creates a translation via
- * `POST /api/i18n/content/:type/:id/translations` — a new sibling row in the
- * target locale (all values copied as a starting point, same group, draft).
- * A concurrent duplicate surfaces as a **409** {@link ApiError}. On success,
+ * Creates a translation via the normal create endpoint,
+ * `POST /api/content/:type` with `{ values, locale, localeGroupId }` — a new
+ * draft sibling in the target locale joining the source's group. The values
+ * are copied client-side from the source entry (many-relation links are not
+ * copied — they're per-locale in v1). A duplicate locale in the group surfaces
+ * as a **409**, an unknown group as a **404** {@link ApiError}. On success,
  * invalidates the type's records lists (the new row may appear in the target
  * locale's table), locale panels, and table summaries.
  */
@@ -29,11 +32,11 @@ export function useCreateTranslation(typeName: string) {
     const queryClient = useQueryClient();
     const workspace = useCurrentWorkspace();
     return useMutation<EntryRecord, ApiError, CreateTranslationInput>({
-        mutationFn: async ({ sourceId, locale }) => {
+        mutationFn: async ({ values, locale, localeGroupId }) => {
             try {
                 const { data } = await apiClient.post<EntryRecord>(
-                    `${I18N_CONTENT_PATH}/${typeName}/${sourceId}/translations`,
-                    { locale }
+                    `/content/${typeName}`,
+                    { values, locale, localeGroupId }
                 );
                 return data;
             } catch (error) {

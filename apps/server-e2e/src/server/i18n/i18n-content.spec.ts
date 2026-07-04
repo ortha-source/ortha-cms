@@ -62,21 +62,47 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         return agent;
     }
 
+    /** The shape of an article row as the create/read endpoints return it. */
+    type ArticleRow = {
+        id: string;
+        locale: string;
+        localeGroupId: string;
+        status: string;
+        values: Record<string, unknown>;
+    };
+
     /** Create an article, optionally in a given locale; return the row. */
     async function createArticle(
         agent: request.Agent,
         body: Record<string, unknown> = {}
-    ) {
+    ): Promise<ArticleRow> {
         const res = await agent
             .post('/api/content/article')
             .send({ values: VALID, ...body })
             .expect(201);
-        return res.body as {
-            id: string;
-            locale: string;
-            localeGroupId: string;
-            status: string;
-        };
+        return res.body as ArticleRow;
+    }
+
+    /**
+     * Create a sibling translation of `source` via the **normal create**
+     * endpoint (`POST /content` + `localeGroupId`) — copying the source's
+     * values into the target locale within its group. Asserts `expectStatus`
+     * (201 by default) and returns the response.
+     */
+    async function createTranslation(
+        agent: request.Agent,
+        source: ArticleRow,
+        locale: string,
+        expectStatus = 201
+    ) {
+        return agent
+            .post('/api/content/article')
+            .send({
+                values: source.values,
+                locale,
+                localeGroupId: source.localeGroupId
+            })
+            .expect(expectStatus);
     }
 
     describe('locales endpoint', () => {
@@ -169,43 +195,45 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         });
     });
 
-    describe('create translation', () => {
-        it('copies values into a new draft sibling sharing the group', async () => {
+    // Sibling translations are created through the normal create endpoint:
+    // `POST /content` with a `localeGroupId` joins that group.
+    describe('create translation (POST /content + localeGroupId)', () => {
+        it('creates a new draft sibling sharing the group', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
                 values: { text: 'Winter boots', select: 'article' }
             });
-            const res = await agent
-                .post(`/api/i18n/content/article/${en.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(201);
+            const res = await createTranslation(agent, en, 'de');
             expect(res.body.locale).toBe('de');
             expect(res.body.localeGroupId).toBe(en.localeGroupId);
             expect(res.body.status).toBe('draft');
-            // Values copied as a starting point.
+            // The client carried the source's values into the new locale.
             expect(res.body.values.text).toBe('Winter boots');
         });
 
         it('409s a duplicate locale in the group', async () => {
             const agent = await login();
             const en = await createArticle(agent);
-            await agent
-                .post(`/api/i18n/content/article/${en.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(201);
-            await agent
-                .post(`/api/i18n/content/article/${en.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(409);
+            await createTranslation(agent, en, 'de');
+            await createTranslation(agent, en, 'de', 409);
         });
 
-        it('400s a translation on an unknown target locale', async () => {
+        it('400s a sibling in an unknown target locale', async () => {
             const agent = await login();
             const en = await createArticle(agent);
+            await createTranslation(agent, en, 'zz', 400);
+        });
+
+        it('404s a localeGroupId that names no group in the workspace', async () => {
+            const agent = await login();
             await agent
-                .post(`/api/i18n/content/article/${en.id}/translations`)
-                .send({ locale: 'zz' })
-                .expect(400);
+                .post('/api/content/article')
+                .send({
+                    values: VALID,
+                    locale: 'de',
+                    localeGroupId: '00000000-0000-4000-8000-000000000000'
+                })
+                .expect(404);
         });
     });
 
@@ -215,12 +243,8 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
             });
-            const de = (
-                await agent
-                    .post(`/api/i18n/content/article/${en.id}/translations`)
-                    .send({ locale: 'de' })
-                    .expect(201)
-            ).body as { id: string };
+            const de = (await createTranslation(agent, en, 'de'))
+                .body as { id: string };
             // Give the de row its own localized text.
             await agent
                 .patch(`/api/content/article/${de.id}`)
@@ -249,12 +273,8 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
             });
-            const de = (
-                await agent
-                    .post(`/api/i18n/content/article/${en.id}/translations`)
-                    .send({ locale: 'de' })
-                    .expect(201)
-            ).body as { id: string };
+            const de = (await createTranslation(agent, en, 'de'))
+                .body as { id: string };
             // Publish the de sibling so it must stay valid.
             await agent
                 .post(`/api/content/article/${de.id}/publish`)
@@ -285,10 +305,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const agent = await login();
             // Group A: en + de. Group B: en only.
             const a = await createArticle(agent);
-            await agent
-                .post(`/api/i18n/content/article/${a.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(201);
+            await createTranslation(agent, a, 'de');
             const b = await createArticle(agent);
 
             // hasLocale=de → only group A's en row (strict default-locale list).
@@ -315,10 +332,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('localeCount filters by number of translations', async () => {
             const agent = await login();
             const a = await createArticle(agent); // count 1
-            await agent
-                .post(`/api/i18n/content/article/${a.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(201); // count 2
+            await createTranslation(agent, a, 'de'); // count 2
             const b = await createArticle(agent); // count 1
 
             const res = await agent
@@ -335,10 +349,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('returns one item per configured locale, present or null', async () => {
             const agent = await login();
             const en = await createArticle(agent);
-            await agent
-                .post(`/api/i18n/content/article/${en.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(201);
+            await createTranslation(agent, en, 'de');
 
             const res = await agent
                 .get(`/api/i18n/content/article/${en.id}/locales`)
@@ -357,10 +368,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('batches group summaries for a page of rows', async () => {
             const agent = await login();
             const en = await createArticle(agent);
-            await agent
-                .post(`/api/i18n/content/article/${en.id}/translations`)
-                .send({ locale: 'de' })
-                .expect(201);
+            await createTranslation(agent, en, 'de');
 
             const res = await agent
                 .post('/api/i18n/content/article/locale-summary')

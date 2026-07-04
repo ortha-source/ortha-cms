@@ -1,4 +1,10 @@
-import { IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+    IsObject,
+    IsOptional,
+    IsString,
+    IsUUID,
+    MaxLength
+} from 'class-validator';
 import type { RelationDelta } from '../types/entry-list-view';
 import { IsRelationDeltaMap } from './relation-delta-map.validator';
 
@@ -47,4 +53,14 @@ export class SaveEntryDto {
     @IsString()
     @MaxLength(35)
     locale?: string;
+
+    /**
+     * The existing translation group a created row joins (making it a sibling)
+     * — an **extension-owned**, opaque param, like {@link locale}. Absent → the
+     * row starts its own fresh group. The bound extension validates it against
+     * the workspace. Read on create only.
+     */
+    @IsOptional()
+    @IsUUID()
+    localeGroupId?: string;
 }

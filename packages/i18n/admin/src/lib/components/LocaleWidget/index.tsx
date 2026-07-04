@@ -85,10 +85,16 @@ export function LocaleWidget({
     };
 
     const create = (slug: string, name: string) => {
-        if (!entry) return;
+        // The widget only renders for an existing entry on an i18n type, so the
+        // group id is present — guard for the type checker.
+        if (!entry || !entry.localeGroupId) return;
         setCreatingLocale(slug);
         createTranslation
-            .mutateAsync({ sourceId: entry.id, locale: slug })
+            .mutateAsync({
+                values: entry.values,
+                locale: slug,
+                localeGroupId: entry.localeGroupId
+            })
             .then((record) => {
                 toast(intl.formatMessage(messages.created, { name }));
                 navigate(`${typePath}/${record.id}`);

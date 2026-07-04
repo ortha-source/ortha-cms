@@ -101,13 +101,18 @@ and `EntryWriterService` inject it with `@Optional()` and call it
 **unconditionally**; an implementation MUST no-op for types it doesn't apply to.
 Methods: `listScope` (extra list `WHERE`), `filterExtension` (virtual filter
 fields resolved via the engine's `extensionFields` + `resolveExtension` seam),
-`createColumns` (extra envelope columns on INSERT), `afterUpdate` (in-tx
-side-effects after a save). The `?locale=` / `?localeFallback=` query params and
-the create body `locale` are declared on the DTOs as **opaque strings**
-(the strict `ValidationPipe` rejects undeclared keys) and forwarded to the port
-without interpretation. A boot check (`EntryExtensionBootCheck`) fails start-up
-if an `i18n: true` type has no extension bound. Only one binding is supported
-(a second consumer would need a composite).
+`createColumns` (extra envelope columns on INSERT — may be **async**, e.g. to
+validate a group id against the DB), `afterUpdate` (in-tx side-effects after a
+save). The `?locale=` / `?localeFallback=` query params and the create body
+`locale` + `localeGroupId` are declared on the DTOs as **opaque strings** (the
+strict `ValidationPipe` rejects undeclared keys) and forwarded to the port
+without interpretation — `localeGroupId` on a create is what makes the new row a
+**sibling** in an existing translation group (the extension stamps + validates
+it), so there is no separate "create translation" route. `create` wraps its
+insert in `uniqueGuarded`, so a duplicate `(group, locale)` on an `i18n` type is
+a clean **409**. A boot check (`EntryExtensionBootCheck`) fails start-up if an
+`i18n: true` type has no extension bound. Only one binding is supported (a
+second consumer would need a composite).
 
 ## Generated storage (`buildTables`)
 

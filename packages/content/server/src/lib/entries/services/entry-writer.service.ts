@@ -82,47 +82,70 @@ export class EntryWriterService {
      * workspace delete / content-revoke guards (which take the lock exclusively),
      * so a new entry can't land between their emptiness check and their mutation
      * and be orphaned. Shared mode keeps concurrent creates non-blocking.
+     *
+     * `locale` / `localeGroupId` are opaque, extension-owned params: the bound
+     * extension validates them and stamps the envelope columns (a
+     * `localeGroupId` makes the row a **sibling** in that translation group). A
+     * duplicate `(group, locale)` surfaces as a **409** via {@link uniqueGuarded}.
      */
     async create(
         type: AnyContentType,
         values: Record<string, unknown>,
         workspaceId: string,
         relations?: Record<string, RelationDelta>,
-        locale?: string
+        locale?: string,
+        localeGroupId?: string
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
-        // Extension-stamped envelope columns (e.g. the validated locale).
-        // Resolved before the transaction so an invalid param fails fast.
+        // Extension-stamped envelope columns (e.g. the validated locale + group
+        // id). Resolved before the transaction so an invalid param — unknown
+        // locale, or a group id that names no group in the workspace — fails
+        // fast. May read the DB (the group check), hence awaited.
         const extensionColumns =
-            this.extension?.createColumns(type, workspaceId, { locale }) ?? {};
+            (await this.extension?.createColumns(type, workspaceId, {
+                locale,
+                localeGroupId
+            })) ?? {};
         // One transaction: take the workspace's shared content lock (coordinates
         // with the delete / content-revoke guards so a new entry can't be
         // orphaned), then write the row, its whole-set join-table links (a
         // many-relation submitted in `values`), and the staged relation deltas —
         // all together, so a failed link write never leaves a half-linked entry.
-        const row = await this.db.transaction(async (tx) => {
-            await lockWorkspaceShared(tx, workspaceId);
-            const [inserted] = await tx
-                .insert(type.table)
-                .values({
-                    ...toColumns(type, coerced),
-                    workspaceId,
-                    ...extensionColumns
-                } as never)
-                .returning();
-            const id = (inserted as Row)['id'] as string;
-            await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
-            await this.applyRelationDeltas(
-                tx,
-                type,
-                id,
-                relations,
-                workspaceId
-            );
-            return inserted as Row;
-        });
+        // Wrapped in uniqueGuarded so a duplicate (group, locale) on an i18n
+        // type is a clean 409 rather than a 500.
+        const row = await this.uniqueGuarded(
+            () =>
+                this.db.transaction(async (tx) => {
+                    await lockWorkspaceShared(tx, workspaceId);
+                    const [inserted] = await tx
+                        .insert(type.table)
+                        .values({
+                            ...toColumns(type, coerced),
+                            workspaceId,
+                            ...extensionColumns
+                        } as never)
+                        .returning();
+                    const id = (inserted as Row)['id'] as string;
+                    await this.relations.writeLinks(
+                        tx,
+                        type,
+                        id,
+                        coerced,
+                        workspaceId
+                    );
+                    await this.applyRelationDeltas(
+                        tx,
+                        type,
+                        id,
+                        relations,
+                        workspaceId
+                    );
+                    return inserted as Row;
+                }),
+            type
+        );
         return toRecord(type, row);
     }
 

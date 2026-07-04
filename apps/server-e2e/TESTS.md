@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_272 test cases across 26 spec files._
+_273 test cases across 26 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -383,13 +383,14 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | 400s a list scoped to an unknown locale |
 | falls back to the default row where the requested locale is missing |
 
-### create translation
+### create translation (POST /content + localeGroupId)
 
 | Test case |
 | --- |
-| copies values into a new draft sibling sharing the group |
+| creates a new draft sibling sharing the group |
 | 409s a duplicate locale in the group |
-| 400s a translation on an unknown target locale |
+| 400s a sibling in an unknown target locale |
+| 404s a localeGroupId that names no group in the workspace |
 
 ### shared-field sync
 

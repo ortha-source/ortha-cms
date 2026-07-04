@@ -146,8 +146,32 @@ export async function mockI18n(page: Page): Promise<void> {
         });
     });
 
-    // GET /api/content/:name — strict locale-scoped list (default `en`).
+    // /api/content/:name — GET is the strict locale-scoped list (default `en`);
+    // POST creates a record. A create with a `localeGroupId` is a **sibling**
+    // translation (the consolidated endpoint that replaced /translations); the
+    // new row echoes the sent values in the target locale as a fresh draft.
     await page.route(/\/api\/content\/([^/?]+)(\?.*)?$/, async (route) => {
+        if (route.request().method() === 'POST') {
+            const body = route.request().postDataJSON() as {
+                values: Record<string, unknown>;
+                locale?: string;
+                localeGroupId?: string;
+            };
+            await route.fulfill({
+                status: 201,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    id: `lp-${body.locale ?? 'en'}-new`,
+                    status: 'draft',
+                    locale: body.locale ?? 'en',
+                    localeGroupId: body.localeGroupId ?? 'G-new',
+                    createdAt: ISO,
+                    updatedAt: ISO,
+                    values: body.values
+                })
+            });
+            return;
+        }
         const url = new URL(route.request().url());
         const locale = url.searchParams.get('locale') ?? 'en';
         const items = ROWS.filter((row) => row.locale === locale);
@@ -268,32 +292,6 @@ export async function mockI18n(page: Page): Promise<void> {
             });
         }
     );
-
-    // POST /api/i18n/content/:type/:id/translations — create a sibling.
-    await page.route(
-        /\/api\/i18n\/content\/[^/]+\/([^/]+)\/translations$/,
-        async (route) => {
-            const segments = new URL(route.request().url()).pathname.split('/');
-            const sourceId = segments[segments.length - 2];
-            const source = ROWS.find(
-                (candidate) => candidate.id === sourceId
-            );
-            const { locale } = route.request().postDataJSON() as {
-                locale: string;
-            };
-            await route.fulfill({
-                status: 201,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    id: `lp-${locale}-new`,
-                    status: 'draft',
-                    locale,
-                    localeGroupId: source?.localeGroupId ?? 'G1',
-                    createdAt: ISO,
-                    updatedAt: ISO,
-                    values: source?.values ?? {}
-                })
-            });
-        }
-    );
+    // Sibling creation is handled by the POST branch of the /api/content/:name
+    // route above (POST + localeGroupId), so there is no i18n write route.
 }

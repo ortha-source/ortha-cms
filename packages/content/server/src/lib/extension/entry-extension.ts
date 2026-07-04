@@ -45,6 +45,12 @@ export interface EntryScopeParams {
      * admin's relation picker); absent = strict.
      */
     localeFallback?: string;
+    /**
+     * On **create**, the existing translation group the new row joins (making
+     * it a sibling). Absent → the row starts its own fresh group. Validated by
+     * the extension against the workspace.
+     */
+    localeGroupId?: string;
 }
 
 /** Context handed to {@link EntryFilterExtension.resolve} with each rule. */
@@ -106,13 +112,15 @@ export interface ContentEntryExtension {
     /**
      * Extra envelope columns stamped onto the INSERT of a create (merged over
      * the field columns + `workspaceId`). Interprets/validates
-     * {@link EntryScopeParams}. Return `{}` to add nothing.
+     * {@link EntryScopeParams} — may throw (e.g. an unknown locale or a
+     * `localeGroupId` that names no group in the workspace). Return `{}` to add
+     * nothing. May be async (the group check reads the DB); the caller awaits.
      */
     createColumns(
         type: AnyContentType,
         workspaceId: string,
         params: EntryScopeParams
-    ): Record<string, unknown>;
+    ): Record<string, unknown> | Promise<Record<string, unknown>>;
 
     /**
      * Runs inside the update transaction, after the row's columns and relation
