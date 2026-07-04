@@ -15,6 +15,8 @@ import { article } from './article';
 export const tag = collection('tag', {
     label: 'Tags',
     description: 'Free-form labels shared across articles.',
+    publishable: true,
+    paranoid: true,
     fields: {
         name: field.text({
             required: true,

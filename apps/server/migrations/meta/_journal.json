@@ -29,6 +29,20 @@
       "when": 1783084805562,
       "tag": "0003_relation_position",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783100672525,
+      "tag": "0004_slim_doomsday",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783101214854,
+      "tag": "0005_tag_publishable_paranoid",
+      "breakpoints": true
     }
   ]
 }
