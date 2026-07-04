@@ -59,9 +59,9 @@ which carries no storage of its own — model it as the single relation on the
 the reference collections in `apps/server/src/collections` (`article` wires up
 `author`, `seo_meta`, `tag`, and `comment`).
 
-### Metadata flags (`publishable` / `paranoid`)
+### Metadata flags (`publishable` / `paranoid` / `i18n`)
 
-Two optional booleans on `collection()` / `single()` add platform-owned envelope
+Optional booleans on `collection()` / `single()` add platform-owned envelope
 columns:
 
 - `publishable: true` → a `status` (`draft`/`published`, `DEFAULT 'draft'`)
@@ -69,14 +69,45 @@ columns:
   publish workflow. A **non-publishable** type has neither: it carries no publish
   state and every row is simply live.
 - `paranoid: true` → a nullable `deleted_at` (timestamptz) column (soft delete).
+- `i18n: true` → `locale` (text NOT NULL) + `locale_group_id` (uuid NOT NULL,
+  `DEFAULT gen_random_uuid()`) columns, plus a `(locale_group_id, locale)`
+  unique index (**partial** `WHERE deleted_at IS NULL` on paranoid types) and a
+  `(workspace_id, locale[, status])` list index. **Row-per-locale**: each locale
+  of an entry is a full row; siblings share a `locale_group_id`. Per-field,
+  `field.*({ localized: true })` marks a value as varying per locale (rejected
+  at define time on a non-i18n type); an unmarked field is **shared** across the
+  group. This package owns the storage *shape* only — what a locale *means*
+  (allowed slugs, the default, scoping, sync) lives behind the
+  `CONTENT_ENTRY_EXTENSION` port (see below), so content-server stays
+  locale-agnostic.
 
 `published_at`/`deleted_at` are **nullable with no default** (null = "not yet
 published" / "not deleted"; the service layer stamps them). `status`,
-`published_at`, and `deleted_at` are
+`published_at`, `deleted_at`, `locale`, and `locale_group_id` are
 **reserved unconditionally** — an author cannot define a field that maps to them
 (rejected by `assertFields`), and a client cannot set them (they aren't in
 `type.fields`, so `EntryValidationService` rejects them as unknown keys). The
-flags are carried on `ContentType` and serialized in the schema summary.
+flags are carried on `ContentType` and serialized in the schema summary
+(`i18n` on the summary, `localized` per field).
+
+### The entries extension port (`CONTENT_ENTRY_EXTENSION`)
+
+`src/lib/extension/entry-extension.ts` declares a DI port (a `Symbol` + the
+`ContentEntryExtension` interface) that a downstream plugin (e.g.
+`@ortha-cms/i18n-server`) **binds** to extend the generic entries pipeline —
+the same inversion as identity's `CONTENT_CATALOG`, roles swapped: the consumer
+of the behavior declares the port here, the provider binds it. `EntriesService`
+and `EntryWriterService` inject it with `@Optional()` and call it
+**unconditionally**; an implementation MUST no-op for types it doesn't apply to.
+Methods: `listScope` (extra list `WHERE`), `filterExtension` (virtual filter
+fields resolved via the engine's `extensionFields` + `resolveExtension` seam),
+`createColumns` (extra envelope columns on INSERT), `afterUpdate` (in-tx
+side-effects after a save). The `?locale=` / `?localeFallback=` query params and
+the create body `locale` are declared on the DTOs as **opaque strings**
+(the strict `ValidationPipe` rejects undeclared keys) and forwarded to the port
+without interpretation. A boot check (`EntryExtensionBootCheck`) fails start-up
+if an `i18n: true` type has no extension bound. Only one binding is supported
+(a second consumer would need a composite).
 
 ## Generated storage (`buildTables`)
 

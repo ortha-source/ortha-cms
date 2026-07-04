@@ -196,6 +196,41 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
+## Extension slots
+
+The library exposes five named slots (`src/lib/slots/contentSlots`, via
+`createSlot`) another admin plugin contributes into — no coupling beyond the
+contracts, the same idiom as the workspace shell's slots.
+`@ortha-cms/i18n-admin` fills all five. **Slot items are boot-frozen**
+(`createAdmin` registers them once, before the first render), which is what
+makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
+`RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
+sites call them in a loop — the call order never changes; an item gates its own
+fetching internally.
+
+- **`RECORDS_TOOLBAR_SLOT`** — a control in the records toolbar; owns URL
+  `listParamKeys` forwarded to the list request (and its query key), with
+  `updateParams` (resets the page).
+- **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
+  that joins the column picker like any column (non-sortable header); optional
+  `useRowsData` batches per-page data once for all its cells.
+- **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a card in the entry editor's right rail,
+  rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
+  workspaceId, typePath) assembled by `ContentEntryView` and shared via
+  `EntrySlotContextProvider`.
+- **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
+  after `filterFieldsFromSchema`.
+- **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode
+  one-entry read (`listParamKeys`), URL values copied into the create body
+  (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
+  relation-candidate list params (`relationCandidateParams`, consumed by the
+  picker dialog through the slot context).
+
+The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
+list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`
+(`extra`). Wire types carry `i18n` (summary/detail), `localized` (field), and
+`locale`/`localeGroupId` (`EntryRecord`).
+
 ## Package
 
 - Name: `@ortha-cms/content-admin`
