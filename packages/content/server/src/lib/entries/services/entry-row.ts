@@ -37,6 +37,10 @@ export function toRecord(type: AnyContentType, row: Row): EntryRecord {
     if (type.publishable) {
         record.status = row['status'] as EntryRecord['status'];
     }
+    if (type.i18n) {
+        record.locale = row['locale'] as string;
+        record.localeGroupId = row['localeGroupId'] as string;
+    }
     return record;
 }
 

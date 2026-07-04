@@ -13,6 +13,8 @@ export interface SerializedField {
     name: string;
     type: string;
     required: boolean;
+    /** Value differs per locale — present only when true (i18n types). */
+    localized?: boolean;
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
     options?: readonly string[];
@@ -43,6 +45,8 @@ export interface SerializedContentTypeSummary {
     publishable: boolean;
     /** Soft-deletes via a `deletedAt` envelope column. */
     paranoid: boolean;
+    /** Row-per-locale via `locale` + `localeGroupId` envelope columns. */
+    i18n: boolean;
 }
 
 /** Wire shape of a content type with its full field schema. */
@@ -124,7 +128,8 @@ export class ContentTypeRegistry {
             ...(type.description ? { description: type.description } : {}),
             ...(type.path ? { path: type.path } : {}),
             publishable: type.publishable,
-            paranoid: type.paranoid
+            paranoid: type.paranoid,
+            i18n: type.i18n
         };
     }
 
@@ -137,6 +142,7 @@ export class ContentTypeRegistry {
             name: fieldName,
             type: spec.type,
             required: spec.required,
+            ...(spec.localized ? { localized: true } : {}),
             validation: { ...spec.validation },
             admin: { ...spec.admin },
             ...(spec.options ? { options: spec.options } : {}),

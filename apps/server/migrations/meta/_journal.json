@@ -43,6 +43,13 @@
       "when": 1783101214854,
       "tag": "0005_tag_publishable_paranoid",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783176961109,
+      "tag": "0006_content_i18n",
+      "breakpoints": true
     }
   ]
 }

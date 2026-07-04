@@ -132,6 +132,14 @@ export interface RelationSpec {
 export interface BaseFieldOptions {
     /** Reject empty values; the column becomes NOT NULL. */
     required?: boolean;
+    /**
+     * The value differs per locale (valid only on an `i18n` content type —
+     * rejected at define time otherwise). A field without the flag is
+     * **shared** across a translation group: the bound localization plugin
+     * syncs its value to every sibling row on update and copies it when a
+     * translation is created.
+     */
+    localized?: boolean;
     /** Presentation props forwarded to the admin. */
     admin?: AdminProps;
 }
@@ -207,6 +215,8 @@ export interface FieldSpec<
 > {
     readonly type: TType;
     readonly required: boolean;
+    /** Value differs per locale — set only on fields of `i18n` types. */
+    readonly localized?: boolean;
     readonly validation: FieldValidation;
     readonly admin: AdminProps;
     /** Allowed values — select fields only. */

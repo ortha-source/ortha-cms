@@ -29,6 +29,9 @@ function base<TType extends FieldType>(
     return {
         type,
         required: options.required ?? false,
+        // Omitted (not `false`) when unset, so serialized specs stay lean and
+        // the admin can treat presence as the flag.
+        ...(options.localized ? { localized: true as const } : {}),
         validation,
         admin: options.admin ?? {}
     };

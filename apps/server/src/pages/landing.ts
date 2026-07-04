@@ -11,14 +11,20 @@ import {
  * Intentionally **not** `publishable` (and not `paranoid`): a singleton config
  * page is always live, with no draft/published workflow — so it exercises the
  * no-`status` path (no status column, filter, or sort) end to end.
+ *
+ * It **is** `i18n`: one row per locale (the single resolves by the active
+ * locale), exercising the non-publishable i18n path where required localized
+ * fields stay NOT NULL.
  */
 export const landing = single('landing', {
     label: 'Landing',
     description: 'The site landing page — every field type, end to end.',
     path: '/',
+    i18n: true,
     fields: {
         text: field.text({
             required: true,
+            localized: true,
             minLength: 3,
             maxLength: 120,
             admin: {
@@ -28,6 +34,7 @@ export const landing = single('landing', {
             }
         }),
         richtext: field.richtext({
+            localized: true,
             admin: {
                 label: 'Richtext',
                 description: 'Intro copy shown beneath the headline.',

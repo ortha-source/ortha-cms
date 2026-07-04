@@ -41,7 +41,9 @@ const RESERVED_COLUMNS = new Set([
     'created_at',
     'updated_at',
     'published_at',
-    'deleted_at'
+    'deleted_at',
+    'locale',
+    'locale_group_id'
 ]);
 
 /**
@@ -61,7 +63,8 @@ function mainColumnName(fieldName: string, spec: AnyFieldSpec): string | null {
 
 function assertFields(
     typeName: string,
-    fields: Record<string, AnyFieldSpec>
+    fields: Record<string, AnyFieldSpec>,
+    i18n: boolean
 ): void {
     const names = Object.keys(fields);
     if (names.length === 0) {
@@ -70,6 +73,15 @@ function assertFields(
     const seen = new Map<string, string>();
     for (const name of names) {
         const spec = fields[name];
+
+        // `localized` only means something on a row-per-locale type; on any
+        // other type the flag would silently do nothing — fail loudly instead.
+        if (spec.localized && !i18n) {
+            throw new Error(
+                `Field "${name}" on "${typeName}" is localized, but the type ` +
+                    `does not set i18n: true.`
+            );
+        }
 
         // `unique` enforces one-to-one via a UNIQUE constraint on the single
         // FK column. A many-relation has no such column (its links live in a
@@ -160,12 +172,14 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
     options: ContentTypeOptions<TFields>
 ): ContentType<TFields> {
     assertName(name);
-    assertFields(name, options.fields);
     const publishable = options.publishable ?? false;
     const paranoid = options.paranoid ?? false;
+    const i18n = options.i18n ?? false;
+    assertFields(name, options.fields, i18n);
     const { table, joinTables } = buildTables(name, options.fields, {
         publishable,
-        paranoid
+        paranoid,
+        i18n
     });
     return {
         name,
@@ -174,6 +188,7 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
         description: options.description,
         publishable,
         paranoid,
+        i18n,
         fields: options.fields,
         table,
         joinTables
@@ -189,7 +204,6 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
     options: SingleOptions<TFields>
 ): ContentType<TFields> {
     assertName(name);
-    assertFields(name, options.fields);
     if (!options.path.startsWith('/')) {
         throw new Error(
             `Single "${name}" path must start with "/" (got "${options.path}").`
@@ -197,9 +211,12 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
     }
     const publishable = options.publishable ?? false;
     const paranoid = options.paranoid ?? false;
+    const i18n = options.i18n ?? false;
+    assertFields(name, options.fields, i18n);
     const { table, joinTables } = buildTables(name, options.fields, {
         publishable,
-        paranoid
+        paranoid,
+        i18n
     });
     return {
         name,
@@ -209,6 +226,7 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
         path: options.path,
         publishable,
         paranoid,
+        i18n,
         fields: options.fields,
         table,
         joinTables

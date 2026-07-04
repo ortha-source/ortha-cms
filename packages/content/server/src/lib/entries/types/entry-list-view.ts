@@ -14,6 +14,10 @@ export interface EntryRecord {
     id: string;
     /** Publication status — only on `publishable` types. */
     status?: EntryStatus;
+    /** Locale slug of this row — only on `i18n` types. */
+    locale?: string;
+    /** Shared translation-group id — only on `i18n` types. */
+    localeGroupId?: string;
     /** ISO creation timestamp. */
     createdAt: string;
     /** ISO last-updated timestamp. */
