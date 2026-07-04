@@ -480,6 +480,30 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .expect(400);
         });
 
+        it('400s a malformed relation delta (non-array unlink), not a 500', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { unlink: 'not-an-array' } }
+                })
+                .expect(400);
+        });
+
+        it('400s a relation delta carrying a non-uuid id', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/article/${id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { link: ['not-a-uuid'] } }
+                })
+                .expect(400);
+        });
+
         it('422s linking a target in another workspace via a delta', async () => {
             const other = await seedWorkspace({
                 name: 'WS Two',

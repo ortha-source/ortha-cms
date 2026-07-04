@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_251 test cases across 25 spec files._
+_253 test cases across 25 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -244,6 +244,8 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | persists order via the reorder delta on save |
 | paginates a field with many links |
 | 400s a relation delta on a single relation |
+| 400s a malformed relation delta (non-array unlink), not a 500 |
+| 400s a relation delta carrying a non-uuid id |
 | 422s linking a target in another workspace via a delta |
 | links the inverse side (tag.articles) via a delta on save |
 | applies link, unlink, and order in one delta on save |

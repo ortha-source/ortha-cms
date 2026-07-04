@@ -283,7 +283,8 @@ export class RelationLinkService {
 
         // Reorder is the owning side's prerogative (its `source_id` axis); the
         // inverse reuses the same rows and can't renumber them without corrupting
-        // the owner's order, so `order` is ignored there.
+        // the owner's order, so `order` is ignored there. One `CASE` update
+        // renumbers every listed target instead of a statement per id.
         if (delta.order?.length && join.ownCol === 'sourceId') {
             // Renumber the whole list in one UPDATE — position = its index in
             // `order`, via a CASE keyed on the ref id — instead of an UPDATE per

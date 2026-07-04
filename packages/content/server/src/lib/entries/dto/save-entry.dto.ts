@@ -1,5 +1,6 @@
 import { IsObject, IsOptional } from 'class-validator';
 import type { RelationDelta } from '../types/entry-list-view';
+import { IsRelationDeltaMap } from './relation-delta-map.validator';
 
 /**
  * Body for `POST /api/content/:typeName` (create) and
@@ -17,7 +18,10 @@ import type { RelationDelta } from '../types/entry-list-view';
  * *contents* are validated against the type's field specs by that same service
  * (a dynamic, per-type contract class-validator can't express); the relation
  * deltas' ids are validated as existing workspace entries by
- * `RelationLinkService`. So the only structural check here is "are they objects".
+ * `RelationLinkService`. `values` is structurally only "an object" (its contents
+ * are the per-type contract); the `relations` bag's *shape* — each value a
+ * `{ link?, unlink?, order? }` of uuid arrays — is enforced here so a malformed
+ * delta is a clean 400, not a 500 from a bad id hitting the query.
  */
 export class SaveEntryDto {
     /** Field values keyed by field name. */
@@ -30,5 +34,6 @@ export class SaveEntryDto {
      */
     @IsOptional()
     @IsObject()
+    @IsRelationDeltaMap()
     relations?: Record<string, RelationDelta>;
 }

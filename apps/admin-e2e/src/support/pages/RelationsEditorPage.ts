@@ -124,6 +124,20 @@ export class RelationsEditorPage extends BasePage {
         return this.page.getByRole('button', { name: `Reorder ${title}` });
     }
 
+    /** The "open in a new tab" link of an assigned record (the preview row). */
+    openLink(title: string): Locator {
+        return this.page.getByRole('link', {
+            name: `Open ${title} in a new tab`
+        });
+    }
+
+    /** The "open in a new tab" link of a candidate row (the picker/search window). */
+    candidateOpenLink(title: string): Locator {
+        return this.dialog.getByRole('link', {
+            name: `Open ${title} in a new tab`
+        });
+    }
+
     /** The "Nothing linked yet." empty text for a relation field. */
     get nothingLinked(): Locator {
         return this.page.getByText('Nothing linked yet.');

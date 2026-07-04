@@ -17,14 +17,13 @@ import {
     verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { Button, Spinner } from '@ortha-cms/design-system';
-import type {
-    ContentField,
-    RelationRef,
-    StagedRelation
-} from '../../../../types/contentType';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import type { ContentField, StagedRelation } from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
 import { useRelationFieldLinks } from '../../../../api/useRelationFieldLinks';
 import type { RelationCandidate } from '../../../../api/useRelationCandidates';
+import { applyStaged, reconcileStaged } from '../../../../utils/stagedRelation';
+import { contentEntryPath } from '../../../../utils/contentEntryPath';
 import { RelationItemRow } from '../RelationField/RelationItemRow';
 import { SortableRelationItem } from '../RelationField/SortableRelationItem';
 import { RelationPickerDialog } from '../RelationField/RelationPickerDialog';
@@ -43,33 +42,15 @@ const messages = defineMessages({
         id: 'content.relations.live.remove',
         defaultMessage: 'Remove {title}'
     },
+    open: {
+        id: 'content.relations.live.open',
+        defaultMessage: 'Open {title} in a new tab'
+    },
     loadError: {
         id: 'content.relations.live.loadError',
         defaultMessage: 'Couldn’t load linked records.'
     }
 });
-
-/** Apply a {@link StagedRelation} to the server-loaded links → the displayed set. */
-function applyStaged(
-    serverItems: RelationRef[],
-    staged: StagedRelation
-): RelationRef[] {
-    const removed = new Set(staged.removed);
-    const base = serverItems.filter((item) => !removed.has(item.id));
-    const merged = [
-        ...base,
-        ...staged.added.filter((a) => !base.some((b) => b.id === a.id))
-    ];
-    if (!staged.order) return merged;
-    // Reordered ids first (in the stored sequence); anything not in `order`
-    // (e.g. a page loaded after the reorder) keeps its natural order at the end.
-    const rank = new Map(staged.order.map((id, i) => [id, i]));
-    return [...merged].sort(
-        (a, b) =>
-            (rank.get(a.id) ?? Number.POSITIVE_INFINITY) -
-            (rank.get(b.id) ?? Number.POSITIVE_INFINITY)
-    );
-}
 
 /**
  * The relation editor for one **many/inverse** relation field. It shows the
@@ -87,7 +68,8 @@ export function RelationFieldLive({
     typeName,
     entryId,
     staged,
-    onStagedChange
+    onStagedChange,
+    error
 }: {
     field: ContentField;
     typeName: string;
@@ -96,8 +78,11 @@ export function RelationFieldLive({
     /** The field's pending link/unlink/reorder (editor-owned). */
     staged: StagedRelation;
     onStagedChange: (next: StagedRelation) => void;
+    /** A server/validation error for this field (e.g. a save 422), shown as text. */
+    error?: string;
 }) {
     const intl = useIntl();
+    const workspace = useCurrentWorkspace();
     const [open, setOpen] = useState(false);
     const [preparing, setPreparing] = useState(false);
     const sensors = useSensors(
@@ -122,46 +107,22 @@ export function RelationFieldLive({
     const ids = displayed.map((item) => item.id);
     const removeLabelFor = (title: string) =>
         intl.formatMessage(messages.remove, { title });
+    const openLabelFor = (title: string) =>
+        intl.formatMessage(messages.open, { title });
+    // Deep link to the related record's own editor (open-in-new-tab), when the
+    // target type is known.
+    const hrefFor = (id: string) =>
+        targetName
+            ? contentEntryPath(workspace.id, targetName, id)
+            : undefined;
 
     // Reconcile the picker's chosen set against what's displayed: link the new
     // ones (remembering their title), unlink the ones it dropped — all into the
     // staged diff, no request.
-    const confirm = (chosenIds: string[], picked: RelationCandidate[]) => {
-        const chosen = new Set(chosenIds);
-        const toRemove = ids.filter((id) => !chosen.has(id));
-        const toAdd = chosenIds.filter((id) => !ids.includes(id));
-        const byId = new Map(picked.map((c) => [c.id, c]));
-
-        let added = [...staged.added];
-        let removed = [...staged.removed];
-        for (const id of toRemove) {
-            if (added.some((a) => a.id === id))
-                added = added.filter((a) => a.id !== id);
-            else if (!removed.includes(id)) removed = [...removed, id];
-        }
-        for (const id of toAdd) {
-            if (removed.includes(id)) {
-                removed = removed.filter((x) => x !== id); // re-link a server item
-            } else if (
-                !serverItems.some((s) => s.id === id) &&
-                !added.some((a) => a.id === id)
-            ) {
-                const c = byId.get(id);
-                added = [
-                    ...added,
-                    {
-                        id,
-                        title: c?.title ?? id,
-                        ...(c?.status ? { status: c.status } : {})
-                    }
-                ];
-            }
-        }
-        const order = staged.order
-            ? staged.order.filter((x) => !toRemove.includes(x))
-            : null;
-        onStagedChange({ added, removed, order });
-    };
+    const confirm = (chosenIds: string[], picked: RelationCandidate[]) =>
+        onStagedChange(
+            reconcileStaged(staged, ids, serverItems, chosenIds, picked)
+        );
 
     const removeId = (id: string) => confirm(ids.filter((x) => x !== id), []);
 
@@ -211,6 +172,11 @@ export function RelationFieldLive({
 
     return (
         <div className="flex flex-col gap-3">
+            {error ? (
+                <p role="alert" className="text-sm text-destructive">
+                    {error}
+                </p>
+            ) : null}
             {links.isError ? (
                 <p className="text-sm text-destructive">
                     {intl.formatMessage(messages.loadError)}
@@ -245,6 +211,8 @@ export function RelationFieldLive({
                                         title={item.title}
                                         onRemove={() => removeId(item.id)}
                                         removeLabel={removeLabelFor(item.title)}
+                                        href={hrefFor(item.id)}
+                                        openLabel={openLabelFor(item.title)}
                                     />
                                 ))}
                             </SortableContext>
@@ -256,6 +224,8 @@ export function RelationFieldLive({
                                 title={item.title}
                                 onRemove={() => removeId(item.id)}
                                 removeLabel={removeLabelFor(item.title)}
+                                href={hrefFor(item.id)}
+                                openLabel={openLabelFor(item.title)}
                             />
                         ))
                     )}
