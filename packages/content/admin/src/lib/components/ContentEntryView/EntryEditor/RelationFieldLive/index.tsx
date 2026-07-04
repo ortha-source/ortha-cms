@@ -68,7 +68,8 @@ export function RelationFieldLive({
     typeName,
     entryId,
     staged,
-    onStagedChange
+    onStagedChange,
+    error
 }: {
     field: ContentField;
     typeName: string;
@@ -77,6 +78,8 @@ export function RelationFieldLive({
     /** The field's pending link/unlink/reorder (editor-owned). */
     staged: StagedRelation;
     onStagedChange: (next: StagedRelation) => void;
+    /** A server/validation error for this field (e.g. a save 422), shown as text. */
+    error?: string;
 }) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
@@ -147,6 +150,11 @@ export function RelationFieldLive({
 
     return (
         <div className="flex flex-col gap-3">
+            {error ? (
+                <p role="alert" className="text-sm text-destructive">
+                    {error}
+                </p>
+            ) : null}
             {links.isError ? (
                 <p className="text-sm text-destructive">
                     {intl.formatMessage(messages.loadError)}

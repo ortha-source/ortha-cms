@@ -8,6 +8,7 @@ import {
     isNull,
     max,
     notInArray,
+    sql,
     type AnyColumn
 } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
@@ -219,7 +220,7 @@ export class RelationLinkService {
         const join = spec ? this.joinPlanFor(type, field, spec) : null;
         if (!join) return; // single / inverse-of-single: nothing to write here
 
-        await this.assertTargets(join.target, delta.link ?? [], workspaceId);
+        await this.assertTargets(join.target, delta.link ?? [], workspaceId, tx);
         const cols = join.table as unknown as Columns;
         const own = cols[join.ownCol];
         const ref = cols[join.refCol];
@@ -231,37 +232,60 @@ export class RelationLinkService {
         }
 
         // Append each new link at the end of its **source's** ordered list. For
-        // an owning relation the source is this entry; for an inverse it's the
-        // linked (owner) row, so each appends to that row's own list.
-        for (const targetId of dedupe(delta.link)) {
-            const physicalSourceId =
-                join.ownCol === 'sourceId' ? sourceId : targetId;
-            const position = await this.nextPosition(
-                tx,
-                join.table,
-                physicalSourceId
-            );
-            await tx
-                .insert(join.table)
-                .values({
-                    [join.ownCol]: sourceId,
-                    [join.refCol]: targetId,
-                    position
-                } as never)
-                .onConflictDoNothing();
+        // an owning relation every new link shares one source (this entry), so
+        // read `max(position)` once and insert them all in a single statement.
+        const toLink = dedupe(delta.link);
+        if (toLink.length) {
+            if (join.ownCol === 'sourceId') {
+                const base = await this.nextPosition(tx, join.table, sourceId);
+                await tx
+                    .insert(join.table)
+                    .values(
+                        toLink.map((targetId, i) => ({
+                            [join.ownCol]: sourceId,
+                            [join.refCol]: targetId,
+                            position: base + i
+                        })) as never
+                    )
+                    .onConflictDoNothing();
+            } else {
+                // Inverse: each link appends to the *linked (owner) row's* own
+                // list, so each has its own source and its own `max(position)`.
+                for (const targetId of toLink) {
+                    const position = await this.nextPosition(
+                        tx,
+                        join.table,
+                        targetId
+                    );
+                    await tx
+                        .insert(join.table)
+                        .values({
+                            [join.ownCol]: sourceId,
+                            [join.refCol]: targetId,
+                            position
+                        } as never)
+                        .onConflictDoNothing();
+                }
+            }
         }
 
         // Reorder is the owning side's prerogative (its `source_id` axis); the
         // inverse reuses the same rows and can't renumber them without corrupting
-        // the owner's order, so `order` is ignored there.
+        // the owner's order, so `order` is ignored there. One `CASE` update
+        // renumbers every listed target instead of a statement per id.
         if (delta.order?.length && join.ownCol === 'sourceId') {
-            let i = 0;
-            for (const targetId of delta.order) {
-                await tx
-                    .update(join.table)
-                    .set({ position: i++ } as never)
-                    .where(and(eq(own, sourceId), eq(ref, targetId)));
-            }
+            const whenClauses = sql.join(
+                delta.order.map(
+                    (targetId, i) => sql`when ${ref} = ${targetId} then ${i}`
+                ),
+                sql` `
+            );
+            await tx
+                .update(join.table)
+                .set({
+                    position: sql`case ${whenClauses} else ${cols['position']} end`
+                } as never)
+                .where(and(eq(own, sourceId), inArray(ref, delta.order)));
         }
     }
 
@@ -292,7 +316,7 @@ export class RelationLinkService {
             const join = this.joinPlanFor(type, name, spec);
             if (!join || join.ownCol !== 'sourceId') continue; // owning many only
             const ids = dedupe(values[name] as unknown[]);
-            await this.assertTargets(join.target, ids, workspaceId);
+            await this.assertTargets(join.target, ids, workspaceId, tx);
             const cols = join.table as unknown as Columns;
             const own = cols[join.ownCol];
             const ref = cols[join.refCol];
@@ -383,12 +407,13 @@ export class RelationLinkService {
     private async assertTargets(
         target: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        db: Database | DbTransaction = this.db
     ): Promise<void> {
         const unique = [...new Set(ids)].filter((id) => !!id);
         if (!unique.length) return;
         const cols = target.table as unknown as Columns;
-        const rows = (await this.db
+        const rows = (await db
             .select()
             .from(target.table)
             .where(

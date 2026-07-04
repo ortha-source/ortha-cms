@@ -117,6 +117,7 @@ export function RelationFieldSection({
                             field={field}
                             typeName={typeName}
                             entryId={entryId}
+                            error={error}
                             staged={
                                 staged ?? {
                                     added: [],

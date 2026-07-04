@@ -191,8 +191,11 @@ global).
   removed pairs, appends the new ones at `max(position)+1` for their source
   (`ON CONFLICT DO NOTHING`), and renumbers to `order` (owning side only) — so a
   relation with thousands of links is never sent or held whole, and the row and
-  its links commit as one. A single-relation or unknown key in `relations` is a
-  400.
+  its links commit as one. A `relations` key that owns no writable link from this
+  side — a single relation, an inverse-of-single (one-to-many), or an unknown
+  key — is a **400** (so a delta is never silently dropped); a structurally
+  malformed delta (`link`/`unlink`/`order` not a uuid array) is a **400** at the
+  DTO (`IsRelationDeltaMap`), never a 500.
   `assertTargets` validates every linked id exists in the same workspace (uniform
   422, no enumeration signal). Join rows carry a float `position` (the source's
   own ordering) so a reorder survives a reload; the inverse reads by it but can't

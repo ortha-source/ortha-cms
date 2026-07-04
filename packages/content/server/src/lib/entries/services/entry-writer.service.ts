@@ -164,9 +164,20 @@ export class EntryWriterService {
         if (!relations) return;
         for (const [field, delta] of Object.entries(relations)) {
             const spec = this.relationSpec(type, field);
-            if (!spec.relation?.many && !spec.relation?.inverse) {
+            const rel = spec.relation;
+            // Only a join-backed relation this side owns can persist a delta: an
+            // owning many-to-many, or the inverse of a many-to-many (it reuses
+            // the owning join table). A single relation (set via `values`) — and,
+            // crucially, the inverse of a *single* relation (one-to-many), which
+            // owns no writable link from this side — must be rejected here, else
+            // `applyDelta` would silently no-op and the save would drop the edit.
+            const writable = rel?.inverse
+                ? !!rel.to().fields[rel.inverse.field]?.relation?.many
+                : !!rel?.many;
+            if (!writable) {
                 throw new BadRequestException(
-                    `Relation "${type.name}.${field}" is a single relation — set it via the entry's values, not a delta.`
+                    `Relation "${type.name}.${field}" owns no writable links from this side — ` +
+                        `set a single relation via the entry's values; the inverse of a single relation is read-only.`
                 );
             }
             await this.relations.applyDelta(
