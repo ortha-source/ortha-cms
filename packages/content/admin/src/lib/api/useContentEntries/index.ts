@@ -17,6 +17,12 @@ export type ContentEntriesParams = {
     pageSize: number;
     /** `only` lists soft-deleted rows (the trash view) instead of live ones. */
     deleted?: 'only';
+    /**
+     * Slot-contributed list params (e.g. `?locale=` from the records-toolbar
+     * slot), forwarded to the request verbatim. Part of this object, so they
+     * ride the query key — two param sets never share a cache entry.
+     */
+    extra?: Record<string, string | undefined>;
 };
 
 /** The paginated envelope, matching the admin list-page convention. */
@@ -66,6 +72,11 @@ async function fetchContentEntries(
                     ...(params.filter ? { filter: params.filter } : {}),
                     ...(params.sort ? { sort: params.sort } : {}),
                     ...(params.deleted ? { deleted: params.deleted } : {}),
+                    ...Object.fromEntries(
+                        Object.entries(params.extra ?? {}).filter(
+                            ([, value]) => value !== undefined && value !== ''
+                        )
+                    ),
                     page: params.page,
                     pageSize: params.pageSize
                 }

@@ -36,6 +36,12 @@ import {
 import { useContentEntry } from '../../api/useContentEntry';
 import { useSaveEntry } from '../../api/useSaveEntry';
 import { useEntryStatusActions } from '../../api/useEntryStatusActions';
+import { useSlotListParams } from '../../hooks/useSlotListParams';
+import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
+import {
+    ENTRY_PARAMS_SLOT,
+    type EntrySlotContext
+} from '../../slots/contentSlots';
 import {
     emptyEntryValues,
     mergeEntryValues
@@ -142,10 +148,28 @@ export function ContentEntryView({
     const schemaQuery = useContentSchema(type.name);
     const schema = schemaQuery.data;
 
+    // Slot-contributed entry params (e.g. the i18n plugin's `?locale=`): URL
+    // values scoping the single-mode read, and URL values copied into the
+    // create body. Slot items are boot-frozen, so reading them is stable.
+    const entryParamsItems = ENTRY_PARAMS_SLOT.getItems();
+    const listParamKeys = useMemo(
+        () => entryParamsItems.flatMap((item) => item.listParamKeys ?? []),
+        [entryParamsItems]
+    );
+    const listSlotParams = useSlotListParams(listParamKeys);
+    const bodyParamKeys = useMemo(
+        () => entryParamsItems.flatMap((item) => item.createBodyKeys ?? []),
+        [entryParamsItems]
+    );
+    const bodySlotParams = useSlotListParams(bodyParamKeys);
+
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
         schema,
-        ONE_ENTRY,
+        {
+            ...ONE_ENTRY,
+            ...(listParamKeys.length ? { extra: listSlotParams } : {})
+        },
         mode === ENTRY_MODE.Single && !!schema
     );
 
@@ -280,10 +304,18 @@ export function ContentEntryView({
         // Reuse the id of an existing row, or one we already created this
         // session — so a save after a failed publish updates, never re-creates.
         const existingId = resolved.entry?.id ?? createdId;
+        // Slot-contributed create-body params (e.g. the target locale), from
+        // the URL. Present values only; applies to the create POST alone.
+        const bodyExtra = Object.fromEntries(
+            Object.entries(bodySlotParams).filter(
+                (pair): pair is [string, string] => pair[1] !== undefined
+            )
+        );
         const saved = await save.mutateAsync({
             id: existingId,
             values,
-            relations: options.relations
+            relations: options.relations,
+            ...(Object.keys(bodyExtra).length ? { extra: bodyExtra } : {})
         });
         // Record the new id before chaining publish: if publish then fails, the
         // draft persists and the user's retry must target it (not POST again).
@@ -351,28 +383,44 @@ export function ContentEntryView({
           }
         : undefined;
 
+    // The context handed to entry-editor slot consumers (sidebar widgets, the
+    // relation picker's param contributions) — both via the provider below and
+    // as an explicit prop where a render site maps slot items.
+    const slotContext: EntrySlotContext = {
+        schema,
+        entry: resolved.entry,
+        isCreate,
+        mode,
+        workspaceId: workspace.id,
+        typePath
+    };
+
     return (
         <div className="flex min-h-full flex-col">
-            <EntryEditor
-                schema={schema}
-                initialValues={resolved.values}
-                entry={resolved.entry}
-                isCreate={isCreate}
-                publishable={publishable}
-                title={title}
-                subtitle={schema.description}
-                saving={
-                    save.isPending ||
-                    status.publish.isPending ||
-                    status.unpublish.isPending
-                }
-                mutating={status.unpublish.isPending || status.remove.isPending}
-                onSave={onSave}
-                onUnpublish={onUnpublish}
-                onDelete={onDelete}
-                backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
-                availableTypeNames={workspace.content}
-            />
+            <EntrySlotContextProvider value={slotContext}>
+                <EntryEditor
+                    schema={schema}
+                    initialValues={resolved.values}
+                    entry={resolved.entry}
+                    isCreate={isCreate}
+                    publishable={publishable}
+                    title={title}
+                    subtitle={schema.description}
+                    saving={
+                        save.isPending ||
+                        status.publish.isPending ||
+                        status.unpublish.isPending
+                    }
+                    mutating={
+                        status.unpublish.isPending || status.remove.isPending
+                    }
+                    onSave={onSave}
+                    onUnpublish={onUnpublish}
+                    onDelete={onDelete}
+                    backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                    availableTypeNames={workspace.content}
+                />
+            </EntrySlotContextProvider>
         </div>
     );
 }

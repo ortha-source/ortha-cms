@@ -21,6 +21,8 @@ export function useColumnLabel(): (column: EntryColumn) => string {
                 return intl.formatMessage(messages.status);
             case COLUMN_KIND.Updated:
                 return intl.formatMessage(messages.updated);
+            case COLUMN_KIND.Extension:
+                return intl.formatMessage(column.item.label);
             case COLUMN_KIND.Field:
                 return fieldLabel(column.field);
         }

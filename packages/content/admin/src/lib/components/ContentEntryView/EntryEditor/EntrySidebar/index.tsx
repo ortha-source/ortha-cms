@@ -10,6 +10,8 @@ import {
     CONTENT_UPDATE,
     ENTRY_STATUS
 } from '../../../../constants';
+import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
+import { ENTRY_SIDEBAR_WIDGET_SLOT } from '../../../../slots/contentSlots';
 import {
     SidebarActionBar,
     type PrimaryAction
@@ -85,6 +87,10 @@ export function EntrySidebar({
 }) {
     const intl = useIntl();
     const [confirmDelete, setConfirmDelete] = useState(false);
+    // Slot-contributed rail widgets (e.g. the i18n plugin's locale panel),
+    // rendered below the Details block with the surrounding editor's context.
+    const slotContext = useEntrySlotContext();
+    const widgets = ENTRY_SIDEBAR_WIDGET_SLOT.getItems();
 
     const canCreate = useHasPermission(CONTENT_CREATE);
     const canUpdate = useHasPermission(CONTENT_UPDATE);
@@ -135,6 +141,12 @@ export function EntrySidebar({
             {publishable && <PublishGate items={gate} />}
 
             <DetailsBlock entry={entry} isCreate={isCreate} />
+
+            {slotContext
+                ? widgets.map((item) => (
+                      <item.Component key={item.id} {...slotContext} />
+                  ))
+                : null}
 
             {showDelete && (
                 <ConfirmDialog

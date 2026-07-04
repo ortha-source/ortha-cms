@@ -39,6 +39,11 @@ export type RelationCandidatesParams = {
      * user scrolls (lazy infinite scroll) rather than paging.
      */
     limit: number;
+    /**
+     * Slot-contributed list params (e.g. locale scoping from the entry-params
+     * slot), forwarded to the request verbatim and keyed into the cache.
+     */
+    extra?: Record<string, string>;
 };
 
 /** The windowed envelope: the first `limit` matches, the full count, and more-flag. */
@@ -72,13 +77,15 @@ async function fetchRelationCandidates(
     targetName: string,
     search: string,
     filter: string | null,
-    limit: number
+    limit: number,
+    extra: Record<string, string>
 ): Promise<EntriesEnvelope> {
     try {
         const { data } = await apiClient.get<EntriesEnvelope>(
             `/content/${targetName}`,
             {
                 params: {
+                    ...extra,
                     ...(search ? { search } : {}),
                     ...(filter ? { filter } : {}),
                     page: 1,
@@ -103,7 +110,12 @@ async function fetchRelationCandidates(
 export const relationCandidatesKey = (
     workspaceId: string,
     targetName: string,
-    params: { search: string; filter: string | null; limit: number }
+    params: {
+        search: string;
+        filter: string | null;
+        limit: number;
+        extra?: Record<string, string>;
+    }
 ) => ['relation-candidates', workspaceId, targetName, params] as const;
 
 /**
@@ -127,7 +139,7 @@ export function useRelationCandidates(
     params: RelationCandidatesParams,
     enabled = true
 ): RelationCandidatesResult {
-    const { search = '', filter = null, limit } = params;
+    const { search = '', filter = null, limit, extra = {} } = params;
     const workspace = useCurrentWorkspace();
     // Serialize the query-builder tree to the `?filter=` wire JSON the server
     // parses (null when the tree has no complete rules).
@@ -142,7 +154,8 @@ export function useRelationCandidates(
         queryKey: relationCandidatesKey(workspace.id, targetName, {
             search,
             filter: filterJson,
-            limit: effectiveLimit
+            limit: effectiveLimit,
+            ...(Object.keys(extra).length ? { extra } : {})
         }),
         enabled: enabled && !!targetName,
         placeholderData: keepPreviousData,
@@ -151,7 +164,8 @@ export function useRelationCandidates(
                 targetName,
                 search,
                 filterJson,
-                effectiveLimit
+                effectiveLimit,
+                extra
             )
     });
 
