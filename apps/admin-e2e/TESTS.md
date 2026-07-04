@@ -150,7 +150,7 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | Test case |
 | --- |
 | renders the sidebar with the Workspace section |
-| groups start collapsed and expand on click |
+| Collections opens by default; Pages toggles on click |
 | selecting a single (page) opens its entry editor |
 | only shows content types granted to the workspace |
 | pinning a type adds it to a Favorites section |

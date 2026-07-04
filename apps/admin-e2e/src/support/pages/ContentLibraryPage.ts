@@ -42,9 +42,22 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
-    /** Expand a collapsible group. */
+    /**
+     * Expand a collapsible group, **idempotently**. The Collections group is
+     * open by default (and the group holding a deep-linked type auto-opens), so
+     * a bare click would *collapse* an already-open group. Read `aria-expanded`
+     * and only click when it's collapsed, then wait until it has settled open so
+     * the caller can interact with its rows.
+     */
     async expandGroup(label: string) {
-        await this.group(label).click();
+        const trigger = this.group(label);
+        await trigger.waitFor();
+        if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+            await trigger.click();
+        }
+        await this.group(label)
+            .and(this.page.locator('[aria-expanded="true"]'))
+            .waitFor();
     }
 
     /** A category label in the sidebar ("Favorites" / "Workspace" / "Manage"). */
