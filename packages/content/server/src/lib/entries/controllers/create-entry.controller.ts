@@ -44,7 +44,8 @@ export class CreateEntryController {
             type,
             body.values,
             workspaceId,
-            body.relations
+            body.relations,
+            body.locale
         );
     }
 }

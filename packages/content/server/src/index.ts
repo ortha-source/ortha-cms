@@ -12,6 +12,23 @@ export { field } from './lib/fields';
 export { ContentModule } from './lib/content.module';
 export { CONTENT_REGISTRY, InjectContentRegistry } from './lib/content.tokens';
 
+export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
+export type {
+    ContentEntryExtension,
+    EntryFilterContext,
+    EntryFilterExtension,
+    EntryScopeParams,
+    EntryTransaction
+} from './lib/extension/entry-extension';
+
+// Row ↔ record mappers, exported for extension plugins (e.g. i18n's
+// translation copy) so their wire shapes can't drift from the pipeline's.
+export { toColumns, toRecord } from './lib/entries/services/entry-row';
+export type {
+    EntryListView,
+    EntryRecord
+} from './lib/entries/types/entry-list-view';
+
 export { ContentTypeRegistry } from './lib/registry/content-type-registry';
 export type {
     SerializedContentType,

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     and,
     asc,
@@ -14,6 +14,10 @@ import {
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
+import {
+    CONTENT_ENTRY_EXTENSION,
+    type ContentEntryExtension
+} from '../../extension/entry-extension';
 import type { AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 import {
@@ -46,7 +50,14 @@ function isTextLike(spec: AnyFieldSpec): boolean {
  */
 @Injectable()
 export class EntriesService {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        // The entries extension port (e.g. the i18n plugin's locale scoping) —
+        // absent unless a downstream plugin binds it, hence optional.
+        @Optional()
+        @Inject(CONTENT_ENTRY_EXTENSION)
+        private readonly extension?: ContentEntryExtension
+    ) {}
 
     /**
      * One page of a collection's entries: search → filter → sort → paginate, run
@@ -102,17 +113,32 @@ export class EntriesService {
         query: ListEntriesQueryDto,
         workspaceId: string
     ): Promise<SQL | undefined> {
-        const schema = buildEntryFilterSchema(type);
+        // The bound extension may contribute virtual filter fields (declared
+        // into the schema, resolved to its own SQL) and an extra scope
+        // predicate (e.g. the active locale). Both are no-ops for types the
+        // extension doesn't apply to.
+        const filterExtension = this.extension?.filterExtension(type);
+        const schema = buildEntryFilterSchema(type, filterExtension?.fields);
         const tree = parseFilterTree(query.filter, schema);
         const filterSql = await applyFilterTree(
             tree,
             schema,
             type.table,
-            this.db
+            this.db,
+            filterExtension
+                ? {
+                      resolveExtension: (rule) =>
+                          filterExtension.resolve(rule, { type, workspaceId })
+                  }
+                : {}
         );
         const table = type.table as unknown as ContentTable;
         return and(
             eq(table['workspaceId'], workspaceId),
+            this.extension?.listScope(type, workspaceId, {
+                locale: query.locale,
+                localeFallback: query.localeFallback
+            }),
             this.searchPredicate(type, query.search),
             filterSql,
             this.deletedPredicate(type, query)
@@ -171,6 +197,7 @@ export class EntriesService {
             'createdAt',
             'updatedAt',
             ...(type.publishable ? ['status'] : []),
+            ...(type.i18n ? ['locale'] : []),
             ...Object.entries(type.fields)
                 .filter(([, spec]) => isScalarField(spec))
                 .map(([name]) => name)

@@ -15,6 +15,7 @@ import { GetEntryController } from './entries/controllers/get-entry.controller';
 import { UpdateEntryController } from './entries/controllers/update-entry.controller';
 import { PublishEntryController } from './entries/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/controllers/delete-entry.controller';
+import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/services/entries.service';
 import { EntryWriterService } from './entries/services/entry-writer.service';
@@ -77,7 +78,10 @@ export class ContentModule {
                 EntryValidationService,
                 EntriesService,
                 EntryWriterService,
-                RelationLinkService
+                RelationLinkService,
+                // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
+                // bound (nothing would stamp the NOT NULL locale column).
+                EntryExtensionBootCheck
             ],
             exports: [
                 CONTENT_REGISTRY,

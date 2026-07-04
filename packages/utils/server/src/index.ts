@@ -24,3 +24,4 @@ export {
     FilterErrorCode
 } from './lib/filters/filter-exceptions';
 export { clampInt } from './lib/clamp-int';
+export { isUniqueViolation } from './lib/pg-errors';

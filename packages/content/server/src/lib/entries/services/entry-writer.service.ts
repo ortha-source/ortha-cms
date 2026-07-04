@@ -1,7 +1,10 @@
 import {
     BadRequestException,
+    ConflictException,
+    Inject,
     Injectable,
     NotFoundException,
+    Optional,
     UnprocessableEntityException
 } from '@nestjs/common';
 import {
@@ -15,6 +18,11 @@ import {
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { lockWorkspaceShared } from '@ortha-cms/identity-server';
+import { isUniqueViolation } from '@ortha-cms/utils-server';
+import {
+    CONTENT_ENTRY_EXTENSION,
+    type ContentEntryExtension
+} from '../../extension/entry-extension';
 import type { AnyContentType, EntryStatus } from '../../types/content-type';
 import { ENTRY_STATUS } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
@@ -54,7 +62,12 @@ export class EntryWriterService {
     constructor(
         @InjectDatabase() private readonly db: Database,
         private readonly validation: EntryValidationService,
-        private readonly relations: RelationLinkService
+        private readonly relations: RelationLinkService,
+        // The entries extension port (e.g. the i18n plugin's locale stamping
+        // and sibling sync) — absent unless a plugin binds it, hence optional.
+        @Optional()
+        @Inject(CONTENT_ENTRY_EXTENSION)
+        private readonly extension?: ContentEntryExtension
     ) {}
 
     /**
@@ -74,11 +87,16 @@ export class EntryWriterService {
         type: AnyContentType,
         values: Record<string, unknown>,
         workspaceId: string,
-        relations?: Record<string, RelationDelta>
+        relations?: Record<string, RelationDelta>,
+        locale?: string
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
+        // Extension-stamped envelope columns (e.g. the validated locale).
+        // Resolved before the transaction so an invalid param fails fast.
+        const extensionColumns =
+            this.extension?.createColumns(type, workspaceId, { locale }) ?? {};
         // One transaction: take the workspace's shared content lock (coordinates
         // with the delete / content-revoke guards so a new entry can't be
         // orphaned), then write the row, its whole-set join-table links (a
@@ -88,7 +106,11 @@ export class EntryWriterService {
             await lockWorkspaceShared(tx, workspaceId);
             const [inserted] = await tx
                 .insert(type.table)
-                .values({ ...toColumns(type, coerced), workspaceId } as never)
+                .values({
+                    ...toColumns(type, coerced),
+                    workspaceId,
+                    ...extensionColumns
+                } as never)
                 .returning();
             const id = (inserted as Row)['id'] as string;
             await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
@@ -262,6 +284,16 @@ export class EntryWriterService {
                 relations,
                 workspaceId
             );
+            // Extension side-effects of a save (e.g. syncing shared fields to
+            // locale siblings) run inside the same transaction — a failure
+            // rolls the whole save back.
+            await this.extension?.afterUpdate(
+                tx,
+                type,
+                updated as Row,
+                coerced,
+                workspaceId
+            );
             return updated as Row;
         });
         return toRecord(type, row);
@@ -341,7 +373,12 @@ export class EntryWriterService {
         if (!row) throw this.notFound(type, id);
     }
 
-    /** Clear a soft-deleted entry's tombstone (paranoid types only), or 404. */
+    /**
+     * Clear a soft-deleted entry's tombstone (paranoid types only), or 404.
+     * On an i18n type the restore can collide with a row created in the same
+     * (locale group, locale) slot after the soft delete — the partial unique
+     * index rejects it, surfaced as a 409 rather than a 500.
+     */
     async restore(
         type: AnyContentType,
         id: string,
@@ -349,17 +386,21 @@ export class EntryWriterService {
     ): Promise<EntryRecord> {
         this.assertParanoid(type);
         const t = this.columns(type);
-        const [row] = await this.db
-            .update(type.table)
-            .set({ deletedAt: null, updatedAt: new Date() } as never)
-            .where(
-                and(
-                    eq(t['id'], id),
-                    this.scope(type, workspaceId),
-                    isNotNull(t['deletedAt'])
-                )
-            )
-            .returning();
+        const [row] = await this.uniqueGuarded(
+            () =>
+                this.db
+                    .update(type.table)
+                    .set({ deletedAt: null, updatedAt: new Date() } as never)
+                    .where(
+                        and(
+                            eq(t['id'], id),
+                            this.scope(type, workspaceId),
+                            isNotNull(t['deletedAt'])
+                        )
+                    )
+                    .returning(),
+            type
+        );
         if (!row) throw this.notFound(type, id);
         return toRecord(type, row as Row);
     }
@@ -608,7 +649,12 @@ export class EntryWriterService {
         return { count: rows.length };
     }
 
-    /** Restore a set of soft-deleted entries (paranoid types only). */
+    /**
+     * Restore a set of soft-deleted entries (paranoid types only). As with
+     * {@link restore}, a restored row colliding with a live sibling in its
+     * (locale group, locale) slot is a 409 — the whole batch rolls back
+     * (single statement), so the caller can retry without the conflicting id.
+     */
     async bulkRestore(
         type: AnyContentType,
         ids: string[],
@@ -617,18 +663,44 @@ export class EntryWriterService {
         this.assertParanoid(type);
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
-        const rows = await this.db
-            .update(type.table)
-            .set({ deletedAt: null, updatedAt: new Date() } as never)
-            .where(
-                and(
-                    inArray(t['id'], ids),
-                    this.scope(type, workspaceId),
-                    isNotNull(t['deletedAt'])
-                )
-            )
-            .returning();
+        const rows = await this.uniqueGuarded(
+            () =>
+                this.db
+                    .update(type.table)
+                    .set({ deletedAt: null, updatedAt: new Date() } as never)
+                    .where(
+                        and(
+                            inArray(t['id'], ids),
+                            this.scope(type, workspaceId),
+                            isNotNull(t['deletedAt'])
+                        )
+                    )
+                    .returning(),
+            type
+        );
         return { count: rows.length };
+    }
+
+    /**
+     * Run a write, translating a Postgres unique violation (23505) into a 409.
+     * Only i18n types carry a restore-relevant unique index — the partial
+     * `(locale_group_id, locale)` one — so the mapping is scoped to them and
+     * any other type's violation still surfaces as the bug it is.
+     */
+    private async uniqueGuarded<T>(
+        write: () => Promise<T>,
+        type: AnyContentType
+    ): Promise<T> {
+        try {
+            return await write();
+        } catch (error) {
+            if (type.i18n && isUniqueViolation(error)) {
+                throw new ConflictException(
+                    `An entry already occupies this locale in its translation group on "${type.name}".`
+                );
+            }
+            throw error;
+        }
     }
 
     /** The type's generated table seen as a column bag (envelope + fields). */

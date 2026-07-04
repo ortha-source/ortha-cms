@@ -66,4 +66,25 @@ export class ListEntriesQueryDto {
     @IsOptional()
     @IsIn([DELETED_ONLY])
     deleted?: typeof DELETED_ONLY;
+
+    /**
+     * Locale slug the list targets — an **extension-owned** param this package
+     * declares (the strict ValidationPipe rejects undeclared keys) but never
+     * interprets: it's forwarded to the bound `CONTENT_ENTRY_EXTENSION`, which
+     * validates and applies it. Ignored when no extension is bound or the type
+     * isn't localized.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(35)
+    locale?: string;
+
+    /**
+     * `default` widens the locale scope to fall back to the default locale
+     * where the requested one is missing (the relation picker's mode).
+     * Extension-owned, like {@link locale}.
+     */
+    @IsOptional()
+    @IsIn(['default'])
+    localeFallback?: string;
 }

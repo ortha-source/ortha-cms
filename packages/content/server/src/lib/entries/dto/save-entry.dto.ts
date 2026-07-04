@@ -1,4 +1,4 @@
-import { IsObject, IsOptional } from 'class-validator';
+import { IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { RelationDelta } from '../types/entry-list-view';
 import { IsRelationDeltaMap } from './relation-delta-map.validator';
 
@@ -36,4 +36,15 @@ export class SaveEntryDto {
     @IsObject()
     @IsRelationDeltaMap()
     relations?: Record<string, RelationDelta>;
+
+    /**
+     * Locale slug the entry is created in — an **extension-owned** param this
+     * package declares but never interprets (forwarded to the bound
+     * `CONTENT_ENTRY_EXTENSION`, which validates it and stamps the envelope
+     * column). Read on create only; an update never re-homes a row's locale.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(35)
+    locale?: string;
 }

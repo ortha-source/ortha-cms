@@ -52,15 +52,26 @@ export function isScalarField(spec: AnyFieldSpec): boolean {
 /**
  * Build the query-builder `FilterSchema` for one content type at request time.
  * Whitelists the always-present envelope columns (`createdAt`/`updatedAt`),
- * plus `status`/`publishedAt` only on publishable types, plus every filterable
- * field (those `isScalarField` admits — the same set the admin's
- * `filterFieldsFromSchema` offers), keyed by the property names the engine
- * resolves to table columns. (`status` has a matching admin filter; the
- * timestamp envelopes like `publishedAt` are filterable via the API but have no
- * UI control yet.) This is the security boundary: only listed fields/ops reach
- * SQL, and the engine's depth/node caps bound payload blow-up.
+ * plus `status`/`publishedAt` only on publishable types, plus `locale` on i18n
+ * types, plus every filterable field (those `isScalarField` admits — the same
+ * set the admin's `filterFieldsFromSchema` offers), keyed by the property
+ * names the engine resolves to table columns. (`status` has a matching admin
+ * filter; the timestamp envelopes like `publishedAt` are filterable via the
+ * API but have no UI control yet.) This is the security boundary: only listed
+ * fields/ops reach SQL, and the engine's depth/node caps bound payload
+ * blow-up.
+ *
+ * `extensionFields` are **virtual** fields contributed by the bound
+ * `CONTENT_ENTRY_EXTENSION` (e.g. locale aggregates): their declarations merge
+ * into `fields` (so the parser can coerce values) and their names are
+ * registered on the schema's `extensionFields` set, routing them to the
+ * extension's own SQL resolver instead of a table column. A field column
+ * always wins a name collision — an extension cannot shadow real data.
  */
-export function buildEntryFilterSchema(type: AnyContentType): FilterSchema {
+export function buildEntryFilterSchema(
+    type: AnyContentType,
+    extensionFields?: FieldSchema
+): FilterSchema {
     const fields: FieldSchema = {
         createdAt: { type: ScalarFieldType.Date },
         updatedAt: { type: ScalarFieldType.Date }
@@ -74,11 +85,25 @@ export function buildEntryFilterSchema(type: AnyContentType): FilterSchema {
         };
         fields['publishedAt'] = { type: ScalarFieldType.Date };
     }
+    // The locale column is filterable only where it exists. Its allowed values
+    // are the extension's business — a plain string here; the extension's
+    // listScope validates slugs on the dedicated `?locale=` path.
+    if (type.i18n) {
+        fields['locale'] = { type: ScalarFieldType.String };
+    }
 
     for (const [name, spec] of Object.entries(type.fields)) {
         const scalar = scalarTypeFor(spec);
         if (scalar) fields[name] = scalar;
     }
 
-    return { fields };
+    if (!extensionFields) return { fields };
+
+    const extensionNames = Object.keys(extensionFields).filter(
+        (name) => !(name in fields)
+    );
+    for (const name of extensionNames) {
+        fields[name] = extensionFields[name];
+    }
+    return { fields, extensionFields: new Set(extensionNames) };
 }
