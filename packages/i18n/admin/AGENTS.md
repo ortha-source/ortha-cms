@@ -21,18 +21,26 @@ content plugin owns).
   page** by the item's `useRowsData` (`useLocaleSummaries` →
   `POST …/locale-summary`) — never a request per row.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT` → `LocaleWidget`** — the entry editor's **locale
-  panel**: one row per configured locale with per-locale publish status. The
-  open row is marked; an existing sibling **opens** on click; a missing one
-  offers **Create translation** (gated `content:create`; a 409 → toast +
-  refetch). On a **single page**, switching locales drives the `?locale=` URL
-  param instead (one row per locale, same editor); a missing locale is reached
-  by switching, and the blank-create form stamps the locale on save.
+  switcher**, styled like the Details block. On a **saved** record it lists
+  every configured locale: the current one is marked, an existing translation is
+  a switch target (with its publish status → navigates to that sibling's
+  editor, or `?locale=` for singles), and a missing locale is dimmed but
+  selectable → it **navigates to a draft create form** scoped to that locale +
+  the same group (`/:type/new?locale=<slug>&localeGroupId=<gid>` for
+  collections, `?locale=…&localeGroupId=…` for singles), carrying the source's
+  values in router `state.translateFrom`. Creating the sibling is then just the
+  editor's normal **Save (draft) / Publish** (gated `content:create`) — there is
+  **no** dedicated create-translation call. On a **new/unsaved** record the
+  other locales are **disabled** ("Save to add translations") — there's no group
+  to attach to yet.
 - **`RECORDS_FILTER_FIELDS_SLOT` → `useLocaleFilterFields`** — **Has locale /
   Missing locale / Locale count** filter fields, resolved server-side by the
   i18n plugin's virtual-field subqueries. Empty for a non-i18n type.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: the single-mode one-entry read
-  and the **create body** carry the active locale (`listParamKeys` /
-  `createBodyKeys` = `['locale']`), and relation-picker candidates are scoped to
+  carries the active locale (`listParamKeys = ['locale']`), the **create body**
+  carries the locale **and** the target group (`createBodyKeys = ['locale',
+  'localeGroupId']` → the server stamps a sibling), and relation-picker
+  candidates are scoped to
   the source entry's locale with default fallback
   (`{ locale, localeFallback: 'default' }`) when the target is localized.
 
@@ -46,13 +54,11 @@ TanStack Query key:
 - `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the widget).
 - `useLocaleSummaries` — `POST …/locale-summary` batched over a page's unique
   group ids (the column); sorted ids key the cache.
-- `useCreateTranslation` — creates a sibling via the **normal create**
-  endpoint, `POST /content/:type` with `{ values, locale, localeGroupId }`
-  (the `LocaleWidget` copies the source's `entry.values` + `entry.localeGroupId`;
-  many-relation links are per-locale in v1, not copied). A duplicate locale is a
-  **409**, an unknown group a **404**. On success invalidates the type's records
-  lists (`contentEntriesPrefix`, re-exported by content-admin), locale panels,
-  and summaries.
+There is **no** create-translation hook — a sibling is created through the
+Content Library's own editor Save/Publish (the widget navigates to a draft form;
+`createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The
+duplicate-locale **409** / unknown-group **404** surface through the editor's
+normal save-error path.
 
 ## Conventions
 

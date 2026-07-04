@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
@@ -118,6 +118,30 @@ function seedRelationValues(
 }
 
 /**
+ * Seed a blank create form from a source record's values, copying **only the
+ * non-localized (shared) fields** — used when a locale plugin opens a draft for
+ * a new translation (`location.state.translateFrom`). Localized fields stay
+ * empty so the translator fills them; a field the schema marks `localized`
+ * (only ever present on i18n types) is skipped. No-op when there's nothing to
+ * copy from.
+ */
+function applyTranslatePrefill(
+    schema: ContentTypeDetail,
+    base: Record<string, unknown>,
+    translateFrom: Record<string, unknown> | undefined
+): Record<string, unknown> {
+    if (!translateFrom) return base;
+    const values = { ...base };
+    for (const field of schema.fields) {
+        if (field.localized) continue; // localized → left blank per locale
+        if (field.name in translateFrom) {
+            values[field.name] = translateFrom[field.name];
+        }
+    }
+    return values;
+}
+
+/**
  * Hosts the {@link EntryEditor} for all three modes:
  * - `create` (`/:type/new`) → a blank editor;
  * - `edit` (`/:type/:entryId`) → the record from `GET /content/:type/:id`, seeded
@@ -141,9 +165,17 @@ export function ContentEntryView({
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const location = useLocation();
     const workspace = useCurrentWorkspace();
     const queryClient = useQueryClient();
     const typePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}/${type.name}`;
+
+    // A slot may open a blank create form pre-seeded from a source record (the
+    // i18n plugin's "create a translation" flow passes the source's values as
+    // `translateFrom`); the shared (non-localized) fields are copied in.
+    const translateFrom = (
+        location.state as { translateFrom?: Record<string, unknown> } | null
+    )?.translateFrom;
 
     const schemaQuery = useContentSchema(type.name);
     const schema = schemaQuery.data;
@@ -216,8 +248,19 @@ export function ContentEntryView({
         entry?: EntryRecord;
     } | null => {
         if (!schema) return null;
+        // A blank create form, optionally pre-seeded with the shared fields of
+        // a source record (translation flow).
+        const blank = () =>
+            seedRelationValues(
+                schema,
+                applyTranslatePrefill(
+                    schema,
+                    emptyEntryValues(schema),
+                    translateFrom
+                )
+            );
         if (mode === ENTRY_MODE.Create) {
-            return { values: seedRelationValues(schema, emptyEntryValues(schema)) };
+            return { values: blank() };
         }
         const source = mode === ENTRY_MODE.Edit ? editEntry : singleEntry;
         if (source) {
@@ -230,10 +273,8 @@ export function ContentEntryView({
             };
         }
         // A single page with no row yet falls back to a blank create form.
-        return mode === ENTRY_MODE.Single
-            ? { values: seedRelationValues(schema, emptyEntryValues(schema)) }
-            : null;
-    }, [schema, mode, editEntry, singleEntry]);
+        return mode === ENTRY_MODE.Single ? { values: blank() } : null;
+    }, [schema, mode, editEntry, singleEntry, translateFrom]);
 
     const loading =
         schemaQuery.isPending ||
@@ -347,8 +388,17 @@ export function ContentEntryView({
                 { label: schema.label }
             )
         );
-        // Collections return to the table; a single page stays put.
-        if (mode !== ENTRY_MODE.Single) navigate(typePath);
+        // A just-created **collection** translation (a create carrying
+        // `localeGroupId`) stays on the new row's editor so the locale switcher
+        // remains usable. A single stays put — its `?locale=` re-resolves to the
+        // row just created. Otherwise collections return to the table.
+        if (mode === ENTRY_MODE.Single) {
+            // stay put
+        } else if (!existingId && bodyExtra['localeGroupId']) {
+            navigate(`${typePath}/${saved.id}`);
+        } else {
+            navigate(typePath);
+        }
     };
 
     // Entry-level actions are available only when editing an existing collection

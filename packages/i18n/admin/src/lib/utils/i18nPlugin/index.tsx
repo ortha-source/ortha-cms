@@ -18,6 +18,7 @@ import {
 import {
     LOCALE_FALLBACK_DEFAULT,
     LOCALE_FALLBACK_PARAM,
+    LOCALE_GROUP_PARAM,
     LOCALE_PARAM,
     SLOT_ITEM_ID
 } from '../../constants';
@@ -93,8 +94,9 @@ export function I18nPlugin(): I18nAdminPlugin {
         id: SLOT_ITEM_ID.EntryParams,
         // A single page resolves its row by the active locale.
         listParamKeys: [LOCALE_PARAM],
-        // A create stamps the locale it was opened under.
-        createBodyKeys: [LOCALE_PARAM],
+        // A create stamps the locale it was opened under, and (when creating a
+        // translation via the locale widget) joins the row to that group.
+        createBodyKeys: [LOCALE_PARAM, LOCALE_GROUP_PARAM],
         // Relation candidates follow the source entry's locale, falling back
         // to the default where untranslated.
         relationCandidateParams: (

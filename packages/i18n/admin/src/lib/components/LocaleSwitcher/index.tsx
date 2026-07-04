@@ -5,6 +5,7 @@ import {
     Button,
     Command,
     CommandEmpty,
+    CommandGroup,
     CommandInput,
     CommandItem,
     CommandList,
@@ -95,28 +96,33 @@ export function LocaleSwitcher({
                         <CommandEmpty>
                             {intl.formatMessage(messages.empty)}
                         </CommandEmpty>
-                        {locales.map((locale) => (
-                            <CommandItem
-                                key={locale.slug}
-                                value={`${locale.slug} ${locale.name}`}
-                                onSelect={() => select(locale.slug)}
-                            >
-                                <Check
-                                    aria-hidden
-                                    className={
-                                        locale.slug === active?.slug
-                                            ? 'size-4'
-                                            : 'size-4 opacity-0'
-                                    }
-                                />
-                                {locale.isDefault
-                                    ? intl.formatMessage(
-                                          messages.defaultSuffix,
-                                          { name: locale.name }
-                                      )
-                                    : locale.name}
-                            </CommandItem>
-                        ))}
+                        {/* Items live in a CommandGroup so its `p-1` inset keeps
+                            the selected-row highlight clear of the popover's
+                            rounded corners (matches MultiSelect / ⌘K palette). */}
+                        <CommandGroup>
+                            {locales.map((locale) => (
+                                <CommandItem
+                                    key={locale.slug}
+                                    value={`${locale.slug} ${locale.name}`}
+                                    onSelect={() => select(locale.slug)}
+                                >
+                                    <Check
+                                        aria-hidden
+                                        className={
+                                            locale.slug === active?.slug
+                                                ? 'size-4'
+                                                : 'size-4 opacity-0'
+                                        }
+                                    />
+                                    {locale.isDefault
+                                        ? intl.formatMessage(
+                                              messages.defaultSuffix,
+                                              { name: locale.name }
+                                          )
+                                        : locale.name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
                     </CommandList>
                 </Command>
             </PopoverContent>

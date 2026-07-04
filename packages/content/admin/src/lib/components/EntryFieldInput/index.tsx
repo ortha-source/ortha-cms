@@ -1,4 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Languages } from 'lucide-react';
 import {
     Field,
     FieldDescription,
@@ -55,6 +56,14 @@ const messages = defineMessages({
     disabled: {
         id: 'content.form.disabled',
         defaultMessage: 'Disabled'
+    },
+    localized: {
+        id: 'content.form.localized',
+        defaultMessage: 'Localized field'
+    },
+    localizedHint: {
+        id: 'content.form.localizedHint',
+        defaultMessage: 'This value can differ per locale.'
     }
 });
 
@@ -96,6 +105,26 @@ export function EntryFieldInput({
     const intl = useIntl();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
+    // A field the schema marks `localized` (only ever on i18n types) shows a
+    // small indicator so the editor knows its value varies per locale. A plain
+    // span with a native `title` + sr-only name — safe to nest in a `<label>`
+    // (no interactive element). `labelNode` is used wherever a label renders.
+    const labelNode = field.localized ? (
+        <span className="inline-flex items-center gap-1.5">
+            {label}
+            <span
+                className="inline-flex text-muted-foreground"
+                title={intl.formatMessage(messages.localizedHint)}
+            >
+                <Languages aria-hidden className="size-3.5" />
+                <span className="sr-only">
+                    {intl.formatMessage(messages.localized)}
+                </span>
+            </span>
+        </span>
+    ) : (
+        label
+    );
     const admin = adminProps(field);
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
@@ -109,7 +138,7 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Boolean:
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel id={`${id}-label`}>{label}</FieldLabel>
+                    <FieldLabel id={`${id}-label`}>{labelNode}</FieldLabel>
                     <SegmentedControl
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
@@ -143,7 +172,7 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Select:
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel htmlFor={id}>{labelNode}</FieldLabel>
                     <Select
                         value={asText(value) || undefined}
                         onValueChange={(next) => {
@@ -186,7 +215,7 @@ export function EntryFieldInput({
             }));
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel htmlFor={id}>{labelNode}</FieldLabel>
                     <MultiSelect
                         id={id}
                         options={options}
@@ -223,7 +252,7 @@ export function EntryFieldInput({
                 : asText(value);
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel htmlFor={id}>{labelNode}</FieldLabel>
                     <Textarea
                         id={id}
                         value={display}
@@ -253,7 +282,7 @@ export function EntryFieldInput({
                 const ids = Array.isArray(value) ? (value as string[]) : [];
                 return (
                     <Field data-invalid={!!error}>
-                        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                        <FieldLabel htmlFor={id}>{labelNode}</FieldLabel>
                         <Textarea
                             id={id}
                             value={ids.join('\n')}
@@ -286,7 +315,7 @@ export function EntryFieldInput({
             return (
                 <InputField
                     id={id}
-                    label={label}
+                    label={labelNode}
                     value={asText(value)}
                     description={
                         error
@@ -306,7 +335,7 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Datetime:
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel htmlFor={id}>{labelNode}</FieldLabel>
                     <DateField
                         id={id}
                         value={asText(value)}
@@ -335,7 +364,7 @@ export function EntryFieldInput({
             return (
                 <InputField
                     id={id}
-                    label={label}
+                    label={labelNode}
                     value={asText(value)}
                     description={description}
                     placeholder={admin.placeholder}

@@ -91,7 +91,7 @@ test.describe('Content i18n', () => {
         ).toHaveCount(0);
     });
 
-    test('the entry editor shows the locale panel with sibling + missing rows', async ({
+    test('the entry editor locale switcher shows current / existing / missing', async ({
         contentLibraryPage
     }) => {
         await openCollection(contentLibraryPage);
@@ -104,16 +104,32 @@ test.describe('Content i18n', () => {
         await expect(contentLibraryPage.editorSave).toBeVisible();
         await expect(contentLibraryPage.localeWidget).toBeVisible();
 
-        // The de sibling exists → Open; fr is missing → Create translation.
+        // The de sibling exists → switch; fr is missing → create.
         await expect(
-            contentLibraryPage.openTranslation('Deutsch')
+            contentLibraryPage.switchLocale('Deutsch')
         ).toBeVisible();
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();
     });
 
-    test('creating a translation navigates to the new locale row', async ({
+    test('switching to an existing sibling opens that locale row', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage
+            .recordsTable('Localized posts')
+            .getByRole('link', { name: /Winter boots/ })
+            .click();
+        await expect(contentLibraryPage.localeWidget).toBeVisible();
+
+        await contentLibraryPage.switchLocale('Deutsch').click();
+
+        await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
+    });
+
+    test('selecting a missing locale opens a prefilled draft form', async ({
         page,
         contentLibraryPage
     }) => {
@@ -126,7 +142,16 @@ test.describe('Content i18n', () => {
 
         await contentLibraryPage.createTranslation('Français').click();
 
-        // Navigates to the freshly created fr row's editor.
-        await expect(page).toHaveURL(/\/localized_post\/lp-fr-new$/);
+        // Lands on a create form scoped to the target locale + the same group.
+        await expect(page).toHaveURL(/\/localized_post\/new\?/);
+        await expect(page).toHaveURL(/locale=fr/);
+        await expect(page).toHaveURL(/localeGroupId=G1/);
+
+        // Shared (non-localized) fields are prefilled from the source; the
+        // localized Title starts blank for the translator, and shows the
+        // localizable indicator.
+        await expect(page.getByLabel('Category')).toContainText('guide');
+        await expect(page.getByLabel(/Title/)).toHaveValue('');
+        await expect(page.getByText('Localized field').first()).toBeAttached();
     });
 });

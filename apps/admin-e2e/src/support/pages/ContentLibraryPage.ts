@@ -270,22 +270,22 @@ export class ContentLibraryPage extends BasePage {
         await this.localeOption(name).click();
     }
 
-    /** The entry editor's locale panel (sidebar widget) title text. */
+    /** The entry editor's locale switcher (sidebar widget) title text. */
     get localeWidget(): Locator {
-        return this.page.getByText('Locales', { exact: true });
+        return this.page.getByText('Locale', { exact: true });
     }
 
-    /** The "Create translation" / "Add" control for a locale in the widget. */
+    /** The switch-to-create control for a not-yet-translated locale in the widget. */
     createTranslation(localeName: string): Locator {
         return this.page.getByRole('button', {
             name: `Create the ${localeName} translation`
         });
     }
 
-    /** The "Open" control for an existing sibling locale in the widget. */
-    openTranslation(localeName: string): Locator {
+    /** The switch control for an existing sibling locale in the widget. */
+    switchLocale(localeName: string): Locator {
         return this.page.getByRole('button', {
-            name: `Open the ${localeName} version`
+            name: `Switch to the ${localeName} version`
         });
     }
 }

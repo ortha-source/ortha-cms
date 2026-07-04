@@ -1,21 +1,19 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Plus } from 'lucide-react';
-import { Badge, Button, Spinner } from '@ortha-cms/design-system';
+import { Check, Plus } from 'lucide-react';
+import { Badge, cn } from '@ortha-cms/design-system';
 import type { EntryStatus } from '@ortha-cms/content-admin';
 
 const messages = defineMessages({
     current: { id: 'i18n.widget.current', defaultMessage: 'Current' },
-    open: { id: 'i18n.widget.open', defaultMessage: 'Open' },
     add: { id: 'i18n.widget.add', defaultMessage: 'Add' },
-    missing: { id: 'i18n.widget.missing', defaultMessage: 'Not translated' },
     statusPublished: {
         id: 'i18n.widget.status.published',
         defaultMessage: 'Published'
     },
     statusDraft: { id: 'i18n.widget.status.draft', defaultMessage: 'Draft' },
-    openLabel: {
-        id: 'i18n.widget.openLabel',
-        defaultMessage: 'Open the {name} version'
+    switchLabel: {
+        id: 'i18n.widget.switchLabel',
+        defaultMessage: 'Switch to the {name} version'
     },
     addLabel: {
         id: 'i18n.widget.addLabel',
@@ -24,40 +22,52 @@ const messages = defineMessages({
 });
 
 /**
- * One locale's row in the {@link LocaleWidget}: name + per-locale publish
- * status, and the action its state affords — nothing when it's the open row,
- * **Open** when the translation exists, **Create translation** when missing
- * (permission-gated by the widget).
+ * One locale's row in the {@link LocaleWidget} switcher. The current locale is
+ * marked; an **existing** sibling is a switch target (with its publish status);
+ * a **missing** locale is dimmed but selectable to start its draft; a
+ * **disabled** locale (create mode, no group yet) is inert. The whole row is
+ * the switch affordance — a single `<button>` when actionable.
  */
 export function LocaleRow({
     name,
     isCurrent,
     exists,
     status,
-    creating = false,
-    onOpen,
-    onCreate
+    disabled = false,
+    onSelect
 }: {
     /** Display name of the locale. */
     name: string;
-    /** Whether this is the row the editor has open. */
+    /** Whether this is the locale the editor currently has open. */
     isCurrent: boolean;
-    /** Whether the translation exists. */
+    /** Whether a translation exists in this locale. */
     exists: boolean;
     /** The sibling row's publish status (publishable types only). */
     status?: EntryStatus;
-    /** Whether a create-translation for this locale is in flight. */
-    creating?: boolean;
-    /** Navigate to the sibling row (when it exists and isn't current). */
-    onOpen?: () => void;
-    /** Create the missing translation (when permitted). */
-    onCreate?: () => void;
+    /** Inert row (create mode: no group to attach to yet). */
+    disabled?: boolean;
+    /** Switch to / create this locale. Absent = not actionable. */
+    onSelect?: () => void;
 }) {
     const intl = useIntl();
-    return (
-        <li className="flex min-h-9 items-center justify-between gap-2 text-sm">
-            <span className="flex min-w-0 items-center gap-2">
+    const missing = !exists && !isCurrent;
+
+    const body = (
+        <>
+            <span
+                className={cn(
+                    'flex min-w-0 items-center gap-2',
+                    missing && 'text-muted-foreground'
+                )}
+            >
+                {isCurrent ? (
+                    <Check aria-hidden className="size-3.5 shrink-0" />
+                ) : (
+                    <span aria-hidden className="size-3.5 shrink-0" />
+                )}
                 <span className="truncate">{name}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
                 {status ? (
                     <Badge
                         variant={
@@ -71,46 +81,56 @@ export function LocaleRow({
                         )}
                     </Badge>
                 ) : null}
+                {isCurrent ? (
+                    <span className="text-xs text-muted-foreground">
+                        {intl.formatMessage(messages.current)}
+                    </span>
+                ) : missing && onSelect ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Plus aria-hidden className="size-3" />
+                        {intl.formatMessage(messages.add)}
+                    </span>
+                ) : null}
             </span>
-            {isCurrent ? (
-                <Badge variant="outline">
-                    {intl.formatMessage(messages.current)}
-                </Badge>
-            ) : exists ? (
-                onOpen ? (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={onOpen}
-                        aria-label={intl.formatMessage(messages.openLabel, {
-                            name
-                        })}
-                    >
-                        {intl.formatMessage(messages.open)}
-                    </Button>
-                ) : null
-            ) : onCreate ? (
-                <Button
+        </>
+    );
+
+    const rowClass =
+        'flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-2 text-sm';
+
+    // Actionable rows are a single full-width button (the whole row switches).
+    if (onSelect && !isCurrent && !disabled) {
+        return (
+            <li>
+                <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={creating}
-                    onClick={onCreate}
-                    aria-label={intl.formatMessage(messages.addLabel, { name })}
-                >
-                    {creating ? (
-                        <Spinner aria-hidden className="size-3.5" />
-                    ) : (
-                        <Plus aria-hidden className="size-3.5" />
+                    onClick={onSelect}
+                    aria-label={intl.formatMessage(
+                        exists ? messages.switchLabel : messages.addLabel,
+                        { name }
                     )}
-                    {intl.formatMessage(messages.add)}
-                </Button>
-            ) : (
-                <span className="text-xs text-muted-foreground">
-                    {intl.formatMessage(messages.missing)}
-                </span>
+                    className={cn(
+                        rowClass,
+                        'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    )}
+                >
+                    {body}
+                </button>
+            </li>
+        );
+    }
+
+    // Current (highlighted) or disabled (dimmed) — static.
+    return (
+        <li
+            aria-current={isCurrent ? 'true' : undefined}
+            className={cn(
+                rowClass,
+                isCurrent && 'bg-accent',
+                disabled && 'opacity-50'
             )}
+        >
+            {body}
         </li>
     );
 }

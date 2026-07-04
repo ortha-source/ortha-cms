@@ -6,6 +6,13 @@
 /** URL query param holding the active content locale. */
 export const LOCALE_PARAM = 'locale';
 
+/**
+ * URL query param carrying the translation group a created row joins (a
+ * sibling). Matches the server `SaveEntryDto.localeGroupId` body key, so the
+ * entry-params slot forwards it straight into the create body.
+ */
+export const LOCALE_GROUP_PARAM = 'localeGroupId';
+
 /** URL/list param widening a list to default-locale fallback. */
 export const LOCALE_FALLBACK_PARAM = 'localeFallback';
 

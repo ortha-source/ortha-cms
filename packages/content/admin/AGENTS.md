@@ -231,6 +231,17 @@ list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidate
 (`extra`). Wire types carry `i18n` (summary/detail), `localized` (field), and
 `locale`/`localeGroupId` (`EntryRecord`).
 
+Two generic hooks surface the `localized` schema flag (same way the editor
+already surfaces `required`), so a locale plugin needs no field-level slot:
+- `EntryFieldInput` renders a small **localizable indicator** (a `Languages`
+  icon + native `title` + sr-only name) beside a field's label when
+  `field.localized`. Self-scopes (only i18n types ever mark a field localized).
+- `ContentEntryView` create mode reads `location.state.translateFrom` (a source
+  record's values) and seeds the blank form with **only the non-localized**
+  fields — the "create a translation" prefill; localized fields start empty. A
+  create carrying a `localeGroupId` (a sibling) then navigates to the new row's
+  editor instead of the list.
+
 ## Package
 
 - Name: `@ortha-cms/content-admin`
