@@ -78,6 +78,29 @@ describe('ContentTypeRegistry', () => {
         it('returns undefined for an unknown type', () => {
             expect(registry.serialize('nope')).toBeUndefined();
         });
+
+        it('carries the i18n flag on summaries and localized on fields', () => {
+            const doc = collection('doc', {
+                i18n: true,
+                fields: {
+                    title: field.text({ localized: true }),
+                    slug: field.text()
+                }
+            });
+            const reg = new ContentTypeRegistry([doc]);
+            expect(reg.summaries()[0].i18n).toBe(true);
+            const fields = reg.serialize('doc')!.fields;
+            const byName = Object.fromEntries(fields.map((x) => [x.name, x]));
+            expect(byName['title'].localized).toBe(true);
+            // Omitted (not false) for a non-localized field.
+            expect(byName['slug'].localized).toBeUndefined();
+        });
+
+        it('reports i18n false on a non-localized type', () => {
+            expect(
+                registry.summaries().find((s) => s.name === 'post')?.i18n
+            ).toBe(false);
+        });
     });
 
     it('exposes get()/all() over the registration set', () => {

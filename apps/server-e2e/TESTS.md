@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_252 test cases across 25 spec files._
+_272 test cases across 26 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -353,6 +353,71 @@ _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
 | 400s a request with no X-Workspace-Id header |
 | 400s a malformed (non-UUID) X-Workspace-Id header |
 | 403s a workspace the user is not a member of |
+
+<!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
+_<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
+
+## Content i18n (/api/content/:type + /api/i18n)
+
+### locales endpoint
+
+| Test case |
+| --- |
+| serves the configured locales with exactly one default |
+
+### create stamps the locale
+
+| Test case |
+| --- |
+| defaults to the default locale (en) when none is sent |
+| stamps an explicit locale |
+| 400s an unknown locale |
+| gives a plain create its own fresh translation group |
+
+### strict list scoping + default fallback
+
+| Test case |
+| --- |
+| lists only the default locale when no ?locale= is sent |
+| lists only the requested locale with ?locale=de (strict) |
+| 400s a list scoped to an unknown locale |
+| falls back to the default row where the requested locale is missing |
+
+### create translation
+
+| Test case |
+| --- |
+| copies values into a new draft sibling sharing the group |
+| 409s a duplicate locale in the group |
+| 400s a translation on an unknown target locale |
+
+### shared-field sync
+
+| Test case |
+| --- |
+| propagates a non-localized field to siblings but leaves localized fields alone |
+| 422s and rolls back when the sync would invalidate a published sibling |
+
+### locale aggregate filters
+
+| Test case |
+| --- |
+| hasLocale / missingLocale select by group membership |
+| localeCount filters by number of translations |
+
+### locale panel + summary
+
+| Test case |
+| --- |
+| returns one item per configured locale, present or null |
+| batches group summaries for a page of rows |
+| 400s the locale endpoints on a non-i18n type |
+
+### non-i18n regression
+
+| Test case |
+| --- |
+| ignores ?locale= on a non-localized type |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

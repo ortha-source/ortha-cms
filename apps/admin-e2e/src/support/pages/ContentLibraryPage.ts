@@ -251,4 +251,41 @@ export class ContentLibraryPage extends BasePage {
     get retry(): Locator {
         return this.page.getByRole('button', { name: 'Try again' });
     }
+
+    // --- i18n (from @ortha-cms/i18n-admin, via the content library slots) ---
+
+    /** The records-toolbar locale switcher trigger (label reads "Locale: {name}"). */
+    get localeSwitcher(): Locator {
+        return this.page.getByRole('button', { name: /^Locale: / });
+    }
+
+    /** A locale option inside the open switcher popover. */
+    localeOption(name: string | RegExp): Locator {
+        return this.page.getByRole('option', { name });
+    }
+
+    /** Open the locale switcher and pick a locale by its option name. */
+    async selectLocale(name: string | RegExp) {
+        await this.localeSwitcher.click();
+        await this.localeOption(name).click();
+    }
+
+    /** The entry editor's locale panel (sidebar widget) title text. */
+    get localeWidget(): Locator {
+        return this.page.getByText('Locales', { exact: true });
+    }
+
+    /** The "Create translation" / "Add" control for a locale in the widget. */
+    createTranslation(localeName: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Create the ${localeName} translation`
+        });
+    }
+
+    /** The "Open" control for an existing sibling locale in the widget. */
+    openTranslation(localeName: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Open the ${localeName} version`
+        });
+    }
 }
