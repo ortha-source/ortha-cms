@@ -5,11 +5,23 @@ import {
     WORKSPACE_SIDEBAR_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { FileStack } from 'lucide-react';
-import { CONTENT_READ, CONTENT_SEGMENT } from '../../constants';
+import {
+    COLLECTION_PARAM,
+    CONTENT_READ,
+    CONTENT_SEGMENT,
+    RECORD_PARAM,
+    RECORDS_SEGMENT
+} from '../../constants';
 
 const ContentLibraryPage = lazy(() =>
     import('../../pages/ContentLibraryPage').then((module) => ({
         default: module.ContentLibraryPage
+    }))
+);
+
+const RecordEditPage = lazy(() =>
+    import('../../pages/RecordEditPage').then((module) => ({
+        default: module.RecordEditPage
     }))
 );
 
@@ -20,15 +32,39 @@ const ContentLibraryPage = lazy(() =>
 export type ContentAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side Content Library plugin. It lives **strictly inside a
- * workspace**: it contributes no top-level route and no top-toolbar nav entry,
- * only a rail button (`order: 10`, first) + a route to the workspace shell's
- * slots (owned by `@ortha-cms/workspaces-admin`). Register it after
- * `WorkspacesPlugin()` so those slots exist.
+ * Creates the admin-side Content Library plugin. Its Library lives **strictly
+ * inside a workspace**: a rail button (`order: 10`, first) + a route into the
+ * workspace shell's slots (owned by `@ortha-cms/workspaces-admin`). Register it
+ * after `WorkspacesPlugin()` so those slots exist.
+ *
+ * It also contributes one **top-level, full-viewport** route — the dynamic
+ * record editor (`/records/:collection/:recordId`) — mounted as a `public`
+ * sibling so it renders chrome-less, without the workspace sidebar (the editor
+ * ships its own top bar + sidebar toggle).
  */
 export function ContentPlugin(): ContentAdminPlugin {
     return {
         name: 'content',
+        routes: [
+            {
+                path: `/${RECORDS_SEGMENT}/:${COLLECTION_PARAM}/:${RECORD_PARAM}`,
+                public: true,
+                element: (
+                    <Suspense fallback={null}>
+                        <RecordEditPage />
+                    </Suspense>
+                )
+            },
+            {
+                path: `/${RECORDS_SEGMENT}/:${COLLECTION_PARAM}`,
+                public: true,
+                element: (
+                    <Suspense fallback={null}>
+                        <RecordEditPage />
+                    </Suspense>
+                )
+            }
+        ],
         slots: [
             {
                 slot: WORKSPACE_SIDEBAR_SLOT,

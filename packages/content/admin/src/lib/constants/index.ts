@@ -151,3 +151,24 @@ export const ENVELOPE_COLUMN = {
     Status: 'status',
     UpdatedAt: 'updatedAt'
 } as const;
+
+/**
+ * Top-level path segment for the **dynamic record editor** design preview
+ * (`/records/:collection/:recordId`). A full-viewport, chrome-less route (no
+ * workspace shell), so it mounts as a `public` sibling — the single source of
+ * truth for the mount path, shared by `contentPlugin` (route `path`) and the
+ * page (`useParams`).
+ */
+export const RECORDS_SEGMENT = 'records';
+
+/** Route param holding the record editor's collection machine name. */
+export const COLLECTION_PARAM = 'collection';
+
+/** Route param holding the record editor's record id. */
+export const RECORD_PARAM = 'recordId';
+
+/** Query-param name holding the record editor's active locale (`?locale=en`). */
+export const LOCALE_PARAM = 'locale';
+
+/** Key that, with ⌘/Ctrl, toggles the record editor's field-jump palette. */
+export const FIELD_JUMP_KEY = 'j';
