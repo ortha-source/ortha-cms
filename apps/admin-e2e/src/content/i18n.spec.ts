@@ -66,12 +66,10 @@ test.describe('Content i18n', () => {
     }) => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.selectLocale(/Deutsch/);
-        // The transition flourish names the target locale…
+        // The transition flourish names the target locale.
         await expect(contentLibraryPage.localeSwitchOverlay).toHaveText(
             /Switching to Deutsch/
         );
-        // …and hides the stale content behind a page skeleton.
-        await expect(contentLibraryPage.localeSwitchSkeleton).toBeVisible();
     });
 
     test('the Locales column shows per-group locale badges', async ({

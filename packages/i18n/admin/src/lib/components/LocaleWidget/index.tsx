@@ -148,8 +148,7 @@ export function LocaleWidget({
         // Play the switch flourish; the store carries it across the navigation
         // so the destination editor's overlay host picks it up.
         beginLocaleSwitch(
-            locales.find((locale) => locale.slug === slug)?.name ?? slug,
-            'editor'
+            locales.find((locale) => locale.slug === slug)?.name ?? slug
         );
         // The draft's shared fields come from the source values: the saved
         // entry (edit mode), or whatever the create form already carries
