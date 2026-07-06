@@ -1,6 +1,7 @@
 import { defineMessages } from 'react-intl';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import {
+    ENTRY_HEADER_SLOT,
     ENTRY_PARAMS_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
     RECORDS_COLUMN_SLOT,
@@ -9,6 +10,7 @@ import {
     type ContentTypeDetail,
     type EntryRecord,
     type EntrySlotContext,
+    type EntryHeaderItem,
     type RecordsColumnItem,
     type RecordsToolbarItem,
     type EntrySidebarWidgetItem,
@@ -27,6 +29,7 @@ import { useLocaleFilterFields } from '../../hooks/useLocaleFilterFields';
 import { LocaleSwitcher } from '../../components/LocaleSwitcher';
 import { LocalesColumnCell } from '../../components/LocalesColumnCell';
 import { LocaleWidget } from '../../components/LocaleWidget';
+import { LocaleTitleChip } from '../../components/LocaleTitleChip';
 
 const messages = defineMessages({
     localesColumn: {
@@ -50,6 +53,7 @@ export type I18nAdminPlugin = AdminPlugin;
  *   group's locales with publish status, batch-loaded per page;
  * - the **locale panel** in the entry editor's sidebar (per-locale status,
  *   open a sibling, create a translation);
+ * - a **current-locale chip** beside the entry-editor title;
  * - **Has locale / Missing locale / Locale count** filter fields;
  * - entry param plumbing: the single-page read and the create body carry the
  *   active locale, and relation-picker candidates are scoped to the source
@@ -86,6 +90,10 @@ export function I18nPlugin(): I18nAdminPlugin {
         id: SLOT_ITEM_ID.Widget,
         Component: LocaleWidget
     };
+    const titleChipItem: EntryHeaderItem = {
+        id: SLOT_ITEM_ID.TitleChip,
+        Component: LocaleTitleChip
+    };
     const filterFieldsItem: RecordsFilterFieldsItem = {
         id: SLOT_ITEM_ID.FilterFields,
         useFields: useLocaleFilterFields
@@ -116,6 +124,7 @@ export function I18nPlugin(): I18nAdminPlugin {
             { slot: RECORDS_TOOLBAR_SLOT, items: [switcherItem] },
             { slot: RECORDS_COLUMN_SLOT, items: [columnItem] },
             { slot: ENTRY_SIDEBAR_WIDGET_SLOT, items: [widgetItem] },
+            { slot: ENTRY_HEADER_SLOT, items: [titleChipItem] },
             { slot: RECORDS_FILTER_FIELDS_SLOT, items: [filterFieldsItem] },
             { slot: ENTRY_PARAMS_SLOT, items: [entryParamsItem] }
         ]

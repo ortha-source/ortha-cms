@@ -21,6 +21,8 @@ import type {
 } from '../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
+import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
+import { ENTRY_HEADER_SLOT } from '../../../slots/contentSlots';
 import { useEntryRelations } from '../../../api/useEntryRelations';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
@@ -163,6 +165,10 @@ export function EntryEditor({
     availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
+    // Slot-contributed title-row add-ons (e.g. the i18n plugin's locale chip),
+    // rendered beside the heading with the surrounding editor's context.
+    const slotContext = useEntrySlotContext();
+    const headerItems = ENTRY_HEADER_SLOT.getItems();
     // The existing entry's id, or undefined while creating. Many/inverse
     // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
@@ -327,9 +333,19 @@ export function EntryEditor({
                     </Link>
                 ) : null}
                 <div className="mb-6 min-w-0">
-                    <h1 className="text-lg font-semibold tracking-[-0.01em]">
-                        {title}
-                    </h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="text-lg font-semibold tracking-[-0.01em]">
+                            {title}
+                        </h1>
+                        {slotContext
+                            ? headerItems.map((item) => (
+                                  <item.Component
+                                      key={item.id}
+                                      {...slotContext}
+                                  />
+                              ))
+                            : null}
+                    </div>
                     {subtitle ? (
                         <p className="mt-1 text-sm text-muted-foreground">
                             {subtitle}

@@ -6,7 +6,7 @@ extension slots: **no routes, no layout, no nav item**. Register it in
 `createAdmin({ plugins })` **after** `ContentPlugin()` (it fills slots the
 content plugin owns).
 
-## What it contributes (the five slots)
+## What it contributes (the six slots)
 
 - **`RECORDS_TOOLBAR_SLOT` → `LocaleSwitcher`** — a searchable dropdown
   (design-system `Popover` + `Command`) of the configured locales, shown **only
@@ -40,6 +40,14 @@ content plugin owns).
       the group's members are read by `useLocaleSummaries` (batched by that group
       id) so an already-existing sibling is a live switch target; a fresh create
       (no group) simply re-scopes to the picked locale.
+    - The card carries a **contextual `CardDescription`** under its title — a
+      saved-record line vs a create-mode line (keyed on `isCreate`).
+- **`ENTRY_HEADER_SLOT` → `LocaleTitleChip`** — a static `Badge` beside the
+  entry-editor title showing the open locale as **code · name** (e.g.
+  `EN · English`), shown **only when `schema.i18n`**. The current locale is
+  resolved like the widget's (`entry.locale ?? ?locale= ?? defaultLocale`) and
+  the display name comes from `useLocales`; switching stays in the widget /
+  toolbar switcher (the chip is non-interactive).
 - **`RECORDS_FILTER_FIELDS_SLOT` → `useLocaleFilterFields`** — **Has locale /
   Missing locale / Locale count** filter fields, resolved server-side by the
   i18n plugin's virtual-field subqueries. Empty for a non-i18n type.

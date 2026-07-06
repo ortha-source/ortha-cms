@@ -104,6 +104,15 @@ test.describe('Content i18n', () => {
         await expect(contentLibraryPage.editorSave).toBeVisible();
         await expect(contentLibraryPage.localeWidget).toBeVisible();
 
+        // The title chip names the open locale (code + label).
+        await expect(contentLibraryPage.editorTitleChip).toHaveText(
+            'EN · English'
+        );
+        // The widget explains itself (saved-record copy).
+        await expect(
+            contentLibraryPage.paneText(/Switch between this record/)
+        ).toBeVisible();
+
         // The de sibling exists → switch; fr is missing → create.
         await expect(
             contentLibraryPage.switchLocale('Deutsch')
@@ -127,6 +136,10 @@ test.describe('Content i18n', () => {
         await contentLibraryPage.switchLocale('Deutsch').click();
 
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
+        // The title chip follows the open locale.
+        await expect(contentLibraryPage.editorTitleChip).toHaveText(
+            'DE · Deutsch'
+        );
     });
 
     test('selecting a missing locale opens a prefilled draft form', async ({
@@ -166,6 +179,14 @@ test.describe('Content i18n', () => {
         // though nothing is saved yet.
         await expect(page).toHaveURL(/\/localized_post\/new$/);
         await expect(contentLibraryPage.localeWidget).toBeVisible();
+
+        // The chip shows the default locale, and the widget uses its create copy.
+        await expect(contentLibraryPage.editorTitleChip).toHaveText(
+            'EN · English'
+        );
+        await expect(
+            contentLibraryPage.paneText(/Choose the locale for this new record/)
+        ).toBeVisible();
 
         // Switch the form's target locale to German (no group yet — a fresh
         // record, just re-scoped).

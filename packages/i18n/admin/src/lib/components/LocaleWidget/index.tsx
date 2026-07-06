@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Card,
     CardContent,
+    CardDescription,
     CardHeader,
     CardTitle
 } from '@ortha-cms/design-system';
@@ -24,7 +25,17 @@ import { useLocaleSummaries } from '../../api/useLocaleSummaries';
 import { LocaleRow } from './LocaleRow';
 
 const messages = defineMessages({
-    title: { id: 'i18n.widget.title', defaultMessage: 'Locale' }
+    title: { id: 'i18n.widget.title', defaultMessage: 'Locale' },
+    descriptionEdit: {
+        id: 'i18n.widget.descriptionEdit',
+        defaultMessage:
+            'Switch between this record’s locales, or start a new translation.'
+    },
+    descriptionCreate: {
+        id: 'i18n.widget.descriptionCreate',
+        defaultMessage:
+            'Choose the locale for this new record — or switch to one that already exists.'
+    }
 });
 
 /** A group member resolved for one locale slug (its row id + publish status). */
@@ -88,6 +99,13 @@ export function LocaleWidget({
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                     {intl.formatMessage(messages.title)}
                 </CardTitle>
+                <CardDescription>
+                    {intl.formatMessage(
+                        isCreate
+                            ? messages.descriptionCreate
+                            : messages.descriptionEdit
+                    )}
+                </CardDescription>
             </CardHeader>
             <CardContent>{children}</CardContent>
         </Card>

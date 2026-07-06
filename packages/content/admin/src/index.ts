@@ -2,6 +2,7 @@ export { ContentPlugin } from './lib/utils/contentPlugin';
 export type { ContentAdminPlugin } from './lib/utils/contentPlugin';
 
 export {
+    ENTRY_HEADER_SLOT,
     ENTRY_PARAMS_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
     RECORDS_COLUMN_SLOT,
@@ -9,6 +10,7 @@ export {
     RECORDS_TOOLBAR_SLOT
 } from './lib/slots/contentSlots';
 export type {
+    EntryHeaderItem,
     EntryParamsItem,
     EntrySlotContext,
     EntrySidebarWidgetItem,

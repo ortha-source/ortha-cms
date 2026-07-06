@@ -33,6 +33,7 @@ export const SLOT_ITEM_ID = {
     Switcher: 'i18n.localeSwitcher',
     Column: 'i18n.localesColumn',
     Widget: 'i18n.localeWidget',
+    TitleChip: 'i18n.localeTitleChip',
     FilterFields: 'i18n.filterFields',
     EntryParams: 'i18n.entryParams'
 } as const;

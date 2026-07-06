@@ -140,6 +140,23 @@ export const ENTRY_SIDEBAR_WIDGET_SLOT = createSlot<EntrySidebarWidgetItem>(
     'content.entry.sidebar'
 );
 
+/** One entry-header contribution (an inline element beside the editor title). */
+export type EntryHeaderItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /** Rendered in the title row, to the right of the `<h1>` (e.g. a chip). */
+    Component: ComponentType<EntrySlotContext>;
+};
+
+/**
+ * Inline add-ons in the entry editor's title row, rendered after the `<h1>`
+ * (e.g. the i18n plugin's current-locale chip). The heading stays the sole
+ * `<h1>`; contributions are siblings beside it.
+ */
+export const ENTRY_HEADER_SLOT = createSlot<EntryHeaderItem>(
+    'content.entry.header'
+);
+
 /** One filter-fields contribution for the records query-builder drawer. */
 export type RecordsFilterFieldsItem = {
     /** Stable id. */

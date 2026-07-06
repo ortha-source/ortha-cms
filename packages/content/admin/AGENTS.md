@@ -198,10 +198,10 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
 
 ## Extension slots
 
-The library exposes five named slots (`src/lib/slots/contentSlots`, via
+The library exposes six named slots (`src/lib/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills all five. **Slot items are boot-frozen**
+`@ortha-cms/i18n-admin` fills all six. **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
 `RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
@@ -218,6 +218,9 @@ fetching internally.
   rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
   workspaceId, typePath) assembled by `ContentEntryView` and shared via
   `EntrySlotContextProvider`.
+- **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
+  rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
+  same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after `filterFieldsFromSchema`.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode

@@ -233,7 +233,7 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /** Visible text in the selected-type / placeholder pane. */
-    paneText(text: string): Locator {
+    paneText(text: string | RegExp): Locator {
         return this.page.getByText(text);
     }
 
@@ -273,6 +273,11 @@ export class ContentLibraryPage extends BasePage {
     /** The entry editor's locale switcher (sidebar widget) title text. */
     get localeWidget(): Locator {
         return this.page.getByText('Locale', { exact: true });
+    }
+
+    /** The current-locale chip beside the entry-editor title (aria-labelled). */
+    get editorTitleChip(): Locator {
+        return this.page.getByLabel(/Current locale/);
     }
 
     /** The switch-to-create control for a not-yet-translated locale in the widget. */
