@@ -55,6 +55,18 @@ const LOCALIZED_SCHEMA = {
             validation: {},
             options: ['news', 'guide'],
             admin: { label: 'Category' }
+        },
+        {
+            // A single relation to an i18n target (self) — per-locale: the
+            // server serializes it `localized`, and the picker is scoped to the
+            // active locale (even on a create form, via the slot `params`).
+            name: 'related',
+            type: 'relation',
+            required: false,
+            localized: true,
+            validation: {},
+            relation: { to: 'localized_post', many: false },
+            admin: { label: 'Related post' }
         }
     ]
 };

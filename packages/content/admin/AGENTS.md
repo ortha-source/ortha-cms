@@ -216,8 +216,11 @@ fetching internally.
   `useRowsData` batches per-page data once for all its cells.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a card in the entry editor's right rail,
   rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
-  workspaceId, typePath) assembled by `ContentEntryView` and shared via
-  `EntrySlotContextProvider`.
+  workspaceId, typePath, **params**) assembled by `ContentEntryView` and shared
+  via `EntrySlotContextProvider`. `params` is the current URL values of the
+  `ENTRY_PARAMS_SLOT` keys (list + create-body), opaque — a slot reads only its
+  own keys (e.g. i18n scopes the relation picker by its `locale` even on a create
+  form, where there's no saved `entry`).
 - **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
   rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.

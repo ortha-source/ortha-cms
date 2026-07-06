@@ -125,6 +125,13 @@ export type EntrySlotContext = {
     workspaceId: string;
     /** Absolute path to the open type (`/workspaces/:id/content/:typeName`). */
     typePath: string;
+    /**
+     * Current URL values of the {@link ENTRY_PARAMS_SLOT} keys (list +
+     * create-body), keyed by param name (`undefined` when absent). Opaque — a
+     * slot reads only its own keys (e.g. i18n scopes the relation picker by its
+     * `locale` even on a create form, where there's no saved `entry`).
+     */
+    params: Record<string, string | undefined>;
 };
 
 /** One entry-sidebar widget contribution (a card in the right rail). */

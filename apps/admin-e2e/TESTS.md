@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_168 test cases across 22 spec files._
+_169 test cases across 22 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -183,6 +183,7 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | selecting a missing locale opens a prefilled draft form |
 | a brand-new record can be re-targeted to another locale before saving |
 | a translation draft can jump to an existing sibling |
+| the relation picker on a translation-create form is scoped to that locale |
 
 <!-- source: apps/admin-e2e/src/content/relations.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_

@@ -103,15 +103,21 @@ export function I18nPlugin(): I18nAdminPlugin {
         // A create stamps the locale it was opened under, and (when creating a
         // translation via the locale widget) joins the row to that group.
         createBodyKeys: [LOCALE_PARAM, LOCALE_GROUP_PARAM],
-        // Relation candidates are scoped **strictly** to the source entry's
-        // locale — cross-locale linking isn't allowed, so no default fallback.
+        // Relation candidates are scoped **strictly** to the active locale —
+        // cross-locale linking isn't allowed, so no default fallback. The locale
+        // is the saved entry's (edit mode) or the create form's `?locale=` (a
+        // translation draft has no `entry` yet). A fresh default-locale create
+        // resolves nothing → `{}` → the server scopes to the default locale.
         relationCandidateParams: (
             targetSchema: ContentTypeDetail,
             source: EntrySlotContext
-        ): Record<string, string> =>
-            targetSchema.i18n && source.entry?.locale
-                ? { [LOCALE_PARAM]: source.entry.locale }
-                : {}
+        ): Record<string, string> => {
+            const locale =
+                source.entry?.locale ?? source.params?.[LOCALE_PARAM];
+            return targetSchema.i18n && locale
+                ? { [LOCALE_PARAM]: locale }
+                : {};
+        }
     };
     return {
         name: 'i18n',

@@ -442,7 +442,11 @@ export function ContentEntryView({
         isCreate,
         mode,
         workspaceId: workspace.id,
-        typePath
+        typePath,
+        // The entry-params URL values (opaque), so a slot can scope by its own
+        // param even on a create form — e.g. i18n reads `?locale=` here to keep
+        // the relation picker in-locale when there's no saved `entry` yet.
+        params: { ...listSlotParams, ...bodySlotParams }
     };
 
     return (

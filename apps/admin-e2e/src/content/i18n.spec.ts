@@ -232,4 +232,28 @@ test.describe('Content i18n', () => {
         await contentLibraryPage.switchLocale('Deutsch').click();
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
     });
+
+    test('the relation picker on a translation-create form is scoped to that locale', async ({
+        page,
+        relationsEditorPage
+    }) => {
+        // A brand-new German translation draft — no saved entry, the locale
+        // lives only in the URL.
+        await page.goto(
+            `/workspaces/${I18N_WORKSPACE.id}/content/localized_post/new?locale=de&localeGroupId=G1`
+        );
+        await relationsEditorPage.openRelationsTab();
+
+        // Opening the "Related post" picker (target is an i18n type) must scope
+        // candidates to the create form's locale (de) — not the default — even
+        // though there's no saved entry to read the locale from.
+        const candidates = page.waitForRequest(
+            (req) =>
+                req.url().includes('/api/content/localized_post') &&
+                /[?&]locale=de(&|$)/.test(req.url())
+        );
+        await relationsEditorPage.selectButton('Localized posts').click();
+        await expect(relationsEditorPage.dialog).toBeVisible();
+        await candidates;
+    });
 });
