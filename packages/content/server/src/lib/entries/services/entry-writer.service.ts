@@ -142,6 +142,17 @@ export class EntryWriterService {
                         relations,
                         workspaceId
                     );
+                    // Same side-effects as an update (e.g. syncing shared fields
+                    // to locale siblings): a sibling created into an existing
+                    // group must land consistent with the group's shared values.
+                    // A no-op for a fresh, sibling-less group.
+                    await this.extension?.afterUpdate(
+                        tx,
+                        type,
+                        inserted as Row,
+                        coerced,
+                        workspaceId
+                    );
                     return inserted as Row;
                 }),
             type

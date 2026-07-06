@@ -32,14 +32,16 @@ The extension owns all locale *behavior*:
   group** as a sibling translation — verified to name a real group in the
   workspace first (else **404**), so a typo can't spawn a stray one-row group.
   This is why sibling creation needs no dedicated endpoint (see HTTP surface).
-- **`afterUpdate`** — inside the save transaction, syncs every **non-`localized`**
-  column-backed field to the group's sibling rows, then **re-validates any
-  published sibling** via content-server's `EntryValidationService` — a failure
-  throws 422 and rolls the whole save back (a draft edit can't silently
-  invalidate a live translation). Join-backed relation links are per-row in v1
-  (copied at translation creation, not synced), and a **single relation whose
-  target is itself i18n** is excluded too (`isPerLocaleRelation`) — its FK is
-  per-locale, so a cross-locale link is never synced onto a sibling.
+- **`afterUpdate`** — runs inside **both the create and update** transactions
+  (so a newly-created sibling lands consistent with its group, not just later
+  edits). Syncs every **non-`localized`** column-backed field to the group's
+  sibling rows, then **re-validates any published sibling** via content-server's
+  `EntryValidationService` — a failure throws 422 and rolls the whole save back
+  (a draft edit can't silently invalidate a live translation). A no-op when the
+  group has no other members (a fresh create). Join-backed relation links are
+  per-row in v1 (copied at translation creation, not synced), and a **single
+  relation whose target is itself i18n** is excluded too (`isPerLocaleRelation`)
+  — its FK is per-locale, so a cross-locale link is never synced onto a sibling.
 - **`filterExtension`** — the virtual filter fields `hasLocale` /
   `missingLocale` (enum of slugs) and `localeCount` (number), resolved to
   `EXISTS` / correlated-count subqueries over the group (ridden by the

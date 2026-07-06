@@ -123,9 +123,11 @@ export interface ContentEntryExtension {
     ): Record<string, unknown> | Promise<Record<string, unknown>>;
 
     /**
-     * Runs inside the update transaction, after the row's columns and relation
-     * deltas are written — e.g. to propagate shared values to sibling rows. A
-     * throw rolls the whole save back.
+     * Runs inside the **create and update** transactions, after the row's
+     * columns and relation deltas are written — e.g. to propagate shared values
+     * to sibling rows (so a newly-created sibling lands consistent with its
+     * group, and an edit re-syncs). A throw rolls the whole save back. The
+     * implementation must no-op when there are no siblings to affect.
      */
     afterUpdate(
         tx: EntryTransaction,

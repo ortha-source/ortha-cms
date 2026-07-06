@@ -325,6 +325,30 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.values.author ?? null).toBeNull(); // relation NOT synced
         });
 
+        it('syncs shared fields when a sibling is created into the group', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article', number: 1 }
+            });
+            // Create the de sibling with a DIFFERENT shared `number`.
+            await agent
+                .post('/api/content/article')
+                .send({
+                    values: { text: 'DE title', select: 'article', number: 5 },
+                    locale: 'de',
+                    localeGroupId: en.localeGroupId
+                })
+                .expect(201);
+
+            const enAfter = (
+                await agent.get(`/api/content/article/${en.id}`).expect(200)
+            ).body as { values: Record<string, unknown> };
+            // The shared field propagates to the pre-existing en row on create...
+            expect(enAfter.values.number).toBe(5);
+            // ...while the localized text stays per-locale.
+            expect(enAfter.values.text).toBe('EN title');
+        });
+
         it('422s and rolls back when the sync would invalidate a published sibling', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
