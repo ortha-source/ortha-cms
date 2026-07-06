@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Globe } from 'lucide-react';
+import { Languages } from 'lucide-react';
 import { Spinner, cn } from '@ortha-cms/design-system';
 
 const messages = defineMessages({
@@ -11,6 +11,8 @@ const messages = defineMessages({
     }
 });
 
+/** A short beat before the overlay eases in, so it doesn't pop in instantly. */
+const SHOW_DELAY_MS = 150;
 /** How long the overlay holds at full opacity before it starts fading out. */
 const HOLD_MS = 550;
 /** Fade-out duration — keep in sync with the `duration-300` class below. */
@@ -18,8 +20,9 @@ const FADE_MS = 300;
 
 /**
  * A brief, non-interactive full-screen flourish shown while the active locale
- * changes: a large globe, a spinner, and "Switching to <locale>…". Fades in on
- * mount, holds, then fades out and calls `onDone` so the parent can unmount it.
+ * changes: a `Languages` glyph, a spinner, and "Switching to <locale>…". Waits a
+ * short beat (so it doesn't pop in instantly), fades in, holds, then fades out
+ * and calls `onDone` so the parent can unmount it.
  *
  * Purely visual (`pointer-events-none`, `motion-reduce:animate-none`) — the real
  * data load is the records view's job; this only marks the transition. Portalled
@@ -35,16 +38,27 @@ export function LocaleSwitchOverlay({
     onDone: () => void;
 }) {
     const intl = useIntl();
+    // `shown` gates the small pre-delay; `leaving` swaps fade-in for fade-out.
+    const [shown, setShown] = useState(false);
     const [leaving, setLeaving] = useState(false);
 
     useEffect(() => {
+        const show = setTimeout(() => setShown(true), SHOW_DELAY_MS);
+        return () => clearTimeout(show);
+    }, []);
+
+    useEffect(() => {
+        if (!shown) return;
         const hold = setTimeout(() => setLeaving(true), HOLD_MS);
         const done = setTimeout(onDone, HOLD_MS + FADE_MS);
         return () => {
             clearTimeout(hold);
             clearTimeout(done);
         };
-    }, [onDone]);
+    }, [shown, onDone]);
+
+    // Truly absent during the pre-delay — nothing renders until the beat passes.
+    if (!shown) return null;
 
     return createPortal(
         <div
@@ -58,7 +72,10 @@ export function LocaleSwitchOverlay({
             )}
         >
             <div className="flex flex-col items-center gap-3">
-                <Globe aria-hidden className="size-12 text-muted-foreground" />
+                <Languages
+                    aria-hidden
+                    className="size-12 text-muted-foreground"
+                />
                 <Spinner aria-hidden />
                 <p className="text-sm text-muted-foreground">
                     {intl.formatMessage(messages.switching, {
