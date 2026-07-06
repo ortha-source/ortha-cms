@@ -19,6 +19,7 @@ import type { ContentField } from '../../types/contentType';
 import { fieldLabel } from '../../utils/entryColumns';
 import { adminProps } from '../../utils/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../constants';
+import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
 
@@ -85,24 +86,33 @@ export function EntryFieldInput({
     field,
     value,
     error,
+    changed = false,
     onChange,
     onBlur
 }: {
     field: ContentField;
     value: unknown;
     error?: string;
+    /** Whether the field holds an unsaved edit (shows a "Changed" badge). */
+    changed?: boolean;
     onChange: (value: unknown) => void;
     onBlur?: () => void;
 }) {
     const intl = useIntl();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
-    // A field the schema marks `localized` (only ever on i18n types) shows a
-    // small **end-of-label** indicator so the editor knows its value varies per
-    // locale. `mark` is placed at the far right of the label row — via
-    // `InputField`'s `labelAction` slot, or after the label text in a
-    // `FieldLabel` widened to `justify-between`.
-    const mark = field.localized ? <LocalizedFieldMark /> : null;
+    // The label row's right-hand adornments, kept together so they never
+    // collide: the "Changed" badge (unsaved edit) and, for a `localized` field
+    // (only ever on i18n types), a globe mark. `ml-auto` pushes the pair to the
+    // far right of the label row — in a `w-full` `FieldLabel` or `InputField`'s
+    // `labelAction` slot. Null when the field has neither.
+    const endAdornment =
+        changed || field.localized ? (
+            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                {changed ? <ChangedBadge /> : null}
+                {field.localized ? <LocalizedFieldMark /> : null}
+            </span>
+        ) : null;
     const admin = adminProps(field);
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
@@ -118,10 +128,10 @@ export function EntryFieldInput({
                 <Field data-invalid={!!error}>
                     <FieldLabel
                         id={`${id}-label`}
-                        className={field.localized ? 'w-full' : undefined}
+                        className={endAdornment ? 'w-full' : undefined}
                     >
                         {label}
-                        {mark}
+                        {endAdornment}
                     </FieldLabel>
                     <SegmentedControl
                         aria-labelledby={`${id}-label`}
@@ -158,10 +168,10 @@ export function EntryFieldInput({
                 <Field data-invalid={!!error}>
                     <FieldLabel
                         htmlFor={id}
-                        className={field.localized ? 'w-full' : undefined}
+                        className={endAdornment ? 'w-full' : undefined}
                     >
                         {label}
-                        {mark}
+                        {endAdornment}
                     </FieldLabel>
                     <Select
                         value={asText(value) || undefined}
@@ -207,10 +217,10 @@ export function EntryFieldInput({
                 <Field data-invalid={!!error}>
                     <FieldLabel
                         htmlFor={id}
-                        className={field.localized ? 'w-full' : undefined}
+                        className={endAdornment ? 'w-full' : undefined}
                     >
                         {label}
-                        {mark}
+                        {endAdornment}
                     </FieldLabel>
                     <MultiSelect
                         id={id}
@@ -250,10 +260,10 @@ export function EntryFieldInput({
                 <Field data-invalid={!!error}>
                     <FieldLabel
                         htmlFor={id}
-                        className={field.localized ? 'w-full' : undefined}
+                        className={endAdornment ? 'w-full' : undefined}
                     >
                         {label}
-                        {mark}
+                        {endAdornment}
                     </FieldLabel>
                     <Textarea
                         id={id}
@@ -286,10 +296,10 @@ export function EntryFieldInput({
                     <Field data-invalid={!!error}>
                         <FieldLabel
                         htmlFor={id}
-                        className={field.localized ? 'w-full' : undefined}
+                        className={endAdornment ? 'w-full' : undefined}
                     >
                         {label}
-                        {mark}
+                        {endAdornment}
                     </FieldLabel>
                         <Textarea
                             id={id}
@@ -324,7 +334,7 @@ export function EntryFieldInput({
                 <InputField
                     id={id}
                     label={label}
-                    labelAction={mark ?? undefined}
+                    labelAction={endAdornment ?? undefined}
                     value={asText(value)}
                     description={
                         error
@@ -346,10 +356,10 @@ export function EntryFieldInput({
                 <Field data-invalid={!!error}>
                     <FieldLabel
                         htmlFor={id}
-                        className={field.localized ? 'w-full' : undefined}
+                        className={endAdornment ? 'w-full' : undefined}
                     >
                         {label}
-                        {mark}
+                        {endAdornment}
                     </FieldLabel>
                     <DateField
                         id={id}
@@ -380,7 +390,7 @@ export function EntryFieldInput({
                 <InputField
                     id={id}
                     label={label}
-                    labelAction={mark ?? undefined}
+                    labelAction={endAdornment ?? undefined}
                     value={asText(value)}
                     description={description}
                     placeholder={admin.placeholder}

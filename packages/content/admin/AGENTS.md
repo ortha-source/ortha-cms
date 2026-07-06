@@ -237,10 +237,13 @@ list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidate
 Two generic hooks surface the `localized` schema flag (same way the editor
 already surfaces `required`), so a locale plugin needs no field-level slot:
 - `EntryFieldInput` renders a small **localizable indicator**
-  (`LocalizedFieldMark` — a `Globe` icon + native `title` + sr-only name) at the
-  **far right of a field's label row** when `field.localized` (via `InputField`'s
-  `labelAction` slot, or a `w-full` `FieldLabel` + `ml-auto`). Self-scopes (only
-  i18n types ever mark a field localized).
+  (`LocalizedFieldMark` — a `Globe` icon + native `title` + sr-only name) when
+  `field.localized`. It shares a single right-aligned **end-adornment** with the
+  "Changed" badge (the `changed` prop) at the far right of the label row (a
+  `w-full` `FieldLabel`, or `InputField`'s `labelAction` slot) — so the badge and
+  the globe sit **side by side** instead of overlapping. The `changed` flag comes
+  from `EntryFieldSections` (`isChanged`); the badge is no longer an absolute
+  overlay. Self-scopes (only i18n types ever mark a field localized).
 - `ContentEntryView` create mode reads `location.state.translateFrom` (a source
   record's values) and seeds the blank form with **only the non-localized**
   fields — the "create a translation" prefill; localized fields start empty. A
