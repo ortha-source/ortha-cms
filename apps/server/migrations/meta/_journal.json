@@ -50,6 +50,13 @@
       "when": 1783176961109,
       "tag": "0006_content_i18n",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783330842555,
+      "tag": "0007_author_i18n",
+      "breakpoints": true
     }
   ]
 }

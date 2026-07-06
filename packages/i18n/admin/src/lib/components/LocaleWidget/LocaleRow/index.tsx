@@ -4,7 +4,6 @@ import { Badge, cn } from '@ortha-cms/design-system';
 import type { EntryStatus } from '@ortha-cms/content-admin';
 
 const messages = defineMessages({
-    current: { id: 'i18n.widget.current', defaultMessage: 'Current' },
     add: { id: 'i18n.widget.add', defaultMessage: 'Add' },
     statusPublished: {
         id: 'i18n.widget.status.published',
@@ -78,11 +77,7 @@ export function LocaleRow({
                         )}
                     </Badge>
                 ) : null}
-                {isCurrent ? (
-                    <span className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.current)}
-                    </span>
-                ) : missing && onSelect ? (
+                {missing && onSelect ? (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Plus aria-hidden className="size-3" />
                         {intl.formatMessage(messages.add)}

@@ -268,6 +268,63 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.body.values.text).toBe('DE title');
         });
 
+        it('does not sync a relation to a localizable target across locales', async () => {
+            const agent = await login();
+            // `author` is now an i18n type, so `article.author` is a per-locale
+            // relation — a shared FK would be a cross-locale link.
+            const authorEn = (
+                await agent
+                    .post('/api/content/author')
+                    .send({ values: { name: 'Ada' } })
+                    .expect(201)
+            ).body as { id: string };
+            const en = await createArticle(agent, {
+                values: {
+                    text: 'EN title',
+                    select: 'article',
+                    number: 1,
+                    author: authorEn.id
+                }
+            });
+            // The de sibling starts with NO author (the client's prefill drops
+            // a per-locale relation, so the create body omits it).
+            const de = (
+                await agent
+                    .post('/api/content/article')
+                    .send({
+                        values: {
+                            text: 'DE title',
+                            select: 'article',
+                            number: 1
+                        },
+                        locale: 'de',
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201)
+            ).body as { id: string; values: Record<string, unknown> };
+            expect(de.values.author ?? null).toBeNull();
+
+            // Edit a shared field on en — it syncs — but the author must NOT be
+            // pushed onto the de sibling.
+            await agent
+                .patch(`/api/content/article/${en.id}`)
+                .send({
+                    values: {
+                        text: 'EN title',
+                        select: 'article',
+                        number: 99,
+                        author: authorEn.id
+                    }
+                })
+                .expect(200);
+
+            const deAfter = (
+                await agent.get(`/api/content/article/${de.id}`).expect(200)
+            ).body as { values: Record<string, unknown> };
+            expect(deAfter.values.number).toBe(99); // shared field synced
+            expect(deAfter.values.author ?? null).toBeNull(); // relation NOT synced
+        });
+
         it('422s and rolls back when the sync would invalidate a published sibling', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
@@ -382,15 +439,15 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
 
         it('400s the locale endpoints on a non-i18n type', async () => {
             const agent = await login();
-            // `author` is not localized.
-            const authorId = (
+            // `seo_meta` is not localized (author is now an i18n type).
+            const seoId = (
                 await agent
-                    .post('/api/content/author')
-                    .send({ values: { name: 'Ada' } })
+                    .post('/api/content/seo_meta')
+                    .send({ values: { metaTitle: 'Home' } })
                     .expect(201)
             ).body.id as string;
             await agent
-                .get(`/api/i18n/content/author/${authorId}/locales`)
+                .get(`/api/i18n/content/seo_meta/${seoId}/locales`)
                 .expect(400);
         });
     });
@@ -399,12 +456,12 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('ignores ?locale= on a non-localized type', async () => {
             const agent = await login();
             await agent
-                .post('/api/content/author')
-                .send({ values: { name: 'Ada' } })
+                .post('/api/content/seo_meta')
+                .send({ values: { metaTitle: 'Home' } })
                 .expect(201);
-            // The author list ignores the locale param entirely.
+            // The seo_meta list ignores the locale param entirely.
             const res = await agent
-                .get('/api/content/author?locale=de')
+                .get('/api/content/seo_meta?locale=de')
                 .expect(200);
             expect(res.body.total).toBe(1);
         });

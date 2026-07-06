@@ -76,7 +76,12 @@ columns:
   of an entry is a full row; siblings share a `locale_group_id`. Per-field,
   `field.*({ localized: true })` marks a value as varying per locale (rejected
   at define time on a non-i18n type); an unmarked field is **shared** across the
-  group. This package owns the storage *shape* only — what a locale *means*
+  group. A **single relation whose target type is also i18n** is per-locale too
+  — `isPerLocaleRelation` (exported) derives it, and the schema serializer stamps
+  `localized: true` on such a field even without the flag: a shared FK would be a
+  cross-locale link, so the i18n sibling-sync and the admin's translation prefill
+  skip it and the relation picker offers only same-locale candidates. This
+  package owns the storage *shape* only — what a locale *means*
   (allowed slugs, the default, scoping, sync) lives behind the
   `CONTENT_ENTRY_EXTENSION` port (see below), so content-server stays
   locale-agnostic.

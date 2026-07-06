@@ -7,6 +7,7 @@
 
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
+import { isPerLocaleRelation } from '../extension/per-locale-relation';
 
 /** Wire shape of a field, as served to the admin / frontends. */
 export interface SerializedField {
@@ -135,14 +136,20 @@ export class ContentTypeRegistry {
 
     /** The wire shape of one field spec. */
     private serializeField(
+        type: AnyContentType,
         fieldName: string,
         spec: AnyFieldSpec
     ): SerializedField {
+        // A single relation to an i18n target is per-locale (can't share a
+        // cross-locale FK), so it serializes as `localized` — the admin then
+        // treats it like any other localized field (skips it in the translation
+        // prefill, marks it with the icon).
+        const localized = spec.localized || isPerLocaleRelation(type, spec);
         return {
             name: fieldName,
             type: spec.type,
             required: spec.required,
-            ...(spec.localized ? { localized: true } : {}),
+            ...(localized ? { localized: true } : {}),
             validation: { ...spec.validation },
             admin: { ...spec.admin },
             ...(spec.options ? { options: spec.options } : {}),
@@ -179,7 +186,7 @@ export class ContentTypeRegistry {
         return {
             ...this.summaryOf(type),
             fields: Object.entries(type.fields).map(([fieldName, spec]) =>
-                this.serializeField(fieldName, spec)
+                this.serializeField(type, fieldName, spec)
             )
         };
     }

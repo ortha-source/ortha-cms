@@ -56,9 +56,11 @@ content plugin owns).
   carries the active locale (`listParamKeys = ['locale']`), the **create body**
   carries the locale **and** the target group (`createBodyKeys = ['locale',
   'localeGroupId']` → the server stamps a sibling), and relation-picker
-  candidates are scoped to
-  the source entry's locale with default fallback
-  (`{ locale, localeFallback: 'default' }`) when the target is localized.
+  candidates are scoped **strictly** to the source entry's locale
+  (`{ locale }`, no default fallback) when the target is localized — cross-locale
+  linking isn't allowed, so an i18n record links only same-locale targets. (Edit
+  mode only; a create-mode picker can't be scoped through the locale-agnostic
+  `EntrySlotContext` — a follow-up.)
 
 ## Switch flourish (`LocaleSwitchOverlay` + `utils/localeTransition`)
 

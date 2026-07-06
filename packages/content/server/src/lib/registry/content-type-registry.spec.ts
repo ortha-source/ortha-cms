@@ -101,6 +101,50 @@ describe('ContentTypeRegistry', () => {
                 registry.summaries().find((s) => s.name === 'post')?.i18n
             ).toBe(false);
         });
+
+        it('serializes a single relation to an i18n target as localized (per-locale)', () => {
+            const locAuthor = collection('loc_author', {
+                i18n: true,
+                fields: { name: field.text() }
+            });
+            const plainTag = collection('plain_tag', {
+                fields: { name: field.text() }
+            });
+            // An i18n owner relating to an i18n target (per-locale) and to a
+            // non-i18n target (stays shared).
+            const locPost = collection('loc_post', {
+                i18n: true,
+                fields: {
+                    title: field.text({ localized: true }),
+                    author: field.relation({ to: () => locAuthor }),
+                    tag: field.relation({ to: () => plainTag })
+                }
+            });
+            const reg = new ContentTypeRegistry([locAuthor, plainTag, locPost]);
+            const byName = Object.fromEntries(
+                reg.serialize('loc_post')!.fields.map((x) => [x.name, x])
+            );
+            // Relation → i18n target: derived localized.
+            expect(byName['author'].localized).toBe(true);
+            // Relation → non-i18n target: stays shared (omitted).
+            expect(byName['tag'].localized).toBeUndefined();
+        });
+
+        it('does not derive localized for a relation on a non-i18n owner', () => {
+            const locTarget = collection('loc_target', {
+                i18n: true,
+                fields: { name: field.text() }
+            });
+            // Non-i18n owner → the localized flag is meaningless (no siblings).
+            const plainOwner = collection('plain_owner', {
+                fields: { ref: field.relation({ to: () => locTarget }) }
+            });
+            const reg = new ContentTypeRegistry([locTarget, plainOwner]);
+            const byName = Object.fromEntries(
+                reg.serialize('plain_owner')!.fields.map((x) => [x.name, x])
+            );
+            expect(byName['ref'].localized).toBeUndefined();
+        });
     });
 
     it('exposes get()/all() over the registration set', () => {

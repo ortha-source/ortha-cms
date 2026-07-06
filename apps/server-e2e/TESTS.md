@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_273 test cases across 26 spec files._
+_274 test cases across 26 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -397,6 +397,7 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | propagates a non-localized field to siblings but leaves localized fields alone |
+| does not sync a relation to a localizable target across locales |
 | 422s and rolls back when the sync would invalidate a published sibling |
 
 ### locale aggregate filters

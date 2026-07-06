@@ -37,7 +37,9 @@ The extension owns all locale *behavior*:
   published sibling** via content-server's `EntryValidationService` — a failure
   throws 422 and rolls the whole save back (a draft edit can't silently
   invalidate a live translation). Join-backed relation links are per-row in v1
-  (copied at translation creation, not synced).
+  (copied at translation creation, not synced), and a **single relation whose
+  target is itself i18n** is excluded too (`isPerLocaleRelation`) — its FK is
+  per-locale, so a cross-locale link is never synced onto a sibling.
 - **`filterExtension`** — the virtual filter fields `hasLocale` /
   `missingLocale` (enum of slugs) and `localeCount` (number), resolved to
   `EXISTS` / correlated-count subqueries over the group (ridden by the

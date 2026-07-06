@@ -18,8 +18,6 @@ import {
     type EntryParamsItem
 } from '@ortha-cms/content-admin';
 import {
-    LOCALE_FALLBACK_DEFAULT,
-    LOCALE_FALLBACK_PARAM,
     LOCALE_GROUP_PARAM,
     LOCALE_PARAM,
     SLOT_ITEM_ID
@@ -105,17 +103,14 @@ export function I18nPlugin(): I18nAdminPlugin {
         // A create stamps the locale it was opened under, and (when creating a
         // translation via the locale widget) joins the row to that group.
         createBodyKeys: [LOCALE_PARAM, LOCALE_GROUP_PARAM],
-        // Relation candidates follow the source entry's locale, falling back
-        // to the default where untranslated.
+        // Relation candidates are scoped **strictly** to the source entry's
+        // locale — cross-locale linking isn't allowed, so no default fallback.
         relationCandidateParams: (
             targetSchema: ContentTypeDetail,
             source: EntrySlotContext
         ): Record<string, string> =>
             targetSchema.i18n && source.entry?.locale
-                ? {
-                      [LOCALE_PARAM]: source.entry.locale,
-                      [LOCALE_FALLBACK_PARAM]: LOCALE_FALLBACK_DEFAULT
-                  }
+                ? { [LOCALE_PARAM]: source.entry.locale }
                 : {}
     };
     return {

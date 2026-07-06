@@ -22,6 +22,7 @@ import {
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import {
     EntryValidationService,
+    isPerLocaleRelation,
     toColumns,
     toRecord,
     type AnyContentType,
@@ -336,7 +337,9 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
      * siblings. `null` when the type has no shared column-backed field (then
      * there's nothing to sync). Join-backed relation links are per-row in this
      * milestone (copied at translation creation, not synced) — only fields
-     * with a main-table column participate.
+     * with a main-table column participate. A **single relation to an i18n
+     * target** is per-locale (a shared FK would be a cross-locale link), so it's
+     * excluded too — its FK stays independent per sibling.
      */
     private sharedColumns(
         type: AnyContentType,
@@ -348,7 +351,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 !(
                     spec.type === CONTENT_FIELD_TYPE.Relation &&
                     (spec.relation?.many || spec.relation?.inverse)
-                )
+                ) &&
+                !isPerLocaleRelation(type, spec)
         );
         if (!sharedFields.length) return null;
         const allColumns = toColumns(type, values);

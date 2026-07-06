@@ -20,6 +20,7 @@ export type {
     EntryScopeParams,
     EntryTransaction
 } from './lib/extension/entry-extension';
+export { isPerLocaleRelation } from './lib/extension/per-locale-relation';
 
 // Row ↔ record mappers, exported for extension plugins (e.g. i18n's
 // translation copy) so their wire shapes can't drift from the pipeline's.
