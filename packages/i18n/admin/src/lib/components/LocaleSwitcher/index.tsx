@@ -16,6 +16,7 @@ import {
 import type { RecordsToolbarContext } from '@ortha-cms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
 import { useLocales } from '../../api/useLocales';
+import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 
 const messages = defineMessages({
     label: {
@@ -50,6 +51,8 @@ export function LocaleSwitcher({
 }: RecordsToolbarContext) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    // The locale being switched to, while the transition flourish plays.
+    const [switchingTo, setSwitchingTo] = useState<string | null>(null);
     const { locales, defaultLocale } = useLocales();
 
     if (!schema.i18n || locales.length === 0) return null;
@@ -60,6 +63,11 @@ export function LocaleSwitcher({
 
     const select = (slug: string) => {
         setOpen(false);
+        // Re-selecting the active locale is a no-op — no re-scope, no flourish.
+        if (slug === active?.slug) return;
+        setSwitchingTo(
+            locales.find((locale) => locale.slug === slug)?.name ?? slug
+        );
         updateParams({
             // Default locale = clean URL — the server scopes to it when the
             // param is absent, so the two spellings can't drift.
@@ -68,64 +76,72 @@ export function LocaleSwitcher({
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="shadow-none"
-                    aria-label={intl.formatMessage(messages.label, {
-                        name: active?.name ?? ''
-                    })}
-                >
-                    <Globe aria-hidden className="size-4" />
-                    {active?.name}
-                    <ChevronDown
-                        aria-hidden
-                        className="size-3.5 text-muted-foreground"
-                    />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56 p-0" align="end">
-                <Command>
-                    <CommandInput
-                        placeholder={intl.formatMessage(
-                            messages.searchPlaceholder
-                        )}
-                    />
-                    <CommandList>
-                        <CommandEmpty>
-                            {intl.formatMessage(messages.empty)}
-                        </CommandEmpty>
-                        {/* Items live in a CommandGroup so its `p-1` inset keeps
+        <>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        className="shadow-none"
+                        aria-label={intl.formatMessage(messages.label, {
+                            name: active?.name ?? ''
+                        })}
+                    >
+                        <Globe aria-hidden className="size-4" />
+                        {active?.name}
+                        <ChevronDown
+                            aria-hidden
+                            className="size-3.5 text-muted-foreground"
+                        />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="end">
+                    <Command>
+                        <CommandInput
+                            placeholder={intl.formatMessage(
+                                messages.searchPlaceholder
+                            )}
+                        />
+                        <CommandList>
+                            <CommandEmpty>
+                                {intl.formatMessage(messages.empty)}
+                            </CommandEmpty>
+                            {/* Items live in a CommandGroup so its `p-1` inset keeps
                             the selected-row highlight clear of the popover's
                             rounded corners (matches MultiSelect / ⌘K palette). */}
-                        <CommandGroup>
-                            {locales.map((locale) => (
-                                <CommandItem
-                                    key={locale.slug}
-                                    value={`${locale.slug} ${locale.name}`}
-                                    onSelect={() => select(locale.slug)}
-                                >
-                                    <Check
-                                        aria-hidden
-                                        className={
-                                            locale.slug === active?.slug
-                                                ? 'size-4'
-                                                : 'size-4 opacity-0'
-                                        }
-                                    />
-                                    {locale.isDefault
-                                        ? intl.formatMessage(
-                                              messages.defaultSuffix,
-                                              { name: locale.name }
-                                          )
-                                        : locale.name}
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
+                            <CommandGroup>
+                                {locales.map((locale) => (
+                                    <CommandItem
+                                        key={locale.slug}
+                                        value={`${locale.slug} ${locale.name}`}
+                                        onSelect={() => select(locale.slug)}
+                                    >
+                                        <Check
+                                            aria-hidden
+                                            className={
+                                                locale.slug === active?.slug
+                                                    ? 'size-4'
+                                                    : 'size-4 opacity-0'
+                                            }
+                                        />
+                                        {locale.isDefault
+                                            ? intl.formatMessage(
+                                                  messages.defaultSuffix,
+                                                  { name: locale.name }
+                                              )
+                                            : locale.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+            {switchingTo ? (
+                <LocaleSwitchOverlay
+                    localeName={switchingTo}
+                    onDone={() => setSwitchingTo(null)}
+                />
+            ) : null}
+        </>
     );
 }

@@ -270,6 +270,11 @@ export class ContentLibraryPage extends BasePage {
         await this.localeOption(name).click();
     }
 
+    /** The transient "Switching to …" overlay shown while a locale switch plays. */
+    get localeSwitchOverlay(): Locator {
+        return this.page.getByText(/Switching to/);
+    }
+
     /** The entry editor's locale switcher (sidebar widget) title text. */
     get localeWidget(): Locator {
         return this.page.getByText('Locale', { exact: true });

@@ -13,7 +13,11 @@ content plugin owns).
   when `schema.i18n`**. It owns the `?locale=` list param (`listParamKeys`), so
   the records list is scoped to the active locale server-side; the **default
   locale keeps a clean URL** (no `?locale=`), matching the server's default
-  scoping.
+  scoping. Picking a **different** locale plays a brief, non-interactive
+  `LocaleSwitchOverlay` — a portalled full-screen flourish (globe + spinner +
+  "Switching to <locale>…") that fades in/out while the table re-scopes. Purely
+  visual (`pointer-events-none`), timed (not tied to the query) — the records
+  view still owns the real pending state.
 - **`RECORDS_COLUMN_SLOT` → `LocalesColumnCell`** — an optional **Locales**
   column (`appliesTo: s => !!s.i18n`; hidden by default, toggled in the column
   picker) showing one status-tinted badge per live locale of the row's

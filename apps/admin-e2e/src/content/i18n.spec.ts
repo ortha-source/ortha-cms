@@ -61,6 +61,17 @@ test.describe('Content i18n', () => {
         ).not.toContainText('Winter boots');
     });
 
+    test('switching locale plays a brief "Switching…" overlay', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.selectLocale(/Deutsch/);
+        // The transition flourish names the target locale.
+        await expect(contentLibraryPage.localeSwitchOverlay).toHaveText(
+            /Switching to Deutsch/
+        );
+    });
+
     test('the Locales column shows per-group locale badges', async ({
         contentLibraryPage
     }) => {
