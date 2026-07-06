@@ -16,6 +16,7 @@ import {
 import type { RecordsToolbarContext } from '@ortha-cms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
 import { useLocales } from '../../api/useLocales';
+import { beginLocaleSwitch } from '../../utils/localeTransition';
 import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 
 const messages = defineMessages({
@@ -51,8 +52,6 @@ export function LocaleSwitcher({
 }: RecordsToolbarContext) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
-    // The locale being switched to, while the transition flourish plays.
-    const [switchingTo, setSwitchingTo] = useState<string | null>(null);
     const { locales, defaultLocale } = useLocales();
 
     if (!schema.i18n || locales.length === 0) return null;
@@ -65,7 +64,7 @@ export function LocaleSwitcher({
         setOpen(false);
         // Re-selecting the active locale is a no-op — no re-scope, no flourish.
         if (slug === active?.slug) return;
-        setSwitchingTo(
+        beginLocaleSwitch(
             locales.find((locale) => locale.slug === slug)?.name ?? slug
         );
         updateParams({
@@ -136,12 +135,7 @@ export function LocaleSwitcher({
                     </Command>
                 </PopoverContent>
             </Popover>
-            {switchingTo ? (
-                <LocaleSwitchOverlay
-                    localeName={switchingTo}
-                    onDone={() => setSwitchingTo(null)}
-                />
-            ) : null}
+            <LocaleSwitchOverlay />
         </>
     );
 }

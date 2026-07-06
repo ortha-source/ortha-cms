@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Languages } from 'lucide-react';
 import { Spinner, cn } from '@ortha-cms/design-system';
+import {
+    getLocaleSwitch,
+    subscribeLocaleSwitch
+} from '../../utils/localeTransition';
 
 const messages = defineMessages({
     switching: {
@@ -11,54 +15,53 @@ const messages = defineMessages({
     }
 });
 
-/** A short beat before the overlay eases in, so it doesn't pop in instantly. */
-const SHOW_DELAY_MS = 150;
-/** How long the overlay holds at full opacity before it starts fading out. */
-const HOLD_MS = 550;
 /** Fade-out duration — keep in sync with the `duration-300` class below. */
 const FADE_MS = 300;
 
 /**
- * A brief, non-interactive full-screen flourish shown while the active locale
- * changes: a `Languages` glyph, a spinner, and "Switching to <locale>…". Waits a
- * short beat (so it doesn't pop in instantly), fades in, holds, then fades out
- * and calls `onDone` so the parent can unmount it.
+ * The **locale-switch flourish** host: a brief, non-interactive full-screen
+ * overlay — a `Languages` glyph, a spinner, and "Switching to <locale>…". It
+ * reads the {@link beginLocaleSwitch} store, so it shows the moment a switch
+ * begins, holds, then fades out. Rendered by both the toolbar switcher and the
+ * editor's locale widget; whichever is mounted on the current route plays it,
+ * which is what lets the flourish carry across a widget switch's navigation.
  *
  * Purely visual (`pointer-events-none`, `motion-reduce:animate-none`) — the real
- * data load is the records view's job; this only marks the transition. Portalled
- * to `document.body` so it covers the whole viewport, clear of the toolbar.
+ * data load stays the records view's / editor's job. Portalled to `document.body`
+ * so it covers the whole viewport, clear of the toolbar.
  */
-export function LocaleSwitchOverlay({
-    localeName,
-    onDone
-}: {
-    /** Display name of the locale being switched to (shown in the text). */
-    localeName: string;
-    /** Called once the fade-out finishes so the parent can drop the overlay. */
-    onDone: () => void;
-}) {
+export function LocaleSwitchOverlay() {
     const intl = useIntl();
-    // `shown` gates the small pre-delay; `leaving` swaps fade-in for fade-out.
-    const [shown, setShown] = useState(false);
-    const [leaving, setLeaving] = useState(false);
+    const active = useSyncExternalStore(
+        subscribeLocaleSwitch,
+        getLocaleSwitch,
+        () => null
+    );
+    // Mirror the store into local state so the exit can animate: when a switch
+    // begins, show it immediately; when it clears, flip to `leaving` and drop
+    // the overlay once the fade-out finishes.
+    const [display, setDisplay] = useState<{
+        name: string;
+        leaving: boolean;
+    } | null>(null);
 
     useEffect(() => {
-        const show = setTimeout(() => setShown(true), SHOW_DELAY_MS);
-        return () => clearTimeout(show);
-    }, []);
+        if (active) {
+            setDisplay({ name: active, leaving: false });
+        } else {
+            setDisplay((current) =>
+                current ? { ...current, leaving: true } : null
+            );
+        }
+    }, [active]);
 
     useEffect(() => {
-        if (!shown) return;
-        const hold = setTimeout(() => setLeaving(true), HOLD_MS);
-        const done = setTimeout(onDone, HOLD_MS + FADE_MS);
-        return () => {
-            clearTimeout(hold);
-            clearTimeout(done);
-        };
-    }, [shown, onDone]);
+        if (!display?.leaving) return;
+        const remove = setTimeout(() => setDisplay(null), FADE_MS);
+        return () => clearTimeout(remove);
+    }, [display?.leaving]);
 
-    // Truly absent during the pre-delay — nothing renders until the beat passes.
-    if (!shown) return null;
+    if (!display) return null;
 
     return createPortal(
         <div
@@ -66,7 +69,7 @@ export function LocaleSwitchOverlay({
             aria-live="polite"
             className={cn(
                 'pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm motion-reduce:animate-none',
-                leaving
+                display.leaving
                     ? 'animate-out fade-out-0 fill-mode-forwards duration-300'
                     : 'animate-in fade-in-0 duration-200'
             )}
@@ -79,7 +82,7 @@ export function LocaleSwitchOverlay({
                 <Spinner aria-hidden />
                 <p className="text-sm text-muted-foreground">
                     {intl.formatMessage(messages.switching, {
-                        name: localeName
+                        name: display.name
                     })}
                 </p>
             </div>

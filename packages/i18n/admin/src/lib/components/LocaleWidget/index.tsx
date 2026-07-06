@@ -22,6 +22,8 @@ import {
 import { useLocales } from '../../api/useLocales';
 import { useEntryLocales } from '../../api/useEntryLocales';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
+import { beginLocaleSwitch } from '../../utils/localeTransition';
+import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 import { LocaleRow } from './LocaleRow';
 
 const messages = defineMessages({
@@ -143,6 +145,11 @@ export function LocaleWidget({
     // (same group). Singles re-resolve their one row via `?locale=`; collections
     // navigate to the sibling's id (or the create route for a new locale).
     const selectLocale = (slug: string, sibling?: Sibling) => {
+        // Play the switch flourish; the store carries it across the navigation
+        // so the destination editor's overlay host picks it up.
+        beginLocaleSwitch(
+            locales.find((locale) => locale.slug === slug)?.name ?? slug
+        );
         // The draft's shared fields come from the source values: the saved
         // entry (edit mode), or whatever the create form already carries
         // (create mode — a translation draft's prefill), preserved as-is.
@@ -168,28 +175,35 @@ export function LocaleWidget({
         }
     };
 
-    return card(
-        <ul className="flex flex-col gap-0.5">
-            {locales.map((locale) => {
-                const sibling = siblingFor(locale.slug);
-                const isCurrent = locale.slug === currentLocale;
-                // Existing → switch (any role); missing → create (gated).
-                const actionable = !isCurrent && (!!sibling || canCreate);
-                return (
-                    <LocaleRow
-                        key={locale.slug}
-                        name={locale.name}
-                        isCurrent={isCurrent}
-                        exists={!!sibling}
-                        status={sibling?.status}
-                        onSelect={
-                            actionable
-                                ? () => selectLocale(locale.slug, sibling)
-                                : undefined
-                        }
-                    />
-                );
-            })}
-        </ul>
+    return (
+        <>
+            {card(
+                <ul className="flex flex-col gap-0.5">
+                    {locales.map((locale) => {
+                        const sibling = siblingFor(locale.slug);
+                        const isCurrent = locale.slug === currentLocale;
+                        // Existing → switch (any role); missing → create (gated).
+                        const actionable =
+                            !isCurrent && (!!sibling || canCreate);
+                        return (
+                            <LocaleRow
+                                key={locale.slug}
+                                name={locale.name}
+                                isCurrent={isCurrent}
+                                exists={!!sibling}
+                                status={sibling?.status}
+                                onSelect={
+                                    actionable
+                                        ? () =>
+                                              selectLocale(locale.slug, sibling)
+                                        : undefined
+                                }
+                            />
+                        );
+                    })}
+                </ul>
+            )}
+            <LocaleSwitchOverlay />
+        </>
     );
 }

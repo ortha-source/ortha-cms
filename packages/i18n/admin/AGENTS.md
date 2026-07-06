@@ -13,11 +13,8 @@ content plugin owns).
   when `schema.i18n`**. It owns the `?locale=` list param (`listParamKeys`), so
   the records list is scoped to the active locale server-side; the **default
   locale keeps a clean URL** (no `?locale=`), matching the server's default
-  scoping. Picking a **different** locale plays a brief, non-interactive
-  `LocaleSwitchOverlay` — a portalled full-screen flourish (`Languages` glyph +
-  spinner + "Switching to <locale>…") that waits a short beat, then fades in/out
-  while the table re-scopes. Purely visual (`pointer-events-none`), timed (not
-  tied to the query) — the records view still owns the real pending state.
+  scoping. Picking a **different** locale plays the **switch flourish** (see
+  below).
 - **`RECORDS_COLUMN_SLOT` → `LocalesColumnCell`** — an optional **Locales**
   column (`appliesTo: s => !!s.i18n`; hidden by default, toggled in the column
   picker) showing one status-tinted badge per live locale of the row's
@@ -62,6 +59,21 @@ content plugin owns).
   candidates are scoped to
   the source entry's locale with default fallback
   (`{ locale, localeFallback: 'default' }`) when the target is localized.
+
+## Switch flourish (`LocaleSwitchOverlay` + `utils/localeTransition`)
+
+Both the toolbar switcher **and** the editor's locale widget trigger a brief,
+non-interactive full-screen overlay — a `Languages` glyph, a spinner, and
+"Switching to <locale>…" — that appears **immediately**, holds ~300ms, then
+fades out. A trigger calls `beginLocaleSwitch(name)` (a tiny module-level store);
+the `LocaleSwitchOverlay` host — rendered by whichever of the two is mounted on
+the current route — reads it via `useSyncExternalStore` and plays it. The store
+is module-level **on purpose**: a widget switch **navigates** to a sibling's
+editor, unmounting the trigger, so the transition has to outlive it and be
+re-read by the destination's host. Purely visual (`pointer-events-none`,
+`motion-reduce:animate-none`), portalled to `document.body`, and **timed** (a
+fixed hold, not tied to the query) — the records view / editor still own the
+real pending state.
 
 ## Data layer
 

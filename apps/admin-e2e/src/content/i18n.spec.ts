@@ -146,6 +146,10 @@ test.describe('Content i18n', () => {
 
         await contentLibraryPage.switchLocale('Deutsch').click();
 
+        // The switch flourish plays and carries across the navigation.
+        await expect(contentLibraryPage.localeSwitchOverlay).toHaveText(
+            /Switching to Deutsch/
+        );
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
         // The title chip follows the open locale.
         await expect(contentLibraryPage.editorTitleChip).toHaveText(
