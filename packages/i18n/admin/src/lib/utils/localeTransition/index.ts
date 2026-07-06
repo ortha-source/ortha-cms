@@ -14,10 +14,17 @@
 
 type Listener = () => void;
 
+/** Which page the switch happens on — picks the overlay's skeleton shape. */
+export type LocaleSwitchVariant = 'list' | 'editor';
+
+/** The active switch — a **stable** object (set once per begin) so the
+ * `useSyncExternalStore` snapshot stays referentially stable between changes. */
+export type LocaleSwitch = { name: string; variant: LocaleSwitchVariant };
+
 /** How long the overlay holds before it auto-dismisses (then fades out). */
 const HOLD_MS = 300;
 
-let activeName: string | null = null;
+let active: LocaleSwitch | null = null;
 let clearTimer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<Listener>();
 
@@ -25,12 +32,18 @@ function emit() {
     for (const listener of listeners) listener();
 }
 
-/** Begin (or restart) the switch flourish for the locale named `name`. */
-export function beginLocaleSwitch(name: string) {
-    activeName = name;
+/**
+ * Begin (or restart) the switch flourish for the locale named `name`. `variant`
+ * chooses the overlay's skeleton (a records list vs the entry editor).
+ */
+export function beginLocaleSwitch(
+    name: string,
+    variant: LocaleSwitchVariant = 'list'
+) {
+    active = { name, variant };
     if (clearTimer) clearTimeout(clearTimer);
     clearTimer = setTimeout(() => {
-        activeName = null;
+        active = null;
         clearTimer = undefined;
         emit();
     }, HOLD_MS);
@@ -45,7 +58,7 @@ export function subscribeLocaleSwitch(listener: Listener): () => void {
     };
 }
 
-/** The locale name currently being switched to, or `null` when idle. */
-export function getLocaleSwitch(): string | null {
-    return activeName;
+/** The active switch (name + variant), or `null` when idle. */
+export function getLocaleSwitch(): LocaleSwitch | null {
+    return active;
 }

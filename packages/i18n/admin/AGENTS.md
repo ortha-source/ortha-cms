@@ -68,12 +68,18 @@ content plugin owns).
 Both the toolbar switcher **and** the editor's locale widget trigger a brief,
 non-interactive full-screen overlay — a `Languages` glyph, a spinner, and
 "Switching to <locale>…" — that appears **immediately**, holds ~300ms, then
-fades out. A trigger calls `beginLocaleSwitch(name)` (a tiny module-level store);
-the `LocaleSwitchOverlay` host — rendered by whichever of the two is mounted on
-the current route — reads it via `useSyncExternalStore` and plays it. The store
-is module-level **on purpose**: a widget switch **navigates** to a sibling's
-editor, unmounting the trigger, so the transition has to outlive it and be
-re-read by the destination's host. Purely visual (`pointer-events-none`,
+fades out. A trigger calls `beginLocaleSwitch(name, variant)` (a tiny
+module-level store); the `LocaleSwitchOverlay` host — rendered by whichever of
+the two is mounted on the current route — reads it via `useSyncExternalStore`
+and plays it. The store is module-level **on purpose**: a widget switch
+**navigates** to a sibling's editor, unmounting the trigger, so the transition
+has to outlive it and be re-read by the destination's host.
+
+The overlay **hides** the stale page behind a near-opaque backdrop and a shimmer
+`PageSkeleton` of the approximate page — a records-table skeleton on a `'list'`
+switch (the toolbar switcher), an editor/form skeleton on an `'editor'` switch
+(the locale widget) — so the old content doesn't show through; the new content
+lands when it fades. Purely visual (`pointer-events-none`,
 `motion-reduce:animate-none`), portalled to `document.body`, and **timed** (a
 fixed hold, not tied to the query) — the records view / editor still own the
 real pending state.

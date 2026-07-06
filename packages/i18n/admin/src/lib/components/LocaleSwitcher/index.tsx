@@ -65,7 +65,8 @@ export function LocaleSwitcher({
         // Re-selecting the active locale is a no-op — no re-scope, no flourish.
         if (slug === active?.slug) return;
         beginLocaleSwitch(
-            locales.find((locale) => locale.slug === slug)?.name ?? slug
+            locales.find((locale) => locale.slug === slug)?.name ?? slug,
+            'list'
         );
         updateParams({
             // Default locale = clean URL — the server scopes to it when the

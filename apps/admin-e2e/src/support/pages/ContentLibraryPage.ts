@@ -275,6 +275,11 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByText(/Switching to/);
     }
 
+    /** The page skeleton rendered behind the switch overlay (hides stale content). */
+    get localeSwitchSkeleton(): Locator {
+        return this.page.getByTestId('locale-switch-skeleton');
+    }
+
     /** The entry editor's locale switcher (sidebar widget) title text. */
     get localeWidget(): Locator {
         return this.page.getByText('Locale', { exact: true });
