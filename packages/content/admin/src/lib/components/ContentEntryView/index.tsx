@@ -263,10 +263,6 @@ export function ContentEntryView({
 
     const isCreate = resolved.entry === undefined;
     const publishable = schema.publishable ?? false;
-    const title =
-        mode === ENTRY_MODE.Create
-            ? intl.formatMessage(messages.newTitle, { label: schema.label })
-            : schema.label;
 
     // Persist, then (optionally) publish. Rejects on a server error so the editor
     // can surface a 422's field issues; resolves on success after toast + nav.
@@ -352,14 +348,13 @@ export function ContentEntryView({
         : undefined;
 
     return (
-        <div className="flex min-h-full flex-col">
+        <div className="flex h-full min-h-0 flex-col">
             <EntryEditor
                 schema={schema}
                 initialValues={resolved.values}
                 entry={resolved.entry}
                 isCreate={isCreate}
                 publishable={publishable}
-                title={title}
                 subtitle={schema.description}
                 saving={
                     save.isPending ||

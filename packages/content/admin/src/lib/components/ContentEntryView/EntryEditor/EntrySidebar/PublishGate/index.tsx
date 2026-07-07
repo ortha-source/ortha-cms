@@ -54,7 +54,7 @@ export function PublishGate({ items }: { items: PublishGateItem[] }) {
     const blocking = items.some((item) => !item.ok);
 
     return (
-        <Card className="border-border/60 bg-muted/20 shadow-none">
+        <Card className="rounded-2xl bg-background shadow-none">
             <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                     {intl.formatMessage(messages.gateTitle)}

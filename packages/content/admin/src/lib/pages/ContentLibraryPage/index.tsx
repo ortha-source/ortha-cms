@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import {
+    Navigate,
+    Route,
+    Routes,
+    useLocation,
+    useMatch
+} from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Alert,
@@ -102,6 +108,15 @@ export function ContentLibraryPage() {
 
     const basePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}`;
 
+    // The create / edit entry routes render **full-bleed** (the record editor
+    // ships its own top bar + field outline, so it replaces the two-pane board
+    // and its content sidebar). `:typeName/:entryId` also matches `new`/`trash`,
+    // so those are disambiguated explicitly.
+    const newMatch = useMatch(`${basePath}/:typeName/${NEW_SEGMENT}`);
+    const entryMatch = useMatch(`${basePath}/:typeName/:entryId`);
+    const trashMatch = useMatch(`${basePath}/:typeName/${TRASH_SEGMENT}`);
+    const isEditorRoute = !!newMatch || (!!entryMatch && !trashMatch);
+
     // ⌘K / Ctrl+K toggles the search palette from anywhere on the page.
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -167,6 +182,44 @@ export function ContentLibraryPage() {
                     <ContentLibraryEmpty />
                 </ContentPane>
             </LibraryBoard>
+        );
+    }
+
+    // Full-bleed editor: the record editor fills the area under the shell navbar
+    // (no content sidebar, no work-area card), and scrolls its own form island.
+    if (isEditorRoute) {
+        return (
+            <>
+                <div className="h-[calc(100svh-3rem)]">
+                    <Routes>
+                        <Route
+                            path={`:${TYPE_PARAM}/${NEW_SEGMENT}`}
+                            element={
+                                <ContentEntryRoute
+                                    types={scopedTypes}
+                                    mode={ENTRY_MODE.Create}
+                                />
+                            }
+                        />
+                        <Route
+                            path={`:${TYPE_PARAM}/:${ENTRY_PARAM}`}
+                            element={
+                                <ContentEntryRoute
+                                    types={scopedTypes}
+                                    mode={ENTRY_MODE.Edit}
+                                />
+                            }
+                        />
+                    </Routes>
+                </div>
+
+                <ContentSearchDialog
+                    open={searchOpen}
+                    onOpenChange={setSearchOpen}
+                    types={scopedTypes}
+                    basePath={basePath}
+                />
+            </>
         );
     }
 

@@ -64,7 +64,7 @@ export function DetailsBlock({
           : 'secondary';
 
     return (
-        <Card className="border-border/60 bg-muted/20 shadow-none">
+        <Card className="rounded-2xl bg-background shadow-none">
             <CardHeader>
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                     {intl.formatMessage(messages.detailsTitle)}

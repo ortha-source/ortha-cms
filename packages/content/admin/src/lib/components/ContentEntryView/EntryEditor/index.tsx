@@ -1,7 +1,14 @@
-import { useMemo, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FocusEvent
+} from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Card,
     CardDescription,
@@ -19,25 +26,31 @@ import type {
     RelationDelta,
     StagedRelation
 } from '../../../types/contentType';
-import { CONTENT_FIELD_TYPE } from '../../../constants';
+import {
+    CONTENT_CREATE,
+    CONTENT_DELETE,
+    CONTENT_FIELD_TYPE,
+    CONTENT_PUBLISH,
+    CONTENT_UPDATE,
+    ENTRY_STATUS
+} from '../../../constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntryRelations } from '../../../api/useEntryRelations';
 import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
+import { relationLabel } from '../../../utils/relationLabel';
 import { toRelationIds } from '../../../utils/relationIds';
-import { EntryFieldSections } from './EntryFieldSections';
-import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
+import { FieldOutline } from '../../RecordEditor/FieldOutline';
 import { RelationFieldSection } from './RelationFieldSection';
+import { EntryTopBar } from './EntryTopBar';
+import { EntryFieldRow } from './EntryFieldRow';
+import { buildOutlineStates, isContentFilled } from './fieldOutlineState';
+import { PublishGate, type PublishGateItem } from './EntrySidebar/PublishGate';
+import { DetailsBlock } from './EntrySidebar/DetailsBlock';
+import type { PrimaryAction } from './EntrySidebar/SidebarActionBar';
 
 const messages = defineMessages({
-    backToList: {
-        id: 'content.editor.backToList',
-        defaultMessage: 'Back to records'
-    },
-    tabGeneral: {
-        id: 'content.editor.tabGeneral',
-        defaultMessage: 'General'
-    },
+    tabGeneral: { id: 'content.editor.tabGeneral', defaultMessage: 'Data' },
     tabRelations: {
         id: 'content.editor.tabRelations',
         defaultMessage: 'Relations'
@@ -76,6 +89,12 @@ const TAB = {
     History: 'history'
 } as const;
 
+/** How far below the pane top a field must clear to become the active one. */
+const SPY_OFFSET = 130;
+
+/** Where a jumped-to field lands from the pane top. */
+const JUMP_OFFSET = 90;
+
 /** A field is hidden when its admin hints say so. */
 function isHidden(field: ContentField): boolean {
     return (field.admin as { hidden?: boolean }).hidden === true;
@@ -106,13 +125,14 @@ function stagedToWire(staged: StagedRelation): RelationDelta {
 }
 
 /**
- * The full entry editor: a title header, a tabbed body (**General** = grouped
- * field sections, **Relations** = relation fields, **Media** and **History** =
- * placeholders; all tabs always present), and a single monolithic right
- * {@link EntrySidebar} that owns the Save / Save&Publish / Cancel actions and a
- * collapsible details block. Owns the form state ({@link useEntryForm}) and the
- * `<form>`; persistence is the caller's `onSave`, called with the publish intent
- * so the same editor backs create / edit / single-page modes.
+ * The full entry editor, in the record-editor design: a fixed top bar (back +
+ * breadcrumb + status + Publish/Save actions), a left {@link FieldOutline}
+ * mirroring the fields' fill/validation with scroll-spy + click-to-jump, a
+ * tabbed center **island** (the only scrolling region — **Data** = the fields
+ * one-per-line, **Relations**, and Media / History placeholders), and a
+ * right rail ({@link PublishGate} + {@link DetailsBlock}). Owns the form state
+ * ({@link useEntryForm}); persistence is the caller's `onSave`, called with the
+ * publish intent so the same editor backs create / edit / single-page modes.
  */
 export function EntryEditor({
     schema,
@@ -120,7 +140,6 @@ export function EntryEditor({
     entry,
     isCreate,
     publishable,
-    title,
     subtitle,
     saving,
     mutating,
@@ -135,10 +154,9 @@ export function EntryEditor({
     entry?: EntryRecord;
     isCreate: boolean;
     publishable: boolean;
-    title: string;
     subtitle?: string;
     saving: boolean;
-    /** Whether an unpublish/delete action is in flight (disables the rail). */
+    /** Whether an unpublish/delete action is in flight (disables the actions). */
     mutating?: boolean;
     onSave: (
         values: Record<string, unknown>,
@@ -152,7 +170,7 @@ export function EntryEditor({
     onUnpublish?: () => void;
     /** Delete the entry — only on a saved entry. */
     onDelete?: () => void;
-    /** Where the "Back to records" link goes; omitted for a single page. */
+    /** Where "back to records" goes; omitted for a single page. */
     backTo?: string;
     /**
      * Content-type names granted to the open workspace. A relation field is shown
@@ -163,23 +181,20 @@ export function EntryEditor({
     availableTypeNames?: readonly string[];
 }) {
     const intl = useIntl();
+    const navigate = useNavigate();
     // The existing entry's id, or undefined while creating. Many/inverse
     // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
-    // Which tab is active, so the relation links are fetched **lazily** — only
-    // once the Relations tab is opened, never on entry load.
     const [tab, setTab] = useState<string>(TAB.General);
-    // First page + total per relation field, for the header counts and to title
-    // single relations. Gated on the Relations tab being open (and an existing
-    // entry) so it doesn't fire until the user goes looking for relations.
+    // First page + total per relation field, fetched lazily — only once the
+    // Relations tab is opened, never on entry load.
     const relationRefs = useEntryRelations(
         schema.name,
         entryId,
         tab === TAB.Relations && !!entryId
     ).data;
     // Per-field staged relation edits (many/inverse), owned here so they survive
-    // collapsing a section or switching tabs, and sent as `relations` deltas on
-    // Save. Cleared after a successful save.
+    // switching tabs, sent as `relations` deltas on Save. Cleared after a save.
     const [relationDeltas, setRelationDeltas] = useState<
         Record<string, StagedRelation>
     >({});
@@ -188,18 +203,13 @@ export function EntryEditor({
     const setStaged = (name: string, next: StagedRelation) =>
         setRelationDeltas((current) => ({ ...current, [name]: next }));
 
-    // A scalar/single field is dirty when its value differs from the seed; a
-    // many/inverse field is dirty when its staging holds any pending change.
     const isFieldDirty = (name: string) =>
         norm(form.values[name]) !== norm(initialValues[name]);
     const isRelationDirty = (name: string) => isStagedDirty(stagedFor(name));
 
     // Relation fields hidden because their target collection isn't granted to the
-    // open workspace: their records aren't reachable here, so the editor doesn't
-    // render them (see `relationFields`). They must also be excluded from client
-    // validation and the publish gate — otherwise a *required* one is an
-    // un-satisfiable, invisible block that pins the form shut with no way to fill
-    // it. `undefined` availableTypeNames means unrestricted (nothing hidden).
+    // open workspace: excluded from client validation and the publish gate too,
+    // else a required one is an un-satisfiable, invisible block.
     const ignoredFields = useMemo(() => {
         const names = new Set<string>();
         if (!availableTypeNames) return names;
@@ -213,11 +223,7 @@ export function EntryEditor({
     }, [schema, availableTypeNames]);
 
     // Many/inverse relations are link-managed (staged as deltas), so their key
-    // is dropped from the form values (see `seedRelationValues`). They must be
-    // excluded from values-based validation and the publish gate too — otherwise
-    // a *required* one is a permanent, un-fillable block even though the user has
-    // staged links for it. They still render in the Relations tab (via
-    // `relationFields`, which keys off `ignoredFields` only).
+    // is dropped from the form values — excluded from validation + the gate too.
     const managedRelationNames = useMemo(() => {
         const names = new Set<string>();
         for (const field of schema.fields) {
@@ -230,8 +236,6 @@ export function EntryEditor({
         return names;
     }, [schema]);
 
-    // Fields excluded from client validation + the gate: ungranted relations
-    // (hidden) plus every link-managed relation (not a form value).
     const validationIgnored = useMemo(
         () => new Set([...ignoredFields, ...managedRelationNames]),
         [ignoredFields, managedRelationNames]
@@ -241,21 +245,29 @@ export function EntryEditor({
         ignoreFields: validationIgnored
     });
 
-    const visible = schema.fields.filter((field) => !isHidden(field));
-    const generalFields = visible.filter(
-        (field) => field.type !== CONTENT_FIELD_TYPE.Relation
+    const visible = useMemo(
+        () => schema.fields.filter((field) => !isHidden(field)),
+        [schema]
     );
-    const relationFields = visible.filter(
-        (field) =>
-            field.type === CONTENT_FIELD_TYPE.Relation &&
-            !ignoredFields.has(field.name)
+    const generalFields = useMemo(
+        () =>
+            visible.filter(
+                (field) => field.type !== CONTENT_FIELD_TYPE.Relation
+            ),
+        [visible]
+    );
+    const relationFields = useMemo(
+        () =>
+            visible.filter(
+                (field) =>
+                    field.type === CONTENT_FIELD_TYPE.Relation &&
+                    !ignoredFields.has(field.name)
+            ),
+        [visible, ignoredFields]
     );
 
-    // The publish gate: each field that must hold to publish — every required
-    // field, plus any field whose current value is invalid — with its live
-    // pass/fail. Reuses the form's strict (required-enforced) errors, so it
-    // mirrors exactly what the publish endpoint will check without re-running
-    // validation over the same values. Publishable only.
+    // The publish gate: every required field, plus any field whose current value
+    // is invalid, each with its live pass/fail. Reuses the form's strict errors.
     const gate = useMemo<PublishGateItem[]>(() => {
         if (!publishable) return [];
         return visible
@@ -268,8 +280,7 @@ export function EntryEditor({
             }));
     }, [publishable, form.errors, visible, validationIgnored]);
 
-    // The staged relation deltas to send with the save — only fields with a
-    // pending change, serialized to the wire shape. Undefined when nothing staged.
+    // The staged relation deltas to send with the save.
     const relationsPayload = (): Record<string, RelationDelta> | undefined => {
         const out: Record<string, RelationDelta> = {};
         for (const [name, staged] of Object.entries(relationDeltas)) {
@@ -278,9 +289,8 @@ export function EntryEditor({
         return Object.keys(out).length ? out : undefined;
     };
 
-    // A 422 from the server is mapped back onto the form as inline field errors;
-    // other failures fall through to the mutation's own error handling. On
-    // success the staging is cleared (the saved links are now the server set).
+    // A 422 is mapped back onto the form as inline field errors; on success the
+    // staging is cleared (the saved links are now the server set).
     const submitWith =
         (publish: boolean) => (values: Record<string, unknown>) =>
             onSave(values, { publish, relations: relationsPayload() })
@@ -289,10 +299,8 @@ export function EntryEditor({
                     form.setServerErrors(entryIssuesFrom(error));
                 });
 
-    // A **draft** of a publishable type can be saved incomplete, so it uses the
-    // relaxed (format-only) gate — required isn't enforced, but a malformed value
-    // is still caught client-side. Publishing — or any save of an always-live,
-    // non-publishable type — enforces the full rules before submitting.
+    // A **draft** of a publishable type can be saved incomplete (relaxed gate);
+    // publishing — or any save of an always-live type — enforces the full rules.
     const save = (publish: boolean) => () => {
         if (publish || !publishable) {
             form.submit(submitWith(publish));
@@ -301,45 +309,160 @@ export function EntryEditor({
         }
     };
 
+    // Permissions decide the primary action + which menu items show.
+    const canCreate = useHasPermission(CONTENT_CREATE);
+    const canUpdate = useHasPermission(CONTENT_UPDATE);
+    const canPublish = useHasPermission(CONTENT_PUBLISH);
+    const canDelete = useHasPermission(CONTENT_DELETE);
+    const canSave = isCreate ? canCreate : canUpdate;
+    const busy = saving || !!mutating;
+    const published = entry?.status === ENTRY_STATUS.Published;
+
+    const primary: PrimaryAction | null =
+        publishable && canPublish && canSave
+            ? { kind: 'publish', onClick: save(true) }
+            : canSave
+              ? {
+                    kind: publishable ? 'saveDraft' : 'save',
+                    onClick: save(false)
+                }
+              : null;
+    const showSaveDraft = publishable && canSave;
+    const showPublish = publishable && canPublish && canSave;
+    const showUnpublish =
+        !isCreate && publishable && published && canPublish && !!onUnpublish;
+    const showDelete = !isCreate && canDelete && !!onDelete;
+
+    // Outline state, derived from the general fields + live form.
+    const outlineStates = useMemo(
+        () => buildOutlineStates(generalFields, form),
+        [generalFields, form]
+    );
+    const filledCount = generalFields.filter((field) =>
+        isContentFilled(field.type, form.values[field.name])
+    ).length;
+    const requiredRemaining = generalFields.filter(
+        (field) =>
+            field.required &&
+            !isContentFilled(field.type, form.values[field.name])
+    ).length;
+    const recordName = relationLabel(form.values, generalFields, '');
+
+    // --- Cross-zone interaction: active field, scroll-spy, click-to-jump. ---
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [activeKey, setActiveKey] = useState<string | undefined>(
+        generalFields[0]?.name
+    );
+
+    const jumpTo = useCallback((name: string) => {
+        setActiveKey(name);
+        setTab(TAB.General);
+        requestAnimationFrame(() => {
+            const container = scrollRef.current;
+            const el = document.getElementById(`f-${name}`);
+            if (container && el) {
+                const top =
+                    container.scrollTop +
+                    (el.getBoundingClientRect().top -
+                        container.getBoundingClientRect().top) -
+                    JUMP_OFFSET;
+                container.scrollTo({
+                    top: Math.max(0, top),
+                    behavior: 'smooth'
+                });
+            }
+            requestAnimationFrame(() => {
+                const host = document.getElementById(`f-${name}`);
+                host
+                    ?.querySelector<HTMLElement>(
+                        'input, textarea, select, button, [tabindex]'
+                    )
+                    ?.focus({ preventScroll: true });
+            });
+        });
+    }, []);
+
+    const onScroll = useCallback(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+        const paneTop = container.getBoundingClientRect().top;
+        let current: string | undefined;
+        for (const field of generalFields) {
+            const el = document.getElementById(`f-${field.name}`);
+            if (!el) continue;
+            const top = el.getBoundingClientRect().top - paneTop;
+            if (top <= SPY_OFFSET) current = field.name;
+            else break;
+        }
+        if (current) setActiveKey(current);
+    }, [generalFields]);
+
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container || tab !== TAB.General) return;
+        container.addEventListener('scroll', onScroll, { passive: true });
+        return () => container.removeEventListener('scroll', onScroll);
+    }, [onScroll, tab]);
+
+    const onPaneFocus = useCallback((event: FocusEvent<HTMLDivElement>) => {
+        const host = (event.target as HTMLElement).closest('[data-field-key]');
+        const key = host?.getAttribute('data-field-key');
+        if (key) setActiveKey(key);
+    }, []);
+
+    const onExit = useCallback(() => {
+        if (backTo) navigate(backTo);
+        else navigate(-1);
+    }, [backTo, navigate]);
+
     return (
         <form
             noValidate
-            className="flex min-h-0 flex-1 flex-col lg:flex-row"
+            className="flex h-full min-h-0 flex-col bg-muted/40"
             onSubmit={(event) => {
                 event.preventDefault();
-                // Submitting (e.g. Enter) runs the primary action — publish for
-                // a publishable type, otherwise a plain save — so it matches the
-                // visually-primary button rather than silently saving a draft.
+                // Enter runs the primary action (publish for a publishable type,
+                // else a plain save), matching the visually-primary button.
                 save(publishable)();
             }}
         >
-            {/* Main column: title + tabs. The card itself is flush (no padding);
-                padding lives here, inside the pane. `min-w-0` keeps wide field
-                content from widening the page (the card scrolls as a whole). */}
-            <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-6">
-                {backTo ? (
-                    <Link
-                        to={backTo}
-                        className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                        <ArrowLeft className="size-4" />
-                        {intl.formatMessage(messages.backToList)}
-                    </Link>
-                ) : null}
-                <div className="mb-6 min-w-0">
-                    <h1 className="text-lg font-semibold tracking-[-0.01em]">
-                        {title}
-                    </h1>
-                    {subtitle ? (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            {subtitle}
-                        </p>
-                    ) : null}
-                </div>
+            <EntryTopBar
+                typeLabel={schema.label}
+                recordName={recordName}
+                status={entry?.status}
+                publishable={publishable}
+                paranoid={schema.paranoid ?? false}
+                busy={busy}
+                saving={saving}
+                primary={primary}
+                showSaveDraft={showSaveDraft}
+                showPublish={showPublish}
+                showUnpublish={showUnpublish}
+                showDelete={showDelete}
+                onExit={onExit}
+                onSaveDraft={save(false)}
+                onPublish={save(true)}
+                onUnpublish={onUnpublish}
+                onDelete={onDelete}
+            />
 
-                <div className="min-w-0">
-                    <Tabs value={tab} onValueChange={setTab}>
-                        <TabsList className="mb-4">
+            <div className="flex min-h-0 flex-1 gap-6 px-6 py-6">
+                <FieldOutline
+                    fieldStates={outlineStates}
+                    activeKey={activeKey}
+                    filledCount={filledCount}
+                    totalCount={generalFields.length}
+                    requiredRemaining={requiredRemaining}
+                    onJump={jumpTo}
+                />
+
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <Tabs
+                        value={tab}
+                        onValueChange={setTab}
+                        className="flex min-h-0 flex-1 flex-col gap-4"
+                    >
+                        <TabsList className="flex-none self-start">
                             <TabsTrigger value={TAB.General}>
                                 {intl.formatMessage(messages.tabGeneral)}
                             </TabsTrigger>
@@ -354,53 +477,31 @@ export function EntryEditor({
                             </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value={TAB.General}>
-                            <EntryFieldSections
-                                fields={generalFields}
-                                form={form}
-                                isChanged={isFieldDirty}
-                            />
-                        </TabsContent>
-
-                        <TabsContent value={TAB.Relations}>
-                            {relationFields.length > 0 ? (
-                                <div className="flex flex-col gap-3">
-                                    {relationFields.map((field) => {
-                                        // A many/inverse relation is staged +
-                                        // link-managed; a single relation is a
-                                        // plain form value.
-                                        const managed =
-                                            !!field.relation?.many ||
-                                            !!field.relation?.inverse;
-                                        const staged = stagedFor(field.name);
-                                        // Header count: server total adjusted by
-                                        // the staged add/remove (managed), else
-                                        // the single form value's length.
-                                        const count = managed
-                                            ? Math.max(
-                                                  0,
-                                                  (relationRefs?.[field.name]
-                                                      ?.total ?? 0) -
-                                                      staged.removed.length +
-                                                      staged.added.length
-                                              )
-                                            : toRelationIds(
-                                                  form.values[field.name],
-                                                  false
-                                              ).length;
-                                        const changed = managed
-                                            ? isRelationDirty(field.name)
-                                            : isFieldDirty(field.name);
-                                        return (
-                                            <RelationFieldSection
+                        <div
+                            ref={scrollRef}
+                            onFocus={onPaneFocus}
+                            className="min-h-0 flex-1 overflow-y-auto"
+                        >
+                            <TabsContent value={TAB.General} className="mt-0">
+                                <div className="mx-auto max-w-[820px] rounded-2xl border bg-background px-9 py-7">
+                                    <header className="mb-[26px]">
+                                        <h1 className="text-2xl font-semibold tracking-tight">
+                                            {schema.label}
+                                        </h1>
+                                        {subtitle ? (
+                                            <p className="mt-2 text-sm text-muted-foreground">
+                                                {subtitle}
+                                            </p>
+                                        ) : null}
+                                    </header>
+                                    <div className="flex flex-col gap-[22px]">
+                                        {generalFields.map((field) => (
+                                            <EntryFieldRow
                                                 key={field.name}
                                                 field={field}
-                                                count={count}
-                                                changed={changed}
-                                                typeName={schema.name}
-                                                entryId={entryId}
                                                 value={form.values[field.name]}
                                                 error={form.errorFor(field.name)}
+                                                active={field.name === activeKey}
                                                 onChange={(value) =>
                                                     form.setValue(
                                                         field.name,
@@ -410,81 +511,148 @@ export function EntryEditor({
                                                 onBlur={() =>
                                                     form.touch(field.name)
                                                 }
-                                                // A handful stay open; many start
-                                                // collapsed to keep the tab tidy.
-                                                defaultOpen={
-                                                    relationFields.length <= 3 ||
-                                                    field.required
-                                                }
-                                                initialRefs={
-                                                    relationRefs?.[field.name]
-                                                        ?.items
-                                                }
-                                                staged={staged}
-                                                onStagedChange={(next) =>
-                                                    setStaged(field.name, next)
-                                                }
                                             />
-                                        );
-                                    })}
+                                        ))}
+                                    </div>
                                 </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    {intl.formatMessage(
-                                        messages.relationsEmpty
+                            </TabsContent>
+
+                            <TabsContent value={TAB.Relations} className="mt-0">
+                                <div className="mx-auto max-w-[820px]">
+                                    {relationFields.length > 0 ? (
+                                        <div className="flex flex-col gap-3">
+                                            {relationFields.map((field) => {
+                                                const managed =
+                                                    !!field.relation?.many ||
+                                                    !!field.relation?.inverse;
+                                                const staged = stagedFor(
+                                                    field.name
+                                                );
+                                                const count = managed
+                                                    ? Math.max(
+                                                          0,
+                                                          (relationRefs?.[
+                                                              field.name
+                                                          ]?.total ?? 0) -
+                                                              staged.removed
+                                                                  .length +
+                                                              staged.added.length
+                                                      )
+                                                    : toRelationIds(
+                                                          form.values[
+                                                              field.name
+                                                          ],
+                                                          false
+                                                      ).length;
+                                                const changed = managed
+                                                    ? isRelationDirty(
+                                                          field.name
+                                                      )
+                                                    : isFieldDirty(field.name);
+                                                return (
+                                                    <RelationFieldSection
+                                                        key={field.name}
+                                                        field={field}
+                                                        count={count}
+                                                        changed={changed}
+                                                        typeName={schema.name}
+                                                        entryId={entryId}
+                                                        value={
+                                                            form.values[
+                                                                field.name
+                                                            ]
+                                                        }
+                                                        error={form.errorFor(
+                                                            field.name
+                                                        )}
+                                                        onChange={(value) =>
+                                                            form.setValue(
+                                                                field.name,
+                                                                value
+                                                            )
+                                                        }
+                                                        onBlur={() =>
+                                                            form.touch(
+                                                                field.name
+                                                            )
+                                                        }
+                                                        defaultOpen={
+                                                            relationFields.length <=
+                                                                3 ||
+                                                            field.required
+                                                        }
+                                                        initialRefs={
+                                                            relationRefs?.[
+                                                                field.name
+                                                            ]?.items
+                                                        }
+                                                        staged={staged}
+                                                        onStagedChange={(next) =>
+                                                            setStaged(
+                                                                field.name,
+                                                                next
+                                                            )
+                                                        }
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            {intl.formatMessage(
+                                                messages.relationsEmpty
+                                            )}
+                                        </p>
                                     )}
-                                </p>
-                            )}
-                        </TabsContent>
+                                </div>
+                            </TabsContent>
 
-                        <TabsContent value={TAB.Media}>
-                            <Card className="shadow-none">
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {intl.formatMessage(
-                                            messages.mediaTitle
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {intl.formatMessage(messages.mediaBody)}
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                        </TabsContent>
+                            <TabsContent value={TAB.Media} className="mt-0">
+                                <div className="mx-auto max-w-[820px]">
+                                    <Card className="shadow-none">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">
+                                                {intl.formatMessage(
+                                                    messages.mediaTitle
+                                                )}
+                                            </CardTitle>
+                                            <CardDescription>
+                                                {intl.formatMessage(
+                                                    messages.mediaBody
+                                                )}
+                                            </CardDescription>
+                                        </CardHeader>
+                                    </Card>
+                                </div>
+                            </TabsContent>
 
-                        <TabsContent value={TAB.History}>
-                            <Card className="shadow-none">
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {intl.formatMessage(
-                                            messages.historyTitle
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {intl.formatMessage(
-                                            messages.historyBody
-                                        )}
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                        </TabsContent>
+                            <TabsContent value={TAB.History} className="mt-0">
+                                <div className="mx-auto max-w-[820px]">
+                                    <Card className="shadow-none">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">
+                                                {intl.formatMessage(
+                                                    messages.historyTitle
+                                                )}
+                                            </CardTitle>
+                                            <CardDescription>
+                                                {intl.formatMessage(
+                                                    messages.historyBody
+                                                )}
+                                            </CardDescription>
+                                        </CardHeader>
+                                    </Card>
+                                </div>
+                            </TabsContent>
+                        </div>
                     </Tabs>
                 </div>
-            </div>
 
-            <EntrySidebar
-                entry={entry}
-                publishable={publishable}
-                paranoid={schema.paranoid ?? false}
-                isCreate={isCreate}
-                saving={saving}
-                mutating={mutating}
-                gate={gate}
-                onSaveDraft={save(false)}
-                onPublish={save(true)}
-                onUnpublish={onUnpublish}
-                onDelete={onDelete}
-            />
+                <aside className="flex w-[300px] flex-none flex-col gap-4 overflow-y-auto">
+                    {publishable ? <PublishGate items={gate} /> : null}
+                    <DetailsBlock entry={entry} isCreate={isCreate} />
+                </aside>
+            </div>
         </form>
     );
 }

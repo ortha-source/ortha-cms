@@ -142,9 +142,10 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
-    /** The entry editor's "Back to records" link (present when editing a row). */
+    /** The entry editor's "Back to records" control — the top-bar sidebar
+     *  toggle, labelled "Back to records" (present when editing a row). */
     get editorBackLink(): Locator {
-        return this.page.getByRole('link', { name: 'Back to records' });
+        return this.page.getByRole('button', { name: 'Back to records' });
     }
 
     /** The column-picker trigger. */

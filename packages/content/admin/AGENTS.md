@@ -97,27 +97,33 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   resolves the initial values per mode — `create` → blank; `edit` → the record
   from `GET /content/:type/:id` (`useContentEntry`), seeded instantly from the
   records-list cache when opened from the table; `single` → the type's one row via
-  the list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
-  form state (`useEntryForm`, with client validation in `utils/validateEntryValues`
-  mirroring the server's rules) and lays out a title header, a **full-width**
-  tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
-  `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
-  toggles/multi-choice; **Relations** = relation fields via the **`RelationField`**
-  picker (empty state otherwise); **Media** + **History** = placeholders; all four
-  tabs always present), and the
-  right rail (`EntrySidebar`): a top **action bar** — a primary button
-  (**Publish** for a publishable type the user may publish, else **Save** /
-  **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
-  Unpublish, Delete; each permission-gated) — over stacked **card blocks**: a
-  live **Publish Gate** (`PublishGateItem[]`, computed by `EntryEditor` from the
-  strict `validateEntryValues` — each required/invalid field with its pass/fail,
-  header `blocking`/`ready`; publishable types only) and a static **Details**
-  block (status, created/updated, id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
-  control per field type — `date`/`datetime` use a shadcn `Calendar` popover
-  (`EntryFieldInput/DateField`, with a time input for datetime), and
-  `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
-  rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
-  wide content scrolls inside the work-area island, not the page.
+  the list endpoint, else blank — then renders **`EntryEditor`** in the
+  **record-editor design**. The editor owns the form state (`useEntryForm`, with
+  client validation in `utils/validateEntryValues` mirroring the server's rules)
+  and lays out four zones: a fixed **top bar** (`EntryTopBar`) — a back-to-records
+  toggle + breadcrumb (`Content › {type} › {record title}`, from `relationLabel`)
+  + status badge, and the primary action (**Publish** for a publishable type the
+  user may publish, else **Save** / **Save draft**) beside a **⋯ menu** (Save
+  draft, Save & publish, Unpublish, Delete; each permission-gated, delete via a
+  `ConfirmDialog`); a left **`FieldOutline`** (reused from `components/RecordEditor`,
+  fed by `fieldOutlineState.buildOutlineStates`) — one row per non-relation field
+  with a fill/validation status dot, a foreground **active indicator** kept in
+  sync by **scroll-spy + click-to-jump**, and a progress footer, flipping to
+  *problems-first* above 25 fields; a tabbed **center island** — the **only**
+  scrolling region (**Data** = the fields one-per-line as `EntryFieldRow`s
+  wrapping the shared `EntryFieldInput` inside a white card; **Relations** = the
+  `RelationField` sections; **Media** + **History** = placeholders; all four tabs
+  always present); and a right **rail** — the live **Publish Gate**
+  (`PublishGateItem[]`, computed by `EntryEditor` from the strict
+  `validateEntryValues`; publishable types only) + a static **Details** block
+  (status, created/updated, id). `EntryFieldInput` (top-level, shared) renders one
+  **flat** (no-shadow) control per field type — `date`/`datetime` use a shadcn
+  `Calendar` popover (`EntryFieldInput/DateField`, with a time input for
+  datetime), and `multiselect` uses the design-system `MultiSelect` (Popover +
+  Command + Badge) rather than native controls. The **create / edit** routes
+  render **full-bleed** under the shell navbar (`ContentLibraryPage` detects them
+  via `useMatch` and drops the two-pane board + content sidebar — the editor
+  ships its own outline and top bar); the form island scrolls, not the page.
 - **Relation picker** (`EntryEditor/RelationField/`): the Relations tab is a stack
   of **`RelationFieldSection`** **rounded-border collapsible cards** — each relation
   field a section (chevron + label + linked-count; starts collapsed when a type has
@@ -177,11 +183,11 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
       the staging and `useSaveEntry` invalidates the field queries. Owning
       many-relations reorder (persisted via `position`); the inverse reads order
       but isn't sortable.
-  A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
-  fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
-  (dirty staging, or a dirty single value) in the section header — so the user
-  sees exactly what a Save will persist.
-- **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
+  A relation field with pending edits shows a **"Changed" badge**
+  (`ChangedBadge`) in its section header — dirty staging, or a dirty single value
+  — so the user sees exactly what a Save will persist. (A general field's pending
+  state reads from the outline dot + inline validation instead.)
+- **Writes + permissions.** The top bar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by
   `useHasPermission` (`content:create`/`update`/`publish`/`delete`). "Save &

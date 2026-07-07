@@ -267,12 +267,14 @@ test.describe('Content Library', () => {
             contentLibraryPage.recordsTable('Blog posts')
         ).toBeVisible();
 
-        // Add record → the create-entry editor (title "New Blog posts").
+        // Add record → the create-entry editor. Its island header is the
+        // collection name; the primary Save/Publish action confirms it opened.
         await contentLibraryPage.addRecord.click();
         await expect(page).toHaveURL(/\/content\/blog_post\/new$/);
         await expect(
-            contentLibraryPage.viewHeading('New Blog posts')
+            contentLibraryPage.viewHeading('Blog posts')
         ).toBeVisible();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
 
         // Back to the table, then a row → the entry editor for that row.
         await page.goBack();
