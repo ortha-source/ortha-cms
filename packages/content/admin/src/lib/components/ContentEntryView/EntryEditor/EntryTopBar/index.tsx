@@ -191,7 +191,7 @@ export function EntryTopBar({
                         type="button"
                         onClick={primary.onClick}
                         disabled={busy}
-                        className="h-9 rounded-xl"
+                        className="h-9"
                     >
                         {saving ? (
                             <Spinner aria-hidden />
@@ -213,7 +213,7 @@ export function EntryTopBar({
                                 aria-label={intl.formatMessage(
                                     messages.moreActions
                                 )}
-                                className="size-9 rounded-xl shadow-none"
+                                className="size-9 shadow-none"
                             >
                                 <MoreHorizontal className="size-4" aria-hidden />
                             </Button>
