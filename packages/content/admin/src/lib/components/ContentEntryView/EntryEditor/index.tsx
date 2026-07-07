@@ -41,12 +41,12 @@ import { entryIssuesFrom } from '../../../utils/entryIssues';
 import { fieldLabel } from '../../../utils/entryColumns';
 import { relationLabel } from '../../../utils/relationLabel';
 import { toRelationIds } from '../../../utils/relationIds';
-import { FieldOutline } from '../../RecordEditor/FieldOutline';
 import { RelationFieldSection } from './RelationFieldSection';
 import { EntryTopBar } from './EntryTopBar';
 import { EntryFieldRow } from './EntryFieldRow';
 import { buildOutlineStates, isContentFilled } from './fieldOutlineState';
 import { FieldGroupHeader } from './FieldGroupHeader';
+import { FieldNavigator } from './FieldNavigator';
 import { PublishGate, type PublishGateItem } from './EntrySidebar/PublishGate';
 import { DetailsBlock } from './EntrySidebar/DetailsBlock';
 import type { PrimaryAction } from './EntrySidebar/SidebarActionBar';
@@ -494,14 +494,6 @@ export function EntryEditor({
             />
 
             <div className="flex min-h-0 flex-1 gap-6 px-6 py-6">
-                <FieldOutline
-                    fieldStates={outlineStates}
-                    activeKey={activeKey}
-                    filledCount={filledCount}
-                    totalCount={orderedGeneralFields.length}
-                    onJump={jumpTo}
-                />
-
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <Tabs
                         value={tab}
@@ -589,7 +581,7 @@ export function EntryEditor({
                                             ) : null}
                                             <div
                                                 className={cn(
-                                                    'flex flex-col gap-[22px]',
+                                                    'grid grid-cols-2 gap-x-6 gap-y-[22px]',
                                                     showGroups && 'mt-4'
                                                 )}
                                             >
@@ -605,10 +597,6 @@ export function EntryEditor({
                                                         error={form.errorFor(
                                                             field.name
                                                         )}
-                                                        active={
-                                                            field.name ===
-                                                            activeKey
-                                                        }
                                                         onChange={(value) =>
                                                             form.setValue(
                                                                 field.name,
@@ -659,10 +647,6 @@ export function EntryEditor({
                                                         error={form.errorFor(
                                                             field.name
                                                         )}
-                                                        active={
-                                                            field.name ===
-                                                            activeKey
-                                                        }
                                                         onChange={(value) =>
                                                             form.setValue(
                                                                 field.name,
@@ -829,6 +813,13 @@ export function EntryEditor({
                 </div>
 
                 <aside className="flex w-[300px] flex-none flex-col gap-4 overflow-y-auto">
+                    <FieldNavigator
+                        fieldStates={outlineStates}
+                        activeKey={activeKey}
+                        filledCount={filledCount}
+                        totalCount={orderedGeneralFields.length}
+                        onJump={jumpTo}
+                    />
                     {publishable ? <PublishGate items={gate} /> : null}
                     <DetailsBlock entry={entry} isCreate={isCreate} />
                 </aside>

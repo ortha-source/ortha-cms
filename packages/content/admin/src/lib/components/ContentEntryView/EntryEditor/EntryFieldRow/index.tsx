@@ -1,27 +1,23 @@
-import { cn } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../types/contentType';
 import { EntryFieldInput } from '../../../EntryFieldInput';
 
 /**
- * One field line in the record editor's form island: the active-indicator
- * border + a scroll anchor (`f-<name>`, `scroll-margin-top`) wrapping the shared
- * {@link EntryFieldInput}. The input owns its own label / helper / error, so the
- * row is layout only — the outline's jump lands on the anchor, and focusing any
- * control inside it activates the row (via the pane's focus handler reading
- * `data-field-key`).
+ * One field cell in the record editor's form island: a scroll anchor
+ * (`f-<name>`, `scroll-margin-top`) wrapping the shared {@link EntryFieldInput}.
+ * The input owns its own label / helper / error, so this is layout only — the
+ * field navigator's jump lands on the anchor, and focusing any control inside it
+ * activates the field (via the pane's focus handler reading `data-field-key`).
  */
 export function EntryFieldRow({
     field,
     value,
     error,
-    active,
     onChange,
     onBlur
 }: {
     field: ContentField;
     value: unknown;
     error?: string;
-    active: boolean;
     onChange: (value: unknown) => void;
     onBlur: () => void;
 }) {
@@ -29,12 +25,7 @@ export function EntryFieldRow({
         <div
             id={`f-${field.name}`}
             data-field-key={field.name}
-            className={cn(
-                // The active indicator sits in the card's left gutter (negative
-                // margin), so the field content stays aligned with the header.
-                '-ml-[18px] scroll-mt-[90px] border-l-2 pl-4',
-                active ? 'border-foreground' : 'border-transparent'
-            )}
+            className="scroll-mt-[90px]"
         >
             <EntryFieldInput
                 field={field}
