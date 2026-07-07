@@ -494,6 +494,14 @@ export function EntryEditor({
             />
 
             <div className="flex min-h-0 flex-1 gap-6 px-6 py-6">
+                <FieldNavigator
+                    fieldStates={outlineStates}
+                    activeKey={activeKey}
+                    filledCount={filledCount}
+                    totalCount={orderedGeneralFields.length}
+                    onJump={jumpTo}
+                />
+
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <Tabs
                         value={tab}
@@ -813,13 +821,6 @@ export function EntryEditor({
                 </div>
 
                 <aside className="flex w-[300px] flex-none flex-col gap-4 overflow-y-auto">
-                    <FieldNavigator
-                        fieldStates={outlineStates}
-                        activeKey={activeKey}
-                        filledCount={filledCount}
-                        totalCount={orderedGeneralFields.length}
-                        onJump={jumpTo}
-                    />
                     {publishable ? <PublishGate items={gate} /> : null}
                     <DetailsBlock entry={entry} isCreate={isCreate} />
                 </aside>

@@ -4,23 +4,18 @@ import type { FieldState } from '../../../../hooks/useRecordEditor';
 
 const messages = defineMessages({
     title: { id: 'content.editor.navTitle', defaultMessage: 'Fields' },
-    hint: {
-        id: 'content.editor.navHint',
-        defaultMessage: 'Click a cell to jump, or press ⌘J to search.'
+    summary: {
+        id: 'content.editor.navSummary',
+        defaultMessage: '{filled} of {total} filled'
     }
 });
 
-/** First letter of a field label, for the keycap glyph. */
-function initial(label: string): string {
-    return label.trim().charAt(0).toUpperCase() || '·';
-}
-
 /**
- * A compact **field minimap** for the editor's right rail: one keycap per field,
- * tinted by state (filled = solid, empty = outline, blocking = destructive) and
- * ringed when active. Clicking a cell jumps to + focuses that field; the active
- * cell tracks the form's scroll-spy. Hover (or a screen reader) reveals the full
- * label, and ⌘J opens the searchable palette for many-field schemas.
+ * The record editor's left field navigation: a completion **progress ring**
+ * header over a clean field list. Each row carries a status dot (filled / empty
+ * / blocking) and its label; the active row (kept in sync with the form's
+ * scroll-spy) reads selected. Clicking a row jumps to + focuses that field, and
+ * ⌘J still opens the searchable palette.
  */
 export function FieldNavigator({
     fieldStates,
@@ -36,51 +31,98 @@ export function FieldNavigator({
     onJump: (key: string) => void;
 }) {
     const intl = useIntl();
+    const pct = totalCount ? Math.round((filledCount / totalCount) * 100) : 0;
+
     return (
         <nav
             aria-label={intl.formatMessage(messages.title)}
-            className="rounded-2xl border bg-background p-[18px]"
+            className="flex w-[212px] flex-none flex-col overflow-y-auto"
         >
-            <div className="flex items-center justify-between gap-2">
-                <h2 className="text-[13px] font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.title)}
-                </h2>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                    {filledCount}/{totalCount}
-                </span>
+            <div className="flex items-center gap-3 px-1">
+                <div className="relative size-11 shrink-0">
+                    <svg viewBox="0 0 36 36" className="size-11 -rotate-90">
+                        <circle
+                            cx="18"
+                            cy="18"
+                            r="16"
+                            fill="none"
+                            className="stroke-secondary"
+                            strokeWidth="3"
+                        />
+                        <circle
+                            cx="18"
+                            cy="18"
+                            r="16"
+                            fill="none"
+                            pathLength={100}
+                            strokeDasharray={`${pct} 100`}
+                            strokeLinecap="round"
+                            className="stroke-foreground transition-[stroke-dasharray]"
+                            strokeWidth="3"
+                        />
+                    </svg>
+                    <span className="absolute inset-0 grid place-items-center text-xs font-semibold tabular-nums">
+                        {pct}%
+                    </span>
+                </div>
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {intl.formatMessage(messages.title)}
+                    </p>
+                    <p className="text-[13px] text-muted-foreground">
+                        {intl.formatMessage(messages.summary, {
+                            filled: filledCount,
+                            total: totalCount
+                        })}
+                    </p>
+                </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <ol className="mt-4 flex flex-col gap-0.5">
                 {fieldStates.map((state) => {
                     const active = state.field.key === activeKey;
                     return (
-                        <button
-                            key={state.field.key}
-                            type="button"
-                            title={state.field.label}
-                            aria-label={state.field.label}
-                            aria-current={active || undefined}
-                            onClick={() => onJump(state.field.key)}
-                            className={cn(
-                                'grid size-7 place-items-center rounded-md border text-xs font-semibold transition-colors',
-                                state.blocking
-                                    ? 'border-destructive text-destructive'
-                                    : state.filled
-                                      ? 'border-foreground bg-foreground text-background'
-                                      : 'border-border text-muted-foreground hover:border-foreground/50 hover:text-foreground',
-                                active &&
-                                    'ring-2 ring-ring ring-offset-1 ring-offset-background'
-                            )}
-                        >
-                            {initial(state.field.label)}
-                        </button>
+                        <li key={state.field.key}>
+                            <button
+                                type="button"
+                                onClick={() => onJump(state.field.key)}
+                                aria-current={active || undefined}
+                                className={cn(
+                                    'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-accent',
+                                    active
+                                        ? 'bg-accent font-medium text-foreground'
+                                        : state.blocking
+                                          ? 'text-destructive'
+                                          : 'text-muted-foreground'
+                                )}
+                            >
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'size-2 shrink-0 rounded-full',
+                                        state.blocking
+                                            ? 'bg-destructive'
+                                            : state.filled
+                                              ? 'bg-foreground'
+                                              : 'border border-muted-foreground'
+                                    )}
+                                />
+                                <span className="min-w-0 flex-1 truncate">
+                                    {state.field.label}
+                                </span>
+                                {state.blocking ? (
+                                    <span
+                                        aria-hidden
+                                        className="shrink-0 text-[11px] font-semibold"
+                                    >
+                                        !
+                                    </span>
+                                ) : null}
+                            </button>
+                        </li>
                     );
                 })}
-            </div>
-
-            <p className="mt-3 text-xs text-muted-foreground">
-                {intl.formatMessage(messages.hint)}
-            </p>
+            </ol>
         </nav>
     );
 }
