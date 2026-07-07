@@ -17,7 +17,8 @@ import {
     Tabs,
     TabsContent,
     TabsList,
-    TabsTrigger
+    TabsTrigger,
+    cn
 } from '@ortha-cms/design-system';
 import type {
     ContentField,
@@ -45,6 +46,7 @@ import { RelationFieldSection } from './RelationFieldSection';
 import { EntryTopBar } from './EntryTopBar';
 import { EntryFieldRow } from './EntryFieldRow';
 import { buildOutlineStates, isContentFilled } from './fieldOutlineState';
+import { FieldGroupHeader } from './FieldGroupHeader';
 import { PublishGate, type PublishGateItem } from './EntrySidebar/PublishGate';
 import { DetailsBlock } from './EntrySidebar/DetailsBlock';
 import type { PrimaryAction } from './EntrySidebar/SidebarActionBar';
@@ -63,6 +65,14 @@ const messages = defineMessages({
     tabHistory: {
         id: 'content.editor.tabHistory',
         defaultMessage: 'History'
+    },
+    groupProperties: {
+        id: 'content.editor.groupProperties',
+        defaultMessage: 'Properties'
+    },
+    groupContent: {
+        id: 'content.editor.groupContent',
+        defaultMessage: 'Content'
     },
     relationsEmpty: {
         id: 'content.editor.relationsEmpty',
@@ -272,6 +282,32 @@ export function EntryEditor({
             ),
         [visible]
     );
+    // Long-form fields (richtext / JSON) stack full-width at the bottom under a
+    // "Content" group; every other field is a "Property" laid out in a grid.
+    const longFields = useMemo(
+        () =>
+            generalFields.filter(
+                (field) =>
+                    field.type === CONTENT_FIELD_TYPE.RichText ||
+                    field.type === CONTENT_FIELD_TYPE.Json
+            ),
+        [generalFields]
+    );
+    const scalarFields = useMemo(
+        () =>
+            generalFields.filter(
+                (field) =>
+                    field.type !== CONTENT_FIELD_TYPE.RichText &&
+                    field.type !== CONTENT_FIELD_TYPE.Json
+            ),
+        [generalFields]
+    );
+    // The outline + scroll-spy follow the on-screen order: scalars, then
+    // long-form — so a jump from the outline lands where the field is drawn.
+    const orderedGeneralFields = useMemo(
+        () => [...scalarFields, ...longFields],
+        [scalarFields, longFields]
+    );
     const relationFields = useMemo(
         () =>
             visible.filter(
@@ -349,20 +385,22 @@ export function EntryEditor({
         !isCreate && publishable && published && canPublish && !!onUnpublish;
     const showDelete = !isCreate && canDelete && !!onDelete;
 
-    // Outline state, derived from the general fields + live form.
+    // Outline state, derived from the general fields (in on-screen order) + form.
     const outlineStates = useMemo(
-        () => buildOutlineStates(generalFields, form),
-        [generalFields, form]
+        () => buildOutlineStates(orderedGeneralFields, form),
+        [orderedGeneralFields, form]
     );
-    const filledCount = generalFields.filter((field) =>
+    const filledCount = orderedGeneralFields.filter((field) =>
         isContentFilled(field.type, form.values[field.name])
     ).length;
     const recordName = relationLabel(form.values, generalFields, '');
+    // Only split into Properties / Content headers when both groups exist.
+    const showGroups = scalarFields.length > 0 && longFields.length > 0;
 
     // --- Cross-zone interaction: active field, scroll-spy, click-to-jump. ---
     const scrollRef = useRef<HTMLDivElement>(null);
     const [activeKey, setActiveKey] = useState<string | undefined>(
-        generalFields[0]?.name
+        orderedGeneralFields[0]?.name
     );
 
     const jumpTo = useCallback((name: string) => {
@@ -396,7 +434,7 @@ export function EntryEditor({
         if (!container) return;
         const paneTop = container.getBoundingClientRect().top;
         let current: string | undefined;
-        for (const field of generalFields) {
+        for (const field of orderedGeneralFields) {
             const el = document.getElementById(`f-${field.name}`);
             if (!el) continue;
             const top = el.getBoundingClientRect().top - paneTop;
@@ -404,7 +442,7 @@ export function EntryEditor({
             else break;
         }
         if (current) setActiveKey(current);
-    }, [generalFields]);
+    }, [orderedGeneralFields]);
 
     useEffect(() => {
         const container = scrollRef.current;
@@ -460,7 +498,7 @@ export function EntryEditor({
                     fieldStates={outlineStates}
                     activeKey={activeKey}
                     filledCount={filledCount}
-                    totalCount={generalFields.length}
+                    totalCount={orderedGeneralFields.length}
                     onJump={jumpTo}
                 />
 
@@ -539,30 +577,108 @@ export function EntryEditor({
                                     value={TAB.General}
                                     className="mt-0"
                                 >
-                                    <div className="flex flex-col gap-[22px]">
-                                        {generalFields.map((field) => (
-                                            <EntryFieldRow
-                                                key={field.name}
-                                                field={field}
-                                                value={form.values[field.name]}
-                                                error={form.errorFor(
-                                                    field.name
+                                    {scalarFields.length > 0 ? (
+                                        <section>
+                                            {showGroups ? (
+                                                <FieldGroupHeader
+                                                    label={intl.formatMessage(
+                                                        messages.groupProperties
+                                                    )}
+                                                    count={scalarFields.length}
+                                                />
+                                            ) : null}
+                                            <div
+                                                className={cn(
+                                                    'grid grid-cols-2 gap-x-6 gap-y-[22px]',
+                                                    showGroups && 'mt-4'
                                                 )}
-                                                active={
-                                                    field.name === activeKey
-                                                }
-                                                onChange={(value) =>
-                                                    form.setValue(
-                                                        field.name,
-                                                        value
-                                                    )
-                                                }
-                                                onBlur={() =>
-                                                    form.touch(field.name)
-                                                }
-                                            />
-                                        ))}
-                                    </div>
+                                            >
+                                                {scalarFields.map((field) => (
+                                                    <EntryFieldRow
+                                                        key={field.name}
+                                                        field={field}
+                                                        value={
+                                                            form.values[
+                                                                field.name
+                                                            ]
+                                                        }
+                                                        error={form.errorFor(
+                                                            field.name
+                                                        )}
+                                                        active={
+                                                            field.name ===
+                                                            activeKey
+                                                        }
+                                                        onChange={(value) =>
+                                                            form.setValue(
+                                                                field.name,
+                                                                value
+                                                            )
+                                                        }
+                                                        onBlur={() =>
+                                                            form.touch(
+                                                                field.name
+                                                            )
+                                                        }
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    ) : null}
+
+                                    {longFields.length > 0 ? (
+                                        <section
+                                            className={cn(
+                                                scalarFields.length > 0 &&
+                                                    'mt-8'
+                                            )}
+                                        >
+                                            {showGroups ? (
+                                                <FieldGroupHeader
+                                                    label={intl.formatMessage(
+                                                        messages.groupContent
+                                                    )}
+                                                    count={longFields.length}
+                                                />
+                                            ) : null}
+                                            <div
+                                                className={cn(
+                                                    'flex flex-col gap-[22px]',
+                                                    showGroups && 'mt-4'
+                                                )}
+                                            >
+                                                {longFields.map((field) => (
+                                                    <EntryFieldRow
+                                                        key={field.name}
+                                                        field={field}
+                                                        value={
+                                                            form.values[
+                                                                field.name
+                                                            ]
+                                                        }
+                                                        error={form.errorFor(
+                                                            field.name
+                                                        )}
+                                                        active={
+                                                            field.name ===
+                                                            activeKey
+                                                        }
+                                                        onChange={(value) =>
+                                                            form.setValue(
+                                                                field.name,
+                                                                value
+                                                            )
+                                                        }
+                                                        onBlur={() =>
+                                                            form.touch(
+                                                                field.name
+                                                            )
+                                                        }
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    ) : null}
                                 </TabsContent>
 
                                 <TabsContent
