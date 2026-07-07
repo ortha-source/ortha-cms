@@ -50,12 +50,16 @@ import { DetailsBlock } from './EntrySidebar/DetailsBlock';
 import type { PrimaryAction } from './EntrySidebar/SidebarActionBar';
 
 const messages = defineMessages({
-    tabGeneral: { id: 'content.editor.tabGeneral', defaultMessage: 'Data' },
+    localePill: {
+        id: 'content.editor.localePill',
+        defaultMessage: 'EN · English'
+    },
+    tabGeneral: { id: 'content.editor.tabGeneral', defaultMessage: 'General' },
     tabRelations: {
         id: 'content.editor.tabRelations',
         defaultMessage: 'Relations'
     },
-    tabMedia: { id: 'content.editor.tabMedia', defaultMessage: 'Media' },
+    tabMedia: { id: 'content.editor.tabMedia', defaultMessage: 'Files' },
     tabHistory: {
         id: 'content.editor.tabHistory',
         defaultMessage: 'History'
@@ -64,11 +68,11 @@ const messages = defineMessages({
         id: 'content.editor.relationsEmpty',
         defaultMessage: 'This content type has no relation fields.'
     },
-    mediaTitle: { id: 'content.editor.mediaTitle', defaultMessage: 'Media' },
+    mediaTitle: { id: 'content.editor.mediaTitle', defaultMessage: 'Files' },
     mediaBody: {
         id: 'content.editor.mediaBody',
         defaultMessage:
-            'Image and file fields for this record will appear here once media support lands.'
+            'File and image fields for this record will appear here once media support lands.'
     },
     historyTitle: {
         id: 'content.editor.historyTitle',
@@ -94,6 +98,16 @@ const SPY_OFFSET = 130;
 
 /** Where a jumped-to field lands from the pane top. */
 const JUMP_OFFSET = 90;
+
+/** Underline tab-bar styling (overrides the design-system pill defaults): a
+ *  left-aligned row with a full-width bottom hairline. */
+const TAB_LIST_CLS =
+    'mt-5 h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0';
+
+/** Underline tab trigger: muted text, foreground underline when active, its
+ *  border overlapping the list's bottom hairline (`-mb-px`). */
+const TAB_TRIGGER_CLS =
+    '-mb-px rounded-none border-b-2 border-transparent px-0.5 pb-2.5 pt-0 text-[13px] font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 /** A field is hidden when its admin hints say so. */
 function isHidden(field: ContentField): boolean {
@@ -128,8 +142,9 @@ function stagedToWire(staged: StagedRelation): RelationDelta {
  * The full entry editor, in the record-editor design: a fixed top bar (back +
  * breadcrumb + status + Publish/Save actions), a left {@link FieldOutline}
  * mirroring the fields' fill/validation with scroll-spy + click-to-jump, a
- * tabbed center **island** (the only scrolling region — **Data** = the fields
- * one-per-line, **Relations**, and Media / History placeholders), and a
+ * tabbed center **island** (a pinned header + underline tabs over the only
+ * scrolling region — **General** = the fields one-per-line, **Relations**, and
+ * Files / History placeholders), and a
  * right rail ({@link PublishGate} + {@link DetailsBlock}). Owns the form state
  * ({@link useEntryForm}); persistence is the caller's `onSave`, called with the
  * publish intent so the same editor backs create / edit / single-page modes.
@@ -373,11 +388,9 @@ export function EntryEditor({
             }
             requestAnimationFrame(() => {
                 const host = document.getElementById(`f-${name}`);
-                host
-                    ?.querySelector<HTMLElement>(
-                        'input, textarea, select, button, [tabindex]'
-                    )
-                    ?.focus({ preventScroll: true });
+                host?.querySelector<HTMLElement>(
+                    'input, textarea, select, button, [tabindex]'
+                )?.focus({ preventScroll: true });
             });
         });
     }, []);
@@ -460,52 +473,87 @@ export function EntryEditor({
                     <Tabs
                         value={tab}
                         onValueChange={setTab}
-                        className="flex min-h-0 flex-1 flex-col gap-4"
+                        className="flex min-h-0 flex-1 flex-col"
                     >
-                        <TabsList className="flex-none self-start">
-                            <TabsTrigger value={TAB.General}>
-                                {intl.formatMessage(messages.tabGeneral)}
-                            </TabsTrigger>
-                            <TabsTrigger value={TAB.Relations}>
-                                {intl.formatMessage(messages.tabRelations)}
-                            </TabsTrigger>
-                            <TabsTrigger value={TAB.Media}>
-                                {intl.formatMessage(messages.tabMedia)}
-                            </TabsTrigger>
-                            <TabsTrigger value={TAB.History}>
-                                {intl.formatMessage(messages.tabHistory)}
-                            </TabsTrigger>
-                        </TabsList>
+                        {/* The island card: a pinned header (title + locale +
+                            underline tabs) over a single scrolling content
+                            region, so the scrollbar sits inside the card and the
+                            page never scrolls. */}
+                        <div className="mx-auto flex min-h-0 w-full max-w-[820px] flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
+                            <div className="flex-none px-9 pt-7">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h1 className="text-2xl font-semibold tracking-tight">
+                                        {schema.label}
+                                    </h1>
+                                    <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
+                                        {intl.formatMessage(
+                                            messages.localePill
+                                        )}
+                                    </span>
+                                </div>
+                                {subtitle ? (
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {subtitle}
+                                    </p>
+                                ) : null}
+                                <TabsList className={TAB_LIST_CLS}>
+                                    <TabsTrigger
+                                        value={TAB.General}
+                                        className={TAB_TRIGGER_CLS}
+                                    >
+                                        {intl.formatMessage(
+                                            messages.tabGeneral
+                                        )}
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value={TAB.Relations}
+                                        className={TAB_TRIGGER_CLS}
+                                    >
+                                        {intl.formatMessage(
+                                            messages.tabRelations
+                                        )}
+                                        {relationFields.length > 0
+                                            ? ` · ${relationFields.length}`
+                                            : ''}
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value={TAB.Media}
+                                        className={TAB_TRIGGER_CLS}
+                                    >
+                                        {intl.formatMessage(messages.tabMedia)}
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value={TAB.History}
+                                        className={TAB_TRIGGER_CLS}
+                                    >
+                                        {intl.formatMessage(
+                                            messages.tabHistory
+                                        )}
+                                    </TabsTrigger>
+                                </TabsList>
+                            </div>
 
-                        {/* The island card is the ONLY scrolling region: bounded
-                            to the pane height, it scrolls internally so the
-                            scrollbar sits inside the card and the page never
-                            scrolls. */}
-                        <div
-                            ref={scrollRef}
-                            onFocus={onPaneFocus}
-                            className="mx-auto min-h-0 w-full max-w-[820px] flex-1 overflow-y-auto rounded-2xl border bg-background"
-                        >
-                            <TabsContent value={TAB.General} className="mt-0">
-                                <div className="px-9 py-7">
-                                    <header className="mb-[26px]">
-                                        <h1 className="text-2xl font-semibold tracking-tight">
-                                            {schema.label}
-                                        </h1>
-                                        {subtitle ? (
-                                            <p className="mt-2 text-sm text-muted-foreground">
-                                                {subtitle}
-                                            </p>
-                                        ) : null}
-                                    </header>
+                            <div
+                                ref={scrollRef}
+                                onFocus={onPaneFocus}
+                                className="min-h-0 flex-1 overflow-y-auto px-9 pb-7 pt-6"
+                            >
+                                <TabsContent
+                                    value={TAB.General}
+                                    className="mt-0"
+                                >
                                     <div className="flex flex-col gap-[22px]">
                                         {generalFields.map((field) => (
                                             <EntryFieldRow
                                                 key={field.name}
                                                 field={field}
                                                 value={form.values[field.name]}
-                                                error={form.errorFor(field.name)}
-                                                active={field.name === activeKey}
+                                                error={form.errorFor(
+                                                    field.name
+                                                )}
+                                                active={
+                                                    field.name === activeKey
+                                                }
                                                 onChange={(value) =>
                                                     form.setValue(
                                                         field.name,
@@ -518,136 +566,151 @@ export function EntryEditor({
                                             />
                                         ))}
                                     </div>
-                                </div>
-                            </TabsContent>
+                                </TabsContent>
 
-                            <TabsContent value={TAB.Relations} className="mt-0">
-                                <div className="px-9 py-7">
-                                    {relationFields.length > 0 ? (
-                                        <div className="flex flex-col gap-3">
-                                            {relationFields.map((field) => {
-                                                const managed =
-                                                    !!field.relation?.many ||
-                                                    !!field.relation?.inverse;
-                                                const staged = stagedFor(
-                                                    field.name
-                                                );
-                                                const count = managed
-                                                    ? Math.max(
-                                                          0,
-                                                          (relationRefs?.[
+                                <TabsContent
+                                    value={TAB.Relations}
+                                    className="mt-0"
+                                >
+                                    <div>
+                                        {relationFields.length > 0 ? (
+                                            <div className="flex flex-col gap-3">
+                                                {relationFields.map((field) => {
+                                                    const managed =
+                                                        !!field.relation
+                                                            ?.many ||
+                                                        !!field.relation
+                                                            ?.inverse;
+                                                    const staged = stagedFor(
+                                                        field.name
+                                                    );
+                                                    const count = managed
+                                                        ? Math.max(
+                                                              0,
+                                                              (relationRefs?.[
+                                                                  field.name
+                                                              ]?.total ?? 0) -
+                                                                  staged.removed
+                                                                      .length +
+                                                                  staged.added
+                                                                      .length
+                                                          )
+                                                        : toRelationIds(
+                                                              form.values[
+                                                                  field.name
+                                                              ],
+                                                              false
+                                                          ).length;
+                                                    const changed = managed
+                                                        ? isRelationDirty(
                                                               field.name
-                                                          ]?.total ?? 0) -
-                                                              staged.removed
-                                                                  .length +
-                                                              staged.added.length
-                                                      )
-                                                    : toRelationIds(
-                                                          form.values[
+                                                          )
+                                                        : isFieldDirty(
                                                               field.name
-                                                          ],
-                                                          false
-                                                      ).length;
-                                                const changed = managed
-                                                    ? isRelationDirty(
-                                                          field.name
-                                                      )
-                                                    : isFieldDirty(field.name);
-                                                return (
-                                                    <RelationFieldSection
-                                                        key={field.name}
-                                                        field={field}
-                                                        count={count}
-                                                        changed={changed}
-                                                        typeName={schema.name}
-                                                        entryId={entryId}
-                                                        value={
-                                                            form.values[
+                                                          );
+                                                    return (
+                                                        <RelationFieldSection
+                                                            key={field.name}
+                                                            field={field}
+                                                            count={count}
+                                                            changed={changed}
+                                                            typeName={
+                                                                schema.name
+                                                            }
+                                                            entryId={entryId}
+                                                            value={
+                                                                form.values[
+                                                                    field.name
+                                                                ]
+                                                            }
+                                                            error={form.errorFor(
                                                                 field.name
-                                                            ]
-                                                        }
-                                                        error={form.errorFor(
-                                                            field.name
-                                                        )}
-                                                        onChange={(value) =>
-                                                            form.setValue(
-                                                                field.name,
-                                                                value
-                                                            )
-                                                        }
-                                                        onBlur={() =>
-                                                            form.touch(
-                                                                field.name
-                                                            )
-                                                        }
-                                                        defaultOpen={
-                                                            relationFields.length <=
-                                                                3 ||
-                                                            field.required
-                                                        }
-                                                        initialRefs={
-                                                            relationRefs?.[
-                                                                field.name
-                                                            ]?.items
-                                                        }
-                                                        staged={staged}
-                                                        onStagedChange={(next) =>
-                                                            setStaged(
-                                                                field.name,
+                                                            )}
+                                                            onChange={(value) =>
+                                                                form.setValue(
+                                                                    field.name,
+                                                                    value
+                                                                )
+                                                            }
+                                                            onBlur={() =>
+                                                                form.touch(
+                                                                    field.name
+                                                                )
+                                                            }
+                                                            defaultOpen={
+                                                                relationFields.length <=
+                                                                    3 ||
+                                                                field.required
+                                                            }
+                                                            initialRefs={
+                                                                relationRefs?.[
+                                                                    field.name
+                                                                ]?.items
+                                                            }
+                                                            staged={staged}
+                                                            onStagedChange={(
                                                                 next
-                                                            )
-                                                        }
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            {intl.formatMessage(
-                                                messages.relationsEmpty
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                            </TabsContent>
+                                                            ) =>
+                                                                setStaged(
+                                                                    field.name,
+                                                                    next
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                {intl.formatMessage(
+                                                    messages.relationsEmpty
+                                                )}
+                                            </p>
+                                        )}
+                                    </div>
+                                </TabsContent>
 
-                            <TabsContent value={TAB.Media} className="mt-0">
-                                <div className="px-9 py-7">
-                                    <Card className="shadow-none">
-                                        <CardHeader>
-                                            <CardTitle className="text-base">
-                                                {intl.formatMessage(
-                                                    messages.mediaTitle
-                                                )}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                {intl.formatMessage(
-                                                    messages.mediaBody
-                                                )}
-                                            </CardDescription>
-                                        </CardHeader>
-                                    </Card>
-                                </div>
-                            </TabsContent>
+                                <TabsContent value={TAB.Media} className="mt-0">
+                                    <div>
+                                        <Card className="shadow-none">
+                                            <CardHeader>
+                                                <CardTitle className="text-base">
+                                                    {intl.formatMessage(
+                                                        messages.mediaTitle
+                                                    )}
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    {intl.formatMessage(
+                                                        messages.mediaBody
+                                                    )}
+                                                </CardDescription>
+                                            </CardHeader>
+                                        </Card>
+                                    </div>
+                                </TabsContent>
 
-                            <TabsContent value={TAB.History} className="mt-0">
-                                <div className="px-9 py-7">
-                                    <Card className="shadow-none">
-                                        <CardHeader>
-                                            <CardTitle className="text-base">
-                                                {intl.formatMessage(
-                                                    messages.historyTitle
-                                                )}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                {intl.formatMessage(
-                                                    messages.historyBody
-                                                )}
-                                            </CardDescription>
-                                        </CardHeader>
-                                    </Card>
-                                </div>
-                            </TabsContent>
+                                <TabsContent
+                                    value={TAB.History}
+                                    className="mt-0"
+                                >
+                                    <div>
+                                        <Card className="shadow-none">
+                                            <CardHeader>
+                                                <CardTitle className="text-base">
+                                                    {intl.formatMessage(
+                                                        messages.historyTitle
+                                                    )}
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    {intl.formatMessage(
+                                                        messages.historyBody
+                                                    )}
+                                                </CardDescription>
+                                            </CardHeader>
+                                        </Card>
+                                    </div>
+                                </TabsContent>
+                            </div>
                         </div>
                     </Tabs>
                 </div>
