@@ -53,7 +53,18 @@ export type EntryFormState = {
 export function useEntryForm(
     schema: ContentTypeDetail,
     initialValues: Record<string, unknown>,
-    options: { ignoreFields?: ReadonlySet<string> } = {}
+    options: {
+        ignoreFields?: ReadonlySet<string>;
+        /**
+         * Stable identity of the record being edited (its id, or a create
+         * marker). The form re-seeds only when this **changes** — so a
+         * background refetch of the *same* record (which hands a fresh
+         * `initialValues` reference with equal data) never discards the user's
+         * in-progress edits. Falls back to `initialValues` reference identity
+         * when omitted.
+         */
+        seedKey?: string;
+    } = {}
 ): EntryFormState {
     const intl = useIntl();
     const { ignoreFields } = options;
@@ -68,10 +79,14 @@ export function useEntryForm(
         Record<string, string>
     >({});
 
-    // Re-seed when a different record's values arrive (identity change).
-    const [seededFrom, setSeededFrom] = useState(initialValues);
-    if (seededFrom !== initialValues) {
-        setSeededFrom(initialValues);
+    // Re-seed only when a *different* record loads — keyed by `seedKey` (the
+    // entry id) when given, so a background refetch of the same record (a new
+    // `initialValues` reference carrying equal data) never wipes in-progress
+    // edits. Without a key, falls back to reference identity.
+    const seedIdentity: unknown = options.seedKey ?? initialValues;
+    const [seededFrom, setSeededFrom] = useState<unknown>(seedIdentity);
+    if (seededFrom !== seedIdentity) {
+        setSeededFrom(seedIdentity);
         setValues(initialValues);
         setTouched(new Set());
         setSubmitted(false);

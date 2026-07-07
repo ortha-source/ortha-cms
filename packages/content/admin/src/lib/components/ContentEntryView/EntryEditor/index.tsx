@@ -268,7 +268,10 @@ export function EntryEditor({
     );
 
     const form = useEntryForm(schema, initialValues, {
-        ignoreFields: validationIgnored
+        ignoreFields: validationIgnored,
+        // Seed once per record: a background refetch of the same entry must not
+        // discard in-progress edits (e.g. a just-picked date).
+        seedKey: entry?.id ?? 'new'
     });
 
     const visible = useMemo(
