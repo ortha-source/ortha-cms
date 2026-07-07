@@ -456,7 +456,7 @@ export function EntryEditor({
                     onJump={jumpTo}
                 />
 
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <Tabs
                         value={tab}
                         onValueChange={setTab}
@@ -477,13 +477,17 @@ export function EntryEditor({
                             </TabsTrigger>
                         </TabsList>
 
+                        {/* The island card is the ONLY scrolling region: bounded
+                            to the pane height, it scrolls internally so the
+                            scrollbar sits inside the card and the page never
+                            scrolls. */}
                         <div
                             ref={scrollRef}
                             onFocus={onPaneFocus}
-                            className="min-h-0 flex-1 overflow-y-auto"
+                            className="mx-auto min-h-0 w-full max-w-[820px] flex-1 overflow-y-auto rounded-2xl border bg-background"
                         >
                             <TabsContent value={TAB.General} className="mt-0">
-                                <div className="mx-auto max-w-[820px] rounded-2xl border bg-background px-9 py-7">
+                                <div className="px-9 py-7">
                                     <header className="mb-[26px]">
                                         <h1 className="text-2xl font-semibold tracking-tight">
                                             {schema.label}
@@ -518,7 +522,7 @@ export function EntryEditor({
                             </TabsContent>
 
                             <TabsContent value={TAB.Relations} className="mt-0">
-                                <div className="mx-auto max-w-[820px]">
+                                <div className="px-9 py-7">
                                     {relationFields.length > 0 ? (
                                         <div className="flex flex-col gap-3">
                                             {relationFields.map((field) => {
@@ -608,7 +612,7 @@ export function EntryEditor({
                             </TabsContent>
 
                             <TabsContent value={TAB.Media} className="mt-0">
-                                <div className="mx-auto max-w-[820px]">
+                                <div className="px-9 py-7">
                                     <Card className="shadow-none">
                                         <CardHeader>
                                             <CardTitle className="text-base">
@@ -627,7 +631,7 @@ export function EntryEditor({
                             </TabsContent>
 
                             <TabsContent value={TAB.History} className="mt-0">
-                                <div className="mx-auto max-w-[820px]">
+                                <div className="px-9 py-7">
                                     <Card className="shadow-none">
                                         <CardHeader>
                                             <CardTitle className="text-base">
