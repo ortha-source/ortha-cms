@@ -5,13 +5,9 @@ import { ProblemsFirst } from './ProblemsFirst';
 
 const messages = defineMessages({
     header: { id: 'content.record.outline.header', defaultMessage: 'Fields' },
-    summaryRequired: {
-        id: 'content.record.outline.summaryRequired',
-        defaultMessage: '{filled} of {total} · {count} required'
-    },
-    summaryReady: {
-        id: 'content.record.outline.summaryReady',
-        defaultMessage: '{filled} of {total} · ready'
+    summary: {
+        id: 'content.record.outline.summary',
+        defaultMessage: '{filled} of {total}'
     }
 });
 
@@ -21,23 +17,22 @@ const PROBLEMS_FIRST_THRESHOLD = 25;
 /**
  * The left field outline: one clickable row per field (status dot + label), a
  * live active indicator that mirrors the form's scroll-spy, and a progress
- * footer. For large schemas (> {@link PROBLEMS_FIRST_THRESHOLD} fields) it flips
- * to *problems-first* ({@link ProblemsFirst}): required/invalid rows stay pinned
- * and the rest fold into collapsible groups.
+ * summary that sits directly beneath the last row. For large schemas (>
+ * {@link PROBLEMS_FIRST_THRESHOLD} fields) it flips to *problems-first*
+ * ({@link ProblemsFirst}): required/invalid rows stay pinned and the rest fold
+ * into collapsible groups. The whole column scrolls as one.
  */
 export function FieldOutline({
     fieldStates,
     activeKey,
     filledCount,
     totalCount,
-    requiredRemaining,
     onJump
 }: {
     fieldStates: FieldState[];
     activeKey?: string;
     filledCount: number;
     totalCount: number;
-    requiredRemaining: number;
     onJump: (key: string) => void;
 }) {
     const intl = useIntl();
@@ -46,13 +41,13 @@ export function FieldOutline({
     return (
         <nav
             aria-label={intl.formatMessage(messages.header)}
-            className="flex min-h-0 w-[212px] flex-none flex-col"
+            className="flex min-h-0 w-[212px] flex-none flex-col overflow-y-auto"
         >
             <p className="mb-2 px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {intl.formatMessage(messages.header)}
             </p>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+            <div className="flex flex-col gap-0.5">
                 {problemsFirst ? (
                     <ProblemsFirst
                         fieldStates={fieldStates}
@@ -85,16 +80,10 @@ export function FieldOutline({
                     />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                    {intl.formatMessage(
-                        requiredRemaining > 0
-                            ? messages.summaryRequired
-                            : messages.summaryReady,
-                        {
-                            filled: filledCount,
-                            total: totalCount,
-                            count: requiredRemaining
-                        }
-                    )}
+                    {intl.formatMessage(messages.summary, {
+                        filled: filledCount,
+                        total: totalCount
+                    })}
                 </p>
             </footer>
         </nav>

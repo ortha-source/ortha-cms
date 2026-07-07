@@ -99,15 +99,16 @@ const SPY_OFFSET = 130;
 /** Where a jumped-to field lands from the pane top. */
 const JUMP_OFFSET = 90;
 
-/** Underline tab-bar styling (overrides the design-system pill defaults): a
- *  left-aligned row with a full-width bottom hairline. */
+/** Underline tab-bar styling (overrides the design-system pill defaults): the
+ *  bottom hairline spans the full card width, while `px-9` insets the triggers
+ *  so they line up with the header + body content. */
 const TAB_LIST_CLS =
-    'mt-5 h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0';
+    'mt-5 h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent px-9 py-0';
 
 /** Underline tab trigger: muted text, foreground underline when active, its
  *  border overlapping the list's bottom hairline (`-mb-px`). */
 const TAB_TRIGGER_CLS =
-    '-mb-px rounded-none border-b-2 border-transparent px-0.5 pb-2.5 pt-0 text-[13px] font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-none';
+    '-mb-px rounded-none border-b-2 border-transparent px-0 pb-2.5 pt-0 text-[13px] font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 /** A field is hidden when its admin hints say so. */
 function isHidden(field: ContentField): boolean {
@@ -356,11 +357,6 @@ export function EntryEditor({
     const filledCount = generalFields.filter((field) =>
         isContentFilled(field.type, form.values[field.name])
     ).length;
-    const requiredRemaining = generalFields.filter(
-        (field) =>
-            field.required &&
-            !isContentFilled(field.type, form.values[field.name])
-    ).length;
     const recordName = relationLabel(form.values, generalFields, '');
 
     // --- Cross-zone interaction: active field, scroll-spy, click-to-jump. ---
@@ -465,7 +461,6 @@ export function EntryEditor({
                     activeKey={activeKey}
                     filledCount={filledCount}
                     totalCount={generalFields.length}
-                    requiredRemaining={requiredRemaining}
                     onJump={jumpTo}
                 />
 
@@ -480,22 +475,24 @@ export function EntryEditor({
                             region, so the scrollbar sits inside the card and the
                             page never scrolls. */}
                         <div className="mx-auto flex min-h-0 w-full max-w-[820px] flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
-                            <div className="flex-none px-9 pt-7">
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <h1 className="text-2xl font-semibold tracking-tight">
-                                        {schema.label}
-                                    </h1>
-                                    <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
-                                        {intl.formatMessage(
-                                            messages.localePill
-                                        )}
-                                    </span>
+                            <div className="flex-none pt-7">
+                                <div className="px-9">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <h1 className="text-2xl font-semibold tracking-tight">
+                                            {schema.label}
+                                        </h1>
+                                        <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
+                                            {intl.formatMessage(
+                                                messages.localePill
+                                            )}
+                                        </span>
+                                    </div>
+                                    {subtitle ? (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {subtitle}
+                                        </p>
+                                    ) : null}
                                 </div>
-                                {subtitle ? (
-                                    <p className="mt-2 text-sm text-muted-foreground">
-                                        {subtitle}
-                                    </p>
-                                ) : null}
                                 <TabsList className={TAB_LIST_CLS}>
                                     <TabsTrigger
                                         value={TAB.General}

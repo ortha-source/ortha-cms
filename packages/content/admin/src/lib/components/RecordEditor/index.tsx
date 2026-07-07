@@ -222,7 +222,6 @@ export function RecordEditor({
                     activeKey={activeKey}
                     filledCount={editor.filledCount}
                     totalCount={editor.totalCount}
-                    requiredRemaining={editor.requiredRemaining}
                     onJump={jumpTo}
                 />
 
