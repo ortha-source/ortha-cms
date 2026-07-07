@@ -30,9 +30,9 @@ export function EntryFieldRow({
             id={`f-${field.name}`}
             data-field-key={field.name}
             className={cn(
-                // No negative margin: the active indicator is an inset left
-                // border, so it works both stacked and inside the grid.
-                'scroll-mt-[90px] border-l-2 pl-3',
+                // The active indicator sits in the card's left gutter (negative
+                // margin), so the field content stays aligned with the header.
+                '-ml-[18px] scroll-mt-[90px] border-l-2 pl-4',
                 active ? 'border-foreground' : 'border-transparent'
             )}
         >

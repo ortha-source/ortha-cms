@@ -589,7 +589,7 @@ export function EntryEditor({
                                             ) : null}
                                             <div
                                                 className={cn(
-                                                    'grid grid-cols-2 gap-x-6 gap-y-[22px]',
+                                                    'flex flex-col gap-[22px]',
                                                     showGroups && 'mt-4'
                                                 )}
                                             >
