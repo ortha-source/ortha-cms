@@ -511,12 +511,18 @@ export function EntryEditor({
                         onValueChange={setTab}
                         className="flex min-h-0 flex-1 flex-col"
                     >
-                        {/* The island card: a pinned header (title + locale +
-                            underline tabs) over a single scrolling content
-                            region, so the scrollbar sits inside the card and the
-                            page never scrolls. */}
-                        <div className="mx-auto flex min-h-0 w-full max-w-[820px] flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
-                            <div className="flex-none pt-7">
+                        {/* The island card is one scroll region: the title,
+                            underline tabs, and content all scroll together, so
+                            the scrollbar sits inside the card (never the page)
+                            and the header scrolls away with the fields. A
+                            `@container` so the field grid can reflow to the
+                            card's own width, not the viewport's. */}
+                        <div
+                            ref={scrollRef}
+                            onFocus={onPaneFocus}
+                            className="@container mx-auto flex min-h-0 w-full max-w-[1120px] flex-1 flex-col overflow-y-auto rounded-2xl border bg-background"
+                        >
+                            <div className="pt-7">
                                 <div className="px-9">
                                     <div className="flex flex-wrap items-center gap-3">
                                         <h1 className="text-2xl font-semibold tracking-tight">
@@ -571,11 +577,7 @@ export function EntryEditor({
                                 </TabsList>
                             </div>
 
-                            <div
-                                ref={scrollRef}
-                                onFocus={onPaneFocus}
-                                className="min-h-0 flex-1 overflow-y-auto px-9 pb-7 pt-6"
-                            >
+                            <div className="px-9 pb-7 pt-6">
                                 <TabsContent
                                     value={TAB.General}
                                     className="mt-0"
@@ -592,7 +594,7 @@ export function EntryEditor({
                                             ) : null}
                                             <div
                                                 className={cn(
-                                                    'grid grid-cols-2 gap-x-6 gap-y-[22px]',
+                                                    'grid grid-cols-1 gap-x-6 gap-y-[22px] @lg:grid-cols-2 @3xl:grid-cols-3',
                                                     showGroups && 'mt-4'
                                                 )}
                                             >
