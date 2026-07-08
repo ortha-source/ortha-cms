@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    ArrowLeft,
     ChevronRight,
     MoreHorizontal,
-    PanelLeft,
     Save,
     Send,
     Trash2,
@@ -104,6 +105,8 @@ export function EntryTopBar({
     showPublish,
     showUnpublish,
     showDelete,
+    typeTo,
+    rootTo,
     onExit,
     onSaveDraft,
     onPublish,
@@ -122,6 +125,10 @@ export function EntryTopBar({
     showPublish: boolean;
     showUnpublish: boolean;
     showDelete: boolean;
+    /** Records-list path for the type breadcrumb; omitted (plain text) for a single. */
+    typeTo?: string;
+    /** Content-library root path for the "Content" breadcrumb. */
+    rootTo?: string;
     /** Leave the editor (back to the records list / app nav). */
     onExit: () => void;
     onSaveDraft: () => void;
@@ -145,23 +152,41 @@ export function EntryTopBar({
                     aria-label={intl.formatMessage(messages.showList)}
                     className="flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors hover:bg-accent"
                 >
-                    <PanelLeft className="size-4" aria-hidden />
+                    <ArrowLeft className="size-4" aria-hidden />
                 </button>
 
                 <nav
                     aria-label="Breadcrumb"
                     className="flex min-w-0 items-center gap-1.5 text-[13px]"
                 >
-                    <span className="text-muted-foreground">
-                        {intl.formatMessage(messages.root)}
-                    </span>
+                    {rootTo ? (
+                        <Link
+                            to={rootTo}
+                            className="text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            {intl.formatMessage(messages.root)}
+                        </Link>
+                    ) : (
+                        <span className="text-muted-foreground">
+                            {intl.formatMessage(messages.root)}
+                        </span>
+                    )}
                     <ChevronRight
                         className="size-3 shrink-0 text-muted-foreground"
                         aria-hidden
                     />
-                    <span className="truncate text-muted-foreground">
-                        {typeLabel}
-                    </span>
+                    {typeTo ? (
+                        <Link
+                            to={typeTo}
+                            className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            {typeLabel}
+                        </Link>
+                    ) : (
+                        <span className="truncate text-muted-foreground">
+                            {typeLabel}
+                        </span>
+                    )}
                     <ChevronRight
                         className="size-3 shrink-0 text-muted-foreground"
                         aria-hidden

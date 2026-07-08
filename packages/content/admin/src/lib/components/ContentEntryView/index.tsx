@@ -366,6 +366,7 @@ export function ContentEntryView({
                 onUnpublish={onUnpublish}
                 onDelete={onDelete}
                 backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                libraryTo={`/workspaces/${workspace.id}/${CONTENT_SEGMENT}`}
                 availableTypeNames={workspace.content}
             />
         </div>

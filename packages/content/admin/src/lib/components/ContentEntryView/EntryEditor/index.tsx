@@ -173,6 +173,7 @@ export function EntryEditor({
     onUnpublish,
     onDelete,
     backTo,
+    libraryTo,
     availableTypeNames
 }: {
     schema: ContentTypeDetail;
@@ -198,6 +199,8 @@ export function EntryEditor({
     onDelete?: () => void;
     /** Where "back to records" goes; omitted for a single page. */
     backTo?: string;
+    /** The content library root (`…/content`), for the "Content" breadcrumb. */
+    libraryTo?: string;
     /**
      * Content-type names granted to the open workspace. A relation field is shown
      * only when its target is in this set — a relation to a collection the
@@ -521,6 +524,8 @@ export function EntryEditor({
                 showPublish={showPublish}
                 showUnpublish={showUnpublish}
                 showDelete={showDelete}
+                typeTo={backTo}
+                rootTo={libraryTo}
                 onExit={onExit}
                 onSaveDraft={save(false)}
                 onPublish={save(true)}
@@ -546,8 +551,8 @@ export function EntryEditor({
                         {/* The island card: a pinned header (title + locale +
                             underline tabs) over a single scrolling content
                             region, so the scrollbar sits inside the card and the
-                            page never scrolls. */}
-                        <div className="mx-auto flex min-h-0 w-full max-w-[820px] flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
+                            page never scrolls. Spans the full center column. */}
+                        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
                             <div className="flex-none pt-7">
                                 <div className="px-9">
                                     <div className="flex flex-wrap items-center gap-3">
