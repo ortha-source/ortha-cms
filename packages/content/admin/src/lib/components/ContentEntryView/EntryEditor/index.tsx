@@ -551,8 +551,10 @@ export function EntryEditor({
                         {/* The island card: a pinned header (title + locale +
                             underline tabs) over a single scrolling content
                             region, so the scrollbar sits inside the card and the
-                            page never scrolls. Spans the full center column. */}
-                        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
+                            page never scrolls. Spans the full center column and
+                            is a `@container` so the field grid reflows to the
+                            card's own width, not the viewport's. */}
+                        <div className="@container flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
                             <div className="flex-none pt-7">
                                 <div className="px-9">
                                     <div className="flex flex-wrap items-center gap-3">
@@ -629,7 +631,7 @@ export function EntryEditor({
                                             ) : null}
                                             <div
                                                 className={cn(
-                                                    'grid grid-cols-2 gap-x-6 gap-y-[22px]',
+                                                    'grid grid-cols-1 gap-x-6 gap-y-[22px] @lg:grid-cols-2 @4xl:grid-cols-3',
                                                     showGroups && 'mt-4'
                                                 )}
                                             >
