@@ -64,6 +64,11 @@ const BOOL_SEGMENT = { On: 'on', Off: 'off' } as const;
 /** Flat controls — the field surfaces carry a border, never a shadow. */
 const FLAT = 'shadow-none';
 
+/** Boolean segmented control, restyled to match the other field surfaces. */
+const BOOL_CONTROL = 'rounded-lg border-input';
+/** Its items, with a slightly smaller radius so the active pill nests cleanly. */
+const BOOL_ITEM = 'rounded-md';
+
 /** The value coerced to a string for text-like controls. */
 function asText(value: unknown): string {
     if (typeof value === 'string') return value;
@@ -114,6 +119,11 @@ export function EntryFieldInput({
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
                         aria-describedby={describedBy}
+                        // Match the other field controls: same border color
+                        // (`border-input`) and corner radius (`rounded-lg`, with
+                        // `rounded-md` items for a concentric inner pill) rather
+                        // than the component's default `rounded-xl` + `border`.
+                        className={BOOL_CONTROL}
                         value={
                             value === true
                                 ? BOOL_SEGMENT.On
@@ -126,10 +136,16 @@ export function EntryFieldInput({
                             onBlur?.();
                         }}
                     >
-                        <SegmentedControlItem value={BOOL_SEGMENT.On}>
+                        <SegmentedControlItem
+                            value={BOOL_SEGMENT.On}
+                            className={BOOL_ITEM}
+                        >
                             {intl.formatMessage(messages.enabled)}
                         </SegmentedControlItem>
-                        <SegmentedControlItem value={BOOL_SEGMENT.Off}>
+                        <SegmentedControlItem
+                            value={BOOL_SEGMENT.Off}
+                            className={BOOL_ITEM}
+                        >
                             {intl.formatMessage(messages.disabled)}
                         </SegmentedControlItem>
                     </SegmentedControl>
