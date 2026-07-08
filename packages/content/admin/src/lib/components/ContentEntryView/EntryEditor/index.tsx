@@ -438,15 +438,16 @@ export function EntryEditor({
                     );
                     control?.focus({ preventScroll: true });
                     if (!control) return;
-                    // Focusing a date/datetime or select field via the navigator
-                    // should reveal its options, not just its trigger: open the
-                    // calendar popover (a click toggles it) or the select listbox
-                    // (Radix opens on an Enter/Space/Arrow keydown). A plain text
-                    // input just takes focus.
+                    // Focusing an overlay field via the navigator should reveal
+                    // its options, not just its trigger: open the popover of a
+                    // date/datetime or multiselect (a click toggles it) or the
+                    // select listbox (Radix opens on an Enter/Space/Arrow
+                    // keydown). A plain text input just takes focus.
                     const type = fieldTypeByName.get(name);
                     if (
                         type === CONTENT_FIELD_TYPE.Date ||
-                        type === CONTENT_FIELD_TYPE.Datetime
+                        type === CONTENT_FIELD_TYPE.Datetime ||
+                        type === CONTENT_FIELD_TYPE.Multiselect
                     ) {
                         control.click();
                     } else if (type === CONTENT_FIELD_TYPE.Select) {
