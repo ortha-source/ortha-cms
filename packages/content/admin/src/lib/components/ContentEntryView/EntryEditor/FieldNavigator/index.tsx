@@ -36,7 +36,7 @@ export function FieldNavigator({
     return (
         <nav
             aria-label={intl.formatMessage(messages.title)}
-            className="flex w-[212px] flex-none flex-col overflow-y-auto"
+            className="hidden w-[212px] flex-none flex-col overflow-y-auto lg:flex"
         >
             <div className="flex items-center gap-3 px-1">
                 <div className="relative size-11 shrink-0">

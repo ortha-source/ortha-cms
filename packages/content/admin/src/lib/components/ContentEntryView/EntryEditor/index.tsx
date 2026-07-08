@@ -113,7 +113,7 @@ const JUMP_OFFSET = 90;
  *  bottom hairline spans the full card width, while `px-9` insets the triggers
  *  so they line up with the header + body content. */
 const TAB_LIST_CLS =
-    'mt-5 h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent px-9 py-0';
+    'mt-5 h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent px-5 py-0 lg:px-9';
 
 /** Underline tab trigger: muted text, foreground underline when active, its
  *  border overlapping the list's bottom hairline (`-mb-px`). */
@@ -533,7 +533,11 @@ export function EntryEditor({
                 onDelete={onDelete}
             />
 
-            <div className="flex min-h-0 flex-1 gap-6 px-6 py-6">
+            {/* Below `lg` the three columns stack and the whole body scrolls as
+                one page (the field nav hides, the rail drops under the form);
+                from `lg` up it's the fixed side-rails + internally-scrolling
+                card. */}
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 lg:flex-row lg:gap-6 lg:overflow-hidden lg:px-6 lg:py-6">
                 <FieldNavigator
                     fieldStates={outlineStates}
                     activeKey={activeKey}
@@ -542,11 +546,11 @@ export function EntryEditor({
                     onJump={jumpTo}
                 />
 
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
                     <Tabs
                         value={tab}
                         onValueChange={setTab}
-                        className="flex min-h-0 flex-1 flex-col"
+                        className="flex flex-col lg:min-h-0 lg:flex-1"
                     >
                         {/* The island card: a pinned header (title + locale +
                             underline tabs) over a single scrolling content
@@ -554,9 +558,9 @@ export function EntryEditor({
                             page never scrolls. Spans the full center column and
                             is a `@container` so the field grid reflows to the
                             card's own width, not the viewport's. */}
-                        <div className="@container flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
-                            <div className="flex-none pt-7">
-                                <div className="px-9">
+                        <div className="@container flex w-full flex-col rounded-2xl border bg-background lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+                            <div className="flex-none pt-6 lg:pt-7">
+                                <div className="px-5 lg:px-9">
                                     <div className="flex flex-wrap items-center gap-3">
                                         <h1 className="text-2xl font-semibold tracking-tight">
                                             {schema.label}
@@ -613,7 +617,7 @@ export function EntryEditor({
                             <div
                                 ref={scrollRef}
                                 onFocus={onPaneFocus}
-                                className="min-h-0 flex-1 overflow-y-auto px-9 pb-7 pt-6"
+                                className="px-5 pb-7 pt-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-9"
                             >
                                 <TabsContent
                                     value={TAB.General}
@@ -862,7 +866,7 @@ export function EntryEditor({
                     </Tabs>
                 </div>
 
-                <aside className="flex w-[300px] flex-none flex-col gap-4 overflow-y-auto">
+                <aside className="flex w-full flex-none flex-col gap-4 lg:w-[300px] lg:overflow-y-auto">
                     {publishable ? <PublishGate items={gate} /> : null}
                     <DetailsBlock entry={entry} isCreate={isCreate} />
                 </aside>
