@@ -555,10 +555,8 @@ export function EntryEditor({
                         {/* The island card: a pinned header (title + locale +
                             underline tabs) over a single scrolling content
                             region, so the scrollbar sits inside the card and the
-                            page never scrolls. Spans the full center column and
-                            is a `@container` so the field grid reflows to the
-                            card's own width, not the viewport's. */}
-                        <div className="@container flex w-full flex-col rounded-2xl border bg-background lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+                            page never scrolls. Spans the full center column. */}
+                        <div className="flex w-full flex-col rounded-2xl border bg-background lg:min-h-0 lg:flex-1 lg:overflow-hidden">
                             <div className="flex-none pt-6 lg:pt-7">
                                 <div className="px-5 lg:px-9">
                                     <div className="flex flex-wrap items-center gap-3">
@@ -633,15 +631,23 @@ export function EntryEditor({
                                                     count={scalarFields.length}
                                                 />
                                             ) : null}
+                                            {/* Flexible rows: cells wrap at a
+                                                ~340px basis (→ 1 / 2 / 3 columns
+                                                by width) and **grow** to fill
+                                                their row, so a lone field — the
+                                                only one, or the last of an odd
+                                                count — stretches full width
+                                                instead of leaving a gap. */}
                                             <div
                                                 className={cn(
-                                                    'grid grid-cols-1 gap-x-6 gap-y-[22px] @lg:grid-cols-2 @4xl:grid-cols-3',
+                                                    'flex flex-wrap gap-x-6 gap-y-[22px]',
                                                     showGroups && 'mt-4'
                                                 )}
                                             >
                                                 {scalarFields.map((field) => (
                                                     <EntryFieldRow
                                                         key={field.name}
+                                                        className="min-w-0 grow basis-[340px]"
                                                         field={field}
                                                         value={
                                                             form.values[
