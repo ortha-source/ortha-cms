@@ -405,32 +405,63 @@ export function EntryEditor({
     const [activeKey, setActiveKey] = useState<string | undefined>(
         orderedGeneralFields[0]?.name
     );
+    // Field type by name — lets a jump open the overlay controls (date/select)
+    // instead of only focusing their trigger.
+    const fieldTypeByName = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const field of orderedGeneralFields) map.set(field.name, field.type);
+        return map;
+    }, [orderedGeneralFields]);
 
-    const jumpTo = useCallback((name: string) => {
-        setActiveKey(name);
-        setTab(TAB.General);
-        requestAnimationFrame(() => {
-            const container = scrollRef.current;
-            const el = document.getElementById(`f-${name}`);
-            if (container && el) {
-                const top =
-                    container.scrollTop +
-                    (el.getBoundingClientRect().top -
-                        container.getBoundingClientRect().top) -
-                    JUMP_OFFSET;
-                container.scrollTo({
-                    top: Math.max(0, top),
-                    behavior: 'smooth'
-                });
-            }
+    const jumpTo = useCallback(
+        (name: string) => {
+            setActiveKey(name);
+            setTab(TAB.General);
             requestAnimationFrame(() => {
-                const host = document.getElementById(`f-${name}`);
-                host?.querySelector<HTMLElement>(
-                    'input, textarea, select, button, [tabindex]'
-                )?.focus({ preventScroll: true });
+                const container = scrollRef.current;
+                const el = document.getElementById(`f-${name}`);
+                if (container && el) {
+                    const top =
+                        container.scrollTop +
+                        (el.getBoundingClientRect().top -
+                            container.getBoundingClientRect().top) -
+                        JUMP_OFFSET;
+                    container.scrollTo({
+                        top: Math.max(0, top),
+                        behavior: 'smooth'
+                    });
+                }
+                requestAnimationFrame(() => {
+                    const host = document.getElementById(`f-${name}`);
+                    const control = host?.querySelector<HTMLElement>(
+                        'input, textarea, select, button, [tabindex]'
+                    );
+                    control?.focus({ preventScroll: true });
+                    if (!control) return;
+                    // Focusing a date/datetime or select field via the navigator
+                    // should reveal its options, not just its trigger: open the
+                    // calendar popover (a click toggles it) or the select listbox
+                    // (Radix opens on an Enter/Space/Arrow keydown). A plain text
+                    // input just takes focus.
+                    const type = fieldTypeByName.get(name);
+                    if (
+                        type === CONTENT_FIELD_TYPE.Date ||
+                        type === CONTENT_FIELD_TYPE.Datetime
+                    ) {
+                        control.click();
+                    } else if (type === CONTENT_FIELD_TYPE.Select) {
+                        control.dispatchEvent(
+                            new KeyboardEvent('keydown', {
+                                key: 'Enter',
+                                bubbles: true
+                            })
+                        );
+                    }
+                });
             });
-        });
-    }, []);
+        },
+        [fieldTypeByName]
+    );
 
     const onScroll = useCallback(() => {
         const container = scrollRef.current;
