@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { NAVBAR_END_SLOT, NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
+import { SIDEBAR_FOOTER_SLOT, SIDEBAR_NAV_SLOT } from '@ortha-cms/shell-admin';
 import { Users } from 'lucide-react';
 import {
     InviteMemberPageSkeleton,
@@ -89,20 +89,21 @@ export function UsersPlugin(): UsersAdminPlugin {
         ],
         slots: [
             {
-                slot: NAVBAR_START_SLOT,
+                slot: SIDEBAR_NAV_SLOT,
                 items: [
                     {
                         labelId: 'users.nav.label',
                         defaultLabel: 'Members',
                         to: '/users',
-                        order: 30,
+                        group: 'directory',
+                        order: 20,
                         icon: Users
                     }
                 ]
             },
             {
-                // The account menu in the toolbar's trailing region.
-                slot: NAVBAR_END_SLOT,
+                // The account menu pinned to the sidebar footer.
+                slot: SIDEBAR_FOOTER_SLOT,
                 items: [
                     {
                         id: 'users.account',

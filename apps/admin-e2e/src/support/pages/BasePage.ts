@@ -25,6 +25,33 @@ export abstract class BasePage {
         return this.page.getByRole('menuitem', { name: label });
     }
 
+    // --- command palette (sidebar search, shell chrome) ---
+
+    /** The sidebar search trigger that opens the ⌘K command palette. */
+    searchTrigger(): Locator {
+        return this.page.getByRole('button', { name: 'Search', exact: true });
+    }
+
+    /** Open the command palette via the sidebar search trigger. */
+    async openCommandPalette() {
+        await this.searchTrigger().click();
+        await this.commandInput().waitFor();
+    }
+
+    /** The palette's search input. */
+    commandInput(): Locator {
+        return this.page.getByPlaceholder('Search or jump to…');
+    }
+
+    /**
+     * A palette result (a command option) by its exact accessible name. Exact,
+     * because a workspace ("Marketing site") is a substring of its content-type
+     * results ("Blog posts Marketing site").
+     */
+    commandItem(name: string): Locator {
+        return this.page.getByRole('option', { name, exact: true });
+    }
+
     /** The toolbar "Filters" trigger (its label carries the active count). */
     filterTrigger(): Locator {
         return this.page.getByRole('button', { name: /^Filters/ });

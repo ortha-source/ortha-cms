@@ -148,8 +148,8 @@ test.describe('Relation picker', () => {
         await relationsEditorPage.openRelationsTab();
 
         await relationsEditorPage.addRelatedButton.click();
-        // The tag target has 32 rows; the first window is 12.
-        await expect(relationsEditorPage.candidateOptions).toHaveCount(12);
+        // The tag target has 32 rows; the first page is one candidate window (25).
+        await expect(relationsEditorPage.candidateOptions).toHaveCount(25);
         await expect(relationsEditorPage.recordsCount).toHaveText(/32 records/);
 
         // Scrolling to the bottom trips the lazy-load sentinel, revealing more.
@@ -161,7 +161,7 @@ test.describe('Relation picker', () => {
                 },
                 { timeout: 10_000 }
             )
-            .toBeGreaterThan(12);
+            .toBeGreaterThan(25);
     });
 
     test('reveals the inline query-builder filter over the target schema', async ({

@@ -4,13 +4,15 @@ import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Plus } from 'lucide-react';
 import {
+    Alert,
+    AlertDescription,
     Button,
     Container,
     ContainerHeader
 } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
-import { WorkspaceCard } from '../../components/WorkspaceCard';
-import { WorkspaceGridSkeleton } from '../../components/WorkspacesSkeleton';
+import { WorkspacesTable } from '../../components/WorkspacesTable';
+import { WorkspacesTableSkeleton } from '../../components/WorkspacesSkeleton';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
 import {
     WorkspaceToolbar,
@@ -33,6 +35,14 @@ const messages = defineMessages({
     newWorkspace: {
         id: 'workspaces.page.newWorkspace',
         defaultMessage: 'New workspace'
+    },
+    error: {
+        id: 'workspaces.page.error',
+        defaultMessage: 'Couldn’t load workspaces. Please try again.'
+    },
+    retry: {
+        id: 'workspaces.page.retry',
+        defaultMessage: 'Retry'
     }
 });
 
@@ -60,7 +70,12 @@ export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
     const canCreate = useHasPermission('workspaces:create');
-    const { data: workspaces = [], isLoading } = useWorkspaces();
+    const {
+        data: workspaces = [],
+        isLoading,
+        isError,
+        refetch
+    } = useWorkspaces();
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
@@ -75,6 +90,17 @@ export function WorkspacesPage() {
                     matchesSearch(workspace, search)
             ),
         [workspaces, status, search]
+    );
+
+    // Per-status counts for the filter chips — over the full list, not the
+    // current view, so each chip shows how many it would reveal.
+    const counts = useMemo<Record<StatusFilter, number>>(
+        () => ({
+            All: workspaces.length,
+            Active: workspaces.filter((w) => w.status === 'Active').length,
+            Archived: workspaces.filter((w) => w.status === 'Archived').length
+        }),
+        [workspaces]
     );
 
     // Resets back to the widest view. Clearing lands on `All` (not the default
@@ -107,12 +133,30 @@ export function WorkspacesPage() {
                 onSearchChange={setSearch}
                 status={status}
                 onStatusChange={setStatus}
+                counts={counts}
                 shown={filtered.length}
                 total={workspaces.length}
             />
 
             {isLoading ? (
-                <WorkspaceGridSkeleton />
+                <WorkspacesTableSkeleton />
+            ) : isError ? (
+                // A failed load gets its own state — never the empty-list
+                // "create your first workspace" copy, which would mislead the
+                // operator into thinking the account genuinely has none.
+                <Alert variant="destructive" role="alert" className="mt-4">
+                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                        <span>{intl.formatMessage(messages.error)}</span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="shadow-none"
+                            onClick={() => refetch()}
+                        >
+                            {intl.formatMessage(messages.retry)}
+                        </Button>
+                    </AlertDescription>
+                </Alert>
             ) : filtered.length === 0 ? (
                 <WorkspacesEmpty
                     // "No match / clear filters" whenever workspaces exist but
@@ -126,20 +170,7 @@ export function WorkspacesPage() {
                     onCreate={openCreate}
                 />
             ) : (
-                <div
-                    className="grid gap-4"
-                    style={{
-                        gridTemplateColumns:
-                            'repeat(auto-fill, minmax(min(100%, 320px), 1fr))'
-                    }}
-                >
-                    {filtered.map((workspace) => (
-                        <WorkspaceCard
-                            key={workspace.id}
-                            workspace={workspace}
-                        />
-                    ))}
-                </div>
+                <WorkspacesTable workspaces={filtered} />
             )}
         </Container>
     );

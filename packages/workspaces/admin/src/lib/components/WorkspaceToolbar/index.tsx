@@ -1,22 +1,18 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Search, SlidersHorizontal } from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
-    Badge,
-    Button,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-    cn
+    SegmentedControl,
+    SegmentedControlCount,
+    SegmentedControlItem
 } from '@ortha-cms/design-system';
-import { radioGroupKeydown } from '../../utils/radioGroupKeydown';
 
-/** The status the grid is filtered by. `Active` is the default view. */
+/** The status the list is filtered by. `Active` is the default view. */
 export type StatusFilter = 'All' | 'Active' | 'Archived';
 
-/** The default status filter; the count badge shows when the value differs. */
+/** The default status filter. */
 export const DEFAULT_STATUS: StatusFilter = 'Active';
 
 /** Intl descriptors for {@link WorkspaceToolbar}, co-located with the component. */
@@ -29,13 +25,9 @@ const messages = defineMessages({
         id: 'workspaces.toolbar.searchPlaceholder',
         defaultMessage: 'Search workspaces'
     },
-    filter: {
-        id: 'workspaces.toolbar.filter',
-        defaultMessage: 'Filter'
-    },
     statusLegend: {
         id: 'workspaces.toolbar.statusLegend',
-        defaultMessage: 'Status'
+        defaultMessage: 'Filter by status'
     },
     statusAll: {
         id: 'workspaces.toolbar.statusAll',
@@ -62,20 +54,23 @@ type WorkspaceToolbarProps = {
     onSearchChange: (value: string) => void;
     status: StatusFilter;
     onStatusChange: (value: StatusFilter) => void;
+    /** How many workspaces fall under each status (for the chip counts). */
+    counts: Record<StatusFilter, number>;
     shown: number;
     total: number;
 };
 
 /**
- * The grid toolbar: a search box, a status filter popover (with a count badge
- * when the status differs from the default), and a live "{shown} of {total}"
- * count. Wraps to multiple rows on narrow viewports.
+ * The list toolbar: a search box, the status filter as a segmented chip group
+ * (All / Active / Archived, each badged with its count), and a live
+ * "{shown} of {total}" count. Wraps to multiple rows on narrow viewports.
  */
 export function WorkspaceToolbar({
     search,
     onSearchChange,
     status,
     onStatusChange,
+    counts,
     shown,
     total
 }: WorkspaceToolbarProps) {
@@ -102,64 +97,28 @@ export function WorkspaceToolbar({
                 />
             </InputGroup>
 
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="outline" className="shadow-none">
-                        <SlidersHorizontal />
-                        {intl.formatMessage(messages.filter)}
-                        {status !== DEFAULT_STATUS ? (
-                            <Badge
-                                variant="secondary"
-                                className="ml-1 rounded-full px-1.5"
-                            >
-                                1
-                            </Badge>
-                        ) : null}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-56">
-                    <div
-                        role="radiogroup"
-                        aria-label={intl.formatMessage(messages.statusLegend)}
-                        className="flex flex-col gap-1"
-                        onKeyDown={(event) =>
-                            radioGroupKeydown(
-                                event,
-                                STATUS_OPTIONS,
-                                status,
-                                onStatusChange
-                            )
-                        }
-                    >
-                        <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
-                            {intl.formatMessage(messages.statusLegend)}
-                        </p>
-                        {STATUS_OPTIONS.map((option) => {
-                            const selected = option === status;
-                            return (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={selected}
-                                    tabIndex={selected ? 0 : -1}
-                                    onClick={() => onStatusChange(option)}
-                                    className={cn(
-                                        'flex items-center justify-between rounded-md px-2 py-1.5 text-sm',
-                                        'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                        selected && 'font-medium'
-                                    )}
-                                >
-                                    {statusLabel[option]}
-                                    {selected ? (
-                                        <Check className="size-4" />
-                                    ) : null}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </PopoverContent>
-            </Popover>
+            <SegmentedControl
+                value={status}
+                // Radix single-toggle can emit '' when the active chip is
+                // re-clicked; ignore that so a status is always selected.
+                onValueChange={(value) => {
+                    if (value) {
+                        onStatusChange(value as StatusFilter);
+                    }
+                }}
+                aria-label={intl.formatMessage(messages.statusLegend)}
+            >
+                {STATUS_OPTIONS.map((option) => (
+                    <SegmentedControlItem key={option} value={option}>
+                        {statusLabel[option]}
+                        {/* Decorative count — hidden from the a11y tree so the
+                            radio's name stays just the status label. */}
+                        <SegmentedControlCount aria-hidden>
+                            {counts[option]}
+                        </SegmentedControlCount>
+                    </SegmentedControlItem>
+                ))}
+            </SegmentedControl>
 
             <span className="ml-auto text-sm text-muted-foreground">
                 {intl.formatMessage(messages.count, { shown, total })}

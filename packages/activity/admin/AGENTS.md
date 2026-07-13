@@ -1,16 +1,19 @@
 # @ortha-cms/activity-admin
 
-The audit-log **admin plugin**: the global **Activity Log** page at `/activity`
-and its toolbar nav entry. Mirrors the Members page patterns.
+The audit-log **admin plugin**: the global **Activity Log** page at `/activity`,
+its sidebar nav entry, and the home dashboard's recent-activity panel. Mirrors
+the Members page patterns.
 
 ## What it owns
 
 - The private `/activity` route (lazy + `<Suspense>`), rendered in the shell's
   authenticated layout.
-- A `NAVBAR_START_SLOT` entry (`order: 35`, after Members) carrying
+- A `SIDEBAR_NAV_SLOT` entry (`group: 'overview'`, `order: 20`) carrying
   `permission: 'activity:read'`, so the entry is **hidden** for users who lack
-  it (the shell's `NavbarNavButton` honors the new optional `permission` field).
+  it (the shell's `SidebarNavButton` honors the optional `permission` field).
   The page itself also gates on `useHasPermission('activity:read')`.
+- A `HOME_SECTION_SLOT` panel (`RecentActivityPanel`) — the latest events on the
+  home dashboard, reusing `useActivityLog` and gated on `activity:read`.
 
 ## The page
 

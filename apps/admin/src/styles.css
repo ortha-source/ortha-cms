@@ -40,6 +40,20 @@
        Always paired with the pill's text label, so the color is never the
        sole carrier of meaning. Consumed via `bg-status-invited`. */
     --color-status-invited: oklch(0.75 0.15 75);
+
+    /* Sidebar surface tokens (consumed by the design-system `Sidebar`
+       primitive as `bg-sidebar`, `text-sidebar-foreground`, etc.). The app
+       chrome is the left sidebar; these keep it a hair off the white canvas so
+       it reads as chrome, not page. Light-mode only — the admin ships no dark
+       theme. Grayscale OKLCH, matching the neutral palette above. */
+    --color-sidebar: oklch(0.985 0 0);
+    --color-sidebar-foreground: oklch(0.145 0 0);
+    --color-sidebar-primary: oklch(0.205 0 0);
+    --color-sidebar-primary-foreground: oklch(0.985 0 0);
+    --color-sidebar-accent: oklch(0.97 0 0);
+    --color-sidebar-accent-foreground: oklch(0.205 0 0);
+    --color-sidebar-border: oklch(0.922 0 0);
+    --color-sidebar-ring: oklch(0.708 0 0);
 }
 
 /* Avatar accent palette — the only color in the otherwise-neutral admin. Muted

@@ -1,8 +1,9 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
+import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@ortha-cms/shell-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../../components/ActivityLogSkeleton';
+import { RecentActivityPanel } from '../../components/RecentActivityPanel';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
 // fetched only when a signed-in user first navigates to `/activity`.
@@ -54,15 +55,28 @@ export function ActivityPlugin(): ActivityAdminPlugin {
         ],
         slots: [
             {
-                slot: NAVBAR_START_SLOT,
+                slot: SIDEBAR_NAV_SLOT,
                 items: [
                     {
                         labelId: 'activity.nav.label',
                         defaultLabel: 'Activity',
                         to: '/activity',
-                        order: 35,
+                        group: 'overview',
+                        order: 20,
                         icon: Activity,
                         permission: 'activity:read'
+                    }
+                ]
+            },
+            {
+                // Home dashboard: the recent-activity panel.
+                slot: HOME_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'activity.home.recent',
+                        region: 'panel',
+                        order: 20,
+                        Component: RecentActivityPanel
                     }
                 ]
             }

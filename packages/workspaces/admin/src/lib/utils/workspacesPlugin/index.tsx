@@ -1,15 +1,24 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
+import {
+    COMMAND_SLOT,
+    HOME_SECTION_SLOT,
+    SIDEBAR_NAV_SLOT,
+    SIDEBAR_SECTION_SLOT
+} from '@ortha-cms/shell-admin';
 import { Layers, Settings } from 'lucide-react';
 import {
     CreateWorkspacePageSkeleton,
     WorkspaceShellSkeleton,
     WorkspacesPageSkeleton
 } from '../../components/WorkspacesSkeleton';
+import { WorkspacesNavSection } from '../../components/WorkspacesNavSection';
+import { WorkspaceStats } from '../../components/WorkspaceStats';
+import { WorkspacesHomePanel } from '../../components/WorkspacesHomePanel';
+import { WorkspaceCommands } from '../../components/WorkspaceCommands';
 import {
     WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SIDEBAR_SLOT
+    WORKSPACE_NAV_SLOT
 } from '../../slots/workspaceSlots';
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
@@ -101,21 +110,61 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
         ],
         slots: [
             {
-                slot: NAVBAR_START_SLOT,
+                slot: SIDEBAR_NAV_SLOT,
                 items: [
                     {
                         labelId: 'workspaces.nav.label',
                         defaultLabel: 'Workspaces',
                         to: '/workspaces',
-                        order: 20,
+                        group: 'directory',
+                        order: 10,
                         icon: Layers
                     }
                 ]
             },
             {
-                // Settings is the last section in the rail's nav (the bottom
-                // region is the fixed new-workspace action, not a slot).
-                slot: WORKSPACE_SIDEBAR_SLOT,
+                // The Workspaces quick-list below the primary nav.
+                slot: SIDEBAR_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'workspaces.quicklist',
+                        order: 10,
+                        Component: WorkspacesNavSection
+                    }
+                ]
+            },
+            {
+                // Command palette: jump into any active workspace.
+                slot: COMMAND_SLOT,
+                items: [
+                    {
+                        id: 'workspaces.command',
+                        order: 10,
+                        Component: WorkspaceCommands
+                    }
+                ]
+            },
+            {
+                // Home dashboard: the workspace stat tiles + a workspaces panel.
+                slot: HOME_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'workspaces.home.stats',
+                        region: 'stat',
+                        order: 10,
+                        Component: WorkspaceStats
+                    },
+                    {
+                        id: 'workspaces.home.panel',
+                        region: 'panel',
+                        order: 10,
+                        Component: WorkspacesHomePanel
+                    }
+                ]
+            },
+            {
+                // Settings is the last entry in the "Workspace" section.
+                slot: WORKSPACE_NAV_SLOT,
                 items: [
                     {
                         labelId: 'workspaces.settings.nav',

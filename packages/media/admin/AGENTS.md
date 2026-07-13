@@ -13,14 +13,15 @@ will gain `@ortha-cms/media-server` once there are assets to serve.
   (`exports` → `./src/index.ts`); no build step.
 - Register it in `createAdmin({ plugins })` **after** `WorkspacesPlugin()` — it
   contributes only to the workspace shell's slots
-  (`WORKSPACE_SIDEBAR_SLOT` + `WORKSPACE_ROUTE_SLOT`), so it depends on
+  (`WORKSPACE_NAV_SLOT` + `WORKSPACE_ROUTE_SLOT`), so it depends on
   `@ortha-cms/workspaces-admin`.
 
 ## Lives strictly inside a workspace
 
-This plugin contributes **no top-level route and no top-toolbar nav item**. It
-adds an `Image` rail button (`order: 20`) and a `media/*` route to the workspace
-shell — so it only ever renders under `/workspaces/:id/media`. The page reads
+This plugin contributes **no top-level route and no global nav item**. It adds
+an `Image` "Workspace" nav entry (`order: 20`) and a `media/*` route to the
+workspace shell — so it only ever renders under `/workspaces/:id/media`. The
+page reads
 the open workspace via `useCurrentWorkspace()` from
 `@ortha-cms/workspaces-admin`.
 

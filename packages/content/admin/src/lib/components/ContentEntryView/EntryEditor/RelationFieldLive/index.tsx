@@ -8,7 +8,9 @@ import {
     closestCenter,
     useSensor,
     useSensors,
-    type DragEndEvent
+    type Announcements,
+    type DragEndEvent,
+    type ScreenReaderInstructions
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -49,6 +51,30 @@ const messages = defineMessages({
     loadError: {
         id: 'content.relations.live.loadError',
         defaultMessage: 'Couldn’t load linked records.'
+    },
+    // Drag-and-drop reorder announcements — same copy as RelationField, kept
+    // co-located here (messages are per-component) so keyboard reorder is spoken.
+    dndInstructions: {
+        id: 'content.relations.live.dnd.instructions',
+        defaultMessage:
+            'To reorder, press Space or Enter to pick up, use the arrow keys to move, then press Space or Enter to drop, or Escape to cancel.'
+    },
+    dndPickedUp: {
+        id: 'content.relations.live.dnd.pickedUp',
+        defaultMessage: 'Picked up {title}.'
+    },
+    dndOver: {
+        id: 'content.relations.live.dnd.over',
+        defaultMessage: '{title} was moved over {target}.'
+    },
+    dndDropped: {
+        id: 'content.relations.live.dnd.dropped',
+        defaultMessage: '{title} was dropped over {target}.'
+    },
+    dndCancelled: {
+        id: 'content.relations.live.dnd.cancelled',
+        defaultMessage:
+            'Reordering cancelled. {title} returned to its position.'
     }
 });
 
@@ -116,6 +142,40 @@ export function RelationFieldLive({
             ? contentEntryPath(workspace.id, targetName, id)
             : undefined;
 
+    // Title lookup for the drag announcements, keyed off the displayed set.
+    const titleById = new Map(displayed.map((item) => [item.id, item.title]));
+    const titleFor = (id: string) => titleById.get(id) ?? id;
+
+    // Spoken feedback for keyboard reordering, by record title — mirrors
+    // RelationField so the live editor announces the same way.
+    const announcements: Announcements = {
+        onDragStart: ({ active }) =>
+            intl.formatMessage(messages.dndPickedUp, {
+                title: titleFor(String(active.id))
+            }),
+        onDragOver: ({ active, over }) =>
+            over
+                ? intl.formatMessage(messages.dndOver, {
+                      title: titleFor(String(active.id)),
+                      target: titleFor(String(over.id))
+                  })
+                : undefined,
+        onDragEnd: ({ active, over }) =>
+            over
+                ? intl.formatMessage(messages.dndDropped, {
+                      title: titleFor(String(active.id)),
+                      target: titleFor(String(over.id))
+                  })
+                : undefined,
+        onDragCancel: ({ active }) =>
+            intl.formatMessage(messages.dndCancelled, {
+                title: titleFor(String(active.id))
+            })
+    };
+    const screenReaderInstructions: ScreenReaderInstructions = {
+        draggable: intl.formatMessage(messages.dndInstructions)
+    };
+
     // Reconcile the picker's chosen set against what's displayed: link the new
     // ones (remembering their title), unlink the ones it dropped — all into the
     // staged diff, no request.
@@ -131,13 +191,37 @@ export function RelationFieldLive({
     // an unloaded page is shown pre-checked (and reconciled as such) rather than
     // offered as a brand-new add — which would double-count in the header. Only
     // this explicit action loads the rest; entry load stays first-page-only.
+    //
+    // The drain must terminate even when a page fetch fails or page one is still
+    // pending. On a failed page `fetchNextPage` resolves without adding a page,
+    // yet `getNextPageParam` still reports another page (loaded < total), so a
+    // naive `while (hasNextPage)` spins forever and hammers the endpoint (#2).
+    // And while page one is still loading, `hasNextPage` is deceptively false, so
+    // keying the pre-load on it alone skips the drain and treats linked records
+    // as brand-new adds (#4). We therefore drain whenever the query isn't fully
+    // settled and stop the instant a fetch stops making progress (or throws).
     const openPicker = async () => {
-        if (links.hasNextPage && !preparing) {
+        const settled =
+            !entryId ||
+            (!!links.data && !links.hasNextPage && !links.isFetching);
+        if (!settled && !preparing) {
             setPreparing(true);
             try {
-                let more: boolean = links.hasNextPage;
+                let loaded = links.items.length;
+                let more = true;
                 while (more) {
-                    const result = await links.fetchNextPage();
+                    const result = await links.fetchNextPage().catch(() => null);
+                    // A failed fetch — open with whatever loaded; the load-error
+                    // state still surfaces below.
+                    if (!result) break;
+                    const next =
+                        result.data?.pages.reduce(
+                            (sum, page) => sum + page.items.length,
+                            0
+                        ) ?? 0;
+                    // No new items → an errored/empty page; stop rather than spin.
+                    if (next <= loaded) break;
+                    loaded = next;
                     more = result.hasNextPage;
                 }
             } finally {
@@ -199,6 +283,10 @@ export function RelationFieldLive({
                             sensors={sensors}
                             collisionDetection={closestCenter}
                             onDragEnd={handleDragEnd}
+                            accessibility={{
+                                announcements,
+                                screenReaderInstructions
+                            }}
                         >
                             <SortableContext
                                 items={ids}

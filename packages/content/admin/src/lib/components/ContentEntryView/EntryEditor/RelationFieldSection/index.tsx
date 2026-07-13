@@ -4,7 +4,8 @@ import { AlertCircle, ChevronRight } from 'lucide-react';
 import {
     Collapsible,
     CollapsibleContent,
-    CollapsibleTrigger
+    CollapsibleTrigger,
+    Spinner
 } from '@ortha-cms/design-system';
 import type {
     ContentField,
@@ -25,6 +26,10 @@ const messages = defineMessages({
     invalid: {
         id: 'content.relations.section.invalid',
         defaultMessage: 'This relation has an error'
+    },
+    loadingCount: {
+        id: 'content.relations.section.loadingCount',
+        defaultMessage: 'Loading linked count…'
     }
 });
 
@@ -53,8 +58,12 @@ export function RelationFieldSection({
     onStagedChange
 }: {
     field: ContentField;
-    /** Linked count shown in the header (server total ± staged, or value length). */
-    count: number;
+    /**
+     * Linked count shown in the header (server total ± staged, or value length),
+     * or `null` while a managed relation's count is still loading — rendered as a
+     * neutral affordance so a populated relation never flashes 0.
+     */
+    count: number | null;
     /** Whether the field has unsaved changes (drives the "Changed" badge). */
     changed: boolean;
     error?: string;
@@ -106,9 +115,16 @@ export function RelationFieldSection({
                         aria-label={intl.formatMessage(messages.invalid)}
                     />
                 ) : null}
-                <span className="tabular-nums text-xs text-muted-foreground">
-                    {intl.formatMessage(messages.linked, { count })}
-                </span>
+                {count === null ? (
+                    <Spinner
+                        className="size-3.5 text-muted-foreground"
+                        aria-label={intl.formatMessage(messages.loadingCount)}
+                    />
+                ) : (
+                    <span className="tabular-nums text-xs text-muted-foreground">
+                        {intl.formatMessage(messages.linked, { count })}
+                    </span>
+                )}
             </CollapsibleTrigger>
             <CollapsibleContent>
                 <div className="border-t px-3 pb-3 pt-3">

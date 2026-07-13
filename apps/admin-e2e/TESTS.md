@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_159 test cases across 21 spec files._
+_160 test cases across 23 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -149,7 +149,7 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the sidebar with the Workspace section |
+| renders the sidebar with the Workspace Content section |
 | Collections opens by default; Pages toggles on click |
 | selecting a single (page) opens its entry editor |
 | only shows content types granted to the workspace |
@@ -194,6 +194,27 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | relations tab — field sections |
 | relation picker — open |
 | relation picker — inline filter open |
+
+<!-- source: apps/admin-e2e/src/home/dashboard.spec.ts -->
+_<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
+
+## Home dashboard
+
+| Test case |
+| --- |
+| shows the greeting, stat tiles, and both panels |
+| the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/shell/command-palette.spec.ts -->
+_<sub>apps/admin-e2e/src/shell/command-palette.spec.ts</sub>_
+
+## Command palette
+
+| Test case |
+| --- |
+| suggests nav destinations, workspaces, and content types |
+| navigates to a nav destination |
+| jumps straight to a workspace content type |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
@@ -293,11 +314,9 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 
 | Test case |
 | --- |
-| grid — initial (active) |
-| grid — loading skeleton |
-| grid — all statuses (archived cards visible) |
-| status filter popover — open |
-| member popover — open |
+| table — initial (active) |
+| table — loading skeleton |
+| table — all statuses (archived rows visible) |
 | empty state — no matches |
 
 ### create wizard
@@ -315,14 +334,14 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | Test case |
 | --- |
 | search is reachable and filters by keyboard |
-| a card opens on Enter |
-| the status filter radiogroup moves with arrow keys |
+| a row opens on Enter |
+| the status filter chips move with arrow keys |
 
 ### create wizard
 
 | Test case |
 | --- |
-| opens the wizard from the grid on Enter |
+| opens the wizard from the list on Enter |
 | a color swatch is selectable by keyboard |
 
 <!-- source: apps/admin-e2e/src/workspaces/permissions.spec.ts -->
@@ -379,22 +398,12 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | Test case |
 | --- |
 | renders the active workspaces by default behind the shell |
-| search narrows the grid and updates the count |
-| the status filter switches to archived and badges the button |
+| search narrows the table and updates the count |
+| the status filter switches to archived and marks the chip active |
 | the status filter can show all workspaces |
 | shows a contextual empty state when nothing matches |
-
-### member stack
-
-| Test case |
-| --- |
-| collapses extra members into a "+N" pill |
-| opens a member list without opening the workspace |
-| closes on Escape and on an outside click |
-
-| Test case |
-| --- |
-| a card opens its workspace on click |
+| a row shows the workspace member and type counts |
+| a row opens its workspace on click |
 
 ### create wizard
 

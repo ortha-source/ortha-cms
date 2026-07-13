@@ -59,7 +59,9 @@ export function useSaveEntry(typeName: string) {
     const workspace = useCurrentWorkspace();
     return useMutation<EntryRecord, ApiError, SaveEntryInput>({
         mutationFn: (input) => saveEntry(typeName, input),
-        onSuccess: (saved) => {
+        onSuccess: async (saved) => {
+            // The records list + this entry's read-one can refresh in the
+            // background; nothing on screen depends on them mid-save.
             queryClient.invalidateQueries({
                 queryKey: contentEntriesPrefix(workspace.id, typeName)
             });
@@ -71,12 +73,22 @@ export function useSaveEntry(typeName: string) {
             // Relation links may have changed (staged deltas persist with the
             // save), so drop the relations aggregate **and** the per-field
             // infinite-scroll caches — a re-open re-reads the canonical set.
-            queryClient.invalidateQueries({
-                queryKey: entryRelationsPrefix(workspace.id, typeName)
-            });
-            queryClient.invalidateQueries({
-                queryKey: relationFieldLinksPrefix(workspace.id, typeName)
-            });
+            //
+            // **Await** their refetch before the mutation resolves. The editor
+            // clears its staged overlay on the same resolution; if we returned
+            // before the fresh links landed, it would render the stale pre-save
+            // set (kept via `keepPreviousData`) and the just-linked rows would
+            // visibly flicker out until the background refetch caught up. By
+            // awaiting, the overlay is only dropped once the server set already
+            // contains those links, so they stay visible continuously (#7).
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: entryRelationsPrefix(workspace.id, typeName)
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: relationFieldLinksPrefix(workspace.id, typeName)
+                })
+            ]);
         }
     });
 }
