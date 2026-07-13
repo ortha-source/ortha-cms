@@ -14,6 +14,7 @@ import {
     WorkspaceGuard
 } from '@ortha-cms/identity-server';
 import { clampInt } from '@ortha-cms/utils-server';
+import { MAX_PAGE_SIZE } from '../entries.constants';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { EntryWriterService } from '../services/entry-writer.service';
@@ -94,7 +95,7 @@ export class GetEntryController {
             id,
             field,
             clampInt(page, 1, 1, Number.MAX_SAFE_INTEGER),
-            clampInt(pageSize, RELATION_PAGE_SIZE, 1, 100),
+            clampInt(pageSize, RELATION_PAGE_SIZE, 1, MAX_PAGE_SIZE),
             workspaceId
         );
     }

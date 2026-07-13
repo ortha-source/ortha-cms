@@ -5,6 +5,7 @@ export { HTTP_STATUS } from './lib/httpStatus';
 export { ApiError, toApiError } from './lib/apiError';
 export { createSlot } from './lib/slot';
 export type { Slot, SlotContribution } from './lib/slot';
+export { byOrder } from './lib/byOrder';
 export { slugify } from './lib/slugify';
 export { useDebouncedValue } from './lib/useDebouncedValue';
 export {

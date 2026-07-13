@@ -44,7 +44,10 @@ import {
     type BulkPublishVerdict
 } from '../types/bulk-publish';
 import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
-import { RelationLinkService } from './relation-link.service';
+import {
+    RelationLinkService,
+    type DbTransaction
+} from './relation-link.service';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -142,6 +145,17 @@ export class EntryWriterService {
                         relations,
                         workspaceId
                     );
+                    // A non-publishable type is always live, so — like its scalar
+                    // values — a required link-managed relation must be satisfied now.
+                    // Checked after the links are written (inside the txn, so it sees
+                    // them), so a 422 rolls the whole create back.
+                    if (!type.publishable)
+                        await this.assertRequiredRelations(
+                            tx,
+                            type,
+                            inserted as Row,
+                            workspaceId
+                        );
                     // Same side-effects as an update (e.g. syncing shared fields
                     // to locale siblings): a sibling created into an existing
                     // group must land consistent with the group's shared values.
@@ -211,7 +225,7 @@ export class EntryWriterService {
      * validates the linked ids against the workspace (422 on a bad target).
      */
     private async applyRelationDeltas(
-        tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+        tx: DbTransaction,
         type: AnyContentType,
         id: string,
         relations: Record<string, RelationDelta> | undefined,
@@ -284,6 +298,11 @@ export class EntryWriterService {
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
+        // Whether this write must satisfy the type's required rules now (its
+        // scalar values up front, its link-managed relations after the links are
+        // written). Always-live types always must; a publishable type must only
+        // when the row is already published (a draft may be saved incomplete).
+        let enforceRequired = !type.publishable;
         if (!type.publishable) {
             // Always-live type: every write must validate.
             this.assertValid(type, coerced);
@@ -295,6 +314,7 @@ export class EntryWriterService {
             if (!current) throw this.notFound(type, id);
             if (current['status'] === ENTRY_STATUS.Published) {
                 this.assertValid(type, coerced);
+                enforceRequired = true;
             }
         }
         // One transaction: replace the row's columns, re-sync a whole-set
@@ -318,6 +338,16 @@ export class EntryWriterService {
                 relations,
                 workspaceId
             );
+            // Enforce required link-managed relations against the post-delta
+            // link set (inside the txn, so it sees the just-written rows); a
+            // 422 rolls the whole update back.
+            if (enforceRequired)
+                await this.assertRequiredRelations(
+                    tx,
+                    type,
+                    updated as Row,
+                    workspaceId
+                );
             // Extension side-effects of a save (e.g. syncing shared fields to
             // locale siblings) run inside the same transaction — a failure
             // rolls the whole save back.
@@ -343,8 +373,12 @@ export class EntryWriterService {
         const current = await this.findLive(type, id, workspaceId);
         if (!current) throw this.notFound(type, id);
         // Re-validate stored values: a row saved as a draft before its schema
-        // tightened must not slip through to published.
+        // tightened must not slip through to published. Also enforce required
+        // link-managed relations (which never travel in `values`) against the
+        // stored link set — a required many-to-many must hold at least one link
+        // to publish.
         this.assertValid(type, toRecord(type, current).values);
+        await this.assertRequiredRelations(this.db, type, current, workspaceId);
         const [row] = await this.db
             .update(type.table)
             .set({
@@ -878,6 +912,57 @@ export class EntryWriterService {
                         message: 'must reference an existing entry'
                     });
             }
+        }
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
+        }
+    }
+
+    /**
+     * Enforce required **link-managed** relations (an owning many-to-many, or the
+     * inverse of one) against the entry's actual link set — the check
+     * {@link EntryValidationService} can't make, because those links never travel
+     * in the `values` bag it sees. A required such relation with zero links is a
+     * 422 `is required`, matching how a required scalar field reads. A single FK
+     * relation is validated in `values` already; an inverse-of-single owns no
+     * writable link from this side, so it's skipped (it can't be satisfied here).
+     * `exec` is the write transaction on create/update (so it counts the
+     * just-written, uncommitted rows) or the root client on publish (committed).
+     */
+    private async assertRequiredRelations(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        row: Row,
+        workspaceId: string
+    ): Promise<void> {
+        const issues: ValidationIssue[] = [];
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (
+                spec.type !== CONTENT_FIELD_TYPE.Relation ||
+                !spec.relation ||
+                !spec.required
+            )
+                continue;
+            const rel = spec.relation;
+            // Only relations this side owns writable links for are counted:
+            // an owning many-to-many, or the inverse of a many-to-many.
+            const writable = rel.inverse
+                ? !!rel.to().fields[rel.inverse.field]?.relation?.many
+                : !!rel.many;
+            if (!writable) continue;
+            const total = await this.relations.countLinks(
+                exec,
+                type,
+                row,
+                name,
+                spec,
+                workspaceId
+            );
+            if (total === 0)
+                issues.push({ field: name, message: 'is required' });
         }
         if (issues.length) {
             throw new UnprocessableEntityException({

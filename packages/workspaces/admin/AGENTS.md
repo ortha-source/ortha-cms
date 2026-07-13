@@ -2,10 +2,12 @@
 
 The **workspaces feature plugin** for the Ortha CMS admin UI. It owns the
 Workspaces management experience: the private `/workspaces` route (a searchable,
-status-filterable grid of workspace cards), the full-page **create wizard** at
-`/workspaces/new`, and its toolbar nav entry. It also owns the **workspace
-shell** at `/workspaces/:id/*` — the per-workspace layout (left icon rail +
-switcher) that opens when a card is clicked.
+status-filterable **table** of workspaces), the full-page **create wizard** at
+`/workspaces/new`, and its sidebar nav entry + a "Workspaces" quick-list section.
+It also owns the **workspace shell** at `/workspaces/:id/*` — which, when a row
+is clicked, **injects a per-workspace nav (`WorkspaceNav`: switcher + Content +
+Workspace sections) into the app sidebar** (via `useSidebarContent`) and renders
+the section content in the inset.
 
 ## Package
 
@@ -15,49 +17,54 @@ switcher) that opens when a card is clicked.
   (`exports` → `./src/index.ts`); no build step.
 - Register it in `createAdmin({ plugins })` **after** `ShellPlugin()` — it
   contributes its `/workspaces` route into the shell's gated layout and its nav
-  item into the shell's `NAVBAR_START_SLOT` (so it depends on
+  item into the shell's `SIDEBAR_NAV_SLOT` (so it depends on
   `@ortha-cms/shell-admin`).
 
 ## Key exports
 
 - `WorkspacesPlugin()` — factory returning an `AdminPlugin`: the lazy-loaded,
   private `/workspaces` (list) and `/workspaces/new` (create wizard) routes plus
-  the `Layers` nav item (`order: 20`, before Users), contributed to the shell's
-  `NAVBAR_START_SLOT`.
+  the `Layers` nav item (`group: 'directory'`, `order: 10`), the "Workspaces"
+  quick-list section, and the home stat tiles + workspaces panel — contributed
+  to the shell's `SIDEBAR_NAV_SLOT`, `SIDEBAR_SECTION_SLOT`, and
+  `HOME_SECTION_SLOT`.
 - `useWorkspaces` / `workspacesKey` — TanStack Query list hook + its key.
 - `useCreateWorkspace` — create mutation with optimistic insert at the top;
   takes `{ body, creator }` (the `creator` seeds the stub's first member).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
-- **Workspace shell slots** — `WORKSPACE_SIDEBAR_SLOT` (the rail's section nav)
-  and `WORKSPACE_ROUTE_SLOT` (pages mounted inside the shell), plus the
-  `WorkspaceNavItem` / `WorkspaceRoute` item types. A feature plugin that lives
-  inside a workspace (Content Library, Media Library, Insights) contributes a
-  rail button + a route to these — and **no** top-level route or navbar item.
+- **Workspace shell slots** — `WORKSPACE_NAV_SLOT` (the "Workspace" section's
+  labeled nav rows), `WORKSPACE_SECTION_SLOT` (custom sidebar sections, e.g. the
+  Content Library's content-type list), and `WORKSPACE_ROUTE_SLOT` (pages mounted
+  inside the shell; `WorkspaceRoute.order` picks the default landing), plus the
+  `WorkspaceNavItem` / `WorkspaceSectionItem` / `WorkspaceRoute` item types. A
+  feature plugin that lives inside a workspace (Content Library, Media Library,
+  Insights) contributes a route + either a nav entry or a section to these — and
+  **no** top-level route or global nav item.
 - `useCurrentWorkspace()` — reads the open workspace from the shell's context
   (no re-fetch); throws if called outside a shell route.
 
 ## Workspace shell (`/workspaces/:id/*`)
 
 - `WorkspaceShell` resolves the `:id` param against `useWorkspaces()`, publishes
-  it via `CurrentWorkspaceProvider`, and renders the left **rail** beside a
-  content area whose nested `<Routes>` are built from `WORKSPACE_ROUTE_SLOT`.
-  Landing on the base redirects to the first rail section.
-- It is registered as a normal private route, so it renders **under the shell's
-  top navbar** (nested chrome, not a full-screen replacement). The 64px rail is
-  `sticky top-12` (below the 48px navbar), off-white so it reads as chrome.
-- The rail is icon-only with fly-out tooltips (`RailTooltip`): the
-  `WorkspaceSwitcher` chip (accent-tinted, opens `WorkspaceSwitcherPopover`) over
-  the slot-driven section nav. Creating a workspace lives in the popover footer,
-  so the rail has no bottom action. `WorkspaceSidebarButton`'s `to` is
-  **relative** to the workspace base; active state (`useMatch`) fills it the
-  neutral `--accent` with a solid black (`--foreground`) left marker bar, and
-  `useHasPermission` gates it.
-- The **only** color in the rail is the workspace accent — on the switcher chip
-  and the popover's workspace chips. Active sections are a grayscale fade
-  (`--accent`), never the near-black `--primary`.
-- Workspaces owns the last-section **Settings** entry (`order: 100`) + its
-  `/workspaces/:id/settings` page; the other rail sections come from the feature
-  plugins.
+  it via `CurrentWorkspaceProvider`, and **injects `WorkspaceNav` into the app
+  sidebar** via `useSidebarContent(() => <WorkspaceNav workspace={current}/>,
+  [current.id])`, clearing it on unmount. Its own render is just the content
+  area whose nested `<Routes>` are built from `WORKSPACE_ROUTE_SLOT`; landing on
+  the base redirects to the lowest-`order` route (the Content Library).
+- `WorkspaceNav` (rendered in the app sidebar, so **above**
+  `CurrentWorkspaceProvider` — it takes `workspace` as a prop) is: a "← Ortha
+  CMS" back link + a full-width `WorkspaceSwitcher` (design-system `Popover`
+  listing workspaces + "New workspace"), then the `WORKSPACE_SECTION_SLOT`
+  sections (the Content Library's content-type nav), then the "Workspace"
+  section (`WORKSPACE_NAV_SLOT` — Media, Insights, Settings) as labeled rows.
+  Nav rows use `SidebarMenuButton`, resolve their **relative** `to` against the
+  active `:id`, derive active state via `useMatch`, and gate on
+  `useHasPermission`.
+- The workspace accent tints the switcher avatar; the persistent account footer
+  (from the shell) stays below.
+- Workspaces owns the last **Settings** entry (`WORKSPACE_NAV_SLOT`, `order:
+  100`) + its `/workspaces/:id/settings` page; the Content and Media/Insights
+  sections come from the feature plugins.
 
 ## Settings page (`/workspaces/:id/settings/*`)
 
@@ -88,7 +95,7 @@ switcher) that opens when a card is clicked.
   `DeleteWorkspaceDialog`, which reads `GET /workspaces/:id/entry-count` on open
   and **blocks** Delete with a warning until the workspace holds no content at
   all — the same block-before-you-act pattern as content revoke, with the server
-  `409` as the safety net; delete returns to the grid).
+  `409` as the safety net; delete returns to the list).
 - **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
   drives every edit (a viewer sees a read-only page with the controls hidden),
   `workspaces:delete` gates delete; the Danger rail entry **and** its route only
@@ -147,9 +154,11 @@ switcher) that opens when a card is clicked.
   `AvatarColor` palette from `@ortha-cms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral
   admin. New tokens/types live in the design-system, not here.
-- **The card opens the workspace; it has no actions menu and shows no role** —
-  role is a property of the current user, not the card. Clicking it navigates to
-  `/workspaces/:id`, which the shell redirects to the first rail section.
+- **The table row opens the workspace; it has no actions menu and shows no
+  role** — role is a property of the current user, not the row. Clicking it
+  navigates to `/workspaces/:id`, which the shell redirects to the first section
+  (the Content Library). The row surfaces member + content-type counts and a
+  status pill; the status filter is a segmented chip group (All/Active/Archived).
 
 ## Conventions
 
@@ -162,13 +171,13 @@ switcher) that opens when a card is clicked.
   child component folders. Every component lives under `components/`. A
   component used only by **another component** nests inside that component's
   folder; a component used by a **page** sits at the top of `components/`. So
-  `StatusChip` + `MemberStack/` (with `MemberListPopover/` nested inside it)
-  live under `components/WorkspaceCard/`, and the whole
-  `components/CreateWorkspaceWizard/` subtree (Basics/Members/Content step
-  bodies and their parts) nests under the wizard. The page-only components —
-  `WorkspaceToolbar`, `WorkspacesEmpty`, `CreateWorkspaceWizard` — and the
-  shared pieces — `WorkspaceAvatar`, `WorkspaceCard`, `WorkspacesSkeleton` —
-  all sit at the top of `components/`.
+  the whole `components/CreateWorkspaceWizard/` subtree (Basics/Members/Content
+  step bodies and their parts) nests under the wizard, and `WorkspaceNavButton`
+  / `WorkspaceSwitcher` nest under `components/WorkspaceNav/`. The page-level
+  components — `WorkspacesTable`, `WorkspaceToolbar`, `WorkspacesEmpty`,
+  `CreateWorkspaceWizard` — and the shared pieces — `WorkspaceAvatar`,
+  `StatusChip`, `WorkspacesSkeleton`, `WorkspaceNav`, `WorkspacesNavSection`,
+  `WorkspaceStats`, `WorkspacesHomePanel` — all sit at the top of `components/`.
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `workspaces.<area>.<key>`
 - Simple forms use TanStack Form + a `use<Name>Schema` Zod hook. The **create

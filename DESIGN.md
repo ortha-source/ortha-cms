@@ -26,7 +26,10 @@ opposed to the *how* of [`ARCHITECTURE.md`](ARCHITECTURE.md).
 ## Information architecture
 
 <!-- TODO: Top-level navigation and how features are grouped. The current shell
-     exposes nav via NAVBAR_START_SLOT (workspaces, users, activity). -->
+     is a left sidebar: a primary nav grouped Overview / Directory via
+     SIDEBAR_NAV_SLOT (Home, Activity, Workspaces, Members), a Workspaces
+     quick-list, and a persistent account footer. Inside a workspace the sidebar
+     swaps to the workspace nav (switcher + Content + Workspace sections). -->
 
 ## Visual language
 

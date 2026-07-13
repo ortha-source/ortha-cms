@@ -111,13 +111,16 @@ after changing cross-project dependencies to update TS project references.
 Two parallel mechanisms let a plugin extend another with **no direct coupling**:
 
 **Admin — named slots.** Plugins contribute UI into slots defined by other
-plugins, as pure data. Example: `shell` defines `NAVBAR_START_SLOT`; the
-workspaces, users, and activity plugins register nav entries into it. Slots are
-wired once at boot (`slot._register(items)`) and read sorted by consumers
-(`slot.getItems()`). The Content Library defines five of its own (records
-toolbar/columns/filter-fields, entry sidebar/params) that `i18n/admin` fills —
-because slots are **boot-frozen**, an item may even expose a hook the render
-site calls in a loop.
+plugins, as pure data. Example: `shell` defines `SIDEBAR_NAV_SLOT`; the
+workspaces, users, and activity plugins each register nav entries into it (and
+the workspace shell defines `WORKSPACE_NAV_SLOT` / `WORKSPACE_SECTION_SLOT` for
+its interior). Slots are wired once at boot (`slot._register(items)`) and read
+sorted by consumers (`slot.getItems()`). The shell's sidebar also has a
+route-scoped **dynamic region** (`useSidebarContent`) the workspace shell takes
+over — a runtime override alongside the boot-time slots. The Content Library
+defines five of its own (records toolbar/columns/filter-fields, entry
+sidebar/params) that `i18n/admin` fills — because slots are **boot-frozen**, an
+item may even expose a hook the render site calls in a loop.
 
 **Server — DI ports (inversion).** The *depended-upon* plugin declares a
 `Symbol` token + interface and injects it `@Optional()`; the *implementing*

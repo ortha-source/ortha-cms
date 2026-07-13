@@ -3,7 +3,7 @@ import { AuthProvider, RequireAuth } from '@ortha-cms/identity-admin';
 import { HomeIcon } from 'lucide-react';
 import { AppShell } from '../../components/AppShell';
 import { HomePage } from '../../pages/HomePage';
-import { NAVBAR_START_SLOT } from '../../slots/navbarSlots';
+import { SIDEBAR_NAV_SLOT } from '../../slots/sidebarSlots';
 
 /**
  * Admin-side shell plugin shape. A thin alias of {@link AdminPlugin}, kept named
@@ -20,8 +20,8 @@ export type ShellAdminPlugin = AdminPlugin;
  * shell's outlet, behind that one check; the host stays auth-agnostic.
  *
  * Its home route carries no `public` flag, so it is private — it renders only
- * for signed-in users. It also contributes the toolbar's Home nav item to its
- * own {@link NAVBAR_START_SLOT}. Feature pages (Workspaces, Members) live in
+ * for signed-in users. It also contributes the sidebar's Home nav item to its
+ * own {@link SIDEBAR_NAV_SLOT}. Feature pages (Workspaces, Members) live in
  * their own plugins, which contribute their routes and nav items.
  *
  * @example
@@ -47,13 +47,14 @@ export function ShellPlugin(): ShellAdminPlugin {
         routes: [{ path: '/', element: <HomePage /> }],
         slots: [
             {
-                slot: NAVBAR_START_SLOT,
+                slot: SIDEBAR_NAV_SLOT,
                 items: [
                     {
                         labelId: 'shell.nav.home',
                         defaultLabel: 'Home',
                         to: '/',
                         end: true,
+                        group: 'overview',
                         order: 10,
                         icon: HomeIcon
                     }

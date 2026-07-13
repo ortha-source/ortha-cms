@@ -67,6 +67,10 @@ const messages = defineMessages({
         id: 'content.editor.historyBody',
         defaultMessage:
             'A timeline of edits to this record will appear here soon.'
+    },
+    relationRequired: {
+        id: 'content.editor.relationRequired',
+        defaultMessage: 'Needs at least one link'
     }
 });
 
@@ -172,17 +176,20 @@ export function EntryEditor({
     // The existing entry's id, or undefined while creating. Many/inverse
     // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
-    // Which tab is active, so the relation links are fetched **lazily** — only
-    // once the Relations tab is opened, never on entry load.
+    // Which tab is active.
     const [tab, setTab] = useState<string>(TAB.General);
-    // First page + total per relation field, for the header counts and to title
-    // single relations. Gated on the Relations tab being open (and an existing
-    // entry) so it doesn't fire until the user goes looking for relations.
-    const relationRefs = useEntryRelations(
-        schema.name,
-        entryId,
-        tab === TAB.Relations && !!entryId
-    ).data;
+    // First page + total per relation field, for the header counts, to title
+    // single relations, and to power the required-relation publish gate. Enabled
+    // as soon as there's an existing entry — one request per entry open — rather
+    // than waiting for the Relations tab: otherwise a populated relation flashes
+    // count 0 on first tab open (#6), and the gate can't see the link counts to
+    // flag an empty required relation (#1). Create mode has no server set, so the
+    // query stays disabled there.
+    const relationsQuery = useEntryRelations(schema.name, entryId, !!entryId);
+    const relationRefs = relationsQuery.data;
+    // True only while the first load is genuinely in flight (never when disabled
+    // in create mode) — drives a neutral count affordance instead of a wrong 0.
+    const relationsLoading = relationsQuery.isLoading;
     // Per-field staged relation edits (many/inverse), owned here so they survive
     // collapsing a section or switching tabs, and sent as `relations` deltas on
     // Save. Cleared after a successful save.
@@ -262,7 +269,7 @@ export function EntryEditor({
     // pass/fail. Reuses the form's strict (required-enforced) errors, so it
     // mirrors exactly what the publish endpoint will check without re-running
     // validation over the same values. Publishable only.
-    const gate = useMemo<PublishGateItem[]>(() => {
+    const fieldGate = useMemo<PublishGateItem[]>(() => {
         if (!publishable) return [];
         return visible
             .filter((field) => !validationIgnored.has(field.name))
@@ -273,6 +280,64 @@ export function EntryEditor({
                 message: form.errors[field.name]
             }));
     }, [publishable, form.errors, visible, validationIgnored]);
+
+    // A **required** many/inverse relation is link-managed, so it never appears
+    // in the values bag `validateEntryValues` (and `fieldGate`) checks — the
+    // `validationIgnored` skip there is correct and stays. But the server rejects
+    // publishing a required relation with zero links, so mirror that here from
+    // the counts we do have: the loaded server total ± the staged add/remove.
+    // This surfaces the block in the publish gate before the server 422, exactly
+    // like a required scalar field (#1).
+    const relationGate = useMemo<PublishGateItem[]>(() => {
+        if (!publishable) return [];
+        const out: PublishGateItem[] = [];
+        for (const field of visible) {
+            if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
+            if (!field.required) continue;
+            // Only link-managed (many/inverse) relations that are actually shown:
+            // single relations are gated through their form value, and
+            // hidden/ungranted ones must never become an invisible block.
+            if (!managedRelationNames.has(field.name)) continue;
+            if (ignoredFields.has(field.name)) continue;
+            // Inline the staged lookup (not `stagedFor`) so this memo depends on
+            // `relationDeltas` directly, not a per-render helper.
+            const staged = relationDeltas[field.name] ?? EMPTY_STAGED;
+            const serverTotal = relationRefs?.[field.name]?.total;
+            // On an existing entry the aggregate may still be loading — we can't
+            // assert an empty set yet, so skip rather than raise a false failure.
+            // Create mode has no server set (total 0), so the staged adds decide.
+            if (entryId && serverTotal === undefined) continue;
+            const count = Math.max(
+                0,
+                (serverTotal ?? 0) - staged.removed.length + staged.added.length
+            );
+            out.push({
+                label: fieldLabel(field),
+                ok: count > 0,
+                message:
+                    count > 0
+                        ? undefined
+                        : intl.formatMessage(messages.relationRequired)
+            });
+        }
+        return out;
+    }, [
+        publishable,
+        visible,
+        managedRelationNames,
+        ignoredFields,
+        relationDeltas,
+        relationRefs,
+        entryId,
+        intl
+    ]);
+
+    // The full gate shown in the rail: the values-bag checks plus the
+    // count-based required-relation checks.
+    const gate = useMemo<PublishGateItem[]>(
+        () => [...fieldGate, ...relationGate],
+        [fieldGate, relationGate]
+    );
 
     // The staged relation deltas to send with the save — only fields with a
     // pending change, serialized to the wire shape. Undefined when nothing staged.
@@ -391,15 +456,21 @@ export function EntryEditor({
                                         const staged = stagedFor(field.name);
                                         // Header count: server total adjusted by
                                         // the staged add/remove (managed), else
-                                        // the single form value's length.
-                                        const count = managed
-                                            ? Math.max(
-                                                  0,
-                                                  (relationRefs?.[field.name]
-                                                      ?.total ?? 0) -
-                                                      staged.removed.length +
-                                                      staged.added.length
-                                              )
+                                        // the single form value's length. `null`
+                                        // while the managed set's aggregate is
+                                        // still loading, so the header shows a
+                                        // neutral affordance rather than a wrong
+                                        // 0 for a populated relation (#6).
+                                        const count: number | null = managed
+                                            ? relationsLoading
+                                                ? null
+                                                : Math.max(
+                                                      0,
+                                                      (relationRefs?.[field.name]
+                                                          ?.total ?? 0) -
+                                                          staged.removed.length +
+                                                          staged.added.length
+                                                  )
                                             : toRelationIds(
                                                   form.values[field.name],
                                                   false

@@ -1,69 +1,55 @@
 import { Outlet } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Logo,
-    Separator,
-    Navbar,
-    NavbarBrand,
-    NavbarEnd,
-    NavbarNav,
-    NavbarSpacer
-} from '@ortha-cms/design-system';
-import { NAVBAR_END_SLOT, NAVBAR_START_SLOT } from '../../slots/navbarSlots';
-import { NavbarNavButton } from './NavbarNavButton';
+import { SidebarInset, SidebarProvider } from '@ortha-cms/design-system';
+import { SidebarContentProvider } from '../../utils/sidebarContent';
+import { AppSidebar } from '../AppSidebar';
+import { SidebarToggle } from './SidebarToggle';
 
-/** Intl descriptors for {@link AppShell}, co-located with the component. */
 const messages = defineMessages({
-    primaryNav: {
-        id: 'shell.nav.primaryLabel',
-        defaultMessage: 'Primary'
+    skipToContent: {
+        id: 'shell.appShell.skipToContent',
+        defaultMessage: 'Skip to main content'
     }
 });
 
+/** The id of the `<main>` landmark that the skip link targets. */
+const MAIN_CONTENT_ID = 'main-content';
+
 /**
- * The authenticated app shell: a sticky top toolbar (logo + slot-driven nav)
- * over an `<Outlet/>` where the matched private route renders. The host mounts
- * this as the single guarded layout for every non-public route, so it appears
- * only for signed-in users. Nav entries come from {@link NAVBAR_START_SLOT}, sorted
- * by `order`, so any plugin can contribute without touching the shell.
+ * The authenticated app shell: a collapsible left {@link AppSidebar} beside a
+ * `<main>` inset where the matched private route renders. The host mounts this
+ * as the single guarded layout for every non-public route, so it appears only
+ * for signed-in users.
+ *
+ * The sidebar is offcanvas — collapsing slides it away entirely so the content
+ * takes the full width; a floating {@link SidebarToggle} (fixed top-left, no
+ * layout space) reveals it. `SidebarProvider` owns the open/collapsed state
+ * (cookie-persisted, ⌘B toggles); `SidebarContentProvider` lets a descendant
+ * route take over the sidebar's contextual region (the workspace shell injects
+ * its per-workspace nav there).
+ *
+ * A "Skip to main content" link is the first focusable element (WCAG 2.4.1
+ * Bypass Blocks) — visually hidden until focused, it jumps keyboard users past
+ * the sidebar to the `<main id="main-content">` landmark.
  */
 export function AppShell() {
     const intl = useIntl();
-    const navItems = NAVBAR_START_SLOT.getItems()
-        .slice()
-        .sort((a, b) => a.order - b.order);
-    const endItems = NAVBAR_END_SLOT.getItems()
-        .slice()
-        .sort((a, b) => a.order - b.order);
 
     return (
-        <div className="flex min-h-svh flex-col">
-            <Navbar>
-                <NavbarBrand className="gap-2">
-                    {/* The hexagon is decorative here; the "Ortha Studio"
-                        wordmark carries the accessible brand name. The shared
-                        Logo keeps its own "Ortha CMS" label elsewhere. */}
-                    <Logo showLabel={false} aria-hidden />
-                    <span className="text-sm font-medium">Ortha Studio</span>
-                </NavbarBrand>
-                <Separator orientation="vertical" className="mx-1 h-6" />
-                <NavbarNav aria-label={intl.formatMessage(messages.primaryNav)}>
-                    {navItems.map((item) => (
-                        <NavbarNavButton key={item.to} item={item} />
-                    ))}
-                </NavbarNav>
-                <NavbarSpacer />
-                {endItems.length > 0 ? (
-                    <NavbarEnd>
-                        {endItems.map(({ id, Component }) => (
-                            <Component key={id} />
-                        ))}
-                    </NavbarEnd>
-                ) : null}
-            </Navbar>
-            <main className="flex-1">
-                <Outlet />
-            </main>
-        </div>
+        <SidebarContentProvider>
+            <SidebarProvider>
+                <a
+                    href={`#${MAIN_CONTENT_ID}`}
+                    className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-md focus:ring-2 focus:ring-ring"
+                >
+                    {intl.formatMessage(messages.skipToContent)}
+                </a>
+                <AppSidebar />
+                <SidebarInset id={MAIN_CONTENT_ID} tabIndex={-1}>
+                    <Outlet />
+                </SidebarInset>
+                <SidebarToggle />
+            </SidebarProvider>
+        </SidebarContentProvider>
     );
 }

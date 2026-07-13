@@ -1,11 +1,13 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
+import { COMMAND_SLOT } from '@ortha-cms/shell-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SIDEBAR_SLOT
+    WORKSPACE_SECTION_SLOT
 } from '@ortha-cms/workspaces-admin';
-import { FileStack } from 'lucide-react';
-import { CONTENT_READ, CONTENT_SEGMENT } from '../../constants';
+import { CONTENT_SEGMENT } from '../../constants';
+import { ContentNavSection } from '../../components/ContentNavSection';
+import { ContentTypeCommands } from '../../components/ContentTypeCommands';
 
 const ContentLibraryPage = lazy(() =>
     import('../../pages/ContentLibraryPage').then((module) => ({
@@ -22,24 +24,34 @@ export type ContentAdminPlugin = AdminPlugin;
 /**
  * Creates the admin-side Content Library plugin. It lives **strictly inside a
  * workspace**: it contributes no top-level route and no top-toolbar nav entry,
- * only a rail button (`order: 10`, first) + a route to the workspace shell's
- * slots (owned by `@ortha-cms/workspaces-admin`). Register it after
- * `WorkspacesPlugin()` so those slots exist.
+ * only the **Content** section of the workspace sidebar (the content-type nav +
+ * ⌘K search, `WORKSPACE_SECTION_SLOT`) + its `content/*` route (the
+ * lowest-order route, so the workspace base lands here). Both go into the
+ * workspace shell's slots (owned by `@ortha-cms/workspaces-admin`), so register
+ * it after `WorkspacesPlugin()`.
  */
 export function ContentPlugin(): ContentAdminPlugin {
     return {
         name: 'content',
         slots: [
             {
-                slot: WORKSPACE_SIDEBAR_SLOT,
+                slot: WORKSPACE_SECTION_SLOT,
                 items: [
                     {
-                        labelId: 'content.nav.label',
-                        defaultLabel: 'Content Library',
-                        to: CONTENT_SEGMENT,
+                        id: 'content.nav',
                         order: 10,
-                        icon: FileStack,
-                        permission: CONTENT_READ
+                        Component: ContentNavSection
+                    }
+                ]
+            },
+            {
+                // Command palette: jump straight to any workspace's content type.
+                slot: COMMAND_SLOT,
+                items: [
+                    {
+                        id: 'content.command',
+                        order: 20,
+                        Component: ContentTypeCommands
                     }
                 ]
             },
@@ -48,6 +60,8 @@ export function ContentPlugin(): ContentAdminPlugin {
                 items: [
                     {
                         path: `${CONTENT_SEGMENT}/*`,
+                        // Lowest order → the workspace's default landing section.
+                        order: 10,
                         element: (
                             <Suspense fallback={null}>
                                 <ContentLibraryPage />

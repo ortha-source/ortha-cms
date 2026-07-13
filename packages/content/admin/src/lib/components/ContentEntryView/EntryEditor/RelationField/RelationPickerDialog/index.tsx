@@ -13,7 +13,6 @@ import { countRules, type FilterGroup } from '@ortha-cms/query-builder-admin';
 import { useContentSchema } from '../../../../../api/useContentSchema';
 import {
     useRelationCandidates,
-    MAX_CANDIDATE_WINDOW,
     type RelationCandidate
 } from '../../../../../api/useRelationCandidates';
 import { useEntrySlotContext } from '../../../../../hooks/useEntrySlotContext';
@@ -49,11 +48,6 @@ const messages = defineMessages({
         defaultMessage: 'Add {count}'
     }
 });
-
-/** How many rows to reveal per lazy-scroll step. */
-const PAGE_SIZE = 12;
-/** Simulated latency for a lazy-load step, so the spinner is visible (mock only). */
-const LAZY_DELAY_MS = 350;
 
 /**
  * The relation picker dialog. Owns the picker's state (staged selection, search,
@@ -91,12 +85,14 @@ export function RelationPickerDialog({
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterGroup | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [limit, setLimit] = useState(PAGE_SIZE);
-    const [loadingMore, setLoadingMore] = useState(false);
     const [draft, setDraft] = useState<Set<string>>(new Set());
-
-    const loadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-        undefined
+    // Titles for every candidate checked this round, retained even after it
+    // scrolls or filters out of the current `items` window — otherwise a record
+    // checked under one search then hidden by the next would confirm with no
+    // title and fall back to its raw id until the save round-trips (#5). Keyed by
+    // id; reset with `draft` when the dialog re-opens.
+    const [picked, setPicked] = useState<Map<string, RelationCandidate>>(
+        new Map()
     );
 
     // Always-current view of the assigned ids, read by the open-transition reset
@@ -112,17 +108,13 @@ export function RelationPickerDialog({
     useEffect(() => {
         if (open && !wasOpen.current) {
             setDraft(new Set(selectedRef.current));
+            setPicked(new Map());
             setSearch('');
             setFilter(null);
             setFiltersOpen(false);
-            setLimit(PAGE_SIZE);
-            setLoadingMore(false);
         }
         wasOpen.current = open;
     }, [open]);
-
-    // Clear any in-flight lazy-load timer on unmount.
-    useEffect(() => () => clearTimeout(loadTimer.current), []);
 
     const { data: schema, isPending: schemaPending } = useContentSchema(
         targetName,
@@ -154,14 +146,15 @@ export function RelationPickerDialog({
         total,
         hasMore,
         isPending: candidatesPending,
-        isError: candidatesError
+        isError: candidatesError,
+        isFetchingNextPage,
+        fetchNextPage
     } = useRelationCandidates(
         targetName,
         schema?.fields ?? [],
         {
             search,
             filter,
-            limit,
             ...(Object.keys(extraParams).length ? { extra: extraParams } : {})
         },
         open
@@ -172,31 +165,15 @@ export function RelationPickerDialog({
 
     const handleScroll = (event: UIEvent<HTMLDivElement>) => {
         const el = event.currentTarget;
-        // Near the bottom → reveal the next window after a short (simulated)
-        // delay so the spinner shows.
+        // Near the bottom → pull the next real page (no artificial window cap;
+        // the list grows until every match is loaded).
         if (
             el.scrollHeight - el.scrollTop - el.clientHeight <= 120 &&
             hasMore &&
-            !loadingMore &&
-            // Stop growing at the server's cap; beyond it, narrow with search/filter.
-            limit < MAX_CANDIDATE_WINDOW
+            !isFetchingNextPage
         ) {
-            setLoadingMore(true);
-            loadTimer.current = setTimeout(() => {
-                setLimit((current) =>
-                    Math.min(current + PAGE_SIZE, MAX_CANDIDATE_WINDOW)
-                );
-                setLoadingMore(false);
-            }, LAZY_DELAY_MS);
+            fetchNextPage();
         }
-    };
-
-    const narrow = (apply: () => void) => {
-        // Any new search/filter starts the window over from the top.
-        clearTimeout(loadTimer.current);
-        setLoadingMore(false);
-        setLimit(PAGE_SIZE);
-        apply();
     };
 
     const filtersActive = !!search.trim() || countRules(filter) > 0;
@@ -207,6 +184,12 @@ export function RelationPickerDialog({
                 const next = new Set(current);
                 if (next.has(candidate.id)) next.delete(candidate.id);
                 else next.add(candidate.id);
+                return next;
+            });
+            // Remember the candidate so its title survives leaving the window.
+            setPicked((current) => {
+                const next = new Map(current);
+                next.set(candidate.id, candidate);
                 return next;
             });
         } else {
@@ -236,10 +219,10 @@ export function RelationPickerDialog({
                 <RelationPickerFilters
                     targetLabel={targetLabel}
                     search={search}
-                    onSearchChange={(next) => narrow(() => setSearch(next))}
+                    onSearchChange={setSearch}
                     filterFields={filterFields}
                     filter={filter}
-                    onFilterChange={(next) => narrow(() => setFilter(next))}
+                    onFilterChange={setFilter}
                     open={filtersOpen}
                     onOpenChange={setFiltersOpen}
                 />
@@ -260,7 +243,7 @@ export function RelationPickerDialog({
                     items={items}
                     isPending={isPending}
                     isError={candidatesError}
-                    loadingMore={loadingMore}
+                    loadingMore={isFetchingNextPage}
                     filtersActive={filtersActive}
                     many={many}
                     targetName={targetName}
@@ -283,12 +266,19 @@ export function RelationPickerDialog({
                         <Button
                             type="button"
                             onClick={() => {
-                                // Pass the picked candidates in the current
-                                // window so the field can title new rows; ids
-                                // outside it keep their load-time titles.
+                                // Title new rows from the retained `picked` map,
+                                // not the current `items` window — so a record
+                                // checked under an earlier search still carries
+                                // its title even after it scrolled/filtered out.
+                                // Ids already linked (never toggled) keep their
+                                // load-time titles.
                                 onConfirm(
                                     [...draft],
-                                    items.filter((item) => draft.has(item.id))
+                                    [...draft]
+                                        .map((id) => picked.get(id))
+                                        .filter(
+                                            (c): c is RelationCandidate => !!c
+                                        )
                                 );
                                 onOpenChange(false);
                             }}

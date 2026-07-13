@@ -143,6 +143,16 @@ always live, so its required fields are `NOT NULL`. `EntryWriterService` mirrors
 this: create/update validate eagerly only for non-publishable types; publish
 re-validates the stored row for publishable ones.
 
+A **required link-managed relation** (an owning many-to-many, or the inverse of
+one) can't be checked by `EntryValidationService` — its links never travel in the
+`values` bag. `EntryWriterService.assertRequiredRelations` enforces it separately
+by **counting the entry's links**: at the same gates (eagerly for non-publishable
+creates/updates and published-row updates, inside the write transaction so it
+sees the just-written rows; and at publish, against the stored links). A required
+such relation with zero links is the same `422 is required`. A required single
+relation is still an FK in `values`, validated there; an inverse-of-single owns
+no writable link from this side, so it isn't enforced.
+
 ## The `/define` vs main-barrel split — IMPORTANT
 
 Collection files and the host's drizzle-kit schema entry MUST import from
@@ -234,11 +244,19 @@ global).
   removed pairs, appends the new ones at `max(position)+1` for their source
   (`ON CONFLICT DO NOTHING`), and renumbers to `order` (owning side only) — so a
   relation with thousands of links is never sent or held whole, and the row and
-  its links commit as one. A `relations` key that owns no writable link from this
+  its links commit as one. The `max(position)+1` append is a read-modify-write on
+  a contended column, so it first takes a **transaction-scoped advisory lock on
+  the physical source list** (`<join table>:<sourceId>`, via `lockSource`) — the
+  owning side, the inverse side, and a whole-set write all target the same list,
+  and without it two concurrent appenders could read the same `max` and collide
+  on `position`; the inverse loop locks its owners in sorted order to stay
+  deadlock-free. A `relations` key that owns no writable link from this
   side — a single relation, an inverse-of-single (one-to-many), or an unknown
   key — is a **400** (so a delta is never silently dropped); a structurally
-  malformed delta (`link`/`unlink`/`order` not a uuid array) is a **400** at the
-  DTO (`IsRelationDeltaMap`), never a 500.
+  malformed delta (`link`/`unlink`/`order` not a uuid array, an unknown inner
+  key, an over-large id array, or too many fields) is a **400** at the DTO
+  (`IsRelationDeltaMap`, which size-bounds the arrays and the map and rejects
+  non-whitelisted inner keys), never a 500.
   `assertTargets` validates every linked id exists in the same workspace (uniform
   422, no enumeration signal). Join rows carry a float `position` (the source's
   own ordering) so a reorder survives a reload; the inverse reads by it but can't

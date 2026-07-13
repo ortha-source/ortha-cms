@@ -21,42 +21,28 @@ const messages = defineMessages({
     }
 });
 
-/** Column template shared with the real grid so there's no reflow on swap. */
-const GRID_COLUMNS = 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))';
-
-/** A single placeholder card mirroring {@link WorkspaceCard}'s structure. */
-function WorkspaceCardSkeleton() {
+/** A single placeholder row mirroring {@link WorkspacesTable}'s row structure. */
+function WorkspaceRowSkeleton() {
     return (
-        <div className="flex flex-col rounded-2xl border bg-card p-5">
-            <div className="flex items-start gap-3">
-                <Skeleton className="size-11 shrink-0 rounded-xl" />
-                <div className="min-w-0 flex-1">
-                    <Skeleton className="h-5 w-2/3" />
-                    <Skeleton className="mt-2 h-4 w-16 rounded-full" />
-                </div>
+        <div className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
+            <Skeleton className="size-9 shrink-0 rounded-xl" />
+            <div className="min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="mt-1.5 h-3 w-64 max-w-full" />
             </div>
-            <div className="mt-3 flex flex-col gap-2">
-                <Skeleton className="h-3.5 w-full" />
-                <Skeleton className="h-3.5 w-4/5" />
-            </div>
-            <div className="mt-4 border-t pt-4">
-                <div className="flex -space-x-2">
-                    <Skeleton className="size-7 rounded-xl" />
-                    <Skeleton className="size-7 rounded-xl" />
-                    <Skeleton className="size-7 rounded-xl" />
-                </div>
-            </div>
+            <Skeleton className="h-4 w-20 shrink-0" />
+            <Skeleton className="h-5 w-16 shrink-0 rounded-xl" />
         </div>
     );
 }
 
 /**
- * The card-grid placeholder shown while {@link useWorkspaces} resolves. Drops
- * into the page body in place of the real grid (header + toolbar stay live), so
- * it owns the single `role="status"` announcement; the cards themselves are
+ * The table placeholder shown while {@link useWorkspaces} resolves. Drops into
+ * the page body in place of the real table (header + toolbar stay live), so it
+ * owns the single `role="status"` announcement; the rows themselves are
  * `aria-hidden`.
  */
-export function WorkspaceGridSkeleton({ count = 6 }: { count?: number }) {
+export function WorkspacesTableSkeleton({ count = 6 }: { count?: number }) {
     const intl = useIntl();
 
     return (
@@ -64,13 +50,9 @@ export function WorkspaceGridSkeleton({ count = 6 }: { count?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div
-                aria-hidden
-                className="grid gap-4"
-                style={{ gridTemplateColumns: GRID_COLUMNS }}
-            >
+            <div aria-hidden className="rounded-xl border">
                 {Array.from({ length: count }).map((_, index) => (
-                    <WorkspaceCardSkeleton key={index} />
+                    <WorkspaceRowSkeleton key={index} />
                 ))}
             </div>
         </div>
@@ -80,8 +62,8 @@ export function WorkspaceGridSkeleton({ count = 6 }: { count?: number }) {
 /**
  * Full-page placeholder for the lazy-route `Suspense` fallback — before
  * {@link WorkspacesPage} mounts there is no header or toolbar yet, so this
- * sketches the whole page (header, toolbar, grid) to hold the layout steady
- * while the chunk loads. Reuses {@link WorkspaceGridSkeleton} for the body.
+ * sketches the whole page (header, toolbar, table) to hold the layout steady
+ * while the chunk loads. Reuses {@link WorkspacesTableSkeleton} for the body.
  */
 export function WorkspacesPageSkeleton() {
     return (
@@ -96,42 +78,30 @@ export function WorkspacesPageSkeleton() {
 
             <div className="mb-4 flex flex-wrap items-center gap-3">
                 <Skeleton className="h-9 w-full sm:max-w-[360px]" />
-                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-56" />
                 <Skeleton className="ml-auto h-4 w-16" />
             </div>
 
-            <WorkspaceGridSkeleton />
+            <WorkspacesTableSkeleton />
         </Container>
     );
 }
 
 /**
- * Placeholder for the workspace shell — shown both as the lazy-route `Suspense`
- * fallback and while {@link useWorkspaces} resolves inside the shell. Sketches
- * the left rail (switcher + a few icon buttons) beside an empty content area so
- * the layout holds steady. Owns the single `role="status"` announcement.
+ * Placeholder for the workspace shell's content area — shown both as the
+ * lazy-route `Suspense` fallback and while {@link useWorkspaces} resolves inside
+ * the shell (the per-workspace nav lives in the app sidebar, injected once the
+ * workspace resolves). Owns the single `role="status"` announcement.
  */
 export function WorkspaceShellSkeleton() {
     const intl = useIntl();
 
     return (
-        <div role="status" className="flex min-h-[calc(100svh-3rem)]">
+        <div role="status" className="min-h-svh p-8">
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div
-                aria-hidden
-                className="sticky top-12 flex h-[calc(100svh-3rem)] w-14 shrink-0 flex-col items-center gap-1.5 self-start border-r border-border bg-[oklch(0.985_0_0)] py-2.5"
-            >
-                <Skeleton className="size-8 rounded-lg" />
-                <div className="my-1 h-px w-7 bg-border" />
-                <div className="flex flex-col items-center gap-2">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                        <Skeleton key={index} className="size-8 rounded-lg" />
-                    ))}
-                </div>
-            </div>
-            <div aria-hidden className="min-w-0 flex-1 p-8">
+            <div aria-hidden>
                 <Skeleton className="h-8 w-48" />
                 <Skeleton className="mt-3 h-4 w-80 max-w-full" />
             </div>

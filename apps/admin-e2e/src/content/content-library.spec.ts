@@ -26,7 +26,7 @@ test.describe('Content Library', () => {
         await mockContentEntryWrites(page);
     });
 
-    test('renders the sidebar with the Workspace section', async ({
+    test('renders the sidebar with the Workspace Content section', async ({
         page,
         contentLibraryPage
     }) => {
@@ -35,7 +35,7 @@ test.describe('Content Library', () => {
 
         await expect(contentLibraryPage.sidebar).toBeVisible();
         await expect(
-            contentLibraryPage.sectionLabel('Workspace')
+            contentLibraryPage.sectionLabel('Workspace Content')
         ).toBeVisible();
         await expect(contentLibraryPage.group('Collections')).toBeVisible();
         await expect(contentLibraryPage.group('Pages')).toBeVisible();

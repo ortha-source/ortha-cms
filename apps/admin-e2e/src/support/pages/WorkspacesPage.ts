@@ -18,8 +18,8 @@ export class WorkspacesPage extends BasePage {
     readonly nav: Locator;
     /** The search box (leading search icon). */
     readonly search: Locator;
-    /** The "Filter" button that opens the status popover. */
-    readonly filterButton: Locator;
+    /** The workspaces table (scopes row/link lookups away from the sidebar). */
+    readonly table: Locator;
     /**
      * The header "New workspace" CTA. An identical button appears in the empty
      * state, so this takes the first (the header is first in the DOM).
@@ -36,7 +36,7 @@ export class WorkspacesPage extends BasePage {
         this.search = page.getByRole('searchbox', {
             name: 'Search workspaces'
         });
-        this.filterButton = page.getByRole('button', { name: 'Filter' });
+        this.table = page.getByRole('table', { name: 'Workspaces' });
         this.newWorkspaceButton = page
             .getByRole('button', { name: 'New workspace' })
             .first();
@@ -53,63 +53,40 @@ export class WorkspacesPage extends BasePage {
     }
 
     /**
-     * The card-grid loading skeleton — a `role="status"` region announcing
+     * The table loading skeleton — a `role="status"` region announcing
      * "Loading workspaces…", shown while the list query is in flight (seed it
      * with `mockWorkspaces(page, …, { delayMs })`).
      */
-    gridSkeleton(): Locator {
+    listSkeleton(): Locator {
         return this.page
             .getByRole('status')
             .filter({ hasText: /Loading workspaces/ });
     }
 
-    /** A workspace card, located by its accessible name (a labelled group). */
+    /**
+     * A workspace row, located by its name link — scoped to the table so it
+     * never matches the sidebar's Workspaces quick-list (same names).
+     */
     card(name: string): Locator {
-        return this.page.getByRole('group', { name, exact: true });
+        return this.table.getByRole('row').filter({
+            has: this.page.getByRole('link', { name, exact: true })
+        });
     }
 
-    /** The button that opens a workspace (its title). */
+    /** The link that opens a workspace (its name), scoped to the table. */
     openButton(name: string): Locator {
-        return this.card(name).getByRole('button', { name, exact: true });
+        return this.table.getByRole('link', { name, exact: true });
     }
 
-    /** The member-stack button inside a card. */
-    memberButton(name: string): Locator {
-        return this.card(name).getByRole('button', { name: 'View members' });
-    }
-
-    // --- status filter popover ---
-
-    async openFilter() {
-        await this.filterButton.click();
-    }
+    // --- status filter chips (SegmentedControl → role=radio) ---
 
     statusOption(label: string): Locator {
         return this.page.getByRole('radio', { name: label });
     }
 
-    /** Open the filter, pick a status, then close the popover. */
+    /** Pick a status via its filter chip. */
     async filterByStatus(label: string) {
-        await this.openFilter();
         await this.statusOption(label).click();
-        await this.page.keyboard.press('Escape');
-    }
-
-    /** The count badge on the Filter button (shown when status ≠ default). */
-    filterBadge(): Locator {
-        return this.filterButton.getByText('1', { exact: true });
-    }
-
-    // --- member popover (portaled) ---
-
-    /** A member's email — rendered only inside the open member popover. */
-    memberEmail(email: string): Locator {
-        return this.page.getByText(email, { exact: true });
-    }
-
-    /** A member's name — rendered only inside the open member popover. */
-    memberName(name: string): Locator {
-        return this.page.getByText(name, { exact: true });
     }
 
     // --- empty state ---

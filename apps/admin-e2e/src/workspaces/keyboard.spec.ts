@@ -6,8 +6,8 @@ import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
  * Keyboard operability of the Workspaces page and its create wizard — the part
  * axe can't check. Avoids asserting the exact global tab order (it runs through
  * the shell nav and varies); instead it pins the properties that matter: each
- * control is focusable and activates by keyboard, and the radiogroups move
- * selection with the arrow keys.
+ * control is focusable and activates by keyboard, and the filter chips move
+ * with the arrow keys.
  */
 test.describe('Workspaces keyboard accessibility', () => {
     test.beforeEach(async ({ page }) => {
@@ -28,38 +28,36 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(workspacesPage.card('Support hub')).toBeHidden();
     });
 
-    test('a card opens on Enter', async ({ page, workspacesPage }) => {
+    test('a row opens on Enter', async ({ page, workspacesPage }) => {
         await workspacesPage.goto();
 
         await workspacesPage.openButton('Marketing site').focus();
         await expect(workspacesPage.openButton('Marketing site')).toBeFocused();
         await page.keyboard.press('Enter');
 
-        // Opening a workspace lands on its first rail section (Content Library).
+        // Opening a workspace lands on its first section (Content Library).
         await expect(page).toHaveURL('/workspaces/ws_marketing/content');
     });
 
-    test('the status filter radiogroup moves with arrow keys', async ({
+    test('the status filter chips move with arrow keys', async ({
         page,
         workspacesPage
     }) => {
         await workspacesPage.goto();
-        await workspacesPage.openFilter();
 
-        // Roving tabindex: the selected option (Active, the default) is the
-        // group's single tab stop. Arrow keys then move selection *and* focus
-        // together — the ARIA radiogroup pattern.
+        // Roving tabindex: the selected chip (Active, the default) is the
+        // group's single tab stop. ArrowRight moves focus along the horizontal
+        // segmented control; Enter activates the focused chip.
         const active = workspacesPage.statusOption('Active');
         await active.focus();
         await expect(active).toBeFocused();
 
-        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('ArrowRight');
         const archived = workspacesPage.statusOption('Archived');
         await expect(archived).toBeFocused();
-        await expect(archived).toHaveAttribute('aria-checked', 'true');
+        await page.keyboard.press('Enter');
 
-        // Selection follows focus: the grid re-filters to the archived set.
-        await page.keyboard.press('Escape');
+        await expect(archived).toHaveAttribute('aria-checked', 'true');
         await expect(workspacesPage.card('Research archive')).toBeVisible();
     });
 
@@ -68,7 +66,7 @@ test.describe('Workspaces keyboard accessibility', () => {
             await mockWorkspacesApi(page);
         });
 
-        test('opens the wizard from the grid on Enter', async ({
+        test('opens the wizard from the list on Enter', async ({
             page,
             workspacesPage,
             createWorkspacePage

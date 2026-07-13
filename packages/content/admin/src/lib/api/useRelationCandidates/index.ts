@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
@@ -9,13 +9,16 @@ import type { ContentField, EntryRecord } from '../../types/contentType';
 import { relationLabel } from '../../utils/relationLabel';
 
 /**
- * Largest candidate window the picker may request in one page. Mirrors the
- * server list endpoint's `MAX_PAGE_SIZE` (`@Max(100)`, which **rejects** an
- * over-cap `pageSize` with a 400 rather than clamping), so the lazy-scroll
- * window never grows into a rejected request. Beyond this, the user narrows the
- * set with search/filter (each shrinks `total`), exactly like the records table.
+ * The list endpoint's hard `MAX_PAGE_SIZE` (`@Max(100)`, which **rejects** an
+ * over-cap `pageSize` with a 400 rather than clamping). Each candidate page
+ * request stays at or under it; the infinite list grows **past** it by fetching
+ * further pages (real offset pagination), so a target type with more than a
+ * page of entries is fully scrollable — not artificially capped.
  */
-export const MAX_CANDIDATE_WINDOW = 100;
+export const RELATION_CANDIDATES_MAX_PAGE_SIZE = 100;
+
+/** Rows fetched per candidate page (kept at or under the server's cap). */
+export const RELATION_CANDIDATES_PAGE_SIZE = 25;
 
 /** One assignable related record, ready for the picker (title pre-derived). */
 export type RelationCandidate = {
@@ -35,28 +38,27 @@ export type RelationCandidatesParams = {
     /** The composed query-builder tree, or null when no rules are set. */
     filter?: FilterGroup | null;
     /**
-     * How many of the matched rows to return — the picker grows this as the
-     * user scrolls (lazy infinite scroll) rather than paging.
-     */
-    limit: number;
-    /**
      * Slot-contributed list params (e.g. locale scoping from the entry-params
      * slot), forwarded to the request verbatim and keyed into the cache.
      */
     extra?: Record<string, string>;
 };
 
-/** The windowed envelope: the first `limit` matches, the full count, and more-flag. */
+/** The paginated candidate envelope: the loaded matches, the full count, more-flag. */
 export type RelationCandidatesResult = {
     items: RelationCandidate[];
-    /** Total matches across the whole (filtered) set, not just the window. */
+    /** Total matches across the whole (filtered) set, not just what's loaded. */
     total: number;
-    /** Whether more matches exist beyond the current window (drives lazy load). */
+    /** Whether more matches exist beyond the loaded pages (drives lazy load). */
     hasMore: boolean;
     /** Whether the first page is still loading (no data yet). */
     isPending: boolean;
     /** Whether the candidate query failed. */
     isError: boolean;
+    /** Whether a further page is currently loading (drives the load-more spinner). */
+    isFetchingNextPage: boolean;
+    /** Fetch the next page of matches (lazy infinite scroll). */
+    fetchNextPage: () => void;
 };
 
 /** The list endpoint's envelope for the target type's entries. */
@@ -66,18 +68,17 @@ type EntriesEnvelope = {
 };
 
 /**
- * Fetch the target type's entries as relation candidates from
+ * Fetch one page of the target type's entries as relation candidates from
  * `GET /api/content/:type` — the same server pipeline the records table uses, so
  * the picker's free-text `search` and the query-builder `filter` are applied
- * **server-side**. The lazy-scroll window is a `pageSize` grown by the dialog;
- * `page` stays 1 so each step re-reads the wider window (kept populated across
- * steps by `keepPreviousData`).
+ * **server-side**. Pages are real, offset-based (`page`/`pageSize`); the dialog
+ * pulls further pages as the user scrolls.
  */
-async function fetchRelationCandidates(
+async function fetchRelationCandidatesPage(
     targetName: string,
     search: string,
     filter: string | null,
-    limit: number,
+    page: number,
     extra: Record<string, string>
 ): Promise<EntriesEnvelope> {
     try {
@@ -88,10 +89,13 @@ async function fetchRelationCandidates(
                     ...extra,
                     ...(search ? { search } : {}),
                     ...(filter ? { filter } : {}),
-                    page: 1,
+                    page,
                     // Never exceed the server's hard cap — an over-cap pageSize is
                     // a 400, not a clamp.
-                    pageSize: Math.min(limit, MAX_CANDIDATE_WINDOW)
+                    pageSize: Math.min(
+                        RELATION_CANDIDATES_PAGE_SIZE,
+                        RELATION_CANDIDATES_MAX_PAGE_SIZE
+                    )
                 }
             }
         );
@@ -102,7 +106,7 @@ async function fetchRelationCandidates(
 }
 
 /**
- * Query key for a relation type's candidate window, **scoped to the workspace**
+ * Query key for a relation type's candidate list, **scoped to the workspace**
  * (candidates are workspace entries, so two workspaces never share the cache).
  * The serialized filter — not the tree object — keys the entry so an unchanged
  * filter is a cache hit.
@@ -113,25 +117,19 @@ export const relationCandidatesKey = (
     params: {
         search: string;
         filter: string | null;
-        limit: number;
         extra?: Record<string, string>;
     }
 ) => ['relation-candidates', workspaceId, targetName, params] as const;
 
 /**
- * The largest candidate window the picker will grow to — the list endpoint's
- * `MAX_PAGE_SIZE`. Past this the user narrows with search / the query-builder
- * filter instead of scrolling.
- */
-const RELATION_CANDIDATE_WINDOW_MAX = 100;
-
-/**
  * The assignable records for a relation's target type, served by
  * `GET /api/content/:type`. `schemaFields` derives each row's title (mirroring
  * the server's `entryTitle`); the picker's search and query-builder `filter` run
- * **server-side**, and the window grows via `limit` (lazy infinite scroll).
- * Returns the stable `{ items, total, hasMore, … }` envelope the dialog renders.
- * Disabled (via `enabled`) until the picker opens.
+ * **server-side**, and the list grows by **real pagination** (`fetchNextPage`,
+ * lazy infinite scroll) — there is no artificial window cap, so a type with more
+ * than one page of entries is fully reachable. Returns the stable
+ * `{ items, total, hasMore, … }` envelope the dialog renders. Disabled (via
+ * `enabled`) until the picker opens.
  */
 export function useRelationCandidates(
     targetName: string,
@@ -139,54 +137,53 @@ export function useRelationCandidates(
     params: RelationCandidatesParams,
     enabled = true
 ): RelationCandidatesResult {
-    const { search = '', filter = null, limit, extra = {} } = params;
+    const { search = '', filter = null, extra = {} } = params;
     const workspace = useCurrentWorkspace();
     // Serialize the query-builder tree to the `?filter=` wire JSON the server
     // parses (null when the tree has no complete rules).
     const filterJson = filter ? treeToJsonFilter(filter) : null;
-    // The list endpoint caps `pageSize` at MAX_PAGE_SIZE (100) and 400s a larger
-    // one, so cap the grown window there. The picker browses up to 100 matches;
-    // beyond that the user narrows with search / the query-builder filter (both
-    // server-side), rather than scrolling an unbounded list.
-    const effectiveLimit = Math.min(limit, RELATION_CANDIDATE_WINDOW_MAX);
 
-    const query = useQuery({
+    const query = useInfiniteQuery({
         queryKey: relationCandidatesKey(workspace.id, targetName, {
             search,
             filter: filterJson,
-            limit: effectiveLimit,
             ...(Object.keys(extra).length ? { extra } : {})
         }),
         enabled: enabled && !!targetName,
         placeholderData: keepPreviousData,
-        queryFn: () =>
-            fetchRelationCandidates(
+        initialPageParam: 1,
+        queryFn: ({ pageParam }) =>
+            fetchRelationCandidatesPage(
                 targetName,
                 search,
                 filterJson,
-                effectiveLimit,
+                pageParam,
                 extra
-            )
+            ),
+        // Another page exists while fewer rows are loaded than the total match
+        // count; the next page is the following offset.
+        getNextPageParam: (last, pages) => {
+            const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+            return loaded < last.total ? pages.length + 1 : undefined;
+        }
     });
 
-    const rows = query.data?.items ?? [];
+    const rows = query.data?.pages.flatMap((page) => page.items) ?? [];
     const items: RelationCandidate[] = rows.map((record) => ({
         id: record.id,
         title: relationLabel(record.values, schemaFields, record.id),
         status: record.status,
         values: record.values
     }));
-    const total = query.data?.total ?? 0;
+    const total = query.data?.pages[0]?.total ?? 0;
 
     return {
         items,
         total,
-        // Stop growing the window at the cap — otherwise `hasMore` would stay
-        // true with the list pinned at 100, spinning forever on scroll.
-        hasMore:
-            total > items.length &&
-            items.length < RELATION_CANDIDATE_WINDOW_MAX,
+        hasMore: query.hasNextPage,
         isPending: enabled && query.isPending,
-        isError: query.isError
+        isError: query.isError,
+        isFetchingNextPage: query.isFetchingNextPage,
+        fetchNextPage: query.fetchNextPage
     };
 }
