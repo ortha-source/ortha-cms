@@ -109,7 +109,7 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
                                             >
                                                 {workspace.name}
                                             </Link>
-                                            <p className="truncate text-xs text-muted-foreground">
+                                            <p className="line-clamp-3 text-xs break-words text-muted-foreground">
                                                 {workspace.description}
                                             </p>
                                         </div>
