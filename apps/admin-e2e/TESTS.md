@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_157 test cases across 22 spec files._
+_159 test cases across 23 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -204,6 +204,16 @@ _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 | --- |
 | shows the greeting, stat tiles, and both panels |
 | the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/shell/command-palette.spec.ts -->
+_<sub>apps/admin-e2e/src/shell/command-palette.spec.ts</sub>_
+
+## Command palette
+
+| Test case |
+| --- |
+| suggests the primary-nav destinations |
+| filters and navigates to the chosen destination |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
