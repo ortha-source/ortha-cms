@@ -22,11 +22,11 @@ import type { Workspace } from '../../types/workspace';
 const messages = defineMessages({
     back: {
         id: 'workspaces.nav.back',
-        defaultMessage: 'Ortha CMS'
+        defaultMessage: 'Home'
     },
     workspaceGroup: {
         id: 'workspaces.nav.groupLabel',
-        defaultMessage: 'Workspace'
+        defaultMessage: 'Tools'
     }
 });
 
@@ -55,9 +55,9 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
             <SidebarHeader className="gap-2 px-2 pt-2">
                 <Link
                     to="/"
-                    className="flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                 >
-                    <ArrowLeft className="size-3.5" aria-hidden />
+                    <ArrowLeft className="size-4" aria-hidden />
                     {intl.formatMessage(messages.back)}
                 </Link>
                 <WorkspaceSwitcher

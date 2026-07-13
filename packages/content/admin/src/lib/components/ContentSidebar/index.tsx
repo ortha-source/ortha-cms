@@ -37,7 +37,7 @@ const messages = defineMessages({
     },
     workspaceGroup: {
         id: 'content.sidebar.workspaceGroup',
-        defaultMessage: 'Workspace'
+        defaultMessage: 'Workspace Content'
     }
 });
 
