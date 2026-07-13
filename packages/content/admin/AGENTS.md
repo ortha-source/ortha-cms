@@ -3,9 +3,10 @@
 The **Content Library feature plugin** for the Ortha CMS admin UI. It is the
 admin counterpart to `@ortha-cms/content-server` (which owns the content
 registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
-`/workspaces/:id/content/*` and ships the library's **landing + navigation
-shell**: a second sidebar listing the workspace's content types, a ⌘K search
-palette, and pin-to-favorite. Selecting a **collection** opens a dynamic records
+`/workspaces/:id/content/*` and ships the library's **navigation + landing**:
+the **Content section of the app sidebar** (listing the workspace's content
+types, with a ⌘K search palette and pin-to-favorite) plus the work-area island.
+Selecting a **collection** opens a dynamic records
 table (search, query-builder filter, **click-to-sort headers**, a column picker with
 **drag-and-drop / keyboard reordering**, **row selection** with a select-all and
 a "{n} selected" bar, pagination, and an **Add record** action); selecting a
@@ -21,15 +22,17 @@ against the content-server write API; a server 422 maps back onto the form's
 fields. Each paranoid collection also has a **Trash** view
 (`:typeName/trash`).
 
-## Layout (the second sidebar)
+## Layout (the Content sidebar section)
 
-`ContentLibraryPage` owns a two-pane layout inside the shell's content area
-(beside the 56px workspace rail): a sticky **`ContentSidebar`** on the left and
-an outlet driven by nested routes on the right. **The sidebar is inline only
-from the `md` breakpoint up**; below it the work area takes the full width and
-the same `ContentSidebar` (passed a `className` override) moves into a left
-`Drawer` opened by a "Content menu" trigger — closed automatically on any
-navigation (a `useLocation` effect) so tapping a type goes straight to its view.
+The content-type nav lives in the **app sidebar**, not the page: `ContentPlugin`
+contributes a **`ContentNavSection`** to the workspace shell's
+`WORKSPACE_SECTION_SLOT`, rendering the **`ContentSidebar`** (nav landmark
+"Content types") + the ⌘K palette there. Because that section renders **above**
+the shell's `CurrentWorkspaceProvider`, `ContentNavSection` resolves the open
+workspace itself (`useMatch('/workspaces/:id/*')` + `useWorkspaces`) rather than
+`useCurrentWorkspace`, and owns the ⌘K/Ctrl+K shortcut so search works anywhere
+in the workspace. `ContentLibraryPage` then owns only the **work-area island**
+(`ContentPane`) — an outlet driven by nested routes.
 The routes are (`index` → `ContentWelcome`,
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 `ContentEntryRoute` (the create / edit editor); the static `new` segment
@@ -42,7 +45,7 @@ something is pinned), **Collections** (`kind: 'collection'`), **Pages**
 (`kind: 'single'`) — built on the design-system `Collapsible`. Each row links to
 its type and carries a pin toggle. The **`ContentSearchDialog`** is a
 `CommandDialog` (cmdk) palette opened from the sidebar's search trigger or the
-global ⌘K / Ctrl+K shortcut (owned by the page).
+global ⌘K / Ctrl+K shortcut (both owned by `ContentNavSection`).
 
 ## Data + favorites
 
@@ -204,15 +207,17 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   (`exports` → `./src/index.ts`); no build step.
 - Register it in `createAdmin({ plugins })` **after** `WorkspacesPlugin()` — it
   contributes only to the workspace shell's slots
-  (`WORKSPACE_SIDEBAR_SLOT` + `WORKSPACE_ROUTE_SLOT`), which `WorkspacesPlugin`
+  (`WORKSPACE_SECTION_SLOT` + `WORKSPACE_ROUTE_SLOT`), which `WorkspacesPlugin`
   owns, so it depends on `@ortha-cms/workspaces-admin`.
 
 ## Lives strictly inside a workspace
 
-This plugin contributes **no top-level route and no top-toolbar nav item**. It
-adds a `Library` rail button (`order: 10`, first) and a `content/*` route to the
-workspace shell — so it only ever renders under `/workspaces/:id/content`. The
-page reads the open workspace via `useCurrentWorkspace()` from
+This plugin contributes **no top-level route and no global nav item**. It adds
+the **Content section** (`WORKSPACE_SECTION_SLOT`, its `ContentNavSection`) and a
+`content/*` route (`WORKSPACE_ROUTE_SLOT`, the lowest `order` so it is the
+workspace's default landing) to the workspace shell — so it only ever renders
+under `/workspaces/:id/content`. The page reads the open workspace via
+`useCurrentWorkspace()` from
 `@ortha-cms/workspaces-admin`.
 
 ## Conventions

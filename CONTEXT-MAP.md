@@ -28,13 +28,13 @@ detail.
 | `identity/admin`      | `@ortha-cms/identity-admin`      | **Plugin.** Login page + auth client state.                                                                                                        |
 | `users/server`        | `@ortha-cms/users-server`        | **Plugin.** Member management API (list/invite/edit/disable/sessions).                                                                             |
 | `users/admin`         | `@ortha-cms/users-admin`         | **Plugin.** Members roster, invite flow, user detail tabs.                                                                                         |
-| `workspaces/admin`    | `@ortha-cms/workspaces-admin`    | **Plugin.** Workspace list + create wizard + the workspace shell (`/workspaces/:id/*`). Defines `WORKSPACE_SIDEBAR_SLOT` / `WORKSPACE_ROUTE_SLOT`. |
-| `content/admin`       | `@ortha-cms/content-admin`       | **Plugin.** Content Library (workspace rail): second sidebar (collapsible Collections/Pages + favorites), ⌘K search palette. Entry editor pending. |
-| `media/admin`         | `@ortha-cms/media-admin`         | **Plugin.** Media Library (workspace rail). Scaffold; no server yet.                                                                               |
-| `insights/admin`      | `@ortha-cms/insights-admin`      | **Plugin.** Insights (workspace rail). Scaffold; no server yet.                                                                                    |
+| `workspaces/admin`    | `@ortha-cms/workspaces-admin`    | **Plugin.** Workspace table + create wizard + the workspace shell (`/workspaces/:id/*`, injects its nav into the app sidebar). Defines `WORKSPACE_NAV_SLOT` / `WORKSPACE_SECTION_SLOT` / `WORKSPACE_ROUTE_SLOT`. |
+| `content/admin`       | `@ortha-cms/content-admin`       | **Plugin.** Content Library: the app sidebar's Content section (collapsible Collections/Pages + favorites), ⌘K search palette, entry editor.       |
+| `media/admin`         | `@ortha-cms/media-admin`         | **Plugin.** Media Library (workspace nav). Scaffold; no server yet.                                                                                |
+| `insights/admin`      | `@ortha-cms/insights-admin`      | **Plugin.** Insights (workspace nav). Scaffold; no server yet.                                                                                     |
 | `activity/server`     | `@ortha-cms/activity-server`     | **Plugin.** Audit-event schema + read API.                                                                                                         |
-| `activity/admin`      | `@ortha-cms/activity-admin`      | **Plugin.** Global & user-scoped activity logs.                                                                                                    |
-| `shell/admin`         | `@ortha-cms/shell-admin`         | **Plugin.** Authenticated chrome (toolbar, layout). Defines `NAVBAR_START_SLOT`.                                                                   |
+| `activity/admin`      | `@ortha-cms/activity-admin`      | **Plugin.** Global & user-scoped activity logs + home recent-activity panel.                                                                       |
+| `shell/admin`         | `@ortha-cms/shell-admin`         | **Plugin.** Authenticated chrome (left sidebar, layout, home dashboard). Defines `SIDEBAR_NAV_SLOT` / `SIDEBAR_SECTION_SLOT` / `SIDEBAR_FOOTER_SLOT` / `HOME_SECTION_SLOT`. |
 | `query-builder/admin` | `@ortha-cms/query-builder-admin` | Admin filter/query-builder UI.                                                                                                                     |
 | `design-system`       | `@ortha-cms/design-system`       | shadcn/ui component library + Tailwind. Governed by the `shadcn` skill.                                                                            |
 | `utils/admin`         | `@ortha-cms/utils-admin`         | Shared admin plumbing: `apiClient`, `queryClient`, slots, error handling.                                                                          |
@@ -51,7 +51,7 @@ detail.
   server plugins contribute a NestJS module + (optionally) schema & migrations.
 - **`AdminPlugin` / `ServerPlugin`** — the plugin factory + contract for each
   runtime. See [`ARCHITECTURE.md`](ARCHITECTURE.md).
-- **Slot** — a named UI extension point (e.g. `NAVBAR_START_SLOT`) a plugin
+- **Slot** — a named UI extension point (e.g. `SIDEBAR_NAV_SLOT`) a plugin
   defines and others contribute into, with no direct coupling.
 - **`@InjectDatabase()`** — DI token for the shared Drizzle connection from
   `@ortha-cms/database`.

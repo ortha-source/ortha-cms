@@ -2,19 +2,19 @@
 
 The members **admin plugin**: the **Members** page at `/users`, the **Invite
 member** page at `/users/invite`, the **user detail** page at `/users/:id`, and
-the toolbar nav entry.
+the sidebar nav entry.
 
 ## What it owns
 
 - The private `/users`, `/users/invite`, and `/users/:id/*` routes (lazy +
   `<Suspense>`), rendered in the shell's authenticated layout.
-- A `NAVBAR_START_SLOT` entry (`order: 30`, after Workspaces). The pages gate on
-  the `users:read` permission via `useHasPermission`.
-- The toolbar **account menu** (`AccountMenu`), contributed to the shell's
-  `NAVBAR_END_SLOT`: the signed-in user's avatar + a dropdown with their
-  name/email, **My profile** (→ their own `/users/:id` detail page), and
-  **Logout** (identity's `useLogoutMutation`). It reads the current user from
-  identity's `useAuth`.
+- A `SIDEBAR_NAV_SLOT` entry (`group: 'directory'`, `order: 20`). The pages gate
+  on the `users:read` permission via `useHasPermission`.
+- The sidebar-footer **account menu** (`AccountMenu`), contributed to the
+  shell's `SIDEBAR_FOOTER_SLOT`: a full-width row (avatar + name + email) that
+  opens a dropdown with **My profile** (→ their own `/users/:id` detail page)
+  and **Logout** (identity's `useLogoutMutation`). It reads the current user
+  from identity's `useAuth`.
 
 ## The pages
 

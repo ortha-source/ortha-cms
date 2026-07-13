@@ -109,10 +109,13 @@ after changing cross-project dependencies to update TS project references.
 ## 6. Extension points (slots)
 
 Plugins contribute UI into **named slots** defined by other plugins, with no
-direct coupling — pure data. Example: `shell` defines `NAVBAR_START_SLOT`; the
-workspaces, users, and activity plugins each register nav entries into it.
-Slots are wired once at boot (`slot._register(items)`) and read sorted by
-consumers (`slot.getItems()`).
+direct coupling — pure data. Example: `shell` defines `SIDEBAR_NAV_SLOT`; the
+workspaces, users, and activity plugins each register nav entries into it (and
+the workspace shell defines `WORKSPACE_NAV_SLOT` / `WORKSPACE_SECTION_SLOT` for
+its interior). Slots are wired once at boot (`slot._register(items)`) and read
+sorted by consumers (`slot.getItems()`). The shell's sidebar also has a
+route-scoped **dynamic region** (`useSidebarContent`) the workspace shell takes
+over — a runtime override alongside the boot-time slots.
 
 ## 7. Security posture (today)
 
