@@ -1,12 +1,13 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
+import { SIDEBAR_NAV_SLOT, SIDEBAR_SECTION_SLOT } from '@ortha-cms/shell-admin';
 import { Layers, Settings } from 'lucide-react';
 import {
     CreateWorkspacePageSkeleton,
     WorkspaceShellSkeleton,
     WorkspacesPageSkeleton
 } from '../../components/WorkspacesSkeleton';
+import { WorkspacesNavSection } from '../../components/WorkspacesNavSection';
 import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SIDEBAR_SLOT
@@ -101,14 +102,26 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
         ],
         slots: [
             {
-                slot: NAVBAR_START_SLOT,
+                slot: SIDEBAR_NAV_SLOT,
                 items: [
                     {
                         labelId: 'workspaces.nav.label',
                         defaultLabel: 'Workspaces',
                         to: '/workspaces',
-                        order: 20,
+                        group: 'directory',
+                        order: 10,
                         icon: Layers
+                    }
+                ]
+            },
+            {
+                // The Workspaces quick-list below the primary nav.
+                slot: SIDEBAR_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'workspaces.quicklist',
+                        order: 10,
+                        Component: WorkspacesNavSection
                     }
                 ]
             },

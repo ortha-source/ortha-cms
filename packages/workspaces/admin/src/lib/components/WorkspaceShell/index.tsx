@@ -93,8 +93,8 @@ export function WorkspaceShell() {
 
     return (
         <CurrentWorkspaceProvider workspace={current}>
-            {/* Fills the height left under the shell's sticky h-12 (3rem) navbar. */}
-            <div className="flex min-h-[calc(100svh-3rem)]">
+            {/* Fills the main inset beside the app sidebar. */}
+            <div className="flex min-h-svh">
                 <WorkspaceRail current={current} workspaces={workspaces} />
                 <div className="min-w-0 flex-1">
                     <Routes>

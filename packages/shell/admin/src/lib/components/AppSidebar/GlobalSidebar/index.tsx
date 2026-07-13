@@ -1,0 +1,105 @@
+import { defineMessages, useIntl } from 'react-intl';
+import {
+    Logo,
+    SidebarContent,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu
+} from '@ortha-cms/design-system';
+import {
+    SIDEBAR_NAV_SLOT,
+    SIDEBAR_SECTION_SLOT,
+    type SidebarGroupId,
+    type SidebarItem
+} from '../../../slots/sidebarSlots';
+import { SidebarNavButton } from '../SidebarNavButton';
+import { SidebarSearch } from '../SidebarSearch';
+
+/** Intl descriptors for the global sidebar, co-located here. */
+const messages = defineMessages({
+    primaryNav: {
+        id: 'shell.sidebar.primaryLabel',
+        defaultMessage: 'Primary'
+    },
+    overview: {
+        id: 'shell.sidebar.group.overview',
+        defaultMessage: 'Overview'
+    },
+    directory: {
+        id: 'shell.sidebar.group.directory',
+        defaultMessage: 'Directory'
+    }
+});
+
+/** The primary-nav groups, in render order. */
+const GROUPS: {
+    id: SidebarGroupId;
+    label: (typeof messages)[keyof typeof messages];
+}[] = [
+    { id: 'overview', label: messages.overview },
+    { id: 'directory', label: messages.directory }
+];
+
+/** Sorts a slot's items by ascending `order`. */
+function byOrder<T extends { order: number }>(items: T[]): T[] {
+    return items.slice().sort((a, b) => a.order - b.order);
+}
+
+/**
+ * The default (non-workspace) contents of {@link AppSidebar}: the brand, the
+ * search trigger, the primary nav grouped into Overview / Directory (from
+ * {@link SIDEBAR_NAV_SLOT}), and any data-driven sections below it (from
+ * {@link SIDEBAR_SECTION_SLOT} — e.g. the Workspaces quick-list). Rendered
+ * whenever no route has taken over the sidebar's contextual region.
+ */
+export function GlobalSidebar() {
+    const intl = useIntl();
+    const items = byOrder(SIDEBAR_NAV_SLOT.getItems());
+    const sections = byOrder(SIDEBAR_SECTION_SLOT.getItems());
+
+    return (
+        <>
+            <SidebarHeader className="gap-3 px-3 pt-3">
+                <span className="flex items-center gap-2">
+                    <Logo showLabel={false} aria-hidden />
+                    <span className="text-sm font-semibold">Ortha CMS</span>
+                </span>
+                <SidebarSearch />
+            </SidebarHeader>
+            <SidebarContent>
+                <nav aria-label={intl.formatMessage(messages.primaryNav)}>
+                    {GROUPS.map((group) => {
+                        const groupItems = items.filter(
+                            (item: SidebarItem) => item.group === group.id
+                        );
+                        if (groupItems.length === 0) {
+                            return null;
+                        }
+                        return (
+                            <SidebarGroup key={group.id}>
+                                <SidebarGroupLabel>
+                                    {intl.formatMessage(group.label)}
+                                </SidebarGroupLabel>
+                                <SidebarGroupContent>
+                                    <SidebarMenu>
+                                        {groupItems.map((item) => (
+                                            <SidebarNavButton
+                                                key={item.to}
+                                                item={item}
+                                            />
+                                        ))}
+                                    </SidebarMenu>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+                        );
+                    })}
+                </nav>
+                {sections.map(({ id, Component }) => (
+                    <Component key={id} />
+                ))}
+            </SidebarContent>
+        </>
+    );
+}

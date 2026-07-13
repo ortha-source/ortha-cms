@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { NAVBAR_START_SLOT } from '@ortha-cms/shell-admin';
+import { SIDEBAR_NAV_SLOT } from '@ortha-cms/shell-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../../components/ActivityLogSkeleton';
 
@@ -54,13 +54,14 @@ export function ActivityPlugin(): ActivityAdminPlugin {
         ],
         slots: [
             {
-                slot: NAVBAR_START_SLOT,
+                slot: SIDEBAR_NAV_SLOT,
                 items: [
                     {
                         labelId: 'activity.nav.label',
                         defaultLabel: 'Activity',
                         to: '/activity',
-                        order: 35,
+                        group: 'overview',
+                        order: 20,
                         icon: Activity,
                         permission: 'activity:read'
                     }
