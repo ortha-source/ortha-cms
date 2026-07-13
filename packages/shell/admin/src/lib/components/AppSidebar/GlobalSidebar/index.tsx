@@ -1,4 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { AuthStatus, useAuth } from '@ortha-cms/identity-admin';
 import {
     Logo,
     SidebarContent,
@@ -9,6 +10,7 @@ import {
     SidebarMenu,
     SidebarTrigger
 } from '@ortha-cms/design-system';
+import { byOrder } from '@ortha-cms/utils-admin';
 import {
     SIDEBAR_NAV_SLOT,
     SIDEBAR_SECTION_SLOT,
@@ -43,11 +45,6 @@ const GROUPS: {
     { id: 'directory', label: messages.directory }
 ];
 
-/** Sorts a slot's items by ascending `order`. */
-function byOrder<T extends { order: number }>(items: T[]): T[] {
-    return items.slice().sort((a, b) => a.order - b.order);
-}
-
 /**
  * The default (non-workspace) contents of {@link AppSidebar}: the brand, the
  * search trigger, the primary nav grouped into Overview / Directory (from
@@ -59,6 +56,18 @@ export function GlobalSidebar() {
     const intl = useIntl();
     const items = byOrder(SIDEBAR_NAV_SLOT.getItems());
     const sections = byOrder(SIDEBAR_SECTION_SLOT.getItems());
+
+    // Mirror the exact visibility rule `SidebarNavButton` applies per row (see
+    // `useHasPermission`): an item with no `permission` is always visible, one
+    // with a `permission` only when the signed-in user holds it. Reading the
+    // permission set once lets the group compute visibility without calling a
+    // hook per item, so a group whose every item is gated out renders neither
+    // its label nor an empty body.
+    const auth = useAuth();
+    const permissions =
+        auth.status === AuthStatus.Authenticated ? auth.user.permissions : [];
+    const isVisible = (item: SidebarItem) =>
+        !item.permission || permissions.includes(item.permission);
 
     return (
         <>
@@ -76,7 +85,8 @@ export function GlobalSidebar() {
                 <nav aria-label={intl.formatMessage(messages.primaryNav)}>
                     {GROUPS.map((group) => {
                         const groupItems = items.filter(
-                            (item: SidebarItem) => item.group === group.id
+                            (item: SidebarItem) =>
+                                item.group === group.id && isVisible(item)
                         );
                         if (groupItems.length === 0) {
                             return null;

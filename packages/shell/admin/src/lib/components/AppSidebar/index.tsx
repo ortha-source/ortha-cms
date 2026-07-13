@@ -1,4 +1,5 @@
 import { Sidebar, SidebarFooter, SidebarRail } from '@ortha-cms/design-system';
+import { byOrder } from '@ortha-cms/utils-admin';
 import { SIDEBAR_FOOTER_SLOT } from '../../slots/sidebarSlots';
 import { useSidebarContentOverride } from '../../utils/sidebarContent';
 import { GlobalSidebar } from './GlobalSidebar';
@@ -24,9 +25,7 @@ import { GlobalSidebar } from './GlobalSidebar';
  */
 export function AppSidebar() {
     const override = useSidebarContentOverride();
-    const footerItems = SIDEBAR_FOOTER_SLOT.getItems()
-        .slice()
-        .sort((a, b) => a.order - b.order);
+    const footerItems = byOrder(SIDEBAR_FOOTER_SLOT.getItems());
 
     return (
         <Sidebar collapsible="offcanvas">

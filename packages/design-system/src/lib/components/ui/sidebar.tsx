@@ -172,6 +172,14 @@ function Sidebar({
 }) {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
+    // When collapsed in offcanvas mode the panel is only translated off the
+    // left edge — it stays rendered. Mark it `inert` so its controls (search,
+    // nav links, footer) leave the tab order and accessibility tree while
+    // hidden, and rejoin them when expanded. `icon` collapse keeps the panel
+    // visible, so it must stay interactive.
+    const isOffcanvasCollapsed =
+        collapsible === 'offcanvas' && state === 'collapsed';
+
     if (collapsible === 'none') {
         return (
             <div
@@ -248,6 +256,8 @@ function Sidebar({
                         : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
                     className
                 )}
+                inert={isOffcanvasCollapsed}
+                aria-hidden={isOffcanvasCollapsed || undefined}
                 {...props}
             >
                 <div

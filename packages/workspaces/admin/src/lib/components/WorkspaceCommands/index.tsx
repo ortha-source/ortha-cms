@@ -4,6 +4,7 @@ import { CommandGroup, CommandItem } from '@ortha-cms/design-system';
 import type { CommandSectionProps } from '@ortha-cms/shell-admin';
 import { initialsOf } from '@ortha-cms/utils-admin';
 import { useWorkspaces } from '../../api/useWorkspaces';
+import { isActiveWorkspace } from '../../utils/isActiveWorkspace';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 
 /** Intl descriptors for {@link WorkspaceCommands}, co-located here. */
@@ -24,9 +25,7 @@ export function WorkspaceCommands({ close }: CommandSectionProps) {
     const navigate = useNavigate();
     const { data: workspaces } = useWorkspaces();
 
-    const active = (workspaces ?? []).filter(
-        (workspace) => workspace.status === 'Active'
-    );
+    const active = (workspaces ?? []).filter(isActiveWorkspace);
     if (active.length === 0) {
         return null;
     }

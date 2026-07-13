@@ -10,6 +10,7 @@ import {
 } from '@ortha-cms/design-system';
 import { initialsOf } from '@ortha-cms/utils-admin';
 import { useWorkspaces } from '../../api/useWorkspaces';
+import { isActiveWorkspace } from '../../utils/isActiveWorkspace';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 
 /** Intl descriptors for {@link WorkspacesHomePanel}, co-located here. */
@@ -30,6 +31,10 @@ const messages = defineMessages({
     empty: {
         id: 'workspaces.home.empty',
         defaultMessage: 'No workspaces yet.'
+    },
+    error: {
+        id: 'workspaces.home.error',
+        defaultMessage: 'Couldn’t load workspaces.'
     }
 });
 
@@ -43,10 +48,10 @@ const PREVIEW_LIMIT = 5;
  */
 export function WorkspacesHomePanel() {
     const intl = useIntl();
-    const { data: workspaces, isPending } = useWorkspaces();
+    const { data: workspaces, isPending, isError } = useWorkspaces();
 
     const active = (workspaces ?? [])
-        .filter((w) => w.status === 'Active')
+        .filter(isActiveWorkspace)
         .slice(0, PREVIEW_LIMIT);
 
     return (
@@ -76,6 +81,13 @@ export function WorkspacesHomePanel() {
                             </div>
                         </div>
                     ))
+                ) : isError ? (
+                    <p
+                        role="alert"
+                        className="px-2 py-6 text-center text-sm text-destructive"
+                    >
+                        {intl.formatMessage(messages.error)}
+                    </p>
                 ) : active.length === 0 ? (
                     <p className="px-2 py-6 text-center text-sm text-muted-foreground">
                         {intl.formatMessage(messages.empty)}

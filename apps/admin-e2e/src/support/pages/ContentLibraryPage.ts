@@ -11,8 +11,12 @@ import { BasePage } from './BasePage';
 export class ContentLibraryPage extends BasePage {
     /** The second sidebar nav region. */
     readonly sidebar: Locator;
-    /** The sidebar's search trigger (opens the ⌘K palette). */
-    readonly searchTrigger: Locator;
+    /**
+     * The content library's own second-sidebar search trigger (opens its
+     * collections/pages palette). Distinct from the global shell command palette
+     * (`BasePage.searchTrigger()`), so it carries its own name.
+     */
+    readonly contentSearchTrigger: Locator;
     /** The command palette dialog. */
     readonly searchDialog: Locator;
     /** The palette's search input. */
@@ -21,7 +25,7 @@ export class ContentLibraryPage extends BasePage {
     constructor(page: Page) {
         super(page);
         this.sidebar = page.getByRole('navigation', { name: 'Content types' });
-        this.searchTrigger = this.sidebar.getByRole('button', {
+        this.contentSearchTrigger = this.sidebar.getByRole('button', {
             name: /Search/
         });
         this.searchDialog = page.getByRole('dialog');
@@ -79,7 +83,7 @@ export class ContentLibraryPage extends BasePage {
 
     /** Open the search palette via its trigger button. */
     async openSearch() {
-        await this.searchTrigger.click();
+        await this.contentSearchTrigger.click();
         await this.searchDialog.waitFor();
     }
 
@@ -88,7 +92,7 @@ export class ContentLibraryPage extends BasePage {
         // Give the page DOM focus first (just-loaded viewports aren't focused,
         // so a bare keypress wouldn't reach the window-level shortcut listener).
         // Focusing the trigger doesn't open the palette — only the shortcut does.
-        await this.searchTrigger.focus();
+        await this.contentSearchTrigger.focus();
         await this.page.keyboard.press('Control+k');
         await this.searchDialog.waitFor();
     }

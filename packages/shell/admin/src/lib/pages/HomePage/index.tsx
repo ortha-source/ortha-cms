@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Container } from '@ortha-cms/design-system';
 import { useAuth } from '@ortha-cms/identity-admin';
+import { byOrder } from '@ortha-cms/utils-admin';
 import { HOME_SECTION_SLOT } from '../../slots/homeSlots';
 
 /** Intl descriptors for {@link HomePage}, co-located with the component. */
@@ -28,11 +29,6 @@ function greetingFor(hour: number) {
     if (hour < 12) return messages.greetingMorning;
     if (hour < 18) return messages.greetingAfternoon;
     return messages.greetingEvening;
-}
-
-/** Sorts a slot's items by ascending `order`. */
-function byOrder<T extends { order: number }>(items: T[]): T[] {
-    return items.slice().sort((a, b) => a.order - b.order);
 }
 
 /**

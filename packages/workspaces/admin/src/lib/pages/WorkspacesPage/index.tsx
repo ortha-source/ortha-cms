@@ -4,6 +4,8 @@ import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Plus } from 'lucide-react';
 import {
+    Alert,
+    AlertDescription,
     Button,
     Container,
     ContainerHeader
@@ -33,6 +35,14 @@ const messages = defineMessages({
     newWorkspace: {
         id: 'workspaces.page.newWorkspace',
         defaultMessage: 'New workspace'
+    },
+    error: {
+        id: 'workspaces.page.error',
+        defaultMessage: 'Couldn’t load workspaces. Please try again.'
+    },
+    retry: {
+        id: 'workspaces.page.retry',
+        defaultMessage: 'Retry'
     }
 });
 
@@ -60,7 +70,12 @@ export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
     const canCreate = useHasPermission('workspaces:create');
-    const { data: workspaces = [], isLoading } = useWorkspaces();
+    const {
+        data: workspaces = [],
+        isLoading,
+        isError,
+        refetch
+    } = useWorkspaces();
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
@@ -125,6 +140,23 @@ export function WorkspacesPage() {
 
             {isLoading ? (
                 <WorkspacesTableSkeleton />
+            ) : isError ? (
+                // A failed load gets its own state — never the empty-list
+                // "create your first workspace" copy, which would mislead the
+                // operator into thinking the account genuinely has none.
+                <Alert variant="destructive" role="alert" className="mt-4">
+                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                        <span>{intl.formatMessage(messages.error)}</span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="shadow-none"
+                            onClick={() => refetch()}
+                        >
+                            {intl.formatMessage(messages.retry)}
+                        </Button>
+                    </AlertDescription>
+                </Alert>
             ) : filtered.length === 0 ? (
                 <WorkspacesEmpty
                     // "No match / clear filters" whenever workspaces exist but

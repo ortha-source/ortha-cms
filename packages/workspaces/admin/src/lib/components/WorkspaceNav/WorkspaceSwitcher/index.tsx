@@ -14,10 +14,8 @@ import {
 } from '@ortha-cms/design-system';
 import { initialsOf } from '@ortha-cms/utils-admin';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
+import { WORKSPACES_CREATE } from '../../../utils/permissions';
 import type { Workspace } from '../../../types/workspace';
-
-/** Permission that gates creating a workspace (mirrors the list-page button). */
-const WORKSPACES_CREATE = 'workspaces:create';
 
 /** Intl descriptors for the sidebar workspace switcher, co-located here. */
 const messages = defineMessages({

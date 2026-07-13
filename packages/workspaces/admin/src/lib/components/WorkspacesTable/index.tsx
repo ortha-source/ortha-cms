@@ -12,6 +12,7 @@ import {
 } from '@ortha-cms/design-system';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import { StatusChip } from '../StatusChip';
+import { isActiveWorkspace } from '../../utils/isActiveWorkspace';
 import type { Workspace } from '../../types/workspace';
 
 /** Intl descriptors for {@link WorkspacesTable}, co-located with the component. */
@@ -78,7 +79,7 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
                 </TableHeader>
                 <TableBody>
                     {workspaces.map((workspace) => {
-                        const isArchived = workspace.status === 'Archived';
+                        const isArchived = !isActiveWorkspace(workspace);
                         return (
                             <TableRow
                                 key={workspace.id}

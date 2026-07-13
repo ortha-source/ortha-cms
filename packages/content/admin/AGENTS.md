@@ -131,7 +131,14 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `availableTypeNames` (passed `workspace.content` from `ContentEntryView`) and passes
   the hidden ones to `useEntryForm` as `ignoreFields`, so a hidden (ungranted)
   relation is excluded from client validation **and** the publish gate — a required
-  one can't become an un-satisfiable, invisible block. `RelationField`
+  one can't become an un-satisfiable, invisible block. A **visible** required
+link-managed relation (many / inverse-of-many) *is* publish-gated, but by its
+**effective link count** (`relationRefs[field].total − staged.removed +
+staged.added`), not the values bag it doesn't live in — mirroring the server's
+`assertRequiredRelations`. To seed those counts the aggregate relations read
+(`useEntryRelations`) now fires on **entry open** (not only when the Relations
+tab is first shown), so a populated relation never briefly reads as 0.
+`RelationField`
   shows assigned records by **title** (not raw uuid; no avatar) with a remove control
   and an **open-in-new-tab** link to that record's own editor
   (`RelationItemRow`, href built by `utils/contentEntryPath`); a many-relation's

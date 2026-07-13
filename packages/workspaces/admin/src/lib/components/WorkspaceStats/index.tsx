@@ -2,6 +2,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { FileStack, Layers, Users } from 'lucide-react';
 import { StatTile } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
+import { isActiveWorkspace } from '../../utils/isActiveWorkspace';
 
 /** Intl descriptors for {@link WorkspaceStats}, co-located here. */
 const messages = defineMessages({
@@ -16,6 +17,10 @@ const messages = defineMessages({
     contentTypes: {
         id: 'workspaces.stats.contentTypes',
         defaultMessage: 'Content types'
+    },
+    error: {
+        id: 'workspaces.stats.error',
+        defaultMessage: 'Couldn’t load workspace stats.'
     }
 });
 
@@ -31,9 +36,22 @@ const LOADING = '—';
  */
 export function WorkspaceStats() {
     const intl = useIntl();
-    const { data: workspaces, isPending } = useWorkspaces();
+    const { data: workspaces, isPending, isError } = useWorkspaces();
 
-    const active = workspaces?.filter((w) => w.status === 'Active').length ?? 0;
+    // A failed load must not read as real zeros — surface it distinctly so the
+    // operator doesn't mistake "couldn't load" for "nothing here".
+    if (isError) {
+        return (
+            <p
+                role="alert"
+                className="col-span-full rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
+                {intl.formatMessage(messages.error)}
+            </p>
+        );
+    }
+
+    const active = workspaces?.filter(isActiveWorkspace).length ?? 0;
     const members = new Set(
         (workspaces ?? []).flatMap((w) => w.members.map((m) => m.id))
     ).size;

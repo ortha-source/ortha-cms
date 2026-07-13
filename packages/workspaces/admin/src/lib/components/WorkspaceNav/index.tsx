@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowLeft } from 'lucide-react';
+import { AuthStatus, useAuth } from '@ortha-cms/identity-admin';
 import {
     SidebarContent,
     SidebarGroup,
@@ -10,6 +11,7 @@ import {
     SidebarMenu,
     SidebarTrigger
 } from '@ortha-cms/design-system';
+import { byOrder } from '@ortha-cms/utils-admin';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import {
     WORKSPACE_NAV_SLOT,
@@ -17,6 +19,7 @@ import {
 } from '../../slots/workspaceSlots';
 import { WorkspaceNavButton } from './WorkspaceNavButton';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import type { WorkspaceNavItem } from '../../slots/workspaceSlots';
 import type { Workspace } from '../../types/workspace';
 
 /** Intl descriptors for the workspace sidebar nav, co-located here. */
@@ -30,11 +33,6 @@ const messages = defineMessages({
         defaultMessage: 'Tools'
     }
 });
-
-/** Sorts a slot's items by ascending `order`. */
-function byOrder<T extends { order: number }>(items: T[]): T[] {
-    return items.slice().sort((a, b) => a.order - b.order);
-}
 
 /**
  * The per-workspace sidebar content, injected into the app sidebar's contextual
@@ -50,6 +48,18 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
     const { data: workspaces = [] } = useWorkspaces();
     const sections = byOrder(WORKSPACE_SECTION_SLOT.getItems());
     const navItems = byOrder(WORKSPACE_NAV_SLOT.getItems());
+
+    // Mirror the exact visibility rule `WorkspaceNavButton` applies per row: an
+    // item with no `permission` is always visible, one with a `permission` only
+    // when the signed-in user holds it. Reading the permission set once lets the
+    // group decide whether to render at all, so the "Tools" label never sits
+    // over an empty body when every entry is gated out.
+    const auth = useAuth();
+    const permissions =
+        auth.status === AuthStatus.Authenticated ? auth.user.permissions : [];
+    const isVisible = (item: WorkspaceNavItem) =>
+        !item.permission || permissions.includes(item.permission);
+    const visibleNavItems = navItems.filter(isVisible);
 
     return (
         <>
@@ -73,7 +83,7 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
                 {sections.map(({ id, Component }) => (
                     <Component key={id} />
                 ))}
-                {navItems.length > 0 ? (
+                {visibleNavItems.length > 0 ? (
                     <SidebarGroup>
                         <SidebarGroupLabel>
                             {intl.formatMessage(messages.workspaceGroup)}
@@ -85,7 +95,7 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
                                 )}
                             >
                                 <SidebarMenu>
-                                    {navItems.map((item) => (
+                                    {visibleNavItems.map((item) => (
                                         <WorkspaceNavButton
                                             key={item.to}
                                             item={item}

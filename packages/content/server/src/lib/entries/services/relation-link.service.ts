@@ -4,6 +4,7 @@ import {
     asc,
     count,
     eq,
+    getTableName,
     inArray,
     isNull,
     max,
@@ -30,6 +31,14 @@ type Row = Record<string, unknown>;
 
 /** Default links per page when the caller doesn't specify one. */
 export const RELATION_PAGE_SIZE = 20;
+
+/**
+ * A private advisory-lock class (the first `pg_advisory_xact_lock` key)
+ * namespacing the per-source append locks, so their hashed `<table>:<sourceId>`
+ * keys can't collide with any other advisory lock the app takes (e.g. identity's
+ * per-workspace lock). Arbitrary but fixed.
+ */
+const RELATION_APPEND_LOCK_CLASS = 0x524c; // 'RL'
 
 /**
  * The transaction handle Drizzle hands the `db.transaction(tx => …)` callback —
@@ -245,7 +254,11 @@ export class RelationLinkService {
             // Owning relation: every new link shares this entry as its source, so
             // read the append base once and insert them all in a single
             // statement (position = base + index) instead of a SELECT+INSERT per
-            // link inside the locked transaction.
+            // link inside the locked transaction. Take the source's append lock
+            // first so a concurrent writer to the same list can't read the same
+            // `max(position)` and produce a duplicate position (the inverse side
+            // and a whole-set write both target this same physical list).
+            await this.lockSource(tx, join.table, sourceId);
             const base = await this.nextPosition(tx, join.table, sourceId);
             await tx
                 .insert(join.table)
@@ -260,11 +273,15 @@ export class RelationLinkService {
                     )
                 )
                 .onConflictDoNothing();
-        } else {
+        } else if (links.length) {
             // Inverse relation: each link appends to a **different** owner row's
             // list (its physical source is the linked owner, not this entry), so
-            // each needs its own append base.
-            for (const targetId of links) {
+            // each needs its own append base — and its own append lock. Lock (and
+            // append) in a stable sorted order so two transactions touching an
+            // overlapping owner set can't deadlock by taking the locks in
+            // opposite orders.
+            for (const targetId of [...links].sort()) {
+                await this.lockSource(tx, join.table, targetId);
                 const position = await this.nextPosition(
                     tx,
                     join.table,
@@ -360,7 +377,67 @@ export class RelationLinkService {
         }
     }
 
+    /**
+     * Count the links of one join-backed relation field for an entry — the
+     * `total` a read would report, without fetching or resolving any page. Runs
+     * on the passed executor (the write transaction when validating a just-saved
+     * entry, so it sees the delta's uncommitted rows). Returns 0 for a relation
+     * that owns no writable links from this side (single FK / inverse-of-single).
+     */
+    async countLinks(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        row: Row,
+        field: string,
+        spec: AnyFieldSpec,
+        workspaceId: string
+    ): Promise<number> {
+        const join = this.joinPlanFor(type, field, spec);
+        if (join) {
+            const cols = join.table as unknown as Columns;
+            const [{ total }] = await exec
+                .select({ total: count() })
+                .from(join.table)
+                .where(eq(cols[join.ownCol], row['id']));
+            return Number(total);
+        }
+        const inverse = this.inversePlanFor(spec);
+        if (inverse) {
+            const cols = inverse.table as unknown as Columns;
+            const [{ total }] = await exec
+                .select({ total: count() })
+                .from(inverse.table)
+                .where(
+                    and(
+                        eq(cols[inverse.fkCol], row['id']),
+                        eq(cols['workspaceId'], workspaceId),
+                        cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                    )
+                );
+            return Number(total);
+        }
+        return 0;
+    }
+
     // ---- helpers -----------------------------------------------------------
+
+    /**
+     * Take the transaction-scoped advisory lock for one physical source list
+     * (`<join table>:<sourceId>`), serializing every appender to that list so no
+     * two concurrent writes read the same `max(position)`. Auto-releases at
+     * commit/rollback. Keyed on the table name too, so distinct join tables that
+     * happen to share a source id don't falsely contend.
+     */
+    private async lockSource(
+        tx: DbTransaction,
+        table: PgTable,
+        sourceId: string
+    ): Promise<void> {
+        const key = `${getTableName(table)}:${sourceId}`;
+        await tx.execute(
+            sql`select pg_advisory_xact_lock(${RELATION_APPEND_LOCK_CLASS}, hashtext(${key}))`
+        );
+    }
 
     /** Next append position for a source: `max(position) + 1`, else 0. */
     private async nextPosition(
@@ -379,7 +456,10 @@ export class RelationLinkService {
 
     /**
      * Resolve `ids` (in order) to display-ready refs via one lookup on the target
-     * type, scoped to the workspace. Ids with no live row drop to an id-only ref.
+     * type, scoped to the workspace. Ids with no **live** row drop to an id-only
+     * ref — a soft-deleted (paranoid) target is excluded here just as it is on
+     * the inverse read side, so a trashed record never surfaces its title on the
+     * owning side while it's hidden on the other.
      */
     private async refsFor(
         target: AnyContentType,
@@ -394,7 +474,8 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(cols['id'], [...new Set(ids)]),
-                    eq(cols['workspaceId'], workspaceId)
+                    eq(cols['workspaceId'], workspaceId),
+                    cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
                 )
             )) as Row[];
         const byId = new Map(

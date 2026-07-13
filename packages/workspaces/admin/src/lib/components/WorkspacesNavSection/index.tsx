@@ -13,11 +13,10 @@ import {
     SidebarMenuItem
 } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
+import { isActiveWorkspace } from '../../utils/isActiveWorkspace';
+import { WORKSPACES_CREATE } from '../../utils/permissions';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import type { Workspace } from '../../types/workspace';
-
-/** Permission that gates creating a workspace (mirrors the list-page button). */
-const WORKSPACES_CREATE = 'workspaces:create';
 
 /** Intl descriptors for {@link WorkspacesNavSection}, co-located here. */
 const messages = defineMessages({
@@ -70,9 +69,7 @@ export function WorkspacesNavSection() {
     const { data: workspaces } = useWorkspaces();
     const canCreate = useHasPermission(WORKSPACES_CREATE);
 
-    const active = (workspaces ?? []).filter(
-        (workspace) => workspace.status === 'Active'
-    );
+    const active = (workspaces ?? []).filter(isActiveWorkspace);
     // Nothing to show and nothing to do → skip the section entirely. With create
     // permission we still show it (the "+" invites creating the first one).
     if (active.length === 0 && !canCreate) {

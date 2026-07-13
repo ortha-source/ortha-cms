@@ -28,6 +28,10 @@ const messages = defineMessages({
     empty: {
         id: 'activity.home.empty',
         defaultMessage: 'No activity yet.'
+    },
+    error: {
+        id: 'activity.home.error',
+        defaultMessage: 'Couldn’t load activity.'
     }
 });
 
@@ -46,7 +50,7 @@ const PREVIEW_SIZE = 6;
 export function RecentActivityPanel() {
     const intl = useIntl();
     const canRead = useHasPermission(ACTIVITY_READ);
-    const { data, isPending } = useActivityLog(
+    const { data, isPending, isError } = useActivityLog(
         { page: 1, pageSize: PREVIEW_SIZE },
         canRead
     );
@@ -83,6 +87,13 @@ export function RecentActivityPanel() {
                             </div>
                         </div>
                     ))
+                ) : isError ? (
+                    <p
+                        role="alert"
+                        className="px-2 py-6 text-center text-sm text-destructive"
+                    >
+                        {intl.formatMessage(messages.error)}
+                    </p>
                 ) : events.length === 0 ? (
                     <p className="px-2 py-6 text-center text-sm text-muted-foreground">
                         {intl.formatMessage(messages.empty)}

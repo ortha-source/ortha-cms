@@ -9,6 +9,7 @@ import {
     CommandInput,
     CommandList
 } from '@ortha-cms/design-system';
+import { byOrder } from '@ortha-cms/utils-admin';
 import { SIDEBAR_NAV_SLOT } from '../../../slots/sidebarSlots';
 import { COMMAND_SLOT } from '../../../slots/commandSlots';
 import { SidebarCommandItem } from './SidebarCommandItem';
@@ -72,12 +73,8 @@ export function SidebarSearch() {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
-    const items = SIDEBAR_NAV_SLOT.getItems()
-        .slice()
-        .sort((a, b) => a.order - b.order);
-    const sections = COMMAND_SLOT.getItems()
-        .slice()
-        .sort((a, b) => a.order - b.order);
+    const items = byOrder(SIDEBAR_NAV_SLOT.getItems());
+    const sections = byOrder(COMMAND_SLOT.getItems());
 
     const go = (to: string) => {
         setOpen(false);

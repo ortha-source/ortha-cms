@@ -1,8 +1,19 @@
 import { Outlet } from 'react-router-dom';
+import { defineMessages, useIntl } from 'react-intl';
 import { SidebarInset, SidebarProvider } from '@ortha-cms/design-system';
 import { SidebarContentProvider } from '../../utils/sidebarContent';
 import { AppSidebar } from '../AppSidebar';
 import { SidebarToggle } from './SidebarToggle';
+
+const messages = defineMessages({
+    skipToContent: {
+        id: 'shell.appShell.skipToContent',
+        defaultMessage: 'Skip to main content'
+    }
+});
+
+/** The id of the `<main>` landmark that the skip link targets. */
+const MAIN_CONTENT_ID = 'main-content';
 
 /**
  * The authenticated app shell: a collapsible left {@link AppSidebar} beside a
@@ -16,13 +27,25 @@ import { SidebarToggle } from './SidebarToggle';
  * (cookie-persisted, ⌘B toggles); `SidebarContentProvider` lets a descendant
  * route take over the sidebar's contextual region (the workspace shell injects
  * its per-workspace nav there).
+ *
+ * A "Skip to main content" link is the first focusable element (WCAG 2.4.1
+ * Bypass Blocks) — visually hidden until focused, it jumps keyboard users past
+ * the sidebar to the `<main id="main-content">` landmark.
  */
 export function AppShell() {
+    const intl = useIntl();
+
     return (
         <SidebarContentProvider>
             <SidebarProvider>
+                <a
+                    href={`#${MAIN_CONTENT_ID}`}
+                    className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-md focus:ring-2 focus:ring-ring"
+                >
+                    {intl.formatMessage(messages.skipToContent)}
+                </a>
                 <AppSidebar />
-                <SidebarInset>
+                <SidebarInset id={MAIN_CONTENT_ID} tabIndex={-1}>
                     <Outlet />
                 </SidebarInset>
                 <SidebarToggle />
