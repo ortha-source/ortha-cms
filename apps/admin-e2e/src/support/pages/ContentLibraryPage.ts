@@ -60,7 +60,7 @@ export class ContentLibraryPage extends BasePage {
             .waitFor();
     }
 
-    /** A category label in the sidebar ("Favorites" / "Workspace" / "Manage"). */
+    /** A category label in the sidebar ("Favorites" / "Workspace Content"). */
     sectionLabel(label: string): Locator {
         return this.sidebar.getByText(label, { exact: true });
     }

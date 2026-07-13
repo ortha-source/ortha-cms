@@ -181,16 +181,11 @@ export function ContentLibraryPage() {
 }
 
 /**
- * The Content Library work-area island: a muted board filling the viewport
- * height beside the app sidebar, holding a rounded, bordered card that scrolls
- * its content independently.
+ * The Content Library work area: fills the viewport height beside the app
+ * sidebar and scrolls its content independently. Flush to the canvas (no muted
+ * board or bordered island) — the records table and the entry editor render
+ * directly on the background and bring their own gutters.
  */
 function ContentPane({ children }: { children?: ReactNode }) {
-    return (
-        <div className="h-svh bg-muted/40 p-3">
-            <div className="h-full min-w-0 overflow-auto rounded-xl border bg-background">
-                {children}
-            </div>
-        </div>
-    );
+    return <div className="h-svh min-w-0 overflow-auto">{children}</div>;
 }

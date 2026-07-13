@@ -149,7 +149,7 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the sidebar with the Workspace section |
+| renders the sidebar with the Workspace Content section |
 | Collections opens by default; Pages toggles on click |
 | selecting a single (page) opens its entry editor |
 | only shows content types granted to the workspace |
