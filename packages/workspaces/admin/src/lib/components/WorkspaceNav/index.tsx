@@ -7,7 +7,8 @@ import {
     SidebarGroupContent,
     SidebarGroupLabel,
     SidebarHeader,
-    SidebarMenu
+    SidebarMenu,
+    SidebarTrigger
 } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import {
@@ -53,13 +54,16 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
     return (
         <>
             <SidebarHeader className="gap-2 px-2 pt-2">
-                <Link
-                    to="/"
-                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-                >
-                    <ArrowLeft className="size-4" aria-hidden />
-                    {intl.formatMessage(messages.back)}
-                </Link>
+                <div className="flex items-center justify-between gap-1">
+                    <Link
+                        to="/"
+                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                    >
+                        <ArrowLeft className="size-4" aria-hidden />
+                        {intl.formatMessage(messages.back)}
+                    </Link>
+                    <SidebarTrigger className="text-muted-foreground" />
+                </div>
                 <WorkspaceSwitcher
                     current={workspace}
                     workspaces={workspaces}

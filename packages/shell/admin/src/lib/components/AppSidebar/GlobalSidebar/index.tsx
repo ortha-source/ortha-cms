@@ -6,7 +6,8 @@ import {
     SidebarGroupContent,
     SidebarGroupLabel,
     SidebarHeader,
-    SidebarMenu
+    SidebarMenu,
+    SidebarTrigger
 } from '@ortha-cms/design-system';
 import {
     SIDEBAR_NAV_SLOT,
@@ -62,10 +63,13 @@ export function GlobalSidebar() {
     return (
         <>
             <SidebarHeader className="gap-3 px-3 pt-3">
-                <span className="flex items-center gap-2">
-                    <Logo showLabel={false} aria-hidden />
-                    <span className="text-sm font-semibold">Ortha CMS</span>
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                        <Logo showLabel={false} aria-hidden />
+                        <span className="text-sm font-semibold">Ortha CMS</span>
+                    </span>
+                    <SidebarTrigger className="text-muted-foreground" />
+                </div>
                 <SidebarSearch />
             </SidebarHeader>
             <SidebarContent>

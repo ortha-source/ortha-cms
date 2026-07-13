@@ -1,4 +1,4 @@
-import { Sidebar, SidebarFooter } from '@ortha-cms/design-system';
+import { Sidebar, SidebarFooter, SidebarRail } from '@ortha-cms/design-system';
 import { SIDEBAR_FOOTER_SLOT } from '../../slots/sidebarSlots';
 import { useSidebarContentOverride } from '../../utils/sidebarContent';
 import { GlobalSidebar } from './GlobalSidebar';
@@ -16,6 +16,11 @@ import { GlobalSidebar } from './GlobalSidebar';
  * Rendered once by {@link AppShell}. The sidebar itself is slot-agnostic beyond
  * the footer: the global region is owned by {@link GlobalSidebar}; the override
  * comes from feature plugins, so new destinations appear without touching this.
+ *
+ * `collapsible="offcanvas"` — collapsing slides the whole panel off-screen (the
+ * content nav, collections/pages included, doesn't reduce cleanly to icons), and
+ * a reveal button ({@link SidebarToggle}) brings it back. On mobile it renders as
+ * an overlay drawer. `SidebarRail` is the thin edge strip that also toggles it.
  */
 export function AppSidebar() {
     const override = useSidebarContentOverride();
@@ -24,10 +29,7 @@ export function AppSidebar() {
         .sort((a, b) => a.order - b.order);
 
     return (
-        <Sidebar
-            collapsible="none"
-            className="sticky top-0 h-svh border-r border-sidebar-border"
-        >
+        <Sidebar collapsible="offcanvas">
             {override ?? <GlobalSidebar />}
             {footerItems.length > 0 ? (
                 <SidebarFooter className="border-t border-sidebar-border">
@@ -36,6 +38,7 @@ export function AppSidebar() {
                     ))}
                 </SidebarFooter>
             ) : null}
+            <SidebarRail />
         </Sidebar>
     );
 }

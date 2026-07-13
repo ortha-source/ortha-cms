@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { SidebarInset, SidebarProvider } from '@ortha-cms/design-system';
 import { SidebarContentProvider } from '../../utils/sidebarContent';
 import { AppSidebar } from '../AppSidebar';
+import { SidebarToggle } from './SidebarToggle';
 
 /**
  * The authenticated app shell: a persistent left {@link AppSidebar} beside a
@@ -21,6 +22,7 @@ export function AppShell() {
                 <SidebarInset>
                     <Outlet />
                 </SidebarInset>
+                <SidebarToggle />
             </SidebarProvider>
         </SidebarContentProvider>
     );

@@ -1,8 +1,11 @@
 # @ortha-cms/shell-admin
 
 The **shell plugin** for the Ortha CMS admin UI — the authenticated app chrome.
-It contributes the layout (a persistent **left sidebar** — `AppSidebar` — beside
-a `<main>` inset) that wraps every private route, plus the home page at `/`. It
+It contributes the layout (a **left sidebar** — `AppSidebar` — beside a `<main>`
+inset) that wraps every private route, plus the home page at `/`. The sidebar is
+**collapsible (offcanvas)**: an in-header trigger hides it, a floating
+`SidebarToggle` reveals it, and on mobile it renders as an overlay drawer
+(`⌘B` toggles). It
 **owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
