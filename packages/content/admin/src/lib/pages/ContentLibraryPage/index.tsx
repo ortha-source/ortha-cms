@@ -5,7 +5,9 @@ import {
     Alert,
     AlertDescription,
     AlertTitle,
-    Container
+    Container,
+    cn,
+    useSidebar
 } from '@ortha-cms/design-system';
 import { History, Trash2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
@@ -185,7 +187,17 @@ export function ContentLibraryPage() {
  * sidebar and scrolls its content independently. Flush to the canvas (no muted
  * board or bordered island) — the records table and the entry editor render
  * directly on the background and bring their own gutters.
+ *
+ * Because this page is flush to the top-left (unlike the padded `Container`
+ * pages), when the sidebar is collapsed it adds a small left gutter so its
+ * header clears the floating reveal button (which is only shown then).
  */
 function ContentPane({ children }: { children?: ReactNode }) {
-    return <div className="h-svh min-w-0 overflow-auto">{children}</div>;
+    const { state, isMobile } = useSidebar();
+    const revealed = isMobile || state === 'collapsed';
+    return (
+        <div className={cn('h-svh min-w-0 overflow-auto', revealed && 'pl-12')}>
+            {children}
+        </div>
+    );
 }
