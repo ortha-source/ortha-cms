@@ -43,9 +43,13 @@ export abstract class BasePage {
         return this.page.getByPlaceholder('Search or jump to…');
     }
 
-    /** A palette result (a command option) by its accessible name. */
+    /**
+     * A palette result (a command option) by its exact accessible name. Exact,
+     * because a workspace ("Marketing site") is a substring of its content-type
+     * results ("Blog posts Marketing site").
+     */
     commandItem(name: string): Locator {
-        return this.page.getByRole('option', { name });
+        return this.page.getByRole('option', { name, exact: true });
     }
 
     /** The toolbar "Filters" trigger (its label carries the active count). */

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import {
+    COMMAND_SLOT,
     HOME_SECTION_SLOT,
     SIDEBAR_NAV_SLOT,
     SIDEBAR_SECTION_SLOT
@@ -14,6 +15,7 @@ import {
 import { WorkspacesNavSection } from '../../components/WorkspacesNavSection';
 import { WorkspaceStats } from '../../components/WorkspaceStats';
 import { WorkspacesHomePanel } from '../../components/WorkspacesHomePanel';
+import { WorkspaceCommands } from '../../components/WorkspaceCommands';
 import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_NAV_SLOT
@@ -128,6 +130,17 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                         id: 'workspaces.quicklist',
                         order: 10,
                         Component: WorkspacesNavSection
+                    }
+                ]
+            },
+            {
+                // Command palette: jump into any active workspace.
+                slot: COMMAND_SLOT,
+                items: [
+                    {
+                        id: 'workspaces.command',
+                        order: 10,
+                        Component: WorkspaceCommands
                     }
                 ]
             },

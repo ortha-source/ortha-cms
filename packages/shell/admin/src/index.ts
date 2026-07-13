@@ -20,3 +20,5 @@ export {
 } from './lib/utils/sidebarContent';
 export { HOME_SECTION_SLOT } from './lib/slots/homeSlots';
 export type { HomeSectionItem, HomeRegion } from './lib/slots/homeSlots';
+export { COMMAND_SLOT } from './lib/slots/commandSlots';
+export type { CommandSection, CommandSectionProps } from './lib/slots/commandSlots';

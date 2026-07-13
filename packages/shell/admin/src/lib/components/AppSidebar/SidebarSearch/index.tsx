@@ -10,6 +10,7 @@ import {
     CommandList
 } from '@ortha-cms/design-system';
 import { SIDEBAR_NAV_SLOT } from '../../../slots/sidebarSlots';
+import { COMMAND_SLOT } from '../../../slots/commandSlots';
 import { SidebarCommandItem } from './SidebarCommandItem';
 
 /** Intl descriptors for {@link SidebarSearch}, co-located here. */
@@ -74,11 +75,15 @@ export function SidebarSearch() {
     const items = SIDEBAR_NAV_SLOT.getItems()
         .slice()
         .sort((a, b) => a.order - b.order);
+    const sections = COMMAND_SLOT.getItems()
+        .slice()
+        .sort((a, b) => a.order - b.order);
 
     const go = (to: string) => {
         setOpen(false);
         navigate(to);
     };
+    const close = () => setOpen(false);
 
     const label = intl.formatMessage(messages.search);
 
@@ -119,6 +124,9 @@ export function SidebarSearch() {
                             />
                         ))}
                     </CommandGroup>
+                    {sections.map(({ id, Component }) => (
+                        <Component key={id} close={close} />
+                    ))}
                 </CommandList>
                 <div className="border-t px-3 py-2 text-xs text-muted-foreground">
                     {intl.formatMessage(messages.footer)}

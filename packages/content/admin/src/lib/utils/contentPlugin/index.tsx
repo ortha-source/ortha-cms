@@ -1,11 +1,13 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
+import { COMMAND_SLOT } from '@ortha-cms/shell-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SECTION_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { CONTENT_SEGMENT } from '../../constants';
 import { ContentNavSection } from '../../components/ContentNavSection';
+import { ContentTypeCommands } from '../../components/ContentTypeCommands';
 
 const ContentLibraryPage = lazy(() =>
     import('../../pages/ContentLibraryPage').then((module) => ({
@@ -39,6 +41,17 @@ export function ContentPlugin(): ContentAdminPlugin {
                         id: 'content.nav',
                         order: 10,
                         Component: ContentNavSection
+                    }
+                ]
+            },
+            {
+                // Command palette: jump straight to any workspace's content type.
+                slot: COMMAND_SLOT,
+                items: [
+                    {
+                        id: 'content.command',
+                        order: 20,
+                        Component: ContentTypeCommands
                     }
                 ]
             },
