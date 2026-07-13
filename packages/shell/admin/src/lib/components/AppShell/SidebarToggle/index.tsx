@@ -15,6 +15,6 @@ export function SidebarToggle() {
     }
 
     return (
-        <SidebarTrigger className="fixed left-3 top-3 z-30 size-9 rounded-lg border border-border bg-background shadow-sm" />
+        <SidebarTrigger className="fixed left-2 top-2 z-30 size-8 rounded-lg border border-border bg-background shadow-sm" />
     );
 }

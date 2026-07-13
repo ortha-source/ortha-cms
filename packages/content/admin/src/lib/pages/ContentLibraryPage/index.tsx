@@ -196,7 +196,7 @@ function ContentPane({ children }: { children?: ReactNode }) {
     const { state, isMobile } = useSidebar();
     const revealed = isMobile || state === 'collapsed';
     return (
-        <div className={cn('h-svh min-w-0 overflow-auto', revealed && 'pl-12')}>
+        <div className={cn('h-svh min-w-0 overflow-auto', revealed && 'pl-5')}>
             {children}
         </div>
     );
