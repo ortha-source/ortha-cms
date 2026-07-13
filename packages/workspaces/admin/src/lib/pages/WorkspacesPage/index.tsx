@@ -9,8 +9,8 @@ import {
     ContainerHeader
 } from '@ortha-cms/design-system';
 import { useWorkspaces } from '../../api/useWorkspaces';
-import { WorkspaceCard } from '../../components/WorkspaceCard';
-import { WorkspaceGridSkeleton } from '../../components/WorkspacesSkeleton';
+import { WorkspacesTable } from '../../components/WorkspacesTable';
+import { WorkspacesTableSkeleton } from '../../components/WorkspacesSkeleton';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
 import {
     WorkspaceToolbar,
@@ -77,6 +77,17 @@ export function WorkspacesPage() {
         [workspaces, status, search]
     );
 
+    // Per-status counts for the filter chips — over the full list, not the
+    // current view, so each chip shows how many it would reveal.
+    const counts = useMemo<Record<StatusFilter, number>>(
+        () => ({
+            All: workspaces.length,
+            Active: workspaces.filter((w) => w.status === 'Active').length,
+            Archived: workspaces.filter((w) => w.status === 'Archived').length
+        }),
+        [workspaces]
+    );
+
     // Resets back to the widest view. Clearing lands on `All` (not the default
     // `Active`) so it reveals every workspace — including archived ones the
     // default view hides — matching the empty-state's "see them all" copy. This
@@ -107,12 +118,13 @@ export function WorkspacesPage() {
                 onSearchChange={setSearch}
                 status={status}
                 onStatusChange={setStatus}
+                counts={counts}
                 shown={filtered.length}
                 total={workspaces.length}
             />
 
             {isLoading ? (
-                <WorkspaceGridSkeleton />
+                <WorkspacesTableSkeleton />
             ) : filtered.length === 0 ? (
                 <WorkspacesEmpty
                     // "No match / clear filters" whenever workspaces exist but
@@ -126,20 +138,7 @@ export function WorkspacesPage() {
                     onCreate={openCreate}
                 />
             ) : (
-                <div
-                    className="grid gap-4"
-                    style={{
-                        gridTemplateColumns:
-                            'repeat(auto-fill, minmax(min(100%, 320px), 1fr))'
-                    }}
-                >
-                    {filtered.map((workspace) => (
-                        <WorkspaceCard
-                            key={workspace.id}
-                            workspace={workspace}
-                        />
-                    ))}
-                </div>
+                <WorkspacesTable workspaces={filtered} />
             )}
         </Container>
     );

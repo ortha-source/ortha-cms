@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Badge, cn } from '@ortha-cms/design-system';
-import type { WorkspaceStatus } from '../../../types/workspace';
+import type { WorkspaceStatus } from '../../types/workspace';
 
 /** Intl descriptors for {@link StatusChip}, co-located with the component. */
 const messages = defineMessages({
@@ -16,7 +16,7 @@ const messages = defineMessages({
 
 /**
  * A small status pill with a leading dot: green for an active workspace, muted
- * for an archived one.
+ * for an archived one. Shown in the workspaces table's status column.
  */
 export function StatusChip({ status }: { status: WorkspaceStatus }) {
     const intl = useIntl();
