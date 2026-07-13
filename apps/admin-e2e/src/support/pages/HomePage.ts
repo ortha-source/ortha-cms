@@ -26,6 +26,33 @@ export class HomePage extends BasePage {
     }
 
     /**
+     * A dashboard stat tile's label (proof the tile rendered). Scoped to the
+     * main content region so it never matches a same-named sidebar nav item
+     * (e.g. "Members").
+     */
+    statTile(label: string): Locator {
+        return this.page
+            .getByRole('main')
+            .getByText(label, { exact: true });
+    }
+
+    /** The Workspaces dashboard panel heading (`<h2>`). */
+    get workspacesPanel(): Locator {
+        return this.page.getByRole('main').getByRole('heading', {
+            name: 'Workspaces',
+            level: 2
+        });
+    }
+
+    /** The Recent activity dashboard panel heading (`<h2>`). */
+    get activityPanel(): Locator {
+        return this.page.getByRole('main').getByRole('heading', {
+            name: 'Recent activity',
+            level: 2
+        });
+    }
+
+    /**
      * The branded root loader (`AppLoader`) — a `role="status"` region shown
      * while the auth probe (`GET /api/auth/me`) is still resolving, before the
      * gated shell renders. Seed it with `mockSignedIn(page, {}, { delayMs })`.

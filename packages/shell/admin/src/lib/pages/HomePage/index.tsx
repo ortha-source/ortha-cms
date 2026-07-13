@@ -1,8 +1,7 @@
-import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Layers, UsersIcon } from 'lucide-react';
-import { Logo, Card, CardContent } from '@ortha-cms/design-system';
+import { Container } from '@ortha-cms/design-system';
 import { useAuth } from '@ortha-cms/identity-admin';
+import { HOME_SECTION_SLOT } from '../../slots/homeSlots';
 
 /** Intl descriptors for {@link HomePage}, co-located with the component. */
 const messages = defineMessages({
@@ -20,24 +19,7 @@ const messages = defineMessages({
     },
     subtitle: {
         id: 'shell.home.subtitle',
-        defaultMessage:
-            'Everything your team builds, in one place — shape the content, bring the right people in, and extend it all with plugins.'
-    },
-    workspacesTitle: {
-        id: 'shell.home.card.workspaces.title',
-        defaultMessage: 'Workspaces'
-    },
-    workspacesDescription: {
-        id: 'shell.home.card.workspaces.description',
-        defaultMessage: 'Organize content and collaborators by workspace.'
-    },
-    usersTitle: {
-        id: 'shell.home.card.users.title',
-        defaultMessage: 'Members'
-    },
-    usersDescription: {
-        id: 'shell.home.card.users.description',
-        defaultMessage: 'Invite teammates and manage roles and access.'
+        defaultMessage: 'Here’s what’s happening across your workspaces.'
     }
 });
 
@@ -48,66 +30,55 @@ function greetingFor(hour: number) {
     return messages.greetingEvening;
 }
 
+/** Sorts a slot's items by ascending `order`. */
+function byOrder<T extends { order: number }>(items: T[]): T[] {
+    return items.slice().sort((a, b) => a.order - b.order);
+}
+
 /**
- * Home page rendered at `/` inside the {@link AppShell} outlet. A private route —
- * only authenticated users reach it — and the default landing target after
- * sign-in. Greets the signed-in user and surfaces the two primary destinations
- * as navigating cards.
+ * Home page rendered at `/` inside the {@link AppShell} outlet. A private route,
+ * and the default landing after sign-in. Greets the signed-in user, then
+ * assembles the dashboard from {@link HOME_SECTION_SLOT}: a top row of stat
+ * tiles and a two-column grid of panels (Workspaces, Recent activity), each
+ * contributed by its owning plugin so the shell stays feature-agnostic.
  */
 export function HomePage() {
     const intl = useIntl();
     const { user } = useAuth();
     const greeting = greetingFor(new Date().getHours());
 
-    const cards = [
-        {
-            to: '/workspaces',
-            Icon: Layers,
-            title: messages.workspacesTitle,
-            description: messages.workspacesDescription
-        },
-        {
-            to: '/users',
-            Icon: UsersIcon,
-            title: messages.usersTitle,
-            description: messages.usersDescription
-        }
-    ];
+    const sections = byOrder(HOME_SECTION_SLOT.getItems());
+    const stats = sections.filter((section) => section.region === 'stat');
+    const panels = sections.filter((section) => section.region === 'panel');
 
     return (
-        <section className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-16 text-center">
-            <Logo showLabel={false} size="lg" />
-            <h1 className="text-3xl font-semibold tracking-tight">
-                {intl.formatMessage(greeting, {
-                    name: user?.name ?? user?.email ?? ''
-                })}
-            </h1>
-            <p className="max-w-md text-muted-foreground">
-                {intl.formatMessage(messages.subtitle)}
-            </p>
-            <div className="mt-4 grid w-full gap-4 sm:grid-cols-2">
-                {cards.map(({ to, Icon, title, description }) => (
-                    <Link
-                        key={to}
-                        to={to}
-                        className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                        <Card className="h-full text-left transition-colors hover:bg-accent">
-                            <CardContent className="flex flex-col gap-3 p-5">
-                                <span className="flex size-9 items-center justify-center rounded-md bg-muted">
-                                    <Icon className="size-4" />
-                                </span>
-                                <span className="font-medium">
-                                    {intl.formatMessage(title)}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                    {intl.formatMessage(description)}
-                                </span>
-                            </CardContent>
-                        </Card>
-                    </Link>
-                ))}
-            </div>
-        </section>
+        <Container className="py-8">
+            <header className="flex flex-col gap-1">
+                <h1 className="text-3xl font-semibold tracking-tight">
+                    {intl.formatMessage(greeting, {
+                        name: user?.name ?? user?.email ?? ''
+                    })}
+                </h1>
+                <p className="text-muted-foreground">
+                    {intl.formatMessage(messages.subtitle)}
+                </p>
+            </header>
+
+            {stats.length > 0 ? (
+                <div className="mt-8 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                    {stats.map(({ id, Component }) => (
+                        <Component key={id} />
+                    ))}
+                </div>
+            ) : null}
+
+            {panels.length > 0 ? (
+                <div className="mt-8 grid gap-6 lg:grid-cols-2">
+                    {panels.map(({ id, Component }) => (
+                        <Component key={id} />
+                    ))}
+                </div>
+            ) : null}
+        </Container>
     );
 }

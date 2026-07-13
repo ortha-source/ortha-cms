@@ -18,3 +18,5 @@ export {
     useSidebarContent,
     SidebarContentProvider
 } from './lib/utils/sidebarContent';
+export { HOME_SECTION_SLOT } from './lib/slots/homeSlots';
+export type { HomeSectionItem, HomeRegion } from './lib/slots/homeSlots';

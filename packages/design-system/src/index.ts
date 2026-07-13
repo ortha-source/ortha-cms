@@ -142,6 +142,8 @@ export {
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
 export { Container, ContainerHeader } from './lib/components/ui/container';
+export { StatTile } from './lib/components/ui/stat-tile';
+export type { StatTileProps } from './lib/components/ui/stat-tile';
 export {
     Table,
     TableHeader,
