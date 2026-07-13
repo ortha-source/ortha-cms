@@ -62,16 +62,16 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>
-                        <TableHead scope="col">
+                        <TableHead scope="col" className="whitespace-nowrap">
                             {intl.formatMessage(messages.workspace)}
                         </TableHead>
-                        <TableHead scope="col">
+                        <TableHead scope="col" className="whitespace-nowrap">
                             {intl.formatMessage(messages.members)}
                         </TableHead>
-                        <TableHead scope="col">
+                        <TableHead scope="col" className="whitespace-nowrap">
                             {intl.formatMessage(messages.types)}
                         </TableHead>
-                        <TableHead scope="col">
+                        <TableHead scope="col" className="whitespace-nowrap">
                             {intl.formatMessage(messages.status)}
                         </TableHead>
                     </TableRow>
@@ -99,7 +99,7 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
                                             color={workspace.color}
                                             className="size-9 shrink-0 text-xs"
                                         />
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 max-w-md">
                                             <Link
                                                 to={`/workspaces/${workspace.id}`}
                                                 className="block truncate text-sm font-medium hover:underline"
@@ -115,12 +115,12 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
                                         </div>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
+                                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                                     {intl.formatMessage(messages.memberCount, {
                                         count: workspace.members.length
                                     })}
                                 </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
+                                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                                     {intl.formatMessage(messages.typeCount, {
                                         count: workspace.content.length
                                     })}
