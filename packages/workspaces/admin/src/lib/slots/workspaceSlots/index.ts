@@ -46,6 +46,13 @@ export type WorkspaceRoute = {
     path: string;
     /** Element rendered at that path (wrap lazy pages in `<Suspense>`). */
     element: ReactNode;
+    /**
+     * Sort order used to pick the **default** section — landing on the
+     * workspace base (`/workspaces/:id`) redirects to the lowest-order route.
+     * Lower wins; omit to sort last. (The Content Library uses the lowest so it
+     * is the default landing.)
+     */
+    order?: number;
 };
 
 /**

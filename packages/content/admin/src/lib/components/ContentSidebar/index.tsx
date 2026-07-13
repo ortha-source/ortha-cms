@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { useParams } from 'react-router-dom';
+import { useMatch } from 'react-router-dom';
 import { FileText, Search, Table2 } from 'lucide-react';
 import { cn } from '@ortha-cms/design-system';
 import type { ContentType } from '../../types/contentType';
@@ -74,7 +74,10 @@ export function ContentSidebar({
     // Open the group that holds the currently-selected type by default, so
     // deep-linking straight to a collection/page reveals it in the sidebar.
     // Falls back to Collections open when nothing (or a non-type route) is open.
-    const selectedName = useParams()[TYPE_PARAM];
+    // Resolved via `useMatch` against `basePath` (not `useParams`) because the
+    // sidebar renders in the app shell, above the route that owns the param.
+    const typeMatch = useMatch(`${basePath}/:${TYPE_PARAM}/*`);
+    const selectedName = typeMatch?.params[TYPE_PARAM];
     const selectedType = types.find((type) => type.name === selectedName);
     const collectionsOpen = selectedType
         ? selectedType.kind === CONTENT_TYPE_KIND.Collection

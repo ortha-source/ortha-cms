@@ -4,10 +4,7 @@ import { Alert, AlertTitle, AlertDescription, Container } from '@ortha-cms/desig
 import { useSidebarContent } from '@ortha-cms/shell-admin';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import { CurrentWorkspaceProvider } from '../../utils/currentWorkspace';
-import {
-    WORKSPACE_NAV_SLOT,
-    WORKSPACE_ROUTE_SLOT
-} from '../../slots/workspaceSlots';
+import { WORKSPACE_ROUTE_SLOT } from '../../slots/workspaceSlots';
 import { WorkspaceShellSkeleton } from '../WorkspacesSkeleton';
 import { WorkspaceNav } from '../WorkspaceNav';
 
@@ -96,12 +93,13 @@ export function WorkspaceShell() {
     }
 
     const routes = WORKSPACE_ROUTE_SLOT.getItems();
-    // The default section is the first "Workspace" nav entry by order — where
-    // the workspace base and any unknown sub-path redirect to.
-    const sorted = WORKSPACE_NAV_SLOT.getItems()
+    // The default section is the lowest-order route (the Content Library) —
+    // where the workspace base and any unknown sub-path redirect to. Its base
+    // segment is the route path without the trailing `/*`.
+    const defaultRoute = routes
         .slice()
-        .sort((a, b) => a.order - b.order);
-    const defaultPath = sorted[0]?.to;
+        .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))[0];
+    const defaultPath = defaultRoute?.path.split('/')[0];
 
     return (
         <CurrentWorkspaceProvider workspace={current}>

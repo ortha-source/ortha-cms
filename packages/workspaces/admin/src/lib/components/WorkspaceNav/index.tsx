@@ -9,7 +9,6 @@ import {
     SidebarHeader,
     SidebarMenu
 } from '@ortha-cms/design-system';
-import { SidebarSearch } from '@ortha-cms/shell-admin';
 import { useWorkspaces } from '../../api/useWorkspaces';
 import {
     WORKSPACE_NAV_SLOT,
@@ -67,9 +66,6 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
                 />
             </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarSearch />
-                </SidebarGroup>
                 {sections.map(({ id, Component }) => (
                     <Component key={id} />
                 ))}
