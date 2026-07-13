@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SIDEBAR_SLOT
+    WORKSPACE_NAV_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { FileStack } from 'lucide-react';
 import { CONTENT_READ, CONTENT_SEGMENT } from '../../constants';
@@ -31,7 +31,7 @@ export function ContentPlugin(): ContentAdminPlugin {
         name: 'content',
         slots: [
             {
-                slot: WORKSPACE_SIDEBAR_SLOT,
+                slot: WORKSPACE_NAV_SLOT,
                 items: [
                     {
                         labelId: 'content.nav.label',

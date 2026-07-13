@@ -88,32 +88,20 @@ export function WorkspacesPageSkeleton() {
 }
 
 /**
- * Placeholder for the workspace shell — shown both as the lazy-route `Suspense`
- * fallback and while {@link useWorkspaces} resolves inside the shell. Sketches
- * the left rail (switcher + a few icon buttons) beside an empty content area so
- * the layout holds steady. Owns the single `role="status"` announcement.
+ * Placeholder for the workspace shell's content area — shown both as the
+ * lazy-route `Suspense` fallback and while {@link useWorkspaces} resolves inside
+ * the shell (the per-workspace nav lives in the app sidebar, injected once the
+ * workspace resolves). Owns the single `role="status"` announcement.
  */
 export function WorkspaceShellSkeleton() {
     const intl = useIntl();
 
     return (
-        <div role="status" className="flex min-h-svh">
+        <div role="status" className="min-h-svh p-8">
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div
-                aria-hidden
-                className="sticky top-0 flex h-svh w-14 shrink-0 flex-col items-center gap-1.5 self-start border-r border-border bg-[oklch(0.985_0_0)] py-2.5"
-            >
-                <Skeleton className="size-8 rounded-lg" />
-                <div className="my-1 h-px w-7 bg-border" />
-                <div className="flex flex-col items-center gap-2">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                        <Skeleton key={index} className="size-8 rounded-lg" />
-                    ))}
-                </div>
-            </div>
-            <div aria-hidden className="min-w-0 flex-1 p-8">
+            <div aria-hidden>
                 <Skeleton className="h-8 w-48" />
                 <Skeleton className="mt-3 h-4 w-80 max-w-full" />
             </div>

@@ -10,7 +10,7 @@ import {
 import { WorkspacesNavSection } from '../../components/WorkspacesNavSection';
 import {
     WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SIDEBAR_SLOT
+    WORKSPACE_NAV_SLOT
 } from '../../slots/workspaceSlots';
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
@@ -126,9 +126,8 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                 ]
             },
             {
-                // Settings is the last section in the rail's nav (the bottom
-                // region is the fixed new-workspace action, not a slot).
-                slot: WORKSPACE_SIDEBAR_SLOT,
+                // Settings is the last entry in the "Workspace" section.
+                slot: WORKSPACE_NAV_SLOT,
                 items: [
                     {
                         labelId: 'workspaces.settings.nav',
