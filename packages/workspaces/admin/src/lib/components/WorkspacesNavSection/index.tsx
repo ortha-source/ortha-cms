@@ -1,8 +1,11 @@
 import { Link, useMatch } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { Plus } from 'lucide-react';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { initialsOf } from '@ortha-cms/utils-admin';
 import {
     SidebarGroup,
+    SidebarGroupAction,
     SidebarGroupContent,
     SidebarGroupLabel,
     SidebarMenu,
@@ -13,11 +16,18 @@ import { useWorkspaces } from '../../api/useWorkspaces';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import type { Workspace } from '../../types/workspace';
 
+/** Permission that gates creating a workspace (mirrors the list-page button). */
+const WORKSPACES_CREATE = 'workspaces:create';
+
 /** Intl descriptors for {@link WorkspacesNavSection}, co-located here. */
 const messages = defineMessages({
     heading: {
         id: 'workspaces.sidebar.heading',
         defaultMessage: 'Workspaces'
+    },
+    newWorkspace: {
+        id: 'workspaces.sidebar.newWorkspace',
+        defaultMessage: 'New workspace'
     }
 });
 
@@ -58,31 +68,45 @@ function WorkspaceNavRow({ workspace }: { workspace: Workspace }) {
 export function WorkspacesNavSection() {
     const intl = useIntl();
     const { data: workspaces } = useWorkspaces();
+    const canCreate = useHasPermission(WORKSPACES_CREATE);
 
     const active = (workspaces ?? []).filter(
         (workspace) => workspace.status === 'Active'
     );
-    if (active.length === 0) {
+    // Nothing to show and nothing to do → skip the section entirely. With create
+    // permission we still show it (the "+" invites creating the first one).
+    if (active.length === 0 && !canCreate) {
         return null;
     }
+
+    const newWorkspace = intl.formatMessage(messages.newWorkspace);
 
     return (
         <SidebarGroup>
             <SidebarGroupLabel>
                 {intl.formatMessage(messages.heading)}
             </SidebarGroupLabel>
-            <SidebarGroupContent>
-                <nav aria-label={intl.formatMessage(messages.heading)}>
-                    <SidebarMenu>
-                        {active.map((workspace) => (
-                            <WorkspaceNavRow
-                                key={workspace.id}
-                                workspace={workspace}
-                            />
-                        ))}
-                    </SidebarMenu>
-                </nav>
-            </SidebarGroupContent>
+            {canCreate ? (
+                <SidebarGroupAction asChild title={newWorkspace}>
+                    <Link to="/workspaces/new" aria-label={newWorkspace}>
+                        <Plus />
+                    </Link>
+                </SidebarGroupAction>
+            ) : null}
+            {active.length > 0 ? (
+                <SidebarGroupContent>
+                    <nav aria-label={intl.formatMessage(messages.heading)}>
+                        <SidebarMenu>
+                            {active.map((workspace) => (
+                                <WorkspaceNavRow
+                                    key={workspace.id}
+                                    workspace={workspace}
+                                />
+                            ))}
+                        </SidebarMenu>
+                    </nav>
+                </SidebarGroupContent>
+            ) : null}
         </SidebarGroup>
     );
 }

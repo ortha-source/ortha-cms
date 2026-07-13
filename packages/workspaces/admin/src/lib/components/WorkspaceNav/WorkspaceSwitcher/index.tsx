@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Popover,
     PopoverContent,
@@ -14,6 +15,9 @@ import {
 import { initialsOf } from '@ortha-cms/utils-admin';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
 import type { Workspace } from '../../../types/workspace';
+
+/** Permission that gates creating a workspace (mirrors the list-page button). */
+const WORKSPACES_CREATE = 'workspaces:create';
 
 /** Intl descriptors for the sidebar workspace switcher, co-located here. */
 const messages = defineMessages({
@@ -59,6 +63,7 @@ export function WorkspaceSwitcher({
 }: WorkspaceSwitcherProps) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const canCreate = useHasPermission(WORKSPACES_CREATE);
     const [open, setOpen] = useState(false);
 
     const go = (path: string) => {
@@ -136,22 +141,26 @@ export function WorkspaceSwitcher({
                                 </button>
                             );
                         })}
-                        <div className="my-1 h-px bg-border" />
-                        <button
-                            type="button"
-                            onClick={() => go('/workspaces/new')}
-                            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
-                        >
-                            <span
-                                aria-hidden
-                                className="flex size-7 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground"
-                            >
-                                <Plus className="size-4" />
-                            </span>
-                            <span className="text-[13.5px] font-medium">
-                                {intl.formatMessage(messages.create)}
-                            </span>
-                        </button>
+                        {canCreate ? (
+                            <>
+                                <div className="my-1 h-px bg-border" />
+                                <button
+                                    type="button"
+                                    onClick={() => go('/workspaces/new')}
+                                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                                >
+                                    <span
+                                        aria-hidden
+                                        className="flex size-7 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground"
+                                    >
+                                        <Plus className="size-4" />
+                                    </span>
+                                    <span className="text-[13.5px] font-medium">
+                                        {intl.formatMessage(messages.create)}
+                                    </span>
+                                </button>
+                            </>
+                        ) : null}
                     </PopoverContent>
                 </Popover>
             </SidebarMenuItem>
