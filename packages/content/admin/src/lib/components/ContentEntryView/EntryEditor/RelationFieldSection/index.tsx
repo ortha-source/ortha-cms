@@ -109,7 +109,7 @@ export function RelationFieldSection({
 
     return (
         <div
-            className={`rounded-lg border bg-card ${
+            className={`rounded-2xl border bg-card ${
                 error ? 'border-destructive/50' : ''
             }`}
         >

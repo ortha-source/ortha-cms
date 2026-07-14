@@ -103,7 +103,7 @@ export function RelationItemRow({
             ref={rowRef}
             style={style}
             className={cn(
-                'flex items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 transition-colors hover:border-border/80',
+                'flex items-center gap-2.5 rounded-xl border bg-card px-2.5 py-2 transition-colors hover:border-border/80',
                 dragging ? 'opacity-60 shadow-sm' : ''
             )}
         >
