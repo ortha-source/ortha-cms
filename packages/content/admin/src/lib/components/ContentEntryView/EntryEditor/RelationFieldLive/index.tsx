@@ -382,23 +382,20 @@ export function RelationFieldLive({
                 </div>
             )}
 
-            <div>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shadow-none"
-                    onClick={openPicker}
-                    disabled={preparing}
-                >
-                    {preparing ? (
-                        <Spinner className="size-4" aria-hidden />
-                    ) : (
-                        <Plus className="size-4" />
-                    )}
-                    {intl.formatMessage(triggerLabel, { label: targetLabel })}
-                </Button>
-            </div>
+            <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center border-dashed shadow-none"
+                onClick={openPicker}
+                disabled={preparing}
+            >
+                {preparing ? (
+                    <Spinner className="size-4" aria-hidden />
+                ) : (
+                    <Plus className="size-4" />
+                )}
+                {intl.formatMessage(triggerLabel, { label: targetLabel })}
+            </Button>
 
             <RelationPickerDialog
                 open={open}

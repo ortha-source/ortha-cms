@@ -165,20 +165,17 @@ export function RelationField({
                     <p className="text-sm text-muted-foreground">
                         {intl.formatMessage(messages.empty)}
                     </p>
-                    <div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="shadow-none"
-                            onClick={() => setOpen(true)}
-                        >
-                            <Plus className="size-4" />
-                            {intl.formatMessage(messages.assign, {
-                                label: targetLabel
-                            })}
-                        </Button>
-                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-center border-dashed shadow-none"
+                        onClick={() => setOpen(true)}
+                    >
+                        <Plus className="size-4" />
+                        {intl.formatMessage(messages.assign, {
+                            label: targetLabel
+                        })}
+                    </Button>
                 </>
             )}
 
