@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_275 test cases across 26 spec files._
+_276 test cases across 26 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -235,6 +235,7 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | Test case |
 | --- |
 | persists a many-to-many on create and reads it back with titles |
+| resolves a linked record’s slug from its slug field |
 | replaces the link set on update (unlink + link in one save) |
 | 422s a many-to-many target in another workspace |
 | 404s the relations read for a missing entry |

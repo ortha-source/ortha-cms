@@ -210,11 +210,15 @@ global).
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
     - `GET /content/:typeName/:id/relations` — every relation field's **first
       page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
-      `RelationRef = { id, title, status? }`), for owning single/many **and**
-      inverse back-references. `RelationLinkService.readAll` reads each field
-      independently (paginated), so a relation with many links contributes only
-      its first page, never every id. The editor titles single relations and
-      seeds the section counts from it (`content:read`).
+      `RelationRef = { id, title, slug?, status? }`), for owning single/many
+      **and** inverse back-references. `slug` is the target's slug-field value —
+      the field flagged `admin.widget === 'slug'`, else one literally named
+      `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
+      one and the row's slug is non-empty; the admin renders it as a `/handle`.
+      `RelationLinkService.readAll` reads each field independently (paginated),
+      so a relation with many links contributes only its first page, never every
+      id. The editor titles single relations and seeds the section counts from it
+      (`content:read`).
     - `GET /content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
       a single relation field's links (`{ items, total }`), ordered by
       `position`. Drives the editor's **infinite-scroll** of a many/inverse

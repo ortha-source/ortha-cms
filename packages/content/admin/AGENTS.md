@@ -121,13 +121,19 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
   wide content scrolls inside the work-area island, not the page.
-- **Relation picker** (`EntryEditor/RelationField/`): the Relations tab is a stack
-  of **`RelationFieldSection`** **rounded-border collapsible cards** — each relation
-  field a section (chevron + label + linked-count; starts collapsed when a type has
-  >3 relation fields, but **force-opens with a header alert icon when it holds a
-  validation/server error**, so a save failure is never hidden inside a collapsed
-  section) wrapping **`RelationField`**. **Only relations whose target
-  collection is granted to the open workspace are shown** — `EntryEditor` filters by
+- **Relation picker** (`EntryEditor/RelationField/`): the Relations tab opens with
+  a one-line subtitle ("Assign related records and set the order they appear in the
+  delivery API.") over a stack of **`RelationFieldSection`** **titled cards** — each
+  relation field a card (label + a derived description + — for a many relation — a
+  right-aligned "{n} linked" count + a "Changed" badge, and a **header alert icon +
+  destructive border when it holds a validation/server error**). Cards are **always
+  expanded** (no chevron/collapse — the error is never hidden). The description is
+  derived from the relation shape: single → "Single relation — one record from
+  {Target}."; many → "Ordered relation — drag to reorder, or use the arrows. Order
+  is delivered as-is."; inverse → "Linked from {Target}." Each card wraps
+  **`RelationField`** (single) or **`RelationFieldLive`** (many/inverse). **Only
+  relations whose target collection is granted to the open workspace are shown** —
+  `EntryEditor` filters by
   `availableTypeNames` (passed `workspace.content` from `ContentEntryView`) and passes
   the hidden ones to `useEntryForm` as `ignoreFields`, so a hidden (ungranted)
   relation is excluded from client validation **and** the publish gate — a required
@@ -138,13 +144,22 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
 `assertRequiredRelations`. To seed those counts the aggregate relations read
 (`useEntryRelations`) now fires on **entry open** (not only when the Relations
 tab is first shown), so a populated relation never briefly reads as 0.
-`RelationField`
-  shows assigned records by **title** (not raw uuid; no avatar) with a remove control
-  and an **open-in-new-tab** link to that record's own editor
-  (`RelationItemRow`, href built by `utils/contentEntryPath`); a many-relation's
-  rows are **drag/keyboard reorderable**
-  (dnd-kit, like the records column picker — the array order is the value, via
-  `SortableRelationItem`). An Assign/Add button opens **`RelationPickerDialog`**: a
+Each assigned record renders as a **`RelationItemRow`** — a generalized row with a
+  **leading slot** (an initials `Avatar` for a single relation, a zero-padded
+  `01`/`02` **index** for an ordered many-relation, via `RelationIndex`), the
+  **title** + a muted `/handle` (the target's `slug`, else a slugified title — see
+  `utils/relationHandle`), an optional **status badge**, and a trailing controls
+  cluster: reorder **up/down arrows** (ordered relations), the drag `handle`, an
+  **open-in-new-tab** link (`utils/contentEntryPath`), a **Replace** action (single
+  relations, re-opens the picker), and remove. `RelationField` (single) stores one
+  id string in the form values; `RelationFieldLive` (many/inverse) stages links as
+  a delta. A many-relation's rows are **drag/keyboard reorderable** (dnd-kit, like
+  the records column picker — the array order is the value, via
+  `SortableRelationItem`) **and** nudgeable one place with the up/down arrows (same
+  staged `order` path as a drag; ↑ disabled on the first row, ↓ on the last). The
+  row's accessible names — `Remove {title}`, `Reorder {title}`, `Open {title} in a
+  new tab`, `Move {title} up` / `down`, `Replace` — are what the e2e drives.
+  An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
   **`QueryBuilder`**, *not* a drawer — a nested modal over the dialog is an a11y
   hazard) over the *target type's* real schema (`useContentSchema(target)` →

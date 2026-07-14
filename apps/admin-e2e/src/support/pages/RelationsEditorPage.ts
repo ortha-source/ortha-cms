@@ -42,11 +42,9 @@ export class RelationsEditorPage extends BasePage {
         await this.relationsTab.click();
     }
 
-    /** A relation field's collapsible section header (name starts with the label). */
+    /** A relation field's card heading (an exact-match `heading` by its label). */
     section(label: string): Locator {
-        return this.page.getByRole('button', {
-            name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
-        });
+        return this.page.getByRole('heading', { name: label });
     }
 
     /** The "Select {label}" trigger of an empty single relation. */
@@ -122,6 +120,26 @@ export class RelationsEditorPage extends BasePage {
     /** The drag handle of an assigned record (many relations, reorderable). */
     dragHandle(title: string): Locator {
         return this.page.getByRole('button', { name: `Reorder ${title}` });
+    }
+
+    /** The "Replace" action on an assigned single relation's row. */
+    get replaceButton(): Locator {
+        return this.page.getByRole('button', { name: 'Replace' });
+    }
+
+    /** The up-arrow reorder control of an assigned record (ordered many relations). */
+    moveUp(title: string): Locator {
+        return this.page.getByRole('button', { name: `Move ${title} up` });
+    }
+
+    /** The down-arrow reorder control of an assigned record (ordered many relations). */
+    moveDown(title: string): Locator {
+        return this.page.getByRole('button', { name: `Move ${title} down` });
+    }
+
+    /** The muted `/handle` shown on an assigned/linked row (exact match). */
+    recordHandle(slug: string): Locator {
+        return this.page.getByText(`/${slug}`, { exact: true });
     }
 
     /** The "open in a new tab" link of an assigned record (the preview row). */

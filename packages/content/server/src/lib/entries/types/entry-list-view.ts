@@ -45,6 +45,13 @@ export interface RelationRef {
     id: string;
     /** Display title (first text/select field, else the id). */
     title: string;
+    /**
+     * URL-ish handle for the record — the value of its slug field (a field with
+     * `admin.widget === 'slug'`, else one literally named `slug`) when non-empty.
+     * Absent when the target has no slug field; the admin falls back to a
+     * slugified title for display.
+     */
+    slug?: string;
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
 }

@@ -21,7 +21,7 @@ import type {
     RelationFieldView,
     RelationRef
 } from '../types/entry-list-view';
-import { entryTitle } from './entry-row';
+import { entrySlug, entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */
 type Columns = Record<string, AnyColumn>;
@@ -490,6 +490,8 @@ export class RelationLinkService {
             id: row['id'] as string,
             title: entryTitle(target, row)
         };
+        const slug = entrySlug(target, row);
+        if (slug) ref.slug = slug;
         if (target.publishable) ref.status = row['status'] as EntryStatus;
         return ref;
     }

@@ -53,6 +53,11 @@ const messages = defineMessages({
         id: 'content.editor.relationsEmpty',
         defaultMessage: 'This content type has no relation fields.'
     },
+    relationsSubtitle: {
+        id: 'content.editor.relationsSubtitle',
+        defaultMessage:
+            'Assign related records and set the order they appear in the delivery API.'
+    },
     mediaTitle: { id: 'content.editor.mediaTitle', defaultMessage: 'Media' },
     mediaBody: {
         id: 'content.editor.mediaBody',
@@ -446,6 +451,11 @@ export function EntryEditor({
                         <TabsContent value={TAB.Relations}>
                             {relationFields.length > 0 ? (
                                 <div className="flex flex-col gap-3">
+                                    <p className="text-sm text-muted-foreground">
+                                        {intl.formatMessage(
+                                            messages.relationsSubtitle
+                                        )}
+                                    </p>
                                     {relationFields.map((field) => {
                                         // A many/inverse relation is staged +
                                         // link-managed; a single relation is a
@@ -496,12 +506,6 @@ export function EntryEditor({
                                                 }
                                                 onBlur={() =>
                                                     form.touch(field.name)
-                                                }
-                                                // A handful stay open; many start
-                                                // collapsed to keep the tab tidy.
-                                                defaultOpen={
-                                                    relationFields.length <= 3 ||
-                                                    field.required
                                                 }
                                                 initialRefs={
                                                     relationRefs?.[field.name]

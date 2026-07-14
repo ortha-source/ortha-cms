@@ -132,6 +132,12 @@ export type RelationRef = {
     id: string;
     /** Display title (first text/select field, else the id). */
     title: string;
+    /**
+     * URL-ish handle — the target's slug-field value when it has one. The editor
+     * renders it as a muted `/handle`, falling back to a slugified title when
+     * absent (so a handle always shows). Mirrors the server's `RelationRef.slug`.
+     */
+    slug?: string;
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
 };
