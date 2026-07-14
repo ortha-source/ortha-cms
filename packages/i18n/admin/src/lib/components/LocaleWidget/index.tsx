@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Info } from 'lucide-react';
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
-    CardTitle
+    CardTitle,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger
 } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import {
@@ -37,6 +41,23 @@ const messages = defineMessages({
         id: 'i18n.widget.descriptionCreate',
         defaultMessage:
             'Choose the locale for this new record — or switch to one that already exists.'
+    },
+    groupIdLabel: {
+        id: 'i18n.widget.groupIdLabel',
+        defaultMessage: 'Translation group'
+    },
+    groupIdHelp: {
+        id: 'i18n.widget.groupIdHelp',
+        defaultMessage:
+            'Every locale of this record shares one translation-group id — it’s how the CMS links a record’s translations together. Assigned automatically when the first locale is saved.'
+    },
+    groupIdHelpLabel: {
+        id: 'i18n.widget.groupIdHelpLabel',
+        defaultMessage: 'What is the translation group?'
+    },
+    groupIdPending: {
+        id: 'i18n.widget.groupIdPending',
+        defaultMessage: 'Assigned when this record is saved.'
     }
 });
 
@@ -178,30 +199,73 @@ export function LocaleWidget({
     return (
         <>
             {card(
-                <ul className="flex flex-col gap-0.5">
-                    {locales.map((locale) => {
-                        const sibling = siblingFor(locale.slug);
-                        const isCurrent = locale.slug === currentLocale;
-                        // Existing → switch (any role); missing → create (gated).
-                        const actionable =
-                            !isCurrent && (!!sibling || canCreate);
-                        return (
-                            <LocaleRow
-                                key={locale.slug}
-                                name={locale.name}
-                                isCurrent={isCurrent}
-                                exists={!!sibling}
-                                status={sibling?.status}
-                                onSelect={
-                                    actionable
-                                        ? () =>
-                                              selectLocale(locale.slug, sibling)
-                                        : undefined
-                                }
-                            />
-                        );
-                    })}
-                </ul>
+                <>
+                    <ul className="flex flex-col gap-0.5">
+                        {locales.map((locale) => {
+                            const sibling = siblingFor(locale.slug);
+                            const isCurrent = locale.slug === currentLocale;
+                            // Existing → switch (any role); missing → create (gated).
+                            const actionable =
+                                !isCurrent && (!!sibling || canCreate);
+                            return (
+                                <LocaleRow
+                                    key={locale.slug}
+                                    name={locale.name}
+                                    isCurrent={isCurrent}
+                                    exists={!!sibling}
+                                    status={sibling?.status}
+                                    onSelect={
+                                        actionable
+                                            ? () =>
+                                                  selectLocale(
+                                                      locale.slug,
+                                                      sibling
+                                                  )
+                                            : undefined
+                                    }
+                                />
+                            );
+                        })}
+                    </ul>
+                    {/* The translation-group id: shared by every locale of this
+                        record. Shown with an info tooltip explaining what it is;
+                        a fresh create (no group yet) shows a pending note. */}
+                    <div className="mt-3 border-t border-border/60 pt-3">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {intl.formatMessage(messages.groupIdLabel)}
+                            </span>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label={intl.formatMessage(
+                                            messages.groupIdHelpLabel
+                                        )}
+                                        className="inline-flex rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        <Info
+                                            aria-hidden
+                                            className="size-3.5"
+                                        />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-[16rem]">
+                                    {intl.formatMessage(messages.groupIdHelp)}
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                        {groupId ? (
+                            <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                                {groupId}
+                            </p>
+                        ) : (
+                            <p className="mt-1 text-xs italic text-muted-foreground">
+                                {intl.formatMessage(messages.groupIdPending)}
+                            </p>
+                        )}
+                    </div>
+                </>
             )}
             <LocaleSwitchOverlay />
         </>

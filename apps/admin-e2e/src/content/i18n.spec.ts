@@ -131,6 +131,12 @@ test.describe('Content i18n', () => {
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();
+
+        // The widget surfaces the record's translation-group id, with an info
+        // affordance explaining what it is.
+        await expect(contentLibraryPage.localeGroupLabel).toBeVisible();
+        await expect(contentLibraryPage.localeGroupHelp).toBeVisible();
+        await expect(contentLibraryPage.localeGroupId('G1')).toBeVisible();
     });
 
     test('switching to an existing sibling opens that locale row', async ({

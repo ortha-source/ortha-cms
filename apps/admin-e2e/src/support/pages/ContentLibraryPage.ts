@@ -284,6 +284,23 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByText('Locale', { exact: true });
     }
 
+    /** The widget's "Translation group" label. */
+    get localeGroupLabel(): Locator {
+        return this.page.getByText('Translation group', { exact: true });
+    }
+
+    /** The info tooltip trigger beside the translation-group id. */
+    get localeGroupHelp(): Locator {
+        return this.page.getByRole('button', {
+            name: 'What is the translation group?'
+        });
+    }
+
+    /** The translation-group id value shown in the widget. */
+    localeGroupId(id: string): Locator {
+        return this.page.getByText(id, { exact: true });
+    }
+
     /** The current-locale chip beside the entry-editor title (aria-labelled). */
     get editorTitleChip(): Locator {
         return this.page.getByLabel(/Current locale/);

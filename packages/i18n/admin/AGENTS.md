@@ -43,6 +43,10 @@ content plugin owns).
       (no group) simply re-scopes to the picked locale.
     - The card carries a **contextual `CardDescription`** under its title — a
       saved-record line vs a create-mode line (keyed on `isCreate`).
+    - A footer surfaces the record's **`localeGroupId`** (the id every locale of
+      the record shares) with an `Info` tooltip explaining what it is; a fresh
+      create with no group yet shows a muted "Assigned when this record is
+      saved." note instead of the id.
 - **`ENTRY_HEADER_SLOT` → `LocaleTitleChip`** — a static `Badge` beside the
   entry-editor title showing the open locale as **code · name** (e.g.
   `EN · English`), shown **only when `schema.i18n`**. The current locale is
