@@ -182,7 +182,10 @@ export function RelationField({
                 </>
             )}
 
-            {description && !error ? (
+            {/* Inside a RelationFieldSection (hideLabel) the card header already
+                carries a description, so the field's own admin description would
+                be a redundant second line — suppress it there. */}
+            {description && !error && !hideLabel ? (
                 <FieldDescription>{description}</FieldDescription>
             ) : null}
             {error ? <FieldError>{error}</FieldError> : null}
