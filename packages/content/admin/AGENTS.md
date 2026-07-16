@@ -274,9 +274,14 @@ already surfaces `required`), so a locale plugin needs no field-level slot:
   overlay. Self-scopes (only i18n types ever mark a field localized).
 - `ContentEntryView` create mode reads `location.state.translateFrom` (a source
   record's values) and seeds the blank form with **only the non-localized**
-  fields — the "create a translation" prefill; localized fields start empty. A
-  create carrying a `localeGroupId` (a sibling) then navigates to the new row's
-  editor instead of the list.
+  fields — the "create a translation" prefill; localized fields start empty.
+- **A save keeps the user on the editor** — success is surfaced via a `toast`,
+  not a bounce back to the records list. A brand-new record (any create, incl. a
+  translation sibling) navigates to its own editor `${typePath}/${saved.id}` so
+  the id is in the URL and a further save updates it; an existing record stays in
+  place (its `useSaveEntry`-invalidated query refreshes the Details/status); a
+  single stays put (`?locale=` re-resolves). The "Back to records" link is the
+  way back.
 
 ## Package
 

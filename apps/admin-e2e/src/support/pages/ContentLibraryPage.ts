@@ -151,6 +151,24 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('link', { name: 'Back to records' });
     }
 
+    /** A form field's text input by its label. */
+    fieldTextbox(label: string): Locator {
+        return this.page.getByRole('textbox', { name: label });
+    }
+
+    /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
+    async saveDraft(): Promise<void> {
+        await this.page.getByRole('button', { name: 'More actions' }).click();
+        await this.page
+            .getByRole('menuitem', { name: 'Save draft' })
+            .click();
+    }
+
+    /** The "Changes saved." success toast after an edit save. */
+    get savedToast(): Locator {
+        return this.page.getByText('Changes saved.', { exact: true });
+    }
+
     /** The column-picker trigger. */
     get columnsButton(): Locator {
         return this.page.getByRole('button', { name: 'Columns' });

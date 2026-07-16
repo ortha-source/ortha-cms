@@ -388,16 +388,14 @@ export function ContentEntryView({
                 { label: schema.label }
             )
         );
-        // A just-created **collection** translation (a create carrying
-        // `localeGroupId`) stays on the new row's editor so the locale switcher
-        // remains usable. A single stays put — its `?locale=` re-resolves to the
-        // row just created. Otherwise collections return to the table.
-        if (mode === ENTRY_MODE.Single) {
-            // stay put
-        } else if (!existingId && bodyExtra['localeGroupId']) {
+        // Stay on the editor after a save — surface success via the toast, don't
+        // bounce back to the records list. A brand-new record (create, incl. a
+        // translation sibling) moves to its own editor URL so the id is in the
+        // URL and a further save updates it; an existing record is already there
+        // and its invalidated query refreshes in place. A single stays put — its
+        // `?locale=` re-resolves to the row just created.
+        if (mode !== ENTRY_MODE.Single && !existingId) {
             navigate(`${typePath}/${saved.id}`);
-        } else {
-            navigate(typePath);
         }
     };
 
