@@ -16,7 +16,8 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 - **`createNodesV2` inference** (`src/index.ts`) — targets appear
   automatically, the same way `@nx/js` infers `typecheck`:
     - a project with a `drizzle.config.ts` gets a cacheable **`db:generate`**
-    - a project with an `ortha.config.ts` (the host) gets **`db:migrate`**
+    - a project with an `ortha.config.ts` (the host) gets **`db:migrate`** and
+      **`db:studio`**
 - **Executors** (`executors.json`):
     - `db-generate` — runs `drizzle-kit generate` for one plugin's schema.
       Cacheable (inputs: schema files; outputs: the `migrations` dir). Needs
@@ -28,13 +29,24 @@ alongside the `@nx/*` plugins in the root `nx.json`.
       stage-3 decorators and crashes), then applies each plugin's `migrations`
       (see `ServerPlugin.migrations`) under its own tracking table.
       `cache: false` (side-effecting).
+    - `db-studio` — launches `drizzle-kit studio` against the host database.
+      Resolves the connection URL from the host's `ortha.config.ts` (loaded via
+      the same `jiti`+`swc` helper as `db-migrate`), the single place that reads
+      `DATABASE_URL`. The committed drizzle configs are schema-only (no
+      secrets), so this synthesizes an **ephemeral** config in a temp dir that
+      reads `process.env.DATABASE_URL` — the URL is passed through the child's
+      env and never written to disk. Studio introspects the live DB, so no
+      schema is needed. `cache: false` (side-effecting, long-running).
 
 ## Architecture
 
 - **Thin executors over a core lib.** All logic lives in `src/lib/drizzle/`
-  (`generate.ts`, `apply.ts`) as plain functions; the executors are
-  adapters. This keeps the logic testable without Nx and lets a standalone
-  CLI reuse it later if prod/CI migrations ever need to run without Nx.
+  (`generate.ts`, `apply.ts`, `studio.ts`) as plain functions; the executors
+  are adapters. This keeps the logic testable without Nx and lets a standalone
+  CLI reuse it later if prod/CI migrations ever need to run without Nx. The
+  shared `src/lib/jiti.ts` builds the `jiti`+`swc` (legacy-decorator) loader
+  the host-config executors (`db:migrate`, `db:studio`) use to import the
+  TypeScript `ortha.config.ts` at runtime.
 - **Generate is per-plugin; apply is host-level.** Each workspace plugin
   owns its `drizzle.config.ts` and generates its own `migrations/`. The host
   applies all of them. npm-installed plugins ship their SQL pre-generated;
@@ -47,6 +59,8 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 
 - `nx run <plugin>:db:generate --name=<migration_name>` — generate a plugin's migration
 - `nx run server:db:migrate` — apply all plugins' migrations (needs `DATABASE_URL`)
+- `nx run server:db:studio` — open Drizzle Studio on the host DB (needs
+  `DATABASE_URL`; optional `--host` / `--port`)
 
 ## Adding a new command
 

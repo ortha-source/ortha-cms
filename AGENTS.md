@@ -66,6 +66,9 @@ package; the admin app's Vite transpiles the design-system source directly.
       Inferred on any project with a `drizzle.config.ts`. Needs no database.
     - `npx nx run server:db:migrate` — apply every plugin's pending migrations.
       Inferred on the host (the project with `ortha.config.ts`).
+    - `npx nx run server:db:studio` — open Drizzle Studio on the host database
+      (introspects the live DB; needs `DATABASE_URL`). Also inferred on the
+      host. Optional `--host` / `--port` to change where Studio binds.
 - Package manager: **npm workspaces** (not pnpm/yarn)
 
 ## Conventions
