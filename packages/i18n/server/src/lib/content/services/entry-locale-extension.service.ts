@@ -136,10 +136,7 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             );
         return or(
             strict,
-            and(
-                eq(table['locale'], fallback.slug),
-                notExists(requestedSibling)
-            )
+            and(eq(table['locale'], fallback.slug), notExists(requestedSibling))
         );
     }
 
@@ -149,8 +146,13 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
      * Stamps the validated `locale` (defaulting when absent). When a
      * `localeGroupId` is given the new row **joins that existing group** (a
      * sibling translation) — verified to name a real group in the workspace
-     * first (else 404), so a typo can't spawn a stray one-row group. Absent →
-     * the column default (`gen_random_uuid()`) starts a fresh group.
+     * first (else 404), so a typo can't spawn a stray one-row group. The
+     * group's **shared** (non-`localized`) field values are then **inherited**
+     * from a canonical sibling and stamped onto the new row, overriding
+     * whatever the create body carried — a new sibling can never rewrite the
+     * group's shared data on other (incl. published) locales. Absent
+     * `localeGroupId` → the column default (`gen_random_uuid()`) starts a fresh
+     * group.
      */
     async createColumns(
         type: AnyContentType,
@@ -162,30 +164,38 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             locale: this.locales.resolve(params.locale).slug
         };
         if (params.localeGroupId !== undefined) {
-            await this.assertGroupExists(
+            const canonical = await this.groupCanonicalRow(
                 type,
                 params.localeGroupId,
                 workspaceId
             );
             columns['localeGroupId'] = params.localeGroupId;
+            // Shared fields are group-wide — inherit the group's values so a
+            // sibling create is purely additive (never mutates existing rows).
+            const inherited = this.sharedColumns(
+                type,
+                toRecord(type, canonical).values
+            );
+            if (inherited) Object.assign(columns, inherited);
         }
         return columns;
     }
 
     /**
-     * Assert a translation group has ≥1 live row in this workspace, so a
-     * sibling attaches to a real group. Runs before the create transaction —
-     * the (benign) TOCTOU window is covered by the row staying valid and the
-     * `(locale_group_id, locale)` unique index still guarding duplicates.
+     * A live canonical row of a translation group in this workspace, or 404 if
+     * the group names none — the source of the shared values a new sibling
+     * inherits. Runs before the create transaction; the (benign) TOCTOU window
+     * is covered by the `(locale_group_id, locale)` unique index still guarding
+     * duplicates.
      */
-    private async assertGroupExists(
+    private async groupCanonicalRow(
         type: AnyContentType,
         localeGroupId: string,
         workspaceId: string
-    ): Promise<void> {
+    ): Promise<Record<string, unknown>> {
         const table = type.table as unknown as ContentTable;
-        const [row] = await this.db
-            .select({ one: sql`1` })
+        const [row] = (await this.db
+            .select()
             .from(type.table)
             .where(
                 and(
@@ -194,12 +204,13 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     ...(type.paranoid ? [isNull(table['deletedAt'])] : [])
                 )
             )
-            .limit(1);
+            .limit(1)) as Record<string, unknown>[];
         if (!row) {
             throw new NotFoundException(
                 `No translation group "${localeGroupId}" on "${type.name}".`
             );
         }
+        return row;
     }
 
     /** @inheritdoc */
@@ -211,6 +222,23 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         workspaceId: string
     ): Promise<void> {
         if (!type.i18n) return;
+        await this.syncSharedColumns(tx, type, row, values, workspaceId);
+        await this.assertPerLocaleRelations(tx, type, row, values, workspaceId);
+    }
+
+    /**
+     * Propagate the group's **shared** (non-`localized`) field values to every
+     * sibling row, then re-validate any **published** sibling — a draft edit
+     * that would invalidate live content throws 422 and rolls the save back.
+     * A no-op when the type has no shared column-backed field.
+     */
+    private async syncSharedColumns(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<void> {
         const sharedColumns = this.sharedColumns(type, values);
         if (!sharedColumns) return;
 
@@ -246,6 +274,56 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     issues: result.issues
                 });
             }
+        }
+    }
+
+    /**
+     * Enforce that every **per-locale** single relation (an i18n owner → i18n
+     * target) points at a target row in **this row's own locale**. A shared FK
+     * to a different locale is exactly the cross-locale link per-locale
+     * relations forbid; the admin picker only offers same-locale candidates,
+     * but a direct API caller bypasses that, so the invariant is enforced here.
+     * Runs inside the create/update transaction, so a violation rolls back with
+     * a uniform 422.
+     */
+    private async assertPerLocaleRelations(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<void> {
+        const ownerLocale = row['locale'] as string;
+        const issues: { field: string; message: string }[] = [];
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (!isPerLocaleRelation(type, spec)) continue;
+            const targetId = values[name];
+            if (typeof targetId !== 'string' || !targetId) continue;
+            const target = spec.relation?.to();
+            if (!target) continue;
+            const t = target.table as unknown as ContentTable;
+            const [hit] = (await tx
+                .select()
+                .from(target.table)
+                .where(
+                    and(
+                        eq(t['id'], targetId),
+                        eq(t['workspaceId'], workspaceId)
+                    )
+                )
+                .limit(1)) as Record<string, unknown>[];
+            if (!hit || hit['locale'] !== ownerLocale) {
+                issues.push({
+                    field: name,
+                    message: 'must reference a record in the same locale'
+                });
+            }
+        }
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
         }
     }
 

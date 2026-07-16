@@ -74,6 +74,9 @@ export function reconcileStaged(
                 {
                     id,
                     title: c?.title ?? id,
+                    // Carry the derived slug so a just-added row shows its real
+                    // /handle immediately, mirroring a server-loaded ref.
+                    ...(c?.slug ? { slug: c.slug } : {}),
                     ...(c?.status ? { status: c.status } : {})
                 }
             ];

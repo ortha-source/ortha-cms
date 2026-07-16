@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import { contentEntriesPrefix } from '@ortha-cms/content-admin';
 import { I18N_CONTENT_PATH } from '../../constants';
-import type { LocaleSummariesResult, LocaleSummaryItem } from '../../types/locale';
+import type {
+    LocaleSummariesResult,
+    LocaleSummaryItem
+} from '../../types/locale';
 
 /** What the Locales column's cells consume — the per-group member map. */
 export type LocaleSummariesData = {
@@ -12,19 +16,33 @@ export type LocaleSummariesData = {
     isPending: boolean;
 };
 
-/** Query key of one page's locale summaries, workspace-scoped. */
+/**
+ * Query key of one page's locale summaries, workspace-scoped. Nested **under**
+ * content-admin's `contentEntriesPrefix` so a save's existing invalidation
+ * (`useSaveEntry` invalidates that prefix) also refreshes the Locales column —
+ * creating/deleting a translation mutates the group, and this key rides along.
+ */
 export const localeSummariesKey = (
     workspaceId: string,
     typeName: string,
     groupIds: readonly string[]
-) => ['i18n-locale-summaries', workspaceId, typeName, groupIds] as const;
+) =>
+    [
+        ...contentEntriesPrefix(workspaceId, typeName),
+        'i18n-locale-summaries',
+        groupIds
+    ] as const;
 
 /**
- * Query-key prefix of a type's locale summaries — invalidated after a
- * translation is created/deleted so the table column refreshes.
+ * Query-key prefix of a type's locale summaries — refreshed whenever the
+ * content-entries prefix it nests under is invalidated (translation
+ * create/delete), so the table column stays current.
  */
 export const localeSummariesPrefix = (workspaceId: string, typeName: string) =>
-    ['i18n-locale-summaries', workspaceId, typeName] as const;
+    [
+        ...contentEntriesPrefix(workspaceId, typeName),
+        'i18n-locale-summaries'
+    ] as const;
 
 /** Batch-loads group summaries via `POST /api/i18n/content/:type/locale-summary`. */
 async function fetchLocaleSummaries(

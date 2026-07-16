@@ -138,9 +138,7 @@ export function EntryFieldInput({
                         aria-invalid={!!error}
                         aria-describedby={describedBy}
                         value={
-                            value === true
-                                ? BOOL_SEGMENT.On
-                                : BOOL_SEGMENT.Off
+                            value === true ? BOOL_SEGMENT.On : BOOL_SEGMENT.Off
                         }
                         onValueChange={(next) => {
                             // Radix clears the value when the active item is
@@ -295,12 +293,12 @@ export function EntryFieldInput({
                 return (
                     <Field data-invalid={!!error}>
                         <FieldLabel
-                        htmlFor={id}
-                        className={endAdornment ? 'w-full' : undefined}
-                    >
-                        {label}
-                        {endAdornment}
-                    </FieldLabel>
+                            htmlFor={id}
+                            className={endAdornment ? 'w-full' : undefined}
+                        >
+                            {label}
+                            {endAdornment}
+                        </FieldLabel>
                         <Textarea
                             id={id}
                             value={ids.join('\n')}

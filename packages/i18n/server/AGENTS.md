@@ -31,7 +31,11 @@ The extension owns all locale *behavior*:
   starts a fresh group); **with** a `localeGroupId` the new row **joins that
   group** as a sibling translation — verified to name a real group in the
   workspace first (else **404**), so a typo can't spawn a stray one-row group.
-  This is why sibling creation needs no dedicated endpoint (see HTTP surface).
+  Joining a group also **inherits** the group's **shared** (non-`localized`)
+  field values from a canonical sibling onto the new row, *overriding whatever
+  the create body carried* — a sibling create is purely additive and can never
+  rewrite the group's shared data on other (incl. published) locales. This is
+  why sibling creation needs no dedicated endpoint (see HTTP surface).
 - **`afterUpdate`** — runs inside **both the create and update** transactions
   (so a newly-created sibling lands consistent with its group, not just later
   edits). Syncs every **non-`localized`** column-backed field to the group's
@@ -42,6 +46,11 @@ The extension owns all locale *behavior*:
   per-row in v1 (copied at translation creation, not synced), and a **single
   relation whose target is itself i18n** is excluded too (`isPerLocaleRelation`)
   — its FK is per-locale, so a cross-locale link is never synced onto a sibling.
+  `afterUpdate` additionally **enforces** that every such per-locale single
+  relation points at a target row in the **same locale** as the owner: the admin
+  picker only offers same-locale candidates, but a direct API caller bypasses
+  that, so a cross-locale FK is rejected here (in-transaction **422**, rolled
+  back). Runs on both create and update.
 - **`filterExtension`** — the virtual filter fields `hasLocale` /
   `missingLocale` (enum of slugs) and `localeCount` (number), resolved to
   `EXISTS` / correlated-count subqueries over the group (ridden by the
