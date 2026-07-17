@@ -39,6 +39,28 @@ here, make it accessible, and add an admin-e2e suite.
 
 ---
 
+## Two layouts — check which one this package is in
+
+Per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md) admin
+plugins are migrating from the historical **per-hook data-layer** layout to a
+**layered** one (`domain / application / infrastructure / presentation`). Both
+are live during the incremental rollout:
+
+- **Legacy — per-hook.** `api/use*/` (each hook owns its request fn), shared
+  mapper + keys in `utils/`, components consume hooks directly. Documented below
+  as the detailed baseline; still correct for un-migrated packages.
+- **Target — layered.** A small `domain/` (value objects + UX invariants), a
+  `gateway` **port** over `apiClient`, the mapper as an **anti-corruption layer**,
+  and **use-case hooks** for multi-step flows. Documented in
+  **[§ Target layout](#target-layout--layered)**.
+
+The admin stays **thin either way** — the server owns business truth. The target
+layout does *not* add client aggregates or repositories; it formalizes the
+mapping/orchestration seams. **Read the package's `AGENTS.md` for its declared
+mode** and author/review in that mode.
+
+---
+
 ## The five non-negotiables
 
 1. **A plugin is an `AdminPlugin` factory** (`FooPlugin()` in
@@ -53,14 +75,16 @@ here, make it accessible, and add an admin-e2e suite.
    the export). Extract it into its own `<Name>/index.tsx` (with co-located
    `messages`): nested inside the parent's folder if it has a single consumer,
    else under `components/`.
-3. **Each `use*` hook owns its endpoint; nothing centralizes the data layer.**
-   A hook's `api/use*/` folder holds its request function (via `apiClient`), its
-   request/response wire types, and the thin `useQuery`/`useMutation` over them —
-   all in one file. Genuinely shared pieces (the wire→model mapper, the query-key
-   factory) live in **one** place every hook imports: either the owning read hook
-   (workspaces exports `toWorkspace` from `useWorkspaces`) or a `lib/utils/`
-   folder (users has `utils/toMember` + `utils/membersKeys`). **No central
-   `*Api` module, no shared client class, no repository wrapper.**
+3. **The data layer follows the package's declared mode.** *Legacy:* each
+   `use*` hook owns its endpoint — its `api/use*/` folder holds the request fn
+   (via `apiClient`), wire types, and the thin `useQuery`/`useMutation`; shared
+   mapper + query-key factory live in one place (the owning read hook or
+   `lib/utils/`); **no central `*Api` module or shared client class.** *Target
+   (ADR-0003):* `apiClient` calls move behind a `gateway` port
+   (`infrastructure/`), the mapper becomes an ACL in `infrastructure/`, and
+   hooks call the gateway; multi-step flows become use-case hooks in
+   `application/`. Either way there is **no god-object API client** — the
+   difference is whether the seam is a per-hook fn or a gateway port.
 4. **Gate on permissions with `useHasPermission`** (from
    `@ortha-cms/identity-admin`) — the UI mirror of the server's RBAC. A read
    page disables its query (`enabled`) until the permission is confirmed;
@@ -139,6 +163,71 @@ identity's `useLoginMutation`, workspaces' `useWorkspaces`). Only pieces *severa
 hooks share* — the wire→model mapper and the query-key factory — are lifted out,
 to the owning read hook or a `lib/utils/` folder (never to a catch-all `*Api`
 module that re-centralizes the layer).
+
+---
+
+## Target layout — layered
+
+The layout **migrated** and **new** admin plugins use (ADR-0003). The admin is
+still **thin** — no client aggregates, no client repositories, business truth
+stays server-side. Layering here formalizes three seams that already exist
+informally: the wire→view **mapper** (an anti-corruption layer), the transport
+**gateway** (a port over `apiClient`), and multi-step **use-cases** (orchestration
+out of JSX). `packages/users/admin` is the reference.
+
+```
+packages/<group>/admin/
+  src/
+    index.ts                          # public barrel
+    lib/
+      utils/
+        <plugin>Plugin/index.tsx      # the AdminPlugin factory — entry point
+      domain/                         # small — VOs + UX invariants only, pure TS, NO react
+        <entity>/index.ts             #   e.g. Member.canBeRemoved() → { ok, reason }
+        value-objects/                #   Email, Slug, … (client-side instant validation)
+      application/                    # orchestration; TanStack hooks live here
+        <verb><Entity>/index.ts       #   use-case hook: validate VOs → gateway → invalidate
+        queries/                      #   read hooks (thin useQuery over the gateway)
+      infrastructure/
+        http<Entity>Gateway/index.ts  #   the PORT's impl over apiClient
+        <entity>Gateway/index.ts      #   the port (interface) — presentation depends on this
+        <entity>Mapper/index.ts       #   wire → view (formerly utils/to<Entity>) — the ACL
+        <entity>Keys/index.ts         #   query-key factory
+      presentation/
+        pages/                        #   routed pages (container AND view)
+        components/                   #   all presentational components (nest by consumer)
+        slots/                        #   slot contributions (pure data)
+      types/                          # shared view-model contracts
+```
+
+**Dependency rule:** `presentation → application → domain`; `infrastructure`
+implements `domain` gateway ports. Presentation imports the gateway **port**, not
+`apiClient`; only `infrastructure/` touches `apiClient`. Enforced by the
+`@ortha-cms/nx` boundary lint.
+
+**Do this in the target layout:**
+
+- **Gateway port over `apiClient`.** `domain/<entity>Gateway` is an interface;
+  `infrastructure/http<Entity>Gateway` implements it. Components and hooks depend
+  on the interface — no component imports `apiClient`.
+- **Mapper = anti-corruption layer.** Today's `utils/to<Entity>` moves to
+  `infrastructure/<entity>Mapper`, named for its role. Wire types never reach
+  components; presentational enrichment (initials, color) stays in the mapper.
+- **Value objects for instant-feedback rules.** `Email.create()`, `Slug.create()`
+  give field-level validation from the **same rule the server enforces** — for
+  `content`, import that rule from `@ortha-cms/content-domain` rather than
+  hand-mirroring it.
+- **Use-case hooks for multi-step flows.** An invite/create wizard's
+  orchestration (validate → submit → assign → invalidate → clamp page) lives in
+  `application/<verb><Entity>`, not in the component. The page becomes layout +
+  fields.
+- **UX invariants on a client entity, mirrored not owned.** `Member.canBeRemoved()`
+  returns `{ ok, reason }` so a button disables with an explanation — driven by
+  server-computed facts (`isLastAdmin`). The server still enforces; this is UX.
+
+**Don't over-build.** A read-only viewer (`activity`, `insights`) needs only a
+mapper + query hooks — **no `domain/` layer**. TanStack Query stays the cache in
+both layouts; the boundary moves *inside* the hooks, not around them.
 
 ---
 
@@ -496,8 +585,11 @@ The recurring admin-side mistakes a careful review catches:
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
 - [ ] `pages/` flat (only the page `index`); all components in `components/`, a
       component used by one other component nested inside it.
-- [ ] Data layer: one `api/use*/` folder per hook (request fn + endpoint types +
-      the hook); shared mapper + query keys in `lib/utils/` (or the read hook).
+- [ ] Data layer matches the package's declared mode — legacy: one `api/use*/`
+      folder per hook + shared mapper/keys in `lib/utils/`; target (ADR-0003):
+      gateway port in `domain/`, its impl + mapper (ACL) + keys in
+      `infrastructure/`, use-case hooks in `application/`, no `apiClient` import
+      in `presentation/`.
 - [ ] `useHasPermission` gating on the query (`enabled`) and write controls;
       permission strings match the server's matrix exactly.
 - [ ] Paginated pages clamp `page` to `pageCount` after mutations; `isError` has
