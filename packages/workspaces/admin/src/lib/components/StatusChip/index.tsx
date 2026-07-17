@@ -23,7 +23,10 @@ export function StatusChip({ status }: { status: WorkspaceStatus }) {
     const isActive = status === 'Active';
 
     return (
-        <Badge variant="secondary" className="gap-1.5 rounded-xl border-border">
+        <Badge
+            variant={isActive ? 'success' : 'secondary'}
+            className={cn('gap-1.5 rounded-xl', !isActive && 'border-border')}
+        >
             <span
                 aria-hidden
                 className={cn(

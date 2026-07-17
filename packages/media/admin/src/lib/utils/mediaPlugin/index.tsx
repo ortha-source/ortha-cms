@@ -37,7 +37,8 @@ export function MediaPlugin(): MediaAdminPlugin {
                         defaultLabel: 'Media Library',
                         to: 'media',
                         order: 20,
-                        icon: Image
+                        icon: Image,
+                        iconColor: 'text-nav-teal'
                     }
                 ]
             },

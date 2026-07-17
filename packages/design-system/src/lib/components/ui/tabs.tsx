@@ -14,7 +14,7 @@ const TabsList = React.forwardRef<
     <TabsPrimitive.List
         ref={ref}
         className={cn(
-            'inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground',
+            'flex w-full items-center justify-start gap-5 border-b border-border text-muted-foreground',
             className
         )}
         {...props}
@@ -29,10 +29,12 @@ const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Trigger
         ref={ref}
         className={cn(
-            'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            // Underlined (incident.io-style) tabs: a transparent bottom border
+            // that fills in on the active tab, overlapping the list's border.
+            'inline-flex items-center justify-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-1 pb-2 pt-1 text-sm font-medium transition-colors',
+            'hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'disabled:pointer-events-none disabled:opacity-50',
-            'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+            '-mb-px data-[state=active]:border-foreground data-[state=active]:text-foreground',
             className
         )}
         {...props}

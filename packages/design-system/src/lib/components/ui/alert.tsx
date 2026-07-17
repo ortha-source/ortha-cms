@@ -10,7 +10,13 @@ const alertVariants = cva(
             variant: {
                 default: 'bg-background text-foreground',
                 destructive:
-                    'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive'
+                    'border-destructive/30 bg-destructive-soft text-destructive-soft-foreground [&>svg]:text-destructive',
+                /* Tinted callouts matching the soft Badge variants. */
+                success:
+                    'border-success/30 bg-success-soft text-success-soft-foreground [&>svg]:text-success',
+                warning:
+                    'border-warning/30 bg-warning-soft text-warning-soft-foreground [&>svg]:text-warning',
+                info: 'border-info/30 bg-info-soft text-info-soft-foreground [&>svg]:text-info'
             }
         },
         defaultVariants: {

@@ -15,6 +15,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
             toastOptions={{
                 classNames: {
                     toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
+                    /* Typed toasts pick up the soft semantic surfaces. `!` is
+                       needed because the base `toast` classes above also match
+                       and stylesheet order between the two is unspecified. */
+                    success:
+                        'group-[.toaster]:!bg-success-soft group-[.toaster]:!text-success-soft-foreground group-[.toaster]:!border-success/30',
+                    error: 'group-[.toaster]:!bg-destructive-soft group-[.toaster]:!text-destructive-soft-foreground group-[.toaster]:!border-destructive/30',
+                    warning:
+                        'group-[.toaster]:!bg-warning-soft group-[.toaster]:!text-warning-soft-foreground group-[.toaster]:!border-warning/30',
+                    info: 'group-[.toaster]:!bg-info-soft group-[.toaster]:!text-info-soft-foreground group-[.toaster]:!border-info/30',
                     description: 'group-[.toast]:text-muted-foreground',
                     actionButton:
                         'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',

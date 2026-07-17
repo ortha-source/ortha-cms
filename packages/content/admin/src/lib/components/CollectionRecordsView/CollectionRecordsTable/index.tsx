@@ -84,7 +84,7 @@ function Cell({
                 <Badge
                     variant={
                         record.status === ENTRY_STATUS.Published
-                            ? 'default'
+                            ? 'success'
                             : 'secondary'
                     }
                 >
@@ -182,7 +182,7 @@ export function CollectionRecordsTable({
           : false;
 
     return (
-        <div className="w-full rounded-xl border">
+        <div className="w-full overflow-hidden rounded-xl border bg-card shadow-xs">
             <Table aria-label={intl.formatMessage(messages.caption, { label })}>
                 <TableHeader>
                     <TableRow>

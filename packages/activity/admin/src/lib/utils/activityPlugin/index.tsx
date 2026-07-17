@@ -64,6 +64,7 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                         group: 'overview',
                         order: 20,
                         icon: Activity,
+                        iconColor: 'text-nav-blue',
                         permission: 'activity:read'
                     }
                 ]

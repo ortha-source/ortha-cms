@@ -13,7 +13,7 @@ import type { UserDetailContext } from '../../utils/userDetailContext';
 import { BackLink } from '../BackLink';
 import { MembersNoAccess } from '../MembersNoAccess';
 import { UserHero } from './UserHero';
-import { UserSideRail } from './UserSideRail';
+import { UserDetailTabs } from './UserDetailTabs';
 import { UserStatsStrip } from './UserStatsStrip';
 
 /** Intl descriptors for {@link UserDetailLayout}, co-located with the component. */
@@ -35,8 +35,8 @@ const messages = defineMessages({
 /**
  * The user detail page shell, mounted at `/users/:id/*`. Fetches the member
  * once and shares it with every tab through the Outlet context, so a tab read
- * is free. Renders the back link, identity hero, stats strip, and the sticky
- * side rail beside the active tab. Loading shows skeletons; a 404 shows a
+ * is free. Renders the back link, identity hero, stats strip, and the underline
+ * tab bar above the active tab. Loading shows skeletons; a 404 shows a
  * dedicated "no longer exists" state; any other error is retryable by the
  * tabs' own queries falling back here.
  *
@@ -100,8 +100,8 @@ export function UserDetailLayout() {
             {back}
             <UserHero member={member} />
             <UserStatsStrip member={member} />
-            <div className="grid gap-8 md:grid-cols-[14rem_minmax(0,1fr)]">
-                <UserSideRail member={member} />
+            <div className="flex flex-col gap-6">
+                <UserDetailTabs member={member} />
                 {/*
                  * Key the tab subtree by member id so navigating straight from
                  * one member's detail to another's (e.g. the account menu's

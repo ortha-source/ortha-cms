@@ -97,7 +97,8 @@ export function UsersPlugin(): UsersAdminPlugin {
                         to: '/users',
                         group: 'directory',
                         order: 20,
-                        icon: Users
+                        icon: Users,
+                        iconColor: 'text-nav-green'
                     }
                 ]
             },

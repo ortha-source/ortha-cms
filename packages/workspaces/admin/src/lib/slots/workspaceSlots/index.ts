@@ -23,6 +23,13 @@ export type WorkspaceNavItem = {
     /** Leading icon (e.g. a lucide-react icon). */
     icon: ComponentType<{ className?: string }>;
     /**
+     * Optional accent class for the icon (e.g. `text-nav-teal`), applied only
+     * while the row is **active** — the rest of the time the icon stays
+     * neutral. The `text-nav-*` utilities are tuned for contrast on the dark
+     * sidebar. Omit for an always-neutral icon.
+     */
+    iconColor?: string;
+    /**
      * Optional permission key required to see this entry. When set, the entry
      * is hidden from users whose role doesn't grant it (the UI mirror of the
      * linked route's server-side gate). Omit for an entry visible to every

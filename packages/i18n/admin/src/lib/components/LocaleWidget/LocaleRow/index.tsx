@@ -67,7 +67,7 @@ export function LocaleRow({
                 {status ? (
                     <Badge
                         variant={
-                            status === 'published' ? 'default' : 'secondary'
+                            status === 'published' ? 'success' : 'secondary'
                         }
                     >
                         {intl.formatMessage(

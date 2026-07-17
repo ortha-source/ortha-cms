@@ -3,7 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Badge, Container } from '@ortha-cms/design-system';
 import { useCurrentWorkspace } from '../../utils/currentWorkspace';
-import { WorkspaceSettingsRail } from '../../components/WorkspaceSettingsRail';
+import { WorkspaceSettingsTabs } from '../../components/WorkspaceSettingsTabs';
 import { WorkspaceGeneralSettings } from '../../components/WorkspaceGeneralSettings';
 import { WorkspaceMembersSettings } from '../../components/WorkspaceMembersSettings';
 import { WorkspaceContentSettings } from '../../components/WorkspaceContentSettings';
@@ -26,11 +26,10 @@ const messages = defineMessages({
 });
 
 /**
- * Workspace settings, mounted inside the shell at `/workspaces/:id/settings/*`
- * (the rail's footer entry). A left-rail layout — General, Members, Content, and
- * a Danger zone — each its own nested route beside the sticky
- * {@link WorkspaceSettingsRail}, mirroring the user-detail settings page. The
- * page width is the shared `Container`; the rail narrows the content column.
+ * Workspace settings, mounted inside the shell at `/workspaces/:id/settings/*`.
+ * A tabbed layout — General, Members, Content, and a Danger zone — each its own
+ * nested route under the {@link WorkspaceSettingsTabs} underline tab bar,
+ * mirroring the user-detail page. The page width is the shared `Container`.
  *
  * Reads the open workspace from context; edits are gated by `workspaces:update`
  * / `workspaces:delete`, so a viewer sees a read-only page and the Danger
@@ -63,8 +62,8 @@ export function WorkspaceSettingsPage() {
                 </p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-[14rem_minmax(0,1fr)]">
-                <WorkspaceSettingsRail
+            <div className="flex flex-col gap-6">
+                <WorkspaceSettingsTabs
                     workspaceId={workspace.id}
                     showDanger={showDanger}
                 />

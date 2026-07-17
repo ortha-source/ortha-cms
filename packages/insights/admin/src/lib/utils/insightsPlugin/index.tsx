@@ -37,7 +37,8 @@ export function InsightsPlugin(): InsightsAdminPlugin {
                         defaultLabel: 'Insights',
                         to: 'insights',
                         order: 30,
-                        icon: BarChart3
+                        icon: BarChart3,
+                        iconColor: 'text-nav-amber'
                     }
                 ]
             },

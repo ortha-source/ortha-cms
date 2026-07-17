@@ -53,11 +53,11 @@ export function ContentSidebarItem({
                 to={`${basePath}/${type.name}`}
                 className={({ isActive }) =>
                     cn(
-                        'flex h-7 min-w-0 -translate-x-px items-center overflow-hidden rounded-md px-2 text-sm outline-none transition-colors duration-[120ms] focus-visible:ring-2 focus-visible:ring-ring',
+                        'flex h-7 min-w-0 -translate-x-px items-center overflow-hidden rounded-md px-2 text-sm outline-none transition-colors duration-[120ms] focus-visible:ring-2 focus-visible:ring-sidebar-ring',
                         pinned ? 'pr-8' : 'pr-2',
                         isActive
-                            ? 'bg-sidebar-accent font-medium text-foreground'
-                            : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground'
+                            ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
                     )
                 }
             >
@@ -69,7 +69,7 @@ export function ContentSidebarItem({
                 aria-pressed={pinned}
                 onClick={() => onTogglePin(type.name)}
                 className={cn(
-                    'absolute inset-y-0 right-1 my-auto flex size-6 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-sidebar-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'absolute inset-y-0 right-1 my-auto flex size-6 items-center justify-center rounded-md text-sidebar-foreground/70 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
                     pinned
                         ? 'opacity-100'
                         : 'opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100'

@@ -36,7 +36,10 @@ export function MemberRoleChip({ role }: { role: MemberRole }) {
     const intl = useIntl();
 
     return (
-        <Badge variant="secondary" className="rounded-xl border-border">
+        <Badge
+            variant={role === 'admin' ? 'primary-soft' : 'secondary'}
+            className="rounded-xl"
+        >
             {intl.formatMessage(ROLE_MESSAGE[role])}
         </Badge>
     );

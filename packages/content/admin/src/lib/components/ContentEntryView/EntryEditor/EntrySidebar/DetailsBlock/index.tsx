@@ -60,7 +60,7 @@ export function DetailsBlock({
     const statusVariant = isCreate
         ? 'outline'
         : published
-          ? 'default'
+          ? 'success'
           : 'secondary';
 
     return (

@@ -39,7 +39,7 @@ export function SidebarNavButton({ item }: SidebarNavButtonProps) {
                     to={item.to}
                     aria-current={isActive ? 'page' : undefined}
                 >
-                    <Icon />
+                    <Icon className={isActive ? item.iconColor : undefined} />
                     <span>{label}</span>
                 </Link>
             </SidebarMenuButton>

@@ -81,6 +81,12 @@ export {
     TabsContent
 } from './lib/components/ui/tabs';
 export {
+    TabNav,
+    TabNavLink,
+    type TabNavLinkProps
+} from './lib/components/ui/tab-nav';
+export { Kbd } from './lib/components/ui/kbd';
+export {
     InputGroup,
     InputGroupAddon,
     InputGroupButton,

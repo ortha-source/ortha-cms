@@ -89,7 +89,7 @@ export function WorkspaceSwitcher({
                                 <span className="truncate text-sm font-semibold">
                                     {current.name}
                                 </span>
-                                <span className="truncate text-xs text-muted-foreground">
+                                <span className="truncate text-xs text-sidebar-foreground/70">
                                     {intl.formatMessage(messages.role)}
                                 </span>
                             </span>

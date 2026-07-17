@@ -18,11 +18,26 @@ const messages = defineMessages({
     }
 });
 
-/** Dot color + label per status; the label keeps color from being the sole signal. */
+/**
+ * Dot color, pill variant, and label per status; the label keeps color from
+ * being the sole signal.
+ */
 const APPEARANCE = {
-    active: { dot: 'bg-status-active', message: messages.active },
-    pending: { dot: 'bg-status-invited', message: messages.invited },
-    disabled: { dot: 'bg-muted-foreground', message: messages.disabled }
+    active: {
+        dot: 'bg-status-active',
+        variant: 'success',
+        message: messages.active
+    },
+    pending: {
+        dot: 'bg-status-invited',
+        variant: 'warning',
+        message: messages.invited
+    },
+    disabled: {
+        dot: 'bg-muted-foreground',
+        variant: 'secondary',
+        message: messages.disabled
+    }
 } as const;
 
 /**
@@ -35,7 +50,13 @@ export function MemberStatusBadge({ status }: { status: MemberStatus }) {
     const appearance = APPEARANCE[status];
 
     return (
-        <Badge variant="secondary" className="gap-1.5 rounded-xl border-border">
+        <Badge
+            variant={appearance.variant}
+            className={cn(
+                'gap-1.5 rounded-xl',
+                status === 'disabled' && 'border-border'
+            )}
+        >
             <span
                 aria-hidden
                 className={cn('size-1.5 rounded-full', appearance.dot)}
