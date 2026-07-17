@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { eq } from 'drizzle-orm';
 import { getDatabase } from '@ortha-cms/database';
-import { workspaceContent } from '@ortha-cms/identity-server';
+import { workspaceContent } from '@ortha-cms/workspaces-server';
 import {
     closeTestApp,
     createTestApp,

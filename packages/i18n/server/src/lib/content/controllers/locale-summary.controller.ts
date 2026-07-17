@@ -1,11 +1,13 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import {
-    CurrentWorkspace,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions,
-    WorkspaceGuard
+    RequirePermissions
 } from '@ortha-cms/identity-server';
+import {
+    CurrentWorkspace,
+    WorkspaceGuard
+} from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '@ortha-cms/content-server';
 import type { ContentTypeRegistry } from '@ortha-cms/content-server';
 import { LocaleSummaryDto } from '../dto/locale-summary.dto';

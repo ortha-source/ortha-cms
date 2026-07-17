@@ -7,12 +7,14 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
-    CurrentWorkspace,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions,
-    WorkspaceGuard
+    RequirePermissions
 } from '@ortha-cms/identity-server';
+import {
+    CurrentWorkspace,
+    WorkspaceGuard
+} from '@ortha-cms/workspaces-server';
 import { clampInt } from '@ortha-cms/utils-server';
 import { MAX_PAGE_SIZE } from '../entries.constants';
 import { InjectContentRegistry } from '../../content.tokens';

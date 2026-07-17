@@ -3,7 +3,7 @@ import {
     CONTENT_CATALOG,
     CONTENT_ENTRY_COUNTER,
     type ContentCatalog
-} from '@ortha-cms/identity-server';
+} from '@ortha-cms/workspaces-server';
 import { CONTENT_REGISTRY } from './content.tokens';
 import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';

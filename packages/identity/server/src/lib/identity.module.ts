@@ -19,24 +19,6 @@ import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
 import { OriginGuard } from './auth/guards/origin.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
-import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
-import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
-import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
-import { UpdateWorkspaceController } from './workspaces/controllers/update-workspace.controller';
-import { SetWorkspaceStatusController } from './workspaces/controllers/set-workspace-status.controller';
-import { DeleteWorkspaceController } from './workspaces/controllers/delete-workspace.controller';
-import { AddWorkspaceMemberController } from './workspaces/controllers/add-workspace-member.controller';
-import { RemoveWorkspaceMemberController } from './workspaces/controllers/remove-workspace-member.controller';
-import { AddWorkspaceContentController } from './workspaces/controllers/add-workspace-content.controller';
-import { RemoveWorkspaceContentController } from './workspaces/controllers/remove-workspace-content.controller';
-import { GetWorkspaceContentCountController } from './workspaces/controllers/get-workspace-content-count.controller';
-import { GetWorkspaceEntryCountController } from './workspaces/controllers/get-workspace-entry-count.controller';
-import { WorkspaceService } from './workspaces/services/workspace.service';
-import { SlugService } from './workspaces/services/slug.service';
-import { MembershipService } from './workspaces/services/membership.service';
-import { ContentGrantService } from './workspaces/services/content-grant.service';
-import { WorkspaceGuard } from './workspaces/guards/workspace.guard';
-import { ListContentTypesController } from './content/controllers/list-content-types.controller';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -76,31 +58,10 @@ export class IdentityModule {
                 LoginController,
                 MeController,
                 LogoutController,
-                UserSessionsController,
-                CreateWorkspaceController,
-                ListWorkspacesController,
-                CheckSlugController,
-                UpdateWorkspaceController,
-                SetWorkspaceStatusController,
-                DeleteWorkspaceController,
-                AddWorkspaceMemberController,
-                RemoveWorkspaceMemberController,
-                AddWorkspaceContentController,
-                RemoveWorkspaceContentController,
-                GetWorkspaceContentCountController,
-                GetWorkspaceEntryCountController,
-                ListContentTypesController
+                UserSessionsController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
-                WorkspaceService,
-                SlugService,
-                MembershipService,
-                ContentGrantService,
-                // Resolved by `@UseGuards(WorkspaceGuard)` on workspace-scoped
-                // routes in other plugins; injectable everywhere since this
-                // module is global (same pattern as PermissionsGuard).
-                WorkspaceGuard,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -125,13 +86,7 @@ export class IdentityModule {
                 IDENTITY_CONFIG,
                 RolesService,
                 PermissionsService,
-                AuthService,
-                // Exported so a feature plugin's `@UseGuards(WorkspaceGuard)`
-                // (instantiated in the consuming module's injector) can resolve
-                // the guard and its `MembershipService` dependency — same reason
-                // PermissionsService is exported for PermissionsGuard.
-                MembershipService,
-                WorkspaceGuard
+                AuthService
             ]
         };
     }

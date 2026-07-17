@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { count, eq, type AnyColumn } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import type { ContentEntryCounter } from '@ortha-cms/identity-server';
+import type { ContentEntryCounter } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import type { AnyContentType } from '../../types/content-type';

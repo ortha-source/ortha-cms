@@ -3,14 +3,13 @@ import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
-    memberships,
     roles,
     sessions,
     tokens,
     users,
-    workspaces,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
+import { memberships, workspaces } from '@ortha-cms/workspaces-server';
 // Host-owned generated content tables. Importing the host app is permitted in
 // the support harness (it's exempt from the module-boundary rule); specs reach
 // these only through the helpers below.

@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1780424910030,
+      "when": 1784310932290,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1780945151702,
-      "tag": "0001_add_user_name",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1781026575662,
-      "tag": "0002_add_workspace_description",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1781118470301,
-      "tag": "0003_add_workspace_color",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1781277782887,
-      "tag": "0004_workspace_status_and_content",
       "breakpoints": true
     }
   ]

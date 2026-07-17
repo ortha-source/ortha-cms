@@ -17,7 +17,7 @@ import {
     type SQL
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { lockWorkspaceShared } from '@ortha-cms/identity-server';
+import { lockWorkspaceShared } from '@ortha-cms/workspaces-server';
 import { isUniqueViolation } from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,

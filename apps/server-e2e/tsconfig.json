@@ -15,10 +15,13 @@
             "path": "../../packages/identity/server"
         },
         {
-            "path": "../../packages/database"
+            "path": "../server"
         },
         {
-            "path": "../server"
+            "path": "../../packages/workspaces/server"
+        },
+        {
+            "path": "../../packages/database"
         }
     ]
 }

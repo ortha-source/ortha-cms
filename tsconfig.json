@@ -80,6 +80,9 @@
         },
         {
             "path": "./packages/i18n/admin"
+        },
+        {
+            "path": "./packages/workspaces/server"
         }
     ]
 }

@@ -7,12 +7,14 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
-    CurrentWorkspace,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions,
-    WorkspaceGuard
+    RequirePermissions
 } from '@ortha-cms/identity-server';
+import {
+    CurrentWorkspace,
+    WorkspaceGuard
+} from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { EntriesService } from '../services/entries.service';

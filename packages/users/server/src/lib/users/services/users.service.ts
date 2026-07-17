@@ -4,13 +4,12 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import { ActivityService } from '@ortha-cms/activity-server';
 import {
-    memberships,
     roles,
     sessions,
     users,
-    workspaces,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { memberships, workspaces } from '@ortha-cms/workspaces-server';
 import { USER_ACTIVITY_KINDS } from '../users-activity';
 import type { ListUsersQueryDto } from '../dto/list-users-query.dto';
 import type { InviteUserDto } from '../dto/invite-user.dto';
