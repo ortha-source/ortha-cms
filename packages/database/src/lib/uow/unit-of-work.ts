@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
 import type { Database } from '../types';
-import { InjectDatabase } from '../database.module';
+import { InjectDatabase } from '../database.tokens';
 import { OutboxDispatcher } from '../outbox/outbox-dispatcher';
 
 /**

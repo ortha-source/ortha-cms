@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { eq, isNull } from 'drizzle-orm';
 import type { Database } from '../types';
-import { InjectDatabase } from '../database.module';
+import { InjectDatabase } from '../database.tokens';
 import {
     DOMAIN_EVENT_SUBSCRIBERS,
     type DomainEvent,
