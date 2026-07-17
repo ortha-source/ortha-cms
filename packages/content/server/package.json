@@ -22,6 +22,7 @@
     "dependencies": {
         "@nestjs/common": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
+        "@ortha-cms/content-domain": "*",
         "@ortha-cms/database": "*",
         "@ortha-cms/identity-server": "*",
         "@ortha-cms/utils-server": "*",

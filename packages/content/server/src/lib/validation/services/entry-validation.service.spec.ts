@@ -100,13 +100,19 @@ describe('EntryValidationService', () => {
         ).toContain('color');
     });
 
-    it('requires a uuid for a single relation and an array for a many relation', () => {
+    it('requires a uuid for a single relation', () => {
         expect(fieldsWithIssues({ title: 'hello', author: 'nope' })).toContain(
             'author'
         );
+    });
+
+    it('skips a many relation in the values bag (link-managed, not validated here)', () => {
+        // A many/inverse relation's links travel in the `relations` delta, never
+        // in `values`, so the validator skips them — a bad array here is not a
+        // values-bag issue (their requiredness is enforced against the link set).
         expect(
             fieldsWithIssues({ title: 'hello', tags: ['nope'] })
-        ).toContain('tags');
+        ).not.toContain('tags');
     });
 
     it('rejects unknown fields', () => {
