@@ -1,12 +1,8 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
+import { WORKSPACE_EVENT_KINDS } from '../../domain/events/workspace-events';
 import {
     WORKSPACE_REPOSITORY,
     type WorkspaceRepository
@@ -16,9 +12,9 @@ import { MemberLookupQuery } from '../../infrastructure/queries/member-lookup.qu
 /**
  * Removes a user's membership. Removing a non-member — or targeting a workspace
  * that doesn't exist — is a no-op that records nothing (the endpoint still
- * returns 204, matching the prior behavior). Records `workspace.member_removed`
- * in-band against **the removed user** and drains the domain event on a real
- * change.
+ * returns 204, matching the prior behavior). Drains `workspace.member_removed`
+ * (carrying the removed user's id + email snapshot and the actor) on a real
+ * change, where the activity subscriber audits it against **the removed user**.
  */
 @Injectable()
 export class RemoveMemberUseCase {
@@ -27,10 +23,7 @@ export class RemoveMemberUseCase {
         private readonly outbox: OutboxWriter,
         private readonly members: MemberLookupQuery,
         @Inject(WORKSPACE_REPOSITORY)
-        private readonly workspaces: WorkspaceRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaces: WorkspaceRepository
     ) {}
 
     /** Runs the removal. Never throws for a missing workspace/member (no-op). */
@@ -51,18 +44,20 @@ export class RemoveMemberUseCase {
             }
             await this.workspaces.save(workspace);
             const user = await this.members.findById(userId);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_MEMBER_REMOVED,
-                    subjectType: 'user',
-                    subjectId: userId,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { workspaceId, email: user?.email ?? null }
-                },
-                this.uow.current()
+            // The removed user's email isn't a workspace concern, so the
+            // aggregate doesn't carry it — snapshot it onto the event here.
+            const events = workspace.pullEvents().map((event) =>
+                event.kind === WORKSPACE_EVENT_KINDS.MEMBER_REMOVED
+                    ? {
+                          ...event,
+                          payload: {
+                              ...event.payload,
+                              email: user?.email ?? null
+                          }
+                      }
+                    : event
             );
-            await this.outbox.append(workspace.pullEvents());
+            await this.outbox.append(attachActor(events, actor));
         });
     }
 }

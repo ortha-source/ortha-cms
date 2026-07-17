@@ -1,16 +1,12 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import {
     MemberNotFoundError,
     WorkspaceNotFoundError
 } from '../../domain/errors';
+import { WORKSPACE_EVENT_KINDS } from '../../domain/events/workspace-events';
 import {
     WORKSPACE_REPOSITORY,
     type WorkspaceRepository
@@ -19,9 +15,10 @@ import { MemberLookupQuery } from '../../infrastructure/queries/member-lookup.qu
 
 /**
  * Links an existing user to a workspace. Idempotent — re-adding a member is a
- * no-op that records nothing. Records `workspace.member_added` in-band against
- * **the added user** (so it surfaces in that member's activity log) and drains
- * the domain event on a real change. 404s an unknown workspace or user.
+ * no-op that records nothing. Drains `workspace.member_added` (carrying the
+ * added user's id + email snapshot and the actor) on a real change, where the
+ * activity subscriber audits it against **the added user** (so it surfaces in
+ * that member's activity log). 404s an unknown workspace or user.
  */
 @Injectable()
 export class AddMemberUseCase {
@@ -30,10 +27,7 @@ export class AddMemberUseCase {
         private readonly outbox: OutboxWriter,
         private readonly members: MemberLookupQuery,
         @Inject(WORKSPACE_REPOSITORY)
-        private readonly workspaces: WorkspaceRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaces: WorkspaceRepository
     ) {}
 
     /**
@@ -60,18 +54,17 @@ export class AddMemberUseCase {
                 return;
             }
             await this.workspaces.save(workspace);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_MEMBER_ADDED,
-                    subjectType: 'user',
-                    subjectId: userId,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { workspaceId, email: user.email }
-                },
-                this.uow.current()
+            // The added user's email isn't a workspace concern, so the aggregate
+            // doesn't carry it — snapshot it onto the event here for the audit.
+            const events = workspace.pullEvents().map((event) =>
+                event.kind === WORKSPACE_EVENT_KINDS.MEMBER_ADDED
+                    ? {
+                          ...event,
+                          payload: { ...event.payload, email: user.email }
+                      }
+                    : event
             );
-            await this.outbox.append(workspace.pullEvents());
+            await this.outbox.append(attachActor(events, actor));
         });
     }
 }

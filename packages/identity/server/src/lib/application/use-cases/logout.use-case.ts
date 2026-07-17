@@ -1,10 +1,5 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    type ActivityRecorder
-} from '../../activity/activity-recorder';
-import { IDENTITY_ACTIVITY_KINDS } from '../../activity/activity-kinds';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import { IDENTITY_EVENT_KINDS, identityEvent } from '../../domain/events/identity-events';
 import {
     SESSION_REPOSITORY,
@@ -15,10 +10,11 @@ import { UserLookupQuery } from '../../infrastructure/queries/user-lookup.query'
 /**
  * Ends the session identified by an opaque token (logout). Idempotent — an
  * unknown or already-revoked token simply does nothing, and the user's other
- * sessions are left untouched. Records the sign-out in-band and emits
- * `auth.signed_out` to the outbox, but only when a live session was actually
- * revoked, so the trail stays free of phantom logout events. Transport-agnostic:
- * the controller owns reading the cookie and clearing it.
+ * sessions are left untouched. Emits `auth.signed_out` (carrying the actor) to
+ * the outbox — where the activity subscriber turns it into the `user.signed_out`
+ * audit row — but only when a live session was actually revoked, so the trail
+ * stays free of phantom logout events. Transport-agnostic: the controller owns
+ * reading the cookie and clearing it.
  */
 @Injectable()
 export class LogoutUseCase {
@@ -27,10 +23,7 @@ export class LogoutUseCase {
         private readonly outbox: OutboxWriter,
         private readonly users: UserLookupQuery,
         @Inject(SESSION_REPOSITORY)
-        private readonly sessions: SessionRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly sessions: SessionRepository
     ) {}
 
     /** Revokes the presented session, if any, recording the sign-out. */
@@ -43,19 +36,19 @@ export class LogoutUseCase {
             }
 
             const actorEmail = await this.users.emailById(revoked.userId);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT,
-                    subjectType: 'user',
-                    subjectId: revoked.userId,
-                    actorId: revoked.userId,
-                    actorEmail
-                },
-                this.uow.current()
+            // The signer is their own actor; the subscriber reads it back off
+            // the event to write the audit row.
+            await this.outbox.append(
+                attachActor(
+                    [
+                        identityEvent(
+                            IDENTITY_EVENT_KINDS.SIGNED_OUT,
+                            revoked.userId
+                        )
+                    ],
+                    { id: revoked.userId, email: actorEmail }
+                )
             );
-            await this.outbox.append([
-                identityEvent(IDENTITY_EVENT_KINDS.SIGNED_OUT, revoked.userId)
-            ]);
         });
     }
 }

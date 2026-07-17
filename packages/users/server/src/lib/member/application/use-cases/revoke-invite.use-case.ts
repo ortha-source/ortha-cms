@@ -1,25 +1,22 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { MemberId } from '../../domain/value-objects/member-id';
 import { MemberNotFoundError } from '../../domain/errors';
 import {
     MEMBER_REPOSITORY,
     type MemberRepository
 } from '../../domain/member.repository';
-import { USER_ACTIVITY_KINDS } from '../member-activity';
 
 /**
  * Revokes a `pending` invite by deleting the placeholder member row; the
  * cascades drop their invite token and any pre-assigned memberships. Only
  * `pending` rows qualify ({@link InvalidMemberStateError} otherwise) — real
- * accounts are disabled, not deleted. Records `user.invite_revoked` in-band
- * (before the delete, so the audit row stands on its own) and drains
- * `member.removed`. 404s an unknown member.
+ * accounts are disabled, not deleted. Drains `member.removed` (carrying the
+ * email snapshot + the actor), where the activity subscriber turns it into the
+ * `user.invite_revoked` audit row. Because `subject_id` is text with no FK, that
+ * row stands on its own once the placeholder member row is gone. 404s an
+ * unknown member.
  */
 @Injectable()
 export class RevokeInviteUseCase {
@@ -27,10 +24,7 @@ export class RevokeInviteUseCase {
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
         @Inject(MEMBER_REPOSITORY)
-        private readonly members: MemberRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly members: MemberRepository
     ) {}
 
     /** Runs the revoke. 404s an unknown member; 409s a non-pending one. */
@@ -44,22 +38,8 @@ export class RevokeInviteUseCase {
             }
             member.revokeInvite();
 
-            // Record before the delete; `subjectId` is text with no FK, so the
-            // audit row stands on its own once the placeholder row is gone.
-            await this.recorder?.record(
-                {
-                    kind: USER_ACTIVITY_KINDS.USER_INVITE_REVOKED,
-                    subjectType: 'user',
-                    subjectId: id,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { email: member.email }
-                },
-                this.uow.current()
-            );
-
             await this.members.delete(member);
-            await this.outbox.append(member.pullEvents());
+            await this.outbox.append(attachActor(member.pullEvents(), actor));
         });
     }
 }

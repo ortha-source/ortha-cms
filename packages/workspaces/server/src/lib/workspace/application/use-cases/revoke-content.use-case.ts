@@ -1,11 +1,6 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { WorkspaceNotFoundError } from '../../domain/errors';
 import {
@@ -18,8 +13,9 @@ import { ContentEntryCounterReader } from '../content/content-entry-counter.read
  * Revokes a workspace's access to one content type — **only when the type holds
  * no entries in that workspace** (`ContentTypeNotEmptyError` → 409 otherwise),
  * so a revoke never orphans reachable records. Revoking a grant the workspace
- * never held is a no-op. Records `workspace.content_revoked` in-band and drains
- * the domain event on a real change. 404s an unknown workspace.
+ * never held is a no-op. Drains `workspace.content_revoked` (carrying the
+ * actor) on a real change, where the activity subscriber turns it into the
+ * audit row. 404s an unknown workspace.
  *
  * Loads the aggregate under the workspace's exclusive content lock
  * ({@link WorkspaceRepository.findByIdForContentMutation}), so a concurrent
@@ -32,10 +28,7 @@ export class RevokeContentUseCase {
         private readonly outbox: OutboxWriter,
         private readonly counter: ContentEntryCounterReader,
         @Inject(WORKSPACE_REPOSITORY)
-        private readonly workspaces: WorkspaceRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaces: WorkspaceRepository
     ) {}
 
     /**
@@ -63,18 +56,9 @@ export class RevokeContentUseCase {
                 return;
             }
             await this.workspaces.save(workspace);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_CONTENT_REVOKED,
-                    subjectType: 'workspace',
-                    subjectId: workspaceId,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { slug }
-                },
-                this.uow.current()
+            await this.outbox.append(
+                attachActor(workspace.pullEvents(), actor)
             );
-            await this.outbox.append(workspace.pullEvents());
         });
     }
 }

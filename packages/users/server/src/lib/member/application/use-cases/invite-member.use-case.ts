@@ -1,10 +1,6 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { Member } from '../../domain/member';
 import { Role } from '../../domain/value-objects/role';
 import { EmailTakenError } from '../../domain/errors';
@@ -17,7 +13,6 @@ import {
     type WorkspaceLinker
 } from '../ports/workspace-linker.port';
 import { InviteTokenService } from '../../infrastructure/persistence/invite-token.service';
-import { USER_ACTIVITY_KINDS } from '../member-activity';
 import type { InviteMemberDto } from '../dto/invite-member.dto';
 
 /**
@@ -26,7 +21,8 @@ import type { InviteMemberDto } from '../dto/invite-member.dto';
  * one unit of work. The email must be free: checked up front for a friendly
  * {@link EmailTakenError}, with the DB's case-insensitive unique index as the
  * race-proof backstop (its violation, surfaced by the repository, maps to the
- * same error). Records `user.invited` in-band and drains `member.invited`.
+ * same error). Drains `member.invited` (carrying the actor), where the activity
+ * subscriber turns it into the `user.invited` audit row.
  */
 @Injectable()
 export class InviteMemberUseCase {
@@ -37,10 +33,7 @@ export class InviteMemberUseCase {
         @Inject(MEMBER_REPOSITORY)
         private readonly members: MemberRepository,
         @Inject(WORKSPACE_LINKER)
-        private readonly workspaceLinker: WorkspaceLinker,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaceLinker: WorkspaceLinker
     ) {}
 
     /** Runs the invite, returning the new member's id. */
@@ -68,20 +61,9 @@ export class InviteMemberUseCase {
                 dto.workspaceIds ?? []
             );
 
-            // In-band audit (kept correct + gap-free during the transition;
-            // Wave 3 moves this onto an outbox subscriber and drops this call).
-            await this.recorder?.record(
-                {
-                    kind: USER_ACTIVITY_KINDS.USER_INVITED,
-                    subjectType: 'user',
-                    subjectId: member.id.value,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { email }
-                },
-                this.uow.current()
-            );
-            await this.outbox.append(member.pullEvents());
+            // Audit is derived downstream from the domain event by the activity
+            // subscriber; the actor rides along on the event payload.
+            await this.outbox.append(attachActor(member.pullEvents(), actor));
 
             return member.id.value;
         });

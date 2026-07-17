@@ -1,11 +1,6 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { WorkspaceColor } from '../../domain/value-objects/workspace-color';
 import { WorkspaceNotFoundError } from '../../domain/errors';
@@ -19,8 +14,9 @@ import type { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 /**
  * Applies a partial profile edit (name / description / color) to a workspace.
  * A patch with no fields present is a no-op that still succeeds (the controller
- * returns the current view). Records `workspace.updated` in-band and drains the
- * domain event only when something actually changed. 404s an unknown workspace.
+ * returns the current view). Drains `workspace.updated` (carrying the changed
+ * field names + the actor) only when something actually changed, where the
+ * activity subscriber turns it into the audit row. 404s an unknown workspace.
  */
 @Injectable()
 export class UpdateWorkspaceUseCase {
@@ -28,10 +24,7 @@ export class UpdateWorkspaceUseCase {
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
         @Inject(WORKSPACE_REPOSITORY)
-        private readonly workspaces: WorkspaceRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaces: WorkspaceRepository
     ) {}
 
     /** Runs the update. Throws {@link WorkspaceNotFoundError} (→ 404). */
@@ -42,20 +35,15 @@ export class UpdateWorkspaceUseCase {
     ): Promise<void> {
         const id = WorkspaceId.create(workspaceId);
 
-        // The changed field names, for the audit meta (mirrors the patch keys).
-        const fields: string[] = [];
         const patch: WorkspaceProfilePatch = {};
         if (dto.name !== undefined) {
             patch.name = dto.name;
-            fields.push('name');
         }
         if (dto.description !== undefined) {
             patch.description = dto.description;
-            fields.push('description');
         }
         if (dto.color !== undefined) {
             patch.color = WorkspaceColor.create(dto.color);
-            fields.push('color');
         }
 
         await this.uow.run(async () => {
@@ -67,18 +55,9 @@ export class UpdateWorkspaceUseCase {
                 return;
             }
             await this.workspaces.save(workspace);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_UPDATED,
-                    subjectType: 'workspace',
-                    subjectId: workspaceId,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { fields }
-                },
-                this.uow.current()
+            await this.outbox.append(
+                attachActor(workspace.pullEvents(), actor)
             );
-            await this.outbox.append(workspace.pullEvents());
         });
     }
 }

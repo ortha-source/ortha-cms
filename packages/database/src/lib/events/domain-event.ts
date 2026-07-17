@@ -58,6 +58,40 @@ export function createDomainEvent(
 }
 
 /**
+ * The acting user carried on an audited event's payload — the "who did it"
+ * an audit subscriber needs but the aggregate does not know. Held in the
+ * payload (the only part of the envelope that survives the outbox round-trip)
+ * under a standard `actor` key by {@link attachActor}.
+ */
+export interface EventActor {
+    /** The actor's id. */
+    id: string;
+    /** The actor's email snapshot, or `null` when unknown. */
+    email: string | null;
+}
+
+/**
+ * Returns copies of `events` with the acting user merged into each payload
+ * under a standard `actor` key. Use it in an application service — the layer
+ * that knows the request's actor — right before appending an aggregate's
+ * pulled events to the outbox, so a downstream audit subscriber can recover
+ * `actorId`/`actorEmail` from an event alone. Leaves the rest of the payload
+ * untouched and never mutates the inputs.
+ */
+export function attachActor(
+    events: DomainEvent[],
+    actor: EventActor
+): DomainEvent[] {
+    return events.map((event) => ({
+        ...event,
+        payload: {
+            ...event.payload,
+            actor: { id: actor.id, email: actor.email }
+        }
+    }));
+}
+
+/**
  * A downstream reactor to domain events. Registered with the
  * `OutboxDispatcher`, which delivers each drained event to every
  * subscriber whose {@link kinds} matches.

@@ -1,11 +1,6 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { WorkspaceNotFoundError } from '../../domain/errors';
 import {
@@ -19,8 +14,8 @@ import { ContentEntryCounterReader } from '../content/content-entry-counter.read
  * Refused with `WorkspaceNotEmptyError` (→ 409) while the workspace still holds
  * content **entries** (workspace-scoped by a plain uuid with no FK, so a cascade
  * can't reach them) — they must be deleted first, so a delete never orphans
- * records. Records `workspace.deleted` in-band and drains the domain event.
- * 404s an unknown workspace.
+ * records. Drains `workspace.deleted` (carrying the actor), where the activity
+ * subscriber turns it into the audit row. 404s an unknown workspace.
  *
  * Loads the aggregate under the workspace's exclusive content lock
  * ({@link WorkspaceRepository.findByIdForContentMutation}), so a concurrent
@@ -33,10 +28,7 @@ export class DeleteWorkspaceUseCase {
         private readonly outbox: OutboxWriter,
         private readonly counter: ContentEntryCounterReader,
         @Inject(WORKSPACE_REPOSITORY)
-        private readonly workspaces: WorkspaceRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaces: WorkspaceRepository
     ) {}
 
     /**
@@ -57,18 +49,9 @@ export class DeleteWorkspaceUseCase {
             workspace.assertDeletable(entryCount);
 
             await this.workspaces.delete(workspace);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_DELETED,
-                    subjectType: 'workspace',
-                    subjectId: workspaceId,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { name: workspace.name, slug: workspace.slug.value }
-                },
-                this.uow.current()
+            await this.outbox.append(
+                attachActor(workspace.pullEvents(), actor)
             );
-            await this.outbox.append(workspace.pullEvents());
         });
     }
 }

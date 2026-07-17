@@ -1,18 +1,22 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import { Inject, Injectable } from '@nestjs/common';
 import {
-    ACTIVITY_RECORDER,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+    attachActor,
+    OutboxWriter,
+    UnitOfWork,
+    type DomainEvent
+} from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { MemberId } from '../../domain/value-objects/member-id';
 import { Role } from '../../domain/value-objects/role';
 import { MemberNotFoundError, SelfActionError } from '../../domain/errors';
 import {
+    MEMBER_EVENT_KINDS,
+    memberEvent
+} from '../../domain/events/member-events';
+import {
     MEMBER_REPOSITORY,
     type MemberRepository
 } from '../../domain/member.repository';
-import { USER_ACTIVITY_KINDS } from '../member-activity';
 import type { UpdateMemberDto } from '../dto/update-member.dto';
 
 /**
@@ -22,9 +26,11 @@ import type { UpdateMemberDto } from '../dto/update-member.dto';
  * The member is loaded under the active-admin lock
  * ({@link MemberRepository.findByIdForAdminGuard}); demoting the last active
  * admin is rejected inside the aggregate against a count read under that lock,
- * so two simultaneous demotions cannot both pass. Records `user.role_changed`
- * and/or `user.profile_updated` in-band (distinct audit events) and drains
- * `member.role_changed` on a role change. 404s an unknown member.
+ * so two simultaneous demotions cannot both pass. Drains `member.role_changed`
+ * (from the aggregate) on a role change and mints `member.profile_updated` on a
+ * rename — distinct facts the activity subscriber turns into the
+ * `user.role_changed` / `user.profile_updated` audit rows. 404s an unknown
+ * member.
  */
 @Injectable()
 export class UpdateMemberUseCase {
@@ -32,10 +38,7 @@ export class UpdateMemberUseCase {
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
         @Inject(MEMBER_REPOSITORY)
-        private readonly members: MemberRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly members: MemberRepository
     ) {}
 
     /** Runs the update. 404s an unknown member; throws the guard errors. */
@@ -77,35 +80,18 @@ export class UpdateMemberUseCase {
             }
             await this.members.save(member);
 
-            // Record each facet that actually changed, in-band with the write
-            // (role and name are distinct audit events).
-            if (roleChanged) {
-                await this.recorder?.record(
-                    {
-                        kind: USER_ACTIVITY_KINDS.USER_ROLE_CHANGED,
-                        subjectType: 'user',
-                        subjectId: id,
-                        actorId: actor.id,
-                        actorEmail: actor.email,
-                        meta: { from: previousRole, to: dto.role }
-                    },
-                    this.uow.current()
-                );
-            }
+            // The aggregate raises `member.role_changed`; a rename is a
+            // secondary fact minted here (the aggregate stays quiet on it),
+            // carrying the same before/after the audit row needs.
+            const events: DomainEvent[] = member.pullEvents();
             if (nameChanged) {
-                await this.recorder?.record(
-                    {
-                        kind: USER_ACTIVITY_KINDS.USER_PROFILE_UPDATED,
-                        subjectType: 'user',
-                        subjectId: id,
-                        actorId: actor.id,
-                        actorEmail: actor.email,
-                        meta: { name: { from: previousName, to: dto.name } }
-                    },
-                    this.uow.current()
+                events.push(
+                    memberEvent(MEMBER_EVENT_KINDS.PROFILE_UPDATED, id, {
+                        name: { from: previousName, to: dto.name }
+                    })
                 );
             }
-            await this.outbox.append(member.pullEvents());
+            await this.outbox.append(attachActor(events, actor));
         });
     }
 }

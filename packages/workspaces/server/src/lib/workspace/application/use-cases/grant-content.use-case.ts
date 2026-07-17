@@ -1,11 +1,6 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import {
     UnknownContentTypeError,
@@ -20,9 +15,9 @@ import { ContentCatalogReader } from '../content/content-catalog.reader';
 /**
  * Grants a workspace access to one content type (by slug). Idempotent —
  * re-granting records nothing. The kind is derived from the catalogue; an
- * unknown slug throws {@link UnknownContentTypeError} (→ 400). Records
- * `workspace.content_granted` in-band and drains the domain event on a real
- * change. 404s an unknown workspace.
+ * unknown slug throws {@link UnknownContentTypeError} (→ 400). Drains
+ * `workspace.content_granted` (carrying the actor) on a real change, where the
+ * activity subscriber turns it into the audit row. 404s an unknown workspace.
  */
 @Injectable()
 export class GrantContentUseCase {
@@ -31,10 +26,7 @@ export class GrantContentUseCase {
         private readonly outbox: OutboxWriter,
         private readonly catalog: ContentCatalogReader,
         @Inject(WORKSPACE_REPOSITORY)
-        private readonly workspaces: WorkspaceRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly workspaces: WorkspaceRepository
     ) {}
 
     /**
@@ -61,18 +53,9 @@ export class GrantContentUseCase {
                 return;
             }
             await this.workspaces.save(workspace);
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_CONTENT_GRANTED,
-                    subjectType: 'workspace',
-                    subjectId: workspaceId,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { slug, kind }
-                },
-                this.uow.current()
+            await this.outbox.append(
+                attachActor(workspace.pullEvents(), actor)
             );
-            await this.outbox.append(workspace.pullEvents());
         });
     }
 }

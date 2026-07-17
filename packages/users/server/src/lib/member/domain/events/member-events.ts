@@ -1,20 +1,26 @@
 import { createDomainEvent, type DomainEvent } from '@ortha-cms/database';
 
 /**
- * The domain event kinds the {@link Member} aggregate raises — one per primary
- * lifecycle transition, as dotted names.
+ * The domain event kinds the users context raises. Most are raised by the
+ * {@link Member} aggregate on a primary lifecycle transition; a few
+ * (`profile_updated`, `reactivated`, `invite_resent`) are secondary facts the
+ * application mints directly, mirroring identity's `auth.*` flow events — the
+ * aggregate deliberately stays quiet on them (see {@link Member.rename} /
+ * {@link Member.enable}).
  *
- * Note these `member.*` kinds are **distinct** from the `user.*` audit kinds
- * ({@link USER_ACTIVITY_KINDS}) the activity recorder writes in-band. Unlike the
- * workspaces pilot (whose event kinds mirror its audit kinds one-to-one), the
- * users context keeps the two catalogues separate, so Wave 3's move of auditing
- * onto an outbox subscriber will map `member.*` → `user.*` rather than reuse the
- * same strings.
+ * These `member.*` kinds are **distinct** from the `user.*` audit kinds
+ * ({@link USER_ACTIVITY_KINDS}) the audit trail uses. Unlike the workspaces
+ * pilot (whose event kinds mirror its audit kinds one-to-one), the users context
+ * keeps the two catalogues separate, so the activity outbox subscriber maps
+ * `member.*` → `user.*` rather than reusing the same strings.
  */
 export const MEMBER_EVENT_KINDS = {
     INVITED: 'member.invited',
+    INVITE_RESENT: 'member.invite_resent',
+    PROFILE_UPDATED: 'member.profile_updated',
     ROLE_CHANGED: 'member.role_changed',
     DISABLED: 'member.disabled',
+    REACTIVATED: 'member.reactivated',
     REMOVED: 'member.removed'
 } as const;
 

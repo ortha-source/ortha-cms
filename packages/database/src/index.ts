@@ -9,12 +9,14 @@ export {
 } from './lib/database.module';
 export {
     createDomainEvent,
+    attachActor,
     DOMAIN_EVENT_SUBSCRIBERS
 } from './lib/events/domain-event';
 export type {
     DomainEvent,
     CreateDomainEventParams,
-    DomainEventSubscriber
+    DomainEventSubscriber,
+    EventActor
 } from './lib/events/domain-event';
 export { UnitOfWork } from './lib/uow/unit-of-work';
 export { OutboxWriter } from './lib/outbox/outbox-writer';

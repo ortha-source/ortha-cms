@@ -1,36 +1,34 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { MemberId } from '../../domain/value-objects/member-id';
 import { MemberNotFoundError } from '../../domain/errors';
+import {
+    MEMBER_EVENT_KINDS,
+    memberEvent
+} from '../../domain/events/member-events';
 import {
     MEMBER_REPOSITORY,
     type MemberRepository
 } from '../../domain/member.repository';
 import { InviteTokenService } from '../../infrastructure/persistence/invite-token.service';
-import { USER_ACTIVITY_KINDS } from '../member-activity';
 
 /**
  * Rotates the invite token for a still-`pending` member, invalidating the
  * previously sent link ({@link InvalidMemberStateError} otherwise). Only
- * meaningful while the invite is unaccepted. Records `user.invite_resent`
- * in-band; the member's own state is unchanged (no domain event). 404s an
- * unknown member.
+ * meaningful while the invite is unaccepted. The member's own aggregate state is
+ * unchanged, so the application mints `member.invite_resent` directly (mirroring
+ * identity's `auth.*` flow events); the activity subscriber turns it into the
+ * `user.invite_resent` audit row. 404s an unknown member.
  */
 @Injectable()
 export class ResendInviteUseCase {
     constructor(
         private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
         private readonly inviteTokens: InviteTokenService,
         @Inject(MEMBER_REPOSITORY)
-        private readonly members: MemberRepository,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly members: MemberRepository
     ) {}
 
     /** Runs the resend. 404s an unknown member; 409s a non-pending one. */
@@ -48,16 +46,15 @@ export class ResendInviteUseCase {
             // TODO(users-email): deliver the rotated invite link once a mailer
             // exists (identity epic #11).
 
-            await this.recorder?.record(
-                {
-                    kind: USER_ACTIVITY_KINDS.USER_INVITE_RESENT,
-                    subjectType: 'user',
-                    subjectId: id,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { email: member.email }
-                },
-                this.uow.current()
+            await this.outbox.append(
+                attachActor(
+                    [
+                        memberEvent(MEMBER_EVENT_KINDS.INVITE_RESENT, id, {
+                            email: member.email
+                        })
+                    ],
+                    actor
+                )
             );
         });
     }

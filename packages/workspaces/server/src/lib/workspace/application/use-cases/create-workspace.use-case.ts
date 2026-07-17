@@ -1,11 +1,6 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    IDENTITY_ACTIVITY_KINDS,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { Workspace } from '../../domain/workspace';
 import { Slug } from '../../domain/value-objects/slug';
 import { WorkspaceColor } from '../../domain/value-objects/workspace-color';
@@ -26,8 +21,9 @@ import type { CreateWorkspaceDto } from '../dto/create-workspace.dto';
  * Creates a workspace owned by the current user (linked as its first member),
  * plus the requested members and content grants — all in one unit of work. The
  * slug's format is enforced by the {@link Slug} value object and its uniqueness
- * by {@link SlugUniquenessService}; the audit event is recorded in-band and the
- * `workspace.created` domain event drained to the outbox.
+ * by {@link SlugUniquenessService}; the `workspace.created` domain event is
+ * drained to the outbox (carrying the actor), where the activity subscriber
+ * turns it into the audit row.
  */
 @Injectable()
 export class CreateWorkspaceUseCase {
@@ -39,10 +35,7 @@ export class CreateWorkspaceUseCase {
         @Inject(WORKSPACE_REPOSITORY)
         private readonly workspaces: WorkspaceRepository,
         @Inject(MEMBER_PROVISIONER)
-        private readonly provisioner: MemberProvisioner,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly provisioner: MemberProvisioner
     ) {}
 
     /**
@@ -71,20 +64,11 @@ export class CreateWorkspaceUseCase {
             });
             await this.workspaces.save(workspace);
 
-            // In-band audit (kept correct + gap-free during the transition;
-            // Wave 3 moves this onto an outbox subscriber and drops this call).
-            await this.recorder?.record(
-                {
-                    kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_CREATED,
-                    subjectType: 'workspace',
-                    subjectId: workspace.id.value,
-                    actorId: actor.id,
-                    actorEmail: actor.email,
-                    meta: { name: dto.name, slug: dto.slug }
-                },
-                this.uow.current()
+            // Audit is derived downstream from the domain event by the activity
+            // subscriber; the actor rides along on the event payload.
+            await this.outbox.append(
+                attachActor(workspace.pullEvents(), actor)
             );
-            await this.outbox.append(workspace.pullEvents());
 
             return workspace.id.value;
         });

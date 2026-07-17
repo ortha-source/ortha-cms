@@ -1,12 +1,12 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import {
-    ACTIVITY_RECORDER,
-    type ActivityRecorder,
-    type PublicUser
-} from '@ortha-cms/identity-server';
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
 import { MemberId } from '../../domain/value-objects/member-id';
 import { MemberNotFoundError, SelfActionError } from '../../domain/errors';
+import {
+    MEMBER_EVENT_KINDS,
+    memberEvent
+} from '../../domain/events/member-events';
 import {
     MEMBER_REPOSITORY,
     type MemberRepository
@@ -15,7 +15,6 @@ import {
     SESSION_REVOKER,
     type SessionRevoker
 } from '../ports/session-revoker.port';
-import { USER_ACTIVITY_KINDS } from '../member-activity';
 
 /**
  * Flips a member's account status. `disable` rejects self-disable
@@ -28,7 +27,9 @@ import { USER_ACTIVITY_KINDS } from '../member-activity';
  * Disable loads the member under the active-admin lock
  * ({@link MemberRepository.findByIdForAdminGuard}) and checks the count read
  * under it, so concurrent disables cannot race the admin count below one.
- * Records `user.suspended` / `user.reactivated` in-band; drains `member.disabled`.
+ * Drains `member.disabled` (from the aggregate) and mints `member.reactivated`
+ * on enable — the activity subscriber turns them into the `user.suspended` /
+ * `user.reactivated` audit rows.
  */
 @Injectable()
 export class SetMemberStatusUseCase {
@@ -38,10 +39,7 @@ export class SetMemberStatusUseCase {
         @Inject(MEMBER_REPOSITORY)
         private readonly members: MemberRepository,
         @Inject(SESSION_REVOKER)
-        private readonly sessions: SessionRevoker,
-        @Optional()
-        @Inject(ACTIVITY_RECORDER)
-        private readonly recorder?: ActivityRecorder
+        private readonly sessions: SessionRevoker
     ) {}
 
     /** Disables an active member. 404s an unknown member; throws the guards. */
@@ -62,17 +60,7 @@ export class SetMemberStatusUseCase {
             await this.members.save(member);
             await this.sessions.revoke(id);
 
-            await this.recorder?.record(
-                {
-                    kind: USER_ACTIVITY_KINDS.USER_SUSPENDED,
-                    subjectType: 'user',
-                    subjectId: id,
-                    actorId: actor.id,
-                    actorEmail: actor.email
-                },
-                this.uow.current()
-            );
-            await this.outbox.append(member.pullEvents());
+            await this.outbox.append(attachActor(member.pullEvents(), actor));
         });
     }
 
@@ -88,17 +76,14 @@ export class SetMemberStatusUseCase {
             member.enable();
             await this.members.save(member);
 
-            await this.recorder?.record(
-                {
-                    kind: USER_ACTIVITY_KINDS.USER_REACTIVATED,
-                    subjectType: 'user',
-                    subjectId: id,
-                    actorId: actor.id,
-                    actorEmail: actor.email
-                },
-                this.uow.current()
+            // Enable is not a primary aggregate transition, so the reactivation
+            // fact is minted here for the audit subscriber.
+            await this.outbox.append(
+                attachActor(
+                    [memberEvent(MEMBER_EVENT_KINDS.REACTIVATED, id, {})],
+                    actor
+                )
             );
-            await this.outbox.append(member.pullEvents());
         });
     }
 }
