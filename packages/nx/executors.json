@@ -10,6 +10,11 @@
             "implementation": "./src/executors/db-migrate/executor",
             "schema": "./src/executors/db-migrate/schema.json",
             "description": "Apply every registered plugin's migrations."
+        },
+        "db-studio": {
+            "implementation": "./src/executors/db-studio/executor",
+            "schema": "./src/executors/db-studio/schema.json",
+            "description": "Launch Drizzle Studio against the host database."
         }
     }
 }

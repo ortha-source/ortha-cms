@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/schema",
+    "version": 2,
+    "title": "db-studio",
+    "description": "Launch Drizzle Studio against the host database.",
+    "type": "object",
+    "properties": {
+        "config": {
+            "type": "string",
+            "description": "Path to the host's ortha.config.ts (relative to the workspace root)."
+        },
+        "host": {
+            "type": "string",
+            "description": "Host interface Studio's local server binds to (drizzle-kit default: 127.0.0.1)."
+        },
+        "port": {
+            "type": "number",
+            "description": "Port Studio's local server listens on (drizzle-kit default: 4983)."
+        }
+    },
+    "required": ["config"]
+}
