@@ -6,10 +6,12 @@ export type {
     MemberRoleView,
     MemberWorkspaceView,
     MemberListView
-} from './lib/users/types/member-view';
+} from './lib/member/application/queries/member.view';
 export {
-    ASSIGNABLE_ROLE_KEYS,
+    ASSIGNABLE_ROLE_KEYS
+} from './lib/member/domain/value-objects/role';
+export type { AssignableRoleKey } from './lib/member/domain/value-objects/role';
+export {
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE
-} from './lib/users/users.constants';
-export type { AssignableRoleKey } from './lib/users/users.constants';
+} from './lib/member/member.constants';
