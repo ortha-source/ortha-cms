@@ -5,6 +5,19 @@ a scaffold: a rail button + placeholder page mounted **inside a workspace**; the
 real asset browser/upload experience lands later. No server package yet — it
 will gain `@ortha-cms/media-server` once there are assets to serve.
 
+## Layout — born layered (ADR-0003)
+
+This is a static scaffold today (a page + the plugin factory), so it has **no**
+`domain/application/infrastructure/presentation` layers yet — and deliberately
+so: forcing empty layers onto a placeholder is the over-engineering ADR-0003
+warns against. When the first real feature lands (the asset browser/upload), it
+is **born in the layered shape** — copy the FE reference `packages/users/admin`
+(gateway port + `httpMediaGateway` over `apiClient`, mapper ACL, use-case hooks
+for the upload flow) and, when `@ortha-cms/media-server` is created, the server
+reference `packages/workspaces/server` (an `Asset` aggregate with an upload
+lifecycle, repository port, `StorageGateway` port, outbox events). Do not
+retrofit layers before there is behavior to hold them.
+
 ## Package
 
 - Name: `@ortha-cms/media-admin`
