@@ -40,7 +40,7 @@ test.describe('Relation picker', () => {
         await mockEntryRelations(page);
     });
 
-    test('renders each relation field as a collapsible section', async ({
+    test('renders each relation field as a titled card', async ({
         relationsEditorPage
     }) => {
         await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
@@ -48,7 +48,7 @@ test.describe('Relation picker', () => {
 
         await expect(relationsEditorPage.section('Author')).toBeVisible();
         await expect(relationsEditorPage.section('Tags')).toBeVisible();
-        // Sections start open (≤3 relation fields), so the triggers show.
+        // Cards are always expanded, so the triggers show.
         await expect(relationsEditorPage.selectButton('Authors')).toBeVisible();
         await expect(relationsEditorPage.addRelatedButton).toBeVisible();
         await expect(relationsEditorPage.nothingLinked.first()).toBeVisible();
@@ -68,6 +68,12 @@ test.describe('Relation picker', () => {
         await expect(relationsEditorPage.dialog).toBeHidden();
         await expect(
             relationsEditorPage.assignedRemove('Ada Lovelace')
+        ).toBeVisible();
+        // The assigned single-relation row carries a "Replace" action (re-opens
+        // the picker) and a slugified `/handle` (author has no slug field).
+        await expect(relationsEditorPage.replaceButton).toBeVisible();
+        await expect(
+            relationsEditorPage.recordHandle('ada-lovelace')
         ).toBeVisible();
     });
 
@@ -91,10 +97,37 @@ test.describe('Relation picker', () => {
         await expect(
             relationsEditorPage.assignedRemove('design')
         ).toBeVisible();
-        // A many relation's rows are reorderable (a drag handle per row).
+        // A many relation's rows are reorderable — a drag handle plus up/down
+        // arrows per row (the first row's up arrow is disabled, the last row's
+        // down arrow is disabled).
         await expect(
             relationsEditorPage.dragHandle('engineering')
         ).toBeVisible();
+        await expect(relationsEditorPage.moveUp('engineering')).toBeDisabled();
+        await expect(relationsEditorPage.moveDown('design')).toBeDisabled();
+        // Each linked tag shows its slug as a muted `/handle`.
+        await expect(
+            relationsEditorPage.recordHandle('engineering')
+        ).toBeVisible();
+    });
+
+    test('reorders a many relation with the down arrow', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').click();
+        await relationsEditorPage.candidate('design').click();
+        await relationsEditorPage.addSelectedButton.click();
+
+        // engineering is first (its up arrow is disabled). Nudging it down swaps
+        // the pair, so now its up arrow is enabled and design's is disabled.
+        await expect(relationsEditorPage.moveUp('engineering')).toBeDisabled();
+        await relationsEditorPage.moveDown('engineering').click();
+        await expect(relationsEditorPage.moveUp('engineering')).toBeEnabled();
+        await expect(relationsEditorPage.moveUp('design')).toBeDisabled();
     });
 
     test('offers an open-in-new-tab link on candidate and assigned rows', async ({

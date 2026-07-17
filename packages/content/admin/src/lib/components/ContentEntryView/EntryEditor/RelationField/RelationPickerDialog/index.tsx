@@ -15,6 +15,8 @@ import {
     useRelationCandidates,
     type RelationCandidate
 } from '../../../../../api/useRelationCandidates';
+import { useEntrySlotContext } from '../../../../../hooks/useEntrySlotContext';
+import { ENTRY_PARAMS_SLOT } from '../../../../../slots/contentSlots';
 import { filterFieldsFromSchema } from '../../../../../utils/filterFieldsFromSchema';
 import { RelationPickerFilters } from './RelationPickerFilters';
 import { RelationCandidateList } from './RelationCandidateList';
@@ -123,6 +125,22 @@ export function RelationPickerDialog({
         [schema]
     );
 
+    // Slot-contributed candidate params (e.g. locale scoping from the i18n
+    // plugin), computed against the target's schema and the surrounding
+    // editor's slot context. Boot-frozen items → stable across renders.
+    const slotContext = useEntrySlotContext();
+    const extraParams = useMemo(() => {
+        if (!schema || !slotContext) return {};
+        const merged: Record<string, string> = {};
+        for (const item of ENTRY_PARAMS_SLOT.getItems()) {
+            Object.assign(
+                merged,
+                item.relationCandidateParams?.(schema, slotContext) ?? {}
+            );
+        }
+        return merged;
+    }, [schema, slotContext]);
+
     const {
         items,
         total,
@@ -134,7 +152,11 @@ export function RelationPickerDialog({
     } = useRelationCandidates(
         targetName,
         schema?.fields ?? [],
-        { search, filter },
+        {
+            search,
+            filter,
+            ...(Object.keys(extraParams).length ? { extra: extraParams } : {})
+        },
         open
     );
     // The list is "pending" until both the target schema (for titles) and the

@@ -289,6 +289,35 @@ describe('Content entry writes (/api/content/:type)', () => {
             );
         });
 
+        it('resolves a linked record’s slug from its slug field', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            // `tag` has a `slug` field (admin.widget === 'slug'); `author` has
+            // none. A relation ref carries the slug only when the target has one.
+            const withSlug = await agent
+                .post('/api/content/tag')
+                .send({ values: { name: 'Engineering', slug: 'engineering' } })
+                .expect(201);
+            const noSlug = await seedTagIn(workspaceId, 'design');
+
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [withSlug.body.id, noSlug]
+            });
+            const res = await agent
+                .get(`/api/content/article/${id}/relations`)
+                .expect(200);
+            const items = (
+                res.body.relations.tags as {
+                    items: { id: string; slug?: string }[];
+                }
+            ).items;
+            const bySlugField = items.find((t) => t.id === withSlug.body.id);
+            const withoutSlugValue = items.find((t) => t.id === noSlug);
+            expect(bySlugField?.slug).toBe('engineering');
+            // A tag created without a slug value omits the field entirely.
+            expect(withoutSlugValue?.slug).toBeUndefined();
+        });
+
         it('replaces the link set on update (unlink + link in one save)', async () => {
             const agent = await login(ADMIN_EMAIL);
             const eng = await seedTagIn(workspaceId, 'engineering');

@@ -37,6 +37,11 @@ export type RelationCandidatesParams = {
     search?: string;
     /** The composed query-builder tree, or null when no rules are set. */
     filter?: FilterGroup | null;
+    /**
+     * Slot-contributed list params (e.g. locale scoping from the entry-params
+     * slot), forwarded to the request verbatim and keyed into the cache.
+     */
+    extra?: Record<string, string>;
 };
 
 /** The paginated candidate envelope: the loaded matches, the full count, more-flag. */
@@ -73,13 +78,15 @@ async function fetchRelationCandidatesPage(
     targetName: string,
     search: string,
     filter: string | null,
-    page: number
+    page: number,
+    extra: Record<string, string>
 ): Promise<EntriesEnvelope> {
     try {
         const { data } = await apiClient.get<EntriesEnvelope>(
             `/content/${targetName}`,
             {
                 params: {
+                    ...extra,
                     ...(search ? { search } : {}),
                     ...(filter ? { filter } : {}),
                     page,
@@ -107,7 +114,11 @@ async function fetchRelationCandidatesPage(
 export const relationCandidatesKey = (
     workspaceId: string,
     targetName: string,
-    params: { search: string; filter: string | null }
+    params: {
+        search: string;
+        filter: string | null;
+        extra?: Record<string, string>;
+    }
 ) => ['relation-candidates', workspaceId, targetName, params] as const;
 
 /**
@@ -126,7 +137,7 @@ export function useRelationCandidates(
     params: RelationCandidatesParams,
     enabled = true
 ): RelationCandidatesResult {
-    const { search = '', filter = null } = params;
+    const { search = '', filter = null, extra = {} } = params;
     const workspace = useCurrentWorkspace();
     // Serialize the query-builder tree to the `?filter=` wire JSON the server
     // parses (null when the tree has no complete rules).
@@ -135,7 +146,8 @@ export function useRelationCandidates(
     const query = useInfiniteQuery({
         queryKey: relationCandidatesKey(workspace.id, targetName, {
             search,
-            filter: filterJson
+            filter: filterJson,
+            ...(Object.keys(extra).length ? { extra } : {})
         }),
         enabled: enabled && !!targetName,
         placeholderData: keepPreviousData,
@@ -145,7 +157,8 @@ export function useRelationCandidates(
                 targetName,
                 search,
                 filterJson,
-                pageParam
+                pageParam,
+                extra
             ),
         // Another page exists while fewer rows are loaded than the total match
         // count; the next page is the following offset.

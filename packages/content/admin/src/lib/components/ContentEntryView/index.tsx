@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
@@ -36,6 +36,12 @@ import {
 import { useContentEntry } from '../../api/useContentEntry';
 import { useSaveEntry } from '../../api/useSaveEntry';
 import { useEntryStatusActions } from '../../api/useEntryStatusActions';
+import { useSlotListParams } from '../../hooks/useSlotListParams';
+import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
+import {
+    ENTRY_PARAMS_SLOT,
+    type EntrySlotContext
+} from '../../slots/contentSlots';
 import {
     emptyEntryValues,
     mergeEntryValues
@@ -112,6 +118,30 @@ function seedRelationValues(
 }
 
 /**
+ * Seed a blank create form from a source record's values, copying **only the
+ * non-localized (shared) fields** — used when a locale plugin opens a draft for
+ * a new translation (`location.state.translateFrom`). Localized fields stay
+ * empty so the translator fills them; a field the schema marks `localized`
+ * (only ever present on i18n types) is skipped. No-op when there's nothing to
+ * copy from.
+ */
+function applyTranslatePrefill(
+    schema: ContentTypeDetail,
+    base: Record<string, unknown>,
+    translateFrom: Record<string, unknown> | undefined
+): Record<string, unknown> {
+    if (!translateFrom) return base;
+    const values = { ...base };
+    for (const field of schema.fields) {
+        if (field.localized) continue; // localized → left blank per locale
+        if (field.name in translateFrom) {
+            values[field.name] = translateFrom[field.name];
+        }
+    }
+    return values;
+}
+
+/**
  * Hosts the {@link EntryEditor} for all three modes:
  * - `create` (`/:type/new`) → a blank editor;
  * - `edit` (`/:type/:entryId`) → the record from `GET /content/:type/:id`, seeded
@@ -135,17 +165,43 @@ export function ContentEntryView({
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const location = useLocation();
     const workspace = useCurrentWorkspace();
     const queryClient = useQueryClient();
     const typePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}/${type.name}`;
 
+    // A slot may open a blank create form pre-seeded from a source record (the
+    // i18n plugin's "create a translation" flow passes the source's values as
+    // `translateFrom`); the shared (non-localized) fields are copied in.
+    const translateFrom = (
+        location.state as { translateFrom?: Record<string, unknown> } | null
+    )?.translateFrom;
+
     const schemaQuery = useContentSchema(type.name);
     const schema = schemaQuery.data;
+
+    // Slot-contributed entry params (e.g. the i18n plugin's `?locale=`): URL
+    // values scoping the single-mode read, and URL values copied into the
+    // create body. Slot items are boot-frozen, so reading them is stable.
+    const entryParamsItems = ENTRY_PARAMS_SLOT.getItems();
+    const listParamKeys = useMemo(
+        () => entryParamsItems.flatMap((item) => item.listParamKeys ?? []),
+        [entryParamsItems]
+    );
+    const listSlotParams = useSlotListParams(listParamKeys);
+    const bodyParamKeys = useMemo(
+        () => entryParamsItems.flatMap((item) => item.createBodyKeys ?? []),
+        [entryParamsItems]
+    );
+    const bodySlotParams = useSlotListParams(bodyParamKeys);
 
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
         schema,
-        ONE_ENTRY,
+        {
+            ...ONE_ENTRY,
+            ...(listParamKeys.length ? { extra: listSlotParams } : {})
+        },
         mode === ENTRY_MODE.Single && !!schema
     );
 
@@ -192,8 +248,19 @@ export function ContentEntryView({
         entry?: EntryRecord;
     } | null => {
         if (!schema) return null;
+        // A blank create form, optionally pre-seeded with the shared fields of
+        // a source record (translation flow).
+        const blank = () =>
+            seedRelationValues(
+                schema,
+                applyTranslatePrefill(
+                    schema,
+                    emptyEntryValues(schema),
+                    translateFrom
+                )
+            );
         if (mode === ENTRY_MODE.Create) {
-            return { values: seedRelationValues(schema, emptyEntryValues(schema)) };
+            return { values: blank() };
         }
         const source = mode === ENTRY_MODE.Edit ? editEntry : singleEntry;
         if (source) {
@@ -206,10 +273,8 @@ export function ContentEntryView({
             };
         }
         // A single page with no row yet falls back to a blank create form.
-        return mode === ENTRY_MODE.Single
-            ? { values: seedRelationValues(schema, emptyEntryValues(schema)) }
-            : null;
-    }, [schema, mode, editEntry, singleEntry]);
+        return mode === ENTRY_MODE.Single ? { values: blank() } : null;
+    }, [schema, mode, editEntry, singleEntry, translateFrom]);
 
     const loading =
         schemaQuery.isPending ||
@@ -280,10 +345,18 @@ export function ContentEntryView({
         // Reuse the id of an existing row, or one we already created this
         // session — so a save after a failed publish updates, never re-creates.
         const existingId = resolved.entry?.id ?? createdId;
+        // Slot-contributed create-body params (e.g. the target locale), from
+        // the URL. Present values only; applies to the create POST alone.
+        const bodyExtra = Object.fromEntries(
+            Object.entries(bodySlotParams).filter(
+                (pair): pair is [string, string] => pair[1] !== undefined
+            )
+        );
         const saved = await save.mutateAsync({
             id: existingId,
             values,
-            relations: options.relations
+            relations: options.relations,
+            ...(Object.keys(bodyExtra).length ? { extra: bodyExtra } : {})
         });
         // Record the new id before chaining publish: if publish then fails, the
         // draft persists and the user's retry must target it (not POST again).
@@ -315,8 +388,15 @@ export function ContentEntryView({
                 { label: schema.label }
             )
         );
-        // Collections return to the table; a single page stays put.
-        if (mode !== ENTRY_MODE.Single) navigate(typePath);
+        // Stay on the editor after a save — surface success via the toast, don't
+        // bounce back to the records list. A brand-new record (create, incl. a
+        // translation sibling) moves to its own editor URL so the id is in the
+        // URL and a further save updates it; an existing record is already there
+        // and its invalidated query refreshes in place. A single stays put — its
+        // `?locale=` re-resolves to the row just created.
+        if (mode !== ENTRY_MODE.Single && !existingId) {
+            navigate(`${typePath}/${saved.id}`);
+        }
     };
 
     // Entry-level actions are available only when editing an existing collection
@@ -351,28 +431,48 @@ export function ContentEntryView({
           }
         : undefined;
 
+    // The context handed to entry-editor slot consumers (sidebar widgets, the
+    // relation picker's param contributions) — both via the provider below and
+    // as an explicit prop where a render site maps slot items.
+    const slotContext: EntrySlotContext = {
+        schema,
+        entry: resolved.entry,
+        isCreate,
+        mode,
+        workspaceId: workspace.id,
+        typePath,
+        // The entry-params URL values (opaque), so a slot can scope by its own
+        // param even on a create form — e.g. i18n reads `?locale=` here to keep
+        // the relation picker in-locale when there's no saved `entry` yet.
+        params: { ...listSlotParams, ...bodySlotParams }
+    };
+
     return (
         <div className="flex min-h-full flex-col">
-            <EntryEditor
-                schema={schema}
-                initialValues={resolved.values}
-                entry={resolved.entry}
-                isCreate={isCreate}
-                publishable={publishable}
-                title={title}
-                subtitle={schema.description}
-                saving={
-                    save.isPending ||
-                    status.publish.isPending ||
-                    status.unpublish.isPending
-                }
-                mutating={status.unpublish.isPending || status.remove.isPending}
-                onSave={onSave}
-                onUnpublish={onUnpublish}
-                onDelete={onDelete}
-                backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
-                availableTypeNames={workspace.content}
-            />
+            <EntrySlotContextProvider value={slotContext}>
+                <EntryEditor
+                    schema={schema}
+                    initialValues={resolved.values}
+                    entry={resolved.entry}
+                    isCreate={isCreate}
+                    publishable={publishable}
+                    title={title}
+                    subtitle={schema.description}
+                    saving={
+                        save.isPending ||
+                        status.publish.isPending ||
+                        status.unpublish.isPending
+                    }
+                    mutating={
+                        status.unpublish.isPending || status.remove.isPending
+                    }
+                    onSave={onSave}
+                    onUnpublish={onUnpublish}
+                    onDelete={onDelete}
+                    backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                    availableTypeNames={workspace.content}
+                />
+            </EntrySlotContextProvider>
         </div>
     );
 }

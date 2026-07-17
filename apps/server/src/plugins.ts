@@ -3,6 +3,7 @@ import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
 import { DatabasePlugin } from '@ortha-cms/database';
+import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
 import { UsersPlugin } from '@ortha-cms/users-server';
 import type { OrthaConfig } from '../ortha.config';
@@ -18,10 +19,12 @@ import { contentTypes } from './content';
  * read/create endpoints; `ActivityPlugin` follows it (its read API is gated by
  * identity's guard + `activity:read` permission, and identity records audit
  * events through its globally-bound recorder). `UsersPlugin` reads identity's
- * tables and records through the activity plugin. `ContentPlugin` is listed
- * last; its generated collection tables are host-owned migrations, independent
- * of the other plugins (all modules are global, so DI is order-independent —
- * the order here just keeps migrations and intent legible).
+ * tables and records through the activity plugin. `ContentPlugin`'s generated
+ * collection tables are host-owned migrations, independent of the other
+ * plugins (all modules are global, so DI is order-independent — the order
+ * here just keeps migrations and intent legible). `I18nServerPlugin` follows
+ * `ContentPlugin`: it binds content's `CONTENT_ENTRY_EXTENSION` port and
+ * reads its registry.
  */
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     return [
@@ -39,6 +42,7 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
                 dir: () => join(__dirname, '../migrations'),
                 table: '__drizzle_migrations_content'
             }
-        })
+        }),
+        I18nServerPlugin(config.plugins.i18n)
     ];
 }

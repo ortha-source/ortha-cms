@@ -151,6 +151,24 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('link', { name: 'Back to records' });
     }
 
+    /** A form field's text input by its label. */
+    fieldTextbox(label: string): Locator {
+        return this.page.getByRole('textbox', { name: label });
+    }
+
+    /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
+    async saveDraft(): Promise<void> {
+        await this.page.getByRole('button', { name: 'More actions' }).click();
+        await this.page
+            .getByRole('menuitem', { name: 'Save draft' })
+            .click();
+    }
+
+    /** The "Changes saved." success toast after an edit save. */
+    get savedToast(): Locator {
+        return this.page.getByText('Changes saved.', { exact: true });
+    }
+
     /** The column-picker trigger. */
     get columnsButton(): Locator {
         return this.page.getByRole('button', { name: 'Columns' });
@@ -237,7 +255,7 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /** Visible text in the selected-type / placeholder pane. */
-    paneText(text: string): Locator {
+    paneText(text: string | RegExp): Locator {
         return this.page.getByText(text);
     }
 
@@ -254,5 +272,69 @@ export class ContentLibraryPage extends BasePage {
     /** The error state's retry button. */
     get retry(): Locator {
         return this.page.getByRole('button', { name: 'Try again' });
+    }
+
+    // --- i18n (from @ortha-cms/i18n-admin, via the content library slots) ---
+
+    /** The records-toolbar locale switcher trigger (label reads "Locale: {name}"). */
+    get localeSwitcher(): Locator {
+        return this.page.getByRole('button', { name: /^Locale: / });
+    }
+
+    /** A locale option inside the open switcher popover. */
+    localeOption(name: string | RegExp): Locator {
+        return this.page.getByRole('option', { name });
+    }
+
+    /** Open the locale switcher and pick a locale by its option name. */
+    async selectLocale(name: string | RegExp) {
+        await this.localeSwitcher.click();
+        await this.localeOption(name).click();
+    }
+
+    /** The transient "Switching to …" overlay shown while a locale switch plays. */
+    get localeSwitchOverlay(): Locator {
+        return this.page.getByText(/Switching to/);
+    }
+
+    /** The entry editor's locale switcher (sidebar widget) title text. */
+    get localeWidget(): Locator {
+        return this.page.getByText('Locale', { exact: true });
+    }
+
+    /** The widget's "Translation group" label. */
+    get localeGroupLabel(): Locator {
+        return this.page.getByText('Translation group', { exact: true });
+    }
+
+    /** The info tooltip trigger beside the translation-group id. */
+    get localeGroupHelp(): Locator {
+        return this.page.getByRole('button', {
+            name: 'What is the translation group?'
+        });
+    }
+
+    /** The translation-group id value shown in the widget. */
+    localeGroupId(id: string): Locator {
+        return this.page.getByText(id, { exact: true });
+    }
+
+    /** The current-locale chip beside the entry-editor title (aria-labelled). */
+    get editorTitleChip(): Locator {
+        return this.page.getByLabel(/Current locale/);
+    }
+
+    /** The switch-to-create control for a not-yet-translated locale in the widget. */
+    createTranslation(localeName: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Create the ${localeName} translation`
+        });
+    }
+
+    /** The switch control for an existing sibling locale in the widget. */
+    switchLocale(localeName: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Switch to the ${localeName} version`
+        });
     }
 }

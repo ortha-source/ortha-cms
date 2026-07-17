@@ -29,8 +29,8 @@ export function ContentSidebarLink({
                 cn(
                     'flex h-8 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-sm outline-none transition-colors duration-[120ms] focus-visible:ring-2 focus-visible:ring-ring',
                     isActive
-                        ? 'bg-accent font-medium text-foreground'
-                        : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                        ? 'bg-sidebar-accent font-medium text-foreground'
+                        : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground'
                 )
             }
         >

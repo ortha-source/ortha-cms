@@ -66,10 +66,16 @@ function rowLabel(record: EntryRecord, columns: EntryColumn[]): string {
 /** The cell content for one column of one record. */
 function Cell({
     column,
-    record
+    record,
+    extensionData,
+    typePath
 }: {
     column: EntryColumn;
     record: EntryRecord;
+    /** Per-item page data from the extension columns' `useRowsData`, by item id. */
+    extensionData: Record<string, unknown>;
+    /** Absolute path to the open type, for extension cells that navigate. */
+    typePath: string;
 }) {
     const intl = useIntl();
     switch (column.kind) {
@@ -90,6 +96,14 @@ function Cell({
                 <span className="text-sm text-muted-foreground">
                     {intl.formatDate(record.updatedAt, { dateStyle: 'medium' })}
                 </span>
+            );
+        case COLUMN_KIND.Extension:
+            return (
+                <column.item.Cell
+                    entry={record}
+                    data={extensionData[column.id]}
+                    typePath={typePath}
+                />
             );
         case COLUMN_KIND.Field:
             return (
@@ -112,6 +126,7 @@ export function CollectionRecordsTable({
     label,
     entries,
     columns,
+    extensionData = {},
     typePath,
     typeName,
     publishable,
@@ -129,6 +144,8 @@ export function CollectionRecordsTable({
     entries: EntryRecord[];
     /** The visible columns, in display order. */
     columns: EntryColumn[];
+    /** Per-item page data from the extension columns' `useRowsData`, by item id. */
+    extensionData?: Record<string, unknown>;
     /** Absolute path to this type, e.g. `/workspaces/:id/content/:typeName`. */
     typePath: string;
     /** The content type's machine name (for the row action mutations). */
@@ -188,6 +205,15 @@ export function CollectionRecordsTable({
                                     : 'descending'
                                 : 'none';
                             const label = columnLabel(column);
+                            // Extension columns aren't in the server's sort
+                            // whitelist — render a plain, non-sortable header.
+                            if (column.kind === COLUMN_KIND.Extension) {
+                                return (
+                                    <TableHead key={column.id} scope="col">
+                                        {label}
+                                    </TableHead>
+                                );
+                            }
                             return (
                                 <TableHead
                                     key={column.id}
@@ -264,7 +290,20 @@ export function CollectionRecordsTable({
                                     />
                                 </TableCell>
                                 {columns.map((column, index) => (
-                                    <TableCell key={column.id}>
+                                    <TableCell
+                                        key={column.id}
+                                        // Extension cells own their clicks
+                                        // (e.g. a badge navigating to a
+                                        // sibling record) — don't let the row
+                                        // navigation swallow them.
+                                        onClick={
+                                            column.kind ===
+                                            COLUMN_KIND.Extension
+                                                ? (event) =>
+                                                      event.stopPropagation()
+                                                : undefined
+                                        }
+                                    >
                                         {index === 0 && !trashed ? (
                                             <Link
                                                 to={`${typePath}/${record.id}`}
@@ -276,12 +315,18 @@ export function CollectionRecordsTable({
                                                 <Cell
                                                     column={column}
                                                     record={record}
+                                                    extensionData={
+                                                        extensionData
+                                                    }
+                                                    typePath={typePath}
                                                 />
                                             </Link>
                                         ) : (
                                             <Cell
                                                 column={column}
                                                 record={record}
+                                                extensionData={extensionData}
+                                                typePath={typePath}
                                             />
                                         )}
                                     </TableCell>

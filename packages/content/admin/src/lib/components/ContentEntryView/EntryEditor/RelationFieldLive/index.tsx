@@ -20,13 +20,19 @@ import {
 } from '@dnd-kit/sortable';
 import { Button, Spinner } from '@ortha-cms/design-system';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import type { ContentField, StagedRelation } from '../../../../types/contentType';
+import type {
+    ContentField,
+    RelationRef,
+    StagedRelation
+} from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
 import { useRelationFieldLinks } from '../../../../api/useRelationFieldLinks';
 import type { RelationCandidate } from '../../../../api/useRelationCandidates';
 import { applyStaged, reconcileStaged } from '../../../../utils/stagedRelation';
 import { contentEntryPath } from '../../../../utils/contentEntryPath';
+import { handleFor, slugFromValues } from '../../../../utils/relationHandle';
 import { RelationItemRow } from '../RelationField/RelationItemRow';
+import { RelationIndex } from '../RelationField/RelationIndex';
 import { SortableRelationItem } from '../RelationField/SortableRelationItem';
 import { RelationPickerDialog } from '../RelationField/RelationPickerDialog';
 
@@ -47,6 +53,14 @@ const messages = defineMessages({
     open: {
         id: 'content.relations.live.open',
         defaultMessage: 'Open {title} in a new tab'
+    },
+    moveUp: {
+        id: 'content.relations.live.moveUp',
+        defaultMessage: 'Move {title} up'
+    },
+    moveDown: {
+        id: 'content.relations.live.moveDown',
+        defaultMessage: 'Move {title} down'
     },
     loadError: {
         id: 'content.relations.live.loadError',
@@ -125,6 +139,7 @@ export function RelationFieldLive({
 
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
+    const targetFields = targetSchema?.fields ?? [];
 
     const links = useRelationFieldLinks(typeName, entryId, field.name, !!entryId);
     const serverItems = entryId ? links.items : [];
@@ -135,6 +150,10 @@ export function RelationFieldLive({
         intl.formatMessage(messages.remove, { title });
     const openLabelFor = (title: string) =>
         intl.formatMessage(messages.open, { title });
+    const moveUpLabelFor = (title: string) =>
+        intl.formatMessage(messages.moveUp, { title });
+    const moveDownLabelFor = (title: string) =>
+        intl.formatMessage(messages.moveDown, { title });
     // Deep link to the related record's own editor (open-in-new-tab), when the
     // target type is known.
     const hrefFor = (id: string) =>
@@ -177,14 +196,35 @@ export function RelationFieldLive({
     };
 
     // Reconcile the picker's chosen set against what's displayed: link the new
-    // ones (remembering their title), unlink the ones it dropped — all into the
-    // staged diff, no request.
-    const confirm = (chosenIds: string[], picked: RelationCandidate[]) =>
+    // ones (remembering their title, slug, and status), unlink the ones it
+    // dropped — all into the staged diff, no request. The picked candidates are
+    // enriched to RelationRefs with a derived slug so a freshly-added row shows
+    // its `/handle` immediately (mirroring a server-loaded ref).
+    const confirm = (chosenIds: string[], picked: RelationCandidate[]) => {
+        const refs: RelationRef[] = picked.map((c) => {
+            const slug = slugFromValues(c.values, targetFields);
+            return {
+                id: c.id,
+                title: c.title,
+                ...(slug ? { slug } : {}),
+                ...(c.status ? { status: c.status } : {})
+            };
+        });
         onStagedChange(
-            reconcileStaged(staged, ids, serverItems, chosenIds, picked)
+            reconcileStaged(staged, ids, serverItems, chosenIds, refs)
         );
+    };
 
     const removeId = (id: string) => confirm(ids.filter((x) => x !== id), []);
+
+    // Move a row one place up/down — same staged `order` path as a drag, so the
+    // arrows and drag stay a single source of order (owning many-relations only).
+    const move = (id: string, delta: number) => {
+        const from = ids.indexOf(id);
+        const to = from + delta;
+        if (from === -1 || to < 0 || to >= ids.length) return;
+        onStagedChange({ ...staged, order: arrayMove(ids, from, to) });
+    };
 
     // Open the picker against the **full** linked set, not just the pages loaded
     // so far: pull any unfetched link pages first, so an already-linked record on
@@ -292,24 +332,40 @@ export function RelationFieldLive({
                                 items={ids}
                                 strategy={verticalListSortingStrategy}
                             >
-                                {displayed.map((item) => (
+                                {displayed.map((item, i) => (
                                     <SortableRelationItem
                                         key={item.id}
                                         id={item.id}
                                         title={item.title}
+                                        handle={handleFor(item.title, item.slug)}
+                                        status={item.status}
+                                        leading={<RelationIndex position={i} />}
                                         onRemove={() => removeId(item.id)}
                                         removeLabel={removeLabelFor(item.title)}
                                         href={hrefFor(item.id)}
                                         openLabel={openLabelFor(item.title)}
+                                        onMoveUp={() => move(item.id, -1)}
+                                        moveUpLabel={moveUpLabelFor(item.title)}
+                                        moveUpDisabled={i === 0}
+                                        onMoveDown={() => move(item.id, 1)}
+                                        moveDownLabel={moveDownLabelFor(
+                                            item.title
+                                        )}
+                                        moveDownDisabled={
+                                            i === displayed.length - 1
+                                        }
                                     />
                                 ))}
                             </SortableContext>
                         </DndContext>
                     ) : (
-                        displayed.map((item) => (
+                        displayed.map((item, i) => (
                             <RelationItemRow
                                 key={item.id}
                                 title={item.title}
+                                handle={handleFor(item.title, item.slug)}
+                                status={item.status}
+                                leading={<RelationIndex position={i} />}
                                 onRemove={() => removeId(item.id)}
                                 removeLabel={removeLabelFor(item.title)}
                                 href={hrefFor(item.id)}
@@ -326,23 +382,20 @@ export function RelationFieldLive({
                 </div>
             )}
 
-            <div>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shadow-none"
-                    onClick={openPicker}
-                    disabled={preparing}
-                >
-                    {preparing ? (
-                        <Spinner className="size-4" aria-hidden />
-                    ) : (
-                        <Plus className="size-4" />
-                    )}
-                    {intl.formatMessage(triggerLabel, { label: targetLabel })}
-                </Button>
-            </div>
+            <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center border-dashed shadow-none"
+                onClick={openPicker}
+                disabled={preparing}
+            >
+                {preparing ? (
+                    <Spinner className="size-4" aria-hidden />
+                ) : (
+                    <Plus className="size-4" />
+                )}
+                {intl.formatMessage(triggerLabel, { label: targetLabel })}
+            </Button>
 
             <RelationPickerDialog
                 open={open}

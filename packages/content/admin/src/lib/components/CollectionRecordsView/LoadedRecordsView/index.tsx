@@ -36,8 +36,14 @@ import {
 } from '../../../constants';
 import { useContentEntries } from '../../../api/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
+import { useSlotListParams } from '../../../hooks/useSlotListParams';
 import { entryColumns } from '../../../utils/entryColumns';
 import { filterFieldsFromSchema } from '../../../utils/filterFieldsFromSchema';
+import {
+    RECORDS_COLUMN_SLOT,
+    RECORDS_FILTER_FIELDS_SLOT,
+    RECORDS_TOOLBAR_SLOT
+} from '../../../slots/contentSlots';
 import { CollectionRecordsTable } from '../CollectionRecordsTable';
 import { CollectionRecordsColumnPicker } from '../CollectionRecordsColumnPicker';
 import { CollectionRecordsPagination } from '../CollectionRecordsPagination';
@@ -166,7 +172,22 @@ export function LoadedRecordsView({
         [sort, updateParams]
     );
 
-    const { columns, defaults } = useMemo(() => entryColumns(schema), [schema]);
+    // Slot-contributed toolbar items and their URL-owned list params (e.g. the
+    // i18n plugin's `?locale=`). The values are forwarded to the list request
+    // verbatim and ride the query key. Slot items are boot-frozen, so reading
+    // them during render is stable.
+    const toolbarItems = RECORDS_TOOLBAR_SLOT.getItems();
+    const slotParamKeys = useMemo(
+        () => toolbarItems.flatMap((item) => item.listParamKeys ?? []),
+        [toolbarItems]
+    );
+    const slotParams = useSlotListParams(slotParamKeys);
+
+    const extensionColumnItems = RECORDS_COLUMN_SLOT.getItems();
+    const { columns, defaults } = useMemo(
+        () => entryColumns(schema, extensionColumnItems),
+        [schema, extensionColumnItems]
+    );
     const availableIds = useMemo(
         () => columns.map((column) => column.id),
         [columns]
@@ -212,10 +233,18 @@ export function LoadedRecordsView({
     }, []);
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-    const filterFields = useMemo(
+    const schemaFilterFields = useMemo(
         () => filterFieldsFromSchema(schema),
         [schema]
     );
+    // Slot-contributed filter fields (e.g. locale aggregates), appended after
+    // the schema-derived set. Hook-in-a-loop is rules-of-hooks-safe here:
+    // slot items are registered once at boot and never change, so the call
+    // order is stable across renders (see the slot module's JSDoc).
+    const slotFilterFields = RECORDS_FILTER_FIELDS_SLOT.getItems().flatMap(
+        (item) => item.useFields(schema)
+    );
+    const filterFields = [...schemaFilterFields, ...slotFilterFields];
     const appliedFilter = useMemo(
         () => jsonFilterToTree(filterParam),
         [filterParam]
@@ -229,7 +258,8 @@ export function LoadedRecordsView({
             sort: sortParam || undefined,
             page,
             pageSize,
-            deleted: trashed ? 'only' : undefined
+            deleted: trashed ? 'only' : undefined,
+            ...(slotParamKeys.length ? { extra: slotParams } : {})
         });
 
     const total = data?.total ?? 0;
@@ -261,12 +291,34 @@ export function LoadedRecordsView({
     const entries = data?.items ?? [];
     const hasFilters = searchInput.trim().length > 0 || ruleCount > 0;
 
+    // Per-page data for the extension columns: every registered item's
+    // `useRowsData` runs on every render (boot-frozen items → stable hook
+    // order; items gate their own fetching internally), keyed by item id for
+    // the table's cells.
+    const extensionData: Record<string, unknown> = {};
+    for (const item of extensionColumnItems) {
+        extensionData[item.id] = item.useRowsData?.(
+            entries,
+            schema,
+            workspace.id
+        );
+    }
+
     const clearFilters = () => {
         setSearchInput('');
         updateParams({ [SEARCH_PARAM]: undefined, filter: undefined });
     };
 
-    const openCreate = () => navigate(`${typePath}/${NEW_SEGMENT}`);
+    // Carry the slot-owned URL params (e.g. the active locale) into the create
+    // route, so a record is created in the context the table was showing.
+    const openCreate = () => {
+        const carried = new URLSearchParams();
+        for (const [key, value] of Object.entries(slotParams)) {
+            if (value !== undefined) carried.set(key, value);
+        }
+        const query = carried.toString();
+        navigate(`${typePath}/${NEW_SEGMENT}${query ? `?${query}` : ''}`);
+    };
 
     return (
         <Container className="max-w-none p-6 sm:p-6">
@@ -325,6 +377,15 @@ export function LoadedRecordsView({
                 )}
                 actions={
                     <div className="flex items-center gap-2">
+                        {toolbarItems.map((item) => (
+                            <item.Component
+                                key={item.id}
+                                schema={schema}
+                                workspaceId={workspace.id}
+                                params={slotParams}
+                                updateParams={updateParams}
+                            />
+                        ))}
                         <CollectionRecordsColumnPicker
                             columns={columns}
                             visible={visible}
@@ -421,6 +482,7 @@ export function LoadedRecordsView({
                         label={schema.label}
                         entries={entries}
                         columns={visibleColumns}
+                        extensionData={extensionData}
                         typePath={typePath}
                         typeName={type.name}
                         publishable={publishable}

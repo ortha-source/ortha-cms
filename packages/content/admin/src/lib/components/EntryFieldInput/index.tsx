@@ -19,7 +19,9 @@ import type { ContentField } from '../../types/contentType';
 import { fieldLabel } from '../../utils/entryColumns';
 import { adminProps } from '../../utils/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../constants';
+import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
+import { LocalizedFieldMark } from './LocalizedFieldMark';
 
 const messages = defineMessages({
     selectPlaceholder: {
@@ -84,18 +86,33 @@ export function EntryFieldInput({
     field,
     value,
     error,
+    changed = false,
     onChange,
     onBlur
 }: {
     field: ContentField;
     value: unknown;
     error?: string;
+    /** Whether the field holds an unsaved edit (shows a "Changed" badge). */
+    changed?: boolean;
     onChange: (value: unknown) => void;
     onBlur?: () => void;
 }) {
     const intl = useIntl();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
+    // The label row's right-hand adornments, kept together so they never
+    // collide: the "Changed" badge (unsaved edit) and, for a `localized` field
+    // (only ever on i18n types), a globe mark. `ml-auto` pushes the pair to the
+    // far right of the label row — in a `w-full` `FieldLabel` or `InputField`'s
+    // `labelAction` slot. Null when the field has neither.
+    const endAdornment =
+        changed || field.localized ? (
+            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                {changed ? <ChangedBadge /> : null}
+                {field.localized ? <LocalizedFieldMark /> : null}
+            </span>
+        ) : null;
     const admin = adminProps(field);
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
@@ -109,7 +126,13 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Boolean:
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel id={`${id}-label`}>{label}</FieldLabel>
+                    <FieldLabel
+                        id={`${id}-label`}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {label}
+                        {endAdornment}
+                    </FieldLabel>
                     <SegmentedControl
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
@@ -143,7 +166,13 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Select:
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {label}
+                        {endAdornment}
+                    </FieldLabel>
                     <Select
                         value={asText(value) || undefined}
                         onValueChange={(next) => {
@@ -186,7 +215,13 @@ export function EntryFieldInput({
             }));
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {label}
+                        {endAdornment}
+                    </FieldLabel>
                     <MultiSelect
                         id={id}
                         options={options}
@@ -223,7 +258,13 @@ export function EntryFieldInput({
                 : asText(value);
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {label}
+                        {endAdornment}
+                    </FieldLabel>
                     <Textarea
                         id={id}
                         value={display}
@@ -253,7 +294,13 @@ export function EntryFieldInput({
                 const ids = Array.isArray(value) ? (value as string[]) : [];
                 return (
                     <Field data-invalid={!!error}>
-                        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                        <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {label}
+                        {endAdornment}
+                    </FieldLabel>
                         <Textarea
                             id={id}
                             value={ids.join('\n')}
@@ -287,6 +334,7 @@ export function EntryFieldInput({
                 <InputField
                     id={id}
                     label={label}
+                    labelAction={endAdornment ?? undefined}
                     value={asText(value)}
                     description={
                         error
@@ -306,7 +354,13 @@ export function EntryFieldInput({
         case CONTENT_FIELD_TYPE.Datetime:
             return (
                 <Field data-invalid={!!error}>
-                    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                    <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {label}
+                        {endAdornment}
+                    </FieldLabel>
                     <DateField
                         id={id}
                         value={asText(value)}
@@ -336,6 +390,7 @@ export function EntryFieldInput({
                 <InputField
                     id={id}
                     label={label}
+                    labelAction={endAdornment ?? undefined}
                     value={asText(value)}
                     description={description}
                     placeholder={admin.placeholder}

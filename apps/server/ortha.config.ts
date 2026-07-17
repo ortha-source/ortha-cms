@@ -8,6 +8,7 @@
  */
 
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
+import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
 
 /** Database connection settings. */
 export interface OrthaDatabaseConfig {
@@ -27,6 +28,8 @@ export interface OrthaConfig {
     plugins: {
         /** Identity plugin settings. */
         identity: IdentityPluginConfig;
+        /** i18n plugin settings — the available content locales. */
+        i18n: I18nPluginConfig;
     };
 }
 
@@ -73,6 +76,17 @@ const config: OrthaConfig = {
                 password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
                 name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
             }
+        },
+        i18n: {
+            // Content locales — stable product configuration, so literals
+            // (like the rest of the non-secret tuning here). The slugs are
+            // stored on entry rows; the migration backfill assumes 'en' is
+            // the default.
+            locales: [
+                { slug: 'en', name: 'English', isDefault: true },
+                { slug: 'de', name: 'Deutsch' },
+                { slug: 'fr', name: 'Français' }
+            ]
         }
     }
 };

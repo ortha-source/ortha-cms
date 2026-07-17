@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_160 test cases across 23 spec files._
+_172 test cases across 24 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -162,10 +162,29 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | searching with no matches shows the empty state |
 | the column picker toggles a column |
 | Add record and row click route to their stubs |
+| saving a record stays on the editor and shows a success toast |
 | reorders a column via the keyboard |
 | sorts records by a column, toggling asc → desc → off |
 | selects rows, select-all, and clears the selection |
 | row actions menu offers Edit, Publish, and Copy ID |
+
+<!-- source: apps/admin-e2e/src/content/i18n.spec.ts -->
+_<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
+
+## Content i18n
+
+| Test case |
+| --- |
+| shows the locale switcher on a localized collection |
+| switching locale updates the URL and re-scopes the table |
+| switching locale plays a brief "Switching…" overlay |
+| the Locales column shows per-group locale badges |
+| the entry editor locale switcher shows current / existing / missing |
+| switching to an existing sibling opens that locale row |
+| selecting a missing locale opens a prefilled draft form |
+| a brand-new record can be re-targeted to another locale before saving |
+| a translation draft can jump to an existing sibling |
+| the relation picker on a translation-create form is scoped to that locale |
 
 <!-- source: apps/admin-e2e/src/content/relations.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
@@ -174,9 +193,10 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders each relation field as a collapsible section |
+| renders each relation field as a titled card |
 | assigns a single relation and shows it by title |
 | assigns multiple records to a many relation |
+| reorders a many relation with the down arrow |
 | offers an open-in-new-tab link on candidate and assigned rows |
 | searches to narrow the candidate list |
 | lazily loads more candidates as the list scrolls |

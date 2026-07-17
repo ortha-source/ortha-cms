@@ -74,6 +74,12 @@
         },
         {
             "path": "./packages/media/admin"
+        },
+        {
+            "path": "./packages/i18n/server"
+        },
+        {
+            "path": "./packages/i18n/admin"
         }
     ]
 }

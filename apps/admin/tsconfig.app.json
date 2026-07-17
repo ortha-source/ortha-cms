@@ -37,19 +37,10 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../packages/activity/admin/tsconfig.lib.json"
+            "path": "../../packages/i18n/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/workspaces/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/content/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/media/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/insights/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/users/admin/tsconfig.lib.json"
@@ -58,10 +49,22 @@
             "path": "../../packages/shell/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/media/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/insights/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/identity/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/content/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/bootstrap/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/activity/admin/tsconfig.lib.json"
         }
     ]
 }

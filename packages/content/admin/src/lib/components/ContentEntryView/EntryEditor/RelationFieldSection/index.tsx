@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { AlertCircle, ChevronRight } from 'lucide-react';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-    Spinner
-} from '@ortha-cms/design-system';
+import { AlertCircle } from 'lucide-react';
+import { Spinner } from '@ortha-cms/design-system';
 import type {
     ContentField,
     RelationRef,
     StagedRelation
 } from '../../../../types/contentType';
+import { useContentSchema } from '../../../../api/useContentSchema';
 import { fieldLabel } from '../../../../utils/entryColumns';
 import { ChangedBadge } from '../../../ChangedBadge';
 import { RelationField } from '../RelationField';
@@ -30,17 +25,31 @@ const messages = defineMessages({
     loadingCount: {
         id: 'content.relations.section.loadingCount',
         defaultMessage: 'Loading linked count…'
+    },
+    descSingle: {
+        id: 'content.relations.section.descSingle',
+        defaultMessage: 'Single relation — one record from {target}.'
+    },
+    descMany: {
+        id: 'content.relations.section.descMany',
+        defaultMessage:
+            'Ordered relation — drag to reorder, or use the arrows. Order is delivered as-is.'
+    },
+    descInverse: {
+        id: 'content.relations.section.descInverse',
+        defaultMessage: 'Linked from {target}.'
     }
 });
 
 /**
- * One relation field as a **collapsible** section in the editor's Relations tab:
- * a trigger row (chevron + label + a "Changed" badge when edited + linked-count)
- * over the field editor. A **many/inverse** relation is edited by the staged
- * {@link RelationFieldLive} (create and edit alike — its links are sent as a
- * delta on Save); a **single** relation uses the form-backed {@link
- * RelationField}. `count` and `changed` are supplied by the parent so the header
- * reflects staged edits without this component owning the data.
+ * One relation field as a **titled card** in the editor's Relations tab: a
+ * header (label + a derived description + — for a many relation — a right-aligned
+ * "{n} linked" count + a "Changed" badge when edited) over the always-expanded
+ * field editor. A **many/inverse** relation is edited by the staged {@link
+ * RelationFieldLive} (its links are sent as a delta on Save); a **single**
+ * relation uses the form-backed {@link RelationField}. `count` and `changed` are
+ * supplied by the parent so the header reflects staged edits without this
+ * component owning the data. An error tints the border and shows an alert icon.
  */
 export function RelationFieldSection({
     field,
@@ -52,16 +61,16 @@ export function RelationFieldSection({
     value,
     onChange,
     onBlur,
-    defaultOpen,
     initialRefs,
     staged,
     onStagedChange
 }: {
     field: ContentField;
     /**
-     * Linked count shown in the header (server total ± staged, or value length),
-     * or `null` while a managed relation's count is still loading — rendered as a
-     * neutral affordance so a populated relation never flashes 0.
+     * Linked count shown in the header of a many/inverse relation (server total ±
+     * staged), or `null` while the count is still loading — rendered as a neutral
+     * affordance so a populated relation never flashes 0. Ignored for single
+     * relations (whose assigned/empty state is self-evident on the row).
      */
     count: number | null;
     /** Whether the field has unsaved changes (drives the "Changed" badge). */
@@ -75,8 +84,6 @@ export function RelationFieldSection({
     value?: unknown;
     onChange?: (value: unknown) => void;
     onBlur?: () => void;
-    /** Whether the section starts expanded. */
-    defaultOpen: boolean;
     /** Server-resolved links for titling — the single-relation path only. */
     initialRefs?: readonly RelationRef[];
     /** Staged link/unlink/reorder — the many/inverse path only. */
@@ -85,79 +92,88 @@ export function RelationFieldSection({
 }) {
     const intl = useIntl();
 
-    // Controlled so an error can force the section open: otherwise a save can
-    // fail with the offending relation collapsed and its error hidden inside the
-    // (unmounted) content. Expand whenever an error appears.
-    const [open, setOpen] = useState(defaultOpen);
-    useEffect(() => {
-        if (error) setOpen(true);
-    }, [error]);
+    const many = !!field.relation?.many;
+    const inverse = !!field.relation?.inverse;
+    const live = many || inverse;
 
-    const live = !!field.relation?.many || !!field.relation?.inverse;
+    // The target type's label titles the description ("one record from Authors").
+    const targetName = field.relation?.to ?? '';
+    const { data: targetSchema } = useContentSchema(targetName, !!targetName);
+    const targetLabel = targetSchema?.label ?? targetName;
+
+    const description = inverse
+        ? intl.formatMessage(messages.descInverse, { target: targetLabel })
+        : many
+          ? intl.formatMessage(messages.descMany)
+          : intl.formatMessage(messages.descSingle, { target: targetLabel });
 
     return (
-        <Collapsible
-            open={open}
-            onOpenChange={setOpen}
-            className={`group/rel rounded-lg border bg-card ${
+        <div
+            className={`rounded-2xl border bg-card ${
                 error ? 'border-destructive/50' : ''
             }`}
         >
-            <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/rel:rotate-90" />
-                <span className="flex-1 text-sm font-medium">
-                    {fieldLabel(field)}
-                </span>
-                {changed ? <ChangedBadge /> : null}
-                {error ? (
-                    <AlertCircle
-                        className="size-4 shrink-0 text-destructive"
-                        aria-label={intl.formatMessage(messages.invalid)}
-                    />
-                ) : null}
-                {count === null ? (
-                    <Spinner
-                        className="size-3.5 text-muted-foreground"
-                        aria-label={intl.formatMessage(messages.loadingCount)}
-                    />
-                ) : (
-                    <span className="tabular-nums text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.linked, { count })}
-                    </span>
-                )}
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-                <div className="border-t px-3 pb-3 pt-3">
-                    {live ? (
-                        <RelationFieldLive
-                            field={field}
-                            typeName={typeName}
-                            entryId={entryId}
-                            error={error}
-                            staged={
-                                staged ?? {
-                                    added: [],
-                                    removed: [],
-                                    order: null
-                                }
-                            }
-                            onStagedChange={
-                                onStagedChange ?? (() => undefined)
-                            }
+            <div className="flex items-start gap-2 px-4 pt-3.5">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium">
+                            {fieldLabel(field)}
+                        </h3>
+                        {changed ? <ChangedBadge /> : null}
+                        {error ? (
+                            <AlertCircle
+                                className="size-4 shrink-0 text-destructive"
+                                aria-label={intl.formatMessage(messages.invalid)}
+                            />
+                        ) : null}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {description}
+                    </p>
+                </div>
+                {live ? (
+                    count === null ? (
+                        <Spinner
+                            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                            aria-label={intl.formatMessage(
+                                messages.loadingCount
+                            )}
                         />
                     ) : (
-                        <RelationField
-                            field={field}
-                            value={value}
-                            error={error}
-                            onChange={onChange ?? (() => undefined)}
-                            onBlur={onBlur}
-                            hideLabel
-                            initialRefs={initialRefs}
-                        />
-                    )}
-                </div>
-            </CollapsibleContent>
-        </Collapsible>
+                        <span className="mt-0.5 shrink-0 tabular-nums text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.linked, { count })}
+                        </span>
+                    )
+                ) : null}
+            </div>
+            <div className="px-4 pb-4 pt-3">
+                {live ? (
+                    <RelationFieldLive
+                        field={field}
+                        typeName={typeName}
+                        entryId={entryId}
+                        error={error}
+                        staged={
+                            staged ?? {
+                                added: [],
+                                removed: [],
+                                order: null
+                            }
+                        }
+                        onStagedChange={onStagedChange ?? (() => undefined)}
+                    />
+                ) : (
+                    <RelationField
+                        field={field}
+                        value={value}
+                        error={error}
+                        onChange={onChange ?? (() => undefined)}
+                        onBlur={onBlur}
+                        hideLabel
+                        initialRefs={initialRefs}
+                    />
+                )}
+            </div>
+        </div>
     );
 }

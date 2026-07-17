@@ -70,4 +70,55 @@ describe('buildEntryFilterSchema', () => {
         // Scalar fields are still filterable.
         expect(schema.fields?.title).toEqual({ type: ScalarFieldType.String });
     });
+
+    it('exposes the locale column only on i18n types', () => {
+        const i18nType = collection('loc', {
+            i18n: true,
+            fields: { title: field.text({ localized: true }) }
+        });
+        expect(buildEntryFilterSchema(i18nType).fields?.locale).toEqual({
+            type: ScalarFieldType.String
+        });
+        const plain = collection('plain2', { fields });
+        expect(buildEntryFilterSchema(plain).fields?.locale).toBeUndefined();
+    });
+
+    it('merges extension fields and registers them as extensionFields', () => {
+        const type = collection('loc2', {
+            i18n: true,
+            fields: { title: field.text({ localized: true }) }
+        });
+        const schema = buildEntryFilterSchema(type, {
+            hasLocale: {
+                type: ScalarFieldType.Enum,
+                enumValues: ['en', 'de']
+            },
+            localeCount: { type: ScalarFieldType.Number }
+        });
+        // Declared in `fields` so the parser can coerce values...
+        expect(schema.fields?.hasLocale).toEqual({
+            type: ScalarFieldType.Enum,
+            enumValues: ['en', 'de']
+        });
+        expect(schema.fields?.localeCount).toEqual({
+            type: ScalarFieldType.Number
+        });
+        // ...and registered as virtual so the translator routes them out.
+        expect(schema.extensionFields).toEqual(
+            new Set(['hasLocale', 'localeCount'])
+        );
+    });
+
+    it('does not let an extension field shadow a real column', () => {
+        const type = collection('loc3', {
+            i18n: true,
+            fields: { title: field.text({ localized: true }) }
+        });
+        // `title` is a real field — an extension declaration for it is ignored.
+        const schema = buildEntryFilterSchema(type, {
+            title: { type: ScalarFieldType.Number }
+        });
+        expect(schema.fields?.title).toEqual({ type: ScalarFieldType.String });
+        expect(schema.extensionFields?.has('title')).toBe(false);
+    });
 });

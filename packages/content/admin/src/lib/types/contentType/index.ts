@@ -25,6 +25,8 @@ export type ContentTypeSummaryResponse = {
     publishable?: boolean;
     /** Soft-deletes via a `deletedAt` envelope column. */
     paranoid?: boolean;
+    /** Row-per-locale via `locale` + `localeGroupId` envelope columns. */
+    i18n?: boolean;
 };
 
 /**
@@ -47,6 +49,8 @@ export type ContentType = {
     publishable?: boolean;
     /** Soft-deletes via a `deletedAt` envelope column. */
     paranoid?: boolean;
+    /** Row-per-locale via `locale` + `localeGroupId` envelope columns. */
+    i18n?: boolean;
 };
 
 /**
@@ -62,6 +66,8 @@ export type ContentField = {
     type: string;
     /** Whether a value is required. */
     required: boolean;
+    /** Value differs per locale — present only when true (i18n types). */
+    localized?: boolean;
     /** Type-specific validation (minLength, max, pattern, …); opaque here. */
     validation: Record<string, unknown>;
     /** Admin display hints (label, description, placeholder, widget, hidden, …). */
@@ -103,6 +109,10 @@ export type EntryRecord = {
     id: string;
     /** Publication status — present only on `publishable` types. */
     status?: EntryStatus;
+    /** Locale slug of this row — present only on `i18n` types. */
+    locale?: string;
+    /** Shared translation-group id — present only on `i18n` types. */
+    localeGroupId?: string;
     /** ISO creation timestamp. */
     createdAt: string;
     /** ISO last-updated timestamp. */
@@ -122,6 +132,12 @@ export type RelationRef = {
     id: string;
     /** Display title (first text/select field, else the id). */
     title: string;
+    /**
+     * URL-ish handle — the target's slug-field value when it has one. The editor
+     * renders it as a muted `/handle`, falling back to a slugified title when
+     * absent (so a handle always shows). Mirrors the server's `RelationRef.slug`.
+     */
+    slug?: string;
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
 };

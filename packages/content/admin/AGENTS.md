@@ -121,13 +121,19 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
   wide content scrolls inside the work-area island, not the page.
-- **Relation picker** (`EntryEditor/RelationField/`): the Relations tab is a stack
-  of **`RelationFieldSection`** **rounded-border collapsible cards** — each relation
-  field a section (chevron + label + linked-count; starts collapsed when a type has
-  >3 relation fields, but **force-opens with a header alert icon when it holds a
-  validation/server error**, so a save failure is never hidden inside a collapsed
-  section) wrapping **`RelationField`**. **Only relations whose target
-  collection is granted to the open workspace are shown** — `EntryEditor` filters by
+- **Relation picker** (`EntryEditor/RelationField/`): the Relations tab opens with
+  a one-line subtitle ("Assign related records and set the order they appear in the
+  delivery API.") over a stack of **`RelationFieldSection`** **titled cards** — each
+  relation field a card (label + a derived description + — for a many relation — a
+  right-aligned "{n} linked" count + a "Changed" badge, and a **header alert icon +
+  destructive border when it holds a validation/server error**). Cards are **always
+  expanded** (no chevron/collapse — the error is never hidden). The description is
+  derived from the relation shape: single → "Single relation — one record from
+  {Target}."; many → "Ordered relation — drag to reorder, or use the arrows. Order
+  is delivered as-is."; inverse → "Linked from {Target}." Each card wraps
+  **`RelationField`** (single) or **`RelationFieldLive`** (many/inverse). **Only
+  relations whose target collection is granted to the open workspace are shown** —
+  `EntryEditor` filters by
   `availableTypeNames` (passed `workspace.content` from `ContentEntryView`) and passes
   the hidden ones to `useEntryForm` as `ignoreFields`, so a hidden (ungranted)
   relation is excluded from client validation **and** the publish gate — a required
@@ -138,13 +144,22 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
 `assertRequiredRelations`. To seed those counts the aggregate relations read
 (`useEntryRelations`) now fires on **entry open** (not only when the Relations
 tab is first shown), so a populated relation never briefly reads as 0.
-`RelationField`
-  shows assigned records by **title** (not raw uuid; no avatar) with a remove control
-  and an **open-in-new-tab** link to that record's own editor
-  (`RelationItemRow`, href built by `utils/contentEntryPath`); a many-relation's
-  rows are **drag/keyboard reorderable**
-  (dnd-kit, like the records column picker — the array order is the value, via
-  `SortableRelationItem`). An Assign/Add button opens **`RelationPickerDialog`**: a
+Each assigned record renders as a **`RelationItemRow`** — a generalized row with a
+  **leading slot** (an initials `Avatar` for a single relation, a zero-padded
+  `01`/`02` **index** for an ordered many-relation, via `RelationIndex`), the
+  **title** + a muted `/handle` (the target's `slug`, else a slugified title — see
+  `utils/relationHandle`), an optional **status badge**, and a trailing controls
+  cluster: reorder **up/down arrows** (ordered relations), the drag `handle`, an
+  **open-in-new-tab** link (`utils/contentEntryPath`), a **Replace** action (single
+  relations, re-opens the picker), and remove. `RelationField` (single) stores one
+  id string in the form values; `RelationFieldLive` (many/inverse) stages links as
+  a delta. A many-relation's rows are **drag/keyboard reorderable** (dnd-kit, like
+  the records column picker — the array order is the value, via
+  `SortableRelationItem`) **and** nudgeable one place with the up/down arrows (same
+  staged `order` path as a drag; ↑ disabled on the first row, ↓ on the last). The
+  row's accessible names — `Remove {title}`, `Reorder {title}`, `Open {title} in a
+  new tab`, `Move {title} up` / `down`, `Replace` — are what the e2e drives.
+  An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
   **`QueryBuilder`**, *not* a drawer — a nested modal over the dialog is an a11y
   hazard) over the *target type's* real schema (`useContentSchema(target)` →
@@ -205,6 +220,68 @@ tab is first shown), so a populated relation never briefly reads as 0.
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
+
+## Extension slots
+
+The library exposes six named slots (`src/lib/slots/contentSlots`, via
+`createSlot`) another admin plugin contributes into — no coupling beyond the
+contracts, the same idiom as the workspace shell's slots.
+`@ortha-cms/i18n-admin` fills all six. **Slot items are boot-frozen**
+(`createAdmin` registers them once, before the first render), which is what
+makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
+`RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
+sites call them in a loop — the call order never changes; an item gates its own
+fetching internally.
+
+- **`RECORDS_TOOLBAR_SLOT`** — a control in the records toolbar; owns URL
+  `listParamKeys` forwarded to the list request (and its query key), with
+  `updateParams` (resets the page).
+- **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
+  that joins the column picker like any column (non-sortable header); optional
+  `useRowsData` batches per-page data once for all its cells.
+- **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a card in the entry editor's right rail,
+  rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
+  workspaceId, typePath, **params**) assembled by `ContentEntryView` and shared
+  via `EntrySlotContextProvider`. `params` is the current URL values of the
+  `ENTRY_PARAMS_SLOT` keys (list + create-body), opaque — a slot reads only its
+  own keys (e.g. i18n scopes the relation picker by its `locale` even on a create
+  form, where there's no saved `entry`).
+- **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
+  rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
+  same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
+- **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
+  after `filterFieldsFromSchema`.
+- **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode
+  one-entry read (`listParamKeys`), URL values copied into the create body
+  (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
+  relation-candidate list params (`relationCandidateParams`, consumed by the
+  picker dialog through the slot context).
+
+The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
+list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`
+(`extra`). Wire types carry `i18n` (summary/detail), `localized` (field), and
+`locale`/`localeGroupId` (`EntryRecord`).
+
+Two generic hooks surface the `localized` schema flag (same way the editor
+already surfaces `required`), so a locale plugin needs no field-level slot:
+- `EntryFieldInput` renders a small **localizable indicator**
+  (`LocalizedFieldMark` — a `Globe` icon + native `title` + sr-only name) when
+  `field.localized`. It shares a single right-aligned **end-adornment** with the
+  "Changed" badge (the `changed` prop) at the far right of the label row (a
+  `w-full` `FieldLabel`, or `InputField`'s `labelAction` slot) — so the badge and
+  the globe sit **side by side** instead of overlapping. The `changed` flag comes
+  from `EntryFieldSections` (`isChanged`); the badge is no longer an absolute
+  overlay. Self-scopes (only i18n types ever mark a field localized).
+- `ContentEntryView` create mode reads `location.state.translateFrom` (a source
+  record's values) and seeds the blank form with **only the non-localized**
+  fields — the "create a translation" prefill; localized fields start empty.
+- **A save keeps the user on the editor** — success is surfaced via a `toast`,
+  not a bounce back to the records list. A brand-new record (any create, incl. a
+  translation sibling) navigates to its own editor `${typePath}/${saved.id}` so
+  the id is in the URL and a further save updates it; an existing record stays in
+  place (its `useSaveEntry`-invalidated query refreshes the Details/status); a
+  single stays put (`?locale=` re-resolves). The "Back to records" link is the
+  way back.
 
 ## Package
 

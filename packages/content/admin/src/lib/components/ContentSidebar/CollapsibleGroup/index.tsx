@@ -38,7 +38,7 @@ export function CollapsibleGroup({
             defaultOpen={defaultOpen}
             className="group/collapsible flex w-full flex-col"
         >
-            <CollapsibleTrigger className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring">
+            <CollapsibleTrigger className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-ring">
                 <Icon className="size-4 shrink-0 text-muted-foreground" />
                 <span className="flex-1 truncate font-medium">{label}</span>
                 <span className="tabular-nums text-xs text-muted-foreground/70">

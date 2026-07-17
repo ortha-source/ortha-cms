@@ -8,7 +8,8 @@ import {
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
-    mockContentEntryWrites
+    mockContentEntryWrites,
+    spyEntrySave
 } from '../support/api/content';
 
 /**
@@ -279,6 +280,30 @@ test.describe('Content Library', () => {
         await contentLibraryPage.recordRows('Blog posts').first().click();
         await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
         await expect(contentLibraryPage.editorBackLink).toBeVisible();
+    });
+
+    test('saving a record stays on the editor and shows a success toast', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        const spy = await spyEntrySave(page);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.recordRows('Blog posts').first().click();
+        await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
+
+        // Edit the title, then Save as a draft.
+        await contentLibraryPage.fieldTextbox('Title').fill('Edited title');
+        await contentLibraryPage.saveDraft();
+        await expect.poll(() => spy.bodies.length).toBeGreaterThan(0);
+
+        // The save keeps the user on the record's editor (no bounce to the
+        // records list) and surfaces success via a toast.
+        await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
+        await expect(contentLibraryPage.savedToast).toBeVisible();
     });
 
     test('reorders a column via the keyboard', async ({

@@ -50,7 +50,10 @@
     --color-sidebar-foreground: oklch(0.145 0 0);
     --color-sidebar-primary: oklch(0.205 0 0);
     --color-sidebar-primary-foreground: oklch(0.985 0 0);
-    --color-sidebar-accent: oklch(0.97 0 0);
+    /* Darkened from 0.97: against the near-white sidebar (0.985) the default was
+       too faint for a selected/hovered nav row to read. Only sidebar rows use
+       `bg-sidebar-accent`, so this doesn't touch menus/dropdowns (`--accent`). */
+    --color-sidebar-accent: oklch(0.93 0 0);
     --color-sidebar-accent-foreground: oklch(0.205 0 0);
     --color-sidebar-border: oklch(0.922 0 0);
     --color-sidebar-ring: oklch(0.708 0 0);

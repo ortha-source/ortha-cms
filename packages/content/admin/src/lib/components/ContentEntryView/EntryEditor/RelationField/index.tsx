@@ -2,29 +2,15 @@ import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus } from 'lucide-react';
 import {
-    DndContext,
-    KeyboardSensor,
-    PointerSensor,
-    closestCenter,
-    useSensor,
-    useSensors,
-    type Announcements,
-    type DragEndEvent,
-    type ScreenReaderInstructions
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    arrayMove,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy
-} from '@dnd-kit/sortable';
-import {
+    Avatar,
+    AvatarFallback,
     Button,
     Field,
     FieldDescription,
     FieldError,
     FieldLabel
 } from '@ortha-cms/design-system';
+import { initialsOf } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { ContentField, RelationRef } from '../../../../types/contentType';
 import { useContentSchema } from '../../../../api/useContentSchema';
@@ -33,22 +19,14 @@ import { fieldLabel } from '../../../../utils/entryColumns';
 import { adminProps } from '../../../../utils/adminProps';
 import { toRelationIds } from '../../../../utils/relationIds';
 import { contentEntryPath } from '../../../../utils/contentEntryPath';
+import { handleFor, slugFromValues } from '../../../../utils/relationHandle';
 import { RelationItemRow } from './RelationItemRow';
-import { SortableRelationItem } from './SortableRelationItem';
 import { RelationPickerDialog } from './RelationPickerDialog';
 
 const messages = defineMessages({
     assign: {
         id: 'content.relations.field.assign',
         defaultMessage: 'Select {label}'
-    },
-    change: {
-        id: 'content.relations.field.change',
-        defaultMessage: 'Change'
-    },
-    addMany: {
-        id: 'content.relations.field.addMany',
-        defaultMessage: 'Add related'
     },
     empty: {
         id: 'content.relations.field.empty',
@@ -61,40 +39,16 @@ const messages = defineMessages({
     open: {
         id: 'content.relations.field.open',
         defaultMessage: 'Open {title} in a new tab'
-    },
-    dndInstructions: {
-        id: 'content.relations.field.dnd.instructions',
-        defaultMessage:
-            'To reorder, press Space or Enter to pick up, use the arrow keys to move, then press Space or Enter to drop, or Escape to cancel.'
-    },
-    dndPickedUp: {
-        id: 'content.relations.field.dnd.pickedUp',
-        defaultMessage: 'Picked up {title}.'
-    },
-    dndOver: {
-        id: 'content.relations.field.dnd.over',
-        defaultMessage: '{title} was moved over {target}.'
-    },
-    dndDropped: {
-        id: 'content.relations.field.dnd.dropped',
-        defaultMessage: '{title} was dropped over {target}.'
-    },
-    dndCancelled: {
-        id: 'content.relations.field.dnd.cancelled',
-        defaultMessage:
-            'Reordering cancelled. {title} returned to its position.'
     }
 });
 
 /**
- * A comfortable relation editor for one relation field, replacing the raw id
- * input in the editor's Relations tab. Shows each linked record by its **title**
- * (from the server-resolved {@link RelationRef}s for the already-assigned links,
- * and from the picked candidate for anything just added) with a remove control,
- * and — for a many-relation — drag-and-drop / keyboard **reordering** (the array
- * order is the value). The {@link RelationPickerDialog} handles search,
- * query-builder filtering, and assignment. Fully controlled: a single relation
- * stores one id string, a many-relation a string array.
+ * The editor for one **single** relation field (the form-backed path — a single
+ * relation stores one id string in the entry values). Shows the assigned record
+ * as an avatar + title + `/handle` + status row with a **Replace** action and a
+ * remove control; empty, it shows "Nothing linked yet." and a Select trigger.
+ * The {@link RelationPickerDialog} handles search, query-builder filtering, and
+ * the single-pick. Fully controlled: the parent owns the id value.
  */
 export function RelationField({
     field,
@@ -118,42 +72,49 @@ export function RelationField({
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
     const [open, setOpen] = useState(false);
-    // Titles for records picked this session — the id in `value` is all the form
-    // keeps, so we remember each chosen candidate's title to render its row.
+    // Records picked this session — the id in `value` is all the form keeps, so
+    // we remember each chosen candidate to render its row (title/slug/status).
     const [picked, setPicked] = useState<Map<string, RelationCandidate>>(
         new Map()
     );
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates
-        })
-    );
 
-    const relation = field.relation;
-    const many = relation?.many ?? false;
-    const targetName = relation?.to ?? '';
+    const targetName = field.relation?.to ?? '';
     const label = fieldLabel(field);
     const description = adminProps(field).description;
 
-    // The target type's label titles the picker trigger and dialog.
+    // The target type's label + fields title the picker and derive slugs.
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
+    const targetFields = targetSchema?.fields ?? [];
 
-    // A linked record's title: the freshly-picked candidate wins, else the
-    // server-resolved ref from load, else the raw id as a last resort.
-    const refTitles = new Map(initialRefs.map((ref) => [ref.id, ref.title]));
-    const titleFor = (id: string) =>
-        picked.get(id)?.title ?? refTitles.get(id) ?? id;
+    // The single assigned id, if any.
+    const ids = toRelationIds(value, false);
+    const id = ids[0];
 
-    const ids = toRelationIds(value, many);
+    // Display detail for a linked id: the freshly-picked candidate wins (its slug
+    // derived from the target schema), else the server-resolved ref from load,
+    // else the raw id as a last resort.
+    const refsById = new Map(initialRefs.map((ref) => [ref.id, ref]));
+    const detailFor = (linkedId: string): RelationRef => {
+        const candidate = picked.get(linkedId);
+        if (candidate) {
+            const slug = slugFromValues(candidate.values, targetFields);
+            return {
+                id: linkedId,
+                title: candidate.title,
+                ...(slug ? { slug } : {}),
+                ...(candidate.status ? { status: candidate.status } : {})
+            };
+        }
+        return refsById.get(linkedId) ?? { id: linkedId, title: linkedId };
+    };
 
-    const commit = (next: string[]) => {
-        onChange(many ? next : (next[0] ?? ''));
+    const commit = (next: string | undefined) => {
+        onChange(next ?? '');
         onBlur?.();
     };
 
-    // Commit the picker's chosen ids, remembering their titles for display.
+    // Commit the picker's chosen id, remembering its candidate for display.
     const confirm = (next: string[], chosen: RelationCandidate[]) => {
         if (chosen.length) {
             setPicked((current) => {
@@ -163,141 +124,65 @@ export function RelationField({
                 return merged;
             });
         }
-        commit(next);
+        commit(next[0]);
     };
-
-    const removeId = (id: string) => commit(ids.filter((each) => each !== id));
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-        const from = ids.indexOf(String(active.id));
-        const to = ids.indexOf(String(over.id));
-        if (from !== -1 && to !== -1) commit(arrayMove(ids, from, to));
-    };
-
-    // Spoken feedback for keyboard reordering, by record title.
-    const announcements: Announcements = {
-        onDragStart: ({ active }) =>
-            intl.formatMessage(messages.dndPickedUp, {
-                title: titleFor(String(active.id))
-            }),
-        onDragOver: ({ active, over }) =>
-            over
-                ? intl.formatMessage(messages.dndOver, {
-                      title: titleFor(String(active.id)),
-                      target: titleFor(String(over.id))
-                  })
-                : undefined,
-        onDragEnd: ({ active, over }) =>
-            over
-                ? intl.formatMessage(messages.dndDropped, {
-                      title: titleFor(String(active.id)),
-                      target: titleFor(String(over.id))
-                  })
-                : undefined,
-        onDragCancel: ({ active }) =>
-            intl.formatMessage(messages.dndCancelled, {
-                title: titleFor(String(active.id))
-            })
-    };
-    const screenReaderInstructions: ScreenReaderInstructions = {
-        draggable: intl.formatMessage(messages.dndInstructions)
-    };
-
-    const triggerLabel = many
-        ? messages.addMany
-        : ids.length > 0
-          ? messages.change
-          : messages.assign;
 
     const removeLabelFor = (title: string) =>
         intl.formatMessage(messages.remove, { title });
     const openLabelFor = (title: string) =>
         intl.formatMessage(messages.open, { title });
-    // Deep link to the related record's own editor (open-in-new-tab), when the
-    // target type is known.
-    const hrefFor = (id: string) =>
+    const hrefFor = (linkedId: string) =>
         targetName
-            ? contentEntryPath(workspace.id, targetName, id)
+            ? contentEntryPath(workspace.id, targetName, linkedId)
             : undefined;
+
+    const detail = id ? detailFor(id) : null;
 
     return (
         <Field data-invalid={!!error}>
             {hideLabel ? null : <FieldLabel>{label}</FieldLabel>}
 
-            {ids.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    {intl.formatMessage(messages.empty)}
-                </p>
+            {detail ? (
+                <RelationItemRow
+                    title={detail.title}
+                    handle={handleFor(detail.title, detail.slug)}
+                    status={detail.status}
+                    leading={
+                        <Avatar className="size-8 shrink-0">
+                            <AvatarFallback className="text-xs">
+                                {initialsOf(detail.title)}
+                            </AvatarFallback>
+                        </Avatar>
+                    }
+                    onRemove={() => commit(undefined)}
+                    removeLabel={removeLabelFor(detail.title)}
+                    href={hrefFor(detail.id)}
+                    openLabel={openLabelFor(detail.title)}
+                    onReplace={() => setOpen(true)}
+                />
             ) : (
-                <div
-                    className={`flex flex-col gap-2 ${
-                        ids.length > 6 ? 'max-h-72 overflow-y-auto pr-1' : ''
-                    }`}
-                >
-                    {many ? (
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                            accessibility={{
-                                announcements,
-                                screenReaderInstructions
-                            }}
-                        >
-                            <SortableContext
-                                items={ids}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                {ids.map((id) => {
-                                    const title = titleFor(id);
-                                    return (
-                                        <SortableRelationItem
-                                            key={id}
-                                            id={id}
-                                            title={title}
-                                            onRemove={() => removeId(id)}
-                                            removeLabel={removeLabelFor(title)}
-                                            href={hrefFor(id)}
-                                            openLabel={openLabelFor(title)}
-                                        />
-                                    );
-                                })}
-                            </SortableContext>
-                        </DndContext>
-                    ) : (
-                        ids.map((id) => {
-                            const title = titleFor(id);
-                            return (
-                                <RelationItemRow
-                                    key={id}
-                                    title={title}
-                                    onRemove={() => removeId(id)}
-                                    removeLabel={removeLabelFor(title)}
-                                    href={hrefFor(id)}
-                                    openLabel={openLabelFor(title)}
-                                />
-                            );
-                        })
-                    )}
-                </div>
+                <>
+                    <p className="text-sm text-muted-foreground">
+                        {intl.formatMessage(messages.empty)}
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-center border-dashed shadow-none"
+                        onClick={() => setOpen(true)}
+                    >
+                        <Plus className="size-4" />
+                        {intl.formatMessage(messages.assign, {
+                            label: targetLabel
+                        })}
+                    </Button>
+                </>
             )}
 
-            <div>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shadow-none"
-                    onClick={() => setOpen(true)}
-                >
-                    <Plus className="size-4" />
-                    {intl.formatMessage(triggerLabel, { label: targetLabel })}
-                </Button>
-            </div>
-
-            {description && !error ? (
+            {/* Inside a RelationFieldSection (hideLabel) the card header already
+                carries a description, so the field's own admin description would
+                be a redundant second line — suppress it there. */}
+            {description && !error && !hideLabel ? (
                 <FieldDescription>{description}</FieldDescription>
             ) : null}
             {error ? <FieldError>{error}</FieldError> : null}
@@ -307,7 +192,7 @@ export function RelationField({
                 onOpenChange={setOpen}
                 targetName={targetName}
                 targetLabel={targetLabel}
-                many={many}
+                many={false}
                 selectedIds={ids}
                 onConfirm={confirm}
             />

@@ -19,6 +19,12 @@ export type SaveEntryInput = {
      * non-empty fields are included; single relations ride in `values`.
      */
     relations?: Record<string, RelationDelta>;
+    /**
+     * Slot-contributed body params (e.g. the `locale` a create targets, from
+     * the entry-params slot), merged into the **create** body verbatim. Each
+     * key must be declared on the server's `SaveEntryDto`. Ignored on update.
+     */
+    extra?: Record<string, string>;
 };
 
 /**
@@ -31,16 +37,21 @@ export type SaveEntryInput = {
  */
 async function saveEntry(
     typeName: string,
-    { id, values, relations }: SaveEntryInput
+    { id, values, relations, extra }: SaveEntryInput
 ): Promise<EntryRecord> {
     const body = { values, ...(relations ? { relations } : {}) };
     try {
+        // Extra (slot-contributed) keys apply to create only — an update never
+        // re-homes envelope params like the locale.
         const { data } = id
             ? await apiClient.patch<EntryRecord>(
                   `/content/${typeName}/${id}`,
                   body
               )
-            : await apiClient.post<EntryRecord>(`/content/${typeName}`, body);
+            : await apiClient.post<EntryRecord>(`/content/${typeName}`, {
+                  ...body,
+                  ...(extra ?? {})
+              });
         return data;
     } catch (error) {
         throw toApiError(error);

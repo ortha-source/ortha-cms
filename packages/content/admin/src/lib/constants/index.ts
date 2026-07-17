@@ -132,14 +132,16 @@ export const ENTRY_MODE = {
 export type EntryMode = (typeof ENTRY_MODE)[keyof typeof ENTRY_MODE];
 
 /**
- * The kinds of column the records table can show: a schema `field`, or one of
- * the two envelope columns (`status`, `updated`). The discriminant of
+ * The kinds of column the records table can show: a schema `field`, one of
+ * the two envelope columns (`status`, `updated`), or an `extension` column
+ * contributed through `RECORDS_COLUMN_SLOT`. The discriminant of
  * {@link EntryColumn}.
  */
 export const COLUMN_KIND = {
     Field: 'field',
     Status: 'status',
-    Updated: 'updated'
+    Updated: 'updated',
+    Extension: 'extension'
 } as const;
 
 /**

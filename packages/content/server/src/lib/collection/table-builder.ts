@@ -6,6 +6,7 @@
  * committed migrations — exactly like any plugin-owned schema.
  */
 
+import { isNull } from 'drizzle-orm';
 import {
     boolean as pgBoolean,
     date as pgDate,
@@ -17,6 +18,7 @@ import {
     text,
     timestamp,
     unique,
+    uniqueIndex,
     uuid,
     type AnyPgColumn,
     type PgColumnBuilderBase,
@@ -125,6 +127,8 @@ export interface TableMeta {
     publishable?: boolean;
     /** Add a nullable `deleted_at` column (soft delete). */
     paranoid?: boolean;
+    /** Add NOT NULL `locale` + `locale_group_id` columns (row-per-locale). */
+    i18n?: boolean;
 }
 
 /** Builds the main table + join tables for a content type. */
@@ -175,6 +179,17 @@ export function buildTables(
     if (meta.paranoid) {
         columns['deletedAt'] = timestamp('deleted_at', { withTimezone: true });
     }
+    // Row-per-locale: each locale of an entry is a full row; siblings share a
+    // `locale_group_id`. The group id defaults to a fresh uuid so a plain
+    // create starts its own translation group — linking into an existing group
+    // (translation creation) sets it explicitly. The slug's meaning (allowed
+    // values, the default) is owned by the bound localization plugin.
+    if (meta.i18n) {
+        columns['locale'] = text('locale').notNull();
+        columns['localeGroupId'] = uuid('locale_group_id')
+            .notNull()
+            .defaultRandom();
+    }
 
     // Publishable types keep required columns nullable (a draft may be
     // incomplete; publish enforces requiredness). Non-publishable types are
@@ -187,16 +202,36 @@ export function buildTables(
 
     const table = pgTable(tableName, columns, (t) => {
         const cols = t as unknown as Record<string, AnyPgColumn>;
-        // Every list view filters by workspace; publishable types also filter
-        // by status, so fold it into the index only where the column exists.
-        return meta.publishable
-            ? [
-                  index(`${tableName}_workspace_status_idx`).on(
-                      cols['workspaceId'],
-                      cols['status']
-                  )
-              ]
-            : [index(`${tableName}_workspace_idx`).on(cols['workspaceId'])];
+        // Every list view filters by workspace; i18n types also filter by
+        // locale, and publishable types by status — fold each into the list
+        // index only where the column exists.
+        const listColumns = [
+            cols['workspaceId'],
+            ...(meta.i18n ? [cols['locale']] : []),
+            ...(meta.publishable ? [cols['status']] : [])
+        ];
+        const listIndexName = meta.i18n
+            ? `${tableName}_workspace_locale_idx`
+            : meta.publishable
+              ? `${tableName}_workspace_status_idx`
+              : `${tableName}_workspace_idx`;
+        const indexes = [
+            index(listIndexName).on(listColumns[0], ...listColumns.slice(1))
+        ];
+        if (meta.i18n) {
+            // One row per (group, locale). Partial on paranoid types so a
+            // soft-deleted sibling never blocks re-creating that locale —
+            // restoring into a conflict then fails (23505 → 409 upstream).
+            const groupLocale = uniqueIndex(
+                `${tableName}_group_locale_unique`
+            ).on(cols['localeGroupId'], cols['locale']);
+            indexes.push(
+                meta.paranoid
+                    ? groupLocale.where(isNull(cols['deletedAt']))
+                    : groupLocale
+            );
+        }
+        return indexes;
     });
 
     const joinTables: Record<string, PgTable> = {};

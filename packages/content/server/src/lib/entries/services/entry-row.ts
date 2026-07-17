@@ -37,6 +37,10 @@ export function toRecord(type: AnyContentType, row: Row): EntryRecord {
     if (type.publishable) {
         record.status = row['status'] as EntryRecord['status'];
     }
+    if (type.i18n) {
+        record.locale = row['locale'] as string;
+        record.localeGroupId = row['localeGroupId'] as string;
+    }
     return record;
 }
 
@@ -153,4 +157,22 @@ export function entryTitle(type: AnyContentType, row: Row): string {
         if (typeof value === 'string' && value.trim()) return value;
     }
     return row['id'] as string;
+}
+
+/**
+ * The slug handle for an entry — the value of its **slug field**: the first
+ * field flagged `admin.widget === 'slug'`, else a field literally named `slug`.
+ * Returns the trimmed value when present and non-empty, otherwise `undefined`
+ * (the type has no slug field, or the row's slug is blank). Used to give a
+ * linked relation record a stable `/handle` in the admin.
+ */
+export function entrySlug(type: AnyContentType, row: Row): string | undefined {
+    let named: string | undefined;
+    for (const [name, spec] of Object.entries(type.fields)) {
+        const value = row[name];
+        if (typeof value !== 'string' || !value.trim()) continue;
+        if (spec.admin?.widget === 'slug') return value;
+        if (name === 'slug') named = value;
+    }
+    return named;
 }

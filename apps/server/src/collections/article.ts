@@ -18,15 +18,22 @@ import { seoMeta } from './seo-meta';
  *
  * Relation thunks (`to: () => …`) keep the imports lazy so collections can
  * reference each other without import-order pain.
+ *
+ * Also the reference **i18n** type: each locale is a full row sharing a
+ * `locale_group_id`. Content fields (`text`, `richtext`) are `localized`;
+ * everything else is shared — synced across the translation group by the
+ * i18n plugin on every update.
  */
 export const article = collection('article', {
     label: 'Articles',
     description: 'The reference collection — every field type, end to end.',
     publishable: true,
     paranoid: true,
+    i18n: true,
     fields: {
         text: field.text({
             required: true,
+            localized: true,
             minLength: 3,
             maxLength: 200,
             admin: {
@@ -36,6 +43,7 @@ export const article = collection('article', {
             }
         }),
         richtext: field.richtext({
+            localized: true,
             admin: {
                 label: 'Richtext',
                 widget: 'textarea',

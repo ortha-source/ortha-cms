@@ -2,7 +2,6 @@ import type { ContentField } from '../../../../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../constants';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { EntryFieldInput } from '../../../EntryFieldInput';
-import { ChangedBadge } from '../../../ChangedBadge';
 
 /**
  * Field ordering and layout, by control shape. Fields flow top-to-bottom in
@@ -62,19 +61,13 @@ export function EntryFieldSections({
             {ordered.map((field) => (
                 <div
                     key={field.name}
-                    className={`relative ${
-                        layoutFor(field.type).full ? 'sm:col-span-2' : ''
-                    }`}
+                    className={layoutFor(field.type).full ? 'sm:col-span-2' : ''}
                 >
-                    {isChanged?.(field.name) ? (
-                        <div className="pointer-events-none absolute right-0 top-0">
-                            <ChangedBadge />
-                        </div>
-                    ) : null}
                     <EntryFieldInput
                         field={field}
                         value={form.values[field.name]}
                         error={form.errorFor(field.name)}
+                        changed={isChanged?.(field.name) ?? false}
                         onChange={(value) => form.setValue(field.name, value)}
                         onBlur={() => form.touch(field.name)}
                     />
