@@ -302,7 +302,10 @@ export function ContentEntryView({
     if (errored || !schema || !resolved) {
         return (
             <Container className="max-w-none p-4 sm:p-6">
-                <ContainerHeader titleClassName="text-lg" title={schema?.label ?? type.label} />
+                <ContainerHeader
+                    titleClassName="text-lg"
+                    title={schema?.label ?? type.label}
+                />
                 <Alert variant="destructive" role="alert" className="mt-4">
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                         <span>{intl.formatMessage(messages.loadError)}</span>
@@ -376,7 +379,7 @@ export function ContentEntryView({
         } else if (willUnpublish) {
             await status.unpublish.mutateAsync(saved.id);
         }
-        toast(
+        toast.success(
             intl.formatMessage(
                 willPublish
                     ? messages.savedPublish
@@ -403,7 +406,8 @@ export function ContentEntryView({
     // row (not on create, not on a single page).
     const editId = mode === ENTRY_MODE.Edit ? resolved.entry?.id : undefined;
 
-    const onActionError = () => toast(intl.formatMessage(messages.actionError));
+    const onActionError = () =>
+        toast.error(intl.formatMessage(messages.actionError));
 
     const onUnpublish =
         editId && publishable
@@ -420,7 +424,7 @@ export function ContentEntryView({
               status.remove
                   .mutateAsync(editId)
                   .then(() => {
-                      toast(
+                      toast.success(
                           intl.formatMessage(messages.deleted, {
                               label: schema.label
                           })

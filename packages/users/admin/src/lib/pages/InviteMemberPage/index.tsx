@@ -343,7 +343,9 @@ export function InviteMemberPage() {
                 name: name.trim() || undefined,
                 workspaceIds
             });
-            toast(intl.formatMessage(messages.sent, { email: created.email }));
+            toast.success(
+                intl.formatMessage(messages.sent, { email: created.email })
+            );
             navigate('/users');
         } catch {
             // The error alert on this step explains; the user can go back and

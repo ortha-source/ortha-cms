@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Send, Trash2, Undo2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { Button, ConfirmDialog, Spinner, toast } from '@ortha-cms/design-system';
+import {
+    Button,
+    ConfirmDialog,
+    Spinner,
+    toast
+} from '@ortha-cms/design-system';
 import { CONTENT_DELETE, CONTENT_PUBLISH } from '../../../constants';
 import { useBulkEntryActions } from '../../../api/useBulkEntryActions';
 import { BulkPublishDialog } from '../BulkPublishDialog';
@@ -64,7 +69,10 @@ const messages = defineMessages({
         id: 'content.bulk.purgeBody',
         defaultMessage: 'This empties them from the trash and can’t be undone.'
     },
-    confirmDelete: { id: 'content.bulk.confirmDelete', defaultMessage: 'Delete' }
+    confirmDelete: {
+        id: 'content.bulk.confirmDelete',
+        defaultMessage: 'Delete'
+    }
 });
 
 /**
@@ -106,15 +114,15 @@ export function CollectionRecordsBulkActions({
     ) => {
         mutateAsync(ids)
             .then((result) =>
-                toast(
-                    // A 0 count means nothing matched (e.g. the rows changed in
-                    // another tab) — don't report "0 records …" as a success.
-                    result.count === 0
-                        ? intl.formatMessage(messages.noneAffected)
-                        : intl.formatMessage(messages[messageId], {
+                // A 0 count means nothing matched (e.g. the rows changed in
+                // another tab) — don't report "0 records …" as a success.
+                result.count === 0
+                    ? toast.info(intl.formatMessage(messages.noneAffected))
+                    : toast.success(
+                          intl.formatMessage(messages[messageId], {
                               count: result.count
                           })
-                )
+                      )
             )
             .catch(() => toast.error(intl.formatMessage(messages.failed)))
             .finally(onDone);
@@ -130,7 +138,9 @@ export function CollectionRecordsBulkActions({
                             size="sm"
                             className="shadow-none"
                             disabled={bulk.restore.isPending}
-                            onClick={() => run(bulk.restore.mutateAsync, 'restored')}
+                            onClick={() =>
+                                run(bulk.restore.mutateAsync, 'restored')
+                            }
                         >
                             {bulk.restore.isPending ? (
                                 <Spinner aria-hidden />

@@ -181,7 +181,7 @@ export function MemberRowActions({ member }: { member: Member }) {
                     onSelect={() =>
                         resendInvite.mutate(member.id, {
                             onSuccess: () =>
-                                toast(
+                                toast.success(
                                     intl.formatMessage(messages.resent, {
                                         email: member.email
                                     })
@@ -202,7 +202,7 @@ export function MemberRowActions({ member }: { member: Member }) {
                 onSelect={() =>
                     revokeInvite.mutate(member.id, {
                         onSuccess: () =>
-                            toast(
+                            toast.success(
                                 intl.formatMessage(messages.revoked, {
                                     email: member.email
                                 })
@@ -233,7 +233,7 @@ export function MemberRowActions({ member }: { member: Member }) {
                             { id: member.id, disabled: true },
                             {
                                 onSuccess: () =>
-                                    toast(
+                                    toast.success(
                                         intl.formatMessage(messages.disabled, {
                                             name: member.name
                                         })
@@ -258,7 +258,7 @@ export function MemberRowActions({ member }: { member: Member }) {
                             { id: member.id, disabled: false },
                             {
                                 onSuccess: () =>
-                                    toast(
+                                    toast.success(
                                         intl.formatMessage(messages.enabled, {
                                             name: member.name
                                         })
@@ -368,7 +368,9 @@ export function MemberRowActions({ member }: { member: Member }) {
                     <>
                         <DropdownMenuSeparator />
                         {visibleQuick.length > 0 ? (
-                            <DropdownMenuGroup>{visibleQuick}</DropdownMenuGroup>
+                            <DropdownMenuGroup>
+                                {visibleQuick}
+                            </DropdownMenuGroup>
                         ) : null}
                         {destructiveItem ? (
                             <DropdownMenuGroup>
