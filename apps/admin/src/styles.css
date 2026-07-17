@@ -7,11 +7,11 @@
 
 /* ---------------------------------------------------------------------------
    Theme: incident.io-style. A white page canvas with bordered cards, ink
-   ("contrast") primary buttons, a dark near-black sidebar, and one vibrant
-   brand accent — flame orange — carried by icons, links, focus rings, and
-   soft highlights rather than large surfaces. Semantic status colors
-   (success / warning / info / destructive) each ship a solid and a soft
-   (tinted chip) pair.
+   ("contrast") primary buttons, a dark near-black sidebar, true-gray neutrals
+   (hovers, rings, tiles), and one vibrant brand accent — flame orange —
+   reserved for links, active nav icons, and soft highlights. Semantic status
+   colors (success / warning / info / destructive) each ship a solid and a
+   soft (tinted chip) pair.
 
    Every text-on-surface pairing below was verified >= 4.5:1 (WCAG AA) — the
    admin-e2e axe scan enforces this. White text on the brand orange does NOT
@@ -42,14 +42,16 @@
     --color-brand-soft: oklch(0.955 0.025 40);
     --color-brand-soft-foreground: oklch(0.47 0.16 35);
 
-    --color-secondary: oklch(0.97 0.006 85);
+    /* A step darker than the muted/accent hover washes, so secondary chips
+       and buttons stay visible on a hovered row. */
+    --color-secondary: oklch(0.945 0.003 285);
     --color-secondary-foreground: oklch(0.25 0.012 285);
-    --color-muted: oklch(0.975 0.005 85);
+    --color-muted: oklch(0.975 0.003 285);
     /* Clears WCAG AA (4.5:1) for small muted text on white, the canvas, and
        the muted surface itself — verified by the admin-e2e axe scan. */
     --color-muted-foreground: oklch(0.49 0.015 285);
-    /* Menu/list/row hover surface — very light so a hover reads as a whisper. */
-    --color-accent: oklch(0.975 0.006 85);
+    /* Menu/list/row hover surface — a subtle true gray (no warm cast). */
+    --color-accent: oklch(0.975 0.003 285);
     --color-accent-foreground: oklch(0.21 0.012 285);
 
     --color-destructive: oklch(0.55 0.22 27);
@@ -74,13 +76,22 @@
     --color-info-soft: oklch(0.945 0.03 255);
     --color-info-soft-foreground: oklch(0.42 0.14 260);
 
+    /* Accent-only soft pairs (no solid counterpart): tinted top-bar icon
+       tiles for areas whose nav accent is teal/violet (Media, Workspaces,
+       Settings). Same L/C recipe as the *-soft pairs above. */
+    --color-teal-soft: oklch(0.94 0.035 190);
+    --color-teal-soft-foreground: oklch(0.4 0.08 190);
+    --color-violet-soft: oklch(0.945 0.035 300);
+    --color-violet-soft-foreground: oklch(0.42 0.14 300);
+
     --color-border: oklch(0.9 0.008 285);
     /* Darker than --color-border so form controls (inputs, select triggers,
        textareas via `border-input`) read as clearly editable against white
        surfaces, without darkening structural card/divider borders. */
     --color-input: oklch(0.84 0.01 285);
-    /* Brand-orange focus ring (>= 3:1 against canvas and white cards). */
-    --color-ring: oklch(0.6 0.16 35);
+    /* Neutral gray focus ring (>= 3:1 against white; form fields use their
+       own ink `primary` ring). */
+    --color-ring: oklch(0.55 0.01 285);
 
     /* Active-status green — a generic status dot, reusable for active users
        too. Consumed via the `bg-status-active` utility. */
@@ -105,7 +116,7 @@
     --color-sidebar-accent: oklch(0.3 0.018 285);
     --color-sidebar-accent-foreground: oklch(0.985 0.002 285);
     --color-sidebar-border: oklch(0.31 0.012 285);
-    --color-sidebar-ring: oklch(0.72 0.15 40);
+    --color-sidebar-ring: oklch(0.75 0.01 285);
 
     /* Nav-icon accents — incident.io-style colored icons in the dark sidebar.
        Lightened (L >= 0.72) so each clears 3:1 against the dark sidebar
@@ -160,6 +171,6 @@
         @apply min-h-svh overflow-x-clip;
     }
     ::selection {
-        @apply bg-brand/20;
+        @apply bg-foreground/15;
     }
 }

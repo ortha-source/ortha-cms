@@ -1,6 +1,8 @@
 export { ShellPlugin } from './lib/utils/shellPlugin';
 export type { ShellAdminPlugin } from './lib/utils/shellPlugin';
 export { AppShell } from './lib/components/AppShell';
+export { PageTopBar } from './lib/components/PageTopBar';
+export type { PageTopBarCrumb } from './lib/components/PageTopBar';
 export { SidebarSearch } from './lib/components/AppSidebar/SidebarSearch';
 export { HomePage } from './lib/pages/HomePage';
 export {
@@ -21,4 +23,7 @@ export {
 export { HOME_SECTION_SLOT } from './lib/slots/homeSlots';
 export type { HomeSectionItem, HomeRegion } from './lib/slots/homeSlots';
 export { COMMAND_SLOT } from './lib/slots/commandSlots';
-export type { CommandSection, CommandSectionProps } from './lib/slots/commandSlots';
+export type {
+    CommandSection,
+    CommandSectionProps
+} from './lib/slots/commandSlots';

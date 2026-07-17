@@ -9,11 +9,11 @@ const badgeVariants = cva(
         variants: {
             variant: {
                 default:
-                    'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
+                    'border-transparent bg-primary text-primary-foreground shadow',
                 secondary:
-                    'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                    'border-transparent bg-secondary text-secondary-foreground',
                 destructive:
-                    'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
+                    'border-transparent bg-destructive text-destructive-foreground shadow',
                 outline: 'text-foreground',
                 /* Soft tinted chips: colored surface + dark text of the same
                    hue. For statuses/labels where a solid badge is too loud. */
@@ -25,7 +25,7 @@ const badgeVariants = cva(
                 'destructive-soft':
                     'border-transparent bg-destructive-soft text-destructive-soft-foreground',
                 'primary-soft':
-                    'border-transparent bg-primary-soft text-primary-soft-foreground'
+                    'border-transparent bg-brand-soft text-brand-soft-foreground'
             }
         },
         defaultVariants: {

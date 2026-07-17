@@ -1,0 +1,86 @@
+import type { ComponentType, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { defineMessages, useIntl } from 'react-intl';
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+    TopBar,
+    TopBarIcon
+} from '@ortha-cms/design-system';
+
+/** Intl descriptors for {@link PageTopBar}, co-located here. */
+const messages = defineMessages({
+    nav: {
+        id: 'shell.topbar.nav',
+        defaultMessage: 'Breadcrumb'
+    }
+});
+
+/** One crumb in a {@link PageTopBar}: a label, and a link unless current. */
+export type PageTopBarCrumb = {
+    /** Stable key for the list item. */
+    key: string;
+    /** The crumb's visible label. */
+    label: ReactNode;
+    /** Where the crumb links; omit for the current (or a grouping) crumb. */
+    to?: string;
+};
+
+/**
+ * The shared incident.io-style page-context bar: a neutral icon tile beside a
+ * breadcrumb, sticky to the top of the page. Pass the **same icon the page's
+ * sidebar nav entry uses**, so the chrome and the bar always agree. The last
+ * crumb renders as the current page; earlier crumbs link when given `to`.
+ */
+export function PageTopBar({
+    icon: Icon,
+    iconClassName,
+    crumbs
+}: {
+    /** The page's icon — the same component its sidebar nav entry uses. */
+    icon: ComponentType<{ className?: string }>;
+    /** Optional tile override; the default is the neutral gray tile. */
+    iconClassName?: string;
+    /** The trail, root first; the last entry is the current page. */
+    crumbs: PageTopBarCrumb[];
+}) {
+    const intl = useIntl();
+    const last = crumbs.length - 1;
+
+    return (
+        <TopBar>
+            <TopBarIcon className={iconClassName}>
+                <Icon />
+            </TopBarIcon>
+            <Breadcrumb aria-label={intl.formatMessage(messages.nav)}>
+                <BreadcrumbList className="flex-nowrap font-medium">
+                    {crumbs.map((crumb, index) => [
+                        index > 0 ? (
+                            <BreadcrumbSeparator key={`${crumb.key}-sep`} />
+                        ) : null,
+                        <BreadcrumbItem
+                            key={crumb.key}
+                            className="min-w-0 whitespace-nowrap"
+                        >
+                            {index === last ? (
+                                <BreadcrumbPage className="flex min-w-0 items-center font-medium">
+                                    {crumb.label}
+                                </BreadcrumbPage>
+                            ) : crumb.to ? (
+                                <BreadcrumbLink asChild>
+                                    <Link to={crumb.to}>{crumb.label}</Link>
+                                </BreadcrumbLink>
+                            ) : (
+                                <span>{crumb.label}</span>
+                            )}
+                        </BreadcrumbItem>
+                    ])}
+                </BreadcrumbList>
+            </Breadcrumb>
+        </TopBar>
+    );
+}

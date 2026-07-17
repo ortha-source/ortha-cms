@@ -103,8 +103,13 @@ export function WorkspaceShell() {
 
     return (
         <CurrentWorkspaceProvider workspace={current}>
-            {/* Fills the main inset beside the app sidebar. */}
-            <div className="min-h-svh">
+            {/* Fills the main inset beside the app sidebar. A flex column so a
+                viewport-bound page (the Content Library) can size itself with
+                `flex-1` off THIS element's height instead of measuring the
+                viewport again — two independent svh calculations can round a
+                pixel apart (visibly at browser zoom ≠ 100%) and hand the
+                document a phantom scrollbar beside the pane's own. */}
+            <div className="flex min-h-svh flex-col">
                 <Routes>
                     {defaultPath ? (
                         <Route

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { Plus } from 'lucide-react';
+import { PageTopBar } from '@ortha-cms/shell-admin';
+import { Layers, Plus } from 'lucide-react';
 import {
     Alert,
     AlertDescription,
@@ -114,64 +115,76 @@ export function WorkspacesPage() {
     };
 
     return (
-        <Container>
-            <ContainerHeader
-                title={intl.formatMessage(messages.title)}
-                subtitle={intl.formatMessage(messages.subtitle)}
-                actions={
-                    canCreate ? (
-                        <Button onClick={openCreate}>
-                            <Plus />
-                            {intl.formatMessage(messages.newWorkspace)}
-                        </Button>
-                    ) : undefined
-                }
+        <>
+            <PageTopBar
+                icon={Layers}
+                iconClassName="bg-violet-soft text-violet-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'workspaces',
+                        label: intl.formatMessage(messages.title)
+                    }
+                ]}
             />
-
-            <WorkspaceToolbar
-                search={search}
-                onSearchChange={setSearch}
-                status={status}
-                onStatusChange={setStatus}
-                counts={counts}
-                shown={filtered.length}
-                total={workspaces.length}
-            />
-
-            {isLoading ? (
-                <WorkspacesTableSkeleton />
-            ) : isError ? (
-                // A failed load gets its own state — never the empty-list
-                // "create your first workspace" copy, which would mislead the
-                // operator into thinking the account genuinely has none.
-                <Alert variant="destructive" role="alert" className="mt-4">
-                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                        <span>{intl.formatMessage(messages.error)}</span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="shadow-none"
-                            onClick={() => refetch()}
-                        >
-                            {intl.formatMessage(messages.retry)}
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            ) : filtered.length === 0 ? (
-                <WorkspacesEmpty
-                    // "No match / clear filters" whenever workspaces exist but
-                    // the current view hides them all (e.g. a search miss, or
-                    // the default Active filter with only archived workspaces);
-                    // the "no workspaces yet / create first" variant is reserved
-                    // for a genuinely empty list.
-                    filtered={workspaces.length > 0}
-                    canCreate={canCreate}
-                    onClear={clearFilters}
-                    onCreate={openCreate}
+            <Container>
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                    actions={
+                        canCreate ? (
+                            <Button onClick={openCreate}>
+                                <Plus />
+                                {intl.formatMessage(messages.newWorkspace)}
+                            </Button>
+                        ) : undefined
+                    }
                 />
-            ) : (
-                <WorkspacesTable workspaces={filtered} />
-            )}
-        </Container>
+
+                <WorkspaceToolbar
+                    search={search}
+                    onSearchChange={setSearch}
+                    status={status}
+                    onStatusChange={setStatus}
+                    counts={counts}
+                    shown={filtered.length}
+                    total={workspaces.length}
+                />
+
+                {isLoading ? (
+                    <WorkspacesTableSkeleton />
+                ) : isError ? (
+                    // A failed load gets its own state — never the empty-list
+                    // "create your first workspace" copy, which would mislead the
+                    // operator into thinking the account genuinely has none.
+                    <Alert variant="destructive" role="alert" className="mt-4">
+                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                            <span>{intl.formatMessage(messages.error)}</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="shadow-none"
+                                onClick={() => refetch()}
+                            >
+                                {intl.formatMessage(messages.retry)}
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                ) : filtered.length === 0 ? (
+                    <WorkspacesEmpty
+                        // "No match / clear filters" whenever workspaces exist but
+                        // the current view hides them all (e.g. a search miss, or
+                        // the default Active filter with only archived workspaces);
+                        // the "no workspaces yet / create first" variant is reserved
+                        // for a genuinely empty list.
+                        filtered={workspaces.length > 0}
+                        canCreate={canCreate}
+                        onClear={clearFilters}
+                        onCreate={openCreate}
+                    />
+                ) : (
+                    <WorkspacesTable workspaces={filtered} />
+                )}
+            </Container>
+        </>
     );
 }

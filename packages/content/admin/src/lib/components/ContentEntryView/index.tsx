@@ -447,8 +447,11 @@ export function ContentEntryView({
         params: { ...listSlotParams, ...bodySlotParams }
     };
 
+    // `flex-auto` (not `min-h-full`): fills the pane's remaining height under
+    // the sticky top bar when short, grows with content when tall — without
+    // forcing a permanent pane scroll.
     return (
-        <div className="flex min-h-full flex-col">
+        <div className="flex flex-auto flex-col">
             <EntrySlotContextProvider value={slotContext}>
                 <EntryEditor
                     schema={schema}

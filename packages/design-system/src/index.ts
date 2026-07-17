@@ -87,6 +87,16 @@ export {
 } from './lib/components/ui/tab-nav';
 export { Kbd } from './lib/components/ui/kbd';
 export {
+    Breadcrumb,
+    BreadcrumbList,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+    BreadcrumbEllipsis
+} from './lib/components/ui/breadcrumb';
+export { TopBar, TopBarIcon } from './lib/components/ui/top-bar';
+export {
     InputGroup,
     InputGroupAddon,
     InputGroupButton,
@@ -236,7 +246,8 @@ export {
     SidebarRail,
     SidebarSeparator,
     SidebarTrigger,
-    useSidebar
+    useSidebar,
+    useOptionalSidebar
 } from './lib/components/ui/sidebar';
 export {
     Stepper,

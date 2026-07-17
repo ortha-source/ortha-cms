@@ -53,6 +53,15 @@ function useSidebar() {
 }
 
 /**
+ * Like {@link useSidebar}, but returns `null` outside a `SidebarProvider` —
+ * for components that adapt to the sidebar when present without requiring it
+ * (e.g. `TopBar`'s inline reveal trigger).
+ */
+function useOptionalSidebar() {
+    return React.useContext(SidebarContext);
+}
+
+/**
  * Provides sidebar open/collapsed state (persisted to a cookie) and the
  * mobile-sheet toggle. Wrap the app chrome in this once; `Sidebar` and
  * `SidebarInset` read it via {@link useSidebar}.
@@ -763,5 +772,6 @@ export {
     SidebarRail,
     SidebarSeparator,
     SidebarTrigger,
-    useSidebar
+    useSidebar,
+    useOptionalSidebar
 };

@@ -5,14 +5,13 @@ import {
     Alert,
     AlertDescription,
     AlertTitle,
-    Container,
-    cn,
-    useSidebar
+    Container
 } from '@ortha-cms/design-system';
 import { History, Trash2 } from 'lucide-react';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import { useContentTypes } from '../../api/useContentTypes';
+import { ContentTopBar } from '../../components/ContentTopBar';
 import { ContentTypeView } from '../../components/ContentTypeView';
 import { ContentWelcome } from '../../components/ContentWelcome';
 import { ContentComingSoon } from '../../components/ContentComingSoon';
@@ -21,6 +20,7 @@ import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import {
     CONTENT_READ,
+    CONTENT_SEGMENT,
     ENTRY_MODE,
     ENTRY_PARAM,
     HISTORY_SEGMENT,
@@ -117,8 +117,11 @@ export function ContentLibraryPage() {
         );
     }
 
+    const basePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}`;
+
     return (
         <ContentPane>
+            <ContentTopBar types={scopedTypes} basePath={basePath} />
             <Routes>
                 <Route
                     index
@@ -183,20 +186,20 @@ export function ContentLibraryPage() {
 }
 
 /**
- * The Content Library work area: fills the viewport height beside the app
- * sidebar and scrolls its content independently. Flush to the canvas (no muted
- * board or bordered island) — the records table and the entry editor render
- * directly on the background and bring their own gutters.
- *
- * Because this page is flush to the top-left (unlike the padded `Container`
- * pages), when the sidebar is collapsed it adds a small left gutter so its
- * header clears the floating reveal button (which is only shown then).
+ * The Content Library work area: fills the workspace shell's height beside the
+ * app sidebar and scrolls its content independently. Sized with `flex-1`
+ * against the shell's `min-h-svh` column — NOT its own `h-svh` — so there is
+ * exactly one viewport measurement in the chain; a second, independently
+ * rounded one can end up 1px taller (visibly at browser zoom ≠ 100%) and give
+ * the document a phantom scrollbar beside the pane's own. Flush to the canvas
+ * (no muted board or bordered island) — the records table and the entry
+ * editor render directly on the background and bring their own gutters. When
+ * the sidebar is collapsed, the reveal trigger renders inline in the
+ * `ContentTopBar` (the `TopBar` primitive owns that).
  */
 function ContentPane({ children }: { children?: ReactNode }) {
-    const { state, isMobile } = useSidebar();
-    const revealed = isMobile || state === 'collapsed';
     return (
-        <div className={cn('h-svh min-w-0 overflow-auto', revealed && 'pl-5')}>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
             {children}
         </div>
     );

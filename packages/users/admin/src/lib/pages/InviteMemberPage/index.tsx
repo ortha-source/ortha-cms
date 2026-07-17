@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { ArrowLeft, ArrowRight, Info, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Search, Users } from 'lucide-react';
+import { PageTopBar } from '@ortha-cms/shell-admin';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import {
@@ -46,6 +47,10 @@ const messages = defineMessages({
             'Add someone to Ortha in three short steps: who they are, what they can do, and which workspaces they can reach.'
     },
     back: { id: 'users.invitePage.back', defaultMessage: 'Back to members' },
+    crumbMembers: {
+        id: 'users.invitePage.crumbMembers',
+        defaultMessage: 'Members'
+    },
     // Rail
     stepDetails: {
         id: 'users.invitePage.stepDetails',
@@ -377,402 +382,429 @@ export function InviteMemberPage() {
     ];
 
     return (
-        <Container className="max-w-[920px]">
-            <Link
-                to="/users"
-                className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-                <ArrowLeft className="size-4" />
-                {intl.formatMessage(messages.back)}
-            </Link>
-
-            <ContainerHeader
-                title={intl.formatMessage(messages.title)}
-                subtitle={intl.formatMessage(messages.subtitle)}
+        <>
+            <PageTopBar
+                icon={Users}
+                iconClassName="bg-success-soft text-success-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'members',
+                        label: intl.formatMessage(messages.crumbMembers),
+                        to: '/users'
+                    },
+                    {
+                        key: 'invite',
+                        label: intl.formatMessage(messages.title)
+                    }
+                ]}
             />
+            <Container className="max-w-[920px]">
+                <Link
+                    to="/users"
+                    className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                    <ArrowLeft className="size-4" />
+                    {intl.formatMessage(messages.back)}
+                </Link>
 
-            <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
-                <div className="lg:sticky lg:top-6 lg:self-start">
-                    <Stepper
-                        current={step}
-                        maxReached={maxReached}
-                        steps={railSteps}
-                        onStepClick={goStep}
-                        stepAriaLabel={(s, number) =>
-                            intl.formatMessage(messages.stepAria, {
-                                number,
-                                label: s.label
-                            })
-                        }
-                    />
-                </div>
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                />
 
-                <WizardStepCard key={step}>
-                    {step === 1 ? (
-                        <>
-                            <CardHeader>
-                                <CardTitle>
-                                    {intl.formatMessage(messages.detailsTitle)}
-                                </CardTitle>
-                                <CardDescription>
-                                    {intl.formatMessage(
-                                        messages.detailsDescription
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <FieldGroup>
-                                    <InputField
-                                        id="invite-email"
-                                        type="email"
-                                        label={intl.formatMessage(
-                                            messages.emailLabel
-                                        )}
-                                        value={email}
-                                        autoComplete="off"
-                                        onBlur={() => setEmailTouched(true)}
-                                        onChange={(event) =>
-                                            setEmail(event.target.value)
-                                        }
-                                        errors={
-                                            emailError
-                                                ? [{ message: emailError }]
-                                                : undefined
-                                        }
-                                    />
-                                    <InputField
-                                        id="invite-name"
-                                        label={intl.formatMessage(
-                                            messages.nameLabel
-                                        )}
-                                        value={name}
-                                        autoComplete="off"
-                                        onChange={(event) =>
-                                            setName(event.target.value)
-                                        }
-                                    />
-                                </FieldGroup>
-                                <InfoNote>
-                                    {intl.formatMessage(messages.detailsInfo)}
-                                </InfoNote>
-                            </CardContent>
-                            <CardFooter>
-                                <WizardFooter
-                                    primary={
-                                        <Button
-                                            type="button"
-                                            onClick={() => goStep(2)}
-                                            disabled={!emailValid}
-                                        >
-                                            {intl.formatMessage(
-                                                messages.continueToRole
-                                            )}
-                                            <ArrowRight />
-                                        </Button>
-                                    }
-                                />
-                            </CardFooter>
-                        </>
-                    ) : null}
+                <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
+                    <div className="lg:sticky lg:top-6 lg:self-start">
+                        <Stepper
+                            current={step}
+                            maxReached={maxReached}
+                            steps={railSteps}
+                            onStepClick={goStep}
+                            stepAriaLabel={(s, number) =>
+                                intl.formatMessage(messages.stepAria, {
+                                    number,
+                                    label: s.label
+                                })
+                            }
+                        />
+                    </div>
 
-                    {step === 2 ? (
-                        <>
-                            <CardHeader>
-                                <CardTitle>
-                                    {intl.formatMessage(messages.roleTitle)}
-                                </CardTitle>
-                                <CardDescription>
-                                    {intl.formatMessage(
-                                        messages.roleDescription
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <RadioGroup
-                                    value={role}
-                                    onValueChange={(value) =>
-                                        setRole(value as MemberRole)
-                                    }
-                                    className="gap-3"
-                                >
-                                    {roles.map((option) => (
-                                        <Label
-                                            key={option.value}
-                                            htmlFor={`invite-role-${option.value}`}
-                                            className={cn(
-                                                'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors hover:bg-accent',
-                                                role === option.value &&
-                                                    'border-primary'
-                                            )}
-                                        >
-                                            <RadioGroupItem
-                                                id={`invite-role-${option.value}`}
-                                                value={option.value}
-                                                aria-label={option.label}
-                                                className="mt-0.5"
-                                            />
-                                            <span className="flex flex-col gap-0.5">
-                                                <span className="text-sm font-medium">
-                                                    {option.label}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {option.hint}
-                                                </span>
-                                            </span>
-                                        </Label>
-                                    ))}
-                                </RadioGroup>
-                                <InfoNote>
-                                    {intl.formatMessage(messages.roleInfo)}
-                                </InfoNote>
-                            </CardContent>
-                            <CardFooter>
-                                <WizardFooter
-                                    onBack={() => goStep(1)}
-                                    backLabel={intl.formatMessage(
-                                        messages.back2
-                                    )}
-                                    primary={
-                                        <Button
-                                            type="button"
-                                            onClick={() => goStep(3)}
-                                        >
-                                            {intl.formatMessage(
-                                                messages.continueToWorkspaces
-                                            )}
-                                            <ArrowRight />
-                                        </Button>
-                                    }
-                                />
-                            </CardFooter>
-                        </>
-                    ) : null}
-
-                    {step === 3 ? (
-                        <>
-                            <CardHeader>
-                                <CardTitle>
-                                    {intl.formatMessage(
-                                        messages.workspacesTitle
-                                    )}
-                                </CardTitle>
-                                <CardDescription>
-                                    {intl.formatMessage(
-                                        messages.workspacesDescription
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {workspaces.isPending ? (
-                                    <WorkspaceOptionsSkeleton />
-                                ) : workspaces.isError ? (
-                                    <Alert variant="destructive">
-                                        <AlertDescription>
-                                            {intl.formatMessage(
-                                                messages.workspacesError
-                                            )}
-                                        </AlertDescription>
-                                    </Alert>
-                                ) : options.length === 0 ? (
-                                    <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                    <WizardStepCard key={step}>
+                        {step === 1 ? (
+                            <>
+                                <CardHeader>
+                                    <CardTitle>
                                         {intl.formatMessage(
-                                            messages.workspacesEmpty
+                                            messages.detailsTitle
                                         )}
-                                    </p>
-                                ) : (
-                                    <>
-                                        <RadioGroup
-                                            value={wsMode}
-                                            onValueChange={(value) =>
-                                                setWsMode(
-                                                    value as 'all' | 'specific'
-                                                )
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {intl.formatMessage(
+                                            messages.detailsDescription
+                                        )}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <FieldGroup>
+                                        <InputField
+                                            id="invite-email"
+                                            type="email"
+                                            label={intl.formatMessage(
+                                                messages.emailLabel
+                                            )}
+                                            value={email}
+                                            autoComplete="off"
+                                            onBlur={() => setEmailTouched(true)}
+                                            onChange={(event) =>
+                                                setEmail(event.target.value)
                                             }
-                                            className="grid gap-3 sm:grid-cols-2"
-                                        >
-                                            {WORKSPACE_MODE_TILES.map(
-                                                (tile) => (
-                                                    <Label
-                                                        key={tile.value}
-                                                        htmlFor={`invite-ws-mode-${tile.value}`}
-                                                        className={cn(
-                                                            'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
-                                                            wsMode ===
-                                                                tile.value
-                                                                ? 'border-primary bg-primary/5'
-                                                                : 'hover:bg-accent'
-                                                        )}
-                                                    >
-                                                        <RadioGroupItem
-                                                            id={`invite-ws-mode-${tile.value}`}
-                                                            value={tile.value}
-                                                            aria-label={intl.formatMessage(
-                                                                tile.title
+                                            errors={
+                                                emailError
+                                                    ? [{ message: emailError }]
+                                                    : undefined
+                                            }
+                                        />
+                                        <InputField
+                                            id="invite-name"
+                                            label={intl.formatMessage(
+                                                messages.nameLabel
+                                            )}
+                                            value={name}
+                                            autoComplete="off"
+                                            onChange={(event) =>
+                                                setName(event.target.value)
+                                            }
+                                        />
+                                    </FieldGroup>
+                                    <InfoNote>
+                                        {intl.formatMessage(
+                                            messages.detailsInfo
+                                        )}
+                                    </InfoNote>
+                                </CardContent>
+                                <CardFooter>
+                                    <WizardFooter
+                                        primary={
+                                            <Button
+                                                type="button"
+                                                onClick={() => goStep(2)}
+                                                disabled={!emailValid}
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.continueToRole
+                                                )}
+                                                <ArrowRight />
+                                            </Button>
+                                        }
+                                    />
+                                </CardFooter>
+                            </>
+                        ) : null}
+
+                        {step === 2 ? (
+                            <>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {intl.formatMessage(messages.roleTitle)}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {intl.formatMessage(
+                                            messages.roleDescription
+                                        )}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <RadioGroup
+                                        value={role}
+                                        onValueChange={(value) =>
+                                            setRole(value as MemberRole)
+                                        }
+                                        className="gap-3"
+                                    >
+                                        {roles.map((option) => (
+                                            <Label
+                                                key={option.value}
+                                                htmlFor={`invite-role-${option.value}`}
+                                                className={cn(
+                                                    'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors hover:bg-accent',
+                                                    role === option.value &&
+                                                        'border-primary'
+                                                )}
+                                            >
+                                                <RadioGroupItem
+                                                    id={`invite-role-${option.value}`}
+                                                    value={option.value}
+                                                    aria-label={option.label}
+                                                    className="mt-0.5"
+                                                />
+                                                <span className="flex flex-col gap-0.5">
+                                                    <span className="text-sm font-medium">
+                                                        {option.label}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {option.hint}
+                                                    </span>
+                                                </span>
+                                            </Label>
+                                        ))}
+                                    </RadioGroup>
+                                    <InfoNote>
+                                        {intl.formatMessage(messages.roleInfo)}
+                                    </InfoNote>
+                                </CardContent>
+                                <CardFooter>
+                                    <WizardFooter
+                                        onBack={() => goStep(1)}
+                                        backLabel={intl.formatMessage(
+                                            messages.back2
+                                        )}
+                                        primary={
+                                            <Button
+                                                type="button"
+                                                onClick={() => goStep(3)}
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.continueToWorkspaces
+                                                )}
+                                                <ArrowRight />
+                                            </Button>
+                                        }
+                                    />
+                                </CardFooter>
+                            </>
+                        ) : null}
+
+                        {step === 3 ? (
+                            <>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {intl.formatMessage(
+                                            messages.workspacesTitle
+                                        )}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {intl.formatMessage(
+                                            messages.workspacesDescription
+                                        )}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {workspaces.isPending ? (
+                                        <WorkspaceOptionsSkeleton />
+                                    ) : workspaces.isError ? (
+                                        <Alert variant="destructive">
+                                            <AlertDescription>
+                                                {intl.formatMessage(
+                                                    messages.workspacesError
+                                                )}
+                                            </AlertDescription>
+                                        </Alert>
+                                    ) : options.length === 0 ? (
+                                        <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                                            {intl.formatMessage(
+                                                messages.workspacesEmpty
+                                            )}
+                                        </p>
+                                    ) : (
+                                        <>
+                                            <RadioGroup
+                                                value={wsMode}
+                                                onValueChange={(value) =>
+                                                    setWsMode(
+                                                        value as
+                                                            | 'all'
+                                                            | 'specific'
+                                                    )
+                                                }
+                                                className="grid gap-3 sm:grid-cols-2"
+                                            >
+                                                {WORKSPACE_MODE_TILES.map(
+                                                    (tile) => (
+                                                        <Label
+                                                            key={tile.value}
+                                                            htmlFor={`invite-ws-mode-${tile.value}`}
+                                                            className={cn(
+                                                                'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
+                                                                wsMode ===
+                                                                    tile.value
+                                                                    ? 'border-primary bg-primary/5'
+                                                                    : 'hover:bg-accent'
                                                             )}
-                                                            className="mt-0.5"
-                                                        />
-                                                        <span className="flex flex-col gap-1">
-                                                            <span className="text-sm font-medium">
-                                                                {intl.formatMessage(
+                                                        >
+                                                            <RadioGroupItem
+                                                                id={`invite-ws-mode-${tile.value}`}
+                                                                value={
+                                                                    tile.value
+                                                                }
+                                                                aria-label={intl.formatMessage(
                                                                     tile.title
                                                                 )}
-                                                            </span>
-                                                            <span className="text-sm text-muted-foreground">
-                                                                {intl.formatMessage(
-                                                                    tile.description,
-                                                                    {
-                                                                        count: options.length
-                                                                    }
-                                                                )}
-                                                            </span>
-                                                        </span>
-                                                    </Label>
-                                                )
-                                            )}
-                                        </RadioGroup>
-
-                                        {wsMode === 'specific' ? (
-                                            <div className="mt-4 flex flex-col">
-                                                <InputGroup className="mb-3 shadow-none">
-                                                    <InputGroupAddon>
-                                                        <Search />
-                                                    </InputGroupAddon>
-                                                    <InputGroupInput
-                                                        value={wsSearch}
-                                                        onChange={(event) =>
-                                                            setWsSearch(
-                                                                event.target
-                                                                    .value
-                                                            )
-                                                        }
-                                                        placeholder={intl.formatMessage(
-                                                            messages.workspacesSearch
-                                                        )}
-                                                        aria-label={intl.formatMessage(
-                                                            messages.workspacesSearch
-                                                        )}
-                                                        autoComplete="off"
-                                                    />
-                                                </InputGroup>
-                                                <div
-                                                    role="group"
-                                                    className="flex max-h-[320px] flex-col gap-2 overflow-y-auto"
-                                                >
-                                                    {filteredOptions.length ===
-                                                    0 ? (
-                                                        <p className="px-1 py-3 text-sm text-muted-foreground">
-                                                            {intl.formatMessage(
-                                                                messages.workspacesNoMatch
-                                                            )}
-                                                        </p>
-                                                    ) : (
-                                                        filteredOptions.map(
-                                                            (workspace) => (
-                                                                <Label
-                                                                    key={
-                                                                        workspace.id
-                                                                    }
-                                                                    htmlFor={`invite-ws-${workspace.id}`}
-                                                                    className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
-                                                                >
-                                                                    <Checkbox
-                                                                        id={`invite-ws-${workspace.id}`}
-                                                                        aria-label={
-                                                                            workspace.name
-                                                                        }
-                                                                        checked={selected.has(
-                                                                            workspace.id
-                                                                        )}
-                                                                        onCheckedChange={(
-                                                                            checked
-                                                                        ) =>
-                                                                            toggleWorkspace(
-                                                                                workspace.id,
-                                                                                checked ===
-                                                                                    true
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                    <MemberAvatar
-                                                                        initials={
-                                                                            workspace.initials
-                                                                        }
-                                                                        color={
-                                                                            workspace.color
-                                                                        }
-                                                                        className="size-7 text-[10px]"
-                                                                    />
-                                                                    <span className="truncate text-sm font-medium">
+                                                                className="mt-0.5"
+                                                            />
+                                                            <span className="flex flex-col gap-1">
+                                                                <span className="text-sm font-medium">
+                                                                    {intl.formatMessage(
+                                                                        tile.title
+                                                                    )}
+                                                                </span>
+                                                                <span className="text-sm text-muted-foreground">
+                                                                    {intl.formatMessage(
+                                                                        tile.description,
                                                                         {
-                                                                            workspace.name
+                                                                            count: options.length
                                                                         }
-                                                                    </span>
-                                                                </Label>
+                                                                    )}
+                                                                </span>
+                                                            </span>
+                                                        </Label>
+                                                    )
+                                                )}
+                                            </RadioGroup>
+
+                                            {wsMode === 'specific' ? (
+                                                <div className="mt-4 flex flex-col">
+                                                    <InputGroup className="mb-3 shadow-none">
+                                                        <InputGroupAddon>
+                                                            <Search />
+                                                        </InputGroupAddon>
+                                                        <InputGroupInput
+                                                            value={wsSearch}
+                                                            onChange={(event) =>
+                                                                setWsSearch(
+                                                                    event.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            placeholder={intl.formatMessage(
+                                                                messages.workspacesSearch
+                                                            )}
+                                                            aria-label={intl.formatMessage(
+                                                                messages.workspacesSearch
+                                                            )}
+                                                            autoComplete="off"
+                                                        />
+                                                    </InputGroup>
+                                                    <div
+                                                        role="group"
+                                                        className="flex max-h-[320px] flex-col gap-2 overflow-y-auto"
+                                                    >
+                                                        {filteredOptions.length ===
+                                                        0 ? (
+                                                            <p className="px-1 py-3 text-sm text-muted-foreground">
+                                                                {intl.formatMessage(
+                                                                    messages.workspacesNoMatch
+                                                                )}
+                                                            </p>
+                                                        ) : (
+                                                            filteredOptions.map(
+                                                                (workspace) => (
+                                                                    <Label
+                                                                        key={
+                                                                            workspace.id
+                                                                        }
+                                                                        htmlFor={`invite-ws-${workspace.id}`}
+                                                                        className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
+                                                                    >
+                                                                        <Checkbox
+                                                                            id={`invite-ws-${workspace.id}`}
+                                                                            aria-label={
+                                                                                workspace.name
+                                                                            }
+                                                                            checked={selected.has(
+                                                                                workspace.id
+                                                                            )}
+                                                                            onCheckedChange={(
+                                                                                checked
+                                                                            ) =>
+                                                                                toggleWorkspace(
+                                                                                    workspace.id,
+                                                                                    checked ===
+                                                                                        true
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <MemberAvatar
+                                                                            initials={
+                                                                                workspace.initials
+                                                                            }
+                                                                            color={
+                                                                                workspace.color
+                                                                            }
+                                                                            className="size-7 text-[10px]"
+                                                                        />
+                                                                        <span className="truncate text-sm font-medium">
+                                                                            {
+                                                                                workspace.name
+                                                                            }
+                                                                        </span>
+                                                                    </Label>
+                                                                )
                                                             )
-                                                        )
-                                                    )}
-                                                </div>
-                                                <p className="mt-2 text-xs text-muted-foreground">
-                                                    {intl.formatMessage(
-                                                        messages.selectedCount,
-                                                        { count: selected.size }
-                                                    )}
-                                                </p>
-                                            </div>
-                                        ) : null}
-                                    </>
-                                )}
-
-                                <InfoNote>
-                                    {intl.formatMessage(
-                                        messages.workspacesInfo
-                                    )}
-                                </InfoNote>
-
-                                {errorMessage ? (
-                                    <Alert
-                                        variant="destructive"
-                                        className="mt-4"
-                                    >
-                                        <AlertDescription>
-                                            {errorMessage}
-                                        </AlertDescription>
-                                    </Alert>
-                                ) : null}
-                            </CardContent>
-                            <CardFooter>
-                                <WizardFooter
-                                    onBack={() => goStep(2)}
-                                    backLabel={intl.formatMessage(
-                                        messages.back2
-                                    )}
-                                    primary={
-                                        <Button
-                                            type="button"
-                                            onClick={submit}
-                                            disabled={invite.isPending}
-                                        >
-                                            {invite.isPending ? (
-                                                <>
-                                                    <Spinner aria-hidden />
-                                                    <span className="sr-only">
-                                                        {intl.formatMessage(
-                                                            messages.submitting
                                                         )}
-                                                    </span>
-                                                </>
+                                                    </div>
+                                                    <p className="mt-2 text-xs text-muted-foreground">
+                                                        {intl.formatMessage(
+                                                            messages.selectedCount,
+                                                            {
+                                                                count: selected.size
+                                                            }
+                                                        )}
+                                                    </p>
+                                                </div>
                                             ) : null}
-                                            {intl.formatMessage(
-                                                messages.submit
-                                            )}
-                                        </Button>
-                                    }
-                                />
-                            </CardFooter>
-                        </>
-                    ) : null}
-                </WizardStepCard>
-            </div>
-        </Container>
+                                        </>
+                                    )}
+
+                                    <InfoNote>
+                                        {intl.formatMessage(
+                                            messages.workspacesInfo
+                                        )}
+                                    </InfoNote>
+
+                                    {errorMessage ? (
+                                        <Alert
+                                            variant="destructive"
+                                            className="mt-4"
+                                        >
+                                            <AlertDescription>
+                                                {errorMessage}
+                                            </AlertDescription>
+                                        </Alert>
+                                    ) : null}
+                                </CardContent>
+                                <CardFooter>
+                                    <WizardFooter
+                                        onBack={() => goStep(2)}
+                                        backLabel={intl.formatMessage(
+                                            messages.back2
+                                        )}
+                                        primary={
+                                            <Button
+                                                type="button"
+                                                onClick={submit}
+                                                disabled={invite.isPending}
+                                            >
+                                                {invite.isPending ? (
+                                                    <>
+                                                        <Spinner aria-hidden />
+                                                        <span className="sr-only">
+                                                            {intl.formatMessage(
+                                                                messages.submitting
+                                                            )}
+                                                        </span>
+                                                    </>
+                                                ) : null}
+                                                {intl.formatMessage(
+                                                    messages.submit
+                                                )}
+                                            </Button>
+                                        }
+                                    />
+                                </CardFooter>
+                            </>
+                        ) : null}
+                    </WizardStepCard>
+                </div>
+            </Container>
+        </>
     );
 }
