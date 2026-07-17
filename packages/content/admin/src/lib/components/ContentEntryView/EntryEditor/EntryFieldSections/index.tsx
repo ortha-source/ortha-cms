@@ -4,40 +4,37 @@ import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { EntryFieldInput } from '../../../EntryFieldInput';
 
 /**
- * Field ordering and layout, by control shape. Fields flow top-to-bottom in
- * three tiers by `rank`:
+ * Field ordering, by control shape. Fields flow top-to-bottom in three tiers
+ * by rank:
  *   0 — simple inputs (text, number, money, date, datetime)
  *   1 — choice controls (select, boolean, multi-select)
  *   2 — large fields (rich text, JSON)
- * Everything but the large fields shares a two-column grid; large fields span
- * the full row (`full`). Types not listed fall to the bottom as full-width — a
- * safe default for any new field type.
+ * Types not listed fall to the bottom — a safe default for any new field type.
  */
-const FIELD_LAYOUT: Record<string, { rank: number; full: boolean }> = {
-    [CONTENT_FIELD_TYPE.Text]: { rank: 0, full: false },
-    [CONTENT_FIELD_TYPE.Number]: { rank: 0, full: false },
-    [CONTENT_FIELD_TYPE.Money]: { rank: 0, full: false },
-    [CONTENT_FIELD_TYPE.Date]: { rank: 0, full: false },
-    [CONTENT_FIELD_TYPE.Datetime]: { rank: 0, full: false },
-    [CONTENT_FIELD_TYPE.Select]: { rank: 1, full: false },
-    [CONTENT_FIELD_TYPE.Boolean]: { rank: 1, full: false },
-    [CONTENT_FIELD_TYPE.Multiselect]: { rank: 1, full: false },
-    [CONTENT_FIELD_TYPE.RichText]: { rank: 2, full: true },
-    [CONTENT_FIELD_TYPE.Json]: { rank: 2, full: true }
+const FIELD_RANK: Record<string, number> = {
+    [CONTENT_FIELD_TYPE.Text]: 0,
+    [CONTENT_FIELD_TYPE.Number]: 0,
+    [CONTENT_FIELD_TYPE.Money]: 0,
+    [CONTENT_FIELD_TYPE.Date]: 0,
+    [CONTENT_FIELD_TYPE.Datetime]: 0,
+    [CONTENT_FIELD_TYPE.Select]: 1,
+    [CONTENT_FIELD_TYPE.Boolean]: 1,
+    [CONTENT_FIELD_TYPE.Multiselect]: 1,
+    [CONTENT_FIELD_TYPE.RichText]: 2,
+    [CONTENT_FIELD_TYPE.Json]: 2
 };
 
-const DEFAULT_LAYOUT = { rank: 3, full: true };
+const DEFAULT_RANK = 3;
 
-const layoutFor = (type: string) => FIELD_LAYOUT[type] ?? DEFAULT_LAYOUT;
+const rankFor = (type: string) => FIELD_RANK[type] ?? DEFAULT_RANK;
 
 /**
  * The General tab body: every editable field in **one** flush block (no card
- * chrome — no border, background, or padding), ordered top-to-
- * bottom by control shape — simple inputs (text, number, dates) first, then
- * choice controls (select, boolean, multi-select), then the large fields (rich
- * text, JSON) last. No section headers: the order alone groups like with like.
- * The layout is a single CSS grid — compact controls pack two-up, large fields
- * break to their own full-width row (`sm:col-span-2`).
+ * chrome — no border, background, or padding), ordered top-to-bottom by
+ * control shape — simple inputs (text, number, dates) first, then choice
+ * controls (select, boolean, multi-select), then the large fields (rich text,
+ * JSON) last. No section headers: the order alone groups like with like. One
+ * field per row — a single stacked column the user works through step by step.
  * Relation fields are handled by their own tab and excluded by the caller.
  */
 export function EntryFieldSections({
@@ -51,27 +48,23 @@ export function EntryFieldSections({
     isChanged?: (name: string) => boolean;
 }) {
     const ordered = [...fields].sort(
-        (a, b) => layoutFor(a.type).rank - layoutFor(b.type).rank
+        (a, b) => rankFor(a.type) - rankFor(b.type)
     );
 
     if (ordered.length === 0) return null;
 
     return (
-        <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+        <div className="flex flex-col gap-5">
             {ordered.map((field) => (
-                <div
+                <EntryFieldInput
                     key={field.name}
-                    className={layoutFor(field.type).full ? 'sm:col-span-2' : ''}
-                >
-                    <EntryFieldInput
-                        field={field}
-                        value={form.values[field.name]}
-                        error={form.errorFor(field.name)}
-                        changed={isChanged?.(field.name) ?? false}
-                        onChange={(value) => form.setValue(field.name, value)}
-                        onBlur={() => form.touch(field.name)}
-                    />
-                </div>
+                    field={field}
+                    value={form.values[field.name]}
+                    error={form.errorFor(field.name)}
+                    changed={isChanged?.(field.name) ?? false}
+                    onChange={(value) => form.setValue(field.name, value)}
+                    onBlur={() => form.touch(field.name)}
+                />
             ))}
         </div>
     );

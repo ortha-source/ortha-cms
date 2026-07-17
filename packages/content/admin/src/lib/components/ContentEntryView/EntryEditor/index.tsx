@@ -393,173 +393,192 @@ export function EntryEditor({
                 padding lives here, inside the pane. `min-w-0` keeps wide field
                 content from widening the page (the card scrolls as a whole). */}
             <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-6">
-                {backTo ? (
-                    <Link
-                        to={backTo}
-                        className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                        <ArrowLeft className="size-4" />
-                        {intl.formatMessage(messages.backToList)}
-                    </Link>
-                ) : null}
-                <div className="mb-6 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="text-lg font-semibold tracking-[-0.01em]">
-                            {title}
-                        </h1>
-                        {slotContext
-                            ? headerItems.map((item) => (
-                                  <item.Component
-                                      key={item.id}
-                                      {...slotContext}
-                                  />
-                              ))
-                            : null}
-                    </div>
-                    {subtitle ? (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            {subtitle}
-                        </p>
+                {/* Centered reading column: the editor content is capped and
+                    centered instead of stretching the full pane width. */}
+                <div className="mx-auto w-full max-w-3xl">
+                    {backTo ? (
+                        <Link
+                            to={backTo}
+                            className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            <ArrowLeft className="size-4" />
+                            {intl.formatMessage(messages.backToList)}
+                        </Link>
                     ) : null}
-                </div>
+                    <div className="mb-6 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="text-lg font-semibold tracking-[-0.01em]">
+                                {title}
+                            </h1>
+                            {slotContext
+                                ? headerItems.map((item) => (
+                                      <item.Component
+                                          key={item.id}
+                                          {...slotContext}
+                                      />
+                                  ))
+                                : null}
+                        </div>
+                        {subtitle ? (
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {subtitle}
+                            </p>
+                        ) : null}
+                    </div>
 
-                <div className="min-w-0">
-                    <Tabs value={tab} onValueChange={setTab}>
-                        <TabsList className="mb-4">
-                            <TabsTrigger value={TAB.General}>
-                                {intl.formatMessage(messages.tabGeneral)}
-                            </TabsTrigger>
-                            <TabsTrigger value={TAB.Relations}>
-                                {intl.formatMessage(messages.tabRelations)}
-                            </TabsTrigger>
-                            <TabsTrigger value={TAB.Media}>
-                                {intl.formatMessage(messages.tabMedia)}
-                            </TabsTrigger>
-                            <TabsTrigger value={TAB.History}>
-                                {intl.formatMessage(messages.tabHistory)}
-                            </TabsTrigger>
-                        </TabsList>
+                    <div className="min-w-0">
+                        <Tabs value={tab} onValueChange={setTab}>
+                            <TabsList className="mb-4">
+                                <TabsTrigger value={TAB.General}>
+                                    {intl.formatMessage(messages.tabGeneral)}
+                                </TabsTrigger>
+                                <TabsTrigger value={TAB.Relations}>
+                                    {intl.formatMessage(messages.tabRelations)}
+                                </TabsTrigger>
+                                <TabsTrigger value={TAB.Media}>
+                                    {intl.formatMessage(messages.tabMedia)}
+                                </TabsTrigger>
+                                <TabsTrigger value={TAB.History}>
+                                    {intl.formatMessage(messages.tabHistory)}
+                                </TabsTrigger>
+                            </TabsList>
 
-                        <TabsContent value={TAB.General}>
-                            <EntryFieldSections
-                                fields={generalFields}
-                                form={form}
-                                isChanged={isFieldDirty}
-                            />
-                        </TabsContent>
+                            <TabsContent value={TAB.General}>
+                                <EntryFieldSections
+                                    fields={generalFields}
+                                    form={form}
+                                    isChanged={isFieldDirty}
+                                />
+                            </TabsContent>
 
-                        <TabsContent value={TAB.Relations}>
-                            {relationFields.length > 0 ? (
-                                <div className="flex flex-col gap-3">
+                            <TabsContent value={TAB.Relations}>
+                                {relationFields.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        <p className="text-sm text-muted-foreground">
+                                            {intl.formatMessage(
+                                                messages.relationsSubtitle
+                                            )}
+                                        </p>
+                                        {relationFields.map((field) => {
+                                            // A many/inverse relation is staged +
+                                            // link-managed; a single relation is a
+                                            // plain form value.
+                                            const managed =
+                                                !!field.relation?.many ||
+                                                !!field.relation?.inverse;
+                                            const staged = stagedFor(
+                                                field.name
+                                            );
+                                            // Header count: server total adjusted by
+                                            // the staged add/remove (managed), else
+                                            // the single form value's length. `null`
+                                            // while the managed set's aggregate is
+                                            // still loading, so the header shows a
+                                            // neutral affordance rather than a wrong
+                                            // 0 for a populated relation (#6).
+                                            const count: number | null = managed
+                                                ? relationsLoading
+                                                    ? null
+                                                    : Math.max(
+                                                          0,
+                                                          (relationRefs?.[
+                                                              field.name
+                                                          ]?.total ?? 0) -
+                                                              staged.removed
+                                                                  .length +
+                                                              staged.added
+                                                                  .length
+                                                      )
+                                                : toRelationIds(
+                                                      form.values[field.name],
+                                                      false
+                                                  ).length;
+                                            const changed = managed
+                                                ? isRelationDirty(field.name)
+                                                : isFieldDirty(field.name);
+                                            return (
+                                                <RelationFieldSection
+                                                    key={field.name}
+                                                    field={field}
+                                                    count={count}
+                                                    changed={changed}
+                                                    typeName={schema.name}
+                                                    entryId={entryId}
+                                                    value={
+                                                        form.values[field.name]
+                                                    }
+                                                    error={form.errorFor(
+                                                        field.name
+                                                    )}
+                                                    onChange={(value) =>
+                                                        form.setValue(
+                                                            field.name,
+                                                            value
+                                                        )
+                                                    }
+                                                    onBlur={() =>
+                                                        form.touch(field.name)
+                                                    }
+                                                    initialRefs={
+                                                        relationRefs?.[
+                                                            field.name
+                                                        ]?.items
+                                                    }
+                                                    staged={staged}
+                                                    onStagedChange={(next) =>
+                                                        setStaged(
+                                                            field.name,
+                                                            next
+                                                        )
+                                                    }
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
                                     <p className="text-sm text-muted-foreground">
                                         {intl.formatMessage(
-                                            messages.relationsSubtitle
+                                            messages.relationsEmpty
                                         )}
                                     </p>
-                                    {relationFields.map((field) => {
-                                        // A many/inverse relation is staged +
-                                        // link-managed; a single relation is a
-                                        // plain form value.
-                                        const managed =
-                                            !!field.relation?.many ||
-                                            !!field.relation?.inverse;
-                                        const staged = stagedFor(field.name);
-                                        // Header count: server total adjusted by
-                                        // the staged add/remove (managed), else
-                                        // the single form value's length. `null`
-                                        // while the managed set's aggregate is
-                                        // still loading, so the header shows a
-                                        // neutral affordance rather than a wrong
-                                        // 0 for a populated relation (#6).
-                                        const count: number | null = managed
-                                            ? relationsLoading
-                                                ? null
-                                                : Math.max(
-                                                      0,
-                                                      (relationRefs?.[field.name]
-                                                          ?.total ?? 0) -
-                                                          staged.removed.length +
-                                                          staged.added.length
-                                                  )
-                                            : toRelationIds(
-                                                  form.values[field.name],
-                                                  false
-                                              ).length;
-                                        const changed = managed
-                                            ? isRelationDirty(field.name)
-                                            : isFieldDirty(field.name);
-                                        return (
-                                            <RelationFieldSection
-                                                key={field.name}
-                                                field={field}
-                                                count={count}
-                                                changed={changed}
-                                                typeName={schema.name}
-                                                entryId={entryId}
-                                                value={form.values[field.name]}
-                                                error={form.errorFor(field.name)}
-                                                onChange={(value) =>
-                                                    form.setValue(
-                                                        field.name,
-                                                        value
-                                                    )
-                                                }
-                                                onBlur={() =>
-                                                    form.touch(field.name)
-                                                }
-                                                initialRefs={
-                                                    relationRefs?.[field.name]
-                                                        ?.items
-                                                }
-                                                staged={staged}
-                                                onStagedChange={(next) =>
-                                                    setStaged(field.name, next)
-                                                }
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    {intl.formatMessage(
-                                        messages.relationsEmpty
-                                    )}
-                                </p>
-                            )}
-                        </TabsContent>
+                                )}
+                            </TabsContent>
 
-                        <TabsContent value={TAB.Media}>
-                            <Card className="shadow-none">
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {intl.formatMessage(
-                                            messages.mediaTitle
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {intl.formatMessage(messages.mediaBody)}
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                        </TabsContent>
+                            <TabsContent value={TAB.Media}>
+                                <Card className="shadow-none">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            {intl.formatMessage(
+                                                messages.mediaTitle
+                                            )}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {intl.formatMessage(
+                                                messages.mediaBody
+                                            )}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            </TabsContent>
 
-                        <TabsContent value={TAB.History}>
-                            <Card className="shadow-none">
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {intl.formatMessage(
-                                            messages.historyTitle
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {intl.formatMessage(
-                                            messages.historyBody
-                                        )}
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
+                            <TabsContent value={TAB.History}>
+                                <Card className="shadow-none">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            {intl.formatMessage(
+                                                messages.historyTitle
+                                            )}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {intl.formatMessage(
+                                                messages.historyBody
+                                            )}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
                 </div>
             </div>
 
