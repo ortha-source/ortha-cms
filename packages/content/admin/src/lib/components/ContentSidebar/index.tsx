@@ -113,13 +113,13 @@ export function ContentSidebar({
                 <button
                     type="button"
                     onClick={onOpenSearch}
-                    className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2.5 py-1.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                 >
                     <Search className="size-4 shrink-0" />
                     <span className="truncate">
                         {intl.formatMessage(messages.search)}
                     </span>
-                    <kbd className="ml-auto rounded border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground">
+                    <kbd className="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 font-sans text-[10px] text-sidebar-foreground/70">
                         ⌘K
                     </kbd>
                 </button>
@@ -128,7 +128,7 @@ export function ContentSidebar({
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto pb-2 pt-2">
                 {favoriteTypes.length > 0 ? (
                     <div className="flex w-full min-w-0 flex-col p-2">
-                        <div className="flex h-8 items-center px-2 text-xs font-medium text-muted-foreground">
+                        <div className="flex h-8 items-center px-2 text-xs font-medium text-sidebar-foreground/70">
                             {intl.formatMessage(messages.favoritesGroup)}
                         </div>
                         <div className="mt-1 flex w-full min-w-0 flex-col gap-1">
@@ -138,7 +138,7 @@ export function ContentSidebar({
                 ) : null}
 
                 <div className="flex w-full min-w-0 flex-col p-2">
-                    <div className="flex h-8 items-center px-2 text-xs font-medium text-muted-foreground">
+                    <div className="flex h-8 items-center px-2 text-xs font-medium text-sidebar-foreground/70">
                         {intl.formatMessage(messages.workspaceGroup)}
                     </div>
                     <div className="mt-1 flex w-full min-w-0 flex-col gap-1">

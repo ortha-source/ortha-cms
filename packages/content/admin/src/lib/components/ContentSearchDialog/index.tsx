@@ -5,7 +5,8 @@ import {
     CommandEmpty,
     CommandGroup,
     CommandInput,
-    CommandList
+    CommandList,
+    Kbd
 } from '@ortha-cms/design-system';
 import type { ContentType } from '../../types/contentType';
 import { groupContentTypes } from '../../utils/groupContentTypes';
@@ -29,9 +30,17 @@ const messages = defineMessages({
         id: 'content.search.empty',
         defaultMessage: 'No content types found.'
     },
-    footer: {
-        id: 'content.search.footer',
-        defaultMessage: '↑↓ to navigate · ↵ to open · esc to close'
+    footerNavigate: {
+        id: 'content.search.footerNavigate',
+        defaultMessage: 'to navigate'
+    },
+    footerOpen: {
+        id: 'content.search.footerOpen',
+        defaultMessage: 'to open'
+    },
+    footerClose: {
+        id: 'content.search.footerClose',
+        defaultMessage: 'to close'
     },
     collectionsGroup: {
         id: 'content.search.collectionsGroup',
@@ -129,8 +138,20 @@ export function ContentSearchDialog({
                     </CommandGroup>
                 ) : null}
             </CommandList>
-            <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-                {intl.formatMessage(messages.footer)}
+            <div className="flex items-center gap-4 border-t px-3 py-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                    <Kbd>↑</Kbd>
+                    <Kbd>↓</Kbd>
+                    {intl.formatMessage(messages.footerNavigate)}
+                </span>
+                <span className="flex items-center gap-1">
+                    <Kbd>↵</Kbd>
+                    {intl.formatMessage(messages.footerOpen)}
+                </span>
+                <span className="flex items-center gap-1">
+                    <Kbd>esc</Kbd>
+                    {intl.formatMessage(messages.footerClose)}
+                </span>
             </div>
         </CommandDialog>
     );

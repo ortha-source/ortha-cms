@@ -7,7 +7,8 @@ import {
     CommandEmpty,
     CommandGroup,
     CommandInput,
-    CommandList
+    CommandList,
+    Kbd
 } from '@ortha-cms/design-system';
 import { byOrder } from '@ortha-cms/utils-admin';
 import { SIDEBAR_NAV_SLOT } from '../../../slots/sidebarSlots';
@@ -40,9 +41,17 @@ const messages = defineMessages({
         id: 'shell.search.goTo',
         defaultMessage: 'Go to'
     },
-    footer: {
-        id: 'shell.search.footer',
-        defaultMessage: '↑↓ to navigate · ↵ to open · esc to close'
+    footerNavigate: {
+        id: 'shell.search.footerNavigate',
+        defaultMessage: 'to navigate'
+    },
+    footerOpen: {
+        id: 'shell.search.footerOpen',
+        defaultMessage: 'to open'
+    },
+    footerClose: {
+        id: 'shell.search.footerClose',
+        defaultMessage: 'to close'
     }
 });
 
@@ -90,7 +99,7 @@ export function SidebarSearch() {
                 type="button"
                 aria-label={label}
                 onClick={() => setOpen(true)}
-                className="flex h-9 w-full items-center gap-2 rounded-md border border-sidebar-border bg-background px-2.5 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                className="flex h-9 w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
                 <Search className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1 text-left">{label}</span>
@@ -125,8 +134,20 @@ export function SidebarSearch() {
                         <Component key={id} close={close} />
                     ))}
                 </CommandList>
-                <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-                    {intl.formatMessage(messages.footer)}
+                <div className="flex items-center gap-4 border-t px-3 py-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                        <Kbd>↑</Kbd>
+                        <Kbd>↓</Kbd>
+                        {intl.formatMessage(messages.footerNavigate)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <Kbd>↵</Kbd>
+                        {intl.formatMessage(messages.footerOpen)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <Kbd>esc</Kbd>
+                        {intl.formatMessage(messages.footerClose)}
+                    </span>
                 </div>
             </CommandDialog>
         </>

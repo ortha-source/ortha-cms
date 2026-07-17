@@ -68,14 +68,13 @@ the section content in the inset.
 
 ## Settings page (`/workspaces/:id/settings/*`)
 
-- A **left-rail** page (`pages/WorkspaceSettingsPage`) mirroring the user-detail
-  settings layout: a shared-width `Container`, a header, then a
-  `grid md:grid-cols-[14rem_minmax(0,1fr)]` with the sticky
-  `components/WorkspaceSettingsRail` (absolute-path `NavLink`s) beside the active
-  section, each a **nested route** (`settings/general` · `/members` · `/content`
-  · `/danger`; the index redirects to `general`). Mounted at `settings/*` so the
-  page owns those child routes (same shape as the content library's `content/*`).
-  The rail narrows the content column, so the page isn't full-width.
+- A **tabbed** page (`pages/WorkspaceSettingsPage`) mirroring the user-detail
+  layout: a shared-width `Container`, a header, then the
+  `components/WorkspaceSettingsTabs` underline tab bar (design-system `TabNav`
+  of absolute-path `NavLink`s) above the active section, each a **nested
+  route** (`settings/general` · `/members` · `/content` · `/danger`; the index
+  redirects to `general`). Mounted at `settings/*` so the page owns those child
+  routes (same shape as the content library's `content/*`).
 - The sections: **General** (name / description / avatar color; TanStack Form +
   the `useWorkspaceProfileSchema` Zod hook, the slug shown read-only since it's
   immutable), **Members** (a directory typeahead that assigns **existing** users
@@ -98,7 +97,7 @@ the section content in the inset.
   `409` as the safety net; delete returns to the list).
 - **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
   drives every edit (a viewer sees a read-only page with the controls hidden),
-  `workspaces:delete` gates delete; the Danger rail entry **and** its route only
+  `workspaces:delete` gates delete; the Danger tab entry **and** its route only
   exist when the user can act on it (the route redirects to `general` otherwise,
   so a deep link can't reach it). The section bodies live in top-level
   `components/Workspace{General,Members,Content,Danger}Settings/` (their

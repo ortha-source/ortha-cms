@@ -120,7 +120,7 @@ export function RelationItemRow({
             {status ? (
                 <Badge
                     variant={
-                        status === ENTRY_STATUS.Published ? 'default' : 'secondary'
+                        status === ENTRY_STATUS.Published ? 'success' : 'secondary'
                     }
                     className="shrink-0"
                 >

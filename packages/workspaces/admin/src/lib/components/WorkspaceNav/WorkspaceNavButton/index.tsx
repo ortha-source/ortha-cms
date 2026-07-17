@@ -38,7 +38,7 @@ export function WorkspaceNavButton({ item }: WorkspaceNavButtonProps) {
         <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
                 <Link to={to} aria-current={isActive ? 'page' : undefined}>
-                    <Icon />
+                    <Icon className={isActive ? item.iconColor : undefined} />
                     <span>{label}</span>
                 </Link>
             </SidebarMenuButton>

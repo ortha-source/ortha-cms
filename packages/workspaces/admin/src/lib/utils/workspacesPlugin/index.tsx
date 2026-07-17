@@ -118,7 +118,8 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                         to: '/workspaces',
                         group: 'directory',
                         order: 10,
-                        icon: Layers
+                        icon: Layers,
+                        iconColor: 'text-nav-violet'
                     }
                 ]
             },

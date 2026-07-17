@@ -1,7 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { PageTopBar } from '@ortha-cms/shell-admin';
+import { ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import {
     Button,
     CardContent,
@@ -38,6 +39,10 @@ const messages = defineMessages({
     back: {
         id: 'workspaces.create.backToWorkspaces',
         defaultMessage: 'Back to workspaces'
+    },
+    crumbWorkspaces: {
+        id: 'workspaces.create.crumbWorkspaces',
+        defaultMessage: 'Workspaces'
     },
     // Rail
     stepBasics: {
@@ -113,7 +118,8 @@ const messages = defineMessages({
     // Footer
     basicsHint: {
         id: 'workspaces.create.basicsFooterHint',
-        defaultMessage: 'Only a name is required — everything else can change later.'
+        defaultMessage:
+            'Only a name is required — everything else can change later.'
     },
     continueToMembers: {
         id: 'workspaces.create.continueToMembers',
@@ -228,187 +234,210 @@ export function CreateWorkspacePage() {
     ];
 
     return (
-        <Container className="max-w-[920px]">
-            <Link
-                to="/workspaces"
-                className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-                <ArrowLeft className="size-4" />
-                {intl.formatMessage(messages.back)}
-            </Link>
-
-            <ContainerHeader
-                title={intl.formatMessage(messages.title)}
-                subtitle={intl.formatMessage(messages.subtitle)}
+        <>
+            <PageTopBar
+                icon={Layers}
+                iconClassName="bg-violet-soft text-violet-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'workspaces',
+                        label: intl.formatMessage(messages.crumbWorkspaces),
+                        to: '/workspaces'
+                    },
+                    {
+                        key: 'new',
+                        label: intl.formatMessage(messages.title)
+                    }
+                ]}
             />
+            <Container className="max-w-[920px]">
+                <Link
+                    to="/workspaces"
+                    className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                    <ArrowLeft className="size-4" />
+                    {intl.formatMessage(messages.back)}
+                </Link>
 
-            <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
-                <div className="lg:sticky lg:top-6 lg:self-start">
-                    <Stepper
-                        current={wizard.step}
-                        maxReached={wizard.maxReached}
-                        steps={railSteps}
-                        onStepClick={wizard.goStep}
-                        optionalLabel={intl.formatMessage(
-                            messages.stepperOptional
-                        )}
-                        stepAriaLabel={(step, number) =>
-                            intl.formatMessage(messages.stepperStepLabel, {
-                                number,
-                                label: step.label
-                            })
-                        }
-                    />
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                />
+
+                <div className="grid gap-8 lg:grid-cols-[244px_1fr]">
+                    <div className="lg:sticky lg:top-6 lg:self-start">
+                        <Stepper
+                            current={wizard.step}
+                            maxReached={wizard.maxReached}
+                            steps={railSteps}
+                            onStepClick={wizard.goStep}
+                            optionalLabel={intl.formatMessage(
+                                messages.stepperOptional
+                            )}
+                            stepAriaLabel={(step, number) =>
+                                intl.formatMessage(messages.stepperStepLabel, {
+                                    number,
+                                    label: step.label
+                                })
+                            }
+                        />
+                    </div>
+
+                    <WizardStepCard key={wizard.step}>
+                        {wizard.step === 1 ? (
+                            <>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {intl.formatMessage(
+                                            messages.basicsTitle
+                                        )}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {intl.formatMessage(
+                                            messages.basicsDescription
+                                        )}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <IdentityFields
+                                        data={wizard.data}
+                                        update={wizard.update}
+                                        slug={slug}
+                                    />
+                                </CardContent>
+                                <CardFooter>
+                                    <WizardFooter
+                                        hint={intl.formatMessage(
+                                            messages.basicsHint
+                                        )}
+                                        primary={
+                                            <Button
+                                                type="button"
+                                                onClick={() => wizard.goStep(2)}
+                                                disabled={!basicsCanContinue}
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.continueToMembers
+                                                )}
+                                                <ArrowRight />
+                                            </Button>
+                                        }
+                                    />
+                                </CardFooter>
+                            </>
+                        ) : null}
+
+                        {wizard.step === 2 ? (
+                            <>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {intl.formatMessage(
+                                            messages.membersTitle
+                                        )}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {intl.formatMessage(
+                                            messages.membersDescription
+                                        )}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <MembersStep
+                                        members={wizard.members}
+                                        addMember={wizard.addMember}
+                                        removeMember={wizard.removeMember}
+                                    />
+                                </CardContent>
+                                <CardFooter>
+                                    <WizardFooter
+                                        onBack={() => wizard.goStep(1)}
+                                        backLabel={intl.formatMessage(
+                                            messages.backLabel
+                                        )}
+                                        onSkip={() => wizard.goStep(3)}
+                                        skipLabel={intl.formatMessage(
+                                            messages.skipForNow
+                                        )}
+                                        primary={
+                                            <Button
+                                                type="button"
+                                                onClick={() => wizard.goStep(3)}
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.continueToContent
+                                                )}
+                                                <ArrowRight />
+                                            </Button>
+                                        }
+                                    />
+                                </CardFooter>
+                            </>
+                        ) : null}
+
+                        {wizard.step === 3 ? (
+                            <>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {intl.formatMessage(
+                                            messages.contentTitle
+                                        )}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {intl.formatMessage(
+                                            messages.contentDescription
+                                        )}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ContentStep
+                                        contentMode={wizard.contentMode}
+                                        setContentMode={wizard.setContentMode}
+                                        collections={wizard.collections}
+                                        setCollections={wizard.setCollections}
+                                        pages={wizard.pages}
+                                        setPages={wizard.setPages}
+                                    />
+                                </CardContent>
+                                <CardFooter>
+                                    <WizardFooter
+                                        onBack={() => wizard.goStep(2)}
+                                        backLabel={intl.formatMessage(
+                                            messages.backLabel
+                                        )}
+                                        onSkip={() => submitTo(true)}
+                                        skipLabel={intl.formatMessage(
+                                            messages.skipAndCreate
+                                        )}
+                                        primary={
+                                            <Button
+                                                type="button"
+                                                onClick={() => submitTo(false)}
+                                                disabled={
+                                                    wizard.submitting ||
+                                                    contentBlocked
+                                                }
+                                            >
+                                                {wizard.submitting ? (
+                                                    <>
+                                                        <Spinner />
+                                                        {intl.formatMessage(
+                                                            messages.creating
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    intl.formatMessage(
+                                                        messages.create
+                                                    )
+                                                )}
+                                            </Button>
+                                        }
+                                    />
+                                </CardFooter>
+                            </>
+                        ) : null}
+                    </WizardStepCard>
                 </div>
-
-                <WizardStepCard key={wizard.step}>
-                    {wizard.step === 1 ? (
-                        <>
-                            <CardHeader>
-                                <CardTitle>
-                                    {intl.formatMessage(messages.basicsTitle)}
-                                </CardTitle>
-                                <CardDescription>
-                                    {intl.formatMessage(
-                                        messages.basicsDescription
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <IdentityFields
-                                    data={wizard.data}
-                                    update={wizard.update}
-                                    slug={slug}
-                                />
-                            </CardContent>
-                            <CardFooter>
-                                <WizardFooter
-                                    hint={intl.formatMessage(
-                                        messages.basicsHint
-                                    )}
-                                    primary={
-                                        <Button
-                                            type="button"
-                                            onClick={() => wizard.goStep(2)}
-                                            disabled={!basicsCanContinue}
-                                        >
-                                            {intl.formatMessage(
-                                                messages.continueToMembers
-                                            )}
-                                            <ArrowRight />
-                                        </Button>
-                                    }
-                                />
-                            </CardFooter>
-                        </>
-                    ) : null}
-
-                    {wizard.step === 2 ? (
-                        <>
-                            <CardHeader>
-                                <CardTitle>
-                                    {intl.formatMessage(messages.membersTitle)}
-                                </CardTitle>
-                                <CardDescription>
-                                    {intl.formatMessage(
-                                        messages.membersDescription
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <MembersStep
-                                    members={wizard.members}
-                                    addMember={wizard.addMember}
-                                    removeMember={wizard.removeMember}
-                                />
-                            </CardContent>
-                            <CardFooter>
-                                <WizardFooter
-                                    onBack={() => wizard.goStep(1)}
-                                    backLabel={intl.formatMessage(
-                                        messages.backLabel
-                                    )}
-                                    onSkip={() => wizard.goStep(3)}
-                                    skipLabel={intl.formatMessage(
-                                        messages.skipForNow
-                                    )}
-                                    primary={
-                                        <Button
-                                            type="button"
-                                            onClick={() => wizard.goStep(3)}
-                                        >
-                                            {intl.formatMessage(
-                                                messages.continueToContent
-                                            )}
-                                            <ArrowRight />
-                                        </Button>
-                                    }
-                                />
-                            </CardFooter>
-                        </>
-                    ) : null}
-
-                    {wizard.step === 3 ? (
-                        <>
-                            <CardHeader>
-                                <CardTitle>
-                                    {intl.formatMessage(messages.contentTitle)}
-                                </CardTitle>
-                                <CardDescription>
-                                    {intl.formatMessage(
-                                        messages.contentDescription
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <ContentStep
-                                    contentMode={wizard.contentMode}
-                                    setContentMode={wizard.setContentMode}
-                                    collections={wizard.collections}
-                                    setCollections={wizard.setCollections}
-                                    pages={wizard.pages}
-                                    setPages={wizard.setPages}
-                                />
-                            </CardContent>
-                            <CardFooter>
-                                <WizardFooter
-                                    onBack={() => wizard.goStep(2)}
-                                    backLabel={intl.formatMessage(
-                                        messages.backLabel
-                                    )}
-                                    onSkip={() => submitTo(true)}
-                                    skipLabel={intl.formatMessage(
-                                        messages.skipAndCreate
-                                    )}
-                                    primary={
-                                        <Button
-                                            type="button"
-                                            onClick={() => submitTo(false)}
-                                            disabled={
-                                                wizard.submitting ||
-                                                contentBlocked
-                                            }
-                                        >
-                                            {wizard.submitting ? (
-                                                <>
-                                                    <Spinner />
-                                                    {intl.formatMessage(
-                                                        messages.creating
-                                                    )}
-                                                </>
-                                            ) : (
-                                                intl.formatMessage(
-                                                    messages.create
-                                                )
-                                            )}
-                                        </Button>
-                                    }
-                                />
-                            </CardFooter>
-                        </>
-                    ) : null}
-                </WizardStepCard>
-            </div>
-        </Container>
+            </Container>
+        </>
     );
 }

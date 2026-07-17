@@ -87,9 +87,8 @@ export function WorkspaceMembersSettings({
     const intl = useIntl();
     const addMember = useAddWorkspaceMember();
     const removeMember = useRemoveWorkspaceMember();
-    const [pendingRemoval, setPendingRemoval] = useState<WorkspaceMember | null>(
-        null
-    );
+    const [pendingRemoval, setPendingRemoval] =
+        useState<WorkspaceMember | null>(null);
 
     const excludeIds = new Set(workspace.members.map((member) => member.id));
 
@@ -99,9 +98,11 @@ export function WorkspaceMembersSettings({
                 workspaceId: workspace.id,
                 userId: user.id
             });
-            toast(intl.formatMessage(messages.added, { name: user.name }));
+            toast.success(
+                intl.formatMessage(messages.added, { name: user.name })
+            );
         } catch {
-            toast(intl.formatMessage(messages.addError));
+            toast.error(intl.formatMessage(messages.addError));
         }
     };
 
@@ -113,9 +114,11 @@ export function WorkspaceMembersSettings({
                 workspaceId: workspace.id,
                 userId: member.id
             });
-            toast(intl.formatMessage(messages.removed, { name: member.name }));
+            toast.success(
+                intl.formatMessage(messages.removed, { name: member.name })
+            );
         } catch {
-            toast(intl.formatMessage(messages.removeError));
+            toast.error(intl.formatMessage(messages.removeError));
         } finally {
             setPendingRemoval(null);
         }

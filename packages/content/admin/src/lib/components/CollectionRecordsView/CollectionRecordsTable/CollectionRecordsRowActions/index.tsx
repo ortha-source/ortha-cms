@@ -106,7 +106,8 @@ const messages = defineMessages({
     },
     deleteBodyHard: {
         id: 'content.records.actions.deleteBodyHard',
-        defaultMessage: 'This permanently removes the entry and can’t be undone.'
+        defaultMessage:
+            'This permanently removes the entry and can’t be undone.'
     },
     purgeTitle: {
         id: 'content.records.actions.purgeTitle',
@@ -168,7 +169,7 @@ export function CollectionRecordsRowActions({
     const copyId = async () => {
         try {
             await navigator.clipboard.writeText(record.id);
-            toast(intl.formatMessage(messages.copied));
+            toast.success(intl.formatMessage(messages.copied));
         } catch {
             toast.error(intl.formatMessage(messages.copyFailed));
         }
@@ -180,7 +181,7 @@ export function CollectionRecordsRowActions({
         onBlocked?: () => void
     ) => {
         mutateAsync(record.id)
-            .then(() => toast(intl.formatMessage(messages[successId])))
+            .then(() => toast.success(intl.formatMessage(messages[successId])))
             .catch((error) => {
                 const status = (error as { status?: number })?.status;
                 if (onBlocked && status === 422) onBlocked();

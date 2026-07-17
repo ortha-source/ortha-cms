@@ -22,7 +22,7 @@ the sidebar nav entry.
 **Member · Role · Status · Workspaces** table, pagination, a loading
 **skeleton** (`MembersTableSkeleton`), and empty/no-access states. Each row is a
 shortcut to the member's detail page (the name is a real link for keyboard
-users); the row's kebab menu mirrors the detail side rail — an **Account**
+users); the row's kebab menu mirrors the detail tab bar — an **Account**
 group (General/Role/Workspaces) plus permission-gated **Audit**
 (Sessions/Activity) and **Access** (Sign-in access) groups that navigate
 straight to a tab — followed by the status quick actions (Resend/Revoke invite,
@@ -33,14 +33,15 @@ way.
 `UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`'s nested `<Routes>`)
 — fetches one member once (`useUserDetail`) and shares it with every tab through
 the Outlet context (`utils/userDetailContext`), so a tab read is free. Renders
-the back link, `UserHero`, `UserStatsStrip`, and a sticky `UserSideRail` beside
-the active tab. Six tab pages: **General** (edit name), **Role** (`RolePicker` +
+the back link, `UserHero`, `UserStatsStrip`, and the `UserDetailTabs` underline
+tab bar (design-system `TabNav`) above the active tab. Six tab pages:
+**General** (edit name), **Role** (`RolePicker` +
 confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
 **Sessions** (`SessionCard` + revoke), **Activity** (reuses
 `@ortha-cms/activity-admin`'s `useActivityLog`, pinned to `subjectId`), and
 **Access** (suspend/reactivate). The Audit (Sessions, Activity) and Access tabs
 are permission-gated **at the route level** — without `users:update` /
-`activity:read` the rail hides them and the route redirects to General.
+`activity:read` the tab bar hides them and the route redirects to General.
 
 ## Conventions
 

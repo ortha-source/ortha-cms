@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Filter, UserPlus } from 'lucide-react';
+import { Filter, UserPlus, Users } from 'lucide-react';
+import { PageTopBar } from '@ortha-cms/shell-admin';
 import {
     QueryBuilderDrawer,
     countRules,
@@ -139,10 +140,24 @@ export function MembersPage() {
 
     if (!canRead) {
         return (
-            <Container>
-                <ContainerHeader title={intl.formatMessage(messages.title)} />
-                <MembersNoAccess />
-            </Container>
+            <>
+                <PageTopBar
+                    icon={Users}
+                    iconClassName="bg-success-soft text-success-soft-foreground"
+                    crumbs={[
+                        {
+                            key: 'members',
+                            label: intl.formatMessage(messages.title)
+                        }
+                    ]}
+                />
+                <Container>
+                    <ContainerHeader
+                        title={intl.formatMessage(messages.title)}
+                    />
+                    <MembersNoAccess />
+                </Container>
+            </>
         );
     }
 
@@ -161,89 +176,104 @@ export function MembersPage() {
     const openInvite = () => navigate('/users/invite');
 
     return (
-        <Container>
-            <ContainerHeader
-                title={intl.formatMessage(messages.title)}
-                subtitle={intl.formatMessage(messages.subtitle, {
-                    count: total
-                })}
-                actions={
-                    canInvite ? (
-                        <Button onClick={openInvite}>
-                            <UserPlus />
-                            {intl.formatMessage(messages.invite)}
-                        </Button>
-                    ) : undefined
-                }
+        <>
+            <PageTopBar
+                icon={Users}
+                iconClassName="bg-success-soft text-success-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'members',
+                        label: intl.formatMessage(messages.title)
+                    }
+                ]}
             />
-
-            <MembersToolbar
-                search={searchInput}
-                onSearchChange={setSearchInput}
-                filterControl={
-                    <QueryBuilderDrawer
-                        fields={MEMBERS_FILTER_FIELDS}
-                        value={appliedFilter}
-                        onApply={applyFilter}
-                        trigger={
-                            <Button variant="outline" className="shadow-none">
-                                <Filter aria-hidden className="size-4" />
-                                {intl.formatMessage(messages.filters, {
-                                    count: ruleCount
-                                })}
+            <Container>
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle, {
+                        count: total
+                    })}
+                    actions={
+                        canInvite ? (
+                            <Button onClick={openInvite}>
+                                <UserPlus />
+                                {intl.formatMessage(messages.invite)}
                             </Button>
-                        }
-                    />
-                }
-            />
-
-            {/* Announce the result count to assistive tech after a search or
-                filter changes the table without a navigation (WCAG 4.1.3). */}
-            {!isPending && !isError && (
-                <p role="status" aria-live="polite" className="sr-only">
-                    {intl.formatMessage(messages.results, { count: total })}
-                </p>
-            )}
-
-            {isPending ? (
-                <MembersTableSkeleton />
-            ) : isError ? (
-                <Alert variant="destructive" role="alert" className="mt-4">
-                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                        <span>{intl.formatMessage(messages.error)}</span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="shadow-none"
-                            onClick={() => refetch()}
-                        >
-                            {intl.formatMessage(messages.retry)}
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            ) : members.length === 0 ? (
-                <MembersEmpty
-                    filtered={hasFilters}
-                    onClear={clearFilters}
-                    onInvite={canInvite ? openInvite : undefined}
+                        ) : undefined
+                    }
                 />
-            ) : (
-                <>
-                    <MembersTable members={members} />
-                    <MembersPagination
-                        page={page}
-                        pageCount={pageCount}
-                        pageSize={effectivePageSize}
-                        total={total}
-                        onPageChange={(next) =>
-                            updateParams({ page: String(next) }, false)
-                        }
-                        onPageSizeChange={(next) =>
-                            updateParams({ pageSize: String(next) })
-                        }
+
+                <MembersToolbar
+                    search={searchInput}
+                    onSearchChange={setSearchInput}
+                    filterControl={
+                        <QueryBuilderDrawer
+                            fields={MEMBERS_FILTER_FIELDS}
+                            value={appliedFilter}
+                            onApply={applyFilter}
+                            trigger={
+                                <Button
+                                    variant="outline"
+                                    className="shadow-none"
+                                >
+                                    <Filter aria-hidden className="size-4" />
+                                    {intl.formatMessage(messages.filters, {
+                                        count: ruleCount
+                                    })}
+                                </Button>
+                            }
+                        />
+                    }
+                />
+
+                {/* Announce the result count to assistive tech after a search or
+                filter changes the table without a navigation (WCAG 4.1.3). */}
+                {!isPending && !isError && (
+                    <p role="status" aria-live="polite" className="sr-only">
+                        {intl.formatMessage(messages.results, { count: total })}
+                    </p>
+                )}
+
+                {isPending ? (
+                    <MembersTableSkeleton />
+                ) : isError ? (
+                    <Alert variant="destructive" role="alert" className="mt-4">
+                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                            <span>{intl.formatMessage(messages.error)}</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="shadow-none"
+                                onClick={() => refetch()}
+                            >
+                                {intl.formatMessage(messages.retry)}
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                ) : members.length === 0 ? (
+                    <MembersEmpty
+                        filtered={hasFilters}
+                        onClear={clearFilters}
+                        onInvite={canInvite ? openInvite : undefined}
                     />
-                </>
-            )}
-        </Container>
+                ) : (
+                    <>
+                        <MembersTable members={members} />
+                        <MembersPagination
+                            page={page}
+                            pageCount={pageCount}
+                            pageSize={effectivePageSize}
+                            total={total}
+                            onPageChange={(next) =>
+                                updateParams({ page: String(next) }, false)
+                            }
+                            onPageSizeChange={(next) =>
+                                updateParams({ pageSize: String(next) })
+                            }
+                        />
+                    </>
+                )}
+            </Container>
+        </>
     );
 }

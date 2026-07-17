@@ -56,7 +56,8 @@ export function ShellPlugin(): ShellAdminPlugin {
                         end: true,
                         group: 'overview',
                         order: 10,
-                        icon: HomeIcon
+                        icon: HomeIcon,
+                        iconColor: 'text-nav-orange'
                     }
                 ]
             }

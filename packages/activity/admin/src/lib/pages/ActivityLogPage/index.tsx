@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Filter } from 'lucide-react';
+import { Activity, Filter } from 'lucide-react';
+import { PageTopBar } from '@ortha-cms/shell-admin';
 import {
     QueryBuilderDrawer,
     countRules,
@@ -128,10 +129,24 @@ export function ActivityLogPage() {
 
     if (!canRead) {
         return (
-            <Container>
-                <ContainerHeader title={intl.formatMessage(messages.title)} />
-                <ActivityNoAccess />
-            </Container>
+            <>
+                <PageTopBar
+                    icon={Activity}
+                    iconClassName="bg-info-soft text-info-soft-foreground"
+                    crumbs={[
+                        {
+                            key: 'activity',
+                            label: intl.formatMessage(messages.title)
+                        }
+                    ]}
+                />
+                <Container>
+                    <ContainerHeader
+                        title={intl.formatMessage(messages.title)}
+                    />
+                    <ActivityNoAccess />
+                </Container>
+            </>
         );
     }
 
@@ -146,77 +161,95 @@ export function ActivityLogPage() {
     };
 
     return (
-        <Container>
-            <ContainerHeader
-                title={intl.formatMessage(messages.title)}
-                subtitle={intl.formatMessage(messages.subtitle, {
-                    count: total
-                })}
+        <>
+            <PageTopBar
+                icon={Activity}
+                iconClassName="bg-info-soft text-info-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'activity',
+                        label: intl.formatMessage(messages.title)
+                    }
+                ]}
             />
+            <Container>
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle, {
+                        count: total
+                    })}
+                />
 
-            <ActivityToolbar
-                email={emailInput}
-                onEmailChange={setEmailInput}
-                filterControl={
-                    <QueryBuilderDrawer
-                        fields={ACTIVITY_FILTER_FIELDS}
-                        value={appliedFilter}
-                        onApply={applyFilter}
-                        trigger={
-                            <Button variant="outline" className="shadow-none">
-                                <Filter aria-hidden className="size-4" />
-                                {intl.formatMessage(messages.filters, {
-                                    count: ruleCount
-                                })}
-                            </Button>
-                        }
-                    />
-                }
-            />
+                <ActivityToolbar
+                    email={emailInput}
+                    onEmailChange={setEmailInput}
+                    filterControl={
+                        <QueryBuilderDrawer
+                            fields={ACTIVITY_FILTER_FIELDS}
+                            value={appliedFilter}
+                            onApply={applyFilter}
+                            trigger={
+                                <Button
+                                    variant="outline"
+                                    className="shadow-none"
+                                >
+                                    <Filter aria-hidden className="size-4" />
+                                    {intl.formatMessage(messages.filters, {
+                                        count: ruleCount
+                                    })}
+                                </Button>
+                            }
+                        />
+                    }
+                />
 
-            {/* Announce the result count to assistive tech after a filter
+                {/* Announce the result count to assistive tech after a filter
                 changes the table without a navigation (WCAG 4.1.3). */}
-            {!isPending && !isError && (
-                <p role="status" aria-live="polite" className="sr-only">
-                    {intl.formatMessage(messages.results, { count: total })}
-                </p>
-            )}
+                {!isPending && !isError && (
+                    <p role="status" aria-live="polite" className="sr-only">
+                        {intl.formatMessage(messages.results, { count: total })}
+                    </p>
+                )}
 
-            {isPending ? (
-                <ActivityLogTableSkeleton />
-            ) : isError ? (
-                <Alert variant="destructive" role="alert" className="mt-4">
-                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                        <span>{intl.formatMessage(messages.error)}</span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="shadow-none"
-                            onClick={() => refetch()}
-                        >
-                            {intl.formatMessage(messages.retry)}
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            ) : events.length === 0 ? (
-                <ActivityEmpty filtered={hasFilters} onClear={clearFilters} />
-            ) : (
-                <div aria-busy={isPlaceholderData}>
-                    <ActivityTable events={events} />
-                    <ActivityPagination
-                        page={page}
-                        pageCount={pageCount}
-                        pageSize={effectivePageSize}
-                        total={total}
-                        onPageChange={(next) =>
-                            updateParams({ page: String(next) }, false)
-                        }
-                        onPageSizeChange={(next) =>
-                            updateParams({ pageSize: String(next) })
-                        }
+                {isPending ? (
+                    <ActivityLogTableSkeleton />
+                ) : isError ? (
+                    <Alert variant="destructive" role="alert" className="mt-4">
+                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                            <span>{intl.formatMessage(messages.error)}</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="shadow-none"
+                                onClick={() => refetch()}
+                            >
+                                {intl.formatMessage(messages.retry)}
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                ) : events.length === 0 ? (
+                    <ActivityEmpty
+                        filtered={hasFilters}
+                        onClear={clearFilters}
                     />
-                </div>
-            )}
-        </Container>
+                ) : (
+                    <div aria-busy={isPlaceholderData}>
+                        <ActivityTable events={events} />
+                        <ActivityPagination
+                            page={page}
+                            pageCount={pageCount}
+                            pageSize={effectivePageSize}
+                            total={total}
+                            onPageChange={(next) =>
+                                updateParams({ page: String(next) }, false)
+                            }
+                            onPageSizeChange={(next) =>
+                                updateParams({ pageSize: String(next) })
+                            }
+                        />
+                    </div>
+                )}
+            </Container>
+        </>
     );
 }

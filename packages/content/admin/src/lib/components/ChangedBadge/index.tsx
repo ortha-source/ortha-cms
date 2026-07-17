@@ -15,7 +15,7 @@ const messages = defineMessages({
 export function ChangedBadge() {
     const intl = useIntl();
     return (
-        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-amber-800 dark:bg-amber-500/15 dark:text-amber-500">
+        <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-warning-soft-foreground">
             {intl.formatMessage(messages.changed)}
         </span>
     );

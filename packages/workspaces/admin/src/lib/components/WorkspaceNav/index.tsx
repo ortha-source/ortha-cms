@@ -67,12 +67,12 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
                 <div className="flex items-center justify-between gap-1">
                     <Link
                         to="/"
-                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                     >
                         <ArrowLeft className="size-4" aria-hidden />
                         {intl.formatMessage(messages.back)}
                     </Link>
-                    <SidebarTrigger className="text-muted-foreground" />
+                    <SidebarTrigger className="text-sidebar-foreground/70" />
                 </div>
                 <WorkspaceSwitcher
                     current={workspace}

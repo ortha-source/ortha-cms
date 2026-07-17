@@ -1,10 +1,15 @@
 import type { ComponentType } from 'react';
 import { NavLink } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { FileStack, SlidersHorizontal, TriangleAlert, Users } from 'lucide-react';
-import { cn } from '@ortha-cms/design-system';
+import {
+    FileStack,
+    SlidersHorizontal,
+    TriangleAlert,
+    Users
+} from 'lucide-react';
+import { TabNav, TabNavLink } from '@ortha-cms/design-system';
 
-/** Intl descriptors for {@link WorkspaceSettingsRail}, co-located here. */
+/** Intl descriptors for {@link WorkspaceSettingsTabs}, co-located here. */
 const messages = defineMessages({
     nav: {
         id: 'workspaces.settings.rail.nav',
@@ -28,26 +33,26 @@ const messages = defineMessages({
     }
 });
 
-type RailIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+type TabIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 
-/** One rail entry: an absolute-path `NavLink` whose active state fills it. */
-type RailEntry = {
+/** One tab entry: an absolute-path `NavLink` whose active state underlines it. */
+type TabEntry = {
     /** Absolute route the entry links to. */
     to: string;
     /** Leading icon. */
-    icon: RailIcon;
+    icon: TabIcon;
     /** Localized label. */
     label: string;
 };
 
 /**
- * The settings page's sticky left navigation — mirrors the user-detail side
- * rail. Absolute links (`/workspaces/:id/settings/...`) so active state is
- * unambiguous. The Danger-zone entry is included only when the user can act on
- * it (its route redirects away otherwise), so a read-only viewer never sees a
- * dead link.
+ * The settings page's horizontal tab navigation — underline tabs under the
+ * page header, mirroring the user-detail tabs. Absolute links
+ * (`/workspaces/:id/settings/...`) so active state is unambiguous. The
+ * Danger-zone entry is included only when the user can act on it (its route
+ * redirects away otherwise), so a read-only viewer never sees a dead link.
  */
-export function WorkspaceSettingsRail({
+export function WorkspaceSettingsTabs({
     workspaceId,
     showDanger
 }: {
@@ -59,7 +64,7 @@ export function WorkspaceSettingsRail({
     const intl = useIntl();
     const base = `/workspaces/${workspaceId}/settings`;
 
-    const entries: RailEntry[] = [
+    const entries: TabEntry[] = [
         {
             to: `${base}/general`,
             icon: SlidersHorizontal,
@@ -87,27 +92,15 @@ export function WorkspaceSettingsRail({
     ];
 
     return (
-        <nav
-            aria-label={intl.formatMessage(messages.nav)}
-            className="flex gap-1 overflow-x-auto md:sticky md:top-6 md:flex-col md:self-start md:overflow-visible"
-        >
+        <TabNav aria-label={intl.formatMessage(messages.nav)}>
             {entries.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                    key={to}
-                    to={to}
-                    className={({ isActive }) =>
-                        cn(
-                            'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                            isActive
-                                ? 'bg-muted font-medium text-foreground'
-                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                        )
-                    }
-                >
-                    <Icon aria-hidden className="size-4 shrink-0" />
-                    <span className="truncate">{label}</span>
-                </NavLink>
+                <TabNavLink key={to} asChild>
+                    <NavLink to={to}>
+                        <Icon aria-hidden className="size-4 shrink-0" />
+                        {label}
+                    </NavLink>
+                </TabNavLink>
             ))}
-        </nav>
+        </TabNav>
     );
 }

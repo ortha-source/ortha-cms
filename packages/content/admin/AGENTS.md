@@ -32,7 +32,11 @@ the shell's `CurrentWorkspaceProvider`, `ContentNavSection` resolves the open
 workspace itself (`useMatch('/workspaces/:id/*')` + `useWorkspaces`) rather than
 `useCurrentWorkspace`, and owns the ⌘K/Ctrl+K shortcut so search works anywhere
 in the workspace. `ContentLibraryPage` then owns only the **work-area island**
-(`ContentPane`) — an outlet driven by nested routes.
+(`ContentPane`) — a sticky **`ContentTopBar`** (a colored icon tile + a
+route-derived breadcrumb: Content › the type's label › the open record's title /
+"New record" / "Trash"; the record title comes from `EntryTitleCrumb`, which
+subscribes to the editor's own schema/entry queries at no extra request) over an
+outlet driven by nested routes.
 The routes are (`index` → `ContentWelcome`,
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 `ContentEntryRoute` (the create / edit editor); the static `new` segment

@@ -37,7 +37,7 @@ export function LocaleBadge({
             className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
             <Badge
-                variant={item.status === 'published' ? 'default' : 'secondary'}
+                variant={item.status === 'published' ? 'success' : 'secondary'}
                 className="uppercase"
             >
                 {item.locale}

@@ -59,7 +59,7 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
     const navigate = useNavigate();
 
     return (
-        <div className="rounded-xl border">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>

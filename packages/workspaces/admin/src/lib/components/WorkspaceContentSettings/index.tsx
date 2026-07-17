@@ -175,10 +175,12 @@ export function WorkspaceContentSettings({
         const failed = slugs.length - succeeded;
 
         if (succeeded > 0) {
-            toast(intl.formatMessage(messages.added, { count: succeeded }));
+            toast.success(
+                intl.formatMessage(messages.added, { count: succeeded })
+            );
         }
         if (failed > 0) {
-            toast(intl.formatMessage(messages.addError));
+            toast.error(intl.formatMessage(messages.addError));
         }
         // Close only when everything landed; on a partial failure the dialog
         // stays open so the still-ungranted types (the list refetched them out)
@@ -194,15 +196,13 @@ export function WorkspaceContentSettings({
                 workspaceId: workspace.id,
                 slug
             });
-            toast(intl.formatMessage(messages.removed));
+            toast.success(intl.formatMessage(messages.removed));
         } catch (error) {
             // The dialog blocks a non-empty revoke up front; this 409 is only a
             // safety net for an entry created between the check and the confirm.
-            toast(
+            (isConflict(error) ? toast.warning : toast.error)(
                 intl.formatMessage(
-                    isConflict(error)
-                        ? messages.notEmpty
-                        : messages.removeError
+                    isConflict(error) ? messages.notEmpty : messages.removeError
                 )
             );
         } finally {

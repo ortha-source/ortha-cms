@@ -21,7 +21,8 @@ import { VerdictRow } from './VerdictRow';
 const messages = defineMessages({
     title: {
         id: 'content.bulkPublish.title',
-        defaultMessage: 'Publish {count, plural, one {# record} other {# records}}?'
+        defaultMessage:
+            'Publish {count, plural, one {# record} other {# records}}?'
     },
     body: {
         id: 'content.bulkPublish.body',
@@ -115,7 +116,7 @@ export function BulkPublishDialog({
     const onConfirm = () => {
         publish.mutate(ids, {
             onSuccess: (result) => {
-                toast(
+                toast.success(
                     intl.formatMessage(messages.result, {
                         count: result.published.length
                     })
@@ -123,8 +124,7 @@ export function BulkPublishDialog({
                 onPublished();
                 onOpenChange(false);
             },
-            onError: () =>
-                toast.error(intl.formatMessage(messages.failed))
+            onError: () => toast.error(intl.formatMessage(messages.failed))
         });
     };
 
@@ -174,10 +174,7 @@ export function BulkPublishDialog({
                         {intl.formatMessage(messages.loading)}
                     </div>
                 ) : previewPublish.isError ? (
-                    <p
-                        role="alert"
-                        className="py-4 text-sm text-destructive"
-                    >
+                    <p role="alert" className="py-4 text-sm text-destructive">
                         {intl.formatMessage(messages.error)}
                     </p>
                 ) : (

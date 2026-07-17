@@ -85,7 +85,8 @@ const messages = defineMessages({
     },
     statusError: {
         id: 'workspaces.settings.danger.statusError',
-        defaultMessage: 'Couldn’t change the workspace status. Please try again.'
+        defaultMessage:
+            'Couldn’t change the workspace status. Please try again.'
     },
     deleted: {
         id: 'workspaces.settings.danger.deleted',
@@ -138,13 +139,13 @@ export function WorkspaceDangerSettings({
                 id: workspace.id,
                 status: isArchived ? 'Active' : 'Archived'
             });
-            toast(
+            toast.success(
                 intl.formatMessage(
                     isArchived ? messages.unarchived : messages.archived
                 )
             );
         } catch {
-            toast(intl.formatMessage(messages.statusError));
+            toast.error(intl.formatMessage(messages.statusError));
         } finally {
             setConfirmingArchive(false);
         }
@@ -153,12 +154,12 @@ export function WorkspaceDangerSettings({
     const confirmDelete = async () => {
         try {
             await remove.mutateAsync(workspace.id);
-            toast(intl.formatMessage(messages.deleted));
+            toast.success(intl.formatMessage(messages.deleted));
             navigate('/workspaces');
         } catch (error) {
             // The dialog blocks a non-empty delete up front; this 409 is only a
             // safety net for content created between the check and the confirm.
-            toast(
+            (isConflict(error) ? toast.warning : toast.error)(
                 intl.formatMessage(
                     isConflict(error)
                         ? messages.deleteNotEmpty

@@ -57,7 +57,7 @@ function SlugStatusLine({ status }: { status: SlugStatus }) {
     }
     if (status === SlugStatus.Available) {
         return (
-            <span className="flex items-center gap-1.5 text-sm text-status-active">
+            <span className="flex items-center gap-1.5 text-sm text-success">
                 <Check className="size-3.5" />
                 {intl.formatMessage(messages.available)}
             </span>

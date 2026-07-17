@@ -138,9 +138,9 @@ export function WorkspaceGeneralSettings({
                 // duplicate PATCH if Save is clicked again.
                 form.reset(value);
                 setSavedColor(color);
-                toast(intl.formatMessage(messages.saved));
+                toast.success(intl.formatMessage(messages.saved));
             } catch {
-                toast(intl.formatMessage(messages.error));
+                toast.error(intl.formatMessage(messages.error));
             }
         }
     });
@@ -309,7 +309,9 @@ export function WorkspaceGeneralSettings({
                                     {isSubmitting ? (
                                         <>
                                             <Spinner />
-                                            {intl.formatMessage(messages.saving)}
+                                            {intl.formatMessage(
+                                                messages.saving
+                                            )}
                                         </>
                                     ) : (
                                         intl.formatMessage(messages.save)

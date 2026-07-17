@@ -77,7 +77,7 @@ export function GlobalSidebar() {
                         <Logo showLabel={false} aria-hidden />
                         <span className="text-sm font-semibold">Ortha CMS</span>
                     </span>
-                    <SidebarTrigger className="text-muted-foreground" />
+                    <SidebarTrigger className="text-sidebar-foreground/70" />
                 </div>
                 <SidebarSearch />
             </SidebarHeader>

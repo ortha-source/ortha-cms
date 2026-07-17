@@ -3,11 +3,12 @@
 The **shell plugin** for the Ortha CMS admin UI — the authenticated app chrome.
 It contributes the layout (a **left sidebar** — `AppSidebar` — beside a `<main>`
 inset) that wraps every private route, plus the home page at `/`. The sidebar is
-**collapsible (offcanvas)**: an in-header trigger hides it; when collapsed (or on
-mobile, where it's an overlay drawer) a floating `SidebarToggle` (fixed top-left,
-no layout space) reveals it (`⌘B` also toggles). Padded `Container` pages clear
-the button in their margin; the flush Content Library adds a small left gutter
-when collapsed. It
+**collapsible (offcanvas)**: an in-header trigger hides it (`⌘B` also toggles);
+when collapsed (or on mobile, where it's an overlay drawer) the reveal trigger
+renders **inline in the page's `TopBar`** (the design-system primitive owns
+that), and the floating `SidebarToggle` (fixed top-left) is only the fallback
+for bar-less pages — it hides itself via `:has()` whenever the open page
+renders a top bar (today that means it shows on Home only). It
 **owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
@@ -51,6 +52,11 @@ per-workspace nav. The footer stays persistent across both contexts.
 - `ShellAdminPlugin` — the plugin shape (thin alias of `AdminPlugin`).
 - `AppShell` — the authenticated layout; renders `AppSidebar` + `<main>`
   `<Outlet/>` inside `SidebarProvider` + `SidebarContentProvider`.
+- `PageTopBar` / `PageTopBarCrumb` — the shared incident.io-style page-context
+  bar (colored icon tile + breadcrumb, sticky; hosts the inline sidebar-reveal
+  trigger when the sidebar is hidden). Every page except Home renders one; pass
+  the same icon the page's sidebar nav entry uses and a soft tile pair matching
+  its nav accent.
 - `SidebarSearch` — the sidebar's search-trigger UI (reused by the workspace
   nav; the global command palette is not yet wired).
 - `HomePage` — greets the signed-in user and renders the dashboard from
