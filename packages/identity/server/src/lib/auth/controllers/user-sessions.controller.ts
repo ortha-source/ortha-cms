@@ -3,6 +3,7 @@ import {
     Delete,
     Get,
     HttpCode,
+    Inject,
     Param,
     ParseUUIDPipe,
     Req,
@@ -12,10 +13,13 @@ import type { Request } from 'express';
 import { PermissionsGuard } from '../../rbac/guards/permissions.guard';
 import { RequirePermissions } from '../../rbac/decorators/require-permissions.decorator';
 import { PERMISSIONS } from '../../rbac/system-roles';
+import {
+    SESSION_REPOSITORY,
+    type SessionRepository
+} from '../../domain/session.repository';
 import { OriginGuard } from '../guards/origin.guard';
 import { CookieService } from '../services/cookie.service';
 import { HashingService } from '../services/hashing.service';
-import { SessionService } from '../services/session.service';
 
 /** One session row as the admin Sessions tab consumes it over the wire. */
 export interface UserSessionResponse {
@@ -54,7 +58,8 @@ export interface UserSessionResponse {
 @Controller('users')
 export class UserSessionsController {
     constructor(
-        private readonly sessions: SessionService,
+        @Inject(SESSION_REPOSITORY)
+        private readonly sessions: SessionRepository,
         private readonly cookies: CookieService,
         private readonly hashing: HashingService
     ) {}

@@ -29,6 +29,104 @@ route unless the user's role grants every listed permission (resolved by
 keys so the admin can gate UI to match. Behaviour is still partly pending:
 tokens and full user management land in later tickets (epic #3).
 
+> **Layered per ADR-0003 (tactical DDD inside plugins).** This is Wave 2 of the
+> migration — the foundational, highest-blast-radius context. Because **108
+> import sites** across the repo pin identity's public barrel (`src/index.ts`),
+> the migration is deliberately **conservative**: the barrel is preserved
+> **byte-identical** and every public symbol keeps its name, type, and
+> signature. The invariant-bearing core is extracted into
+> `domain / application / infrastructure`; the stable public/composition surface
+> (`auth/`, `rbac/`, `root-admin/`, `activity/`, `schema/`) keeps its
+> feature-then-kind layout so the barrel paths never move.
+
+## Layered layout (the invariant core)
+
+New tactical-DDD layers under `src/lib/`, alongside the retained feature folders:
+
+```
+domain/          # framework-free core — the one hard rule below
+  user-account.ts                  # UserAccount aggregate (status lifecycle + credential)
+  user-account.repository.ts       # UserAccountRepository PORT + USER_ACCOUNT_REPOSITORY
+  session.ts                       # Session entity (validity, framework-free)
+  session-policy.ts                # SessionPolicy (expiry + lastUsedAt throttle rules)
+  session.repository.ts            # SessionRepository PORT + SESSION_REPOSITORY
+  access-policy.ts                 # AccessPolicy domain service — the pure RBAC decision
+  value-objects/                   # UserId, Email, PasswordHash, UserAccountStatus, Permission
+  events/identity-events.ts        # domain-event factory + kinds (user.* / auth.*)
+  errors/                          # transport-agnostic domain errors
+application/     # orchestration — one use case per state change
+  use-cases/                       # login / logout / refresh-session / change-password
+infrastructure/  # adapters — the only layer that knows Drizzle/pg
+  persistence/  # DrizzleUserAccountRepository, UserAccountMapper, DrizzleSessionRepository
+  queries/      # UserLookupQuery (thin auth/credentials read side)
+```
+
+### The one hard rule
+
+**`domain/` imports NOTHING from `@nestjs/*`, `drizzle-orm`, `class-validator`,
+or `infrastructure/`.** It may use `@ortha-cms/database`'s framework-free
+`createDomainEvent`/`DomainEvent` and node built-ins only. The layer-boundary
+lint isn't wired yet — self-enforce it.
+
+### The aggregate, entity, and policies
+
+- **`UserAccount`** is the aggregate root — a person who can authenticate,
+  mapping to identity's `users` row (an `Email`, a `UserAccountStatus`, and an
+  optional `PasswordHash`). Its guarded methods own the lifecycle invariants:
+  `activate` (pending → active, setting the first credential), `disable`
+  (active → disabled), `enable` (disabled → active), and `changeCredential`
+  (any non-disabled account); each raises a `user.*` domain event. Cross-account
+  rules (last-admin protection) and self-action guards need knowledge the
+  aggregate doesn't hold, so the **users** context owns those flows — identity's
+  aggregate models the single-account lifecycle only.
+- **`Session`** is an entity + **`SessionPolicy`** holds the expiry and
+  `lastUsedAt`-refresh-throttle rules lifted out of the old session service into
+  a pure, DB-free object (constructed with the configured TTL).
+- **`AccessPolicy`** is the pure RBAC decision — `can(actor, permission, scope?)`
+  / `canAll(...)` — unit-tested without Nest or Postgres. `PermissionsGuard`
+  resolves the actor's grants via `PermissionsService.forRole` and **delegates
+  the decision to `AccessPolicy`**; both keep their exact public signatures
+  (`PERMISSIONS` / `PermissionsService` / the guard's `canActivate` are
+  unchanged). `AccessPolicy` is exported from the global module so a consuming
+  plugin's `@UseGuards(PermissionsGuard)` can resolve it (same reason
+  `PermissionsService` is exported).
+
+### Ports & adapters
+
+- `UserAccountRepository` (`USER_ACCOUNT_REPOSITORY`) → `DrizzleUserAccountRepository`
+  over the `users` table; `UserAccountMapper` is the row ⇄ aggregate ACL.
+- `SessionRepository` (`SESSION_REPOSITORY`) → `DrizzleSessionRepository` over the
+  `sessions` table — the SHA-256-hashed-token store the old `SessionService`
+  was, now behind a port and using `SessionPolicy` for expiry.
+
+### Unit of work + outbox + the audit transition
+
+Each state-changing use case runs inside `UnitOfWork.run` (one transaction) over
+the repository ports + `OutboxWriter`. Login/logout keep their exact behavior —
+the timing-flat credential check, the same generic `InvalidCredentialsError`,
+the per-device idempotent revoke — and still record their `user.signed_in` /
+`user.signed_out` **audit** rows **in-band** through the `ACTIVITY_RECORDER`
+token, so the log stays correct and gap-free. They **also** now emit
+`auth.signed_in` / `auth.signed_out` (and the aggregate emits `user.*`) to the
+transactional outbox; with no subscriber yet those auto-mark dispatched
+(harmless). **Do NOT double-record.** Wave 3 moves auditing onto an outbox
+subscriber and drops the in-band `recorder.record(...)` calls. Like the users
+context, the domain-event kinds (`auth.*` / `user.*`) are kept **distinct** from
+the in-band audit kinds, so that move maps between the two catalogues.
+
+`ACTIVITY_RECORDER` (the emit-side port identity **owns**) is **unchanged** — same
+symbol, `ActivityRecorder` / `ActivityRecordInput` / `ActivityExecutor` types,
+and `@Optional()` injection. `root-admin/` is untouched (a service + boot seeder);
+the bootstrap path is not on the DDD critical path.
+
+### Barrel-stability guarantee
+
+`src/index.ts` is **byte-identical** to before this refactor — including
+`export * from './lib/schema'`. `schema/` stays at `src/lib/schema/` (owned by
+identity, migrated by `@ortha-cms/nx`) precisely to keep that re-export verbatim;
+conceptually it is identity's persistence layer. Every guard, decorator, service,
+error, and type the barrel exports keeps its path, so no consumer import moved.
+
 ## Package
 
 - Name: `@ortha-cms/identity-server`
