@@ -1,5 +1,50 @@
 # @ortha-cms/i18n-server
 
+> **Layout: layered (ADR-0003).** A **light** application of tactical DDD — this
+> is a small, low-invariant context, so it gets a `domain/` layer for value
+> objects and the pure locale policy, but **not** a full aggregate /
+> unit-of-work / outbox split (there is no write aggregate here — the plugin
+> owns no tables). The defining feature stays a **synchronous open-host port**
+> (see below). Follow the `workspaces-server` pilot for the layered idioms and
+> the `server-plugin` skill for the plugin mechanics.
+
+## Layering (ADR-0003)
+
+```
+domain/                       # framework-free core — imports NOTHING from
+                              # @nestjs/*, drizzle-orm, class-validator
+  value-objects/locale.ts     # Locale — the slug-format + non-blank-name rule
+  value-objects/locale-set.ts # LocaleSet — non-empty, unique, exactly-one-default,
+                              #   can't-remove-the-default guards
+  locale-policy.ts            # LocalePolicy — pure fallback-chain resolution
+                              #   (resolve / shouldWidenToDefault / fallbackChain)
+                              #   + requiredLocalesForPublish
+  errors/                     # transport-agnostic domain errors
+locales/services/             # LocaleRegistryService — wraps LocaleSet/LocalePolicy,
+                              #   exposes the plain LocaleDef shape, maps
+                              #   UnknownLocaleError → HTTP 400
+content/ + locales/controllers# thin HTTP surface (unchanged)
+```
+
+The raw slug regex and the config invariants that used to live inline on the
+plugin factory now live on `Locale` / `LocaleSet`; `assertConfig` is just
+`LocaleSet.fromDefs(config.locales)`, and the runtime services resolve locales
+through `LocalePolicy`. The `domain/` classes are plain (no `@Injectable`) — the
+registry is the single `@Injectable()` seam that adapts them to DI.
+
+### Decision — `CONTENT_ENTRY_EXTENSION` stays a synchronous port
+
+`EntryLocaleExtensionService` binds content-server's `CONTENT_ENTRY_EXTENSION`
+port to add per-locale row scoping **in-transaction, synchronously**. This is
+**deliberately left as-is** and is **not** turned into a domain-event /
+subscriber: the extension must run *inside* content's entries pipeline
+(list scoping, create stamping, shared-field sync + re-validation, virtual
+filters), so a port — not an event — is the right integration. ADR-0003 is
+explicit that the layering does **not** force events where an open-host port is
+correct; the port's shape, wiring, and synchronous contract are unchanged by
+this refactor. `LocalePolicy` is the pure re-expression of the fallback rule the
+adapter's SQL encodes; the adapter keeps rendering the query.
+
 The content-**localization** plugin for the Ortha CMS server. It makes
 `i18n: true` content types multilingual — **one row per locale**, siblings
 sharing a `locale_group_id` — **without the content library knowing what a

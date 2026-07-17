@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@ortha-cms/design-system';
 import type { EntrySlotContext } from '@ortha-cms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
+import { localeName, resolveActiveLocale } from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
 
 const messages = defineMessages({
@@ -27,13 +28,14 @@ export function LocaleTitleChip({ schema, entry }: EntrySlotContext) {
 
     if (!schema.i18n || locales.length === 0) return null;
 
-    const slug =
-        entry?.locale ??
-        searchParams.get(LOCALE_PARAM) ??
-        defaultLocale?.slug;
+    const slug = resolveActiveLocale({
+        entryLocale: entry?.locale,
+        urlLocale: searchParams.get(LOCALE_PARAM) ?? undefined,
+        defaultSlug: defaultLocale?.slug
+    });
     if (!slug) return null;
 
-    const name = locales.find((locale) => locale.slug === slug)?.name;
+    const name = localeName(locales, slug);
 
     return (
         <Badge

@@ -15,6 +15,11 @@ import {
 } from '@ortha-cms/design-system';
 import type { RecordsToolbarContext } from '@ortha-cms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
+import {
+    localeName,
+    resolveActiveLocale,
+    toLocaleListParam
+} from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
 import { beginLocaleSwitch } from '../../utils/localeTransition';
 import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
@@ -56,7 +61,10 @@ export function LocaleSwitcher({
 
     if (!schema.i18n || locales.length === 0) return null;
 
-    const activeSlug = params[LOCALE_PARAM] ?? defaultLocale?.slug;
+    const activeSlug = resolveActiveLocale({
+        urlLocale: params[LOCALE_PARAM],
+        defaultSlug: defaultLocale?.slug
+    });
     const active =
         locales.find((locale) => locale.slug === activeSlug) ?? defaultLocale;
 
@@ -64,14 +72,14 @@ export function LocaleSwitcher({
         setOpen(false);
         // Re-selecting the active locale is a no-op — no re-scope, no flourish.
         if (slug === active?.slug) return;
-        const name = locales.find((locale) => locale.slug === slug)?.name ?? slug;
+        const name = localeName(locales, slug) ?? slug;
         // Defer the re-scope until the overlay covers the page (see
         // `beginLocaleSwitch`) so the table doesn't visibly swap under the blur.
         beginLocaleSwitch(name, () => {
             updateParams({
                 // Default locale = clean URL — the server scopes to it when the
                 // param is absent, so the two spellings can't drift.
-                [LOCALE_PARAM]: slug === defaultLocale?.slug ? undefined : slug
+                [LOCALE_PARAM]: toLocaleListParam(slug, defaultLocale?.slug)
             });
         });
     };

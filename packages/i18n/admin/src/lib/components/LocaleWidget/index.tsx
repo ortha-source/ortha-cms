@@ -23,6 +23,11 @@ import {
     LOCALE_GROUP_PARAM,
     LOCALE_PARAM
 } from '../../constants';
+import {
+    isDefaultLocale,
+    localeName,
+    resolveActiveLocale
+} from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
 import { useEntryLocales } from '../../api/useEntryLocales';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
@@ -113,7 +118,11 @@ export function LocaleWidget({
 
     // No saved entry in create mode, so the target locale comes from the URL.
     const currentLocale =
-        entry?.locale ?? urlLocale ?? defaultLocale?.slug ?? '';
+        resolveActiveLocale({
+            entryLocale: entry?.locale,
+            urlLocale,
+            defaultSlug: defaultLocale?.slug
+        }) ?? '';
     const groupId = entry?.localeGroupId ?? urlGroupId;
 
     const card = (children: ReactNode) => (
@@ -166,7 +175,7 @@ export function LocaleWidget({
     // (same group). Singles re-resolve their one row via `?locale=`; collections
     // navigate to the sibling's id (or the create route for a new locale).
     const selectLocale = (slug: string, sibling?: Sibling) => {
-        const name = locales.find((locale) => locale.slug === slug)?.name ?? slug;
+        const name = localeName(locales, slug) ?? slug;
         // The draft's shared fields come from the source values: the saved
         // entry (edit mode), or whatever the create form already carries
         // (create mode — a translation draft's prefill), preserved as-is.
@@ -181,7 +190,7 @@ export function LocaleWidget({
             if (mode === ENTRY_MODE.Single) {
                 if (sibling) {
                     navigate(
-                        slug === defaultLocale?.slug
+                        isDefaultLocale(slug, defaultLocale?.slug)
                             ? typePath
                             : `${typePath}?${LOCALE_PARAM}=${slug}`
                     );
