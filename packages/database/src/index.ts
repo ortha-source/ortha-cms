@@ -7,3 +7,16 @@ export {
     DATABASE_TOKEN,
     InjectDatabase
 } from './lib/database.module';
+export {
+    createDomainEvent,
+    DOMAIN_EVENT_SUBSCRIBERS
+} from './lib/events/domain-event';
+export type {
+    DomainEvent,
+    CreateDomainEventParams,
+    DomainEventSubscriber
+} from './lib/events/domain-event';
+export { UnitOfWork } from './lib/uow/unit-of-work';
+export { OutboxWriter } from './lib/outbox/outbox-writer';
+export { OutboxDispatcher } from './lib/outbox/outbox-dispatcher';
+export { outboxEvents } from './lib/schema';

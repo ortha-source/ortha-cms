@@ -30,7 +30,11 @@
 - `packages/database` — `@ortha-cms/database`, the database **plugin**:
   owns one Drizzle/`pg` connection, opens it in `onPluginInit`, and exposes
   it via DI (`@InjectDatabase()`, global `DatabaseModule`) and plain
-  `getDatabase()`/`getPool()`. Owns no schemas or migrations.
+  `getDatabase()`/`getPool()`. Also provides the shared tactical-DDD
+  infrastructure ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
+  `UnitOfWork`, the transactional outbox (`OutboxWriter` / `OutboxDispatcher`),
+  and the `DomainEvent` contract. It owns exactly **one** table — `outbox_events`
+  — the sanctioned exception to "no schema", shipped with its own migrations.
 - `packages/identity/server` — `@ortha-cms/identity-server`, the identity
   **plugin**: owns the auth/RBAC schema (Drizzle tables in `src/lib/schema`)
   and **ships its own migrations** (`drizzle.config.ts` + committed
