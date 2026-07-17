@@ -14,13 +14,13 @@ import {
 } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import type { AnyContentType, EntryStatus } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
+import type { AnyContentType, EntryStatus } from '../../../types/content-type';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import type {
     RelationDelta,
     RelationFieldView,
     RelationRef
-} from '../types/entry-list-view';
+} from '../../types/entry-list-view';
 import { entrySlug, entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */

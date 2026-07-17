@@ -17,17 +17,17 @@ import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
-} from '../../extension/entry-extension';
-import type { AnyContentType } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
+} from '../../../extension/entry-extension';
+import type { AnyContentType } from '../../../types/content-type';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import {
     DELETED_ONLY,
     type ListEntriesQueryDto
-} from '../dto/list-entries-query.dto';
-import type { EntryListView } from '../types/entry-list-view';
-import { DEFAULT_PAGE_SIZE } from '../entries.constants';
+} from '../../http/dto/list-entries-query.dto';
+import type { EntryListView } from '../../types/entry-list-view';
+import { DEFAULT_PAGE_SIZE } from '../../entries.constants';
 import { buildEntryFilterSchema, isScalarField } from './entry-filter-schema';
-import { toRecord } from './entry-row';
+import { toRecord } from '../persistence/entry-row';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;

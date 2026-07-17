@@ -15,11 +15,11 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
-import { InjectContentRegistry } from '../../content.tokens';
-import type { ContentTypeRegistry } from '../../registry/content-type-registry';
-import { EntriesService } from '../services/entries.service';
+import { InjectContentRegistry } from '../../../content.tokens';
+import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
+import { EntriesService } from '../../infrastructure/queries/entries.service';
 import { ListEntriesQueryDto } from '../dto/list-entries-query.dto';
-import type { EntryListView } from '../types/entry-list-view';
+import type { EntryListView } from '../../types/entry-list-view';
 
 /**
  * `GET /api/content/:typeName` — one page of a collection's entries, filtered/

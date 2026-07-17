@@ -1,5 +1,5 @@
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsUUID } from 'class-validator';
-import { BULK_MAX_IDS } from '../entries.constants';
+import { BULK_MAX_IDS } from '../../entries.constants';
 
 /**
  * Body for the bulk endpoints (`/bulk/publish`, `/bulk/unpublish`,

@@ -4,8 +4,8 @@ import {
     type FilterSchema,
     type ScalarFieldSchema
 } from '@ortha-cms/utils-server';
-import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
+import { ENTRY_STATUS, type AnyContentType } from '../../../types/content-type';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 
 /**
  * The filter scalar type for one content field, or `null` to leave it

@@ -16,16 +16,16 @@ import {
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
 import { clampInt } from '@ortha-cms/utils-server';
-import { MAX_PAGE_SIZE } from '../entries.constants';
-import { InjectContentRegistry } from '../../content.tokens';
-import type { ContentTypeRegistry } from '../../registry/content-type-registry';
-import { EntryWriterService } from '../services/entry-writer.service';
+import { MAX_PAGE_SIZE } from '../../entries.constants';
+import { InjectContentRegistry } from '../../../content.tokens';
+import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
+import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import type {
     EntryRecord,
     EntryRelationsView,
     RelationFieldView
-} from '../types/entry-list-view';
-import { RELATION_PAGE_SIZE } from '../services/relation-link.service';
+} from '../../types/entry-list-view';
+import { RELATION_PAGE_SIZE } from '../../infrastructure/persistence/relation-link.service';
 import { resolveType } from './resolve-type';
 
 /**

@@ -1,6 +1,6 @@
 import { ScalarFieldType } from '@ortha-cms/utils-server';
-import { collection } from '../../collection/define';
-import { field } from '../../fields';
+import { collection } from '../../../collection/define';
+import { field } from '../../../fields';
 import { buildEntryFilterSchema } from './entry-filter-schema';
 
 /**

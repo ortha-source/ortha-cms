@@ -17,15 +17,18 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
-import { InjectContentRegistry } from '../../content.tokens';
-import type { ContentTypeRegistry } from '../../registry/content-type-registry';
-import { EntryWriterService } from '../services/entry-writer.service';
+import { InjectContentRegistry } from '../../../content.tokens';
+import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
+import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
+import { BulkPublishPreviewQuery } from '../../infrastructure/queries/bulk-publish-preview.query';
+import { BulkPublishEntriesUseCase } from '../../application/use-cases/bulk-publish-entries.use-case';
+import { BulkUnpublishEntriesUseCase } from '../../application/use-cases/bulk-unpublish-entries.use-case';
 import { BulkIdsDto } from '../dto/bulk-ids.dto';
 import type {
     BulkActionResult,
     BulkPublishPreview,
     BulkPublishResult
-} from '../types/bulk-publish';
+} from '../../types/bulk-publish';
 import { resolveType } from './resolve-type';
 
 /**
@@ -43,7 +46,10 @@ export class BulkEntriesController {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        private readonly writer: EntryWriterService
+        private readonly writer: EntryWriterService,
+        private readonly bulkPublishPreview: BulkPublishPreviewQuery,
+        private readonly bulkPublishEntries: BulkPublishEntriesUseCase,
+        private readonly bulkUnpublishEntries: BulkUnpublishEntriesUseCase
     ) {}
 
     /** Dry run: validate each id and report a per-entry verdict. Writes nothing. */
@@ -56,7 +62,7 @@ export class BulkEntriesController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<BulkPublishPreview> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.previewBulkPublish(type, body.ids, workspaceId);
+        return this.bulkPublishPreview.preview(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/publish')
@@ -68,7 +74,7 @@ export class BulkEntriesController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<BulkPublishResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkPublish(type, body.ids, workspaceId);
+        return this.bulkPublishEntries.execute(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/unpublish')
@@ -80,7 +86,7 @@ export class BulkEntriesController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkUnpublish(type, body.ids, workspaceId);
+        return this.bulkUnpublishEntries.execute(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/delete')

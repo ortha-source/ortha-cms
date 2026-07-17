@@ -15,10 +15,11 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
-import { InjectContentRegistry } from '../../content.tokens';
-import type { ContentTypeRegistry } from '../../registry/content-type-registry';
-import { EntryWriterService } from '../services/entry-writer.service';
-import type { EntryRecord } from '../types/entry-list-view';
+import { InjectContentRegistry } from '../../../content.tokens';
+import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
+import { PublishEntryUseCase } from '../../application/use-cases/publish-entry.use-case';
+import { UnpublishEntryUseCase } from '../../application/use-cases/unpublish-entry.use-case';
+import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
 
 /**
@@ -36,7 +37,8 @@ export class PublishEntryController {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        private readonly writer: EntryWriterService
+        private readonly publishEntry: PublishEntryUseCase,
+        private readonly unpublishEntry: UnpublishEntryUseCase
     ) {}
 
     @Post(':typeName/:id/publish')
@@ -46,7 +48,7 @@ export class PublishEntryController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.publish(type, id, workspaceId);
+        return this.publishEntry.execute(type, id, workspaceId);
     }
 
     @Post(':typeName/:id/unpublish')
@@ -56,6 +58,6 @@ export class PublishEntryController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.unpublish(type, id, workspaceId);
+        return this.unpublishEntry.execute(type, id, workspaceId);
     }
 }

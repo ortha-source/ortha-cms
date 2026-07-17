@@ -5,7 +5,7 @@ import {
     IsUUID,
     MaxLength
 } from 'class-validator';
-import type { RelationDelta } from '../types/entry-list-view';
+import type { RelationDelta } from '../../types/entry-list-view';
 import { IsRelationDeltaMap } from './relation-delta-map.validator';
 
 /**

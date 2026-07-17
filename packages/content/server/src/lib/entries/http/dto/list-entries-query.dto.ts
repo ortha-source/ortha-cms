@@ -8,7 +8,7 @@ import {
     MaxLength,
     Min
 } from 'class-validator';
-import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../entries.constants';
+import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../../entries.constants';
 
 /** `?deleted=only` flips the list to the trash view (soft-deleted rows). */
 export const DELETED_ONLY = 'only';

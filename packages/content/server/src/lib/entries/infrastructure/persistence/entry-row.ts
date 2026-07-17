@@ -4,9 +4,9 @@
  * have one definition each. No DB access, no NestJS — just shape translation.
  */
 
-import type { AnyContentType } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE, isEmptyFieldValue } from '../../types/fields';
-import type { EntryRecord } from '../types/entry-list-view';
+import type { AnyContentType } from '../../../types/content-type';
+import { CONTENT_FIELD_TYPE, isEmptyFieldValue } from '../../../types/fields';
+import type { EntryRecord } from '../../types/entry-list-view';
 
 /** A generated content table row seen as a bag of values by property name. */
 type Row = Record<string, unknown>;

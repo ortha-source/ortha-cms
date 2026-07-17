@@ -9,11 +9,11 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
-import { InjectContentRegistry } from '../../content.tokens';
-import type { ContentTypeRegistry } from '../../registry/content-type-registry';
-import { EntryWriterService } from '../services/entry-writer.service';
+import { InjectContentRegistry } from '../../../content.tokens';
+import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
+import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import { SaveEntryDto } from '../dto/save-entry.dto';
-import type { EntryRecord } from '../types/entry-list-view';
+import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
 
 /**

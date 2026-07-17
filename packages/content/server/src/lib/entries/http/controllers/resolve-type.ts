@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
-import type { AnyContentType } from '../../types/content-type';
-import type { ContentTypeRegistry } from '../../registry/content-type-registry';
+import type { AnyContentType } from '../../../types/content-type';
+import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 
 /**
  * Resolve a `:typeName` route param to a registered content type, or throw 404.

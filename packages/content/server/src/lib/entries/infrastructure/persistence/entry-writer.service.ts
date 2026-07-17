@@ -22,28 +22,21 @@ import { isUniqueViolation } from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
-} from '../../extension/entry-extension';
-import type { AnyContentType, EntryStatus } from '../../types/content-type';
-import { ENTRY_STATUS } from '../../types/content-type';
-import { CONTENT_FIELD_TYPE } from '../../types/fields';
+} from '../../../extension/entry-extension';
+import type { AnyContentType } from '../../../types/content-type';
+import { ENTRY_STATUS } from '../../../types/content-type';
+import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import {
     EntryValidationService,
     type ValidationIssue
-} from '../../validation/services/entry-validation.service';
+} from '../../../validation/services/entry-validation.service';
 import type {
     EntryRecord,
     RelationDelta,
     RelationFieldView
-} from '../types/entry-list-view';
-import {
-    BULK_VERDICT,
-    type BulkActionResult,
-    type BulkPublishCheck,
-    type BulkPublishPreview,
-    type BulkPublishResult,
-    type BulkPublishVerdict
-} from '../types/bulk-publish';
-import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
+} from '../../types/entry-list-view';
+import type { BulkActionResult } from '../../types/bulk-publish';
+import { coerceValues, toColumns, toRecord } from './entry-row';
 import {
     RelationLinkService,
     type DbTransaction
@@ -53,12 +46,23 @@ import {
 type Row = Record<string, unknown>;
 
 /**
- * The write half of the entries pipeline — create / read-one / update / publish
- * / unpublish / delete / restore / purge, plus their bulk variants. Generic over
- * the content type (like {@link EntriesService}): the physical table and its
- * envelope columns are derived from `type` at request time, so one service backs
- * every collection. {@link EntryValidationService} is the gate — nothing is
- * written or published without passing it.
+ * The infrastructure persistence engine for entry writes — create / read-one /
+ * update / delete / restore / purge, plus their bulk variants, plus the small
+ * status read/write primitives the **publish-lifecycle use-cases** compose
+ * (`findLive`, `markPublished`/`markDraft`, the bulk selectors, and
+ * `requiredRelationIssues`). Generic over the content type (like
+ * {@link EntriesService}): the physical table and its envelope columns are
+ * derived from `type` at request time, so one engine backs every collection.
+ *
+ * Layering note (ADR-0003): the entries engine is generic and registry-driven —
+ * one service backs every content type, with no per-aggregate table — so the
+ * heavy, battle-tested column/relation/extension persistence stays here as
+ * infrastructure rather than being forced into a row⇄aggregate mapper. The
+ * publish **lifecycle** (the part with real invariants) is modelled by the
+ * `Entry` domain object and driven by application use-cases, which call the
+ * status primitives below through the {@link UnitOfWork} so the write and its
+ * outbox events commit atomically. {@link EntryValidationService} remains the
+ * gate — nothing is written or published without passing it.
  */
 @Injectable()
 export class EntryWriterService {
@@ -363,23 +367,24 @@ export class EntryWriterService {
         return toRecord(type, row);
     }
 
-    /** Validate the stored row, then mark it published (publishable types only). */
-    async publish(
+    // ---- publish-lifecycle status primitives -------------------------------
+    // These are the SQL the publish/unpublish/bulk use-cases compose; they run
+    // on the executor the caller passes (the active unit-of-work transaction),
+    // so the status write and its outbox event commit atomically. The
+    // validation gate + status transition + event raising live in the `Entry`
+    // domain model and its use-cases, not here.
+
+    /**
+     * Stamp `status='published'` + `published_at`/`updated_at` on one live row,
+     * returning the updated row (or undefined if none matched, i.e. a 404).
+     */
+    async markPublished(
+        exec: Database | DbTransaction,
         type: AnyContentType,
         id: string,
         workspaceId: string
-    ): Promise<EntryRecord> {
-        this.assertPublishable(type);
-        const current = await this.findLive(type, id, workspaceId);
-        if (!current) throw this.notFound(type, id);
-        // Re-validate stored values: a row saved as a draft before its schema
-        // tightened must not slip through to published. Also enforce required
-        // link-managed relations (which never travel in `values`) against the
-        // stored link set — a required many-to-many must hold at least one link
-        // to publish.
-        this.assertValid(type, toRecord(type, current).values);
-        await this.assertRequiredRelations(this.db, type, current, workspaceId);
-        const [row] = await this.db
+    ): Promise<Row | undefined> {
+        const [row] = await exec
             .update(type.table)
             .set({
                 status: ENTRY_STATUS.Published,
@@ -388,18 +393,17 @@ export class EntryWriterService {
             } as never)
             .where(this.liveWhere(type, id, workspaceId))
             .returning();
-        if (!row) throw this.notFound(type, id);
-        return toRecord(type, row as Row);
+        return row as Row | undefined;
     }
 
-    /** Revert a live entry to draft (publishable types only). */
-    async unpublish(
+    /** Revert one live row to `status='draft'` (clearing `published_at`) on `exec`. */
+    async markDraft(
+        exec: Database | DbTransaction,
         type: AnyContentType,
         id: string,
         workspaceId: string
-    ): Promise<EntryRecord> {
-        this.assertPublishable(type);
-        const [row] = await this.db
+    ): Promise<Row | undefined> {
+        const [row] = await exec
             .update(type.table)
             .set({
                 status: ENTRY_STATUS.Draft,
@@ -408,8 +412,122 @@ export class EntryWriterService {
             } as never)
             .where(this.liveWhere(type, id, workspaceId))
             .returning();
-        if (!row) throw this.notFound(type, id);
-        return toRecord(type, row as Row);
+        return row as Row | undefined;
+    }
+
+    /**
+     * Load the workspace's live rows for `ids` **`FOR UPDATE`** on `exec`, keyed
+     * by id — the locked candidate set a bulk publish re-validates inside its
+     * transaction (closing the preview→commit TOCTOU window the comments on the
+     * original single-transaction bulk publish defended).
+     */
+    async loadLiveByIdsForUpdate(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<Map<string, Row>> {
+        if (!ids.length) return new Map();
+        const t = this.columns(type);
+        const deletedGuard = type.paranoid ? isNull(t['deletedAt']) : undefined;
+        const rows = (await exec
+            .select()
+            .from(type.table)
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
+                    deletedGuard
+                )
+            )
+            .for('update')) as Row[];
+        return new Map(rows.map((row) => [row['id'] as string, row]));
+    }
+
+    /** Publish a set of ids in one statement on `exec` (the caller pre-filtered them). */
+    async markPublishedBulk(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<void> {
+        if (!ids.length) return;
+        const t = this.columns(type);
+        const deletedGuard = type.paranoid ? isNull(t['deletedAt']) : undefined;
+        await exec
+            .update(type.table)
+            .set({
+                status: ENTRY_STATUS.Published,
+                publishedAt: new Date(),
+                updatedAt: new Date()
+            } as never)
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
+                    deletedGuard
+                )
+            );
+    }
+
+    /**
+     * Which of `ids` are currently `published` and live in the workspace, on
+     * `exec` — the set a bulk unpublish actually transitions, so it raises one
+     * `entry.unpublished` per real change rather than per matched row.
+     */
+    async publishedIdsAmong(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<string[]> {
+        if (!ids.length) return [];
+        const t = this.columns(type);
+        const deletedGuard = type.paranoid ? isNull(t['deletedAt']) : undefined;
+        const rows = (await exec
+            .select()
+            .from(type.table)
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
+                    eq(t['status'], ENTRY_STATUS.Published),
+                    deletedGuard
+                )
+            )) as Row[];
+        return rows.map((row) => row['id'] as string);
+    }
+
+    /**
+     * Revert every live row in `ids` to draft on `exec`, returning how many rows
+     * matched — the `{ count }` the bulk endpoint reports, unchanged from the
+     * single-statement original (count = live matching rows, not just those that
+     * were published).
+     */
+    async markDraftBulk(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<number> {
+        if (!ids.length) return 0;
+        const t = this.columns(type);
+        const rows = await exec
+            .update(type.table)
+            .set({
+                status: ENTRY_STATUS.Draft,
+                publishedAt: null,
+                updatedAt: new Date()
+            } as never)
+            .where(
+                and(
+                    inArray(t['id'], ids),
+                    this.scope(type, workspaceId),
+                    type.paranoid ? isNull(t['deletedAt']) : undefined
+                )
+            )
+            .returning();
+        return rows.length;
     }
 
     /**
@@ -492,180 +610,6 @@ export class EntryWriterService {
             )
             .returning();
         if (!row) throw this.notFound(type, id);
-    }
-
-    /**
-     * Dry-run a publish over a set of ids: validate each live row and report a
-     * verdict (will-publish / already-published / blocked / not-found) in
-     * request order. Writes nothing.
-     */
-    async previewBulkPublish(
-        type: AnyContentType,
-        ids: string[],
-        workspaceId: string
-    ): Promise<BulkPublishPreview> {
-        this.assertPublishable(type);
-        const byId = await this.loadLiveByIds(type, ids, workspaceId);
-        return { items: this.verdictsFor(type, ids, byId) };
-    }
-
-    /**
-     * Commit a bulk publish. The validation gate is **locked**: the candidate
-     * rows are selected `FOR UPDATE` and re-validated inside one transaction, so
-     * a concurrent edit can't invalidate a row between the dry run and the write
-     * (the single-statement preview-then-update split had that TOCTOU window).
-     * Publishes only the `publishable` ids, reporting which were skipped and why.
-     */
-    async bulkPublish(
-        type: AnyContentType,
-        ids: string[],
-        workspaceId: string
-    ): Promise<BulkPublishResult> {
-        this.assertPublishable(type);
-        if (!ids.length) return { published: [], skipped: [] };
-        const t = this.columns(type);
-        const scope = this.scope(type, workspaceId);
-        const deletedGuard = type.paranoid ? isNull(t['deletedAt']) : undefined;
-        return this.db.transaction(async (tx) => {
-            const rows = (await tx
-                .select()
-                .from(type.table)
-                .where(and(inArray(t['id'], ids), scope, deletedGuard))
-                .for('update')) as Row[];
-            const byId = new Map(rows.map((row) => [row['id'] as string, row]));
-            const items = this.verdictsFor(type, ids, byId);
-            const published = items
-                .filter((item) => item.verdict === BULK_VERDICT.Publishable)
-                .map((item) => item.id);
-            if (published.length) {
-                await tx
-                    .update(type.table)
-                    .set({
-                        status: ENTRY_STATUS.Published,
-                        publishedAt: new Date(),
-                        updatedAt: new Date()
-                    } as never)
-                    .where(
-                        and(inArray(t['id'], published), scope, deletedGuard)
-                    );
-            }
-            const skipped = items
-                .filter((item) => item.verdict !== BULK_VERDICT.Publishable)
-                .map((item) => ({ id: item.id, reason: item.verdict }));
-            return { published, skipped };
-        });
-    }
-
-    /**
-     * Compute the per-entry publish verdict (will-publish / already-published /
-     * blocked / not-found) for `ids` in request order, given the live rows keyed
-     * by id. Pure — the dry run and the committed {@link bulkPublish} share it so
-     * they can't disagree on what's publishable.
-     */
-    private verdictsFor(
-        type: AnyContentType,
-        ids: string[],
-        byId: Map<string, Row>
-    ): BulkPublishVerdict[] {
-        return ids.map((id): BulkPublishVerdict => {
-            const row = byId.get(id);
-            if (!row) {
-                return {
-                    id,
-                    title: id,
-                    status: null,
-                    verdict: BULK_VERDICT.NotFound,
-                    issues: [],
-                    checks: []
-                };
-            }
-            const title = entryTitle(type, row);
-            const status = row['status'] as EntryStatus;
-            if (status === ENTRY_STATUS.Published) {
-                // Already published, so nothing will change — but still surface
-                // its per-field gate (an already-published row is valid, so the
-                // checks all pass) so the dialog can expand it like every other
-                // row instead of leaving it a dead, non-collapsible entry.
-                const result = this.validation.validate(
-                    type,
-                    toRecord(type, row).values
-                );
-                return {
-                    id,
-                    title,
-                    status,
-                    verdict: BULK_VERDICT.AlreadyPublished,
-                    issues: [],
-                    checks: this.buildChecks(type, result.issues)
-                };
-            }
-            const result = this.validation.validate(
-                type,
-                toRecord(type, row).values
-            );
-            return {
-                id,
-                title,
-                status,
-                verdict: result.valid
-                    ? BULK_VERDICT.Publishable
-                    : BULK_VERDICT.Blocked,
-                issues: result.issues,
-                checks: this.buildChecks(type, result.issues)
-            };
-        });
-    }
-
-    /**
-     * The per-field publish-gate checklist for one record: every required field
-     * plus any field that has an issue, each marked pass/fail. Mirrors the
-     * editor's Publish Gate so a row can show its passed fields, not just the
-     * failures.
-     */
-    private buildChecks(
-        type: AnyContentType,
-        issues: ValidationIssue[]
-    ): BulkPublishCheck[] {
-        const byField = new Map<string, string>();
-        for (const issue of issues) {
-            if (!byField.has(issue.field))
-                byField.set(issue.field, issue.message);
-        }
-        return Object.entries(type.fields)
-            .filter(([name, spec]) => spec.required || byField.has(name))
-            .map(([name, spec]) => ({
-                field: name,
-                label: spec.admin.label ?? name,
-                ok: !byField.has(name),
-                message: byField.get(name)
-            }));
-    }
-
-    /** Revert a set of live entries to draft. */
-    async bulkUnpublish(
-        type: AnyContentType,
-        ids: string[],
-        workspaceId: string
-    ): Promise<BulkActionResult> {
-        this.assertPublishable(type);
-        if (!ids.length) return { count: 0 };
-        const t = this.columns(type);
-        const rows = await this.db
-            .update(type.table)
-            .set({
-                status: ENTRY_STATUS.Draft,
-                publishedAt: null,
-                updatedAt: new Date()
-            } as never)
-            .where(
-                and(
-                    inArray(t['id'], ids),
-                    this.scope(type, workspaceId),
-                    type.paranoid ? isNull(t['deletedAt']) : undefined
-                )
-            )
-            .returning();
-        return { count: rows.length };
     }
 
     /** Delete a set of entries: soft for paranoid types, hard otherwise. */
@@ -802,13 +746,18 @@ export class EntryWriterService {
         );
     }
 
-    /** Fetch one live row by id in the workspace, or undefined. */
-    private async findLive(
+    /**
+     * Fetch one live row by id in the workspace, or undefined. Public + executor
+     * parameterized so the publish-lifecycle use-cases can read it under the
+     * active unit of work; internal callers use the default (base connection).
+     */
+    async findLive(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        exec: Database | DbTransaction = this.db
     ): Promise<Row | undefined> {
-        const [row] = await this.db
+        const [row] = await exec
             .select()
             .from(type.table)
             .where(this.liveWhere(type, id, workspaceId))
@@ -816,15 +765,20 @@ export class EntryWriterService {
         return row as Row | undefined;
     }
 
-    /** Fetch the workspace's live rows for a set of ids, keyed by id. */
-    private async loadLiveByIds(
+    /**
+     * Fetch the workspace's live rows for a set of ids, keyed by id — the
+     * bulk-publish **dry run** (no `FOR UPDATE`; the committed path uses
+     * {@link loadLiveByIdsForUpdate}).
+     */
+    async loadLiveByIds(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        exec: Database | DbTransaction = this.db
     ): Promise<Map<string, Row>> {
         if (!ids.length) return new Map();
         const t = this.columns(type);
-        const rows = (await this.db
+        const rows = (await exec
             .select()
             .from(type.table)
             .where(
@@ -938,6 +892,35 @@ export class EntryWriterService {
         row: Row,
         workspaceId: string
     ): Promise<void> {
+        const issues = await this.requiredRelationIssues(
+            exec,
+            type,
+            row,
+            workspaceId
+        );
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
+        }
+    }
+
+    /**
+     * The `is required` issues for required **link-managed** relations (an owning
+     * many-to-many, or the inverse of one) whose link set is empty — the check
+     * {@link EntryValidationService} can't make, since those links never travel
+     * in the `values` bag. Returns the issues rather than throwing, so the
+     * publish use-case can fold them into the `Entry` domain publish gate. `exec`
+     * is the write transaction (counting just-written rows) on create/update, or
+     * the unit-of-work transaction on publish.
+     */
+    async requiredRelationIssues(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        row: Row,
+        workspaceId: string
+    ): Promise<ValidationIssue[]> {
         const issues: ValidationIssue[] = [];
         for (const [name, spec] of Object.entries(type.fields)) {
             if (
@@ -964,12 +947,7 @@ export class EntryWriterService {
             if (total === 0)
                 issues.push({ field: name, message: 'is required' });
         }
-        if (issues.length) {
-            throw new UnprocessableEntityException({
-                message: 'Entry validation failed',
-                issues
-            });
-        }
+        return issues;
     }
 
     /** Throw 422 with the issue list when the values fail validation. */
@@ -983,15 +961,6 @@ export class EntryWriterService {
                 message: 'Entry validation failed',
                 issues: result.issues
             });
-        }
-    }
-
-    /** Reject publish/unpublish on a type with no publish workflow. */
-    private assertPublishable(type: AnyContentType): void {
-        if (!type.publishable) {
-            throw new BadRequestException(
-                `Content type "${type.name}" is not publishable.`
-            );
         }
     }
 
