@@ -68,7 +68,7 @@ export function LocaleSwitchOverlay() {
             role="status"
             aria-live="polite"
             className={cn(
-                'pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm motion-reduce:animate-none',
+                'pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm motion-reduce:animate-none',
                 display.leaving
                     ? 'animate-out fade-out-0 fill-mode-forwards duration-300'
                     : 'animate-in fade-in-0 duration-200'

@@ -166,34 +166,36 @@ export function LocaleWidget({
     // (same group). Singles re-resolve their one row via `?locale=`; collections
     // navigate to the sibling's id (or the create route for a new locale).
     const selectLocale = (slug: string, sibling?: Sibling) => {
-        // Play the switch flourish; the store carries it across the navigation
-        // so the destination editor's overlay host picks it up.
-        beginLocaleSwitch(
-            locales.find((locale) => locale.slug === slug)?.name ?? slug
-        );
+        const name = locales.find((locale) => locale.slug === slug)?.name ?? slug;
         // The draft's shared fields come from the source values: the saved
         // entry (edit mode), or whatever the create form already carries
         // (create mode — a translation draft's prefill), preserved as-is.
         const state = isCreate
             ? location.state
             : { translateFrom: entry?.values };
-        if (mode === ENTRY_MODE.Single) {
-            if (sibling) {
-                navigate(
-                    slug === defaultLocale?.slug
-                        ? typePath
-                        : `${typePath}?${LOCALE_PARAM}=${slug}`
-                );
-            } else {
-                navigate(`${typePath}?${createSearch(slug)}`, { state });
+        // Play the switch flourish, then navigate **behind** the overlay once it
+        // covers (see `beginLocaleSwitch`) so the editor doesn't visibly swap
+        // under the blur. The module-level store carries the flourish across the
+        // navigation so the destination editor's overlay host picks it up.
+        beginLocaleSwitch(name, () => {
+            if (mode === ENTRY_MODE.Single) {
+                if (sibling) {
+                    navigate(
+                        slug === defaultLocale?.slug
+                            ? typePath
+                            : `${typePath}?${LOCALE_PARAM}=${slug}`
+                    );
+                } else {
+                    navigate(`${typePath}?${createSearch(slug)}`, { state });
+                }
+                return;
             }
-            return;
-        }
-        if (sibling) {
-            navigate(`${typePath}/${sibling.id}`);
-        } else {
-            navigate(`${typePath}/new?${createSearch(slug)}`, { state });
-        }
+            if (sibling) {
+                navigate(`${typePath}/${sibling.id}`);
+            } else {
+                navigate(`${typePath}/new?${createSearch(slug)}`, { state });
+            }
+        });
     };
 
     return (

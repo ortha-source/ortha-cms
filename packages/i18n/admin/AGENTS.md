@@ -71,16 +71,23 @@ content plugin owns).
 
 Both the toolbar switcher **and** the editor's locale widget trigger a brief,
 non-interactive full-screen overlay — a `Languages` glyph, a spinner, and
-"Switching to <locale>…" — that appears **immediately**, holds ~300ms, then
-fades out. A trigger calls `beginLocaleSwitch(name)` (a tiny module-level store);
-the `LocaleSwitchOverlay` host — rendered by whichever of the two is mounted on
-the current route — reads it via `useSyncExternalStore` and plays it. The store
-is module-level **on purpose**: a widget switch **navigates** to a sibling's
-editor, unmounting the trigger, so the transition has to outlive it and be
-re-read by the destination's host. Purely visual (`pointer-events-none`,
-`motion-reduce:animate-none`), portalled to `document.body`, and **timed** (a
-fixed hold, not tied to the query) — the records view / editor still own the
-real pending state.
+"Switching to <locale>…" — that appears **immediately** over the current view,
+holds, then fades out. A trigger calls `beginLocaleSwitch(name, apply)` (a tiny
+module-level store), passing the **actual swap** (`updateParams` on the toolbar,
+`navigate` in the widget) as `apply` rather than running it inline. The store
+**defers `apply`** (~`COVER_MS`) so the layout change happens **behind** the
+now-covering overlay — otherwise React commits the new content and the overlay in
+the same frame and you'd see the new locale flash through the blur. The backdrop
+is near-opaque (`bg-background/95 backdrop-blur-sm`) so nothing shows through
+during the swap. The `LocaleSwitchOverlay` host — rendered by whichever of the
+two is mounted on the current route — reads the name via `useSyncExternalStore`
+and plays it. The store is module-level **on purpose**: a widget switch
+**navigates** to a sibling's editor, unmounting the trigger, so the transition
+has to outlive it and be re-read by the destination's host. A rapid re-switch
+cancels the pending `apply`/clear (last pick wins). Purely visual
+(`pointer-events-none`, `motion-reduce:animate-none`), portalled to
+`document.body`, and **timed** (a fixed hold, not tied to the query) — the
+records view / editor still own the real pending state.
 
 ## Data layer
 

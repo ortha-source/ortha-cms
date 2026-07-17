@@ -64,13 +64,15 @@ export function LocaleSwitcher({
         setOpen(false);
         // Re-selecting the active locale is a no-op — no re-scope, no flourish.
         if (slug === active?.slug) return;
-        beginLocaleSwitch(
-            locales.find((locale) => locale.slug === slug)?.name ?? slug
-        );
-        updateParams({
-            // Default locale = clean URL — the server scopes to it when the
-            // param is absent, so the two spellings can't drift.
-            [LOCALE_PARAM]: slug === defaultLocale?.slug ? undefined : slug
+        const name = locales.find((locale) => locale.slug === slug)?.name ?? slug;
+        // Defer the re-scope until the overlay covers the page (see
+        // `beginLocaleSwitch`) so the table doesn't visibly swap under the blur.
+        beginLocaleSwitch(name, () => {
+            updateParams({
+                // Default locale = clean URL — the server scopes to it when the
+                // param is absent, so the two spellings can't drift.
+                [LOCALE_PARAM]: slug === defaultLocale?.slug ? undefined : slug
+            });
         });
     };
 
