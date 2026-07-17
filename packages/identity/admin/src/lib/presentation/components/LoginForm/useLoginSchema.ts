@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { z } from 'zod';
+import { Email } from '../../../domain/value-objects/email';
 
 /** Intl descriptors for the login validation messages, co-located with the schema. */
 const messages = defineMessages({
@@ -33,11 +34,12 @@ export function useLoginSchema() {
                     .min(1, {
                         message: intl.formatMessage(messages.emailRequired)
                     })
-                    .pipe(
-                        z.email({
-                            message: intl.formatMessage(messages.emailInvalid)
-                        })
-                    ),
+                    // Delegate the format rule to the `Email` value object, the
+                    // single client-side email rule, rather than an inline
+                    // `z.email()` — the server stays the authority.
+                    .refine((value) => Email.isValid(value), {
+                        message: intl.formatMessage(messages.emailInvalid)
+                    }),
                 password: z.string().min(1, {
                     message: intl.formatMessage(messages.passwordRequired)
                 })

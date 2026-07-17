@@ -4,9 +4,9 @@ import { defineMessages, useIntl } from 'react-intl';
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { LoginForm } from '../../components/LoginForm';
-import type { LoginCredentials } from '../../../types/auth';
-import { useLoginMutation } from '../../api/useLoginMutation';
-import { currentUserKey } from '../../api/useCurrentUser';
+import type { LoginCredentials } from '../../../../types/auth';
+import { useLoginMutation } from '../../../application/useLoginMutation';
+import { currentUserKey } from '../../../application/useCurrentUser';
 
 /** Router state `RequireAuth` attaches when it bounces a user to sign-in. */
 type FromState = { from?: { pathname?: string } };

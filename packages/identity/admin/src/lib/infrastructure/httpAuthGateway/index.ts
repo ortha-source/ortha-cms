@@ -1,0 +1,40 @@
+import { apiClient, HTTP_STATUS, toApiError } from '@ortha-cms/utils-admin';
+import type { CurrentUser, LoginCredentials } from '../../../types/auth';
+import type { AuthGateway } from '../authGateway';
+
+/**
+ * HTTP implementation of {@link AuthGateway} over the shared `apiClient` (axios,
+ * same-origin, cookie-authed; paths omit the `/api` dev-proxy prefix). Every
+ * failure is normalized with `toApiError`, so callers see `ApiError`, never
+ * axios internals. The single place `apiClient` is used in this plugin.
+ */
+export const httpAuthGateway: AuthGateway = {
+    async getCurrentUser(): Promise<CurrentUser | null> {
+        try {
+            const { data } = await apiClient.get<CurrentUser>('/auth/me');
+            return data;
+        } catch (error) {
+            const apiError = toApiError(error);
+            if (apiError.status === HTTP_STATUS.UNAUTHORIZED) {
+                return null;
+            }
+            throw apiError;
+        }
+    },
+
+    async login(credentials: LoginCredentials): Promise<void> {
+        try {
+            await apiClient.post('/auth/login', credentials);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async logout(): Promise<void> {
+        try {
+            await apiClient.post('/auth/logout');
+        } catch (error) {
+            throw toApiError(error);
+        }
+    }
+};

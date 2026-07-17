@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useCurrentUser } from '../../api/useCurrentUser';
+import { useCurrentUser } from '../../../application/useCurrentUser';
 import {
     AuthProviderContext,
     AuthStatus,
