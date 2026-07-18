@@ -13,18 +13,18 @@ const ADMIN_EMAIL = 'content-types-admin@example.com';
 const PASSWORD = 'SecurePass123!';
 
 /**
- * The code-defined types registered with ContentPlugin (see
- * apps/server/src/content.ts), sorted — the assertions compare a `.sort()`ed
- * list. `article` wires up the `author`/`seo_meta`/`tag`/`comment` reference
- * collections, so the registry is all six.
+ * The e2e-owned content types registered with ContentPlugin (see
+ * support/content/index.ts), sorted — the assertions compare a `.sort()`ed
+ * list. `test_article` wires up the `test_author`/`test_seo`/`test_tag`/
+ * `test_comment` reference collections, so the registry is all six.
  */
 const REGISTRY_NAMES = [
-    'article',
-    'author',
-    'comment',
-    'landing',
-    'seo_meta',
-    'tag'
+    'test_article',
+    'test_author',
+    'test_comment',
+    'test_landing',
+    'test_seo',
+    'test_tag'
 ];
 
 interface Descriptor {
@@ -85,8 +85,11 @@ describe('Content catalogue handover (GET /api/content-types + grants)', () => {
         const byName = Object.fromEntries(
             (res.body as Descriptor[]).map((d) => [d.name, d])
         );
-        expect(byName.landing).toMatchObject({ kind: 'single', path: '/' });
-        expect(byName.article).toMatchObject({ kind: 'collection' });
+        expect(byName.test_landing).toMatchObject({
+            kind: 'single',
+            path: '/'
+        });
+        expect(byName.test_article).toMatchObject({ kind: 'collection' });
     });
 
     it('grants a workspace the real registry slugs on content mode "all"', async () => {
@@ -109,11 +112,11 @@ describe('Content catalogue handover (GET /api/content-types + grants)', () => {
             .where(eq(workspaceContent.workspaceId, res.body.id));
 
         expect(rows.map((r) => r.slug).sort()).toEqual(REGISTRY_NAMES);
-        // article is the collection; landing is the single.
+        // test_article is the collection; test_landing is the single.
         const kindBySlug = Object.fromEntries(
             rows.map((r) => [r.slug, r.kind])
         );
-        expect(kindBySlug.article).toBe('collection');
-        expect(kindBySlug.landing).toBe('single');
+        expect(kindBySlug.test_article).toBe('collection');
+        expect(kindBySlug.test_landing).toBe('single');
     });
 });

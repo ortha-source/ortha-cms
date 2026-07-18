@@ -77,7 +77,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         body: Record<string, unknown> = {}
     ): Promise<ArticleRow> {
         const res = await agent
-            .post('/api/content/article')
+            .post('/api/content/test_article')
             .send({ values: VALID, ...body })
             .expect(201);
         return res.body as ArticleRow;
@@ -96,7 +96,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         expectStatus = 201
     ) {
         return agent
-            .post('/api/content/article')
+            .post('/api/content/test_article')
             .send({
                 values: source.values,
                 locale,
@@ -137,7 +137,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('400s an unknown locale', async () => {
             const agent = await login();
             await agent
-                .post('/api/content/article')
+                .post('/api/content/test_article')
                 .send({ values: VALID, locale: 'zz' })
                 .expect(400);
         });
@@ -155,7 +155,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const agent = await login();
             await createArticle(agent); // en
             const de = await createArticle(agent, { locale: 'de' });
-            const res = await agent.get('/api/content/article').expect(200);
+            const res = await agent.get('/api/content/test_article').expect(200);
             const ids = (res.body.items as { id: string }[]).map((i) => i.id);
             expect(ids).not.toContain(de.id);
             expect(
@@ -170,7 +170,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const en = await createArticle(agent);
             const de = await createArticle(agent, { locale: 'de' });
             const res = await agent
-                .get('/api/content/article?locale=de')
+                .get('/api/content/test_article?locale=de')
                 .expect(200);
             const ids = (res.body.items as { id: string }[]).map((i) => i.id);
             expect(ids).toContain(de.id);
@@ -179,7 +179,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
 
         it('400s a list scoped to an unknown locale', async () => {
             const agent = await login();
-            await agent.get('/api/content/article?locale=zz').expect(400);
+            await agent.get('/api/content/test_article?locale=zz').expect(400);
         });
 
         it('falls back to the default row where the requested locale is missing', async () => {
@@ -187,7 +187,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // An en-only group (no de translation).
             const en = await createArticle(agent);
             const res = await agent
-                .get('/api/content/article?locale=de&localeFallback=default')
+                .get('/api/content/test_article?locale=de&localeFallback=default')
                 .expect(200);
             const ids = (res.body.items as { id: string }[]).map((i) => i.id);
             // The en row stands in for the missing de translation.
@@ -227,7 +227,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('404s a localeGroupId that names no group in the workspace', async () => {
             const agent = await login();
             await agent
-                .post('/api/content/article')
+                .post('/api/content/test_article')
                 .send({
                     values: VALID,
                     locale: 'de',
@@ -247,20 +247,20 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .body as { id: string };
             // Give the de row its own localized text.
             await agent
-                .patch(`/api/content/article/${de.id}`)
+                .patch(`/api/content/test_article/${de.id}`)
                 .send({ values: { text: 'DE title', select: 'article' } })
                 .expect(200);
 
             // Edit a SHARED field (`number`) on the en row — it must sync to de.
             await agent
-                .patch(`/api/content/article/${en.id}`)
+                .patch(`/api/content/test_article/${en.id}`)
                 .send({
                     values: { text: 'EN title', select: 'article', number: 42 }
                 })
                 .expect(200);
 
             const deAfter = await agent
-                .get(`/api/content/article/${de.id}`)
+                .get(`/api/content/test_article/${de.id}`)
                 .expect(200);
             // Shared field synced...
             expect(deAfter.body.values.number).toBe(42);
@@ -274,7 +274,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // relation — a shared FK would be a cross-locale link.
             const authorEn = (
                 await agent
-                    .post('/api/content/author')
+                    .post('/api/content/test_author')
                     .send({ values: { name: 'Ada' } })
                     .expect(201)
             ).body as { id: string };
@@ -290,7 +290,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // a per-locale relation, so the create body omits it).
             const de = (
                 await agent
-                    .post('/api/content/article')
+                    .post('/api/content/test_article')
                     .send({
                         values: {
                             text: 'DE title',
@@ -307,7 +307,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // Edit a shared field on en — it syncs — but the author must NOT be
             // pushed onto the de sibling.
             await agent
-                .patch(`/api/content/article/${en.id}`)
+                .patch(`/api/content/test_article/${en.id}`)
                 .send({
                     values: {
                         text: 'EN title',
@@ -319,7 +319,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(200);
 
             const deAfter = (
-                await agent.get(`/api/content/article/${de.id}`).expect(200)
+                await agent.get(`/api/content/test_article/${de.id}`).expect(200)
             ).body as { values: Record<string, unknown> };
             expect(deAfter.values.number).toBe(99); // shared field synced
             expect(deAfter.values.author ?? null).toBeNull(); // relation NOT synced
@@ -332,7 +332,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             });
             // Create the de sibling with a DIFFERENT shared `number`.
             await agent
-                .post('/api/content/article')
+                .post('/api/content/test_article')
                 .send({
                     values: { text: 'DE title', select: 'article', number: 5 },
                     locale: 'de',
@@ -341,7 +341,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(201);
 
             const enAfter = (
-                await agent.get(`/api/content/article/${en.id}`).expect(200)
+                await agent.get(`/api/content/test_article/${en.id}`).expect(200)
             ).body as { values: Record<string, unknown> };
             // The shared field propagates to the pre-existing en row on create...
             expect(enAfter.values.number).toBe(5);
@@ -358,20 +358,20 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .body as { id: string };
             // Publish the de sibling so it must stay valid.
             await agent
-                .post(`/api/content/article/${de.id}/publish`)
+                .post(`/api/content/test_article/${de.id}/publish`)
                 .expect(201);
 
             // `select` is shared (not localized). Clearing it on en would blank
             // the published de row's required select → the sync must 422 and
             // roll the whole save back.
             await agent
-                .patch(`/api/content/article/${en.id}`)
+                .patch(`/api/content/test_article/${en.id}`)
                 .send({ values: { text: 'EN title', select: '' } })
                 .expect(422);
 
             // The en row is unchanged (the transaction rolled back).
             const enAfter = await agent
-                .get(`/api/content/article/${en.id}`)
+                .get(`/api/content/test_article/${en.id}`)
                 .expect(200);
             expect(enAfter.body.values.select).toBe('article');
         });
@@ -391,7 +391,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
 
             // hasLocale=de → only group A's en row (strict default-locale list).
             const has = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ filter: rule('hasLocale', 'eq', 'de') })
                 .expect(200);
             const hasIds = (has.body.items as { id: string }[]).map((i) => i.id);
@@ -400,7 +400,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
 
             // missingLocale=de → only group B.
             const missing = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ filter: rule('missingLocale', 'eq', 'de') })
                 .expect(200);
             const missingIds = (missing.body.items as { id: string }[]).map(
@@ -417,7 +417,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const b = await createArticle(agent); // count 1
 
             const res = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ filter: rule('localeCount', 'lt', 2) })
                 .expect(200);
             const ids = (res.body.items as { id: string }[]).map((i) => i.id);
@@ -433,7 +433,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             await createTranslation(agent, en, 'de');
 
             const res = await agent
-                .get(`/api/i18n/content/article/${en.id}/locales`)
+                .get(`/api/i18n/content/test_article/${en.id}/locales`)
                 .expect(200);
             expect(res.body.localeGroupId).toBe(en.localeGroupId);
             const byLocale = Object.fromEntries(
@@ -452,7 +452,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             await createTranslation(agent, en, 'de');
 
             const res = await agent
-                .post('/api/i18n/content/article/locale-summary')
+                .post('/api/i18n/content/test_article/locale-summary')
                 .send({ groupIds: [en.localeGroupId] })
                 .expect(201);
             const members = res.body.groups[en.localeGroupId] as {
@@ -466,12 +466,12 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // `seo_meta` is not localized (author is now an i18n type).
             const seoId = (
                 await agent
-                    .post('/api/content/seo_meta')
+                    .post('/api/content/test_seo')
                     .send({ values: { metaTitle: 'Home' } })
                     .expect(201)
             ).body.id as string;
             await agent
-                .get(`/api/i18n/content/seo_meta/${seoId}/locales`)
+                .get(`/api/i18n/content/test_seo/${seoId}/locales`)
                 .expect(400);
         });
     });
@@ -480,12 +480,12 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         it('ignores ?locale= on a non-localized type', async () => {
             const agent = await login();
             await agent
-                .post('/api/content/seo_meta')
+                .post('/api/content/test_seo')
                 .send({ values: { metaTitle: 'Home' } })
                 .expect(201);
             // The seo_meta list ignores the locale param entirely.
             const res = await agent
-                .get('/api/content/seo_meta?locale=de')
+                .get('/api/content/test_seo?locale=de')
                 .expect(200);
             expect(res.body.total).toBe(1);
         });
