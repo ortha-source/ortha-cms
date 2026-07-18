@@ -326,9 +326,13 @@ export async function seedArticles(
     // The generated table's column set is dynamic, so the insert values aren't
     // statically typed — the column names match the field names by construction.
     // `workspaceId` (the default) merges first so a per-row override wins.
+    // `locale` is NOT NULL (the i18n migration dropped its column default), so
+    // default it to the config's default locale (`en`); a per-row value wins.
     await getDatabase()
         .insert(articles)
-        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        );
 }
 
 /**
@@ -341,7 +345,10 @@ export async function seedLanding(
     workspaceId?: string
 ): Promise<void> {
     if (rows.length === 0) return;
+    // `locale` is NOT NULL (see {@link seedArticles}); default it to `en`.
     await getDatabase()
         .insert(landingPage)
-        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        );
 }
