@@ -1,11 +1,12 @@
 import type { ActivityEvent } from '../../types/activityEvent';
-import type { ActivityKind } from '../activityKinds';
+import type { ActivityKind } from '../../types/activityKinds';
 
-// The shared wire→model contract for an audit event. The admin can't import the
-// server package (separate apps / module boundaries), so this wire type mirrors
-// `@ortha-cms/activity-server`'s `ActivityEventView`. Every request function
-// that returns events maps through `toActivityEvent`, so shape and mapper live
-// together here.
+// The wire→view anti-corruption layer for an audit event. The admin can't
+// import the server package (separate apps / module boundaries), so this wire
+// type mirrors `@ortha-cms/activity-server`'s `ActivityEventView`. The HTTP
+// gateway (`httpActivityGateway`) maps every event it fetches through
+// `toActivityEvent`, so the wire shape and its mapper live together here and the
+// rest of the plugin only ever sees the admin's `ActivityEvent` view model.
 
 /** An audit event as returned by `GET /api/activity`. */
 export type ActivityEventResponse = {

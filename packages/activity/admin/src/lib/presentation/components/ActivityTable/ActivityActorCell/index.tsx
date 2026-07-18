@@ -6,7 +6,7 @@ import {
     cn
 } from '@ortha-cms/design-system';
 import { avatarColorForId, initialsFromEmail } from '@ortha-cms/utils-admin';
-import type { ActivityActor } from '../../../types/activityEvent';
+import type { ActivityActor } from '../../../../types/activityEvent';
 
 /** Intl descriptors for {@link ActivityActorCell}, co-located. */
 const messages = defineMessages({

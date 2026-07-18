@@ -5,8 +5,8 @@ import { ActivityActionCell } from '../ActivityActionCell';
 import { ActivityActorCell } from '../ActivityActorCell';
 import { ActivitySubjectCell } from '../ActivitySubjectCell';
 import { DetailRow } from './DetailRow';
-import { formatActivityDetails } from '../../../utils/activityMessages';
-import type { ActivityEvent } from '../../../types/activityEvent';
+import { formatActivityDetails } from '../../../activityMessages';
+import type { ActivityEvent } from '../../../../types/activityEvent';
 
 /** Intl descriptors for {@link ActivityRow}, co-located with the component. */
 const messages = defineMessages({

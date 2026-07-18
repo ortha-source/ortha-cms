@@ -1,4 +1,4 @@
-import type { ActivityEvent } from '../../../types/activityEvent';
+import type { ActivityEvent } from '../../../../types/activityEvent';
 
 /**
  * The "Subject" cell: the entity an action targeted — its type (e.g. `user`)

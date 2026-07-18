@@ -18,15 +18,18 @@ import {
     Container,
     ContainerHeader
 } from '@ortha-cms/design-system';
-import { useActivityLog, DEFAULT_PAGE_SIZE } from '../../api/useActivityLog';
+import {
+    useActivityLog,
+    DEFAULT_PAGE_SIZE
+} from '../../../application/useActivityLog';
 import { ActivityEmpty } from '../../components/ActivityEmpty';
 import { ActivityLogTableSkeleton } from '../../components/ActivityLogSkeleton';
 import { ActivityNoAccess } from '../../components/ActivityNoAccess';
 import { ActivityPagination } from '../../components/ActivityPagination';
 import { ActivityTable } from '../../components/ActivityTable';
 import { ActivityToolbar } from '../../components/ActivityToolbar';
-import { ACTIVITY_FILTER_FIELDS } from '../../utils/activityFilterFields';
-import type { ActivityListParams } from '../../utils/activityKeys';
+import { ACTIVITY_FILTER_FIELDS } from '../../activityFilterFields';
+import type { ActivityListParams } from '../../../infrastructure/activityKeys';
 
 /** Intl descriptors for {@link ActivityLogPage}, co-located with the component. */
 const messages = defineMessages({

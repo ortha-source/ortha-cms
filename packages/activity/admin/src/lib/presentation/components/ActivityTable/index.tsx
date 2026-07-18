@@ -8,7 +8,7 @@ import {
     TableRow
 } from '@ortha-cms/design-system';
 import { ActivityRow } from './ActivityRow';
-import type { ActivityEvent } from '../../types/activityEvent';
+import type { ActivityEvent } from '../../../types/activityEvent';
 
 /** Intl descriptors for {@link ActivityTable}, co-located with the component. */
 const messages = defineMessages({

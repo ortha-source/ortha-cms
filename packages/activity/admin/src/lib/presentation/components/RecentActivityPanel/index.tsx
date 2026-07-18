@@ -9,7 +9,7 @@ import {
     CardTitle,
     Skeleton
 } from '@ortha-cms/design-system';
-import { useActivityLog } from '../../api/useActivityLog';
+import { useActivityLog } from '../../../application/useActivityLog';
 
 /** Intl descriptors for {@link RecentActivityPanel}, co-located here. */
 const messages = defineMessages({

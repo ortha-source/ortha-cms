@@ -4,7 +4,7 @@ import {
     type MessageDescriptor
 } from 'react-intl';
 import type { ActivityEvent } from '../../types/activityEvent';
-import type { ActivityKind } from '../activityKinds';
+import type { ActivityKind } from '../../types/activityKinds';
 
 /**
  * Human-readable "Action" labels, one per known {@link ActivityKind}. The admin

@@ -1,7 +1,7 @@
 import { useIntl } from 'react-intl';
 import { Badge } from '@ortha-cms/design-system';
-import type { ActivityKind } from '../../../utils/activityKinds';
-import { formatActivityAction } from '../../../utils/activityMessages';
+import type { ActivityKind } from '../../../../types/activityKinds';
+import { formatActivityAction } from '../../../activityMessages';
 
 /**
  * The "Action" cell: the localized, human-readable label for an event kind,
