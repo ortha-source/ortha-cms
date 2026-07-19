@@ -86,9 +86,9 @@ describe('Workspace content grants', () => {
 
             const res = await agent
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(201);
-            expect(res.body.content).toContain('article');
+            expect(res.body.content).toContain('test_article');
 
             const granted = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.content_granted'
@@ -97,7 +97,7 @@ describe('Workspace content grants', () => {
                 subjectType: 'workspace',
                 subjectId: id,
                 actorEmail: ADMIN_EMAIL,
-                meta: { slug: 'article' }
+                meta: { slug: 'test_article' }
             });
         });
 
@@ -107,11 +107,11 @@ describe('Workspace content grants', () => {
 
             await agent
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(201);
             await agent
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(201);
 
             const granted = (await getActivityRows()).filter(
@@ -135,7 +135,7 @@ describe('Workspace content grants', () => {
             const { agent } = await loginAs('viewer', 'wsc-viewer@example.com');
             await agent
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(403);
         });
     });
@@ -146,13 +146,13 @@ describe('Workspace content grants', () => {
             const id = await createWorkspace(agent);
             await agent
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(201);
 
             const res = await agent
-                .delete(`/api/workspaces/${id}/content/article`)
+                .delete(`/api/workspaces/${id}/content/test_article`)
                 .expect(200);
-            expect(res.body.content).not.toContain('article');
+            expect(res.body.content).not.toContain('test_article');
 
             const revoked = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.content_revoked'
@@ -160,7 +160,7 @@ describe('Workspace content grants', () => {
             expect(revoked).toMatchObject({
                 subjectType: 'workspace',
                 subjectId: id,
-                meta: { slug: 'article' }
+                meta: { slug: 'test_article' }
             });
         });
 
@@ -169,19 +169,19 @@ describe('Workspace content grants', () => {
             const id = await createWorkspace(agent);
             await agent
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(201);
 
             // Create a real article entry in the workspace (the creator is a
             // member, so the workspace-scoped write is allowed).
             await agent
-                .post('/api/content/article')
+                .post('/api/content/test_article')
                 .set('X-Workspace-Id', id)
                 .send({ values: { text: 'Hello world', select: 'article' } })
                 .expect(201);
 
             await agent
-                .delete(`/api/workspaces/${id}/content/article`)
+                .delete(`/api/workspaces/${id}/content/test_article`)
                 .expect(409);
 
             // The grant is untouched and no revoke was recorded.
@@ -189,7 +189,7 @@ describe('Workspace content grants', () => {
             const workspace = list.body.find(
                 (ws: { id: string }) => ws.id === id
             );
-            expect(workspace.content).toContain('article');
+            expect(workspace.content).toContain('test_article');
             const revoked = (await getActivityRows()).filter(
                 (row) => row.kind === 'workspace.content_revoked'
             );
@@ -201,9 +201,9 @@ describe('Workspace content grants', () => {
             const id = await createWorkspace(agent);
 
             const res = await agent
-                .delete(`/api/workspaces/${id}/content/article`)
+                .delete(`/api/workspaces/${id}/content/test_article`)
                 .expect(200);
-            expect(res.body.content ?? []).not.toContain('article');
+            expect(res.body.content ?? []).not.toContain('test_article');
 
             const revoked = (await getActivityRows()).filter(
                 (row) => row.kind === 'workspace.content_revoked'
@@ -216,11 +216,11 @@ describe('Workspace content grants', () => {
             const id = await createWorkspace(admin);
             await admin
                 .post(`/api/workspaces/${id}/content`)
-                .send({ slug: 'article' })
+                .send({ slug: 'test_article' })
                 .expect(201);
             const { agent } = await loginAs('viewer', 'wsc-viewer2@example.com');
             await agent
-                .delete(`/api/workspaces/${id}/content/article`)
+                .delete(`/api/workspaces/${id}/content/test_article`)
                 .expect(403);
         });
     });
@@ -231,18 +231,18 @@ describe('Workspace content grants', () => {
             const id = await createWorkspace(agent);
 
             const empty = await agent
-                .get(`/api/workspaces/${id}/content/article/entry-count`)
+                .get(`/api/workspaces/${id}/content/test_article/entry-count`)
                 .expect(200);
             expect(empty.body).toEqual({ count: 0 });
 
             await agent
-                .post('/api/content/article')
+                .post('/api/content/test_article')
                 .set('X-Workspace-Id', id)
                 .send({ values: { text: 'Hello world', select: 'article' } })
                 .expect(201);
 
             const after = await agent
-                .get(`/api/workspaces/${id}/content/article/entry-count`)
+                .get(`/api/workspaces/${id}/content/test_article/entry-count`)
                 .expect(200);
             expect(after.body).toEqual({ count: 1 });
         });
@@ -252,7 +252,7 @@ describe('Workspace content grants', () => {
             const id = await createWorkspace(admin);
             const { agent } = await loginAs('viewer', 'wsc-viewer3@example.com');
             await agent
-                .get(`/api/workspaces/${id}/content/article/entry-count`)
+                .get(`/api/workspaces/${id}/content/test_article/entry-count`)
                 .expect(403);
         });
     });

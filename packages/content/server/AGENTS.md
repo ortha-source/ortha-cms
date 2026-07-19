@@ -273,6 +273,82 @@ global).
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).
 
+## The `entries` feature — layered (ADR-0003)
+
+The **entries** feature is migrated to the tactical-DDD layering under
+`src/lib/entries/`; the rest of the plugin (the DSL, registry, extension port,
+schema builder) stays in its established shape — see the note below.
+
+```
+entries/
+  domain/            # framework-free — the one hard rule
+    entry.ts                       # Entry focused domain model (publish lifecycle)
+    entry-publish-blocked.error.ts # transport-agnostic gate failure (carries issues)
+    events/entry-events.ts         # entry.* domain-event factory + kinds
+  application/
+    use-cases/                     # publish / unpublish / bulk-publish / bulk-unpublish
+  infrastructure/
+    persistence/  # EntryWriterService (engine), entry-row (toColumns/toRecord),
+                  # relation-link, entry-counter, bulk-publish-verdicts
+    queries/      # EntriesService (list), entry-filter-schema, bulk-publish-preview
+  http/
+    controllers/  # thin controllers + resolve-type
+    dto/          # class-validator DTOs (shape checks only)
+  types/          # wire contracts (EntryRecord/EntryListView, bulk-publish)
+```
+
+**Why a focused domain model, not a full aggregate.** The entries engine is
+**generic and registry-driven** — one `EntryWriterService`/`EntriesService`
+backs *every* content type, with no per-aggregate table or fixed field set. A
+classic row⇄aggregate aggregate + mapper would fight that metamodel (ADR-0003:
+"DDD where it pays, CRUD where it doesn't"). So the part with real invariants —
+the **publish lifecycle** — is modelled by the `Entry` domain object
+(`draft ↔ published` via the `@ortha-cms/content-domain` state machine + publish
+gate, raising `entry.published`/`entry.unpublished`), while the heavy,
+battle-tested column/relation/extension persistence stays as the
+`EntryWriterService` **infrastructure engine**. `domain/` imports nothing from
+`@nestjs/*`, `drizzle-orm`, `class-validator`, or `infrastructure/`
+(grep-enforced) — only the pure kernel and `@ortha-cms/database`'s framework-free
+`createDomainEvent`/`DomainEvent`.
+
+**The kernel (`@ortha-cms/content-domain`).** Field-value validation and the
+publish gate live in the shared kernel; `EntryValidationService` delegates to it
+(no behavior change) and the `Entry` model uses its `assertTransition`. See that
+package's `AGENTS.md`.
+
+**Use-cases + unit-of-work + outbox.** `publish`/`unpublish`/`bulk-publish`/
+`bulk-unpublish` run through use-cases inside a `UnitOfWork` (from
+`@ortha-cms/database`), so the status write and the `entry.*` outbox event commit
+**atomically**; the status SQL is small executor-parameterized primitives on the
+engine (`markPublished`/`markDraft`/`loadLiveByIdsForUpdate`/…). Bulk publish
+keeps its **single locked (`FOR UPDATE`) transaction** (the TOCTOU protection the
+original defended) and reports partial success; bulk unpublish keeps its
+`{ count }` = live-matching-rows semantics and emits an event only per real
+`published → draft` transition. Reads (list / get / relations / bulk-publish
+preview) stay thin query services. **CRUD writes** (create / update / delete /
+restore / purge and their bulk variants) stay on the engine directly — they carry
+no publish-state transition, so per ADR-0003 they are not forced through the
+lifecycle machinery; their domain rule (value validation) is already the kernel.
+There is **no in-band `ACTIVITY_RECORDER`** in content today, so nothing to keep
+in lockstep — the `entry.*` events are the audit seam a Wave-3 subscriber
+consumes. create/update/delete event emission is **deferred** until those writes
+move onto the `UnitOfWork` (they own their own advisory-lock/extension
+transaction today).
+
+**`CONTENT_ENTRY_EXTENSION` stays SYNCHRONOUS and unchanged.** It is an
+**in-transaction open-host port** (i18n binds it for per-locale scoping,
+column-stamping, and sibling sync). Its methods run *inside* the entry write
+transaction — `createColumns` on the INSERT, `afterUpdate` after the row/relation
+writes — so their effects commit or roll back with the write. It is **not** a
+domain event and must not become one: an event fires post-commit, which would be
+too late to stamp a NOT NULL `locale` column or to keep a save atomic with its
+sibling sync. It is correct as-is and is left untouched by this migration.
+
+The DSL / registry / schema-builder / extension-port machinery is deliberately
+**not** turned into aggregates — that is the content framework/metamodel, and
+forcing it into a domain shape would violate ADR-0003, not honor it. It keeps its
+current layout and public API.
+
 ## Architecture
 
 - `ContentModule.forRoot(registry)` is **global** and exports the
@@ -296,8 +372,10 @@ global).
   admin renders the same rules as a courtesy). `EntryWriterService` calls it on
   every create/update and re-checks the stored row before any publish, so nothing
   invalid is written or published.
-- Follows the `server-plugin` skill: feature-then-kind layout, thin controllers,
-  permission-by-constant, JSDoc on exports, `interface` for contracts.
+- Follows the `server-plugin` skill: thin controllers, permission-by-constant,
+  JSDoc on exports, `interface` for contracts. The **`entries`** feature is
+  layered per ADR-0003 (see above); the DSL / registry / schema machinery keeps
+  the feature-then-kind layout.
 
 ## Commands
 

@@ -5,6 +5,19 @@ scaffold: a rail button + placeholder page mounted **inside a workspace**; the
 real dashboards/analytics land later. No server package yet — it will gain
 `@ortha-cms/insights-server` once there are metrics to serve.
 
+## Layout — born layered (ADR-0003)
+
+This is a static scaffold today (a page + the plugin factory), so it has **no**
+layer folders yet — deliberately, per ADR-0003 (don't force empty layers onto a
+placeholder). When real dashboards land, it is **born layered**: on the admin
+side copy `packages/users/admin` (gateway port + mapper ACL + query hooks — a
+dashboard has no client domain rules, so no `domain/` layer, just infrastructure
++ presentation). When `@ortha-cms/insights-server` is created it is naturally a
+**read-side/CQRS** context — **projection subscribers** on the outbox dispatcher
+(folding `entry.*`/`member.*`/`workspace.*` domain events into count/timeline
+tables) + thin query services, **no aggregates** (mirror how `activity` consumes
+the outbox). Correctness lives in the pure fold functions, unit-tested.
+
 ## Package
 
 - Name: `@ortha-cms/insights-admin`

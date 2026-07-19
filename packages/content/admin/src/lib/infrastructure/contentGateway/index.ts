@@ -1,0 +1,125 @@
+import type {
+    BulkActionResult,
+    BulkPublishPreview,
+    BulkPublishResult,
+    ContentType,
+    ContentTypeDetail,
+    EntryRecord,
+    RelationDelta,
+    RelationFieldView
+} from '../../domain/types/contentType';
+import type { ContentEntriesParams } from '../contentKeys';
+
+/** The paginated records envelope, matching the admin list-page convention. */
+export type ContentEntriesResult = {
+    items: EntryRecord[];
+    total: number;
+    page: number;
+    pageSize: number;
+};
+
+/** A single page of a relation type's entries, as served by the list endpoint. */
+export type RelationCandidatesPage = {
+    items: EntryRecord[];
+    /** Total matches across the whole (filtered) set, not just what's loaded. */
+    total: number;
+};
+
+/** Params for one candidate page — the picker's search + serialized filter. */
+export type RelationCandidatesPageParams = {
+    /** Free-text search across the record's string values. */
+    search: string;
+    /** The serialized `?filter=` wire JSON, or null when no rules are set. */
+    filter: string | null;
+    /** 1-based offset page. */
+    page: number;
+    /** Slot-contributed list params (e.g. locale scoping), forwarded verbatim. */
+    extra: Record<string, string>;
+};
+
+/** What a save submits: the field values, staged relation deltas, and the id. */
+export type SaveEntryInput = {
+    /** Present for an update; absent for a create. */
+    id?: string;
+    /** The field values to persist, keyed by field name. */
+    values: Record<string, unknown>;
+    /**
+     * Staged per-field relation deltas (many/inverse relations) — the editor's
+     * local link/unlink/reorder, applied with the save in one transaction. Only
+     * non-empty fields are included; single relations ride in `values`.
+     */
+    relations?: Record<string, RelationDelta>;
+    /**
+     * Slot-contributed body params (e.g. the `locale` a create targets, from the
+     * entry-params slot), merged into the **create** body verbatim. Each key must
+     * be declared on the server's `SaveEntryDto`. Ignored on update.
+     */
+    extra?: Record<string, string>;
+};
+
+/**
+ * The port over the remote content API — the single seam the admin's application
+ * hooks talk to instead of `apiClient` directly. Every method returns the admin's
+ * models (mapped where the wire diverges) and normalizes every failure to
+ * `ApiError`, so the hooks and presentation stay off the transport. Requests are
+ * implicitly workspace-scoped via `apiClient`'s ambient `X-Workspace-Id` header;
+ * the caches, not the gateway, key on the workspace id.
+ * {@link httpContentGateway} is the HTTP implementation.
+ */
+export type ContentGateway = {
+    /** Lists every code-defined content type via `GET /content-schema`. */
+    listTypes(): Promise<ContentType[]>;
+    /** Loads one type's full field schema via `GET /content-schema/:name`. */
+    getSchema(name: string): Promise<ContentTypeDetail>;
+    /** Loads one page of a collection's records via `GET /content/:name`. */
+    listEntries(
+        name: string,
+        params: ContentEntriesParams
+    ): Promise<ContentEntriesResult>;
+    /** Loads one entry via `GET /content/:name/:id`. */
+    getEntry(name: string, id: string): Promise<EntryRecord>;
+    /** Loads all of an entry's relation links via `GET /content/:name/:id/relations`. */
+    getEntryRelations(
+        name: string,
+        id: string
+    ): Promise<Record<string, RelationFieldView>>;
+    /** Loads one relation field's link page via `GET …/relations/:field`. */
+    getRelationField(
+        name: string,
+        id: string,
+        field: string,
+        page: number
+    ): Promise<RelationFieldView>;
+    /** Loads one candidate page of a relation's target type via `GET /content/:type`. */
+    listRelationCandidates(
+        targetName: string,
+        params: RelationCandidatesPageParams
+    ): Promise<RelationCandidatesPage>;
+    /** Creates or updates one entry via `POST`/`PATCH /content/:name(/:id)`. */
+    saveEntry(name: string, input: SaveEntryInput): Promise<EntryRecord>;
+    /** Publishes one entry via `POST /content/:name/:id/publish`. */
+    publish(name: string, id: string): Promise<EntryRecord>;
+    /** Unpublishes one entry via `POST /content/:name/:id/unpublish`. */
+    unpublish(name: string, id: string): Promise<EntryRecord>;
+    /** Soft-deletes one entry via `DELETE /content/:name/:id`. */
+    remove(name: string, id: string): Promise<void>;
+    /** Restores one entry via `POST /content/:name/:id/restore`. */
+    restore(name: string, id: string): Promise<EntryRecord>;
+    /** Permanently purges one entry via `DELETE /content/:name/:id/permanent`. */
+    purge(name: string, id: string): Promise<void>;
+    /** Dry-runs a bulk publish via `POST /content/:name/bulk/publish/preview`. */
+    bulkPreviewPublish(
+        name: string,
+        ids: string[]
+    ): Promise<BulkPublishPreview>;
+    /** Commits a bulk publish via `POST /content/:name/bulk/publish`. */
+    bulkPublish(name: string, ids: string[]): Promise<BulkPublishResult>;
+    /** Bulk unpublish via `POST /content/:name/bulk/unpublish`. */
+    bulkUnpublish(name: string, ids: string[]): Promise<BulkActionResult>;
+    /** Bulk soft-delete via `POST /content/:name/bulk/delete`. */
+    bulkRemove(name: string, ids: string[]): Promise<BulkActionResult>;
+    /** Bulk restore via `POST /content/:name/bulk/restore`. */
+    bulkRestore(name: string, ids: string[]): Promise<BulkActionResult>;
+    /** Bulk purge via `POST /content/:name/bulk/purge`. */
+    bulkPurge(name: string, ids: string[]): Promise<BulkActionResult>;
+};

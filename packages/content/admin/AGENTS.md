@@ -22,6 +22,48 @@ against the content-server write API; a server 422 maps back onto the form's
 fields. Each paranoid collection also has a **Trash** view
 (`:typeName/trash`).
 
+## Layout — layered (ADR-0003)
+
+This plugin is **layered (tactical DDD)**, mirroring the `workspaces/admin` and
+`users/admin` pilots. `src/lib` is organized into four layers, not the legacy
+per-hook `api/` + `utils/` layout:
+
+- **`domain/`** — pure TS, no React, no transport: the shared view types
+  (`types/contentType`), the `constants` (field types, statuses, route segments,
+  permissions), and the pure helpers that are UX invariants (`entryColumns`,
+  `emptyEntryValues`, `groupContentTypes`, `relationLabel`, `relationHandle`,
+  `relationIds`, `stagedRelation`, `contentEntryPath`, `adminProps`).
+- **`application/`** — the TanStack Query hooks (reads + mutations), each calling
+  the **gateway**, never `apiClient`. The multi-step flows are **use-case hooks**:
+  `usePublishEntryFlow` (save → the kernel `canPublish` gate → publish/unpublish →
+  invalidate, owning the create→update id continuity) and `useBulkPublishFlow`
+  (dry-run preview → commit, surfacing the server's partial-success shape), so the
+  entry view and the bulk dialog render the flow's result instead of sequencing
+  mutations themselves.
+- **`infrastructure/`** — the `ContentGateway` **port** + its `httpContentGateway`
+  implementation (the one place `apiClient` is used, consolidating every request
+  fn), `contentMapper` (the thin wire→view anti-corruption layer), `contentKeys`
+  (every query key), `entryIssues` (the 422 `issues` extractor), and
+  `entryFieldSpec` (the one adapter mapping a wire `ContentField` to the kernel's
+  serialized field spec).
+- **`presentation/`** — pages, components, the `contentPlugin` factory, the
+  `slots`, the presentation `hooks` (`useEntryForm`, `useEntryColumns`, …), and
+  `entryValidation`; consumes view models + hooks + the kernel only, never
+  `apiClient` or wire types.
+
+### Single validation source — the shared kernel
+
+Field-value validation and the publish gate are **not** hand-mirrored in the
+admin anymore. They live once, in `@ortha-cms/content-domain` (the shared
+**kernel**, per ADR-0003), which `@ortha-cms/content-server` validates against
+too — so the admin and server can't drift. `presentation/entryValidation` is a
+thin **i18n anti-corruption layer**: it runs the kernel's `validateFieldValue`
+over each field (via the `entryFieldSpec` adapter) and renders the kernel's
+stable issue reason as localized copy; parameters (`min`/`max`) are read from the
+field's own rules, never parsed out of the kernel string. `usePublishEntryFlow`
+applies the kernel's `canPublish` as its publish gate. The deleted
+`utils/validateEntryValues` (the old hand-mirror) is gone.
+
 ## Layout (the Content sidebar section)
 
 The content-type nav lives in the **app sidebar**, not the page: `ContentPlugin`
@@ -53,7 +95,7 @@ global ⌘K / Ctrl+K shortcut (both owned by `ContentNavSection`).
 
 ## Data + favorites
 
-- `useContentTypes` (`src/lib/api/useContentTypes/`) reads the registry's source
+- `useContentTypes` (`application/useContentTypes/`) reads the registry's source
   of truth, **`GET /api/content-schema`** — **not** the workspace wizard's
   `/api/content-types` mock. Gated on `content:read` (the rail item carries the
   same `permission`).
@@ -62,7 +104,7 @@ global ⌘K / Ctrl+K shortcut (both owned by `ContentNavSection`).
   `@ortha-cms/workspaces-admin` (surfaced by `GET /api/workspaces`, sourced from
   the `workspace_content` grants written by the create wizard). Only related
   collections/pages show; an ungranted `:typeName` renders the not-found state.
-- `useContentFavorites` (`src/lib/hooks/useContentFavorites/`) persists pinned
+- `useContentFavorites` (`presentation/hooks/useContentFavorites/`) persists pinned
   type-names in `localStorage`, **keyed per workspace** (`ortha:content:
 favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   server yet — that is the planned migration point.
@@ -85,7 +127,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   and resets on reload) — the array is both the visibility set and the display
   order, so it powers the column picker's toggles *and* its drag-to-reorder
   (`reorder` via `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart
-  default (`utils/entryColumns`, excluding richtext/json) narrowed to the live
+  default (`domain/entryColumns`, excluding richtext/json) narrowed to the live
   schema, and re-seeded when the open type changes. Row selection is local
   component state (a `Set<string>` by id)
   in `CollectionRecordsView`, surfaced through the table's leading checkbox column
@@ -105,8 +147,8 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   from `GET /content/:type/:id` (`useContentEntry`), seeded instantly from the
   records-list cache when opened from the table; `single` → the type's one row via
   the list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
-  form state (`useEntryForm`, with client validation in `utils/validateEntryValues`
-  mirroring the server's rules) and lays out a title header, a **full-width**
+  form state (`useEntryForm`, with client validation in `presentation/entryValidation`
+  (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
   tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
   `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
   toggles/multi-choice; **Relations** = relation fields via the **`RelationField`**
@@ -117,7 +159,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
   Unpublish, Delete; each permission-gated) — over stacked **card blocks**: a
   live **Publish Gate** (`PublishGateItem[]`, computed by `EntryEditor` from the
-  strict `validateEntryValues` — each required/invalid field with its pass/fail,
+  strict kernel-backed validation — each required/invalid field with its pass/fail,
   header `blocking`/`ready`; publishable types only) and a static **Details**
   block (status, created/updated, id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
   control per field type — `date`/`datetime` use a shadcn `Calendar` popover
@@ -152,9 +194,9 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   **leading slot** (an initials `Avatar` for a single relation, a zero-padded
   `01`/`02` **index** for an ordered many-relation, via `RelationIndex`), the
   **title** + a muted `/handle` (the target's `slug`, else a slugified title — see
-  `utils/relationHandle`), an optional **status badge**, and a trailing controls
+  `domain/relationHandle`), an optional **status badge**, and a trailing controls
   cluster: reorder **up/down arrows** (ordered relations), the drag `handle`, an
-  **open-in-new-tab** link (`utils/contentEntryPath`), a **Replace** action (single
+  **open-in-new-tab** link (`domain/contentEntryPath`), a **Replace** action (single
   relations, re-opens the picker), and remove. `RelationField` (single) stores one
   id string in the form values; `RelationFieldLive` (many/inverse) stages links as
   a delta. A many-relation's rows are **drag/keyboard reorderable** (dnd-kit, like
@@ -170,11 +212,11 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   `filterFieldsFromSchema`), and a lazily-scrolled candidate list (accessible
   checkbox group for a many-relation, radio group for a single). Fully controlled —
   the form owns the value (single → one id string, many → string[]). Candidates
-  are **served by the API** (`api/useRelationCandidates` → `GET /content/:target`,
+  are **served by the API** (`application/useRelationCandidates` → `GET /content/:target`,
   the same list endpoint the records table uses): the picker's search **and** the
   query-builder filter (serialized via `treeToJsonFilter`) run **server-side**,
   and the lazy-scroll window is a `pageSize` grown by the dialog. Titles are
-  derived from each row's values by `utils/relationLabel` (mirrors the server's
+  derived from each row's values by `domain/relationLabel` (mirrors the server's
   `entryTitle`). `RelationPickerDialog` owns state/data and composes nested pieces:
   **`RelationPickerFilters`** (search + inline query builder) and
   **`RelationCandidateList`** → **`RelationCandidateRow`** (each candidate row
@@ -220,14 +262,14 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   valid drafts. Destructive actions confirm through the design-system
   **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
   (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
-  extracted by `utils/entryIssues`.
+  extracted by `infrastructure/entryIssues`.
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
 ## Extension slots
 
-The library exposes six named slots (`src/lib/slots/contentSlots`, via
+The library exposes six named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@ortha-cms/i18n-admin` fills all six. **Slot items are boot-frozen**
@@ -311,21 +353,21 @@ under `/workspaces/:id/content`. The page reads the open workspace via
 ## Conventions
 
 Follows the workspaces-admin conventions: `type` over `interface`; JSDoc on
-exports; `<name>/index.ts(x)` folders (pages in `src/lib/pages/<Name>/`, the
-factory in `src/lib/utils/contentPlugin/`); co-located `react-intl` messages
+exports; `<name>/index.ts(x)` folders (pages in `presentation/pages/<Name>/`, the
+factory in `presentation/contentPlugin/`); co-located `react-intl` messages
 namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
 - **One component per file.** Never define a second React component in the same
   file — not as a `renderItem` closure, not as a sibling `function Foo()` above
   the export. Extract it. A component used by only one other component **nests
   inside that parent's folder** (its own `<Name>/index.tsx`, with co-located
-  `messages`); a shared one goes under `components/`. Examples: the search
+  `messages`); a shared one goes under `presentation/components/`. Examples: the search
   palette's result row lives at
-  `components/ContentSearchDialog/ContentSearchItem/`, and the bulk-publish
-  dialog's row at `components/CollectionRecordsView/BulkPublishDialog/VerdictRow/`
+  `presentation/components/ContentSearchDialog/ContentSearchItem/`, and the bulk-publish
+  dialog's row at `presentation/components/CollectionRecordsView/BulkPublishDialog/VerdictRow/`
   — not as functions inside their parent file.
 - **No magic string literals for route segments, route params, keyboard keys, or
-  permissions** — define them as named constants in `src/lib/constants/` and
+  permissions** — define them as named constants in `domain/constants/` and
   import them wherever they're used. `CONTENT_SEGMENT` is the single source of
   truth for the `content` mount path, shared by `contentPlugin` (slot `to` +
   route `path`) and `ContentLibraryPage` (`basePath`); `HISTORY_SEGMENT` /

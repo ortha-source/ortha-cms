@@ -3,18 +3,19 @@ import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
-    memberships,
     roles,
     sessions,
     tokens,
     users,
-    workspaces,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
-// Host-owned generated content tables. Importing the host app is permitted in
-// the support harness (it's exempt from the module-boundary rule); specs reach
-// these only through the helpers below.
-import { articles, landingPage } from '../../../server/src/content';
+import { memberships, workspaces } from '@ortha-cms/workspaces-server';
+// The e2e-owned generated content tables (from the harness's own content model,
+// NOT the app's collections). Specs reach these only through the helpers below.
+import {
+    testArticles,
+    testLandingPage
+} from './content';
 // HashingService is internal to the identity plugin (not re-exported). We reach
 // for the class to pull the SAME provider instance out of the DI container, so
 // seeded password hashes are produced by the exact code login verifies against
@@ -299,18 +300,22 @@ export async function countActivityRows(): Promise<number> {
  * and permissions in place (users reference roles via FK). `CASCADE` clears
  * dependent rows — sessions, tokens, memberships — in one statement.
  * `activity_events` is truncated explicitly: its `actor_id` has no FK, so a
- * `users` cascade never reaches it.
+ * `users` cascade never reaches it. Every e2e content table is truncated too
+ * (content has no FK to `workspaces`, so a workspace cascade never reaches it);
+ * `CASCADE` on `content_test_article` also clears its join + comment children.
  */
 export async function resetDb(): Promise<void> {
     await getPool().query(
         'TRUNCATE TABLE users, workspaces, activity_events, ' +
-            'content_article, content_landing RESTART IDENTITY CASCADE'
+            'content_test_article, content_test_author, content_test_tag, ' +
+            'content_test_seo, content_test_comment, content_test_landing ' +
+            'RESTART IDENTITY CASCADE'
     );
 }
 
 /**
- * Insert rows into the `article` collection (publishable + paranoid). Each row
- * needs at least `text` + `select` (the type's required fields); `status`
+ * Insert rows into the `test_article` collection (publishable + paranoid). Each
+ * row needs at least `text` + `select` (the type's required fields); `status`
  * defaults to `draft`. Returns nothing — assertions go through the HTTP API.
  *
  * Entries are workspace-scoped: pass `workspaceId` to stamp the owning
@@ -327,22 +332,29 @@ export async function seedArticles(
     // The generated table's column set is dynamic, so the insert values aren't
     // statically typed — the column names match the field names by construction.
     // `workspaceId` (the default) merges first so a per-row override wins.
+    // `locale` is NOT NULL (the i18n columns have no default), so default it to
+    // the config's default locale (`en`); a per-row value wins.
     await getDatabase()
-        .insert(articles)
-        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
+        .insert(testArticles)
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        );
 }
 
 /**
- * Insert rows into the `landing` page (non-publishable: no `status` column).
- * Pass `workspaceId` to stamp the owning workspace on every row (a per-row
- * `workspaceId` still wins); see {@link seedArticles}.
+ * Insert rows into the `test_landing` page (non-publishable: no `status`
+ * column). Pass `workspaceId` to stamp the owning workspace on every row (a
+ * per-row `workspaceId` still wins); see {@link seedArticles}.
  */
 export async function seedLanding(
     rows: Record<string, unknown>[],
     workspaceId?: string
 ): Promise<void> {
     if (rows.length === 0) return;
+    // `locale` is NOT NULL (see {@link seedArticles}); default it to `en`.
     await getDatabase()
-        .insert(landingPage)
-        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
+        .insert(testLandingPage)
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        );
 }

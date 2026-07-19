@@ -49,5 +49,10 @@ export interface ActivityRecorder {
 /**
  * DI token the host binds to the concrete {@link ActivityRecorder}. Inject it
  * with `@Optional()` so a plugin still boots if no activity plugin is present.
+ *
+ * @deprecated Wave 3 moved auditing onto the activity plugin's outbox
+ * `AuditEventSubscriber` (the single live writer). This token is retained only
+ * for a stable public surface — nothing records through it anymore. Emit a
+ * domain event (`attachActor` on its payload) and let the subscriber audit it.
  */
 export const ACTIVITY_RECORDER = Symbol('ACTIVITY_RECORDER');

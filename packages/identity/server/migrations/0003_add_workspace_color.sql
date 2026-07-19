@@ -1,1 +1,0 @@
-ALTER TABLE "workspaces" ADD COLUMN "color" text DEFAULT 'slate' NOT NULL;

@@ -201,7 +201,7 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
             // Create a real article entry (the creator is a member of the
             // workspace it was created in, so the write is allowed).
             await agent
-                .post('/api/content/article')
+                .post('/api/content/test_article')
                 .set('X-Workspace-Id', id)
                 .send({ values: { text: 'Hello world', select: 'article' } })
                 .expect(201);

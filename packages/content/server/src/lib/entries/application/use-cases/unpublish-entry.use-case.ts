@@ -1,0 +1,74 @@
+import {
+    BadRequestException,
+    Injectable,
+    NotFoundException
+} from '@nestjs/common';
+import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import { type EntryStatus } from '@ortha-cms/content-domain';
+import type { AnyContentType } from '../../../types/content-type';
+import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
+import { toRecord } from '../../infrastructure/persistence/entry-row';
+import type { EntryRecord } from '../../types/entry-list-view';
+import { Entry } from '../../domain/entry';
+
+/**
+ * Revert one entry to draft. Runs inside a {@link UnitOfWork} so the status
+ * write and the `entry.unpublished` outbox event commit atomically. The
+ * {@link Entry} domain model applies the `published → draft` transition (an
+ * already-draft row is an idempotent no-op that raises no event). The write is
+ * unconditional, preserving the original behavior; 400 on a non-publishable
+ * type, 404 on a missing live row.
+ */
+@Injectable()
+export class UnpublishEntryUseCase {
+    constructor(
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
+        private readonly writer: EntryWriterService
+    ) {}
+
+    async execute(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<EntryRecord> {
+        if (!type.publishable) {
+            throw new BadRequestException(
+                `Content type "${type.name}" is not publishable.`
+            );
+        }
+        return this.uow.run(async () => {
+            const exec = this.uow.current();
+            const current = await this.writer.findLive(
+                type,
+                id,
+                workspaceId,
+                exec
+            );
+            if (!current) throw this.notFound(type, id);
+
+            const entry = Entry.rehydrate({
+                id,
+                contentType: type.name,
+                status: current['status'] as EntryStatus
+            });
+            entry.unpublish();
+
+            const updated = await this.writer.markDraft(
+                exec,
+                type,
+                id,
+                workspaceId
+            );
+            if (!updated) throw this.notFound(type, id);
+            await this.outbox.append(entry.pullEvents());
+            return toRecord(type, updated);
+        });
+    }
+
+    private notFound(type: AnyContentType, id: string): NotFoundException {
+        return new NotFoundException(
+            `No entry "${id}" on content type "${type.name}".`
+        );
+    }
+}

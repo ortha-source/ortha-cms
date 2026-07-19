@@ -1,6 +1,6 @@
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import { LOCALE_SLUG_MAX_LENGTH, LOCALE_SLUG_RE } from '../i18n.constants';
 import type { I18nPluginConfig } from '../types/locale';
+import { LocaleSet } from '../domain/value-objects/locale-set';
 import { I18nModule } from '../i18n.module';
 
 /**
@@ -15,38 +15,13 @@ export interface I18nServerPluginType extends ServerPlugin {
 /**
  * Validate the locale config **eagerly** (like `ContentPlugin`'s registry):
  * a misconfigured host fails at construction — before boot, before the first
- * request. At least one locale; unique, well-formed slugs; exactly one
- * default.
+ * request. Building the domain {@link LocaleSet} enforces every invariant (at
+ * least one locale; unique, well-formed slugs; non-blank names; exactly one
+ * default), so the raw-string rules live on the `Locale` / `LocaleSet` value
+ * objects rather than inline here.
  */
 function assertConfig(config: I18nPluginConfig): void {
-    if (!config.locales.length) {
-        throw new Error('I18nServerPlugin requires at least one locale.');
-    }
-    const seen = new Set<string>();
-    for (const locale of config.locales) {
-        if (
-            !LOCALE_SLUG_RE.test(locale.slug) ||
-            locale.slug.length > LOCALE_SLUG_MAX_LENGTH
-        ) {
-            throw new Error(
-                `Locale slug "${locale.slug}" is invalid — lowercase 2-3 letter ` +
-                    `primary tag with optional "-" subtags (e.g. "en", "pt-br").`
-            );
-        }
-        if (seen.has(locale.slug)) {
-            throw new Error(`Duplicate locale slug "${locale.slug}".`);
-        }
-        seen.add(locale.slug);
-        if (!locale.name.trim()) {
-            throw new Error(`Locale "${locale.slug}" has an empty name.`);
-        }
-    }
-    const defaults = config.locales.filter((locale) => locale.isDefault);
-    if (defaults.length !== 1) {
-        throw new Error(
-            `Exactly one locale must set isDefault (got ${defaults.length}).`
-        );
-    }
+    LocaleSet.fromDefs(config.locales);
 }
 
 /**

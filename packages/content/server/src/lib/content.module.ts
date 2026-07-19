@@ -3,24 +3,29 @@ import {
     CONTENT_CATALOG,
     CONTENT_ENTRY_COUNTER,
     type ContentCatalog
-} from '@ortha-cms/identity-server';
+} from '@ortha-cms/workspaces-server';
 import { CONTENT_REGISTRY } from './content.tokens';
 import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
-import { ListEntriesController } from './entries/controllers/list-entries.controller';
-import { BulkEntriesController } from './entries/controllers/bulk-entries.controller';
-import { CreateEntryController } from './entries/controllers/create-entry.controller';
-import { GetEntryController } from './entries/controllers/get-entry.controller';
-import { UpdateEntryController } from './entries/controllers/update-entry.controller';
-import { PublishEntryController } from './entries/controllers/publish-entry.controller';
-import { DeleteEntryController } from './entries/controllers/delete-entry.controller';
+import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
+import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
+import { CreateEntryController } from './entries/http/controllers/create-entry.controller';
+import { GetEntryController } from './entries/http/controllers/get-entry.controller';
+import { UpdateEntryController } from './entries/http/controllers/update-entry.controller';
+import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
+import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
 import { EntryValidationService } from './validation/services/entry-validation.service';
-import { EntriesService } from './entries/services/entries.service';
-import { EntryWriterService } from './entries/services/entry-writer.service';
-import { EntryCounterService } from './entries/services/entry-counter.service';
-import { RelationLinkService } from './entries/services/relation-link.service';
+import { EntriesService } from './entries/infrastructure/queries/entries.service';
+import { EntryWriterService } from './entries/infrastructure/persistence/entry-writer.service';
+import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
+import { RelationLinkService } from './entries/infrastructure/persistence/relation-link.service';
+import { BulkPublishPreviewQuery } from './entries/infrastructure/queries/bulk-publish-preview.query';
+import { PublishEntryUseCase } from './entries/application/use-cases/publish-entry.use-case';
+import { UnpublishEntryUseCase } from './entries/application/use-cases/unpublish-entry.use-case';
+import { BulkPublishEntriesUseCase } from './entries/application/use-cases/bulk-publish-entries.use-case';
+import { BulkUnpublishEntriesUseCase } from './entries/application/use-cases/bulk-unpublish-entries.use-case';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -79,6 +84,15 @@ export class ContentModule {
                 EntriesService,
                 EntryWriterService,
                 RelationLinkService,
+                // Entries feature, layered per ADR-0003: the publish-lifecycle
+                // use-cases (over the global UnitOfWork/OutboxWriter) + the
+                // bulk-publish dry-run query. CRUD writes stay on the
+                // persistence engine (EntryWriterService) directly.
+                PublishEntryUseCase,
+                UnpublishEntryUseCase,
+                BulkPublishEntriesUseCase,
+                BulkUnpublishEntriesUseCase,
+                BulkPublishPreviewQuery,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
                 // bound (nothing would stamp the NOT NULL locale column).
                 EntryExtensionBootCheck

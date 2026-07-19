@@ -90,7 +90,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
     describe('authorization', () => {
         it('401s an unauthenticated request', async () => {
             await request(harness.server)
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .expect(401);
         });
 
@@ -105,7 +105,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
             // from a workspace mismatch.
             await seedMembership(noRights.id, workspaceId);
             const agent = await login(NORIGHTS_EMAIL);
-            await agent.get('/api/content/article').expect(403);
+            await agent.get('/api/content/test_article').expect(403);
         });
     });
 
@@ -113,7 +113,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         it('returns the paginated envelope', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ page: 1, pageSize: 2 })
                 .expect(200);
 
@@ -126,7 +126,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         it('searches text-like columns (ILIKE)', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ search: 'alph' })
                 .expect(200);
 
@@ -137,7 +137,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         it('sorts by a column, descending with the `-` prefix', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ sort: '-text' })
                 .expect(200);
 
@@ -150,7 +150,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         it('applies the query-builder `?filter=` tree', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({
                     filter: JSON.stringify({
                         field: 'status',
@@ -174,7 +174,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         it('400s a page size over the cap', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .get('/api/content/article')
+                .get('/api/content/test_article')
                 .query({ pageSize: 9999 })
                 .expect(400);
         });
@@ -183,7 +183,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
     describe('publishable-only status', () => {
         it('omits `status` for a non-publishable type', async () => {
             const agent = await login(ADMIN_EMAIL);
-            const res = await agent.get('/api/content/landing').expect(200);
+            const res = await agent.get('/api/content/test_landing').expect(200);
 
             const [item] = res.body.items as EntryItem[];
             expect(item.status).toBeUndefined();
@@ -193,7 +193,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         it('400s a status filter on a non-publishable type', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .get('/api/content/landing')
+                .get('/api/content/test_landing')
                 .query({
                     filter: JSON.stringify({
                         field: 'status',
@@ -219,7 +219,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
             // Workspace A (the suite default) sees only its three rows…
             const agentA = await login(ADMIN_EMAIL);
-            const resA = await agentA.get('/api/content/article').expect(200);
+            const resA = await agentA.get('/api/content/test_article').expect(200);
             expect(resA.body.total).toBe(3);
             const textsA = (resA.body.items as EntryItem[]).map(
                 (item) => item.values.text
@@ -229,7 +229,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
             // …and workspace B sees only its one row.
             const agentB = await login(ADMIN_EMAIL, wsB.id);
-            const resB = await agentB.get('/api/content/article').expect(200);
+            const resB = await agentB.get('/api/content/test_article').expect(200);
             expect(resB.body.total).toBe(1);
             expect((resB.body.items as EntryItem[])[0].values.text).toBe(
                 'Delta'
@@ -243,7 +243,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
                 .send({ email: ADMIN_EMAIL, password: PASSWORD })
                 .expect(201);
             // Logged in but no workspace header → WorkspaceGuard 400s.
-            await agent.get('/api/content/article').expect(400);
+            await agent.get('/api/content/test_article').expect(400);
         });
 
         it('400s a malformed (non-UUID) X-Workspace-Id header', async () => {
@@ -253,7 +253,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
                 .send({ email: ADMIN_EMAIL, password: PASSWORD })
                 .expect(201);
             agent.set('X-Workspace-Id', 'not-a-uuid');
-            await agent.get('/api/content/article').expect(400);
+            await agent.get('/api/content/test_article').expect(400);
         });
 
         it('403s a workspace the user is not a member of', async () => {
@@ -263,7 +263,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
                 slug: 'ws-stranger'
             });
             const agent = await login(ADMIN_EMAIL, stranger.id);
-            await agent.get('/api/content/article').expect(403);
+            await agent.get('/api/content/test_article').expect(403);
         });
     });
 });

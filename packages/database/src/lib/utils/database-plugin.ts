@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import type { DatabasePluginConfig } from '../types';
 import { DatabaseModule } from '../database.module';
@@ -35,6 +36,14 @@ export function DatabasePlugin(
         databaseConfig: config,
         onPluginInit() {
             initDatabase(config);
+        },
+        // This plugin owns exactly one table, the transactional outbox — the
+        // sanctioned exception to "database owns no schema". Lazy — only
+        // called at migrate time, never at boot. Source layout:
+        // src/lib/utils → ../../../migrations = <pkg>/migrations.
+        migrations: {
+            dir: () => join(__dirname, '../../../migrations'),
+            table: '__drizzle_migrations_database'
         }
     };
 }

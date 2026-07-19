@@ -2,196 +2,44 @@
  * Server-side validation of entry values against a content type's field
  * specs. The single authority — the admin renders the same rules
  * client-side as a courtesy, but nothing publishes without passing here.
+ *
+ * The rules themselves live in the shared `@ortha-cms/content-domain` kernel
+ * (pure, DB-free, unit-tested there); this stays as the injectable wrapper the
+ * rest of the plugin and downstream plugins depend on, adapting a runtime
+ * {@link AnyContentType} to the kernel's serialized-field-spec input. A content
+ * type's `fields` (`AnyFieldSpec`) is structurally an `EntryFieldSpec` map, so
+ * the delegation needs no adapter.
  */
 
 import { Injectable } from '@nestjs/common';
-import type { AnyContentType } from '../../types/content-type';
 import {
-    CONTENT_FIELD_TYPE,
-    isEmptyFieldValue,
-    type AnyFieldSpec
-} from '../../types/fields';
+    validateEntryValues,
+    type ValidationResult
+} from '@ortha-cms/content-domain';
+import type { AnyContentType } from '../../types/content-type';
 
-/** One failed rule on one field. */
-export interface ValidationIssue {
-    field: string;
-    message: string;
-}
-
-/** Result of validating a values object. */
-export interface ValidationResult {
-    valid: boolean;
-    issues: ValidationIssue[];
-}
-
-const UUID_RE =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** ISO-8601 calendar date, no time of day. */
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * ISO-8601 date-time with a time component (and optional fractional seconds /
- * timezone). Rejects date-only strings, which `Date.parse` would otherwise
- * accept and silently coerce to UTC midnight for a `timestamptz` column.
- */
-const DATETIME_RE =
-    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
-
-/**
- * Compiled-regex cache for field `pattern` rules. Patterns are author-defined
- * and bounded in number, so caching by source avoids recompiling on every
- * `validate()` call without unbounded growth.
- */
-const patternCache = new Map<string, RegExp>();
-function compiledPattern(pattern: string): RegExp {
-    let re = patternCache.get(pattern);
-    if (!re) {
-        re = new RegExp(pattern);
-        patternCache.set(pattern, re);
-    }
-    return re;
-}
-
-/** The shared empty-value test (see {@link isEmptyFieldValue}). */
-const isEmpty = isEmptyFieldValue;
-
-/** Validates one value against one field spec. */
-function checkField(
-    name: string,
-    spec: AnyFieldSpec,
-    value: unknown
-): ValidationIssue[] {
-    const issues: ValidationIssue[] = [];
-    const fail = (message: string) => issues.push({ field: name, message });
-
-    // Many/inverse relations are **link-managed**: their links are persisted via
-    // the `relations` delta and never travel in the `values` bag, so this bag
-    // can't speak to them. Validating them here would flag a *required* one as
-    // "is required" on every save (the field is always absent/null), making it
-    // unsaveable and unpublishable. Their requiredness is a matter of the link
-    // set, not this bag — skip them. Owning **single** relations stay a plain
-    // FK id in `values`, so they're still validated below.
-    if (
-        spec.type === CONTENT_FIELD_TYPE.Relation &&
-        (spec.relation?.many || spec.relation?.inverse)
-    ) {
-        return issues;
-    }
-
-    if (isEmpty(value)) {
-        if (spec.required) fail('is required');
-        return issues; // nothing else to check on an empty value
-    }
-
-    const v = spec.validation;
-    switch (spec.type) {
-        case CONTENT_FIELD_TYPE.Text:
-        case CONTENT_FIELD_TYPE.RichText: {
-            if (typeof value !== 'string') {
-                fail('must be a string');
-                break;
-            }
-            if (v.minLength !== undefined && value.length < v.minLength)
-                fail(`must be at least ${v.minLength} characters`);
-            if (v.maxLength !== undefined && value.length > v.maxLength)
-                fail(`must be at most ${v.maxLength} characters`);
-            if (v.pattern && !compiledPattern(v.pattern).test(value))
-                fail(`must match pattern ${v.pattern}`);
-            break;
-        }
-        case CONTENT_FIELD_TYPE.Number:
-        case CONTENT_FIELD_TYPE.Money: {
-            if (typeof value !== 'number' || Number.isNaN(value)) {
-                fail('must be a number');
-                break;
-            }
-            if (v.integer && !Number.isInteger(value))
-                fail('must be a whole number');
-            if (v.min !== undefined && value < v.min)
-                fail(`must be ≥ ${v.min}`);
-            if (v.max !== undefined && value > v.max)
-                fail(`must be ≤ ${v.max}`);
-            break;
-        }
-        case CONTENT_FIELD_TYPE.Boolean:
-            if (typeof value !== 'boolean') fail('must be true or false');
-            break;
-        case CONTENT_FIELD_TYPE.Date:
-            if (typeof value !== 'string' || !DATE_RE.test(value))
-                fail('must be an ISO date (YYYY-MM-DD)');
-            break;
-        case CONTENT_FIELD_TYPE.Datetime:
-            if (
-                !(value instanceof Date) &&
-                (typeof value !== 'string' ||
-                    !DATETIME_RE.test(value) ||
-                    Number.isNaN(Date.parse(value)))
-            )
-                fail('must be an ISO date-time');
-            break;
-        case CONTENT_FIELD_TYPE.Select:
-            if (
-                typeof value !== 'string' ||
-                !(spec.options ?? []).includes(value)
-            )
-                fail(`must be one of: ${(spec.options ?? []).join(', ')}`);
-            break;
-        case CONTENT_FIELD_TYPE.Multiselect: {
-            const allowed = spec.options ?? [];
-            if (
-                !Array.isArray(value) ||
-                value.some(
-                    (item) =>
-                        typeof item !== 'string' || !allowed.includes(item)
-                )
-            )
-                fail(`must be a subset of: ${allowed.join(', ')}`);
-            break;
-        }
-        case CONTENT_FIELD_TYPE.Json:
-            break; // any JSON value is acceptable
-        case CONTENT_FIELD_TYPE.Relation: {
-            if (spec.relation?.many) {
-                if (
-                    !Array.isArray(value) ||
-                    value.some(
-                        (id) => typeof id !== 'string' || !UUID_RE.test(id)
-                    )
-                )
-                    fail('must be an array of entry ids');
-            } else if (typeof value !== 'string' || !UUID_RE.test(value)) {
-                fail('must be an entry id');
-            }
-            break;
-        }
-    }
-    return issues;
-}
+// Re-exported so the plugin's historical import sites (and the public barrel)
+// keep resolving these from here even though the definitions moved to the
+// kernel.
+export type {
+    ValidationIssue,
+    ValidationResult
+} from '@ortha-cms/content-domain';
 
 @Injectable()
 export class EntryValidationService {
     /**
      * Validates a values object against a content type. Unknown keys are
-     * rejected — the schema is the contract, not a suggestion.
+     * rejected — the schema is the contract, not a suggestion. Delegates the
+     * rules to the shared kernel.
      */
     validate(
         type: AnyContentType,
         values: Record<string, unknown>
     ): ValidationResult {
-        const issues: ValidationIssue[] = [];
-
-        for (const key of Object.keys(values)) {
-            if (!(key in type.fields))
-                issues.push({
-                    field: key,
-                    message: `unknown field on "${type.name}"`
-                });
-        }
-        for (const [name, spec] of Object.entries(type.fields)) {
-            issues.push(...checkField(name, spec, values[name]));
-        }
-
-        return { valid: issues.length === 0, issues };
+        return validateEntryValues(type.fields, values, {
+            rejectUnknownKeys: true,
+            typeName: type.name
+        });
     }
 }

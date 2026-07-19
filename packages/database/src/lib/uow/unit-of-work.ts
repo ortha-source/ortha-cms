@@ -1,0 +1,73 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { Injectable } from '@nestjs/common';
+import type { Database } from '../types';
+import { InjectDatabase } from '../database.tokens';
+import { OutboxDispatcher } from '../outbox/outbox-dispatcher';
+
+/**
+ * The ambient transactional context carried through an async call tree
+ * by {@link UnitOfWork}. Holds the active transaction executor so nested
+ * repository calls transparently join it.
+ */
+interface UowContext {
+    /** The active transaction, used as the executor by everything inside `run`. */
+    tx: Database;
+}
+
+/**
+ * The application-boundary primitive that runs a unit of work inside a
+ * single database transaction and drains the outbox once it commits.
+ *
+ * A use case wraps its work in {@link run}; repositories call
+ * {@link current} to obtain the executor, so every read and write in the
+ * tree joins the **same** transaction without threading a `tx` argument
+ * through the call stack. The transaction handle is propagated implicitly
+ * via node's `AsyncLocalStorage`.
+ */
+@Injectable()
+export class UnitOfWork {
+    private readonly als = new AsyncLocalStorage<UowContext>();
+
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        private readonly dispatcher: OutboxDispatcher
+    ) {}
+
+    /**
+     * Runs `fn` inside a transaction. A **nested** call (one already inside
+     * a `run`) simply awaits `fn`, joining the outer transaction rather than
+     * opening a new one — so the whole tree commits or rolls back together.
+     *
+     * After the outermost transaction commits, the outbox is drained
+     * best-effort: any failure is swallowed because the poll backstop will
+     * retry. The state change is already durable at that point.
+     */
+    async run<T>(fn: () => Promise<T>): Promise<T> {
+        if (this.als.getStore()) {
+            // Already inside a unit of work — join the outer transaction.
+            return fn();
+        }
+
+        const result = await this.db.transaction((tx) =>
+            this.als.run({ tx }, fn)
+        );
+
+        // Post-commit, best-effort drain. Swallow — the poll backstop retries.
+        try {
+            await this.dispatcher.drain();
+        } catch {
+            // intentionally ignored; the outbox poll will pick these up
+        }
+
+        return result;
+    }
+
+    /**
+     * Returns the executor to run queries against — the ambient transaction
+     * when called inside {@link run}, otherwise the base connection. This is
+     * how repositories transparently join the active transaction.
+     */
+    current(): Database {
+        return this.als.getStore()?.tx ?? this.db;
+    }
+}

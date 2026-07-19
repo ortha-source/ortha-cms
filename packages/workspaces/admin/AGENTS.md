@@ -9,6 +9,28 @@ is clicked, **injects a per-workspace nav (`WorkspaceNav`: switcher + Content +
 Workspace sections) into the app sidebar** (via `useSidebarContent`) and renders
 the section content in the inset.
 
+## Layout — layered (ADR-0003)
+
+This plugin is **layered (tactical DDD)** — the admin-side reference for
+ADR-0003. `src/lib` is organized into four layers, not the legacy per-hook
+`api/` layout:
+
+- **`domain/`** — pure TS, no React: the `Slug` value object (the single
+  client-side slug rule, mirroring the server), shared view types, and UX-invariant
+  helpers.
+- **`application/`** — the TanStack Query hooks (reads + mutation/use-case hooks).
+  Each calls the gateway, never `apiClient`. The create wizard's submit
+  orchestration is `useCreateWorkspaceFlow` (validate `Slug` → create → toast →
+  navigate), so the wizard page is layout + fields.
+- **`infrastructure/`** — the `WorkspaceGateway` **port** + its `httpWorkspaceGateway`
+  implementation (the one place `apiClient` is used) and `workspaceMapper` (the
+  wire→view anti-corruption layer, formerly the inline `toWorkspace`).
+- **`presentation/`** — pages, components, slots, and the `currentWorkspace`
+  provider; consumes view models + hooks only, never wire types or `apiClient`.
+
+The admin stays **thin** — no client aggregates or repositories; the server owns
+business truth (ADR-0003 frontend guidance).
+
 ## Package
 
 - Name: `@ortha-cms/workspaces-admin`
@@ -102,10 +124,11 @@ the section content in the inset.
   so a deep link can't reach it). The section bodies live in top-level
   `components/Workspace{General,Members,Content,Danger}Settings/` (their
   one-off parts nested inside).
-- Each area owns its mutation hook under `lib/api/` — `useUpdateWorkspace`,
+- Each area owns its mutation hook under `lib/application/` — `useUpdateWorkspace`,
   `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
   `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /
-  `useRemoveWorkspaceContent` — all invalidating `workspacesKey` on success so
+  `useRemoveWorkspaceContent` (each calling `httpWorkspaceGateway`, not
+  `apiClient`) — all invalidating `workspacesKey` on success so
   the shell (which reads the open workspace from that list) re-resolves — plus
   the read-only `useWorkspaceContentCount` / `useWorkspaceEntryCount` backing the
   revoke and delete pre-checks. The
@@ -132,18 +155,18 @@ the section content in the inset.
 
 ## Architecture
 
-- **Wired to the real API — one hook per query.** Each `lib/api/<useThing>/`
-  hook owns its own request (via the shared `apiClient`, same-origin,
-  cookie-authed), response type, and mapper — there is no shared "client" module:
-  `useWorkspaces` (`GET /api/workspaces`, + the `toWorkspace`/`WorkspaceView`
-  mapper it exports for reuse), `useCreateWorkspace` (`POST /api/workspaces`),
-  `useSlugAvailability` (`GET /api/workspaces/slug-available`), `useUsersSearch`
-  (`GET /api/users?q=`), and `useContentTypes` (`GET /api/content-types`). The
-  mappers derive presentation-only member `initials`/`color` on the client, since
-  the server stores neither — via the shared `initialsOf`/`asAvatarColor`/
-  `avatarColorForId` from `@ortha-cms/utils-admin` (no local `utils/` copies).
-  Generic helpers (`slugify`, `useDebouncedValue`) live in
-  `@ortha-cms/utils-admin`, not here.
+- **Wired to the real API through a gateway seam.** Every request goes through
+  `infrastructure/httpWorkspaceGateway` (the sole `apiClient` user; same-origin,
+  cookie-authed) behind the `WorkspaceGateway` port; `application/` hooks
+  (`useWorkspaces` → `GET /api/workspaces`, `useCreateWorkspace` →
+  `POST /api/workspaces`, `useSlugAvailability`, `useUsersSearch` → `GET /api/users?q=`,
+  `useContentTypes` → `GET /api/content-types`, plus the settings mutations) call
+  the gateway, not `apiClient`. Wire→view mapping lives in
+  `infrastructure/workspaceMapper` (`toWorkspace`/`toMember`) — the anti-corruption
+  layer, deriving presentation-only member `initials`/`color` on the client (the
+  server stores neither) via the shared `initialsOf`/`asAvatarColor`/
+  `avatarColorForId` from `@ortha-cms/utils-admin`. Generic helpers (`slugify`,
+  `useDebouncedValue`) live in `@ortha-cms/utils-admin`, not here.
 - **Membership is a pure link; there is no per-member role and no owner.** The
   server ignores any role on a member — a user's permissions come from their
   single global role. The Members step adds people (existing or invite-by-email)
@@ -162,10 +185,13 @@ the section content in the inset.
 ## Conventions
 
 - `type` over `interface`; JSDoc on exports; `import type` for type-only imports
-- Every module is a `<name>/index.ts(x)` folder — components in
-  `src/lib/components/<Name>/`, pages in `src/lib/pages/<Name>/`, query/mutation
-  hooks in `src/lib/api/<useThing>/`, the plugin factory in
-  `src/lib/utils/workspacesPlugin/` (`camelCase` for non-components)
+- Every module is a `<name>/index.ts(x)` folder, grouped by layer (ADR-0003):
+  components in `src/lib/presentation/components/<Name>/`, pages in
+  `src/lib/presentation/pages/<Name>/`, query/mutation/use-case hooks in
+  `src/lib/application/<useThing>/`, the gateway + mapper in
+  `src/lib/infrastructure/`, value objects in `src/lib/domain/`, the plugin
+  factory in `src/lib/presentation/workspacesPlugin/` (`camelCase` for
+  non-components)
 - **`pages/` stays flat** — each page is just `pages/<Name>/index.tsx`, no
   child component folders. Every component lives under `components/`. A
   component used only by **another component** nests inside that component's
@@ -183,7 +209,8 @@ the section content in the inset.
   wizard is the exception**: its cross-step state lives in `useWizard` (controlled
   fields) and validates with the `useBasicsSchema` Zod hook directly, so state
   isn't lost when a step unmounts.
-- non-api hooks live in `src/lib/hooks/<useThing>/`; api hooks in `src/lib/api/`
+- presentational/stateful UI hooks live in `src/lib/presentation/hooks/<useThing>/`;
+  data hooks (queries/mutations/use-cases) in `src/lib/application/<useThing>/`
 - UI is built only from `@ortha-cms/design-system` components, not bespoke markup
 
 ## Commands

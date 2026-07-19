@@ -14,29 +14,26 @@ import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
 import { UserSessionsController } from './auth/controllers/user-sessions.controller';
 import { AuthService } from './auth/services/auth.service';
-import { SessionService } from './auth/services/session.service';
 import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
 import { OriginGuard } from './auth/guards/origin.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
-import { CreateWorkspaceController } from './workspaces/controllers/create-workspace.controller';
-import { ListWorkspacesController } from './workspaces/controllers/list-workspaces.controller';
-import { CheckSlugController } from './workspaces/controllers/check-slug.controller';
-import { UpdateWorkspaceController } from './workspaces/controllers/update-workspace.controller';
-import { SetWorkspaceStatusController } from './workspaces/controllers/set-workspace-status.controller';
-import { DeleteWorkspaceController } from './workspaces/controllers/delete-workspace.controller';
-import { AddWorkspaceMemberController } from './workspaces/controllers/add-workspace-member.controller';
-import { RemoveWorkspaceMemberController } from './workspaces/controllers/remove-workspace-member.controller';
-import { AddWorkspaceContentController } from './workspaces/controllers/add-workspace-content.controller';
-import { RemoveWorkspaceContentController } from './workspaces/controllers/remove-workspace-content.controller';
-import { GetWorkspaceContentCountController } from './workspaces/controllers/get-workspace-content-count.controller';
-import { GetWorkspaceEntryCountController } from './workspaces/controllers/get-workspace-entry-count.controller';
-import { WorkspaceService } from './workspaces/services/workspace.service';
-import { SlugService } from './workspaces/services/slug.service';
-import { MembershipService } from './workspaces/services/membership.service';
-import { ContentGrantService } from './workspaces/services/content-grant.service';
-import { WorkspaceGuard } from './workspaces/guards/workspace.guard';
-import { ListContentTypesController } from './content/controllers/list-content-types.controller';
+import { AccessPolicy } from './domain/access-policy';
+import { SessionPolicy } from './domain/session-policy';
+import {
+    SESSION_REPOSITORY
+} from './domain/session.repository';
+import {
+    USER_ACCOUNT_REPOSITORY
+} from './domain/user-account.repository';
+import { DrizzleSessionRepository } from './infrastructure/persistence/drizzle-session.repository';
+import { DrizzleUserAccountRepository } from './infrastructure/persistence/drizzle-user-account.repository';
+import { UserAccountMapper } from './infrastructure/persistence/user-account.mapper';
+import { UserLookupQuery } from './infrastructure/queries/user-lookup.query';
+import { LoginUseCase } from './application/use-cases/login.use-case';
+import { LogoutUseCase } from './application/use-cases/logout.use-case';
+import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
+import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -47,6 +44,13 @@ import { ListContentTypesController } from './content/controllers/list-content-t
  * controllers (`/auth/login`, `/auth/me`). The Drizzle client is injected
  * straight from `@ortha-cms/database`'s global `DatabaseModule`
  * (`@InjectDatabase()`), so identity registers no db provider of its own.
+ *
+ * The invariant-bearing core is layered per ADR-0003: the auth use-cases
+ * (`LoginUseCase` / `LogoutUseCase` / `RefreshSessionUseCase` /
+ * `ChangePasswordUseCase`) run over the `UnitOfWork` + outbox and the
+ * repository ports (`SESSION_REPOSITORY`, `USER_ACCOUNT_REPOSITORY`); the RBAC
+ * decision is the pure `AccessPolicy` domain service the guard delegates to. The
+ * public barrel and every route's contract are unchanged.
  */
 /** Default login rate limit when the host supplies none: 10 requests / 60s. */
 const DEFAULT_RATE_LIMIT: IdentityRateLimitConfig = {
@@ -76,31 +80,10 @@ export class IdentityModule {
                 LoginController,
                 MeController,
                 LogoutController,
-                UserSessionsController,
-                CreateWorkspaceController,
-                ListWorkspacesController,
-                CheckSlugController,
-                UpdateWorkspaceController,
-                SetWorkspaceStatusController,
-                DeleteWorkspaceController,
-                AddWorkspaceMemberController,
-                RemoveWorkspaceMemberController,
-                AddWorkspaceContentController,
-                RemoveWorkspaceContentController,
-                GetWorkspaceContentCountController,
-                GetWorkspaceEntryCountController,
-                ListContentTypesController
+                UserSessionsController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
-                WorkspaceService,
-                SlugService,
-                MembershipService,
-                ContentGrantService,
-                // Resolved by `@UseGuards(WorkspaceGuard)` on workspace-scoped
-                // routes in other plugins; injectable everywhere since this
-                // module is global (same pattern as PermissionsGuard).
-                WorkspaceGuard,
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -109,12 +92,36 @@ export class IdentityModule {
                 RootAdminSeeder,
                 RolesService,
                 PermissionsService,
+                // Domain services — plain classes, framework-free, so they are
+                // wired via factories rather than `@Injectable()` scanning.
+                { provide: AccessPolicy, useFactory: () => new AccessPolicy() },
+                {
+                    provide: SessionPolicy,
+                    useFactory: (cfg: IdentityPluginConfig) =>
+                        new SessionPolicy(cfg.session.ttlSeconds),
+                    inject: [IDENTITY_CONFIG]
+                },
                 PermissionsGuard,
+                // Application — auth flows as use-cases over the unit of work.
+                LoginUseCase,
+                LogoutUseCase,
+                RefreshSessionUseCase,
+                ChangePasswordUseCase,
                 AuthService,
-                SessionService,
                 HashingService,
                 CookieService,
                 OriginGuard,
+                // Infrastructure — repository adapters, mapper, and read model.
+                {
+                    provide: SESSION_REPOSITORY,
+                    useClass: DrizzleSessionRepository
+                },
+                {
+                    provide: USER_ACCOUNT_REPOSITORY,
+                    useClass: DrizzleUserAccountRepository
+                },
+                UserAccountMapper,
+                UserLookupQuery,
                 // App-wide guard: every route requires a valid session unless
                 // marked `@Public()`. Resolves the user and attaches it for
                 // `@CurrentUser()`. APP_GUARD providers are collected globally,
@@ -126,12 +133,10 @@ export class IdentityModule {
                 RolesService,
                 PermissionsService,
                 AuthService,
-                // Exported so a feature plugin's `@UseGuards(WorkspaceGuard)`
-                // (instantiated in the consuming module's injector) can resolve
-                // the guard and its `MembershipService` dependency — same reason
-                // PermissionsService is exported for PermissionsGuard.
-                MembershipService,
-                WorkspaceGuard
+                // Exported so a consuming module's `@UseGuards(PermissionsGuard)`
+                // (instantiated in that module's injector) can resolve the
+                // guard's `AccessPolicy` dependency, like `PermissionsService`.
+                AccessPolicy
             ]
         };
     }

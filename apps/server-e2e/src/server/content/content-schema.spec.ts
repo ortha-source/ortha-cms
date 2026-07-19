@@ -71,7 +71,7 @@ describe('Content schema (GET /api/content-schema)', () => {
 
         it('401s an unauthenticated detail request', async () => {
             await request(harness.server)
-                .get('/api/content-schema/article')
+                .get('/api/content-schema/test_article')
                 .expect(401);
         });
 
@@ -83,7 +83,7 @@ describe('Content schema (GET /api/content-schema)', () => {
             });
             const agent = await login(NORIGHTS_EMAIL);
             await agent.get('/api/content-schema').expect(403);
-            await agent.get('/api/content-schema/article').expect(403);
+            await agent.get('/api/content-schema/test_article').expect(403);
         });
     });
 
@@ -93,24 +93,24 @@ describe('Content schema (GET /api/content-schema)', () => {
             const res = await agent.get('/api/content-schema').expect(200);
 
             const names = res.body.map((t: { name: string }) => t.name).sort();
-            // Every code-defined type (see apps/server/src/content.ts): article
-            // plus its author/seo_meta/tag/comment reference collections, and the
-            // landing single.
+            // Every e2e-owned type (see support/content/index.ts): test_article
+            // plus its test_author/test_seo/test_tag/test_comment reference
+            // collections, and the test_landing single.
             expect(names).toEqual([
-                'article',
-                'author',
-                'comment',
-                'landing',
-                'seo_meta',
-                'tag'
+                'test_article',
+                'test_author',
+                'test_comment',
+                'test_landing',
+                'test_seo',
+                'test_tag'
             ]);
 
             const landing = res.body.find(
-                (t: { name: string }) => t.name === 'landing'
+                (t: { name: string }) => t.name === 'test_landing'
             );
             expect(landing).toMatchObject({ kind: 'single', path: '/' });
             const article = res.body.find(
-                (t: { name: string }) => t.name === 'article'
+                (t: { name: string }) => t.name === 'test_article'
             );
             expect(article).toMatchObject({
                 kind: 'collection',
@@ -125,10 +125,10 @@ describe('Content schema (GET /api/content-schema)', () => {
         it('returns the full field schema for a type', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content-schema/article')
+                .get('/api/content-schema/test_article')
                 .expect(200);
 
-            expect(res.body.name).toBe('article');
+            expect(res.body.name).toBe('test_article');
             const byName: Record<string, SerializedField> = Object.fromEntries(
                 (res.body.fields as SerializedField[]).map((f) => [f.name, f])
             );

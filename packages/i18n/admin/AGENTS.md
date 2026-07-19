@@ -1,5 +1,29 @@
 # @ortha-cms/i18n-admin
 
+> **Layout: layered (ADR-0003).** A **light** application — the admin has no
+> independent source of truth (the server rejects invalid actions regardless),
+> so per the ADR it gets a `domain/` layer only for **value objects / UX
+> invariants**, not client aggregates. Here that is `domain/localePolicy` — the
+> pure locale-resolution rules the widgets share. Slot contributions stay pure
+> **data** and are unchanged. Follow the `users-admin` / `workspaces-admin`
+> pilots for the FE idioms.
+
+## Layering (ADR-0003)
+
+- **`domain/localePolicy`** — framework-free locale rules (no React, no router)
+  mirroring the server's `LocalePolicy`, so the switcher, title chip, and editor
+  widget resolve **one** rule instead of each re-inlining the same `??` chain:
+    - `resolveActiveLocale({ entryLocale, urlLocale, defaultSlug })` — the active
+      locale by the server's precedence (entry → `?locale=` → default);
+    - `isDefaultLocale` / `toLocaleListParam` — the "default locale = clean URL"
+      rule (the server scopes to the default when `?locale=` is absent, so the
+      two spellings can't drift);
+    - `localeName(locales, slug)` — display-name lookup.
+- **Slot contributions stay pure data** — `utils/i18nPlugin` still returns plain
+  slot items; this refactor changed **no** slot contract, added no route/nav.
+- The wire `type`s in `types/locale` still **mirror** the server without
+  importing across the boundary (the FE anti-corruption convention).
+
 The admin counterpart to `@ortha-cms/i18n-server` — content localization in the
 Content Library UI. It contributes **only** to `@ortha-cms/content-admin`'s
 extension slots: **no routes, no layout, no nav item**. Register it in

@@ -66,9 +66,9 @@ export function buildTestConfig(
                 rateLimit: overrides.rateLimit ?? RELAXED_RATE_LIMIT,
                 rootAdmin: overrides.rootAdmin
             },
-            // The reference content types (`article`, `landing`) are i18n, so
-            // the i18n plugin must be configured to boot — mirrors the host's
-            // en (default) / de / fr locales.
+            // The e2e content types (`test_article`, `test_author`,
+            // `test_landing`) are i18n, so the i18n plugin must be configured to
+            // boot — mirrors the host's en (default) / de / fr locales.
             i18n: {
                 locales: [
                     { slug: 'en', name: 'English', isDefault: true },
