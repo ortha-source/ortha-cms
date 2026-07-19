@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1782140166422,
+      "when": 1784471343836,
       "tag": "0000_init_content",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1782485457299,
-      "tag": "0001_content_publishable_nullable",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1782839388143,
-      "tag": "0002_add_relations",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1783084805562,
-      "tag": "0003_relation_position",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1783100672525,
-      "tag": "0004_slim_doomsday",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1783101214854,
-      "tag": "0005_tag_publishable_paranoid",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1783176961109,
-      "tag": "0006_content_i18n",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1783330842555,
-      "tag": "0007_author_i18n",
       "breakpoints": true
     }
   ]
