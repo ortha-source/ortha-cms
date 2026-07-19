@@ -1,0 +1,20 @@
+/**
+ * The host's code-defined content types — one aggregation point for two
+ * consumers:
+ *
+ * - `plugins.ts` reads `contentTypes` to register them with `ContentPlugin`.
+ * - drizzle-kit reads this file (`drizzle.config.ts → schema`) and diffs the
+ *   re-exported tables into migrations. drizzle-kit only diffs **top-level
+ *   table exports**, so every generated table — including many-relation join
+ *   tables (via `joinTableOf`, which throws if a relation was renamed rather
+ *   than silently dropping it from the diff) — must be surfaced below.
+ *
+ * Add a type by creating a file under `./collections` or `./pages`, then
+ * register it in `contentTypes` and re-export its table(s) here — and run
+ * `npx nx run server:db:generate --name=<change>`, committing the SQL.
+ */
+
+import { type AnyContentType } from '@ortha-cms/content-server/define';
+
+/** Every content type registered with ContentPlugin, in one place. */
+export const contentTypes: readonly AnyContentType[] = [];
