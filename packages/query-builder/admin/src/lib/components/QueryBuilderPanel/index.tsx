@@ -33,6 +33,8 @@ export type QueryBuilderPanelProps = {
     value: FilterGroup | null;
     /** Called on Apply (with the next tree) or Reset (with `null`). */
     onApply: (next: FilterGroup | null) => void;
+    /** Called after a successful **Apply** (not Reset) — e.g. to toast. */
+    onApplied?: () => void;
     /** Record picker for a relation-id rule, forwarded to the builder. */
     renderRelationValue?: RelationValueEditor;
     /** `id` of the toggle button, so the region is labelled by it. */
@@ -60,6 +62,7 @@ export function QueryBuilderPanel({
     fields,
     value,
     onApply,
+    onApplied,
     renderRelationValue,
     labelledBy,
     id
@@ -101,6 +104,7 @@ export function QueryBuilderPanel({
         }
         const hasRules = draft && draft.children.length > 0;
         onApply(hasRules ? draft : null);
+        onApplied?.();
         // The panel stays open after Apply — the URL/table update, but the
         // builder remains expanded for further edits (the toggle collapses it).
     };

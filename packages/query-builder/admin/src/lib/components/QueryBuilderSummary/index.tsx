@@ -104,9 +104,10 @@ export function QueryBuilderSummary({
                 return (
                     <span
                         key={rule.id}
-                        className="inline-flex max-w-full items-center gap-1.5 rounded-xl border bg-card px-2.5 py-1 text-xs"
+                        title={`${path} ${op}${value ? ` ${value}` : ''}`}
+                        className="inline-flex max-w-[16rem] items-center gap-1.5 rounded-xl border bg-card px-2.5 py-1 text-xs"
                     >
-                        <span className="truncate">
+                        <span className="min-w-0 truncate">
                             <span className="font-medium text-foreground">
                                 {path}
                             </span>{' '}

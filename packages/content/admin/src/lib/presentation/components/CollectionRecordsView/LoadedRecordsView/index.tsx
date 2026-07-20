@@ -27,7 +27,8 @@ import {
     Container,
     ContainerHeader,
     SearchToolbar,
-    cn
+    cn,
+    toast
 } from '@ortha-cms/design-system';
 import type {
     ContentType,
@@ -97,6 +98,10 @@ const messages = defineMessages({
     filters: {
         id: 'content.records.filters',
         defaultMessage: 'Filters{count, plural, =0 {} other { · #}}'
+    },
+    filterApplied: {
+        id: 'content.records.filterApplied',
+        defaultMessage: 'Filter applied.'
     },
     loading: {
         id: 'content.records.loading',
@@ -483,6 +488,9 @@ export function LoadedRecordsView({
                 fields={filterFields}
                 value={appliedFilter}
                 onApply={applyFilter}
+                onApplied={() =>
+                    toast.success(intl.formatMessage(messages.filterApplied))
+                }
                 renderRelationValue={(props) => (
                     <RelationValuePicker {...props} />
                 )}
