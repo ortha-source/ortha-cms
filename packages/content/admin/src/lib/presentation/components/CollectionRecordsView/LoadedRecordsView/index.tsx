@@ -27,8 +27,7 @@ import {
     Container,
     ContainerHeader,
     SearchToolbar,
-    cn,
-    toast
+    cn
 } from '@ortha-cms/design-system';
 import type {
     ContentType,
@@ -98,10 +97,6 @@ const messages = defineMessages({
     filters: {
         id: 'content.records.filters',
         defaultMessage: 'Filters{count, plural, =0 {} other { · #}}'
-    },
-    filterApplied: {
-        id: 'content.records.filterApplied',
-        defaultMessage: 'Filter applied.'
     },
     loading: {
         id: 'content.records.loading',
@@ -288,7 +283,11 @@ export function LoadedRecordsView({
         [visibleColumns]
     );
 
-    const { data, isPending, isError, isPlaceholderData, refetch } =
+    // Pressing Apply swaps the table for its skeleton until the filtered
+    // request settles (the list otherwise keeps the previous rows via
+    // `keepPreviousData`, so a filter change would show no loading cue).
+    const [applying, setApplying] = useState(false);
+    const { data, isPending, isFetching, isError, isPlaceholderData, refetch } =
         useContentEntries(schema, {
             search: searchParam || undefined,
             filter: filterParam || undefined,
@@ -301,6 +300,11 @@ export function LoadedRecordsView({
                 : {}),
             ...(slotParamKeys.length ? { extra: slotParams } : {})
         });
+
+    // Clear the applying skeleton once the filtered request has settled.
+    useEffect(() => {
+        if (applying && !isFetching) setApplying(false);
+    }, [applying, isFetching]);
 
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? pageSize;
@@ -488,9 +492,7 @@ export function LoadedRecordsView({
                 fields={filterFields}
                 value={appliedFilter}
                 onApply={applyFilter}
-                onApplied={() =>
-                    toast.success(intl.formatMessage(messages.filterApplied))
-                }
+                onApplied={() => setApplying(true)}
                 renderRelationValue={(props) => (
                     <RelationValuePicker {...props} />
                 )}
@@ -527,7 +529,7 @@ export function LoadedRecordsView({
                 })}
             </p>
 
-            {isPending ? (
+            {isPending || (applying && isFetching) ? (
                 <CollectionRecordsSkeleton />
             ) : isError ? (
                 <Alert variant="destructive" role="alert" className="mt-4">
