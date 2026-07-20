@@ -9,6 +9,7 @@
 
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
+import type { MediaPluginConfig } from '@ortha-cms/media-server';
 
 /** Database connection settings. */
 export interface OrthaDatabaseConfig {
@@ -30,6 +31,8 @@ export interface OrthaConfig {
         identity: IdentityPluginConfig;
         /** i18n plugin settings — the available content locales. */
         i18n: I18nPluginConfig;
+        /** Media plugin settings — storage providers + upload limits. */
+        media: MediaPluginConfig;
     };
 }
 
@@ -87,6 +90,24 @@ const config: OrthaConfig = {
                 { slug: 'de', name: 'Deutsch' },
                 { slug: 'fr', name: 'Français' }
             ]
+        },
+        media: {
+            // The provider the resolver falls back to when no custom handler is
+            // supplied in `plugins.ts`. Deploy-specific; defaults to local disk.
+            defaultProvider: process.env['MEDIA_PROVIDER'] ?? 'local',
+            local: {
+                // Blobs live under a git-ignored project dir by default; point
+                // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
+                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media',
+                publicBasePath: '/api/media/assets'
+            },
+            s3: {
+                bucket: process.env['MEDIA_S3_BUCKET'] ?? '',
+                region: process.env['MEDIA_S3_REGION'] ?? ''
+            },
+            // Upload cap — 50 MB by default.
+            maxUploadBytes:
+                Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800
         }
     }
 };
