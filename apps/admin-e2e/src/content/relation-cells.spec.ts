@@ -163,6 +163,33 @@ test.describe('Relation cells (records table)', () => {
         await expect(page).toHaveURL(new RegExp(`${ARTICLES_URL}$`));
     });
 
+    test('opening one dropdown closes the one already open', async ({
+        page
+    }) => {
+        await page.goto(ARTICLES_URL);
+        // Two relation cells in the SAME row (Author sits left of Tags), so
+        // neither popover covers the other's trigger.
+        const tags = page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first();
+        const author = page
+            .getByRole('button', { name: /Show 1 linked record for Author/ })
+            .first();
+        // A Radix popover's content is a dialog, so this counts open dropdowns.
+        const openDropdowns = page.getByRole('dialog');
+
+        await tags.click();
+        await expect(openDropdowns).toHaveCount(1);
+
+        // Classic dropdown semantics: opening the second must close the first,
+        // not leave both on screen.
+        await author.click();
+        await expect(openDropdowns).toHaveCount(1);
+        await expect(
+            page.getByRole('link', { name: 'Open Ada Lovelace in a new tab' })
+        ).toBeVisible();
+    });
+
     test('renders an em-dash when a relation holds nothing', async ({
         page
     }) => {

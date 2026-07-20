@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -31,6 +30,12 @@ const messages = defineMessages({
 const EMPTY = '—';
 
 /**
+ * Marks a relation cell's trigger so an open dropdown can recognise a click on
+ * *another* cell's trigger and leave that transition to the table.
+ */
+const TRIGGER_ATTR = 'data-relation-trigger';
+
+/**
  * A relation column's cell: a titled trigger (the first linked record plus a
  * `+N` overflow) opening a popover of the linked records, each a link to that
  * record's own editor in a new tab.
@@ -39,13 +44,20 @@ const EMPTY = '—';
  * `preview`, so it costs no request. The popover's contents live in
  * {@link RelationCellList}, which is mounted only while open — that is what
  * keeps a page of 50 relation cells from registering 50 idle link queries.
+ *
+ * **Open state is owned by the table**, not this cell: the table tracks a
+ * single open cell, so opening one dropdown closes any other (classic dropdown
+ * semantics). Per-cell state would let two cells be open at once — Radix's
+ * outside-dismiss doesn't coordinate independent popovers.
  */
 export function RelationCell({
     field,
     preview,
     typeName,
     recordId,
-    workspaceId
+    workspaceId,
+    open,
+    onOpenChange
 }: {
     /** The relation field this column renders. */
     field: ContentField;
@@ -57,9 +69,12 @@ export function RelationCell({
     recordId: string;
     /** Open workspace, for building the related record's path. */
     workspaceId: string;
+    /** Whether this cell is the table's currently open dropdown. */
+    open: boolean;
+    /** Report this cell opening or closing; the table owns which one is open. */
+    onOpenChange: (open: boolean) => void;
 }) {
     const intl = useIntl();
-    const [open, setOpen] = useState(false);
 
     const target = field.relation?.to;
     const items = preview?.items ?? [];
@@ -76,15 +91,28 @@ export function RelationCell({
         );
     }
 
+    /**
+     * A dismissal caused by another relation trigger is left to the table,
+     * which closes this cell by opening that one. Radix defers such a dismissal
+     * to the click, so letting it through would close the popover that click
+     * just opened.
+     */
+    const isTriggerDismissal = (originalEvent: { target: EventTarget | null }) =>
+        Boolean(
+            (originalEvent.target as HTMLElement | null)?.closest?.(
+                `[${TRIGGER_ATTR}]`
+            )
+        );
+
     const label = field.admin['label'];
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={onOpenChange}>
             <PopoverTrigger asChild>
                 <Button
                     variant="ghost"
                     size="sm"
-                    // The row navigates on click — don't let opening the
-                    // popover trigger it.
+                    {...{ [TRIGGER_ATTR]: '' }}
+                    // The row navigates on click — never let it through.
                     onClick={(event) => event.stopPropagation()}
                     className="-mx-2 h-7 max-w-full gap-1.5 px-2 font-normal"
                     aria-label={intl.formatMessage(messages.trigger, {
@@ -108,6 +136,14 @@ export function RelationCell({
                 align="start"
                 className="w-72 p-1"
                 onClick={(event) => event.stopPropagation()}
+                onPointerDownOutside={(event) => {
+                    if (isTriggerDismissal(event.detail.originalEvent))
+                        event.preventDefault();
+                }}
+                onFocusOutside={(event) => {
+                    if (isTriggerDismissal(event.detail.originalEvent))
+                        event.preventDefault();
+                }}
             >
                 <RelationCellList
                     field={field}

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_178 test cases across 25 spec files._
+_179 test cases across 25 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -197,6 +197,7 @@ _<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_
 | opens a dropdown of links to each related record |
 | loads past the preview once opened |
 | opening the dropdown does not navigate the row |
+| opening one dropdown closes the one already open |
 | renders an em-dash when a relation holds nothing |
 | the relation dropdown is accessible |
 

@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
@@ -81,6 +82,14 @@ function isInteractiveColumn(column: EntryColumn): boolean {
     );
 }
 
+/**
+ * Identifies one relation cell (a row × column pair) — the table tracks a single
+ * open key so that at most one relation dropdown is ever open.
+ */
+function relationKey(recordId: string, columnId: string): string {
+    return `${recordId}::${columnId}`;
+}
+
 /** The cell content for one column of one record. */
 function Cell({
     column,
@@ -88,7 +97,9 @@ function Cell({
     extensionData,
     typePath,
     typeName,
-    workspaceId
+    workspaceId,
+    openRelation,
+    onOpenRelation
 }: {
     column: EntryColumn;
     record: EntryRecord;
@@ -100,6 +111,10 @@ function Cell({
     typeName: string;
     /** Open workspace, for a relation cell's deep links. */
     workspaceId: string;
+    /** Key of the table's currently open relation dropdown, if any. */
+    openRelation: string | null;
+    /** Report a relation cell opening (`true`) or closing (`false`). */
+    onOpenRelation: (key: string, next: boolean) => void;
 }) {
     const intl = useIntl();
     switch (column.kind) {
@@ -132,7 +147,8 @@ function Cell({
         case COLUMN_KIND.Field:
             // A relation renders a dropdown of its linked records rather than
             // the raw FK the values bag carries.
-            if (column.field.type === CONTENT_FIELD_TYPE.Relation)
+            if (column.field.type === CONTENT_FIELD_TYPE.Relation) {
+                const key = relationKey(record.id, column.id);
                 return (
                     <RelationCell
                         field={column.field}
@@ -140,8 +156,11 @@ function Cell({
                         typeName={typeName}
                         recordId={record.id}
                         workspaceId={workspaceId}
+                        open={openRelation === key}
+                        onOpenChange={(next) => onOpenRelation(key, next)}
                     />
                 );
+            }
             return (
                 <>{renderCell(column.field, record.values[column.id], intl)}</>
             );
@@ -209,6 +228,24 @@ export function CollectionRecordsTable({
     const intl = useIntl();
     const navigate = useNavigate();
     const columnLabel = useColumnLabel();
+    // One open relation dropdown at a time (classic dropdown semantics): the
+    // table owns which cell is open, so opening one closes any other. Radix
+    // does not coordinate independent popovers, so per-cell state would let
+    // several stay open at once.
+    // Closing only clears the key when that cell is still the open one. Radix
+    // dismisses the previously-open popover *after* the click that opened the
+    // next one, so an unconditional clear on close would immediately wipe the
+    // cell the user just opened.
+    // One open relation dropdown at a time (classic dropdown semantics): the
+    // table owns which cell is open, so opening one closes any other in the
+    // same update. A close only clears the key when that cell is still the open
+    // one, so a late dismissal can't wipe a cell that just opened.
+    const [openRelation, setOpenRelation] = useState<string | null>(null);
+    const handleOpenRelation = useCallback((key: string, next: boolean) => {
+        setOpenRelation((current) =>
+            next ? key : current === key ? null : current
+        );
+    }, []);
 
     const pageIds = entries.map((record) => record.id);
     const allSelected =
@@ -342,6 +379,8 @@ export function CollectionRecordsTable({
                                             typePath={typePath}
                                             typeName={typeName}
                                             workspaceId={workspaceId}
+                                            openRelation={openRelation}
+                                            onOpenRelation={handleOpenRelation}
                                         />
                                     );
                                     return (
