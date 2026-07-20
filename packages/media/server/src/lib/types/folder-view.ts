@@ -9,3 +9,13 @@ export interface FolderView {
     assetCount: number;
     createdAt: string;
 }
+
+/**
+ * The folders listing envelope. `rootAssetCount` is the number of assets at the
+ * workspace root (no folder) — the admin's "All media" count, which has no
+ * folder row to hang off.
+ */
+export interface FoldersView {
+    folders: FolderView[];
+    rootAssetCount: number;
+}

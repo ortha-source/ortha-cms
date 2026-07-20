@@ -12,6 +12,8 @@ export type MediaAsset = {
     name: string;
     /** Coarse category driving the icon, badge, and kind filter. */
     kind: MediaKind;
+    /** Route the browser fetches to stream the bytes (preview / download). */
+    url: string;
     /** MIME type, e.g. `image/png`. */
     mimeType: string;
     /** File size in bytes. */

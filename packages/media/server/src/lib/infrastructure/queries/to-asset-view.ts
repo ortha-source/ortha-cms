@@ -11,8 +11,11 @@ function rawRoute(id: string): string {
     return `/api/media/assets/${id}/raw`;
 }
 
-/** Maps a `media_asset` row to the wire {@link AssetView}. */
-export function toAssetView(row: AssetRow): AssetView {
+/**
+ * Maps a `media_asset` row to the wire {@link AssetView}. `uploaderName` is the
+ * resolved display name of the uploader (the row stores only the user id).
+ */
+export function toAssetView(row: AssetRow, uploaderName: string): AssetView {
     return {
         id: row.id,
         name: row.name,
@@ -26,6 +29,7 @@ export function toAssetView(row: AssetRow): AssetView {
         duration: row.duration,
         tags: row.tags ?? [],
         alt: row.alt,
+        uploadedBy: uploaderName,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString()
     };

@@ -4,6 +4,7 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { mediaAsset } from '../schema/media-asset';
 import type { AssetView } from '../../types/asset-view';
 import { toAssetView } from './to-asset-view';
+import { resolveUploaderNames, UNKNOWN_UPLOADER } from './uploader-names';
 
 /** Reads a single asset as its wire {@link AssetView} (post-write refetch). */
 @Injectable()
@@ -22,6 +23,11 @@ export class AssetViewQuery {
                 )
             )
             .limit(1);
-        return row ? toAssetView(row) : null;
+        if (!row) return null;
+        const names = await resolveUploaderNames(this.db, [row.uploadedBy]);
+        return toAssetView(
+            row,
+            names.get(row.uploadedBy) ?? UNKNOWN_UPLOADER
+        );
     }
 }

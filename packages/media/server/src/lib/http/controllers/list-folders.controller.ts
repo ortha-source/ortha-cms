@@ -6,7 +6,7 @@ import {
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ListFoldersQuery } from '../../infrastructure/queries/list-folders.query';
-import type { FolderView } from '../../types/folder-view';
+import type { FoldersView } from '../../types/folder-view';
 
 /**
  * `GET /api/media/folders` — the workspace's folder tree. Read-gated on
@@ -18,9 +18,9 @@ import type { FolderView } from '../../types/folder-view';
 export class ListFoldersController {
     constructor(private readonly query: ListFoldersQuery) {}
 
-    /** Lists every folder in the current workspace. */
+    /** Lists every folder in the current workspace + the root asset count. */
     @Get('folders')
-    list(@CurrentWorkspace() workspaceId: string): Promise<FolderView[]> {
+    list(@CurrentWorkspace() workspaceId: string): Promise<FoldersView> {
         return this.query.execute(workspaceId);
     }
 }

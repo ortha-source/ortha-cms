@@ -13,6 +13,7 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { mediaAsset, mediaKind } from '../schema/media-asset';
 import type { AssetListView } from '../../types/asset-view';
 import { toAssetView } from './to-asset-view';
+import { resolveUploaderNames, UNKNOWN_UPLOADER } from './uploader-names';
 
 /** A valid `media_kind` enum value. */
 type MediaKindColumn = (typeof mediaKind.enumValues)[number];
@@ -71,8 +72,18 @@ export class ListAssetsQuery {
                 .where(where)
         ]);
 
+        const uploaderNames = await resolveUploaderNames(
+            this.db,
+            rows.map((row) => row.uploadedBy)
+        );
+
         return {
-            items: rows.map(toAssetView),
+            items: rows.map((row) =>
+                toAssetView(
+                    row,
+                    uploaderNames.get(row.uploadedBy) ?? UNKNOWN_UPLOADER
+                )
+            ),
             total: totals[0]?.value ?? 0,
             page: params.page,
             pageSize: params.pageSize

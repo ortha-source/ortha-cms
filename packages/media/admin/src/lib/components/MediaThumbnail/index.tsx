@@ -36,7 +36,14 @@ export function MediaThumbnail({
         >
             {/* A soft wash so overlaid glyphs stay legible on any hue. */}
             <div className="absolute inset-0 bg-black/5" aria-hidden />
-            {isImage ? null : (
+            {isImage ? (
+                <img
+                    src={asset.url}
+                    alt={asset.alt ?? ''}
+                    loading="lazy"
+                    className="absolute inset-0 size-full object-cover"
+                />
+            ) : (
                 <MediaKindIcon
                     kind={asset.kind}
                     className={cn(

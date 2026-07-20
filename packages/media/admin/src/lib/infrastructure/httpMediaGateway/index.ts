@@ -1,0 +1,142 @@
+import { apiClient, toApiError } from '@ortha-cms/utils-admin';
+import { ROOT_FOLDER_ID } from '../../constants';
+import {
+    toMediaAsset,
+    toMediaFolder,
+    type AssetListResponse,
+    type FoldersResponse
+} from '../mediaMapper';
+import type {
+    CreateFolderInput,
+    MediaFoldersResult,
+    MediaGateway,
+    MoveAssetsInput,
+    RenameInput
+} from '../mediaGateway';
+import type { MediaAsset } from '../../types/mediaAsset';
+
+/** Assets fetched per folder page — one large page (client-side filter/sort). */
+const ASSETS_PAGE_SIZE = 100;
+
+/** Translates the admin root sentinel to `undefined` (backend root = no id). */
+function folderParam(folderId: string): string | undefined {
+    return folderId === ROOT_FOLDER_ID ? undefined : folderId;
+}
+
+/**
+ * The media {@link MediaGateway} over `apiClient`. The one place the plugin
+ * touches HTTP: it maps responses through the ACL, normalizes failures to
+ * `ApiError`, and translates the root sentinel to/from the wire's `null`.
+ * `apiClient` attaches `X-Workspace-Id` automatically inside the workspace shell.
+ */
+export const httpMediaGateway: MediaGateway = {
+    async listFolders(): Promise<MediaFoldersResult> {
+        try {
+            const { data } = await apiClient.get<FoldersResponse>(
+                '/media/folders'
+            );
+            const folderCounts = new Map<string, number>();
+            for (const folder of data.folders) {
+                folderCounts.set(folder.id, folder.assetCount);
+            }
+            folderCounts.set(ROOT_FOLDER_ID, data.rootAssetCount);
+            return { folders: data.folders.map(toMediaFolder), folderCounts };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listAssets(folderId: string): Promise<MediaAsset[]> {
+        try {
+            const { data } = await apiClient.get<AssetListResponse>(
+                '/media/assets',
+                { params: { folderId: folderParam(folderId), pageSize: ASSETS_PAGE_SIZE } }
+            );
+            return data.items.map(toMediaAsset);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async createFolder({ name, parentId }: CreateFolderInput): Promise<void> {
+        try {
+            await apiClient.post('/media/folders', {
+                name,
+                parentId: folderParam(parentId)
+            });
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async renameFolder({ id, name }: RenameInput): Promise<void> {
+        try {
+            await apiClient.patch(`/media/folders/${id}`, { name });
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async deleteFolder(id: string): Promise<void> {
+        try {
+            await apiClient.delete(`/media/folders/${id}`);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async uploadFiles(folderId: string, files: File[]): Promise<void> {
+        const target = folderParam(folderId);
+        try {
+            await Promise.all(
+                files.map((file) => {
+                    const form = new FormData();
+                    form.append('file', file);
+                    if (target) form.append('folderId', target);
+                    return apiClient.post('/media/assets', form);
+                })
+            );
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async renameAsset({ id, name }: RenameInput): Promise<void> {
+        try {
+            await apiClient.patch(`/media/assets/${id}`, { name });
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async moveAssets({ ids, folderId }: MoveAssetsInput): Promise<void> {
+        const target = folderId === ROOT_FOLDER_ID ? null : folderId;
+        try {
+            await Promise.all(
+                ids.map((id) =>
+                    apiClient.patch(`/media/assets/${id}`, { folderId: target })
+                )
+            );
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async duplicateAssets(ids: string[]): Promise<void> {
+        try {
+            await Promise.all(
+                ids.map((id) => apiClient.post(`/media/assets/${id}/duplicate`))
+            );
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async deleteAssets(ids: string[]): Promise<void> {
+        try {
+            await apiClient.delete('/media/assets', { data: { ids } });
+        } catch (error) {
+            throw toApiError(error);
+        }
+    }
+};

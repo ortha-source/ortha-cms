@@ -1,4 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
+import {
+    keepPreviousData,
+    useMutation,
+    useQuery,
+    useQueryClient
+} from '@tanstack/react-query';
+import { toast } from '@ortha-cms/design-system';
+import { ApiError } from '@ortha-cms/utils-admin';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
     KIND_FILTER_ALL,
     MEDIA_SORT,
@@ -8,44 +18,35 @@ import {
     type MediaSort,
     type MediaView
 } from '../../constants';
-import type { MediaAsset } from '../../types/mediaAsset';
 import type { MediaFolder } from '../../types/mediaFolder';
-import { kindFromMime } from '../../utils/kindFromMime';
-import { MOCK_ASSETS, MOCK_FOLDERS } from '../../utils/mockMedia';
-
-/** A picked file the mock uploader turns into an asset (a slice of `File`). */
-export type UploadInput = {
-    name: string;
-    size: number;
-    type: string;
-};
+import { mediaKeys } from '../../infrastructure/mediaKeys';
+import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
 
 /** The selected kind filter — a {@link MediaKind} or the "all" sentinel. */
 export type KindFilter = MediaKind | typeof KIND_FILTER_ALL;
 
-/** Generates a unique id for a folder/asset created during the session. */
-function newId(prefix: string): string {
-    const rand =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-            ? crypto.randomUUID()
-            : Math.random().toString(36).slice(2);
-    return `${prefix}-${rand}`;
-}
+/** Intl descriptor for a failed media mutation. */
+const messages = defineMessages({
+    error: {
+        id: 'media.error.mutation',
+        defaultMessage: 'Something went wrong. Please try again.'
+    }
+});
 
 /**
- * The Media Library's in-memory store and every action the UI can take against
- * it. This is a **mockup**: there is no server, so folders/assets start from the
- * seed data (`mockMedia`) and all mutations — create folder, upload, rename,
- * duplicate, move, delete — update local React state and are lost on reload.
- * The shape mirrors what a real data layer (per-hook `apiClient` queries +
- * mutations) would expose, so the page can be rewired to a media server without
- * touching the components.
+ * The Media Library's data layer and every action the UI can take. Folders and
+ * the open folder's assets are fetched from `@ortha-cms/media-server` via the
+ * gateway (TanStack Query); mutations post to the API and invalidate the cache.
+ * View/search/sort/filter/selection/navigation stay local UI state. The returned
+ * shape mirrors the former mock store exactly, so no component changed.
+ *
+ * @param enabled - gates the reads (false until the caller confirms `media:read`).
  */
-export function useMediaLibrary() {
-    const [folders, setFolders] = useState<MediaFolder[]>(() => [
-        ...MOCK_FOLDERS
-    ]);
-    const [assets, setAssets] = useState<MediaAsset[]>(() => [...MOCK_ASSETS]);
+export function useMediaLibrary(enabled = true) {
+    const intl = useIntl();
+    const workspaceId = useCurrentWorkspace().id;
+    const queryClient = useQueryClient();
+
     const [currentFolderId, setCurrentFolderId] = useState(ROOT_FOLDER_ID);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
         () => new Set()
@@ -55,6 +56,46 @@ export function useMediaLibrary() {
     const [sort, setSort] = useState<MediaSort>(MEDIA_SORT.Newest);
     const [kindFilter, setKindFilter] = useState<KindFilter>(KIND_FILTER_ALL);
     const [detailAssetId, setDetailAssetId] = useState<string | null>(null);
+
+    const foldersQuery = useQuery({
+        queryKey: mediaKeys.folders(workspaceId),
+        queryFn: () => httpMediaGateway.listFolders(),
+        enabled
+    });
+    const assetsQuery = useQuery({
+        queryKey: mediaKeys.assets(workspaceId, currentFolderId),
+        queryFn: () => httpMediaGateway.listAssets(currentFolderId),
+        placeholderData: keepPreviousData,
+        enabled
+    });
+
+    const folders = useMemo(
+        () => foldersQuery.data?.folders ?? [],
+        [foldersQuery.data]
+    );
+    const assets = useMemo(() => assetsQuery.data ?? [], [assetsQuery.data]);
+    const folderCounts = useMemo(
+        () => foldersQuery.data?.folderCounts ?? new Map<string, number>(),
+        [foldersQuery.data]
+    );
+
+    /** Refetch folders + the visible assets after any mutation. */
+    const invalidate = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: mediaKeys.all(workspaceId) });
+    }, [queryClient, workspaceId]);
+
+    /** Surfaces a mutation failure and resyncs from the server. */
+    const onError = useCallback(
+        (error: unknown) => {
+            const message =
+                error instanceof ApiError && error.message
+                    ? error.message
+                    : intl.formatMessage(messages.error);
+            toast.error(message);
+            invalidate();
+        },
+        [intl, invalidate]
+    );
 
     /** The open folder record, or `null` at the synthetic root. */
     const currentFolder = useMemo(
@@ -127,20 +168,11 @@ export function useMediaLibrary() {
         [assets, detailAssetId]
     );
 
-    /** Currently selected assets (may include ones filtered out of view). */
+    /** Currently selected assets (within the open folder). */
     const selectedAssets = useMemo(
         () => assets.filter((a) => selectedIds.has(a.id)),
         [assets, selectedIds]
     );
-
-    /** Per-folder asset totals (recursive), for the tree + folder cards. */
-    const folderCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        for (const asset of assets) {
-            counts.set(asset.folderId, (counts.get(asset.folderId) ?? 0) + 1);
-        }
-        return counts;
-    }, [assets]);
 
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
@@ -170,149 +202,96 @@ export function useMediaLibrary() {
     const openDetail = useCallback((id: string) => setDetailAssetId(id), []);
     const closeDetail = useCallback(() => setDetailAssetId(null), []);
 
-    /** Create a folder inside the open folder (or a given parent). */
+    // --- Mutations (post to the API, then invalidate the cache) ---------------
+
+    const createFolderM = useMutation({
+        mutationFn: httpMediaGateway.createFolder,
+        onSuccess: invalidate,
+        onError
+    });
+    const renameFolderM = useMutation({
+        mutationFn: httpMediaGateway.renameFolder,
+        onSuccess: invalidate,
+        onError
+    });
+    const deleteFolderM = useMutation({
+        mutationFn: httpMediaGateway.deleteFolder,
+        onSuccess: invalidate,
+        onError
+    });
+    const renameAssetM = useMutation({
+        mutationFn: httpMediaGateway.renameAsset,
+        onSuccess: invalidate,
+        onError
+    });
+    const moveAssetsM = useMutation({
+        mutationFn: httpMediaGateway.moveAssets,
+        onSuccess: invalidate,
+        onError
+    });
+    const duplicateAssetsM = useMutation({
+        mutationFn: httpMediaGateway.duplicateAssets,
+        onSuccess: invalidate,
+        onError
+    });
+    const deleteAssetsM = useMutation({
+        mutationFn: httpMediaGateway.deleteAssets,
+        onSuccess: invalidate,
+        onError
+    });
+    const uploadM = useMutation({
+        mutationFn: (files: File[]) =>
+            httpMediaGateway.uploadFiles(currentFolderId, files),
+        onSuccess: invalidate,
+        onError
+    });
+
     const createFolder = useCallback(
         (name: string, parentId: string = currentFolderId) => {
-            const folder: MediaFolder = {
-                id: newId('folder'),
-                name: name.trim(),
-                parentId,
-                createdAt: new Date().toISOString()
-            };
-            setFolders((prev) => [...prev, folder]);
-            return folder;
+            createFolderM.mutate({ name, parentId });
         },
-        [currentFolderId]
+        [createFolderM, currentFolderId]
     );
-
-    /** Rename a folder in place. */
-    const renameFolder = useCallback((id: string, name: string) => {
-        setFolders((prev) =>
-            prev.map((f) => (f.id === id ? { ...f, name: name.trim() } : f))
-        );
-    }, []);
-
-    /** Rename an asset in place, bumping its updated timestamp. */
-    const renameAsset = useCallback((id: string, name: string) => {
-        setAssets((prev) =>
-            prev.map((a) =>
-                a.id === id
-                    ? {
-                          ...a,
-                          name: name.trim(),
-                          updatedAt: new Date().toISOString()
-                      }
-                    : a
-            )
-        );
-    }, []);
-
-    /** Delete assets by id and drop them from the selection. */
+    const renameFolder = useCallback(
+        (id: string, name: string) => renameFolderM.mutate({ id, name }),
+        [renameFolderM]
+    );
+    const deleteFolder = useCallback(
+        (id: string) => deleteFolderM.mutate(id),
+        [deleteFolderM]
+    );
+    const renameAsset = useCallback(
+        (id: string, name: string) => renameAssetM.mutate({ id, name }),
+        [renameAssetM]
+    );
+    const moveAssets = useCallback(
+        (ids: string[], folderId: string) => {
+            moveAssetsM.mutate({ ids, folderId });
+        },
+        [moveAssetsM]
+    );
+    const duplicateAssets = useCallback(
+        (ids: string[]) => duplicateAssetsM.mutate(ids),
+        [duplicateAssetsM]
+    );
     const deleteAssets = useCallback(
         (ids: string[]) => {
-            const remove = new Set(ids);
-            setAssets((prev) => prev.filter((a) => !remove.has(a.id)));
+            deleteAssetsM.mutate(ids);
+            // Drop them from the selection; the drawer closes on its own once the
+            // refetch removes the row (detailAsset derives to null).
             setSelectedIds((prev) => {
                 const next = new Set(prev);
                 ids.forEach((id) => next.delete(id));
                 return next;
             });
-            if (detailAssetId && remove.has(detailAssetId)) {
-                setDetailAssetId(null);
-            }
         },
-        [detailAssetId]
+        [deleteAssetsM]
     );
-
-    /** Delete a folder, its descendant folders, and every asset within. */
-    const deleteFolder = useCallback((id: string) => {
-        setFolders((prev) => {
-            const doomed = new Set<string>([id]);
-            let grew = true;
-            while (grew) {
-                grew = false;
-                for (const folder of prev) {
-                    if (
-                        doomed.has(folder.parentId) &&
-                        !doomed.has(folder.id)
-                    ) {
-                        doomed.add(folder.id);
-                        grew = true;
-                    }
-                }
-            }
-            setAssets((assetsPrev) =>
-                assetsPrev.filter((a) => !doomed.has(a.folderId))
-            );
-            return prev.filter((f) => !doomed.has(f.id));
-        });
-    }, []);
-
-    /** Duplicate assets, appending " copy" to each name; returns new ids. */
-    const duplicateAssets = useCallback((ids: string[]) => {
-        const created: string[] = [];
-        setAssets((prev) => {
-            const clones = prev
-                .filter((a) => ids.includes(a.id))
-                .map((a) => {
-                    const id = newId('asset');
-                    created.push(id);
-                    const dot = a.name.lastIndexOf('.');
-                    const name =
-                        dot > 0
-                            ? `${a.name.slice(0, dot)} copy${a.name.slice(dot)}`
-                            : `${a.name} copy`;
-                    const now = new Date().toISOString();
-                    return {
-                        ...a,
-                        id,
-                        name,
-                        createdAt: now,
-                        updatedAt: now
-                    };
-                });
-            return [...prev, ...clones];
-        });
-        return created;
-    }, []);
-
-    /** Move assets into a target folder. */
-    const moveAssets = useCallback((ids: string[], folderId: string) => {
-        const move = new Set(ids);
-        setAssets((prev) =>
-            prev.map((a) =>
-                move.has(a.id)
-                    ? {
-                          ...a,
-                          folderId,
-                          updatedAt: new Date().toISOString()
-                      }
-                    : a
-            )
-        );
-    }, []);
-
-    /** Synthesize assets from picked files into the open folder; returns count. */
     const uploadFiles = useCallback(
-        (files: UploadInput[]) => {
-            if (files.length === 0) return 0;
-            const now = new Date().toISOString();
-            const created = files.map<MediaAsset>((file) => ({
-                id: newId('asset'),
-                name: file.name,
-                kind: kindFromMime(file.type),
-                mimeType: file.type || 'application/octet-stream',
-                size: file.size,
-                folderId: currentFolderId,
-                tags: [],
-                uploadedBy: 'You',
-                createdAt: now,
-                updatedAt: now
-            }));
-            setAssets((prev) => [...created, ...prev]);
-            return created.length;
+        (files: File[]) => {
+            if (files.length > 0) uploadM.mutate(files);
         },
-        [currentFolderId]
+        [uploadM]
     );
 
     return {
@@ -325,6 +304,9 @@ export function useMediaLibrary() {
         childFolders,
         visibleAssets,
         folderCounts,
+        // load state
+        isLoading: foldersQuery.isPending || assetsQuery.isPending,
+        isError: foldersQuery.isError || assetsQuery.isError,
         // selection
         selectedIds,
         selectedAssets,

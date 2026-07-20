@@ -17,6 +17,8 @@ export interface AssetView {
     duration: number | null;
     tags: string[];
     alt: string | null;
+    /** Display name of the uploader (resolved from the stored user id). */
+    uploadedBy: string;
     createdAt: string;
     updatedAt: string;
 }

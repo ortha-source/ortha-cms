@@ -9,7 +9,15 @@ import {
     toast
 } from '@ortha-cms/design-system';
 import { PanelLeft } from 'lucide-react';
-import { MEDIA_VIEW, ROOT_FOLDER_ID } from '../../constants';
+import { useHasPermission } from '@ortha-cms/identity-admin';
+import {
+    MEDIA_CREATE,
+    MEDIA_DELETE,
+    MEDIA_READ,
+    MEDIA_UPDATE,
+    MEDIA_VIEW,
+    ROOT_FOLDER_ID
+} from '../../constants';
 import { useMediaLibrary } from '../../hooks/useMediaLibrary';
 import type { MediaAsset } from '../../types/mediaAsset';
 import type { MediaFolder } from '../../types/mediaFolder';
@@ -35,6 +43,10 @@ const messages = defineMessages({
         defaultMessage: '{count, plural, one {# item} other {# items}} in {location}'
     },
     allMedia: { id: 'media.page.allMedia', defaultMessage: 'All media' },
+    noAccess: {
+        id: 'media.page.noAccess',
+        defaultMessage: 'You don’t have permission to view the media library.'
+    },
     openNav: { id: 'media.page.openNav', defaultMessage: 'Folders' },
     navTitle: { id: 'media.page.navTitle', defaultMessage: 'Folder navigation' },
     selection: {
@@ -111,13 +123,12 @@ type DeleteTarget =
  */
 export function MediaLibraryPage() {
     const intl = useIntl();
-    const store = useMediaLibrary();
-
-    // Mockup placeholders — replace with `useHasPermission('media:*')` once the
-    // media server defines the permission matrix.
-    const canCreate = true;
-    const canUpdate = true;
-    const canDelete = true;
+    // Mirror the server's RBAC: reads gate the queries, writes gate controls.
+    const canRead = useHasPermission(MEDIA_READ);
+    const canCreate = useHasPermission(MEDIA_CREATE);
+    const canUpdate = useHasPermission(MEDIA_UPDATE);
+    const canDelete = useHasPermission(MEDIA_DELETE);
+    const store = useMediaLibrary(canRead);
 
     const [navOpen, setNavOpen] = useState(false);
     const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -144,14 +155,21 @@ export function MediaLibraryPage() {
             case 'open':
                 store.openDetail(asset.id);
                 break;
-            case 'download':
+            case 'download': {
+                const link = document.createElement('a');
+                link.href = asset.url;
+                link.download = asset.name;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
                 toast.success(
                     intl.formatMessage(messages.tDownload, { name: asset.name })
                 );
                 break;
+            }
             case 'copyLink':
                 void navigator.clipboard
-                    ?.writeText(`https://cdn.ortha.example/${asset.id}`)
+                    ?.writeText(new URL(asset.url, window.location.origin).href)
                     .catch(() => undefined);
                 toast.success(intl.formatMessage(messages.tCopied));
                 break;
@@ -229,6 +247,16 @@ export function MediaLibraryPage() {
     };
 
     const selectedIds = store.selectedAssets.map((asset) => asset.id);
+
+    if (!canRead) {
+        return (
+            <div className="flex h-[calc(100svh-3rem)] items-center justify-center bg-muted/40 p-6 text-center">
+                <p className="max-w-sm text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.noAccess)}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-[calc(100svh-3rem)] flex-col gap-3 bg-muted/40 p-3 lg:flex-row">
@@ -432,9 +460,11 @@ export function MediaLibraryPage() {
                 onOpenChange={setUploadOpen}
                 locationLabel={locationLabel}
                 onUpload={(files) => {
-                    const count = store.uploadFiles(files);
+                    store.uploadFiles(files);
                     toast.success(
-                        intl.formatMessage(messages.tUploaded, { count })
+                        intl.formatMessage(messages.tUploaded, {
+                            count: files.length
+                        })
                     );
                 }}
             />

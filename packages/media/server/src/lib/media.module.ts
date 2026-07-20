@@ -18,6 +18,7 @@ import { AssetViewQuery } from './infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from './infrastructure/queries/download-asset.query';
 import { UploadAssetUseCase } from './application/use-cases/upload-asset.use-case';
 import { UpdateAssetUseCase } from './application/use-cases/update-asset.use-case';
+import { DuplicateAssetUseCase } from './application/use-cases/duplicate-asset.use-case';
 import { DeleteAssetsUseCase } from './application/use-cases/delete-assets.use-case';
 import { CreateFolderUseCase } from './application/use-cases/create-folder.use-case';
 import { RenameFolderUseCase } from './application/use-cases/rename-folder.use-case';
@@ -30,6 +31,7 @@ import { UploadAssetController } from './http/controllers/upload-asset.controlle
 import { ListAssetsController } from './http/controllers/list-assets.controller';
 import { DownloadAssetController } from './http/controllers/download-asset.controller';
 import { UpdateAssetController } from './http/controllers/update-asset.controller';
+import { DuplicateAssetController } from './http/controllers/duplicate-asset.controller';
 import { DeleteAssetsController } from './http/controllers/delete-assets.controller';
 
 /** Options `MediaModule.forRoot` binds into DI. */
@@ -68,6 +70,7 @@ export class MediaModule {
                 ListAssetsController,
                 DownloadAssetController,
                 UpdateAssetController,
+                DuplicateAssetController,
                 DeleteAssetsController
             ],
             providers: [
@@ -88,6 +91,7 @@ export class MediaModule {
                 // Application use cases.
                 UploadAssetUseCase,
                 UpdateAssetUseCase,
+                DuplicateAssetUseCase,
                 DeleteAssetsUseCase,
                 CreateFolderUseCase,
                 RenameFolderUseCase,

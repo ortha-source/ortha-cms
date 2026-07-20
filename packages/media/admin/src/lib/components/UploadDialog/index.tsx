@@ -11,7 +11,6 @@ import {
     cn
 } from '@ortha-cms/design-system';
 import { UploadCloud, X } from 'lucide-react';
-import type { UploadInput } from '../../hooks/useMediaLibrary';
 import { formatBytes } from '../../utils/formatBytes';
 
 /** Intl descriptors for {@link UploadDialog}, co-located. */
@@ -45,9 +44,9 @@ const messages = defineMessages({
 
 /**
  * The upload modal — a drag-and-drop zone plus a file picker that stages the
- * chosen files into a removable list before committing. This is a **mockup**: on
- * confirm the parent's `onUpload` synthesises assets from the file metadata (no
- * bytes leave the browser). Staged files reset whenever the dialog reopens.
+ * chosen files into a removable list before committing. On confirm the parent's
+ * `onUpload` receives the real `File` objects, which the data layer streams to
+ * the media API. Staged files reset whenever the dialog reopens.
  */
 export function UploadDialog({
     open,
@@ -59,11 +58,11 @@ export function UploadDialog({
     onOpenChange: (open: boolean) => void;
     /** Human name of the destination folder (e.g. "All media"). */
     locationLabel: string;
-    onUpload: (files: UploadInput[]) => void;
+    onUpload: (files: File[]) => void;
 }) {
     const intl = useIntl();
     const inputRef = useRef<HTMLInputElement>(null);
-    const [staged, setStaged] = useState<UploadInput[]>([]);
+    const [staged, setStaged] = useState<File[]>([]);
     const [dragging, setDragging] = useState(false);
 
     useEffect(() => {
@@ -75,12 +74,7 @@ export function UploadDialog({
 
     const addFiles = (files: FileList | null) => {
         if (!files) return;
-        const next = Array.from(files).map((file) => ({
-            name: file.name,
-            size: file.size,
-            type: file.type
-        }));
-        setStaged((prev) => [...prev, ...next]);
+        setStaged((prev) => [...prev, ...Array.from(files)]);
     };
 
     const removeAt = (index: number) => {
