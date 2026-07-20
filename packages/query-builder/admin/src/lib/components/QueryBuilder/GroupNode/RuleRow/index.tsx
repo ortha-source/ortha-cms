@@ -97,9 +97,15 @@ export function RuleRow({
     renderRelationValue
 }: RuleRowProps) {
     const intl = useIntl();
-    const field = fields.find((f) => f.id === rule.fieldId) ?? fields[0];
-    const ops = OPS_FOR_TYPE[field.type];
-    const errorCode = showErrors ? validateRule(rule, field) : null;
+    // `field` can be undefined when `fields` is still loading (the panel mounts
+    // and renders URL-restored rules before `useFilterFields` resolves) or when
+    // a saved rule references a field no longer offered. Guard the operator /
+    // value editors, which need the field's type; the field cell still renders
+    // so the user can re-pick.
+    const field: FilterField | undefined =
+        fields.find((f) => f.id === rule.fieldId) ?? fields[0];
+    const ops = field ? OPS_FOR_TYPE[field.type] : [];
+    const errorCode = field && showErrors ? validateRule(rule, field) : null;
     const errorId = useId();
 
     return (
@@ -127,16 +133,18 @@ export function RuleRow({
                         }}
                     />
                 </div>
-                <div className="min-w-[7rem] flex-1 basis-0">
-                    <OperatorPicker
-                        ops={ops}
-                        value={rule.op}
-                        onChange={(op: OpId) =>
-                            onUpdate({ op, value: defaultValueForOp(op) })
-                        }
-                    />
-                </div>
-                {rule.op !== OP.IsEmpty && (
+                {field && (
+                    <div className="min-w-[7rem] flex-1 basis-0">
+                        <OperatorPicker
+                            ops={ops}
+                            value={rule.op}
+                            onChange={(op: OpId) =>
+                                onUpdate({ op, value: defaultValueForOp(op) })
+                            }
+                        />
+                    </div>
+                )}
+                {field && rule.op !== OP.IsEmpty && (
                     <div className="min-w-[8rem] flex-[1.5] basis-0">
                         <ValueEditor
                             field={field}
