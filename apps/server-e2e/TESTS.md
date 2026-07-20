@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_276 test cases across 26 spec files._
+_286 test cases across 27 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -354,6 +354,41 @@ _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
 | 400s a request with no X-Workspace-Id header |
 | 400s a malformed (non-UUID) X-Workspace-Id header |
 | 403s a workspace the user is not a member of |
+
+<!-- source: apps/server-e2e/src/server/content/relation-preview.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/relation-preview.spec.ts</sub>_
+
+## Content relation preview (GET /api/content/:typeName?relations=preview)
+
+### opt-in
+
+| Test case |
+| --- |
+| omits `relations` entirely when not requested |
+| omits `relations` when `relations=preview` names no fields |
+| previews only the named fields, so a hidden column costs nothing |
+| drops unknown field names instead of failing the request |
+
+### storage forms
+
+| Test case |
+| --- |
+| resolves an owning single relation (many-to-one) to a titled ref |
+| resolves an owning many-to-many, ordered by position |
+| resolves the inverse side of a many-to-many |
+
+### the page cap
+
+| Test case |
+| --- |
+| caps items at one page but reports the true total |
+| continues from the preview on the paginated per-field route |
+
+### batching
+
+| Test case |
+| --- |
+| issues the same number of queries for a 1-row and a 5-row page |
 
 <!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
