@@ -24,6 +24,20 @@ export interface EntryRecord {
     updatedAt: string;
     /** Field values, keyed by field name. */
     values: Record<string, unknown>;
+    /**
+     * A capped **preview** of this entry's relation links, keyed by relation
+     * field name — present only when the caller opts in with
+     * `?relations=preview&relationFields=<names>` (the records table, for its
+     * visible relation columns). Each field carries at most one page of refs
+     * plus its true `total`, so a record with thousands of links contributes one
+     * page here; the table's dropdown pages through the rest via
+     * `GET /content/:type/:id/relations/:field`.
+     *
+     * Additive to {@link values}, never a replacement: an owning single
+     * relation still passes through `values` as its raw FK, which is what a save
+     * submits back.
+     */
+    relations?: Record<string, RelationFieldView>;
 }
 
 /** The paginated envelope, matching the admin list-page convention. */

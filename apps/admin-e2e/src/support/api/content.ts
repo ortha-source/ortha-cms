@@ -654,6 +654,17 @@ interface ContentEntriesOptions {
      * serve recognizable candidate titles (see {@link RELATIONS_ENTRIES_SEED}).
      */
     entries?: Record<string, EntryRecord[]>;
+    /**
+     * Capped relation previews per type, keyed `typeName → fieldName →
+     * { items, total }`, applied to every row of that type. Served **only** when
+     * the request opts in with `?relations=preview`, and narrowed to the
+     * `?relationFields=` list — mirroring the server, so a suite can assert the
+     * opt-in and the visible-columns scoping, not just the happy path.
+     */
+    relationPreviews?: Record<
+        string,
+        Record<string, { items: RelationRefSeed[]; total: number }>
+    >;
     /** Response status; use a 5xx to exercise the error state. */
     status?: number;
 }
@@ -671,6 +682,7 @@ export async function mockContentEntries(
     {
         details = CONTENT_DETAIL_SEED,
         entries,
+        relationPreviews,
         status = 200
     }: ContentEntriesOptions = {}
 ): Promise<void> {
@@ -712,12 +724,28 @@ export async function mockContentEntries(
             : all;
         const sorted = applySort(searched, sort);
         const start = (pageNum - 1) * pageSize;
+        let items = sorted.slice(start, start + pageSize);
+
+        // Opt-in relation preview, narrowed to the requested fields — the
+        // server attaches nothing without both params.
+        const previews = relationPreviews?.[name];
+        const wanted = (params.get('relationFields') ?? '')
+            .split(',')
+            .filter(Boolean);
+        if (params.get('relations') === 'preview' && previews && wanted.length) {
+            const scoped = Object.fromEntries(
+                Object.entries(previews).filter(([field]) =>
+                    wanted.includes(field)
+                )
+            );
+            items = items.map((row) => ({ ...row, relations: scoped }));
+        }
 
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
             body: JSON.stringify({
-                items: sorted.slice(start, start + pageSize),
+                items,
                 total: sorted.length,
                 page: pageNum,
                 pageSize
@@ -727,9 +755,15 @@ export async function mockContentEntries(
 }
 
 /** A linked record on a relation field, as the relations read returns it. */
-interface RelationRefSeed {
+export interface RelationRefSeed {
     id: string;
     title: string;
+    /**
+     * The target's slug-field value, which the admin renders as the muted
+     * `/handle` beside the title (falling back to a slugified title when
+     * absent) — mirrors the server's `RelationRef.slug`.
+     */
+    slug?: string;
     status?: 'draft' | 'published';
 }
 
@@ -775,6 +809,55 @@ export async function mockEntryRelations(
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({ relations: view })
+            });
+        }
+    );
+}
+
+interface RelationFieldLinksOptions {
+    /**
+     * The full link set per `"<typeName>/<fieldName>"` — served to every row of
+     * that type (a spec rarely needs per-row link sets, and this keeps the seed
+     * independent of generated entry ids). The handler paginates it with the
+     * request's `?page=` / `?pageSize=`, exactly as the server does.
+     */
+    links?: Record<string, RelationRefSeed[]>;
+}
+
+/**
+ * Stub `GET /api/content/:name/:id/relations/:field` — the **paginated
+ * per-field** links read that backs the records table's relation dropdown (and
+ * the editor's infinite scroll). Distinct from {@link mockEntryRelations},
+ * whose route stops at `/relations` and so never matches this deeper path.
+ *
+ * A relation dropdown opens on the list's capped preview and then loads this to
+ * page beyond it, so a suite asserting anything past the first page needs this
+ * registered.
+ */
+export async function mockRelationFieldLinks(
+    page: Page,
+    { links = {} }: RelationFieldLinksOptions = {}
+): Promise<void> {
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+\/relations\/[^/?]+(\?.*)?$/,
+        async (route) => {
+            const url = new URL(route.request().url());
+            const parts = url.pathname.split('/').filter(Boolean);
+            // ['api','content',name,id,'relations',field]
+            const key = `${decodeURIComponent(
+                parts[2] ?? ''
+            )}/${decodeURIComponent(parts[5] ?? '')}`;
+            const all = links[key] ?? [];
+            const pageNum = Number(url.searchParams.get('page') ?? '1');
+            const pageSize = Number(url.searchParams.get('pageSize') ?? '20');
+            const start = (pageNum - 1) * pageSize;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    items: all.slice(start, start + pageSize),
+                    total: all.length
+                })
             });
         }
     );

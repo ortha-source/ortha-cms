@@ -119,6 +119,18 @@ export type EntryRecord = {
     updatedAt: string;
     /** Field values, keyed by field name. */
     values: Record<string, unknown>;
+    /**
+     * A capped **preview** of this row's relation links, keyed by relation field
+     * name — served only when the list opts in (`relations: 'preview'` plus the
+     * visible `relationFields`), which the records table does and the relation
+     * picker deliberately does not.
+     *
+     * Each field carries one page of refs plus its true `total`, so the cell can
+     * render a titled summary immediately; the dropdown pages through anything
+     * beyond that page via `useRelationFieldLinks`. Additive to {@link values},
+     * which still carries an owning single relation's raw FK.
+     */
+    relations?: Record<string, RelationFieldView>;
 };
 
 /**

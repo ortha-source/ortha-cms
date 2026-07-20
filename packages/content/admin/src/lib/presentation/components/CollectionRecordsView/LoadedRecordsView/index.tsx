@@ -25,8 +25,10 @@ import type {
     ContentTypeDetail
 } from '../../../../domain/types/contentType';
 import {
+    COLUMN_KIND,
     CONTENT_CREATE,
     CONTENT_DELETE,
+    CONTENT_FIELD_TYPE,
     CONTENT_SEGMENT,
     DEFAULT_PAGE_SIZE,
     NEW_SEGMENT,
@@ -251,6 +253,22 @@ export function LoadedRecordsView({
     );
     const ruleCount = countRules(appliedFilter);
 
+    // Ask the server to expand only the relation columns actually on screen, so
+    // hiding one stops it being resolved. Empty when no relation column is
+    // visible — the list then carries no relation cost at all.
+    const relationFields = useMemo(
+        () =>
+            visibleColumns
+                .filter(
+                    (column) =>
+                        column.kind === COLUMN_KIND.Field &&
+                        column.field.type === CONTENT_FIELD_TYPE.Relation
+                )
+                .map((column) => column.id)
+                .join(','),
+        [visibleColumns]
+    );
+
     const { data, isPending, isError, isPlaceholderData, refetch } =
         useContentEntries(schema, {
             search: searchParam || undefined,
@@ -259,6 +277,9 @@ export function LoadedRecordsView({
             page,
             pageSize,
             deleted: trashed ? 'only' : undefined,
+            ...(relationFields
+                ? { relations: 'preview' as const, relationFields }
+                : {}),
             ...(slotParamKeys.length ? { extra: slotParams } : {})
         });
 
@@ -485,6 +506,7 @@ export function LoadedRecordsView({
                         extensionData={extensionData}
                         typePath={typePath}
                         typeName={type.name}
+                        workspaceId={workspace.id}
                         publishable={publishable}
                         paranoid={paranoid}
                         trashed={trashed}

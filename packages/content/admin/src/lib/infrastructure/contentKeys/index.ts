@@ -22,6 +22,19 @@ export type ContentEntriesParams = {
     /** `only` lists soft-deleted rows (the trash view) instead of live ones. */
     deleted?: 'only';
     /**
+     * `preview` asks the server to include a capped relation preview per row.
+     * Opt-in: the records table sets it, the relation **picker** (which reuses
+     * this endpoint for candidates) deliberately does not, so a keystroke there
+     * never pays for relation expansion.
+     */
+    relations?: 'preview';
+    /**
+     * Comma-separated relation field names to preview — the table's **visible**
+     * relation columns, so hiding a relation column stops the server resolving
+     * it. Rides the query key, so showing a column refetches with it included.
+     */
+    relationFields?: string;
+    /**
      * Slot-contributed list params (e.g. `?locale=` from the records-toolbar
      * slot), forwarded to the request verbatim. Part of this object, so they ride
      * the query key — two param sets never share a cache entry.

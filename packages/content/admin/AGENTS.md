@@ -132,6 +132,27 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   component state (a `Set<string>` by id)
   in `CollectionRecordsView`, surfaced through the table's leading checkbox column
   and the `CollectionRecordsSelectionBar`.
+- **Relation columns** render a **`RelationCell`** — a titled trigger (the first
+  linked record + a `+N` overflow) opening a `Popover` of the linked records,
+  each an `<a target="_blank">` to that record's own editor
+  (`domain/contentEntryPath`) with its muted `/handle`. Never the raw FK id.
+  Loading is **two-tier**: the list response carries a capped `relations`
+  preview (requested via `relations: 'preview'` + `relationFields`, derived from
+  the **visible** relation columns, so hiding one stops the server resolving
+  it), which renders the collapsed cell and the popover's first view at **no
+  extra request**; opening a many/inverse relation then scroll-paginates the
+  rest through `useRelationFieldLinks`
+  (`GET …/relations/:field`) — the same infinite scroll the editor uses, with the
+  same `onScroll` threshold. So a record with thousands of links never loads
+  whole. The paginating half lives in the nested **`RelationCellList`**, mounted
+  only while the popover is open, so a table of relation cells registers no idle
+  queries; a single relation skips the query entirely (its preview is the whole
+  story). Two structural rules the table enforces for these cells: they are
+  **excluded from the first column's row `<Link>`** (an `<a>` inside an `<a>` is
+  invalid) and they `stopPropagation` so a click doesn't fire the row's
+  navigation. Relation headers render **non-sortable** — the server's sort
+  whitelist excludes relations, so a click would silently fall back to
+  `updatedAt`.
 - Column **order and visibility** are both chosen in
   `CollectionRecordsColumnPicker` — a `Popover` (not a `DropdownMenu`, whose menu
   semantics fight dnd-kit's keyboard sensor) listing visible columns first as

@@ -1,0 +1,198 @@
+import { test, expect } from '../support/fixtures';
+import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces } from '../support/api/workspaces';
+import {
+    RELATIONS_WORKSPACE,
+    RELATIONS_SCHEMA_SEED,
+    RELATIONS_DETAIL_SEED,
+    RELATIONS_ENTRIES_SEED,
+    mockContentSchema,
+    mockContentSchemaDetail,
+    mockContentEntries,
+    mockRelationFieldLinks,
+    type RelationRefSeed
+} from '../support/api/content';
+import { expectNoA11yViolations } from '../support/a11y';
+
+/** One field's preview, as the list serves it. */
+type PreviewSeed = { items: RelationRefSeed[]; total: number };
+
+/** Capped preview for the many-relation: 2 of 7 links, as the server sends it. */
+const TAGS_PREVIEW: PreviewSeed = {
+    items: [
+        {
+            id: 'tag-1',
+            title: 'engineering',
+            slug: 'engineering',
+            status: 'published'
+        },
+        { id: 'tag-2', title: 'design', slug: 'design' }
+    ],
+    total: 7
+};
+
+/**
+ * The full link set the paginated per-field route serves — the preview's two
+ * plus five the dropdown only reaches by loading page 1 of the live query.
+ */
+const TAGS_LINKS: RelationRefSeed[] = [
+    ...TAGS_PREVIEW.items,
+    { id: 'tag-3', title: 'testing', slug: 'testing' },
+    { id: 'tag-4', title: 'accessibility', slug: 'a11y' },
+    { id: 'tag-5', title: 'performance', slug: 'perf' },
+    { id: 'tag-6', title: 'security', slug: 'security' },
+    { id: 'tag-7', title: 'tooling', slug: 'tooling' }
+];
+
+/** The single relation resolves to exactly one titled ref. */
+const AUTHOR_PREVIEW: PreviewSeed = {
+    items: [{ id: 'author-1', title: 'Ada Lovelace' }],
+    total: 1
+};
+
+/** The records-table URL for the relations suite's `article` collection. */
+const ARTICLES_URL = `/workspaces/${RELATIONS_WORKSPACE.id}/content/article`;
+
+/**
+ * Relation **columns in the records table** (from `@ortha-cms/content-admin`):
+ * a relation cell renders its linked records as a titled dropdown of links to
+ * those records, rather than the raw FK id the values bag carries.
+ *
+ * The rows' `relations` previews are served by the list mock exactly as the
+ * server does — only when the request opts in with `?relations=preview` and
+ * names the field — so these tests cover the opt-in wiring too, not just the
+ * rendering.
+ */
+test.describe('Relation cells (records table)', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page, [RELATIONS_WORKSPACE]);
+        await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
+        await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED,
+            relationPreviews: {
+                article: { tags: TAGS_PREVIEW, author: AUTHOR_PREVIEW }
+            }
+        });
+        await mockRelationFieldLinks(page, {
+            links: { 'article/tags': TAGS_LINKS }
+        });
+    });
+
+    test('shows the first linked title with a +N overflow, not an id', async ({
+        page
+    }) => {
+        await page.goto(ARTICLES_URL);
+
+        const trigger = page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first();
+        await expect(trigger).toBeVisible();
+        // The first ref's title, plus the remaining 6 as an overflow badge.
+        await expect(trigger).toContainText('engineering');
+        await expect(trigger).toContainText('+6');
+
+        // A single relation renders its one title (never the FK uuid).
+        await expect(
+            page
+                .getByRole('button', { name: /Show 1 linked record for Author/ })
+                .first()
+        ).toContainText('Ada Lovelace');
+    });
+
+    test('opens a dropdown of links to each related record', async ({
+        page
+    }) => {
+        await page.goto(ARTICLES_URL);
+        await page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first()
+            .click();
+
+        const link = page.getByRole('link', {
+            name: 'Open engineering in a new tab'
+        });
+        await expect(link).toBeVisible();
+        // Deep-links to that record's own editor, in a new tab.
+        await expect(link).toHaveAttribute(
+            'href',
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/tag/tag-1`
+        );
+        await expect(link).toHaveAttribute('target', '_blank');
+        // The muted `/handle` comes from the target's slug.
+        await expect(link).toContainText('/engineering');
+
+        // The true total is surfaced whether the preview or the live page is
+        // showing (both report 7).
+        await expect(
+            page.getByRole('link', { name: 'Open design in a new tab' })
+        ).toBeVisible();
+        await expect(page.getByText(/of 7/)).toBeVisible();
+    });
+
+    test('loads past the preview once opened', async ({ page }) => {
+        await page.goto(ARTICLES_URL);
+        await page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first()
+            .click();
+
+        // `testing` is absent from the capped preview — it can only appear once
+        // the dropdown's own paginated query has loaded, which is the second
+        // tier doing its job.
+        await expect(
+            page.getByRole('link', { name: 'Open testing in a new tab' })
+        ).toBeVisible();
+        await expect(page.getByText('7 of 7')).toBeVisible();
+    });
+
+    test('opening the dropdown does not navigate the row', async ({ page }) => {
+        await page.goto(ARTICLES_URL);
+        await page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first()
+            .click();
+
+        await expect(
+            page.getByRole('link', { name: 'Open engineering in a new tab' })
+        ).toBeVisible();
+        // The row navigates to the entry editor on click — the cell's own
+        // controls must not trigger it.
+        await expect(page).toHaveURL(new RegExp(`${ARTICLES_URL}$`));
+    });
+
+    test('renders an em-dash when a relation holds nothing', async ({
+        page
+    }) => {
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED,
+            // `seo` gets no preview at all — the empty case.
+            relationPreviews: { article: { tags: TAGS_PREVIEW } }
+        });
+        await page.goto(ARTICLES_URL);
+
+        await expect(
+            page.getByRole('button', { name: /Show .* linked record/ }).first()
+        ).toBeVisible();
+        // No trigger is rendered for a relation with no links.
+        await expect(
+            page.getByRole('button', { name: /linked record for Author/ })
+        ).toHaveCount(0);
+    });
+
+    test('the relation dropdown is accessible', async ({ page, makeAxe }) => {
+        await page.goto(ARTICLES_URL);
+        await page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first()
+            .click();
+        await expect(
+            page.getByRole('link', { name: 'Open engineering in a new tab' })
+        ).toBeVisible();
+
+        await expectNoA11yViolations(makeAxe());
+    });
+});

@@ -13,8 +13,13 @@ import {
 } from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../../domain/types/contentType';
 import type { EntryColumn } from '../../../../domain/entryColumns';
-import { COLUMN_KIND, ENTRY_STATUS } from '../../../../domain/constants';
+import {
+    COLUMN_KIND,
+    CONTENT_FIELD_TYPE,
+    ENTRY_STATUS
+} from '../../../../domain/constants';
 import { renderCell } from './renderCell';
+import { RelationCell } from './RelationCell';
 import { CollectionRecordsRowActions } from './CollectionRecordsRowActions';
 import { useColumnLabel } from '../../../hooks/useColumnLabel';
 
@@ -63,12 +68,27 @@ function rowLabel(record: EntryRecord, columns: EntryColumn[]): string {
     return record.id;
 }
 
+/**
+ * True for a column that renders its own interactive controls (buttons, links).
+ * Such a cell must never be wrapped in the row's `<Link>` — nesting an `<a>`
+ * inside an `<a>` is invalid HTML and breaks keyboard activation.
+ */
+function isInteractiveColumn(column: EntryColumn): boolean {
+    return (
+        column.kind === COLUMN_KIND.Extension ||
+        (column.kind === COLUMN_KIND.Field &&
+            column.field.type === CONTENT_FIELD_TYPE.Relation)
+    );
+}
+
 /** The cell content for one column of one record. */
 function Cell({
     column,
     record,
     extensionData,
-    typePath
+    typePath,
+    typeName,
+    workspaceId
 }: {
     column: EntryColumn;
     record: EntryRecord;
@@ -76,6 +96,10 @@ function Cell({
     extensionData: Record<string, unknown>;
     /** Absolute path to the open type, for extension cells that navigate. */
     typePath: string;
+    /** Machine name of the open type (relation cells query links by it). */
+    typeName: string;
+    /** Open workspace, for a relation cell's deep links. */
+    workspaceId: string;
 }) {
     const intl = useIntl();
     switch (column.kind) {
@@ -106,6 +130,18 @@ function Cell({
                 />
             );
         case COLUMN_KIND.Field:
+            // A relation renders a dropdown of its linked records rather than
+            // the raw FK the values bag carries.
+            if (column.field.type === CONTENT_FIELD_TYPE.Relation)
+                return (
+                    <RelationCell
+                        field={column.field}
+                        preview={record.relations?.[column.id]}
+                        typeName={typeName}
+                        recordId={record.id}
+                        workspaceId={workspaceId}
+                    />
+                );
             return (
                 <>{renderCell(column.field, record.values[column.id], intl)}</>
             );
@@ -129,6 +165,7 @@ export function CollectionRecordsTable({
     extensionData = {},
     typePath,
     typeName,
+    workspaceId,
     publishable,
     paranoid,
     trashed = false,
@@ -150,6 +187,8 @@ export function CollectionRecordsTable({
     typePath: string;
     /** The content type's machine name (for the row action mutations). */
     typeName: string;
+    /** Open workspace id, for a relation cell's deep links to related records. */
+    workspaceId: string;
     /** Whether the type has a publish workflow (drives the row Publish/Unpublish action). */
     publishable: boolean;
     /** Whether the type soft-deletes (drives the row delete copy + Restore). */
@@ -205,9 +244,12 @@ export function CollectionRecordsTable({
                                     : 'descending'
                                 : 'none';
                             const label = columnLabel(column);
-                            // Extension columns aren't in the server's sort
-                            // whitelist — render a plain, non-sortable header.
-                            if (column.kind === COLUMN_KIND.Extension) {
+                            // Neither extension columns nor relations are in the
+                            // server's sort whitelist (a relation column holds
+                            // an FK or no column at all, so a sort would
+                            // silently fall back to `updatedAt`) — render a
+                            // plain, non-sortable header.
+                            if (isInteractiveColumn(column)) {
                                 return (
                                     <TableHead key={column.id} scope="col">
                                         {label}
@@ -289,48 +331,52 @@ export function CollectionRecordsTable({
                                         )}
                                     />
                                 </TableCell>
-                                {columns.map((column, index) => (
-                                    <TableCell
-                                        key={column.id}
-                                        // Extension cells own their clicks
-                                        // (e.g. a badge navigating to a
-                                        // sibling record) — don't let the row
-                                        // navigation swallow them.
-                                        onClick={
-                                            column.kind ===
-                                            COLUMN_KIND.Extension
-                                                ? (event) =>
-                                                      event.stopPropagation()
-                                                : undefined
-                                        }
-                                    >
-                                        {index === 0 && !trashed ? (
-                                            <Link
-                                                to={`${typePath}/${record.id}`}
-                                                className="block hover:underline"
-                                                onClick={(event) =>
-                                                    event.stopPropagation()
-                                                }
-                                            >
-                                                <Cell
-                                                    column={column}
-                                                    record={record}
-                                                    extensionData={
-                                                        extensionData
+                                {columns.map((column, index) => {
+                                    const interactive =
+                                        isInteractiveColumn(column);
+                                    const cell = (
+                                        <Cell
+                                            column={column}
+                                            record={record}
+                                            extensionData={extensionData}
+                                            typePath={typePath}
+                                            typeName={typeName}
+                                            workspaceId={workspaceId}
+                                        />
+                                    );
+                                    return (
+                                        <TableCell
+                                            key={column.id}
+                                            // Interactive cells own their clicks
+                                            // (an extension badge navigating to
+                                            // a sibling record, a relation
+                                            // dropdown) — don't let the row
+                                            // navigation swallow them.
+                                            onClick={
+                                                interactive
+                                                    ? (event) =>
+                                                          event.stopPropagation()
+                                                    : undefined
+                                            }
+                                        >
+                                            {index === 0 &&
+                                            !trashed &&
+                                            !interactive ? (
+                                                <Link
+                                                    to={`${typePath}/${record.id}`}
+                                                    className="block hover:underline"
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
                                                     }
-                                                    typePath={typePath}
-                                                />
-                                            </Link>
-                                        ) : (
-                                            <Cell
-                                                column={column}
-                                                record={record}
-                                                extensionData={extensionData}
-                                                typePath={typePath}
-                                            />
-                                        )}
-                                    </TableCell>
-                                ))}
+                                                >
+                                                    {cell}
+                                                </Link>
+                                            ) : (
+                                                cell
+                                            )}
+                                        </TableCell>
+                                    );
+                                })}
                                 {/* Row actions — stop propagation so opening the
                                     menu doesn't trigger the row's navigation. */}
                                 <TableCell
