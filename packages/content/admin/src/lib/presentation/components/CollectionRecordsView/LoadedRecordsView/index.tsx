@@ -265,6 +265,11 @@ export function LoadedRecordsView({
                         column.field.type === CONTENT_FIELD_TYPE.Relation
                 )
                 .map((column) => column.id)
+                // Sorted so a pure reorder doesn't mint a new query key: the
+                // server resolves a *set* of fields, and display order is not
+                // part of that request. Unsorted, dragging one relation column
+                // past another would refetch the whole page for a visual change.
+                .sort()
                 .join(','),
         [visibleColumns]
     );
@@ -358,7 +363,11 @@ export function LoadedRecordsView({
                 )}
                 actions={
                     trashed ? (
-                        <Button variant="outline" className="shadow-none" asChild>
+                        <Button
+                            variant="outline"
+                            className="shadow-none"
+                            asChild
+                        >
                             <Link to={typePath}>
                                 <ArrowLeft />
                                 {intl.formatMessage(messages.backToRecords)}
@@ -515,6 +524,7 @@ export function LoadedRecordsView({
                         onTogglePage={setPageSelection}
                         sort={sort}
                         onSort={handleSort}
+                        relationsPending={isPlaceholderData}
                     />
                     <CollectionRecordsPagination
                         page={page}

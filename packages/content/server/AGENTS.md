@@ -225,8 +225,12 @@ global).
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
     - `GET /content/:typeName/:id/relations` — every relation field's **first
       page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
-      `RelationRef = { id, title, slug?, status? }`), for owning single/many
-      **and** inverse back-references. `slug` is the target's slug-field value —
+      `RelationRef = { id, title, slug?, status?, missing? }`), for owning single/many
+      **and** inverse back-references. A link whose target can't be resolved
+      (soft-deleted, or outside the workspace) still yields a ref — id-only and
+      flagged **`missing: true`**, so `items` never runs shorter than `total` —
+      and the admin renders it as an unavailable record rather than printing the
+      raw id. `slug` is the target's slug-field value —
       the field flagged `admin.widget === 'slug'`, else one literally named
       `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
       one and the row's slug is non-empty; the admin renders it as a `/handle`.

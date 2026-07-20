@@ -68,6 +68,13 @@ export interface RelationRef {
     slug?: string;
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
+    /**
+     * The link exists but its target row could not be resolved — soft-deleted,
+     * or outside the workspace. `title` then stands in as the raw id, which is
+     * not displayable, so the ref is flagged and the admin renders it as an
+     * unavailable record instead of printing an FK.
+     */
+    missing?: true;
 }
 
 /**

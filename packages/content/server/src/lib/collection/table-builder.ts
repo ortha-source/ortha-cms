@@ -218,6 +218,26 @@ export function buildTables(
         const indexes = [
             index(listIndexName).on(listColumns[0], ...listColumns.slice(1))
         ];
+        // Each owning single relation's FK. The *inverse* of such a relation is
+        // read by filtering this column (`inArray(fk, sourceIds)` in
+        // `RelationLinkService.previewInverse`), which the records table now
+        // runs for a whole page on every render — unindexed that is a sequential
+        // scan of the collection per keystroke, sort click and page change.
+        // `unique: true` already implies an index, so skip those.
+        for (const [fieldName, spec] of Object.entries(fields)) {
+            if (spec.type !== CONTENT_FIELD_TYPE.Relation) continue;
+            if (
+                spec.relation?.many ||
+                spec.relation?.inverse ||
+                spec.relation?.unique
+            )
+                continue;
+            const fk = cols[fieldName];
+            if (!fk) continue;
+            indexes.push(
+                index(`${tableName}_${snakeCase(fieldName)}_id_idx`).on(fk)
+            );
+        }
         if (meta.i18n) {
             // One row per (group, locale). Partial on paranoid types so a
             // soft-deleted sibling never blocks re-creating that locale —

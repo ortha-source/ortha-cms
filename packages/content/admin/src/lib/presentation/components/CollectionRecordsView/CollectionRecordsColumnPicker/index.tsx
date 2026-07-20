@@ -72,6 +72,11 @@ const messages = defineMessages({
     searchEmpty: {
         id: 'content.records.columns.searchEmpty',
         defaultMessage: 'No column found.'
+    },
+    searchResults: {
+        id: 'content.records.columns.searchResults',
+        defaultMessage:
+            '{count, plural, =0 {No columns found} one {# column} other {# columns}}'
     }
 });
 
@@ -233,6 +238,17 @@ export function CollectionRecordsColumnPicker({
                     aria-label={intl.formatMessage(messages.searchLabel)}
                     className="mb-1 h-8 rounded-lg shadow-none"
                 />
+                {/* Filtering is instant and otherwise silent — without this a
+                    screen-reader user types and hears nothing back, neither a
+                    result count nor the empty state. */}
+                <p aria-live="polite" className="sr-only">
+                    {searching
+                        ? intl.formatMessage(messages.searchResults, {
+                              count:
+                                  visibleColumns.length + hiddenColumns.length
+                          })
+                        : ''}
+                </p>
                 {/* Only the list scrolls, so the search box stays put. */}
                 <div className="max-h-72 overflow-y-auto">
                     {noMatches ? (

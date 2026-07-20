@@ -87,7 +87,7 @@ test.describe('Relation cells (records table)', () => {
         await page.goto(ARTICLES_URL);
 
         const trigger = page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first();
         await expect(trigger).toBeVisible();
         // The first ref's title, plus the remaining 6 as an overflow badge.
@@ -97,7 +97,7 @@ test.describe('Relation cells (records table)', () => {
         // A single relation renders its one title (never the FK uuid).
         await expect(
             page
-                .getByRole('button', { name: /Show 1 linked record for Author/ })
+                .getByRole('button', { name: /Author, show linked records/ })
                 .first()
         ).toContainText('Ada Lovelace');
     });
@@ -107,7 +107,7 @@ test.describe('Relation cells (records table)', () => {
     }) => {
         await page.goto(ARTICLES_URL);
         await page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first()
             .click();
 
@@ -135,7 +135,7 @@ test.describe('Relation cells (records table)', () => {
     test('loads past the preview once opened', async ({ page }) => {
         await page.goto(ARTICLES_URL);
         await page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first()
             .click();
 
@@ -151,7 +151,7 @@ test.describe('Relation cells (records table)', () => {
     test('opening the dropdown does not navigate the row', async ({ page }) => {
         await page.goto(ARTICLES_URL);
         await page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first()
             .click();
 
@@ -170,10 +170,10 @@ test.describe('Relation cells (records table)', () => {
         // Two relation cells in the SAME row (Author sits left of Tags), so
         // neither popover covers the other's trigger.
         const tags = page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first();
         const author = page
-            .getByRole('button', { name: /Show 1 linked record for Author/ })
+            .getByRole('button', { name: /Author, show linked records/ })
             .first();
         // A Radix popover's content is a dialog, so this counts open dropdowns.
         const openDropdowns = page.getByRole('dialog');
@@ -196,24 +196,36 @@ test.describe('Relation cells (records table)', () => {
         await mockContentEntries(page, {
             details: RELATIONS_DETAIL_SEED,
             entries: RELATIONS_ENTRIES_SEED,
-            // `seo` gets no preview at all — the empty case.
+            // `author` gets no preview at all — the empty case.
             relationPreviews: { article: { tags: TAGS_PREVIEW } }
         });
         await page.goto(ARTICLES_URL);
 
         await expect(
-            page.getByRole('button', { name: /Show .* linked record/ }).first()
+            page
+                .getByRole('button', { name: /Tags, show linked records/ })
+                .first()
         ).toBeVisible();
         // No trigger is rendered for a relation with no links.
         await expect(
-            page.getByRole('button', { name: /linked record for Author/ })
+            page.getByRole('button', { name: /Author, show linked records/ })
         ).toHaveCount(0);
+        // …and the cell is not merely blank: it renders the em-dash placeholder
+        // with a screen-reader-only explanation, so the absence is announced
+        // rather than silent. Without these the test would pass on an empty
+        // `<td>` — i.e. on the cell failing to render at all.
+        const emptyCell = page
+            .getByRole('cell')
+            .filter({ hasText: 'No linked records' })
+            .first();
+        await expect(emptyCell).toContainText('—');
+        await expect(emptyCell).toContainText('No linked records');
     });
 
     test('the dropdown animates on open', async ({ page }) => {
         await page.goto(ARTICLES_URL);
         await page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first()
             .click();
 
@@ -246,7 +258,7 @@ test.describe('Relation cells (records table)', () => {
     test('the relation dropdown is accessible', async ({ page, makeAxe }) => {
         await page.goto(ARTICLES_URL);
         await page
-            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .getByRole('button', { name: /Tags, show linked records/ })
             .first()
             .click();
         await expect(

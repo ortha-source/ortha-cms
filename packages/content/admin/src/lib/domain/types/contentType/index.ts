@@ -152,6 +152,13 @@ export type RelationRef = {
     slug?: string;
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
+    /**
+     * The link exists but its target could not be resolved — soft-deleted, or
+     * outside the open workspace. The server then sends an id-only ref (`title`
+     * stands in as the raw id), so the UI must render it as unavailable rather
+     * than printing that id. Mirrors the server's `RelationRef.missing`.
+     */
+    missing?: true;
 };
 
 /**
@@ -214,8 +221,7 @@ export type EntryValidationIssue = {
 };
 
 /** Per-entry verdict kind in a bulk-publish dry run — mirror of the server. */
-export type BulkVerdictKind =
-    (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
+export type BulkVerdictKind = (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
 
 /**
  * One field's publish-gate check on a record — pass/fail (and the message when

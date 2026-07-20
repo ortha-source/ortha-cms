@@ -135,7 +135,10 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
 - **Relation columns** render a **`RelationCell`** — a titled trigger (the first
   linked record + a `+N` overflow) opening a `Popover` of the linked records,
   each an `<a target="_blank">` to that record's own editor
-  (`domain/contentEntryPath`) with its muted `/handle`. Never the raw FK id.
+  (`domain/contentEntryPath`) with its muted `/handle`. Never the raw FK id — a
+  ref the server flags `missing` (its target soft-deleted or out of workspace)
+  renders as "Unavailable record" and carries no link, since its `title` is only
+  the id standing in.
   Loading is **two-tier**: the list response carries a capped `relations`
   preview (requested via `relations: 'preview'` + `relationFields`, derived from
   the **visible** relation columns, so hiding one stops the server resolving

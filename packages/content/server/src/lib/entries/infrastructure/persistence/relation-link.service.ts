@@ -40,6 +40,16 @@ type Row = Record<string, unknown>;
 export const RELATION_PAGE_SIZE = 20;
 
 /**
+ * How many relation fields a page preview resolves at once. `relationFields` is
+ * bounded in bytes but not in count, so a type with many relation columns could
+ * otherwise fan out one concurrent query per field — and each field takes a
+ * connection twice (its window query, then `refsFor`). The pool is small and
+ * app-wide, so cap the fan-out and let the remainder queue in-process rather
+ * than in the pool, where it would block unrelated requests.
+ */
+const PREVIEW_FIELD_CONCURRENCY = 3;
+
+/**
  * A private advisory-lock class (the first `pg_advisory_xact_lock` key)
  * namespacing the per-source append locks, so their hashed `<table>:<sourceId>`
  * keys can't collide with any other advisory lock the app takes (e.g. identity's
@@ -173,19 +183,31 @@ export class RelationLinkService {
         // concurrently rather than awaiting one before starting the next — a
         // table with several relation columns pays one field's latency, not
         // their sum (the same reasoning as `readAll`).
-        const views = await Promise.all(
-            specs.map(([name, spec]) =>
-                this.previewField(
-                    type,
-                    name,
-                    spec,
-                    rows,
-                    sourceIds,
-                    workspaceId,
-                    pageSize
-                )
-            )
-        );
+        //
+        // Bounded, though: the pool is small and shared app-wide, and each
+        // field holds a connection for its window query and then another for
+        // `refsFor`. A type with many relation columns would otherwise let a
+        // couple of list requests occupy every connection, queueing unrelated
+        // traffic behind a records table's previews.
+        const views: Map<string, RelationFieldView>[] = [];
+        for (let i = 0; i < specs.length; i += PREVIEW_FIELD_CONCURRENCY) {
+            const batch = specs.slice(i, i + PREVIEW_FIELD_CONCURRENCY);
+            views.push(
+                ...(await Promise.all(
+                    batch.map(([name, spec]) =>
+                        this.previewField(
+                            type,
+                            name,
+                            spec,
+                            rows,
+                            sourceIds,
+                            workspaceId,
+                            pageSize
+                        )
+                    )
+                ))
+            );
+        }
         specs.forEach(([name], index) => {
             for (const [sourceId, view] of views[index]) {
                 const bucket = out.get(sourceId);
@@ -259,11 +281,17 @@ export class RelationLinkService {
         );
         const refById = new Map(refs.map((ref) => [ref.id, ref]));
         for (const [sourceId, fk] of fkBySource) {
-            const ref = refById.get(fk);
-            // `total` counts the link, not whether its target resolved — a
-            // soft-deleted target still means the row *has* a relation, exactly
-            // as `readField` reports it.
-            out.set(sourceId, { items: ref ? [ref] : [], total: 1 });
+            // `refsFor` is total — it yields a ref for every id, id-only and
+            // flagged `missing` when the target is gone. So the link is always
+            // represented (`total` counts the link, not whether its target
+            // resolved, exactly as `readField` reports it), and it is the flag,
+            // not an absent item, that tells the UI the target is unavailable.
+            const ref: RelationRef = refById.get(fk) ?? {
+                id: fk,
+                title: fk,
+                missing: true
+            };
+            out.set(sourceId, { items: [ref], total: 1 });
         }
         return out;
     }
@@ -390,8 +418,14 @@ export class RelationLinkService {
                 view = { items: [], total: Number(row['total']) };
                 out.set(sourceId, view);
             }
-            const ref = refById.get(row[refKey] as string);
-            if (ref) view.items.push(ref);
+            // `refsFor` resolved every ranked id, so there is always a ref —
+            // id-only and flagged `missing` where the target is soft-deleted or
+            // out of workspace. Skipping it here would make `items` shorter
+            // than `total` and leave the cell showing a phantom `+N`.
+            const id = row[refKey] as string;
+            view.items.push(
+                refById.get(id) ?? { id, title: id, missing: true }
+            );
         }
         return out;
     }
@@ -442,9 +476,7 @@ export class RelationLinkService {
                     .from(join.table)
                     .where(eq(cols[join.ownCol], row['id']))
             ]);
-            const ids = (rows as Row[]).map(
-                (r) => r[join.refCol] as string
-            );
+            const ids = (rows as Row[]).map((r) => r[join.refCol] as string);
             return {
                 items: await this.refsFor(join.target, ids, workspaceId),
                 total: Number(total)
@@ -684,7 +716,9 @@ export class RelationLinkService {
                     and(
                         eq(cols[inverse.fkCol], row['id']),
                         eq(cols['workspaceId'], workspaceId),
-                        cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                        cols['deletedAt']
+                            ? isNull(cols['deletedAt'])
+                            : undefined
                     )
                 );
             return Number(total);
@@ -754,7 +788,13 @@ export class RelationLinkService {
         const byId = new Map(
             rows.map((row) => [row['id'] as string, this.rowToRef(target, row)])
         );
-        return ids.map((id) => byId.get(id) ?? { id, title: id });
+        // A ref is produced for *every* id, so a link is never silently
+        // dropped — `total` and `items` stay consistent. An id with no live row
+        // is flagged `missing` rather than passed off as a titled record: its
+        // `title` is only the raw id standing in, which the UI must not print.
+        return ids.map(
+            (id) => byId.get(id) ?? { id, title: id, missing: true as const }
+        );
     }
 
     /** Build a display ref from a full target row. */
@@ -852,7 +892,10 @@ export class RelationLinkService {
      * owns no writable link from this side.
      */
     private inversePlanFor(spec: AnyFieldSpec): InversePlan | null {
-        if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation?.inverse)
+        if (
+            spec.type !== CONTENT_FIELD_TYPE.Relation ||
+            !spec.relation?.inverse
+        )
             return null;
         const owner = spec.relation.to();
         const owningField = owner.fields[spec.relation.inverse.field];

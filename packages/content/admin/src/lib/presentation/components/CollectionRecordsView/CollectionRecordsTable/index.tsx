@@ -48,6 +48,10 @@ const messages = defineMessages({
     sortBy: {
         id: 'content.records.sortBy',
         defaultMessage: 'Sort by {column}'
+    },
+    openRecord: {
+        id: 'content.records.openRecord',
+        defaultMessage: 'Open {label}'
     }
 });
 
@@ -99,10 +103,13 @@ function Cell({
     typeName,
     workspaceId,
     openRelation,
-    onOpenRelation
+    onOpenRelation,
+    relationsPending
 }: {
     column: EntryColumn;
     record: EntryRecord;
+    /** Whether the rows on screen are placeholder data from a previous query. */
+    relationsPending: boolean;
     /** Per-item page data from the extension columns' `useRowsData`, by item id. */
     extensionData: Record<string, unknown>;
     /** Absolute path to the open type, for extension cells that navigate. */
@@ -158,6 +165,7 @@ function Cell({
                         workspaceId={workspaceId}
                         open={openRelation === key}
                         onOpenChange={(next) => onOpenRelation(key, next)}
+                        relationsPending={relationsPending}
                     />
                 );
             }
@@ -192,7 +200,8 @@ export function CollectionRecordsTable({
     onToggleRow,
     onTogglePage,
     sort,
-    onSort
+    onSort,
+    relationsPending = false
 }: {
     /** The content type's display label, for the table caption. */
     label: string;
@@ -224,28 +233,38 @@ export function CollectionRecordsTable({
     sort: TableSort;
     /** Cycle the sort on a column (asc → desc → off). */
     onSort: (columnId: string) => void;
+    /**
+     * Whether these rows are placeholder data from a previous query key, so a
+     * relation cell with no preview must not read as "no linked records".
+     */
+    relationsPending?: boolean;
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
     const columnLabel = useColumnLabel();
     // One open relation dropdown at a time (classic dropdown semantics): the
-    // table owns which cell is open, so opening one closes any other. Radix
-    // does not coordinate independent popovers, so per-cell state would let
-    // several stay open at once.
-    // Closing only clears the key when that cell is still the open one. Radix
-    // dismisses the previously-open popover *after* the click that opened the
-    // next one, so an unconditional clear on close would immediately wipe the
-    // cell the user just opened.
-    // One open relation dropdown at a time (classic dropdown semantics): the
     // table owns which cell is open, so opening one closes any other in the
-    // same update. A close only clears the key when that cell is still the open
-    // one, so a late dismissal can't wipe a cell that just opened.
+    // same update. Radix does not coordinate independent popovers, so per-cell
+    // state would let several stay open at once. A close only clears the key
+    // when that cell is still the open one — Radix dismisses the previously
+    // open popover *after* the click that opened the next, so an unconditional
+    // clear would immediately wipe the cell the user just opened.
     const [openRelation, setOpenRelation] = useState<string | null>(null);
     const handleOpenRelation = useCallback((key: string, next: boolean) => {
         setOpenRelation((current) =>
             next ? key : current === key ? null : current
         );
     }, []);
+
+    // Where the row's record link lives. It can't be a cell that renders its
+    // own interactive content (a relation dropdown, an extension badge) — an
+    // `<a>` inside an `<a>` is invalid and breaks keyboard activation — so it
+    // is the first column that *can* carry it, not simply the first column.
+    // Pinning it to index 0 would drop the link entirely whenever a relation
+    // sorts first, leaving keyboard users only the row-actions Edit item.
+    const linkColumnIndex = columns.findIndex(
+        (column) => !isInteractiveColumn(column)
+    );
 
     const pageIds = entries.map((record) => record.id);
     const allSelected =
@@ -352,7 +371,9 @@ export function CollectionRecordsTable({
                                                   `${typePath}/${record.id}`
                                               )
                                 }
-                                className={trashed ? undefined : 'cursor-pointer'}
+                                className={
+                                    trashed ? undefined : 'cursor-pointer'
+                                }
                             >
                                 <TableCell
                                     onClick={(event) => event.stopPropagation()}
@@ -367,6 +388,30 @@ export function CollectionRecordsTable({
                                             { label: rowLabel(record, columns) }
                                         )}
                                     />
+                                    {/* Every visible column renders its own
+                                        controls, so no cell can host the row's
+                                        link — keep one reachable here rather
+                                        than leaving the record openable only
+                                        through the row-actions menu. */}
+                                    {linkColumnIndex === -1 && !trashed ? (
+                                        <Link
+                                            to={`${typePath}/${record.id}`}
+                                            className="sr-only"
+                                            onClick={(event) =>
+                                                event.stopPropagation()
+                                            }
+                                        >
+                                            {intl.formatMessage(
+                                                messages.openRecord,
+                                                {
+                                                    label: rowLabel(
+                                                        record,
+                                                        columns
+                                                    )
+                                                }
+                                            )}
+                                        </Link>
+                                    ) : null}
                                 </TableCell>
                                 {columns.map((column, index) => {
                                     const interactive =
@@ -381,6 +426,7 @@ export function CollectionRecordsTable({
                                             workspaceId={workspaceId}
                                             openRelation={openRelation}
                                             onOpenRelation={handleOpenRelation}
+                                            relationsPending={relationsPending}
                                         />
                                     );
                                     return (
@@ -398,9 +444,8 @@ export function CollectionRecordsTable({
                                                     : undefined
                                             }
                                         >
-                                            {index === 0 &&
-                                            !trashed &&
-                                            !interactive ? (
+                                            {index === linkColumnIndex &&
+                                            !trashed ? (
                                                 <Link
                                                     to={`${typePath}/${record.id}`}
                                                     className="block hover:underline"

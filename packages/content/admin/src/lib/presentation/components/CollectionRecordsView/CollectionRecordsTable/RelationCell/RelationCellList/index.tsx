@@ -28,6 +28,10 @@ const messages = defineMessages({
     error: {
         id: 'content.records.relation.error',
         defaultMessage: "Couldn't load linked records."
+    },
+    unavailable: {
+        id: 'content.records.relation.unavailable',
+        defaultMessage: 'Unavailable record'
     }
 });
 
@@ -71,8 +75,14 @@ export function RelationCellList({
 }) {
     const intl = useIntl();
     // Only link-managed relations can exceed one page; a single relation's FK
-    // preview is already the whole story.
-    const paginated = Boolean(field.relation?.many || field.relation?.inverse);
+    // preview is already the whole story. And even then, only when the server's
+    // capped preview actually truncated — with fewer links than the cap, page 1
+    // of the links query would return byte-identical data to what is already on
+    // screen, so opening the popover would cost a round trip for nothing.
+    const truncated =
+        preview === undefined || preview.items.length < preview.total;
+    const paginated =
+        Boolean(field.relation?.many || field.relation?.inverse) && truncated;
     const links = useRelationFieldLinks(
         typeName,
         recordId,
@@ -86,7 +96,7 @@ export function RelationCellList({
     const items = loaded ? links.items : (preview?.items ?? []);
     const total = loaded ? links.total : (preview?.total ?? 0);
 
-    const onScroll = (event: UIEvent<HTMLDivElement>) => {
+    const onScroll = (event: UIEvent<HTMLUListElement>) => {
         const el = event.currentTarget;
         if (
             el.scrollHeight - el.scrollTop - el.clientHeight <=
@@ -114,50 +124,68 @@ export function RelationCellList({
                     {intl.formatMessage(messages.error)}
                 </p>
             ) : null}
-            <div
-                className="flex max-h-56 flex-col overflow-y-auto"
+            {/* A real list, so assistive tech announces the item count rather
+                than a run of unrelated links in a scrolling box. */}
+            <ul
+                className="flex max-h-56 list-none flex-col overflow-y-auto"
                 onScroll={onScroll}
             >
                 {items.map((item) => (
-                    <a
-                        key={item.id}
-                        href={contentEntryPath(workspaceId, target, item.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={intl.formatMessage(messages.open, {
-                            title: item.title
-                        })}
-                        className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                    >
-                        <span className="truncate text-sm font-medium">
-                            {item.title}
-                        </span>
-                        <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground">
-                            /{handleFor(item.title, item.slug)}
-                        </span>
-                        {item.status ? (
-                            <Badge
-                                variant={
-                                    item.status === ENTRY_STATUS.Published
-                                        ? 'success'
-                                        : 'secondary'
-                                }
+                    <li key={item.id}>
+                        {item.missing ? (
+                            // The target is soft-deleted or otherwise not
+                            // resolvable: the link still exists, but there is
+                            // nothing to open — and rendering its raw id would
+                            // be exactly the FK leak the cell exists to avoid.
+                            <span className="flex items-center gap-2 px-2 py-1.5 text-sm italic text-muted-foreground">
+                                {intl.formatMessage(messages.unavailable)}
+                            </span>
+                        ) : (
+                            <a
+                                href={contentEntryPath(
+                                    workspaceId,
+                                    target,
+                                    item.id
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={intl.formatMessage(messages.open, {
+                                    title: item.title
+                                })}
+                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                             >
-                                {item.status}
-                            </Badge>
-                        ) : null}
-                        <ExternalLink
-                            className="size-3.5 shrink-0 text-muted-foreground"
-                            aria-hidden
-                        />
-                    </a>
+                                <span className="truncate text-sm font-medium">
+                                    {item.title}
+                                </span>
+                                <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground">
+                                    /{handleFor(item.title, item.slug)}
+                                </span>
+                                {item.status ? (
+                                    <Badge
+                                        variant={
+                                            item.status ===
+                                            ENTRY_STATUS.Published
+                                                ? 'success'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {item.status}
+                                    </Badge>
+                                ) : null}
+                                <ExternalLink
+                                    className="size-3.5 shrink-0 text-muted-foreground"
+                                    aria-hidden
+                                />
+                            </a>
+                        )}
+                    </li>
                 ))}
                 {links.isFetchingNextPage ? (
-                    <div className="flex justify-center py-2">
+                    <li className="flex justify-center py-2">
                         <Spinner aria-hidden />
-                    </div>
+                    </li>
                 ) : null}
-            </div>
+            </ul>
         </div>
     );
 }
