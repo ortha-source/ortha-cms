@@ -1,6 +1,6 @@
 import { Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AuthService } from '../services/auth.service';
+import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
 import { CookieService } from '../services/cookie.service';
 import { OriginGuard } from '../guards/origin.guard';
 import { Public } from '../decorators/public.decorator';
@@ -21,7 +21,7 @@ import { Public } from '../decorators/public.decorator';
 @Controller('auth')
 export class LogoutController {
     constructor(
-        private readonly auth: AuthService,
+        private readonly logoutUseCase: LogoutUseCase,
         private readonly cookies: CookieService
     ) {}
 
@@ -32,7 +32,7 @@ export class LogoutController {
     ): Promise<{ ok: true }> {
         const token = this.cookies.readSession(req);
         if (token) {
-            await this.auth.logout(token);
+            await this.logoutUseCase.execute(token);
         }
         this.cookies.clearSession(res);
         return { ok: true };

@@ -2,19 +2,49 @@
 
 The members **admin plugin**: the **Members** page at `/users`, the **Invite
 member** page at `/users/invite`, the **user detail** page at `/users/:id`, and
-the toolbar nav entry.
+the sidebar nav entry.
+
+## Layout — layered (ADR-0003)
+
+This plugin is **layered (tactical DDD)**, mirroring the `workspaces/admin`
+pilot. `src/lib` is organized into four layers, not the legacy per-hook `api/` +
+`utils/` layout:
+
+- **`domain/`** — pure TS, no React: shared view types (`types/member`,
+  `types/session`, `types/workspaceOption`), the `Email` value object
+  (`value-objects/email`, the single client-side email rule for instant invite
+  validation), and the `MemberEntity` client entity (`member/`) exposing the
+  **UX invariants** the admin mirrors from server facts — `canChangeRole()` and
+  `canBeRemoved(viewerId)` return `{ ok, reason }` so a control disables itself
+  with a reason (sole admin / self) instead of failing on submit.
+- **`application/`** — the TanStack Query hooks (reads + mutations). Each calls
+  the gateway, never `apiClient`. The invite wizard's submit orchestration is
+  `useInviteMemberFlow` (validate `Email` → invite → toast → navigate), so the
+  invite page is layout + fields; `useMembersMutation` is the shared mutation
+  shell (normalize + invalidate `membersKeys.all`).
+- **`infrastructure/`** — the `MemberGateway` **port** + its `httpMemberGateway`
+  implementation (the one place `apiClient` is used), `memberMapper` (the
+  wire→view anti-corruption layer, formerly `utils/toMember`, keeping the
+  presentation-only `initials`/`color` enrichment), and `membersKeys`.
+- **`presentation/`** — pages, components, the `usersPlugin` factory, the
+  `userDetailContext` Outlet provider, and `membersFilterFields`; consumes view
+  models + hooks + the `MemberEntity` only, never wire types or `apiClient`.
+
+The admin stays **thin** — no client aggregates or repositories; the server owns
+business truth. `MemberEntity` wraps the plain `Member` view model on demand (so
+React Query's structural sharing keeps working) rather than replacing it.
 
 ## What it owns
 
 - The private `/users`, `/users/invite`, and `/users/:id/*` routes (lazy +
   `<Suspense>`), rendered in the shell's authenticated layout.
-- A `NAVBAR_START_SLOT` entry (`order: 30`, after Workspaces). The pages gate on
-  the `users:read` permission via `useHasPermission`.
-- The toolbar **account menu** (`AccountMenu`), contributed to the shell's
-  `NAVBAR_END_SLOT`: the signed-in user's avatar + a dropdown with their
-  name/email, **My profile** (→ their own `/users/:id` detail page), and
-  **Logout** (identity's `useLogoutMutation`). It reads the current user from
-  identity's `useAuth`.
+- A `SIDEBAR_NAV_SLOT` entry (`group: 'directory'`, `order: 20`). The pages gate
+  on the `users:read` permission via `useHasPermission`.
+- The sidebar-footer **account menu** (`AccountMenu`), contributed to the
+  shell's `SIDEBAR_FOOTER_SLOT`: a full-width row (avatar + name + email) that
+  opens a dropdown with **My profile** (→ their own `/users/:id` detail page)
+  and **Logout** (identity's `useLogoutMutation`). It reads the current user
+  from identity's `useAuth`.
 
 ## The pages
 
@@ -22,7 +52,7 @@ the toolbar nav entry.
 **Member · Role · Status · Workspaces** table, pagination, a loading
 **skeleton** (`MembersTableSkeleton`), and empty/no-access states. Each row is a
 shortcut to the member's detail page (the name is a real link for keyboard
-users); the row's kebab menu mirrors the detail side rail — an **Account**
+users); the row's kebab menu mirrors the detail tab bar — an **Account**
 group (General/Role/Workspaces) plus permission-gated **Audit**
 (Sessions/Activity) and **Access** (Sign-in access) groups that navigate
 straight to a tab — followed by the status quick actions (Resend/Revoke invite,
@@ -32,33 +62,41 @@ way.
 
 `UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`'s nested `<Routes>`)
 — fetches one member once (`useUserDetail`) and shares it with every tab through
-the Outlet context (`utils/userDetailContext`), so a tab read is free. Renders
-the back link, `UserHero`, `UserStatsStrip`, and a sticky `UserSideRail` beside
-the active tab. Six tab pages: **General** (edit name), **Role** (`RolePicker` +
+the Outlet context (`presentation/userDetailContext`), so a tab read is free. Renders
+the back link, `UserHero`, `UserStatsStrip`, and the `UserDetailTabs` underline
+tab bar (design-system `TabNav`) above the active tab. Six tab pages:
+**General** (edit name), **Role** (`RolePicker` +
 confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
 **Sessions** (`SessionCard` + revoke), **Activity** (reuses
 `@ortha-cms/activity-admin`'s `useActivityLog`, pinned to `subjectId`), and
 **Access** (suspend/reactivate). The Audit (Sessions, Activity) and Access tabs
 are permission-gated **at the route level** — without `users:update` /
-`activity:read` the rail hides them and the route redirects to General.
+`activity:read` the tab bar hides them and the route redirects to General.
 
 ## Conventions
 
-- `pages/` stays **flat** — each page is just `pages/<Page>/index.tsx`, with no
-  child component folders. Every component lives under `components/`. A component
-  used by exactly one **other component** nests inside that component's folder:
-  the row pieces (`MemberRoleChip`, `MemberRowActions`, `MemberStatusBadge`,
-  `MemberWorkspaces`) live under `components/MembersTable/`. A component used by a
-  **page** sits at the top level of `components/` — `MembersTable`,
-  `MembersToolbar`, `MembersPagination`, `MembersEmpty`, `MembersNoAccess`, and
-  `EditMemberDialog`. **Shared** pieces also sit at the top of `components/` —
-  `MemberAvatar` (used by the table, `MemberWorkspaces`, and the invite page) and
-  `MembersSkeleton` (the page's `isPending` body, the invite page, and the lazy
-  routes' `Suspense` fallback).
-- Per-hook data layer in `api/` (each hook owns its request fn), shared
-  `utils/membersKeys`; types in `types/member`. Presentation-only member
-  initials/avatar colors come from the shared `initialsOf`/`asAvatarColor`/
-  `avatarColorForId` in `@ortha-cms/utils-admin` (no local `utils/` copies).
+- Every module is a `<name>/index.ts(x)` folder, grouped by layer (ADR-0003):
+  components in `presentation/components/<Name>/`, pages in
+  `presentation/pages/<Name>/`, query/mutation/use-case hooks in
+  `application/<useThing>/`, the gateway/mapper/keys in `infrastructure/`, value
+  objects + entity + view types in `domain/` (`camelCase` for non-components).
+- `pages/` stays **flat** — each page is just `presentation/pages/<Page>/index.tsx`,
+  with no child component folders. Every component lives under
+  `presentation/components/`. A component used by exactly one **other component**
+  nests inside that component's folder: the row pieces (`MemberRoleChip`,
+  `MemberRowActions`, `MemberStatusBadge`, `MemberWorkspaces`) live under
+  `components/MembersTable/`. A component used by a **page** sits at the top level
+  of `components/` — `MembersTable`, `MembersToolbar`, `MembersPagination`,
+  `MembersEmpty`, `MembersNoAccess`. **Shared** pieces also sit at the top of
+  `components/` — `MemberAvatar` (used by the table, `MemberWorkspaces`, and the
+  invite page) and `MembersSkeleton` (the page's `isPending` body, the invite
+  page, and the lazy routes' `Suspense` fallback).
+- Data flows through the gateway seam: `application/` hooks call
+  `httpMemberGateway` behind the `MemberGateway` port (the sole `apiClient`
+  user), never `apiClient` directly; wire→view mapping lives in
+  `infrastructure/memberMapper`. Presentation-only member initials/avatar colors
+  come from the shared `initialsOf`/`asAvatarColor`/`avatarColorForId` in
+  `@ortha-cms/utils-admin` (no local copies).
 - Co-located `defineMessages` (ids `users.<area>.<key>`); `type` over
   `interface`; design-system primitives only; a11y per the `accessibility` skill.
 

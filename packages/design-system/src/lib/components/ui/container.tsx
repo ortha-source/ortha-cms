@@ -25,6 +25,8 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
     subtitle?: React.ReactNode;
     /** Optional trailing actions (e.g. a primary button). */
     actions?: React.ReactNode;
+    /** Override classes for the `<h1>` (e.g. a smaller size on dense pages). */
+    titleClassName?: string;
 };
 
 /**
@@ -33,7 +35,7 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
  * title.
  */
 const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
-    ({ className, title, subtitle, actions, ...props }, ref) => (
+    ({ className, title, subtitle, actions, titleClassName, ...props }, ref) => (
         <div
             ref={ref}
             className={cn(
@@ -43,7 +45,12 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
             {...props}
         >
             <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-semibold tracking-tight">
+                <h1
+                    className={cn(
+                        'text-2xl font-semibold tracking-tight',
+                        titleClassName
+                    )}
+                >
                     {title}
                 </h1>
                 {subtitle ? (

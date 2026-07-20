@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_146 test cases across 20 spec files._
+_182 test cases across 25 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -149,8 +149,8 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders the sidebar with the Workspace section |
-| groups start collapsed and expand on click |
+| renders the sidebar with the Workspace Content section |
+| Collections opens by default; Pages toggles on click |
 | selecting a single (page) opens its entry editor |
 | only shows content types granted to the workspace |
 | pinning a type adds it to a Favorites section |
@@ -161,11 +161,48 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selecting a collection shows its records table |
 | searching with no matches shows the empty state |
 | the column picker toggles a column |
+| the column picker can be searched |
+| the column search shows an empty state when nothing matches |
 | Add record and row click route to their stubs |
+| saving a record stays on the editor and shows a success toast |
 | reorders a column via the keyboard |
 | sorts records by a column, toggling asc → desc → off |
 | selects rows, select-all, and clears the selection |
 | row actions menu offers Edit, Publish, and Copy ID |
+
+<!-- source: apps/admin-e2e/src/content/i18n.spec.ts -->
+_<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
+
+## Content i18n
+
+| Test case |
+| --- |
+| shows the locale switcher on a localized collection |
+| switching locale updates the URL and re-scopes the table |
+| switching locale plays a brief "Switching…" overlay |
+| the Locales column shows per-group locale badges |
+| the entry editor locale switcher shows current / existing / missing |
+| switching to an existing sibling opens that locale row |
+| selecting a missing locale opens a prefilled draft form |
+| a brand-new record can be re-targeted to another locale before saving |
+| a translation draft can jump to an existing sibling |
+| the relation picker on a translation-create form is scoped to that locale |
+
+<!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
+_<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_
+
+## Relation cells (records table)
+
+| Test case |
+| --- |
+| shows the first linked title with a +N overflow, not an id |
+| opens a dropdown of links to each related record |
+| loads past the preview once opened |
+| opening the dropdown does not navigate the row |
+| opening one dropdown closes the one already open |
+| renders an em-dash when a relation holds nothing |
+| the dropdown animates on open |
+| the relation dropdown is accessible |
 
 <!-- source: apps/admin-e2e/src/content/relations.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
@@ -174,14 +211,18 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 
 | Test case |
 | --- |
-| renders each relation field as a collapsible section |
+| renders each relation field as a titled card |
 | assigns a single relation and shows it by title |
 | assigns multiple records to a many relation |
+| reorders a many relation with the down arrow |
+| offers an open-in-new-tab link on candidate and assigned rows |
 | searches to narrow the candidate list |
 | lazily loads more candidates as the list scrolls |
 | reveals the inline query-builder filter over the target schema |
 | edits a bidirectional (inverse) relation from the other side |
 | hides relations whose target collection the workspace lacks |
+| saves staged links as a relations delta, omitting them from values |
+| shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)
@@ -191,6 +232,27 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | relations tab — field sections |
 | relation picker — open |
 | relation picker — inline filter open |
+
+<!-- source: apps/admin-e2e/src/home/dashboard.spec.ts -->
+_<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
+
+## Home dashboard
+
+| Test case |
+| --- |
+| shows the greeting, stat tiles, and both panels |
+| the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/shell/command-palette.spec.ts -->
+_<sub>apps/admin-e2e/src/shell/command-palette.spec.ts</sub>_
+
+## Command palette
+
+| Test case |
+| --- |
+| suggests nav destinations, workspaces, and content types |
+| navigates to a nav destination |
+| jumps straight to a workspace content type |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
@@ -290,11 +352,9 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 
 | Test case |
 | --- |
-| grid — initial (active) |
-| grid — loading skeleton |
-| grid — all statuses (archived cards visible) |
-| status filter popover — open |
-| member popover — open |
+| table — initial (active) |
+| table — loading skeleton |
+| table — all statuses (archived rows visible) |
 | empty state — no matches |
 
 ### create wizard
@@ -312,14 +372,14 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | Test case |
 | --- |
 | search is reachable and filters by keyboard |
-| a card opens on Enter |
-| the status filter radiogroup moves with arrow keys |
+| a row opens on Enter |
+| the status filter chips move with arrow keys |
 
 ### create wizard
 
 | Test case |
 | --- |
-| opens the wizard from the grid on Enter |
+| opens the wizard from the list on Enter |
 | a color swatch is selectable by keyboard |
 
 <!-- source: apps/admin-e2e/src/workspaces/permissions.spec.ts -->
@@ -333,6 +393,41 @@ _<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_
 | hides "New workspace" from a user without the permission |
 | redirects /workspaces/new to the list without the permission |
 
+<!-- source: apps/admin-e2e/src/workspaces/settings.spec.ts -->
+_<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_
+
+## Workspace settings page
+
+### as an admin
+
+| Test case |
+| --- |
+| renders the section nav and the current general values |
+| saves an edited name (save enables only when dirty) |
+| assigns an unassigned member and removes an existing one |
+| grants a content type and revokes an empty one |
+| blocks revoking a content type that still has entries |
+| archives the workspace from the danger zone |
+| deletes the workspace and returns to the grid |
+
+### delete guard (workspace still has content)
+
+| Test case |
+| --- |
+| blocks deleting until all content is removed |
+
+### as a viewer (read-only)
+
+| Test case |
+| --- |
+| hides edit controls and the danger tab |
+
+### accessibility
+
+| Test case |
+| --- |
+| the settings page has no automatically-detectable a11y violations |
+
 <!-- source: apps/admin-e2e/src/workspaces/workspaces.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 
@@ -341,22 +436,12 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | Test case |
 | --- |
 | renders the active workspaces by default behind the shell |
-| search narrows the grid and updates the count |
-| the status filter switches to archived and badges the button |
+| search narrows the table and updates the count |
+| the status filter switches to archived and marks the chip active |
 | the status filter can show all workspaces |
 | shows a contextual empty state when nothing matches |
-
-### member stack
-
-| Test case |
-| --- |
-| collapses extra members into a "+N" pill |
-| opens a member list without opening the workspace |
-| closes on Escape and on an outside click |
-
-| Test case |
-| --- |
-| a card opens its workspace on click |
+| a row shows the workspace member and type counts |
+| a row opens its workspace on click |
 
 ### create wizard
 

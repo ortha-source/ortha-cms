@@ -3,7 +3,9 @@
     "version": "0.0.0",
     "license": "MIT",
     "scripts": {
-        "prepare": "lefthook install"
+        "prepare": "lefthook install",
+        "start:server": "nx serve server",
+        "start:admin": "nx serve admin"
     },
     "private": true,
     "dependencies": {
@@ -13,6 +15,7 @@
         "axios": "^1.6.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "drizzle-orm": "^0.45.0",
         "lucide-react": "^1.17.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",

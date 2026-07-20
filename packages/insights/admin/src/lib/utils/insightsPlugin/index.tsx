@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SIDEBAR_SLOT
+    WORKSPACE_NAV_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { BarChart3 } from 'lucide-react';
 
@@ -30,14 +30,15 @@ export function InsightsPlugin(): InsightsAdminPlugin {
         name: 'insights',
         slots: [
             {
-                slot: WORKSPACE_SIDEBAR_SLOT,
+                slot: WORKSPACE_NAV_SLOT,
                 items: [
                     {
                         labelId: 'insights.nav.label',
                         defaultLabel: 'Insights',
                         to: 'insights',
                         order: 30,
-                        icon: BarChart3
+                        icon: BarChart3,
+                        iconColor: 'text-nav-amber'
                     }
                 ]
             },

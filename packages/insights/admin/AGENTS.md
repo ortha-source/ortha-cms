@@ -5,6 +5,19 @@ scaffold: a rail button + placeholder page mounted **inside a workspace**; the
 real dashboards/analytics land later. No server package yet — it will gain
 `@ortha-cms/insights-server` once there are metrics to serve.
 
+## Layout — born layered (ADR-0003)
+
+This is a static scaffold today (a page + the plugin factory), so it has **no**
+layer folders yet — deliberately, per ADR-0003 (don't force empty layers onto a
+placeholder). When real dashboards land, it is **born layered**: on the admin
+side copy `packages/users/admin` (gateway port + mapper ACL + query hooks — a
+dashboard has no client domain rules, so no `domain/` layer, just infrastructure
++ presentation). When `@ortha-cms/insights-server` is created it is naturally a
+**read-side/CQRS** context — **projection subscribers** on the outbox dispatcher
+(folding `entry.*`/`member.*`/`workspace.*` domain events into count/timeline
+tables) + thin query services, **no aggregates** (mirror how `activity` consumes
+the outbox). Correctness lives in the pure fold functions, unit-tested.
+
 ## Package
 
 - Name: `@ortha-cms/insights-admin`
@@ -13,13 +26,13 @@ real dashboards/analytics land later. No server package yet — it will gain
   (`exports` → `./src/index.ts`); no build step.
 - Register it in `createAdmin({ plugins })` **after** `WorkspacesPlugin()` — it
   contributes only to the workspace shell's slots
-  (`WORKSPACE_SIDEBAR_SLOT` + `WORKSPACE_ROUTE_SLOT`), so it depends on
+  (`WORKSPACE_NAV_SLOT` + `WORKSPACE_ROUTE_SLOT`), so it depends on
   `@ortha-cms/workspaces-admin`.
 
 ## Lives strictly inside a workspace
 
-This plugin contributes **no top-level route and no top-toolbar nav item**. It
-adds a `BarChart3` rail button (`order: 30`) and an `insights/*` route to the
+This plugin contributes **no top-level route and no global nav item**. It adds a
+`BarChart3` "Workspace" nav entry (`order: 30`) and an `insights/*` route to the
 workspace shell — so it only ever renders under `/workspaces/:id/insights`. The
 page reads the open workspace via `useCurrentWorkspace()` from
 `@ortha-cms/workspaces-admin`.

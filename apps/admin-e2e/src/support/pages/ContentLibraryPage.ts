@@ -11,8 +11,12 @@ import { BasePage } from './BasePage';
 export class ContentLibraryPage extends BasePage {
     /** The second sidebar nav region. */
     readonly sidebar: Locator;
-    /** The sidebar's search trigger (opens the ⌘K palette). */
-    readonly searchTrigger: Locator;
+    /**
+     * The content library's own second-sidebar search trigger (opens its
+     * collections/pages palette). Distinct from the global shell command palette
+     * (`BasePage.searchTrigger()`), so it carries its own name.
+     */
+    readonly contentSearchTrigger: Locator;
     /** The command palette dialog. */
     readonly searchDialog: Locator;
     /** The palette's search input. */
@@ -21,7 +25,7 @@ export class ContentLibraryPage extends BasePage {
     constructor(page: Page) {
         super(page);
         this.sidebar = page.getByRole('navigation', { name: 'Content types' });
-        this.searchTrigger = this.sidebar.getByRole('button', {
+        this.contentSearchTrigger = this.sidebar.getByRole('button', {
             name: /Search/
         });
         this.searchDialog = page.getByRole('dialog');
@@ -42,12 +46,25 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
-    /** Expand a collapsible group. */
+    /**
+     * Expand a collapsible group, **idempotently**. The Collections group is
+     * open by default (and the group holding a deep-linked type auto-opens), so
+     * a bare click would *collapse* an already-open group. Read `aria-expanded`
+     * and only click when it's collapsed, then wait until it has settled open so
+     * the caller can interact with its rows.
+     */
     async expandGroup(label: string) {
-        await this.group(label).click();
+        const trigger = this.group(label);
+        await trigger.waitFor();
+        if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+            await trigger.click();
+        }
+        await this.group(label)
+            .and(this.page.locator('[aria-expanded="true"]'))
+            .waitFor();
     }
 
-    /** A category label in the sidebar ("Favorites" / "Workspace" / "Manage"). */
+    /** A category label in the sidebar ("Favorites" / "Workspace Content"). */
     sectionLabel(label: string): Locator {
         return this.sidebar.getByText(label, { exact: true });
     }
@@ -66,7 +83,7 @@ export class ContentLibraryPage extends BasePage {
 
     /** Open the search palette via its trigger button. */
     async openSearch() {
-        await this.searchTrigger.click();
+        await this.contentSearchTrigger.click();
         await this.searchDialog.waitFor();
     }
 
@@ -75,7 +92,7 @@ export class ContentLibraryPage extends BasePage {
         // Give the page DOM focus first (just-loaded viewports aren't focused,
         // so a bare keypress wouldn't reach the window-level shortcut listener).
         // Focusing the trigger doesn't open the palette — only the shortcut does.
-        await this.searchTrigger.focus();
+        await this.contentSearchTrigger.focus();
         await this.page.keyboard.press('Control+k');
         await this.searchDialog.waitFor();
     }
@@ -134,6 +151,24 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('link', { name: 'Back to records' });
     }
 
+    /** A form field's text input by its label. */
+    fieldTextbox(label: string): Locator {
+        return this.page.getByRole('textbox', { name: label });
+    }
+
+    /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
+    async saveDraft(): Promise<void> {
+        await this.page.getByRole('button', { name: 'More actions' }).click();
+        await this.page
+            .getByRole('menuitem', { name: 'Save draft' })
+            .click();
+    }
+
+    /** The "Changes saved." success toast after an edit save. */
+    get savedToast(): Locator {
+        return this.page.getByText('Changes saved.', { exact: true });
+    }
+
     /** The column-picker trigger. */
     get columnsButton(): Locator {
         return this.page.getByRole('button', { name: 'Columns' });
@@ -142,6 +177,16 @@ export class ContentLibraryPage extends BasePage {
     /** A column-picker checkbox option by its label. */
     columnOption(label: string): Locator {
         return this.page.getByRole('checkbox', { name: label, exact: true });
+    }
+
+    /** The column-picker's search box. */
+    get columnSearch(): Locator {
+        return this.page.getByRole('textbox', { name: 'Search columns' });
+    }
+
+    /** The column-picker's "no column found" empty state. */
+    get columnSearchEmpty(): Locator {
+        return this.page.getByText('No column found.', { exact: true });
     }
 
     /** A column header cell in the records table by label. */
@@ -220,7 +265,7 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /** Visible text in the selected-type / placeholder pane. */
-    paneText(text: string): Locator {
+    paneText(text: string | RegExp): Locator {
         return this.page.getByText(text);
     }
 
@@ -237,5 +282,69 @@ export class ContentLibraryPage extends BasePage {
     /** The error state's retry button. */
     get retry(): Locator {
         return this.page.getByRole('button', { name: 'Try again' });
+    }
+
+    // --- i18n (from @ortha-cms/i18n-admin, via the content library slots) ---
+
+    /** The records-toolbar locale switcher trigger (label reads "Locale: {name}"). */
+    get localeSwitcher(): Locator {
+        return this.page.getByRole('button', { name: /^Locale: / });
+    }
+
+    /** A locale option inside the open switcher popover. */
+    localeOption(name: string | RegExp): Locator {
+        return this.page.getByRole('option', { name });
+    }
+
+    /** Open the locale switcher and pick a locale by its option name. */
+    async selectLocale(name: string | RegExp) {
+        await this.localeSwitcher.click();
+        await this.localeOption(name).click();
+    }
+
+    /** The transient "Switching to …" overlay shown while a locale switch plays. */
+    get localeSwitchOverlay(): Locator {
+        return this.page.getByText(/Switching to/);
+    }
+
+    /** The entry editor's locale switcher (sidebar widget) title text. */
+    get localeWidget(): Locator {
+        return this.page.getByText('Locale', { exact: true });
+    }
+
+    /** The widget's "Translation group" label. */
+    get localeGroupLabel(): Locator {
+        return this.page.getByText('Translation group', { exact: true });
+    }
+
+    /** The info tooltip trigger beside the translation-group id. */
+    get localeGroupHelp(): Locator {
+        return this.page.getByRole('button', {
+            name: 'What is the translation group?'
+        });
+    }
+
+    /** The translation-group id value shown in the widget. */
+    localeGroupId(id: string): Locator {
+        return this.page.getByText(id, { exact: true });
+    }
+
+    /** The current-locale chip beside the entry-editor title (aria-labelled). */
+    get editorTitleChip(): Locator {
+        return this.page.getByLabel(/Current locale/);
+    }
+
+    /** The switch-to-create control for a not-yet-translated locale in the widget. */
+    createTranslation(localeName: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Create the ${localeName} translation`
+        });
+    }
+
+    /** The switch control for an existing sibling locale in the widget. */
+    switchLocale(localeName: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Switch to the ${localeName} version`
+        });
     }
 }

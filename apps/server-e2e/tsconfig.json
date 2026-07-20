@@ -9,16 +9,31 @@
     "include": ["jest.config.cts", "src/**/*.ts"],
     "references": [
         {
-            "path": "../../packages/bootstrap/server"
+            "path": "../server"
+        },
+        {
+            "path": "../../packages/users/server"
         },
         {
             "path": "../../packages/identity/server"
         },
         {
-            "path": "../../packages/database"
+            "path": "../../packages/i18n/server"
         },
         {
-            "path": "../server"
+            "path": "../../packages/activity/server"
+        },
+        {
+            "path": "../../packages/bootstrap/server"
+        },
+        {
+            "path": "../../packages/content/server"
+        },
+        {
+            "path": "../../packages/workspaces/server"
+        },
+        {
+            "path": "../../packages/database"
         }
     ]
 }

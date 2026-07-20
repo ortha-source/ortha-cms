@@ -30,7 +30,11 @@
 - `packages/database` — `@ortha-cms/database`, the database **plugin**:
   owns one Drizzle/`pg` connection, opens it in `onPluginInit`, and exposes
   it via DI (`@InjectDatabase()`, global `DatabaseModule`) and plain
-  `getDatabase()`/`getPool()`. Owns no schemas or migrations.
+  `getDatabase()`/`getPool()`. Also provides the shared tactical-DDD
+  infrastructure ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
+  `UnitOfWork`, the transactional outbox (`OutboxWriter` / `OutboxDispatcher`),
+  and the `DomainEvent` contract. It owns exactly **one** table — `outbox_events`
+  — the sanctioned exception to "no schema", shipped with its own migrations.
 - `packages/identity/server` — `@ortha-cms/identity-server`, the identity
   **plugin**: owns the auth/RBAC schema (Drizzle tables in `src/lib/schema`)
   and **ships its own migrations** (`drizzle.config.ts` + committed
@@ -66,6 +70,9 @@ package; the admin app's Vite transpiles the design-system source directly.
       Inferred on any project with a `drizzle.config.ts`. Needs no database.
     - `npx nx run server:db:migrate` — apply every plugin's pending migrations.
       Inferred on the host (the project with `ortha.config.ts`).
+    - `npx nx run server:db:studio` — open Drizzle Studio on the host database
+      (introspects the live DB; needs `DATABASE_URL`). Also inferred on the
+      host. Optional `--host` / `--port` to change where Studio binds.
 - Package manager: **npm workspaces** (not pnpm/yarn)
 
 ## Conventions
@@ -75,8 +82,16 @@ package; the admin app's Vite transpiles the design-system source directly.
   [`packages/design-system/AGENTS.md`](packages/design-system/AGENTS.md)
 - Authoring or extending a NestJS **server plugin** (`packages/<group>/server`)
   is governed by the `server-plugin` skill — the `ServerPlugin` factory +
-  dynamic-module pattern, feature-folder layout, `@InjectDatabase()` DI, config
-  injection, and the Drizzle schema/migrations descriptor
+  dynamic-module pattern, `@InjectDatabase()` DI, config injection, and the
+  Drizzle schema/migrations descriptor
+- **Tactical DDD inside plugins** ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
+  we are migrating each plugin from feature-then-kind to a layered
+  `domain / application / infrastructure / http(presentation)` layout
+  (aggregates, value objects, repository ports, use-cases, an outbox for domain
+  events). The rollout is **incremental** — each package's own `AGENTS.md`
+  declares which layout it is in, and the `server-plugin` / `admin-plugin` skills
+  document both modes. The core rule: `domain/` imports no framework
+  (Nest/Drizzle/React). Reference: `packages/workspaces/{server,admin}`.
 - Admin i18n: `react-intl` with the host's single `IntlProvider`; each
   component **co-locates** its own `const messages = defineMessages({ … })`
   (no shared `messages.ts`). See

@@ -30,11 +30,33 @@ features to the NestJS API. It is **not an app**: it exports a factory the host
 
 ---
 
+## Two layouts — check which one this package is in
+
+Per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md) we are
+migrating every server plugin from the historical **feature-then-kind** layout to
+a **layered (tactical-DDD)** layout. The migration is incremental, so both are
+live in the repo at once:
+
+- **Legacy — feature-then-kind.** `<feature>/{controllers,services,dto,...}`,
+  Drizzle used directly in services, no repository. Documented below as the
+  detailed baseline; still correct for any package not yet migrated.
+- **Target — layered.** `domain / application / infrastructure / http` with
+  aggregates, value objects, repository ports, use-cases, and an outbox for
+  domain events. Documented in **[§ Target layout](#target-layout--layered-tactical-ddd)**.
+
+**Read the package's own `AGENTS.md` first — it declares which layout it is in**
+("layered (ADR-0003)" vs "feature-then-kind (legacy)"). Author and review in
+**that** package's mode; never half-apply the target layout to a legacy package
+or vice-versa. New DB-backed plugins are born in the target layout.
+
+---
+
 ## The five non-negotiables
 
 1. **A plugin is a `ServerPlugin` factory**, not a module you import directly.
 2. **One global dynamic module per plugin** (`XModule.forRoot(config)`).
-3. **Group code by feature, then by kind within each feature.**
+3. **Group code by layer (target) or by feature-then-kind (legacy)** — per the
+   package's `AGENTS.md`. The other four non-negotiables hold in both layouts.
 4. **The DB client is injected from `@ortha-cms/database`** — a plugin never
    opens a connection or registers a db provider.
 5. **Config is injected, never read from `process.env`.** Only
@@ -101,6 +123,98 @@ not for every file.
 **Package-level vs feature.** `src/lib/utils/` is for **package-level**
 cross-cutting only (the plugin factory); the module + tokens sit at `src/lib/`
 root; `schema/` and `types/` are package-level folders.
+
+---
+
+## Target layout — layered (tactical DDD)
+
+The layout **migrated** and **new DB-backed** plugins use (ADR-0003). Group by
+**architectural layer**, not by kind. The reference implementation is
+`packages/workspaces/server`.
+
+```
+packages/<group>/server/
+  src/
+    index.ts                              # public barrel — the package's API
+    lib/
+      <plugin>.module.ts                  # the one dynamic module
+      <plugin>.tokens.ts                  # DI tokens (config, repo ports)
+      domain/                             # ← pure TS. NO Nest, Drizzle, class-validator, DTOs
+        <aggregate>.aggregate.ts          #   aggregate root: owns children, enforces invariants
+        <child>.entity.ts                 #   entities reachable only through a root
+        value-objects/                    #   Slug, Email, branded <X>Id, Money, …
+        events/                           #   domain events the aggregate raises
+        errors/                           #   transport-agnostic domain errors (index.ts barrel)
+        <aggregate>.repository.ts         #   the PORT: interface + DI Symbol
+        <name>.service.ts                 #   DOMAIN service (spans aggregates, e.g. uniqueness)
+      application/                        # ← orchestration; owns the tx boundary; no business rules
+        <verb>-<aggregate>.use-case.ts    #   one use-case per state-changing operation
+        queries/                          #   read-side query services (reads skip the aggregate)
+        dto/                              #   transport shapes; @IsString-level checks only
+      infrastructure/                     # ← adapters; the only layer that imports Drizzle
+        drizzle-<aggregate>.repository.ts #   implements the domain port
+        <aggregate>.mapper.ts             #   row ⇄ aggregate
+        schema/                           #   Drizzle pg-core tables + barrel
+        locks.ts                          #   advisory-lock helpers, private to adapters
+      http/                               # ← transport; thin
+        controllers/                      #   one per use-case; parse → use-case → map
+        guards/                           #   RBAC guards, cookie/transport services
+  drizzle.config.ts                       # if the plugin owns schema
+  migrations/                             # committed SQL
+  package.json
+  CLAUDE.md
+```
+
+**The one non-negotiable (ADR-0003):** `domain/` imports nothing from
+`@nestjs/*`, `drizzle-orm`, `class-validator`, `application/dto`, or
+`infrastructure/`. Dependencies point **inward only**:
+`http → application → domain`; `infrastructure` implements `domain` ports. This
+is enforced by the `@ortha-cms/nx` boundary lint, not just convention.
+
+**What each layer holds:**
+
+- **domain** — the model. Aggregates enforce invariants **as methods** that
+  cannot be skipped (`workspace.removeMember()` throws `LastAdminError`); value
+  objects validate on construction (`Slug.create(raw)`) and kill primitive
+  obsession; the repository **interface + Symbol** live here (implementation does
+  not). Invariants move **out** of DTO decorators into VOs/aggregates.
+- **application** — use-cases. Each parses input into domain types, opens a
+  **Unit of Work** (`@ortha-cms/database`), loads an aggregate through the repo
+  port, calls a method, saves, and appends `aggregate.pullEvents()` to the
+  outbox. **No business rules here.** Reads that don't mutate use plain query
+  services, not the aggregate.
+- **infrastructure** — the Drizzle adapters implementing domain ports, plus the
+  row⇄aggregate mapper and the schema. Advisory locks live here as a repository
+  **loading strategy** (`findById(id, { lock: 'exclusive' })`), not as logic in
+  services.
+- **http** — thin controllers (one per use-case, as in the legacy layout) that
+  map domain errors to HTTP, and guards.
+
+**Repositories (reverses the legacy "no repository" rule).** A migrated plugin
+**does** wrap Drizzle in a repository — a domain port + a Drizzle adapter that
+loads/saves the **whole aggregate** (root + children) in one shape. Bind it with
+a DI `Symbol` exactly like `CONTENT_CATALOG`:
+
+```ts
+// domain/<aggregate>.repository.ts
+export interface WorkspaceRepository {
+    findById(id: WorkspaceId, opts?: { lock?: 'exclusive' | 'shared' }): Promise<Workspace | null>;
+    save(workspace: Workspace): Promise<void>; // persists the whole aggregate
+}
+export const WORKSPACE_REPOSITORY = Symbol('WORKSPACE_REPOSITORY');
+```
+
+**Domain events replace in-band audit recording** (see the invariants section for
+the legacy `ACTIVITY_RECORDER` rule). In the target layout the aggregate raises
+events, the use-case writes them to the **outbox in the same tx** as the state
+change, and a **post-commit dispatcher** fans them out — the activity log becomes
+one subscriber. `UnitOfWork`, the outbox, and the `DomainEvent` contract come
+from `@ortha-cms/database`; never re-implement them per plugin.
+
+**Thin contexts stay thin.** An audit log or analytics read-model gets mappers
+and event subscribers/projections, **not** aggregates. Forcing empty
+`domain/value-objects/` folders onto a CRUD context is a violation of ADR-0003,
+not compliance with it.
 
 ---
 
@@ -248,8 +362,12 @@ export class WidgetService {
 
 - Annotate as **`Database`** (the alias owned by `@ortha-cms/database`), not
   `NodePgDatabase` — a dialect change then stays a one-line edit there.
-- **Use Drizzle directly in services.** This repo deliberately has **no
-  repository-pattern wrapper** — generic NestJS guides add one; we don't.
+- **Use Drizzle directly in services — _legacy layout only_.** Feature-then-kind
+  packages deliberately have **no repository wrapper**. **Migrated (layered)
+  packages reverse this** (ADR-0003): Drizzle is confined to
+  `infrastructure/drizzle-*.repository.ts` adapters behind a domain port; the
+  `domain/` and `application/` layers never import `drizzle-orm`. Follow the
+  package's declared mode.
 - pg-specific methods (`onConflictDoNothing`, `lower(...)` via `sql`) are fine;
   they're inherently dialect-bound and that's accepted.
 
@@ -341,14 +459,19 @@ careful review checks:
   surfacing pending/disabled accounts as assignable.
 - **No enumeration signal** in security-sensitive responses (also under
   Controllers) — keep "this email exists" out of distinguishable errors/timing.
-- **Record audit events in-band, not after the fact.** A state-changing
-  operation that's audit-worthy records via the `ACTIVITY_RECORDER` token (or
-  `ActivityService` for a plugin that may depend on activity), passing the
-  mutation's `tx` as the executor — so the audit row commits iff the mutation
-  does. Recording out-of-band (post-commit, or via an event emitter) means a
-  rolled-back mutation can still leave an audit row, or a committed one can
-  silently drop it. Each plugin owns its own kinds. See
-  [`packages/activity/server/CLAUDE.md`](../../../packages/activity/server/CLAUDE.md).
+- **Record audit events atomically with the mutation — two mechanisms by mode.**
+  The invariant is the same in both layouts: the audit trail commits **iff** the
+  mutation does; out-of-band recording (post-commit, or a fire-and-forget
+  emitter) can leave a row for a rolled-back mutation or drop one for a committed
+  mutation.
+    - **Legacy:** record via the `ACTIVITY_RECORDER` token (or `ActivityService`),
+      passing the mutation's `tx` as the executor.
+    - **Target (ADR-0003):** the aggregate raises a domain event; the use-case
+      appends it to the **outbox in the same tx**; the post-commit dispatcher
+      delivers it to the activity subscriber. Atomicity comes from the outbox
+      write sharing the mutation's transaction — do **not** also call the
+      recorder directly. Each context owns its own event kinds. See
+      [`packages/activity/server/CLAUDE.md`](../../../packages/activity/server/CLAUDE.md).
 
 ## TypeScript conventions (match the existing packages)
 
@@ -378,7 +501,10 @@ plugin needs true cross-origin should a `cors` option be added to `createServer`
 - [ ] `XModule.forRoot()` (`global: true`).
 - [ ] Plugin factory in `utils/<plugin>-plugin.ts` (+ `migrations` descriptor if
       DB-backed).
-- [ ] Feature folders for each domain (no layer folders).
+- [ ] Layout matches the package's declared mode — layered
+      (`domain/application/infrastructure/http`, ADR-0003) for migrated/new
+      DB-backed plugins, feature-then-kind for legacy. `domain/` imports no
+      Nest/Drizzle/class-validator in the layered mode.
 - [ ] Every controller `@RequirePermissions(PERMISSIONS.*)` (constants, not
       literals), with a matching admin `useHasPermission` gate.
 - [ ] Concurrency-sensitive invariants locked (`FOR UPDATE` / serializable), not

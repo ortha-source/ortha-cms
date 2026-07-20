@@ -53,6 +53,19 @@ beside the work-area island (a rounded, bordered, scrolling card). It also hosts
 the detail drawer and every dialog, and builds the asset-action dispatcher +
 toasts.
 
+## Layout — born layered (ADR-0003)
+
+This is a static scaffold today (a page + the plugin factory), so it has **no**
+`domain/application/infrastructure/presentation` layers yet — and deliberately
+so: forcing empty layers onto a placeholder is the over-engineering ADR-0003
+warns against. When the first real feature lands (the asset browser/upload), it
+is **born in the layered shape** — copy the FE reference `packages/users/admin`
+(gateway port + `httpMediaGateway` over `apiClient`, mapper ACL, use-case hooks
+for the upload flow) and, when `@ortha-cms/media-server` is created, the server
+reference `packages/workspaces/server` (an `Asset` aggregate with an upload
+lifecycle, repository port, `StorageGateway` port, outbox events). Do not
+retrofit layers before there is behavior to hold them.
+
 ## Package
 
 - Name: `@ortha-cms/media-admin`
@@ -61,7 +74,7 @@ toasts.
   (`exports` → `./src/index.ts`); no build step.
 - Register it in `createAdmin({ plugins })` **after** `WorkspacesPlugin()` — it
   contributes only to the workspace shell's slots
-  (`WORKSPACE_SIDEBAR_SLOT` + `WORKSPACE_ROUTE_SLOT`), so it depends on
+  (`WORKSPACE_NAV_SLOT` + `WORKSPACE_ROUTE_SLOT`), so it depends on
   `@ortha-cms/workspaces-admin`.
 
 ## Lives strictly inside a workspace

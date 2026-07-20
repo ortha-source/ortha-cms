@@ -1,43 +1,75 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ListUsersController } from './users/controllers/list-users.controller';
-import { GetUserController } from './users/controllers/get-user.controller';
-import { InviteUserController } from './users/controllers/invite-user.controller';
-import { UpdateUserController } from './users/controllers/update-user.controller';
-import { SetUserStatusController } from './users/controllers/set-user-status.controller';
-import { ResendInviteController } from './users/controllers/resend-invite.controller';
-import { RevokeInviteController } from './users/controllers/revoke-invite.controller';
-import { UsersService } from './users/services/users.service';
-import { InviteTokenService } from './users/services/invite-token.service';
+import { ListMembersController } from './member/http/controllers/list-members.controller';
+import { GetMemberController } from './member/http/controllers/get-member.controller';
+import { InviteMemberController } from './member/http/controllers/invite-member.controller';
+import { UpdateMemberController } from './member/http/controllers/update-member.controller';
+import { SetMemberStatusController } from './member/http/controllers/set-member-status.controller';
+import { ResendInviteController } from './member/http/controllers/resend-invite.controller';
+import { RevokeInviteController } from './member/http/controllers/revoke-invite.controller';
+import { InviteMemberUseCase } from './member/application/use-cases/invite-member.use-case';
+import { UpdateMemberUseCase } from './member/application/use-cases/update-member.use-case';
+import { SetMemberStatusUseCase } from './member/application/use-cases/set-member-status.use-case';
+import { ResendInviteUseCase } from './member/application/use-cases/resend-invite.use-case';
+import { RevokeInviteUseCase } from './member/application/use-cases/revoke-invite.use-case';
+import { MemberViewQuery } from './member/infrastructure/queries/member-view.query';
+import { MEMBER_REPOSITORY } from './member/domain/member.repository';
+import { SESSION_REVOKER } from './member/application/ports/session-revoker.port';
+import { WORKSPACE_LINKER } from './member/application/ports/workspace-linker.port';
+import { DrizzleMemberRepository } from './member/infrastructure/persistence/drizzle-member.repository';
+import { MemberMapper } from './member/infrastructure/persistence/member.mapper';
+import { InviteTokenService } from './member/infrastructure/persistence/invite-token.service';
+import { DrizzleSessionRevoker } from './member/infrastructure/persistence/drizzle-session-revoker';
+import { DrizzleWorkspaceLinker } from './member/infrastructure/persistence/drizzle-workspace-linker';
 
 /**
- * NestJS module for the users plugin. Mounts the member-management routes
- * under `/api/users` and their services. The services are private to this
- * module — nothing else injects them — so the module is neither global nor
- * exports anything.
+ * NestJS module for the users plugin — the **member** bounded context, layered
+ * per ADR-0003 (domain / application / infrastructure / http). See the package
+ * `AGENTS.md`. Mounts the member-management routes under `/api/users`.
  *
- * The Drizzle client comes from `@ortha-cms/database`'s global
- * `DatabaseModule` (`@InjectDatabase()`); authentication from identity's
- * global `AuthGuard`; and authorization from identity's `PermissionsGuard`,
- * bound per controller with `@RequirePermissions(…)` (its `PermissionsService`
- * dependency resolves from identity's global module). It takes no config:
- * the invite TTL and page sizes are deliberate constants, not host knobs.
+ * Wires the aggregate's ports to their adapters: {@link MEMBER_REPOSITORY} →
+ * {@link DrizzleMemberRepository}, {@link SESSION_REVOKER} →
+ * {@link DrizzleSessionRevoker}, {@link WORKSPACE_LINKER} →
+ * {@link DrizzleWorkspaceLinker}. The unit-of-work / outbox primitives come from
+ * `@ortha-cms/database`'s global module; identity's tables are reached through
+ * `@ortha-cms/identity-server`. Auditing is no longer in-band — the member
+ * lifecycle facts drain to the outbox, where the activity plugin's subscriber
+ * records them.
+ *
+ * The module is **not** global and exports nothing — every provider is private.
+ * It takes no config: the invite TTL and page sizes are deliberate constants,
+ * not host knobs.
  */
 @Module({})
 export class UsersModule {
-    /** Creates the dynamic module: the member services + their controllers. */
+    /** Creates the dynamic module: use cases, ports, read model, and routes. */
     static forRoot(): DynamicModule {
         return {
             module: UsersModule,
             controllers: [
-                ListUsersController,
-                GetUserController,
-                InviteUserController,
-                UpdateUserController,
-                SetUserStatusController,
+                ListMembersController,
+                GetMemberController,
+                InviteMemberController,
+                UpdateMemberController,
+                SetMemberStatusController,
                 ResendInviteController,
                 RevokeInviteController
             ],
-            providers: [UsersService, InviteTokenService]
+            providers: [
+                // Application — one use case per state-changing operation.
+                InviteMemberUseCase,
+                UpdateMemberUseCase,
+                SetMemberStatusUseCase,
+                ResendInviteUseCase,
+                RevokeInviteUseCase,
+                // Read model — thin CQRS query service (bypasses the aggregate).
+                MemberViewQuery,
+                // Infrastructure — port adapters + persistence.
+                { provide: MEMBER_REPOSITORY, useClass: DrizzleMemberRepository },
+                { provide: SESSION_REVOKER, useClass: DrizzleSessionRevoker },
+                { provide: WORKSPACE_LINKER, useClass: DrizzleWorkspaceLinker },
+                MemberMapper,
+                InviteTokenService
+            ]
         };
     }
 }

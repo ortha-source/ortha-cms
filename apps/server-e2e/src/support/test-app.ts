@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ServerModule } from '@ortha-cms/bootstrap-server';
 import { getPool } from '@ortha-cms/database';
 import type { Server } from 'node:http';
-import { buildPlugins } from '../../../server/src/plugins';
+import { buildTestPlugins } from './plugins';
 import { buildTestConfig, type TestConfigOverrides } from './test-config';
 import { resolveDatabaseUrl } from './db-url';
 
@@ -16,8 +16,8 @@ export interface TestApp {
 /**
  * Boots the real server in-process against the e2e testcontainer and returns
  * it without listening on a fixed port — supertest drives `getHttpServer()`
- * directly. This mirrors `createServer` (same plugins via `buildPlugins`, same
- * global prefix and `ValidationPipe`) but stops at `app.init()`, so the only
+ * directly. This mirrors `createServer` (same plugins via `buildTestPlugins`,
+ * same global prefix and `ValidationPipe`) but stops at `app.init()`, so the only
  * difference from production is "init, don't listen". `app.init()` also runs
  * the `OnApplicationBootstrap` seeders (system roles), exactly as a real boot.
  *
@@ -27,7 +27,7 @@ export interface TestApp {
 export async function createTestApp(
     overrides: TestConfigOverrides = {}
 ): Promise<TestApp> {
-    const plugins = buildPlugins(
+    const plugins = buildTestPlugins(
         buildTestConfig(resolveDatabaseUrl(), overrides)
     );
 

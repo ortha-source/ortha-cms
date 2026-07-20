@@ -12,6 +12,26 @@ point: it holds almost no logic. It assembles the product by handing a list of
   most.
 - `ortha.config.ts` — host config. This project is the migration host: the
   inferred `db:migrate` target applies every plugin's pending migrations.
+- `src/content/` — the host's **code-defined content types** (see below).
+
+## Content types (`src/content/`)
+
+The host defines its content model here — the collections and pages the
+`ContentPlugin` serves, and whose generated tables the host owns.
+
+- `src/content/index.ts` — the **one aggregation point**. It exports the
+  `contentTypes` array (which `plugins.ts` registers with `ContentPlugin`) and
+  **re-exports every generated table** for drizzle-kit to diff.
+- `src/content/collections/` — one file per collection (a `collection(...)`).
+- `src/content/pages/` — one file per single page (a `single(...)`).
+
+**Adding a type:** create a file under `content/collections/` or
+`content/pages/`, then in `content/index.ts` add it to `contentTypes` **and**
+re-export its table(s). drizzle-kit only diffs **top-level table exports**, so a
+table not re-exported from `index.ts` is silently absent from migrations
+(many-relation join tables via `joinTableOf` included). Then
+`npx nx run server:db:generate --name=<change>` and commit the SQL —
+`drizzle.config.ts` points `schema` at `src/content/index.ts`.
 
 ## How it fits
 

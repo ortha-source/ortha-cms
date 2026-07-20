@@ -26,5 +26,6 @@ routine, easily-reversed changes.
 
 - [0001 — Record architecture decisions](0001-record-architecture-decisions.md)
 - [0002 — Plugin-based architecture](0002-plugin-based-architecture.md)
+- [0003 — Tactical DDD inside plugins](0003-tactical-ddd-inside-plugins.md)
 
 <!-- Add new ADRs to this index. -->

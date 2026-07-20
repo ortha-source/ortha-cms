@@ -14,6 +14,23 @@ that state and returns the user to where `RequireAuth` sent them (or `/`). The
 plugin's only `bootstrap-admin` reference is the `AdminPlugin` *type*.
 User/role/access screens and logout land in later tickets (epic #3).
 
+## Layout — layered (ADR-0003)
+
+This plugin is **layered (tactical DDD)** — a light application of the shape,
+proportionate to its small surface (it has no client domain rules; the server
+owns auth). `src/lib` is organized into:
+
+- **`domain/`** — an `Email` value object for instant login-field validation
+  (the only client-side rule). Pure TS, no React.
+- **`infrastructure/`** — the `authGateway` port + `httpAuthGateway`
+  implementation (the sole `apiClient` user: login, logout, current-user).
+- **`application/`** — the data hooks (`useLoginMutation` / `useLogoutMutation` /
+  `useCurrentUser`) calling the gateway, not `apiClient`.
+- **`presentation/`** — the login UI, pages, router, the plugin factory, and the
+  **auth kit** (`auth/`: `AuthProvider` / `RequireAuth` / auth context). The auth
+  mechanism itself is unchanged — the shell still imports `AuthProvider` +
+  `RequireAuth` and `useHasPermission` works exactly as before.
+
 ## Package
 
 - Name: `@ortha-cms/identity-admin`

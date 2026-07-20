@@ -6,7 +6,8 @@ import type { CreateNodesV2, TargetConfiguration } from '@nx/devkit';
  * `typecheck` from a tsconfig:
  *
  * - a project with a `drizzle.config.ts` gets a cacheable `db:generate`
- * - a project with an `ortha.config.ts` (the host) gets `db:migrate`
+ * - a project with an `ortha.config.ts` (the host) gets `db:migrate` and
+ *   `db:studio`
  *
  * No per-project wiring — drop a config file and the target appears.
  */
@@ -36,6 +37,13 @@ export const createNodesV2: CreateNodesV2 = [
                           options: {
                               config: file,
                               plugins: `${projectRoot}/src/plugins.ts`
+                          },
+                          cache: false
+                      },
+                      'db:studio': {
+                          executor: '@ortha-cms/nx:db-studio',
+                          options: {
+                              config: file
                           },
                           cache: false
                       }

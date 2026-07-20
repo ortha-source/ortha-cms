@@ -152,6 +152,75 @@ describe('content-type metadata (publishable / paranoid)', () => {
     });
 });
 
+describe('content-type i18n metadata', () => {
+    /** Generated tables expose their columns as own properties. */
+    const cols = (type: AnyContentType) =>
+        type.table as unknown as Record<string, unknown>;
+
+    it('defaults i18n to false and adds no locale columns', () => {
+        const post = collection('post', { fields: { title: field.text() } });
+        expect(post.i18n).toBe(false);
+        expect(cols(post).locale).toBeUndefined();
+        expect(cols(post).localeGroupId).toBeUndefined();
+    });
+
+    it('i18n adds locale + locale_group_id columns', () => {
+        const post = collection('post', {
+            i18n: true,
+            fields: { title: field.text() }
+        });
+        expect(post.i18n).toBe(true);
+        expect(cols(post).locale).toBeDefined();
+        expect(cols(post).localeGroupId).toBeDefined();
+    });
+
+    it('reserves locale and locale_group_id as field names', () => {
+        expect(() =>
+            collection('post', {
+                i18n: true,
+                fields: { locale: field.text() }
+            })
+        ).toThrow(/envelope column/);
+        expect(() =>
+            collection('post', {
+                i18n: true,
+                fields: { localeGroupId: field.text() }
+            })
+        ).toThrow(/envelope column/);
+    });
+
+    it('rejects a localized field on a non-i18n type', () => {
+        expect(() =>
+            collection('post', {
+                fields: { title: field.text({ localized: true }) }
+            })
+        ).toThrow(/localized, but the type does not set i18n/);
+    });
+
+    it('carries localized on the field spec of an i18n type', () => {
+        const post = collection('post', {
+            i18n: true,
+            fields: {
+                title: field.text({ localized: true }),
+                slug: field.text()
+            }
+        });
+        expect(post.fields.title.localized).toBe(true);
+        // Omitted (not false) when unset.
+        expect(post.fields.slug.localized).toBeUndefined();
+    });
+
+    it('applies to single() too', () => {
+        const home = single('home', {
+            path: '/',
+            i18n: true,
+            fields: { title: field.text({ localized: true }) }
+        });
+        expect(cols(home).locale).toBeDefined();
+        expect(cols(home).localeGroupId).toBeDefined();
+    });
+});
+
 describe('joinTableOf()', () => {
     const tag = collection('tag', { fields: { name: field.text() } });
     const post = collection('post', {

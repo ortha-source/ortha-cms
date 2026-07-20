@@ -1,7 +1,82 @@
 /* Global stylesheet shipped by @ortha-cms/design-system. Import it once from the
    host (after `@import 'tailwindcss'`). Holds the few rules that can't be plain
-   Tailwind utilities — currently the wizard step entrance used by
-   `WizardStepCard`. */
+   Tailwind utilities — the wizard step entrance used by `WizardStepCard`, and
+   the dropdown open/close motion below. */
+
+/* ---------------------------------------------------------------------------
+   Dropdown motion — `Popover`, `DropdownMenu`, `Select`.
+
+   Deliberately hand-authored rather than pulled from tailwindcss-animate /
+   tw-animate-css: those utilities are not installed, so the `animate-in` /
+   `fade-in-0` / `zoom-in-95` classes shadcn ships on the overlay components
+   generate no CSS at all. This is one class covering both directions, applied
+   ONLY to the three dropdown components — modals (`Dialog`, `Sheet`) and
+   `Tooltip` stay static, so this is not an app-wide motion pass.
+
+   Radix keeps the node mounted while a CSS animation runs on `[data-state=
+   closed]` (its Presence component waits for it), which is what makes the exit
+   animation possible at all. `--ds-drop-x/y` give the content a small offset
+   away from its trigger, so it appears to come *from* the trigger on whichever
+   side Radix ended up placing it (`data-side`).
+--------------------------------------------------------------------------- */
+.ds-dropdown-motion {
+    --ds-drop-x: 0px;
+    --ds-drop-y: 0px;
+}
+
+.ds-dropdown-motion[data-side='bottom'] {
+    --ds-drop-y: -4px;
+}
+.ds-dropdown-motion[data-side='top'] {
+    --ds-drop-y: 4px;
+}
+.ds-dropdown-motion[data-side='left'] {
+    --ds-drop-x: 4px;
+}
+.ds-dropdown-motion[data-side='right'] {
+    --ds-drop-x: -4px;
+}
+
+@keyframes ds-dropdown-in {
+    from {
+        opacity: 0;
+        transform: translate3d(var(--ds-drop-x), var(--ds-drop-y), 0)
+            scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes ds-dropdown-out {
+    from {
+        opacity: 1;
+        transform: none;
+    }
+    to {
+        opacity: 0;
+        transform: translate3d(var(--ds-drop-x), var(--ds-drop-y), 0)
+            scale(0.97);
+    }
+}
+
+/* Out is quicker than in: a dismissal should feel immediate, an entrance
+   should feel placed. */
+.ds-dropdown-motion[data-state='open'] {
+    animation: ds-dropdown-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ds-dropdown-motion[data-state='closed'] {
+    animation: ds-dropdown-out 90ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-dropdown-motion[data-state='open'],
+    .ds-dropdown-motion[data-state='closed'] {
+        animation: none;
+    }
+}
 
 /* Wizard step entrance. Transforms ONLY — opacity stays 1 at all times — so the
    step content is never hidden when the motion clock is paused (background tab,

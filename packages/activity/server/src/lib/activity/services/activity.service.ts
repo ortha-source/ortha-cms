@@ -48,6 +48,11 @@ export class ActivityService implements ActivityRecorder {
      * mutation, so the audit row commits iff the mutation does; defaults to the
      * root client. `at` defaults to now; `actorId`/`actorEmail`/`meta` are
      * nullable.
+     *
+     * @deprecated Wave 3 moved auditing onto the outbox `AuditEventSubscriber`,
+     * the single live writer. This method (and the `ACTIVITY_RECORDER` binding)
+     * is retained only for a stable public surface — no caller writes through it
+     * anymore. Emit a domain event and let the subscriber record it instead.
      */
     async record(
         input: ActivityRecordInput,

@@ -11,13 +11,18 @@
         },
         "./package.json": "./package.json"
     },
+    "files": [
+        "src",
+        "migrations"
+    ],
     "dependencies": {
         "@nestjs/common": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
-        "drizzle-orm": "^0.36.0",
+        "drizzle-orm": "^0.45.0",
         "pg": "^8.13.0"
     },
     "devDependencies": {
-        "@types/pg": "^8.11.0"
+        "@types/pg": "^8.11.0",
+        "drizzle-kit": "^0.31.0"
     }
 }

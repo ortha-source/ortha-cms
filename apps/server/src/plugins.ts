@@ -3,8 +3,10 @@ import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
 import { DatabasePlugin } from '@ortha-cms/database';
+import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
 import { UsersPlugin } from '@ortha-cms/users-server';
+import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../ortha.config';
 import { contentTypes } from './content';
 
@@ -14,31 +16,39 @@ import { contentTypes } from './content';
  * so both see exactly the same plugins, in the same order.
  *
  * Order matters: `DatabasePlugin` must come first — it opens the connection
- * every other plugin assumes. Identity owns the workspaces schema and its
- * read/create endpoints; `ActivityPlugin` follows it (its read API is gated by
- * identity's guard + `activity:read` permission, and identity records audit
- * events through its globally-bound recorder). `UsersPlugin` reads identity's
- * tables and records through the activity plugin. `ContentPlugin` is listed
- * last; its generated collection tables are host-owned migrations, independent
- * of the other plugins (all modules are global, so DI is order-independent —
- * the order here just keeps migrations and intent legible).
+ * every other plugin assumes. `WorkspacesPlugin` follows identity (its
+ * `memberships` table FK-references identity's `users`, so `users` must be
+ * migrated first, and its services read identity's `users`/`roles`); it must
+ * also precede `ContentPlugin`, which scopes routes with its `WorkspaceGuard`
+ * and binds its `CONTENT_CATALOG` / `CONTENT_ENTRY_COUNTER` ports. `ActivityPlugin`
+ * follows (its read API is gated by identity's guard + `activity:read`
+ * permission, and workspaces records audit events through the globally-bound
+ * recorder). `UsersPlugin` reads identity's and workspaces' tables and records
+ * through the activity plugin. `ContentPlugin`'s generated
+ * collection tables are host-owned migrations, independent of the other
+ * plugins (all modules are global, so DI is order-independent — the order
+ * here just keeps migrations and intent legible). `I18nServerPlugin` follows
+ * `ContentPlugin`: it binds content's `CONTENT_ENTRY_EXTENSION` port and
+ * reads its registry.
  */
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     return [
         DatabasePlugin({ connectionString: config.database.url }),
         IdentityPlugin(config.plugins.identity),
+        WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),
         ContentPlugin({
             types: contentTypes,
             // The HOST owns the generated collection tables (drizzle.config.ts
-            // diffs src/content.ts into ./migrations); routing the
+            // diffs src/content/index.ts into ./migrations); routing the
             // descriptor through the plugin lets the standard db:migrate
             // machinery apply them with every other plugin's migrations.
             migrations: {
                 dir: () => join(__dirname, '../migrations'),
                 table: '__drizzle_migrations_content'
             }
-        })
+        }),
+        I18nServerPlugin(config.plugins.i18n)
     ];
 }

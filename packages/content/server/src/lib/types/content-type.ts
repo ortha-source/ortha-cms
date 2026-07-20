@@ -56,6 +56,15 @@ export interface ContentTypeOptions<
      * Authors cannot define it as a field, and clients cannot set it directly.
      */
     paranoid?: boolean;
+    /**
+     * Row-per-locale localization: adds reserved `locale` + `locale_group_id`
+     * envelope columns the platform owns. Each locale of an entry is a full
+     * row; sibling rows share a `locale_group_id`. What a locale *means*
+     * (available slugs, the default, scoping, sync) is owned by the bound
+     * localization plugin via the `CONTENT_ENTRY_EXTENSION` port — this
+     * package only provides the storage shape.
+     */
+    i18n?: boolean;
     /** The field map — keys become column names (snake_cased). */
     fields: TFields;
 }
@@ -86,6 +95,8 @@ export interface ContentType<
     readonly publishable: boolean;
     /** Soft-deletes via a `deleted_at` envelope column. */
     readonly paranoid: boolean;
+    /** Row-per-locale via `locale` + `locale_group_id` envelope columns. */
+    readonly i18n: boolean;
     readonly fields: TFields;
     /** The generated Postgres table (`content_<name>`). */
     readonly table: PgTable;
@@ -116,6 +127,10 @@ export interface EntryEnvelope {
     publishedAt?: Date | null;
     /** Soft-delete tombstone — present (nullable) only on `paranoid` types. */
     deletedAt?: Date | null;
+    /** Locale slug of this row — present only on `i18n` types. */
+    locale?: string;
+    /** Shared id across a translation group — present only on `i18n` types. */
+    localeGroupId?: string;
 }
 
 /** The field values of a content type, null-aware via each field's `required`. */

@@ -4,17 +4,28 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils';
 
 const badgeVariants = cva(
-    'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+    'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     {
         variants: {
             variant: {
                 default:
-                    'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
+                    'border-transparent bg-primary text-primary-foreground shadow',
                 secondary:
-                    'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                    'border-transparent bg-secondary text-secondary-foreground',
                 destructive:
-                    'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
-                outline: 'text-foreground'
+                    'border-transparent bg-destructive text-destructive-foreground shadow',
+                outline: 'text-foreground',
+                /* Soft tinted chips: colored surface + dark text of the same
+                   hue. For statuses/labels where a solid badge is too loud. */
+                success:
+                    'border-transparent bg-success-soft text-success-soft-foreground',
+                warning:
+                    'border-transparent bg-warning-soft text-warning-soft-foreground',
+                info: 'border-transparent bg-info-soft text-info-soft-foreground',
+                'destructive-soft':
+                    'border-transparent bg-destructive-soft text-destructive-soft-foreground',
+                'primary-soft':
+                    'border-transparent bg-brand-soft text-brand-soft-foreground'
             }
         },
         defaultVariants: {

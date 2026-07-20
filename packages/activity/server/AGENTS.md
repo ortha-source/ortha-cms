@@ -1,13 +1,20 @@
 # @ortha-cms/activity-server
 
 The audit-log **plugin** for the Ortha CMS server. It owns the
-`activity_events` schema (and **ships its own migrations**), records events
-**in-band and transactionally**, and exposes the read API the admin's Activity
-Log drives.
+`activity_events` schema (and **ships its own migrations**), records events by
+**subscribing to the transactional outbox**, and exposes the read API the
+admin's Activity Log drives.
 
 A **generic sink**: `kind` and `meta` are open (text / jsonb). Each emitting
 plugin owns its own kinds — identity (auth + workspaces), users (member
 lifecycle) — so this package stays decoupled from any one domain's events.
+
+> **Layered (ADR-0003 — tactical DDD inside plugins).** `activity` is a
+> read-side / CRUD audit context: ADR-0003 says **don't force DDD on CRUD**, so
+> there is **no aggregate**. The layering is light — a thin `ActivityService`
+> query for the list read model, and the write side is one outbox
+> `DomainEventSubscriber` under `activity/infrastructure/`. Wave 3 flipped this
+> package from an in-band recorder to that subscriber.
 
 Under `/api/activity`:
 
@@ -17,16 +24,33 @@ Under `/api/activity`:
   default `at desc`) audit log. Gated `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`.
   Drops `created_at` from the wire.
 
-## Recording (in-band, transactional)
+## Recording (outbox subscriber — the live path)
 
-`ActivityService.record(input, executor = this.db)` appends one row. Mutating
-services pass their **transaction** as `executor`, so the audit row commits iff
-the mutation does — no `@nestjs/event-emitter`, no silently-dropped writes.
-`ActivityService implements ActivityRecorder` — the port + `ACTIVITY_RECORDER`
-token live in **`@ortha-cms/identity-server`** (the foundational package), and
-this module binds the token. That indirection lets identity record
-sign-in/out + workspace events without depending on this package, which depends
-back on identity for the read API's guard — keeping the graph acyclic.
+`activity/infrastructure/audit-event.subscriber.ts` (`AuditEventSubscriber`) is
+the **single live audit writer**. It self-registers with the
+`OutboxDispatcher` (from `@ortha-cms/database`) on `OnApplicationBootstrap`; the
+dispatcher then delivers every audited domain event to it. `handle(event)` maps
+the event to the same `activity_events` row the old in-band recorder wrote, via
+the **pure** `audit-event-mapping.ts` (`toAuditRow`) — the event-kind → audit-kind
+table (e.g. `member.* → user.*`, `auth.signed_in → user.signed_in`; workspace
+kinds pass through). Producers put the actor on the event payload with
+`attachActor(...)` before appending to the outbox, so the subscriber can recover
+`actorId`/`actorEmail` from the event alone.
+
+**Idempotent** (delivery is at-least-once): the row's primary key is the source
+**event id** and the insert is `ON CONFLICT DO NOTHING`, so a re-delivered event
+never double-records. The audit is derived downstream — the write path and the
+audit path now evolve independently.
+
+**Parity is unit-tested** DB-free: `audit-event-mapping.spec.ts` asserts each
+kind's produced row equals what the in-band `recorder.record(...)` wrote.
+
+`ActivityService.record(...)` and the `ACTIVITY_RECORDER` token (the port lives
+in **`@ortha-cms/identity-server`**, the foundational package; this module binds
+it) are **retained but `@deprecated`** — nothing writes through them anymore.
+They keep the public surface stable. That indirection kept the package graph
+acyclic (identity never depended on this package); the outbox now decouples them
+entirely.
 
 ## Schema (isolation by design — the audit outlives its subjects)
 

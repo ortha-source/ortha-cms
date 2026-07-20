@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1782140166422,
-      "tag": "0000_init_content",
+      "when": 1784483673949,
+      "tag": "0000_content-types",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1782485457299,
-      "tag": "0001_content_publishable_nullable",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1782839388143,
-      "tag": "0002_add_relations",
+      "when": 1784544932238,
+      "tag": "0001_relation_fk_indexes",
       "breakpoints": true
     }
   ]

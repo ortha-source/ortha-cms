@@ -1,8 +1,8 @@
-export { ActivityPlugin } from './lib/utils/activityPlugin';
-export type { ActivityAdminPlugin } from './lib/utils/activityPlugin';
-export { useActivityLog } from './lib/api/useActivityLog';
-export { activityKeys } from './lib/utils/activityKeys';
-export type { ActivityListParams } from './lib/utils/activityKeys';
+export { ActivityPlugin } from './lib/presentation/activityPlugin';
+export type { ActivityAdminPlugin } from './lib/presentation/activityPlugin';
+export { useActivityLog } from './lib/application/useActivityLog';
+export { activityKeys } from './lib/infrastructure/activityKeys';
+export type { ActivityListParams } from './lib/infrastructure/activityKeys';
 export type {
     ActivityEvent,
     ActivityActor,

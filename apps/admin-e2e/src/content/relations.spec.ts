@@ -6,10 +6,13 @@ import {
     RELATIONS_SCOPED_WORKSPACE,
     RELATIONS_SCHEMA_SEED,
     RELATIONS_DETAIL_SEED,
+    RELATIONS_ENTRIES_SEED,
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
-    mockContentEntryWrites
+    mockContentEntryWrites,
+    mockEntryRelations,
+    spyEntrySave
 } from '../support/api/content';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -17,8 +20,9 @@ import { expectNoA11yViolations } from '../support/a11y';
  * The relation picker in the entry editor's Relations tab (from
  * `@ortha-cms/content-admin`): assigning single + many relations by **title**,
  * searching and lazily scrolling candidates, the query-builder filter drawer,
- * removing links, and accessibility. The schema is mocked; candidate rows are
- * baked into the admin (`useRelationCandidates`), so picking shows real records.
+ * removing links, and accessibility. The schema **and** the candidate rows are
+ * mocked at the network layer — candidates come from `GET /api/content/:type`
+ * (`RELATIONS_ENTRIES_SEED`), the same list endpoint the records table uses.
  */
 test.describe('Relation picker', () => {
     test.beforeEach(async ({ page }) => {
@@ -26,11 +30,17 @@ test.describe('Relation picker', () => {
         await mockWorkspaces(page, [RELATIONS_WORKSPACE]);
         await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
         await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
-        await mockContentEntries(page, { details: RELATIONS_DETAIL_SEED });
+        // Candidate rows come from the real list endpoint now; seed recognizable
+        // titles (Ada Lovelace, engineering, …) via the entries override.
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED
+        });
         await mockContentEntryWrites(page, { details: RELATIONS_DETAIL_SEED });
+        await mockEntryRelations(page);
     });
 
-    test('renders each relation field as a collapsible section', async ({
+    test('renders each relation field as a titled card', async ({
         relationsEditorPage
     }) => {
         await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
@@ -38,7 +48,7 @@ test.describe('Relation picker', () => {
 
         await expect(relationsEditorPage.section('Author')).toBeVisible();
         await expect(relationsEditorPage.section('Tags')).toBeVisible();
-        // Sections start open (≤3 relation fields), so the triggers show.
+        // Cards are always expanded, so the triggers show.
         await expect(relationsEditorPage.selectButton('Authors')).toBeVisible();
         await expect(relationsEditorPage.addRelatedButton).toBeVisible();
         await expect(relationsEditorPage.nothingLinked.first()).toBeVisible();
@@ -58,6 +68,12 @@ test.describe('Relation picker', () => {
         await expect(relationsEditorPage.dialog).toBeHidden();
         await expect(
             relationsEditorPage.assignedRemove('Ada Lovelace')
+        ).toBeVisible();
+        // The assigned single-relation row carries a "Replace" action (re-opens
+        // the picker) and a slugified `/handle` (author has no slug field).
+        await expect(relationsEditorPage.replaceButton).toBeVisible();
+        await expect(
+            relationsEditorPage.recordHandle('ada-lovelace')
         ).toBeVisible();
     });
 
@@ -81,10 +97,65 @@ test.describe('Relation picker', () => {
         await expect(
             relationsEditorPage.assignedRemove('design')
         ).toBeVisible();
-        // A many relation's rows are reorderable (a drag handle per row).
+        // A many relation's rows are reorderable — a drag handle plus up/down
+        // arrows per row (the first row's up arrow is disabled, the last row's
+        // down arrow is disabled).
         await expect(
             relationsEditorPage.dragHandle('engineering')
         ).toBeVisible();
+        await expect(relationsEditorPage.moveUp('engineering')).toBeDisabled();
+        await expect(relationsEditorPage.moveDown('design')).toBeDisabled();
+        // Each linked tag shows its slug as a muted `/handle`.
+        await expect(
+            relationsEditorPage.recordHandle('engineering')
+        ).toBeVisible();
+    });
+
+    test('reorders a many relation with the down arrow', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').click();
+        await relationsEditorPage.candidate('design').click();
+        await relationsEditorPage.addSelectedButton.click();
+
+        // engineering is first (its up arrow is disabled). Nudging it down swaps
+        // the pair, so now its up arrow is enabled and design's is disabled.
+        await expect(relationsEditorPage.moveUp('engineering')).toBeDisabled();
+        await relationsEditorPage.moveDown('engineering').click();
+        await expect(relationsEditorPage.moveUp('engineering')).toBeEnabled();
+        await expect(relationsEditorPage.moveUp('design')).toBeDisabled();
+    });
+
+    test('offers an open-in-new-tab link on candidate and assigned rows', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        await relationsEditorPage.selectButton('Authors').click();
+        // Each candidate row in the search window links to that record's editor.
+        const candidateLink =
+            relationsEditorPage.candidateOpenLink('Ada Lovelace');
+        await expect(candidateLink).toBeVisible();
+        await expect(candidateLink).toHaveAttribute('target', '_blank');
+        await expect(candidateLink).toHaveAttribute(
+            'href',
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/author-ada`
+        );
+
+        // The same link rides on the assigned preview row after picking.
+        await relationsEditorPage.candidate('Ada Lovelace').click();
+        const previewLink = relationsEditorPage.openLink('Ada Lovelace');
+        await expect(previewLink).toBeVisible();
+        await expect(previewLink).toHaveAttribute('target', '_blank');
+        await expect(previewLink).toHaveAttribute(
+            'href',
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/author-ada`
+        );
     });
 
     test('searches to narrow the candidate list', async ({
@@ -110,8 +181,8 @@ test.describe('Relation picker', () => {
         await relationsEditorPage.openRelationsTab();
 
         await relationsEditorPage.addRelatedButton.click();
-        // The tag target has 32 rows; the first window is 12.
-        await expect(relationsEditorPage.candidateOptions).toHaveCount(12);
+        // The tag target has 32 rows; the first page is one candidate window (25).
+        await expect(relationsEditorPage.candidateOptions).toHaveCount(25);
         await expect(relationsEditorPage.recordsCount).toHaveText(/32 records/);
 
         // Scrolling to the bottom trips the lazy-load sentinel, revealing more.
@@ -123,7 +194,7 @@ test.describe('Relation picker', () => {
                 },
                 { timeout: 10_000 }
             )
-            .toBeGreaterThan(12);
+            .toBeGreaterThan(25);
     });
 
     test('reveals the inline query-builder filter over the target schema', async ({
@@ -178,6 +249,49 @@ test.describe('Relation picker', () => {
         await expect(relationsEditorPage.addRelatedButton).toHaveCount(0);
     });
 
+    test('saves staged links as a relations delta, omitting them from values', async ({
+        page,
+        relationsEditorPage
+    }) => {
+        const spy = await spyEntrySave(page);
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+
+        // Stage two tags (nothing sent yet — staged locally).
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').click();
+        await relationsEditorPage.candidate('design').click();
+        await relationsEditorPage.addSelectedButton.click();
+        await expect(spy.bodies).toHaveLength(0);
+
+        // Save (draft) flushes them as a delta in the save payload.
+        await relationsEditorPage.saveDraft();
+        await expect.poll(() => spy.bodies.length).toBeGreaterThan(0);
+
+        const body = spy.bodies[0];
+        expect(body.relations?.tags?.link?.slice().sort()).toEqual([
+            'tag-01',
+            'tag-02'
+        ]);
+        // A link-managed relation must NOT ride in `values` (that path replaces
+        // the whole set and would wipe links on a later save).
+        expect('tags' in body.values).toBe(false);
+    });
+
+    test('shows a "Changed" badge on a relation with staged edits', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+        await expect(relationsEditorPage.changedBadge).toHaveCount(0);
+
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').click();
+        await relationsEditorPage.addSelectedButton.click();
+
+        await expect(relationsEditorPage.changedBadge.first()).toBeVisible();
+    });
+
     test('removes an assigned relation', async ({ relationsEditorPage }) => {
         await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
         await relationsEditorPage.openRelationsTab();
@@ -207,8 +321,14 @@ test.describe('Relation picker accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockWorkspaces(page, [RELATIONS_WORKSPACE]);
         await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
         await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
-        await mockContentEntries(page, { details: RELATIONS_DETAIL_SEED });
+        // Candidate rows come from the real list endpoint now; seed recognizable
+        // titles (Ada Lovelace, engineering, …) via the entries override.
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED
+        });
         await mockContentEntryWrites(page, { details: RELATIONS_DETAIL_SEED });
+        await mockEntryRelations(page);
     });
 
     test('relations tab — field sections', async ({

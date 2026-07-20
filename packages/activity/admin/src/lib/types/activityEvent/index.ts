@@ -1,4 +1,4 @@
-import type { ActivityKind } from '../../utils/activityKinds';
+import type { ActivityKind } from '../activityKinds';
 
 /** Open per-kind payload — the admin reads known fields loosely. */
 export type ActivityMeta = Record<string, unknown>;

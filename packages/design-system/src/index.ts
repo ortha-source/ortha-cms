@@ -33,14 +33,6 @@ export {
 } from './lib/components/ui/field';
 export { Logo } from './lib/components/ui/logo';
 export {
-    Navbar,
-    NavbarBrand,
-    NavbarNav,
-    navbarItemVariants,
-    NavbarSpacer,
-    NavbarEnd
-} from './lib/components/ui/navbar';
-export {
     Tooltip,
     TooltipTrigger,
     TooltipContent,
@@ -88,6 +80,22 @@ export {
     TabsTrigger,
     TabsContent
 } from './lib/components/ui/tabs';
+export {
+    TabNav,
+    TabNavLink,
+    type TabNavLinkProps
+} from './lib/components/ui/tab-nav';
+export { Kbd } from './lib/components/ui/kbd';
+export {
+    Breadcrumb,
+    BreadcrumbList,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+    BreadcrumbEllipsis
+} from './lib/components/ui/breadcrumb';
+export { TopBar, TopBarIcon } from './lib/components/ui/top-bar';
 export {
     InputGroup,
     InputGroupAddon,
@@ -150,6 +158,8 @@ export {
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
 export { Container, ContainerHeader } from './lib/components/ui/container';
+export { StatTile } from './lib/components/ui/stat-tile';
+export type { StatTileProps } from './lib/components/ui/stat-tile';
 export {
     Table,
     TableHeader,
@@ -200,6 +210,45 @@ export {
     PaginationNext,
     PaginationEllipsis
 } from './lib/components/ui/pagination';
+export {
+    Sheet,
+    SheetPortal,
+    SheetOverlay,
+    SheetTrigger,
+    SheetClose,
+    SheetContent,
+    SheetHeader,
+    SheetFooter,
+    SheetTitle,
+    SheetDescription
+} from './lib/components/ui/sheet';
+export {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupAction,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarInput,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuAction,
+    SidebarMenuBadge,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarMenuSkeleton,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
+    SidebarProvider,
+    SidebarRail,
+    SidebarSeparator,
+    SidebarTrigger,
+    useSidebar,
+    useOptionalSidebar
+} from './lib/components/ui/sidebar';
 export {
     Stepper,
     WizardStepCard,

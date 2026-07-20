@@ -3,18 +3,22 @@ import { eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
-    memberships,
     roles,
     sessions,
     tokens,
     users,
-    workspaces,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
-// Host-owned generated content tables. Importing the host app is permitted in
-// the support harness (it's exempt from the module-boundary rule); specs reach
-// these only through the helpers below.
-import { articles, landingPage } from '../../../server/src/content';
+import { memberships, workspaces } from '@ortha-cms/workspaces-server';
+// The e2e-owned generated content tables (from the harness's own content model,
+// NOT the app's collections). Specs reach these only through the helpers below.
+import {
+    testArticleTags,
+    testArticles,
+    testAuthors,
+    testLandingPage,
+    testTags
+} from './content';
 // HashingService is internal to the identity plugin (not re-exported). We reach
 // for the class to pull the SAME provider instance out of the DI container, so
 // seeded password hashes are produced by the exact code login verifies against
@@ -299,19 +303,24 @@ export async function countActivityRows(): Promise<number> {
  * and permissions in place (users reference roles via FK). `CASCADE` clears
  * dependent rows — sessions, tokens, memberships — in one statement.
  * `activity_events` is truncated explicitly: its `actor_id` has no FK, so a
- * `users` cascade never reaches it.
+ * `users` cascade never reaches it. Every e2e content table is truncated too
+ * (content has no FK to `workspaces`, so a workspace cascade never reaches it);
+ * `CASCADE` on `content_test_article` also clears its join + comment children.
  */
 export async function resetDb(): Promise<void> {
     await getPool().query(
         'TRUNCATE TABLE users, workspaces, activity_events, ' +
-            'content_article, content_landing RESTART IDENTITY CASCADE'
+            'content_test_article, content_test_author, content_test_tag, ' +
+            'content_test_seo, content_test_comment, content_test_landing ' +
+            'RESTART IDENTITY CASCADE'
     );
 }
 
 /**
- * Insert rows into the `article` collection (publishable + paranoid). Each row
- * needs at least `text` + `select` (the type's required fields); `status`
- * defaults to `draft`. Returns nothing — assertions go through the HTTP API.
+ * Insert rows into the `test_article` collection (publishable + paranoid). Each
+ * row needs at least `text` + `select` (the type's required fields); `status`
+ * defaults to `draft`. Returns the inserted ids in input order (for wiring up
+ * relations); assertions still go through the HTTP API.
  *
  * Entries are workspace-scoped: pass `workspaceId` to stamp the owning
  * workspace's `workspace_id` on every row (the value the `WorkspaceGuard`
@@ -322,27 +331,100 @@ export async function resetDb(): Promise<void> {
 export async function seedArticles(
     rows: Record<string, unknown>[],
     workspaceId?: string
-): Promise<void> {
-    if (rows.length === 0) return;
+): Promise<string[]> {
+    if (rows.length === 0) return [];
     // The generated table's column set is dynamic, so the insert values aren't
     // statically typed — the column names match the field names by construction.
     // `workspaceId` (the default) merges first so a per-row override wins.
-    await getDatabase()
-        .insert(articles)
-        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
+    // `locale` is NOT NULL (the i18n columns have no default), so default it to
+    // the config's default locale (`en`); a per-row value wins.
+    // The generated table's columns aren't statically typed (see the `as never`
+    // on the values above), so project the returned rows rather than naming the
+    // `id` column in `.returning()`.
+    const inserted = (await getDatabase()
+        .insert(testArticles)
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        )
+        .returning()) as { id: string }[];
+    return inserted.map((row) => row.id);
 }
 
 /**
- * Insert rows into the `landing` page (non-publishable: no `status` column).
- * Pass `workspaceId` to stamp the owning workspace on every row (a per-row
- * `workspaceId` still wins); see {@link seedArticles}.
+ * Insert rows into the `test_author` collection and return the inserted ids in
+ * input order, so a caller can wire them into an article's `author` FK (the
+ * many-to-one side of the relation).
+ */
+export async function seedAuthors(
+    rows: Record<string, unknown>[],
+    workspaceId?: string
+): Promise<string[]> {
+    if (rows.length === 0) return [];
+    // `test_author` is i18n, so `locale` is NOT NULL with no default (see
+    // {@link seedArticles}); a per-row value still wins.
+    const inserted = (await getDatabase()
+        .insert(testAuthors)
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        )
+        .returning()) as { id: string }[];
+    return inserted.map((row) => row.id);
+}
+
+/**
+ * Insert rows into the `test_tag` collection and return the inserted ids in
+ * input order — the far side of the `test_article.tags` many-to-many. Unlike
+ * {@link seedArticles} / {@link seedAuthors}, `test_tag` is **not** i18n, so it
+ * has no `locale` column to default.
+ */
+export async function seedTags(
+    rows: Record<string, unknown>[],
+    workspaceId?: string
+): Promise<string[]> {
+    if (rows.length === 0) return [];
+    const inserted = (await getDatabase()
+        .insert(testTags)
+        .values(rows.map((row) => ({ workspaceId, ...row })) as never)
+        .returning()) as { id: string }[];
+    return inserted.map((row) => row.id);
+}
+
+/**
+ * Link an article to tags in the generated join table, ordered by array index
+ * (`position`) — the same ordering the relation read pages by. Writes the join
+ * rows directly rather than going through the API, so a spec can stand up a
+ * relation with many links cheaply.
+ */
+export async function seedArticleTags(
+    articleId: string,
+    tagIds: string[]
+): Promise<void> {
+    if (tagIds.length === 0) return;
+    await getDatabase()
+        .insert(testArticleTags)
+        .values(
+            tagIds.map((tagId, index) => ({
+                sourceId: articleId,
+                targetId: tagId,
+                position: index
+            })) as never
+        );
+}
+
+/**
+ * Insert rows into the `test_landing` page (non-publishable: no `status`
+ * column). Pass `workspaceId` to stamp the owning workspace on every row (a
+ * per-row `workspaceId` still wins); see {@link seedArticles}.
  */
 export async function seedLanding(
     rows: Record<string, unknown>[],
     workspaceId?: string
 ): Promise<void> {
     if (rows.length === 0) return;
+    // `locale` is NOT NULL (see {@link seedArticles}); default it to `en`.
     await getDatabase()
-        .insert(landingPage)
-        .values(rows.map((row) => ({ workspaceId, ...row })) as never);
+        .insert(testLandingPage)
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        );
 }

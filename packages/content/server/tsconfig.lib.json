@@ -14,6 +14,12 @@
     "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
     "references": [
         {
+            "path": "../domain/tsconfig.lib.json"
+        },
+        {
+            "path": "../../workspaces/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../utils/server/tsconfig.lib.json"
         },
         {

@@ -159,12 +159,11 @@ export const CONTENT_DETAIL_SEED: Record<string, ContentTypeDetail> = {
 };
 
 /**
- * Schema seed for the **relations** suite. The type names line up with the
- * admin's baked-in relation-candidate mock (`useRelationCandidates`) — `author`,
- * `tag`, `seo_meta` — so opening `article`'s editor and picking a relation shows
- * real candidate rows. `article` exercises every cardinality: a single
- * many-to-one (`author`), a unique one-to-one (`seo`), and a many-to-many
- * (`tags`).
+ * Schema seed for the **relations** suite. `article` exercises every
+ * cardinality: a single many-to-one (`author`), a unique one-to-one (`seo`), and
+ * a many-to-many (`tags`); `tag.articles` is the inverse of `article.tags`. The
+ * candidate rows for these targets are served by {@link mockContentEntries} from
+ * {@link RELATIONS_ENTRIES_SEED} (the real `GET /api/content/:type` path).
  */
 export const RELATIONS_SCHEMA_SEED: ContentTypeSummary[] = [
     {
@@ -310,6 +309,91 @@ export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
             }
         ]
     }
+};
+
+/** Build an entry row from an id + values (stable timestamps). */
+function seedRow(
+    id: string,
+    values: Record<string, unknown>,
+    status?: 'draft' | 'published'
+): EntryRecord {
+    const at = '2026-01-01T00:00:00.000Z';
+    return {
+        id,
+        ...(status ? { status } : {}),
+        createdAt: at,
+        updatedAt: at,
+        values
+    };
+}
+
+/** The 32 tag names the lazy-scroll test pages through (window of 12). */
+const RELATION_TAG_NAMES = [
+    'engineering',
+    'design',
+    'product',
+    'research',
+    'announcement',
+    'tutorial',
+    'guide',
+    'release',
+    'security',
+    'performance',
+    'accessibility',
+    'culture',
+    'hiring',
+    'remote',
+    'open-source',
+    'frontend',
+    'backend',
+    'database',
+    'devops',
+    'testing',
+    'mobile',
+    'ai',
+    'data',
+    'ux',
+    'marketing',
+    'support',
+    'community',
+    'roadmap',
+    'changelog',
+    'beta',
+    'launch',
+    'retro'
+];
+
+/**
+ * Friendly candidate rows for the **relations** suite, keyed by target type and
+ * served through {@link mockContentEntries} (the real `GET /api/content/:type`
+ * path the picker now reads). Titles are recognizable (`author.name`, `tag.name`,
+ * `article.text`) so the picker assertions read naturally; `tag` has 32 rows so
+ * the lazy-scroll window (12) has something to page through.
+ */
+export const RELATIONS_ENTRIES_SEED: Record<string, EntryRecord[]> = {
+    author: [
+        seedRow('author-ada', { name: 'Ada Lovelace' }),
+        seedRow('author-grace', { name: 'Grace Hopper' }),
+        seedRow('author-alan', { name: 'Alan Turing' }),
+        seedRow('author-katherine', { name: 'Katherine Johnson' }),
+        seedRow('author-margaret', { name: 'Margaret Hamilton' })
+    ],
+    tag: RELATION_TAG_NAMES.map((name, i) =>
+        seedRow(`tag-${String(i + 1).padStart(2, '0')}`, { name, slug: name })
+    ),
+    article: [
+        seedRow(
+            'article-getting-started',
+            { text: 'Getting started with Ortha' },
+            'published'
+        ),
+        seedRow('article-scaling', { text: 'Scaling Postgres' }, 'draft'),
+        seedRow('article-design', { text: 'Designing the CMS' }, 'published')
+    ],
+    seo_meta: [
+        seedRow('seo-home', { metaTitle: 'Home — Ortha' }),
+        seedRow('seo-blog', { metaTitle: 'Blog — Ortha' })
+    ]
 };
 
 const ADA: WorkspaceView['members'][number] = {
@@ -564,6 +648,23 @@ function applySort(rows: EntryRecord[], sort: string): EntryRecord[] {
 interface ContentEntriesOptions {
     /** Detail schemas to fabricate rows from. Defaults to {@link CONTENT_DETAIL_SEED}. */
     details?: Record<string, ContentTypeDetail>;
+    /**
+     * Explicit row sets per type name — used verbatim (still searched/sorted/
+     * paginated) instead of the schema-fabricated rows. Lets the relations suite
+     * serve recognizable candidate titles (see {@link RELATIONS_ENTRIES_SEED}).
+     */
+    entries?: Record<string, EntryRecord[]>;
+    /**
+     * Capped relation previews per type, keyed `typeName → fieldName →
+     * { items, total }`, applied to every row of that type. Served **only** when
+     * the request opts in with `?relations=preview`, and narrowed to the
+     * `?relationFields=` list — mirroring the server, so a suite can assert the
+     * opt-in and the visible-columns scoping, not just the happy path.
+     */
+    relationPreviews?: Record<
+        string,
+        Record<string, { items: RelationRefSeed[]; total: number }>
+    >;
     /** Response status; use a 5xx to exercise the error state. */
     status?: number;
 }
@@ -578,7 +679,12 @@ interface ContentEntriesOptions {
  */
 export async function mockContentEntries(
     page: Page,
-    { details = CONTENT_DETAIL_SEED, status = 200 }: ContentEntriesOptions = {}
+    {
+        details = CONTENT_DETAIL_SEED,
+        entries,
+        relationPreviews,
+        status = 200
+    }: ContentEntriesOptions = {}
 ): Promise<void> {
     await page.route(/\/api\/content\/([^/?]+)(\?.*)?$/, async (route) => {
         if (status >= 400) {
@@ -594,7 +700,8 @@ export async function mockContentEntries(
             url.pathname.split('/').pop() ?? ''
         ).split('?')[0];
         const detail = details[name];
-        if (!detail) {
+        const override = entries?.[name];
+        if (!detail && !override) {
             await route.fulfill({
                 status: 404,
                 contentType: 'application/json',
@@ -611,24 +718,149 @@ export async function mockContentEntries(
             params.get('pageSize') ?? String(ENTRY_PAGE_SIZE)
         );
 
-        const all = entriesFor(detail);
+        const all = override ?? entriesFor(detail as ContentTypeDetail);
         const searched = search
             ? all.filter((row) => matchesSearch(row, search))
             : all;
         const sorted = applySort(searched, sort);
         const start = (pageNum - 1) * pageSize;
+        let items = sorted.slice(start, start + pageSize);
+
+        // Opt-in relation preview, narrowed to the requested fields — the
+        // server attaches nothing without both params.
+        const previews = relationPreviews?.[name];
+        const wanted = (params.get('relationFields') ?? '')
+            .split(',')
+            .filter(Boolean);
+        if (params.get('relations') === 'preview' && previews && wanted.length) {
+            const scoped = Object.fromEntries(
+                Object.entries(previews).filter(([field]) =>
+                    wanted.includes(field)
+                )
+            );
+            items = items.map((row) => ({ ...row, relations: scoped }));
+        }
 
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
             body: JSON.stringify({
-                items: sorted.slice(start, start + pageSize),
+                items,
                 total: sorted.length,
                 page: pageNum,
                 pageSize
             })
         });
     });
+}
+
+/** A linked record on a relation field, as the relations read returns it. */
+export interface RelationRefSeed {
+    id: string;
+    title: string;
+    /**
+     * The target's slug-field value, which the admin renders as the muted
+     * `/handle` beside the title (falling back to a slugified title when
+     * absent) — mirrors the server's `RelationRef.slug`.
+     */
+    slug?: string;
+    status?: 'draft' | 'published';
+}
+
+interface EntryRelationsOptions {
+    /**
+     * Assigned links keyed by `"<type>/<id>"` then field name. A missing entry
+     * (e.g. a brand-new record) resolves to no links. Defaults to empty — the
+     * relations suite edits new entries, which have nothing linked yet.
+     */
+    relations?: Record<string, Record<string, RelationRefSeed[]>>;
+}
+
+/**
+ * Stub `GET /api/content/:name/:id/relations` — the assigned-relations read the
+ * editor loads (`useEntryRelations`) to seed single-relation values and the
+ * section header counts. Wraps each field's seeded refs in the paginated
+ * `{ items, total }` envelope the server now returns. An entry not in the seed
+ * resolves to no links. Register **after** {@link mockContentEntryWrites} so this
+ * more specific route wins the `/…/:id/relations` match.
+ */
+export async function mockEntryRelations(
+    page: Page,
+    { relations = {} }: EntryRelationsOptions = {}
+): Promise<void> {
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+\/relations(\?.*)?$/,
+        async (route) => {
+            const parts = new URL(route.request().url()).pathname
+                .split('/')
+                .filter(Boolean);
+            // ['api','content',name,id,'relations']
+            const key = `${decodeURIComponent(
+                parts[2] ?? ''
+            )}/${decodeURIComponent(parts[3] ?? '')}`;
+            const fields = relations[key] ?? {};
+            const view = Object.fromEntries(
+                Object.entries(fields).map(([field, refs]) => [
+                    field,
+                    { items: refs, total: refs.length }
+                ])
+            );
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ relations: view })
+            });
+        }
+    );
+}
+
+interface RelationFieldLinksOptions {
+    /**
+     * The full link set per `"<typeName>/<fieldName>"` — served to every row of
+     * that type (a spec rarely needs per-row link sets, and this keeps the seed
+     * independent of generated entry ids). The handler paginates it with the
+     * request's `?page=` / `?pageSize=`, exactly as the server does.
+     */
+    links?: Record<string, RelationRefSeed[]>;
+}
+
+/**
+ * Stub `GET /api/content/:name/:id/relations/:field` — the **paginated
+ * per-field** links read that backs the records table's relation dropdown (and
+ * the editor's infinite scroll). Distinct from {@link mockEntryRelations},
+ * whose route stops at `/relations` and so never matches this deeper path.
+ *
+ * A relation dropdown opens on the list's capped preview and then loads this to
+ * page beyond it, so a suite asserting anything past the first page needs this
+ * registered.
+ */
+export async function mockRelationFieldLinks(
+    page: Page,
+    { links = {} }: RelationFieldLinksOptions = {}
+): Promise<void> {
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+\/relations\/[^/?]+(\?.*)?$/,
+        async (route) => {
+            const url = new URL(route.request().url());
+            const parts = url.pathname.split('/').filter(Boolean);
+            // ['api','content',name,id,'relations',field]
+            const key = `${decodeURIComponent(
+                parts[2] ?? ''
+            )}/${decodeURIComponent(parts[5] ?? '')}`;
+            const all = links[key] ?? [];
+            const pageNum = Number(url.searchParams.get('page') ?? '1');
+            const pageSize = Number(url.searchParams.get('pageSize') ?? '20');
+            const start = (pageNum - 1) * pageSize;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    items: all.slice(start, start + pageSize),
+                    total: all.length
+                })
+            });
+        }
+    );
 }
 
 /** A JSON 200 fulfilment helper for the write mocks. */
@@ -747,4 +979,76 @@ export async function mockContentEntryWrites(
             201
         );
     });
+}
+
+/** The body of one captured create/update request. */
+export interface CapturedSave {
+    values: Record<string, unknown>;
+    relations?: Record<
+        string,
+        { link?: string[]; unlink?: string[]; order?: string[] }
+    >;
+}
+
+/** Records the bodies sent to the entry create/update endpoints. */
+export interface EntrySaveSpy {
+    readonly bodies: CapturedSave[];
+}
+
+/**
+ * Spy on the entry **save** endpoints — records the JSON body of each
+ * `POST /api/content/:name` (create) and `PATCH /api/content/:name/:id` (update)
+ * so a test can assert what the editor sent (e.g. the staged relation deltas,
+ * and that a link-managed relation is **not** in `values`). Fulfils like the
+ * write mock so the flow continues; non-write methods fall through to the other
+ * mocks. Register **after** {@link mockContentEntryWrites} so it wins the match.
+ */
+export async function spyEntrySave(page: Page): Promise<EntrySaveSpy> {
+    const bodies: CapturedSave[] = [];
+    const now = '2026-01-01T00:00:00.000Z';
+    const record = (id: string, body: CapturedSave) => ({
+        id,
+        status: 'draft' as const,
+        createdAt: now,
+        updatedAt: now,
+        values: body.values ?? {}
+    });
+
+    // Create (single-segment POST).
+    await page.route(/\/api\/content\/[^/?]+(\?.*)?$/, async (route) => {
+        const req = route.request();
+        if (req.method() !== 'POST') return route.fallback();
+        const body = (req.postDataJSON?.() ?? {}) as CapturedSave;
+        bodies.push(body);
+        const name = decodeURIComponent(
+            new URL(req.url()).pathname.split('/').pop() ?? ''
+        ).split('?')[0];
+        await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify(record(`${name}-new`, body))
+        });
+    });
+
+    // Update (`PATCH /content/:name/:id`); other multi-segment writes fall through.
+    await page.route(/\/api\/content\/[^/?]+\/[^/?]+(\?.*)?$/, async (route) => {
+        const req = route.request();
+        if (req.method() !== 'PATCH') return route.fallback();
+        const body = (req.postDataJSON?.() ?? {}) as CapturedSave;
+        bodies.push(body);
+        const id = decodeURIComponent(
+            new URL(req.url()).pathname.split('/').pop() ?? ''
+        );
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(record(id, body))
+        });
+    });
+
+    return {
+        get bodies() {
+            return bodies;
+        }
+    };
 }

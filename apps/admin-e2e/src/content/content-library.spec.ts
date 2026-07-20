@@ -8,7 +8,8 @@ import {
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
-    mockContentEntryWrites
+    mockContentEntryWrites,
+    spyEntrySave
 } from '../support/api/content';
 
 /**
@@ -26,7 +27,7 @@ test.describe('Content Library', () => {
         await mockContentEntryWrites(page);
     });
 
-    test('renders the sidebar with the Workspace section', async ({
+    test('renders the sidebar with the Workspace Content section', async ({
         page,
         contentLibraryPage
     }) => {
@@ -35,7 +36,7 @@ test.describe('Content Library', () => {
 
         await expect(contentLibraryPage.sidebar).toBeVisible();
         await expect(
-            contentLibraryPage.sectionLabel('Workspace')
+            contentLibraryPage.sectionLabel('Workspace Content')
         ).toBeVisible();
         await expect(contentLibraryPage.group('Collections')).toBeVisible();
         await expect(contentLibraryPage.group('Pages')).toBeVisible();
@@ -45,18 +46,26 @@ test.describe('Content Library', () => {
         );
     });
 
-    test('groups start collapsed and expand on click', async ({
+    test('Collections opens by default; Pages toggles on click', async ({
         page,
         contentLibraryPage
     }) => {
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
 
-        // Collapsed by default — the type rows are hidden.
-        await expect(contentLibraryPage.typeLink('Blog posts')).toBeHidden();
-        await contentLibraryPage.expandGroup('Collections');
+        // Collections is open by default, so its rows show without interaction.
         await expect(contentLibraryPage.typeLink('Blog posts')).toBeVisible();
         await expect(contentLibraryPage.typeLink('Products')).toBeVisible();
+
+        // Pages starts collapsed — its rows are hidden until expanded.
+        await expect(contentLibraryPage.typeLink('Home')).toBeHidden();
+        await contentLibraryPage.expandGroup('Pages');
+        await expect(contentLibraryPage.typeLink('Home')).toBeVisible();
+        await expect(contentLibraryPage.typeLink('About')).toBeVisible();
+
+        // Clicking an open group collapses it again.
+        await contentLibraryPage.group('Pages').click();
+        await expect(contentLibraryPage.typeLink('Home')).toBeHidden();
     });
 
     test('selecting a single (page) opens its entry editor', async ({
@@ -246,6 +255,57 @@ test.describe('Content Library', () => {
         ).toBeVisible();
     });
 
+    test('the column picker can be searched', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+        await contentLibraryPage.columnsButton.click();
+
+        // Everything is listed until a query narrows it.
+        await expect(contentLibraryPage.columnOption('Title')).toBeVisible();
+        await expect(contentLibraryPage.columnOption('Excerpt')).toBeVisible();
+
+        await contentLibraryPage.columnSearch.fill('exc');
+        await expect(contentLibraryPage.columnOption('Excerpt')).toBeVisible();
+        await expect(contentLibraryPage.columnOption('Title')).toBeHidden();
+
+        // A hidden column found by search is still toggleable.
+        await contentLibraryPage.columnOption('Excerpt').click();
+        await page.keyboard.press('Escape');
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
+        ).toBeVisible();
+
+        // Reopening starts from the full list, not the previous search.
+        await contentLibraryPage.columnsButton.click();
+        await expect(contentLibraryPage.columnSearch).toHaveValue('');
+        await expect(contentLibraryPage.columnOption('Title')).toBeVisible();
+    });
+
+    test('the column search shows an empty state when nothing matches', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.columnsButton.click();
+        await contentLibraryPage.columnSearch.fill('zzzz');
+
+        await expect(contentLibraryPage.columnSearchEmpty).toBeVisible();
+        await expect(contentLibraryPage.columnOption('Title')).toBeHidden();
+    });
+
     test('Add record and row click route to their stubs', async ({
         page,
         contentLibraryPage
@@ -271,6 +331,30 @@ test.describe('Content Library', () => {
         await contentLibraryPage.recordRows('Blog posts').first().click();
         await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
         await expect(contentLibraryPage.editorBackLink).toBeVisible();
+    });
+
+    test('saving a record stays on the editor and shows a success toast', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        const spy = await spyEntrySave(page);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.recordRows('Blog posts').first().click();
+        await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
+
+        // Edit the title, then Save as a draft.
+        await contentLibraryPage.fieldTextbox('Title').fill('Edited title');
+        await contentLibraryPage.saveDraft();
+        await expect.poll(() => spy.bodies.length).toBeGreaterThan(0);
+
+        // The save keeps the user on the record's editor (no bounce to the
+        // records list) and surfaces success via a toast.
+        await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
+        await expect(contentLibraryPage.savedToast).toBeVisible();
     });
 
     test('reorders a column via the keyboard', async ({

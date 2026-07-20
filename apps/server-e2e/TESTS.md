@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_211 test cases across 22 spec files._
+_286 test cases across 27 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -230,6 +230,27 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 422s a single relation whose target lives in another workspace |
 | 422s a single relation pointing at a non-existent id |
 
+### join-backed relations (many-to-many + inverse)
+
+| Test case |
+| --- |
+| persists a many-to-many on create and reads it back with titles |
+| resolves a linked record’s slug from its slug field |
+| replaces the link set on update (unlink + link in one save) |
+| 422s a many-to-many target in another workspace |
+| 404s the relations read for a missing entry |
+| links and unlinks via relation deltas on save |
+| merges a link delta onto existing links (append, not override) |
+| persists order via the reorder delta on save |
+| paginates a field with many links |
+| 400s a relation delta on a single relation |
+| 400s a malformed relation delta (non-array unlink), not a 500 |
+| 400s a relation delta carrying a non-uuid id |
+| 422s linking a target in another workspace via a delta |
+| links the inverse side (tag.articles) via a delta on save |
+| applies link, unlink, and order in one delta on save |
+| keeps a link on soft delete but drops it on purge (FK cascade) |
+
 ### publish / unpublish
 
 | Test case |
@@ -333,6 +354,109 @@ _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
 | 400s a request with no X-Workspace-Id header |
 | 400s a malformed (non-UUID) X-Workspace-Id header |
 | 403s a workspace the user is not a member of |
+
+<!-- source: apps/server-e2e/src/server/content/relation-preview.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/relation-preview.spec.ts</sub>_
+
+## Content relation preview (GET /api/content/:typeName?relations=preview)
+
+### opt-in
+
+| Test case |
+| --- |
+| omits `relations` entirely when not requested |
+| omits `relations` when `relations=preview` names no fields |
+| previews only the named fields, so a hidden column costs nothing |
+| drops unknown field names instead of failing the request |
+
+### storage forms
+
+| Test case |
+| --- |
+| resolves an owning single relation (many-to-one) to a titled ref |
+| resolves an owning many-to-many, ordered by position |
+| resolves the inverse side of a many-to-many |
+
+### the page cap
+
+| Test case |
+| --- |
+| caps items at one page but reports the true total |
+| continues from the preview on the paginated per-field route |
+
+### batching
+
+| Test case |
+| --- |
+| issues the same number of queries for a 1-row and a 5-row page |
+
+<!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
+_<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
+
+## Content i18n (/api/content/:type + /api/i18n)
+
+### locales endpoint
+
+| Test case |
+| --- |
+| serves the configured locales with exactly one default |
+
+### create stamps the locale
+
+| Test case |
+| --- |
+| defaults to the default locale (en) when none is sent |
+| stamps an explicit locale |
+| 400s an unknown locale |
+| gives a plain create its own fresh translation group |
+
+### strict list scoping + default fallback
+
+| Test case |
+| --- |
+| lists only the default locale when no ?locale= is sent |
+| lists only the requested locale with ?locale=de (strict) |
+| 400s a list scoped to an unknown locale |
+| falls back to the default row where the requested locale is missing |
+
+### create translation (POST /content + localeGroupId)
+
+| Test case |
+| --- |
+| creates a new draft sibling sharing the group |
+| 409s a duplicate locale in the group |
+| 400s a sibling in an unknown target locale |
+| 404s a localeGroupId that names no group in the workspace |
+
+### shared-field sync
+
+| Test case |
+| --- |
+| propagates a non-localized field to siblings but leaves localized fields alone |
+| does not sync a relation to a localizable target across locales |
+| syncs shared fields when a sibling is created into the group |
+| 422s and rolls back when the sync would invalidate a published sibling |
+
+### locale aggregate filters
+
+| Test case |
+| --- |
+| hasLocale / missingLocale select by group membership |
+| localeCount filters by number of translations |
+
+### locale panel + summary
+
+| Test case |
+| --- |
+| returns one item per configured locale, present or null |
+| batches group summaries for a page of rows |
+| 400s the locale endpoints on a non-i18n type |
+
+### non-i18n regression
+
+| Test case |
+| --- |
+| ignores ?locale= on a non-localized type |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
@@ -496,7 +620,7 @@ _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
 
 | Test case |
 | --- |
-| creates a workspace and seeds the owner as its sole member |
+| creates a workspace and seeds the creator as its sole member |
 | rejects a duplicate slug with 409 |
 
 ### authorization
@@ -524,6 +648,74 @@ _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_
 | allows the configured app origin |
 | allows a request with no Origin (non-browser client) |
 
+<!-- source: apps/server-e2e/src/server/workspaces/update-workspace.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/update-workspace.spec.ts</sub>_
+
+## Update workspace (PATCH /api/workspaces/:id)
+
+| Test case |
+| --- |
+| updates name, description, and color and records workspace.updated |
+| applies a partial patch, leaving unspecified fields intact |
+| is a no-op for an empty patch and records nothing |
+| forbids a contributor (lacks workspaces:update) with 403 |
+| 404s for an unknown workspace |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-content.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-content.spec.ts</sub>_
+
+## Workspace content grants
+
+### POST /api/workspaces/:id/content
+
+| Test case |
+| --- |
+| grants a content type and records workspace.content_granted |
+| is idempotent — re-granting records nothing new |
+| 400s for an unknown content-type slug |
+| forbids a viewer (lacks workspaces:update) with 403 |
+
+### DELETE /api/workspaces/:id/content/:slug
+
+| Test case |
+| --- |
+| revokes an empty content type and records workspace.content_revoked |
+| refuses (409) to revoke a type that still has entries in the workspace |
+| is a no-op (200) when the type was never granted |
+| forbids a viewer (lacks workspaces:update) with 403 |
+
+### GET /api/workspaces/:id/content/:slug/entry-count
+
+| Test case |
+| --- |
+| reports zero for an empty type and the live count after a create |
+| forbids a viewer (lacks workspaces:update) with 403 |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts</sub>_
+
+## Workspace lifecycle (archive / unarchive / delete)
+
+### POST /api/workspaces/:id/archive
+
+| Test case |
+| --- |
+| archives a workspace and records workspace.archived |
+| is idempotent — archiving an archived workspace records nothing new |
+| unarchives back to active and records workspace.unarchived |
+| forbids a contributor (lacks workspaces:update) with 403 |
+| 404s for an unknown workspace |
+
+### DELETE /api/workspaces/:id
+
+| Test case |
+| --- |
+| deletes a workspace and records workspace.deleted |
+| forbids a contributor (lacks workspaces:delete) with 403 |
+| 404s for an unknown workspace |
+| refuses (409) to delete a workspace that still has content entries |
+| forbids the entry-count read for a contributor (lacks workspaces:delete) with 403 |
+
 <!-- source: apps/server-e2e/src/server/workspaces/workspace-members.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 
@@ -550,5 +742,6 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 | Test case |
 | --- |
 | removes a member and records workspace.member_removed |
+| removes the creator like any other member (no owner protection) |
 | is a no-op (204) and records nothing when not a member |
 | forbids a viewer (lacks workspaces:update) with 403 |

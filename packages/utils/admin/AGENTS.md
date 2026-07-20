@@ -41,7 +41,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
   it and reads `getItems()`, plugins contribute items via the host, and the host
   wires contributions in once at boot. Pure data (no `react`), so it lives in
   this leaf rather than the host. The *generic* mechanism only — concrete slots
-  (e.g. the shell's `NAVBAR_START_SLOT`) are defined by their owning plugin.
+  (e.g. the shell's `SIDEBAR_NAV_SLOT`) are defined by their owning plugin.
 
 - `slugify(input)` — derives a URL slug (`^[a-z0-9-]+$`) from free text. Pure,
   framework-free.

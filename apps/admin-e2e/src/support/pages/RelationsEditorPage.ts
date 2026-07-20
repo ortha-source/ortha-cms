@@ -42,11 +42,9 @@ export class RelationsEditorPage extends BasePage {
         await this.relationsTab.click();
     }
 
-    /** A relation field's collapsible section header (name starts with the label). */
+    /** A relation field's card heading (an exact-match `heading` by its label). */
     section(label: string): Locator {
-        return this.page.getByRole('button', {
-            name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
-        });
+        return this.page.getByRole('heading', { name: label });
     }
 
     /** The "Select {label}" trigger of an empty single relation. */
@@ -124,8 +122,61 @@ export class RelationsEditorPage extends BasePage {
         return this.page.getByRole('button', { name: `Reorder ${title}` });
     }
 
+    /** The "Replace" action on an assigned single relation's row. */
+    get replaceButton(): Locator {
+        return this.page.getByRole('button', { name: 'Replace' });
+    }
+
+    /** The up-arrow reorder control of an assigned record (ordered many relations). */
+    moveUp(title: string): Locator {
+        return this.page.getByRole('button', { name: `Move ${title} up` });
+    }
+
+    /** The down-arrow reorder control of an assigned record (ordered many relations). */
+    moveDown(title: string): Locator {
+        return this.page.getByRole('button', { name: `Move ${title} down` });
+    }
+
+    /** The muted `/handle` shown on an assigned/linked row (exact match). */
+    recordHandle(slug: string): Locator {
+        return this.page.getByText(`/${slug}`, { exact: true });
+    }
+
+    /** The "open in a new tab" link of an assigned record (the preview row). */
+    openLink(title: string): Locator {
+        return this.page.getByRole('link', {
+            name: `Open ${title} in a new tab`
+        });
+    }
+
+    /** The "open in a new tab" link of a candidate row (the picker/search window). */
+    candidateOpenLink(title: string): Locator {
+        return this.dialog.getByRole('link', {
+            name: `Open ${title} in a new tab`
+        });
+    }
+
     /** The "Nothing linked yet." empty text for a relation field. */
     get nothingLinked(): Locator {
         return this.page.getByText('Nothing linked yet.');
+    }
+
+    /** The yellow "Changed" badge shown on an edited field / relation section. */
+    get changedBadge(): Locator {
+        return this.page.getByText('Changed', { exact: true });
+    }
+
+    /**
+     * Save the entry **as a draft** — opens the editor's ⋯ actions menu and picks
+     * "Save draft" (the relaxed, no-publish save), so a save fires without the
+     * publish gate blocking on empty required fields.
+     */
+    async saveDraft() {
+        await this.page
+            .getByRole('button', { name: 'More actions' })
+            .click();
+        await this.page
+            .getByRole('menuitem', { name: 'Save draft' })
+            .click();
     }
 }

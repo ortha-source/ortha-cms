@@ -229,6 +229,25 @@ describe('Workspace members + activity', () => {
             });
         });
 
+        it('removes the creator like any other member (no owner protection)', async () => {
+            const { user, agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            // Access is purely permission-based — no member is special, so the
+            // creator (the sole member) is removable like anyone else.
+            await agent
+                .delete(`/api/workspaces/${id}/members/${user.id}`)
+                .expect(204);
+
+            const res = await agent.get('/api/workspaces').expect(200);
+            const workspace = res.body.find(
+                (w: { id: string }) => w.id === id
+            );
+            expect(
+                workspace.members.some((m: { id: string }) => m.id === user.id)
+            ).toBe(false);
+        });
+
         it('is a no-op (204) and records nothing when not a member', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);

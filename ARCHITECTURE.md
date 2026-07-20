@@ -106,13 +106,29 @@ after changing cross-project dependencies to update TS project references.
    the audit commits if and only if the mutation does.
 5. The response returns; React Query updates client state.
 
-## 6. Extension points (slots)
+## 6. Extension points (admin slots + server DI ports)
 
-Plugins contribute UI into **named slots** defined by other plugins, with no
-direct coupling — pure data. Example: `shell` defines `NAVBAR_START_SLOT`; the
-workspaces, users, and activity plugins each register nav entries into it.
-Slots are wired once at boot (`slot._register(items)`) and read sorted by
-consumers (`slot.getItems()`).
+Two parallel mechanisms let a plugin extend another with **no direct coupling**:
+
+**Admin — named slots.** Plugins contribute UI into slots defined by other
+plugins, as pure data. Example: `shell` defines `SIDEBAR_NAV_SLOT`; the
+workspaces, users, and activity plugins each register nav entries into it (and
+the workspace shell defines `WORKSPACE_NAV_SLOT` / `WORKSPACE_SECTION_SLOT` for
+its interior). Slots are wired once at boot (`slot._register(items)`) and read
+sorted by consumers (`slot.getItems()`). The shell's sidebar also has a
+route-scoped **dynamic region** (`useSidebarContent`) the workspace shell takes
+over — a runtime override alongside the boot-time slots. The Content Library
+defines five of its own (records toolbar/columns/filter-fields, entry
+sidebar/params) that `i18n/admin` fills — because slots are **boot-frozen**, an
+item may even expose a hook the render site calls in a loop.
+
+**Server — DI ports (inversion).** The *depended-upon* plugin declares a
+`Symbol` token + interface and injects it `@Optional()`; the *implementing*
+plugin binds it in its module. identity declares `CONTENT_CATALOG` /
+`ACTIVITY_RECORDER` (bound by content / activity); content declares
+`CONTENT_ENTRY_EXTENSION` (bound by `i18n/server` to add row-per-locale scoping,
+create stamping, shared-field sync, and locale filters to the entries pipeline
+without content knowing what a locale is). Keeps the package graph acyclic.
 
 ## 7. Security posture (today)
 

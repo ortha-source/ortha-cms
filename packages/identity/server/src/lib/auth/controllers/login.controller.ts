@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { AuthService } from '../services/auth.service';
+import { LoginUseCase } from '../../application/use-cases/login.use-case';
 import { InvalidCredentialsError } from '../errors';
 import { LoginDto } from '../dto/login.dto';
 import { OriginGuard } from '../guards/origin.guard';
@@ -30,7 +30,7 @@ import { Public } from '../decorators/public.decorator';
 @Controller('auth')
 export class LoginController {
     constructor(
-        private readonly auth: AuthService,
+        private readonly loginUseCase: LoginUseCase,
         private readonly cookies: CookieService
     ) {}
 
@@ -42,7 +42,7 @@ export class LoginController {
     ): Promise<{ ok: true }> {
         let session;
         try {
-            session = await this.auth.login(body.email, body.password, {
+            session = await this.loginUseCase.execute(body.email, body.password, {
                 userAgent: req.headers['user-agent'] ?? null,
                 ipAddress: req.ip ?? null
             });

@@ -4,7 +4,7 @@ import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
 
 /**
- * The Workspaces page (`@ortha-cms/workspaces-admin`). The grid reads
+ * The Workspaces page (`@ortha-cms/workspaces-admin`). The table reads
  * `GET /api/workspaces`, stubbed by `mockWorkspaces` (the FE analog of seeded
  * rows): four Active workspaces (Marketing site, Product docs, Support hub,
  * Internal wiki) and two Archived (Research archive, Events 2023); Product docs
@@ -30,7 +30,7 @@ test.describe('Workspaces page', () => {
         await expect(workspacesPage.count()).toHaveText('4 of 6');
     });
 
-    test('search narrows the grid and updates the count', async ({
+    test('search narrows the table and updates the count', async ({
         workspacesPage
     }) => {
         await workspacesPage.goto();
@@ -42,7 +42,7 @@ test.describe('Workspaces page', () => {
         await expect(workspacesPage.count()).toHaveText('1 of 6');
     });
 
-    test('the status filter switches to archived and badges the button', async ({
+    test('the status filter switches to archived and marks the chip active', async ({
         workspacesPage
     }) => {
         await workspacesPage.goto();
@@ -52,8 +52,11 @@ test.describe('Workspaces page', () => {
         await expect(workspacesPage.card('Research archive')).toBeVisible();
         await expect(workspacesPage.card('Marketing site')).toBeHidden();
         await expect(workspacesPage.count()).toHaveText('2 of 6');
-        // A non-default status surfaces the count badge on the Filter button.
-        await expect(workspacesPage.filterBadge()).toBeVisible();
+        // The chosen chip is the checked radio in the segmented filter.
+        await expect(workspacesPage.statusOption('Archived')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
     });
 
     test('the status filter can show all workspaces', async ({
@@ -85,57 +88,18 @@ test.describe('Workspaces page', () => {
         await expect(workspacesPage.count()).toHaveText('6 of 6');
     });
 
-    test.describe('member stack', () => {
-        test('collapses extra members into a "+N" pill', async ({
-            workspacesPage
-        }) => {
-            await workspacesPage.goto();
+    test('a row shows the workspace member and type counts', async ({
+        workspacesPage
+    }) => {
+        await workspacesPage.goto();
 
-            // Product docs has 5 members → 4 avatars + "+1".
-            await expect(
-                workspacesPage.card('Product docs').getByText('+1')
-            ).toBeVisible();
-        });
-
-        test('opens a member list without opening the workspace', async ({
-            page,
-            workspacesPage
-        }) => {
-            await workspacesPage.goto();
-
-            await workspacesPage.memberButton('Marketing site').click();
-
-            // The popover lists members by name + email (shown nowhere else)…
-            await expect(
-                workspacesPage.memberName('Ada Lovelace')
-            ).toBeVisible();
-            await expect(
-                workspacesPage.memberEmail('ada@ortha.dev')
-            ).toBeVisible();
-            // …and the card itself did NOT open (stayed on the list route).
-            await expect(page).toHaveURL(/\/workspaces$/);
-        });
-
-        test('closes on Escape and on an outside click', async ({
-            page,
-            workspacesPage
-        }) => {
-            await workspacesPage.goto();
-            const name = workspacesPage.memberName('Ada Lovelace');
-
-            await workspacesPage.memberButton('Marketing site').click();
-            await expect(name).toBeVisible();
-            await page.keyboard.press('Escape');
-            await expect(name).toBeHidden();
-
-            await workspacesPage.memberButton('Marketing site').click();
-            await expect(name).toBeVisible();
-            await workspacesPage.heading.click(); // click outside the popover
-            await expect(name).toBeHidden();
-        });
+        // Product docs has 5 members; the row surfaces the counts as text.
+        await expect(
+            workspacesPage.card('Product docs').getByText('5 members')
+        ).toBeVisible();
     });
 
-    test('a card opens its workspace on click', async ({
+    test('a row opens its workspace on click', async ({
         page,
         workspacesPage
     }) => {

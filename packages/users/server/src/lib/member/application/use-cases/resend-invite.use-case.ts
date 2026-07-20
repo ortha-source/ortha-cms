@@ -1,0 +1,61 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type { PublicUser } from '@ortha-cms/identity-server';
+import { MemberId } from '../../domain/value-objects/member-id';
+import { MemberNotFoundError } from '../../domain/errors';
+import {
+    MEMBER_EVENT_KINDS,
+    memberEvent
+} from '../../domain/events/member-events';
+import {
+    MEMBER_REPOSITORY,
+    type MemberRepository
+} from '../../domain/member.repository';
+import { InviteTokenService } from '../../infrastructure/persistence/invite-token.service';
+
+/**
+ * Rotates the invite token for a still-`pending` member, invalidating the
+ * previously sent link ({@link InvalidMemberStateError} otherwise). Only
+ * meaningful while the invite is unaccepted. The member's own aggregate state is
+ * unchanged, so the application mints `member.invite_resent` directly (mirroring
+ * identity's `auth.*` flow events); the activity subscriber turns it into the
+ * `user.invite_resent` audit row. 404s an unknown member.
+ */
+@Injectable()
+export class ResendInviteUseCase {
+    constructor(
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
+        private readonly inviteTokens: InviteTokenService,
+        @Inject(MEMBER_REPOSITORY)
+        private readonly members: MemberRepository
+    ) {}
+
+    /** Runs the resend. 404s an unknown member; 409s a non-pending one. */
+    async execute(actor: PublicUser, id: string): Promise<void> {
+        const memberId = MemberId.create(id);
+
+        await this.uow.run(async () => {
+            const member = await this.members.findById(memberId);
+            if (!member) {
+                throw new MemberNotFoundError(id);
+            }
+            member.ensureCanResendInvite();
+
+            await this.inviteTokens.rotate(member.id.value, this.uow.current());
+            // TODO(users-email): deliver the rotated invite link once a mailer
+            // exists (identity epic #11).
+
+            await this.outbox.append(
+                attachActor(
+                    [
+                        memberEvent(MEMBER_EVENT_KINDS.INVITE_RESENT, id, {
+                            email: member.email
+                        })
+                    ],
+                    actor
+                )
+            );
+        });
+    }
+}

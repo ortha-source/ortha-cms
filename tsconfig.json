@@ -74,6 +74,18 @@
         },
         {
             "path": "./packages/media/admin"
+        },
+        {
+            "path": "./packages/i18n/server"
+        },
+        {
+            "path": "./packages/i18n/admin"
+        },
+        {
+            "path": "./packages/workspaces/server"
+        },
+        {
+            "path": "./packages/content/domain"
         }
     ]
 }
