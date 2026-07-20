@@ -1,17 +1,12 @@
 import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Copy } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { Button } from '@ortha-cms/design-system';
 import type { FilterGroup } from '../../../types/filter-tree.type';
 import { treeToJsonNode } from '../../../utils/treeToJsonFilter';
 
 const messages = defineMessages({
     title: { id: 'qb.preview.title', defaultMessage: 'JSON preview' },
-    description: {
-        id: 'qb.preview.description',
-        defaultMessage:
-            'Wire format sent to the server as the `filter` query param.'
-    },
     empty: {
         id: 'qb.preview.empty',
         defaultMessage:
@@ -28,13 +23,14 @@ export type JsonPreviewProps = {
 };
 
 /**
- * Always-visible read-out of the JSON payload the builder will send.
- * Updates live as the user edits so it doubles as a confidence signal
- * before Apply, and the Copy affordance makes it pasteable into curl,
- * a support ticket, or a DevTools breakpoint.
+ * Collapsible read-out of the JSON payload the builder will send. Collapsed by
+ * default (it's a power-user confidence signal, not the primary content);
+ * expanding shows the live wire format and a Copy affordance so it's pasteable
+ * into curl, a support ticket, or a DevTools breakpoint.
  */
 export function JsonPreview({ tree }: JsonPreviewProps) {
     const intl = useIntl();
+    const [open, setOpen] = useState(false);
     // Pin `now` to the tree itself so `within_last` cutoffs don't drift
     // every render (e.g. as the user types in another rule). The user
     // sees a stable timestamp; Apply still resolves a fresh `now`.
@@ -53,15 +49,20 @@ export function JsonPreview({ tree }: JsonPreviewProps) {
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {intl.formatMessage(messages.title)}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.description)}
-                    </p>
-                </div>
-                {json && (
+                <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => setOpen((prev) => !prev)}
+                    className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                >
+                    {open ? (
+                        <ChevronDown aria-hidden className="size-3.5" />
+                    ) : (
+                        <ChevronRight aria-hidden className="size-3.5" />
+                    )}
+                    {intl.formatMessage(messages.title)}
+                </button>
+                {open && json && (
                     <Button
                         type="button"
                         variant="ghost"
@@ -82,13 +83,15 @@ export function JsonPreview({ tree }: JsonPreviewProps) {
                     </Button>
                 )}
             </div>
-            <pre className="max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 text-xs font-mono leading-relaxed text-foreground">
-                {json ?? (
-                    <span className="text-muted-foreground italic">
-                        {intl.formatMessage(messages.empty)}
-                    </span>
-                )}
-            </pre>
+            {open && (
+                <pre className="max-h-48 overflow-auto rounded-md border bg-background p-3 text-xs font-mono leading-relaxed text-foreground">
+                    {json ?? (
+                        <span className="text-muted-foreground italic">
+                            {intl.formatMessage(messages.empty)}
+                        </span>
+                    )}
+                </pre>
+            )}
         </div>
     );
 }

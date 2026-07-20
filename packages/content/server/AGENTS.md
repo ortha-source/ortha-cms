@@ -187,6 +187,23 @@ global).
 - `GET /content-schema` — summaries of every type (wizard-compatible).
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
   props); 404 if unknown.
+- `GET /content-schema/:name/filter-fields` — the type's **filterable surface**:
+  every scalar path the records-table query builder may filter on, including
+  **recursive relation paths** (`author.name`, `author.company.name`, to a
+  default 2-hop budget). Built by `buildEntryFilterSurface`
+  (`entries/infrastructure/queries/entry-filter-surface.ts`) in **one traversal**
+  that produces BOTH this wire list AND the SQL `FilterSchema` the list endpoint
+  enforces, so the picker can never offer a path the API rejects (an
+  `entry-filter-surface.spec` drift test pins it). Workspace-scoped
+  (`WorkspaceGuard`); the builder's `grantedTypes` pruning is wired but not yet
+  passed. Cardinalities map to the engine's `RelationKind` (owning single →
+  `many-to-one`, owning many → `many-to-many`, inverse-of-single → `one-to-many`,
+  inverse-of-many → `many-to-many` swapped, self single → `self-referential`;
+  self many-to-many skipped in v1), and every emitted relation carries a `scope`
+  (workspace + soft-delete) so a relation filter never matches a soft-deleted or
+  foreign target. The list endpoint (`EntriesService.listWhere`) now derives its
+  filter schema from the same builder, so **relation filtering works over the API**
+  regardless of the UI.
 - `GET /content/:typeName` — one page of a collection's entries
   (`?search=&filter=&sort=&page=&pageSize=&deleted=` → `{ items, total, page, pageSize }`).
   Resolves `:typeName` via the registry (404 if unknown), then runs the **generic**

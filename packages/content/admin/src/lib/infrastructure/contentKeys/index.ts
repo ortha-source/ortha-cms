@@ -49,6 +49,14 @@ export const contentTypesKey = ['content-types'] as const;
 export const contentSchemaKey = (name: string) =>
     ['content-schema', name] as const;
 
+/**
+ * One content type's filterable surface (`/content-schema/:name/filter-fields`),
+ * workspace-scoped: the offered relations are (eventually) pruned to the
+ * workspace's grants, so two workspaces mustn't share the entry.
+ */
+export const filterFieldsKey = (workspaceId: string, name: string) =>
+    ['content-filter-fields', workspaceId, name] as const;
+
 /** One collection's records list page, scoped to the workspace. */
 export const contentEntriesKey = (
     workspaceId: string,

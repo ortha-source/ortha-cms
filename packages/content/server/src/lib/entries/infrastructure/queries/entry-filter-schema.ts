@@ -14,7 +14,7 @@ import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
  * dates as dates. `json`/`multiselect` have no scalar editor, and `relation`
  * filtering (by raw FK uuid) has no UI yet — all skipped.
  */
-function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
+export function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
     switch (spec.type) {
         case CONTENT_FIELD_TYPE.Text:
         case CONTENT_FIELD_TYPE.RichText:

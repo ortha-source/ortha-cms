@@ -27,7 +27,8 @@ import {
 } from '../../http/dto/list-entries-query.dto';
 import type { EntryListView } from '../../types/entry-list-view';
 import { DEFAULT_PAGE_SIZE } from '../../entries.constants';
-import { buildEntryFilterSchema, isScalarField } from './entry-filter-schema';
+import { isScalarField } from './entry-filter-schema';
+import { buildEntryFilterSurface } from './entry-filter-surface';
 import { toRecord } from '../persistence/entry-row';
 import { RelationLinkService } from '../persistence/relation-link.service';
 
@@ -162,7 +163,18 @@ export class EntriesService {
         // predicate (e.g. the active locale). Both are no-ops for types the
         // extension doesn't apply to.
         const filterExtension = this.extension?.filterExtension(type);
-        const schema = buildEntryFilterSchema(type, filterExtension?.fields);
+        // The relation-aware surface: scalar + relation whitelist, its
+        // subqueries scoped to this workspace (and the target's soft-delete
+        // guard) so a relation filter never traverses rows the root query
+        // excludes. `grantedTypes` is left unset here — the list endpoint
+        // already resolves `:typeName` against the workspace's grants, and
+        // the SQL whitelist itself is not a visibility boundary; grant
+        // pruning is applied where it matters, on the `/filter-fields`
+        // surface the picker renders.
+        const { schema } = buildEntryFilterSurface(type, {
+            workspaceId,
+            extensionFields: filterExtension?.fields
+        });
         const tree = parseFilterTree(query.filter, schema);
         const filterSql = await applyFilterTree(
             tree,

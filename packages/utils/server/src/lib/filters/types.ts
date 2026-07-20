@@ -1,4 +1,17 @@
-import type { AnyColumn, Table } from 'drizzle-orm';
+import type { AnyColumn, SQL, Table } from 'drizzle-orm';
+import type { TableLike } from './table-helpers';
+
+/**
+ * Builds a relation's `scope` predicate — the workspace + soft-delete
+ * guard ANDed inside its EXISTS subquery. It is a function, not a
+ * prebuilt `SQL`, because the table it must reference is not always the
+ * physical target: a `self-referential` relation aliases the target, and
+ * the predicate has to bind to that alias, not the outer table of the
+ * same name. The translator passes whichever table it actually queries
+ * (aliased or not), so the host resolves columns from that — e.g. via
+ * `getTableColumns(target)`. Return `undefined` to add nothing.
+ */
+export type RelationScope = (target: TableLike) => SQL | undefined;
 
 /** Named constants for `FilterOperator` — use in switches and comparisons. */
 export const FilterOperator = {
@@ -70,6 +83,14 @@ export type RelationSchema =
           fk: AnyColumn;
           /** Parent primary key — defaults to `parent.id`. */
           parentKey?: AnyColumn;
+          /**
+           * Extra predicate ANDed inside the EXISTS subquery, over the
+           * target table's own columns — e.g. a workspace boundary and a
+           * soft-delete guard. Without it a relation filter traverses rows
+           * the root query itself excludes (a soft-deleted or foreign
+           * target still matches `relation.field`). See {@link RelationScope}.
+           */
+          scope?: RelationScope;
           fields?: FieldSchema;
           relations?: Record<string, RelationSchema>;
       }
@@ -82,6 +103,8 @@ export type RelationSchema =
           fk: AnyColumn;
           /** Target primary key — defaults to `target.id`. */
           targetKey?: AnyColumn;
+          /** Workspace + soft-delete guard. See {@link RelationScope}. */
+          scope?: RelationScope;
           fields?: FieldSchema;
           relations?: Record<string, RelationSchema>;
       }
@@ -98,6 +121,14 @@ export type RelationSchema =
           table?: Table;
           parentKey?: AnyColumn;
           targetKey?: AnyColumn;
+          /**
+           * Workspace + soft-delete guard. Because a scope lives on the
+           * target table, it can only be applied through the join to
+           * `table` — so when it is present the junction-only fast path
+           * (filtering on the target FK alone) must yield to the full join.
+           * See {@link RelationScope}.
+           */
+          scope?: RelationScope;
           fields?: FieldSchema;
           relations?: Record<string, RelationSchema>;
       }
@@ -108,8 +139,19 @@ export type RelationSchema =
           table: Table;
           /** Column on the parent referencing its own primary key. */
           fk: AnyColumn;
-          /** Alias used for the self-joined table inside the subquery. */
+          /**
+           * Alias used for the self-joined table inside the subquery. Must
+           * be unique per occurrence in the filter tree, not per relation:
+           * two rules on the same self-relation would otherwise share a
+           * correlation name and collide.
+           */
           alias: string;
+          /**
+           * Workspace + soft-delete guard, applied against the aliased
+           * self-join (the translator passes the alias). See
+           * {@link RelationScope}.
+           */
+          scope?: RelationScope;
           fields?: FieldSchema;
           relations?: Record<string, RelationSchema>;
       };

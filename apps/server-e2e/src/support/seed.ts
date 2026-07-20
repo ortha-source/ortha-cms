@@ -390,6 +390,23 @@ export async function seedTags(
 }
 
 /**
+ * Soft-delete `test_author` rows (stamp `deleted_at`), so a spec can assert a
+ * relation filter no longer traverses them — the workspace + soft-delete
+ * `scope` the engine ANDs inside a relation's EXISTS subquery. Writes the
+ * tombstone directly rather than through the API, mirroring the other seeders.
+ */
+export async function softDeleteAuthors(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    // Raw parameterized UPDATE (like {@link resetDb}) — the generated table's
+    // columns aren't statically typed, so `getPool` is cleaner than reaching
+    // for an untyped `.id` column off the Drizzle table.
+    await getPool().query(
+        'UPDATE content_test_author SET deleted_at = now() WHERE id = ANY($1::uuid[])',
+        [ids]
+    );
+}
+
+/**
  * Link an article to tags in the generated join table, ordered by array index
  * (`position`) — the same ordering the relation read pages by. Writes the join
  * rows directly rather than going through the API, so a spec can stand up a

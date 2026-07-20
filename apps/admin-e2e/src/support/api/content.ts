@@ -498,11 +498,112 @@ interface ContentSchemaDetailOptions {
     status?: number;
 }
 
+/** One filterable path, as `GET /api/content-schema/:name/filter-fields` returns it. */
+interface WireFilterFieldSeed {
+    path: string;
+    label: string;
+    type: 'string' | 'number' | 'boolean' | 'uuid' | 'date' | 'enum';
+    enumValues?: string[];
+    group: string[];
+    relationTarget?: string;
+}
+
+/** The wire scalar type for a content field, or `null` if unfilterable. */
+function scalarWireType(
+    field: ContentFieldSchema
+): Pick<WireFilterFieldSeed, 'type' | 'enumValues'> | null {
+    switch (field.type) {
+        case 'text':
+        case 'richtext':
+            return { type: 'string' };
+        case 'number':
+        case 'money':
+            return { type: 'number' };
+        case 'boolean':
+            return { type: 'boolean' };
+        case 'date':
+        case 'datetime':
+            return { type: 'date' };
+        case 'select':
+            return { type: 'enum', enumValues: field.options ?? [] };
+        default:
+            // json / multiselect / relation have no scalar filter editor.
+            return null;
+    }
+}
+
+function fieldLabelOf(field: ContentFieldSchema): string {
+    return typeof field.admin.label === 'string' ? field.admin.label : field.name;
+}
+
+/** Push one level's scalar wire fields (envelope status + user scalars). */
+function pushScalarWire(
+    detail: ContentTypeDetail,
+    pathPrefix: string[],
+    group: string[],
+    out: WireFilterFieldSeed[]
+): void {
+    if (detail.publishable) {
+        out.push({
+            path: [...pathPrefix, 'status'].join('.'),
+            label: 'Status',
+            type: 'enum',
+            enumValues: ['draft', 'published'],
+            group
+        });
+    }
+    for (const field of detail.fields) {
+        const scalar = scalarWireType(field);
+        if (!scalar) continue;
+        out.push({
+            path: [...pathPrefix, field.name].join('.'),
+            label: fieldLabelOf(field),
+            type: scalar.type,
+            ...(scalar.enumValues ? { enumValues: scalar.enumValues } : {}),
+            group
+        });
+    }
+}
+
+/**
+ * Derive the wire filter surface for one type — its scalar fields plus **one
+ * hop** of its relations' scalar fields (`author.name`) and each relation's
+ * record-picker `id` entry — mirroring the server's `buildEntryFilterSurface`
+ * (the mock does one hop; the server does two, which the records filter drawer
+ * doesn't need to prove). Keeps the admin's `useFilterFields` fed with the
+ * right SHAPE so the picker groups relation paths correctly.
+ */
+function filterFieldsFor(
+    detail: ContentTypeDetail,
+    details: Record<string, ContentTypeDetail>
+): WireFilterFieldSeed[] {
+    const out: WireFilterFieldSeed[] = [];
+    pushScalarWire(detail, [], [], out);
+    for (const field of detail.fields) {
+        if (field.type !== 'relation' || !field.relation) continue;
+        const target = details[field.relation.to];
+        if (!target) continue;
+        const relLabel = fieldLabelOf(field);
+        out.push({
+            path: `${field.name}.id`,
+            label: relLabel,
+            type: 'uuid',
+            relationTarget: field.relation.to,
+            group: [relLabel]
+        });
+        pushScalarWire(target, [field.name], [relLabel], out);
+    }
+    return out;
+}
+
 /**
  * Stub `GET /api/content-schema/:name` — the full field schema the records table
- * reads via `useContentSchema`. Resolves the `:name` from the URL against
- * {@link CONTENT_DETAIL_SEED}; an unknown name 404s. Register alongside
- * {@link mockContentSchema} for any test that opens a collection.
+ * reads via `useContentSchema` — **and** its `/:name/filter-fields` sub-route
+ * (`useFilterFields`, the query-builder's filterable surface). Both resolve
+ * `:name` against {@link CONTENT_DETAIL_SEED}; an unknown name 404s. The detail
+ * pattern is end-anchored so it no longer also swallows the `/filter-fields`
+ * request (which would feed the field mapper the wrong shape). Register
+ * alongside {@link mockContentSchema} for any test that opens a collection.
  */
 export async function mockContentSchemaDetail(
     page: Page,
@@ -511,7 +612,32 @@ export async function mockContentSchemaDetail(
         status = 200
     }: ContentSchemaDetailOptions = {}
 ): Promise<void> {
-    await page.route(/\/api\/content-schema\/([^/?]+)/, async (route) => {
+    await page.route(
+        /\/api\/content-schema\/([^/?]+)\/filter-fields(\?.*)?$/,
+        async (route) => {
+            if (status >= 400) {
+                await route.fulfill({
+                    status,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ message: 'Server error' })
+                });
+                return;
+            }
+            const parts = new URL(route.request().url()).pathname.split('/');
+            const name = decodeURIComponent(parts[parts.length - 2] ?? '');
+            const detail = details[name];
+            await route.fulfill({
+                status: detail ? 200 : 404,
+                contentType: 'application/json',
+                body: JSON.stringify(
+                    detail
+                        ? { fields: filterFieldsFor(detail, details) }
+                        : { message: 'Not found' }
+                )
+            });
+        }
+    );
+    await page.route(/\/api\/content-schema\/([^/?]+)(\?.*)?$/, async (route) => {
         if (status >= 400) {
             await route.fulfill({
                 status,

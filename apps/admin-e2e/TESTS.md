@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_182 test cases across 25 spec files._
+_184 test cases across 26 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -187,6 +187,16 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | a brand-new record can be re-targeted to another locale before saving |
 | a translation draft can jump to an existing sibling |
 | the relation picker on a translation-create form is scoped to that locale |
+
+<!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
+_<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
+
+## Records filter — relations (query builder)
+
+| Test case |
+| --- |
+| the field picker offers a related type field, grouped |
+| applying a relation-path rule deep-links the dotted path |
 
 <!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_

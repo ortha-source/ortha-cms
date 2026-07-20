@@ -62,22 +62,31 @@ export abstract class BasePage {
         return this.page.getByRole('dialog', { name: 'Query Builder' });
     }
 
-    /** Open the filter drawer. */
+    /**
+     * The surface hosting the query builder. The **drawer** (a dialog) by
+     * default; a page that mounts the builder as an **inline panel** overrides
+     * this to return that region, so the shared helpers below work for both.
+     */
+    filterSurface(): Locator {
+        return this.filterDrawer();
+    }
+
+    /** Open the filter surface (drawer or inline panel). */
     async openFilters() {
         await this.filterTrigger().click();
-        await this.filterDrawer().waitFor();
+        await this.filterSurface().waitFor();
     }
 
     /** Add a rule to the (root) group. */
     async addRule() {
-        await this.filterDrawer()
+        await this.filterSurface()
             .getByRole('button', { name: 'Add rule' })
             .click();
     }
 
     /** The field / operator / value comboboxes of the first rule, in order. */
     private ruleCombobox(index: number): Locator {
-        return this.filterDrawer().getByRole('combobox').nth(index);
+        return this.filterSurface().getByRole('combobox').nth(index);
     }
 
     /** Pick a field for the first rule by its visible label (e.g. "Status"). */
@@ -85,6 +94,23 @@ export abstract class BasePage {
         await this.ruleCombobox(0).click();
         await this.page
             .getByRole('option', { name: label, exact: true })
+            .click();
+    }
+
+    /**
+     * Pick a field in the searchable, relation-grouped field picker: type
+     * `search` to disambiguate a leaf label that repeats across relation groups
+     * (e.g. "Name" under both "Author" and "Tags"), then click the leaf option.
+     * Use for a relation-path field (`author.name`); {@link selectField} still
+     * works for a unique flat field.
+     */
+    async selectFieldSearch(search: string, optionLabel: string) {
+        await this.ruleCombobox(0).click();
+        await this.page
+            .getByPlaceholder('Search fields and relations')
+            .fill(search);
+        await this.page
+            .getByRole('option', { name: optionLabel, exact: true })
             .click();
     }
 
@@ -106,24 +132,24 @@ export abstract class BasePage {
 
     /** The inline validation error rendered under an invalid rule. */
     ruleError(): Locator {
-        return this.filterDrawer().getByTestId('qb-rule-error');
+        return this.filterSurface().getByTestId('qb-rule-error');
     }
 
     /** Type a scalar value into the first rule's text input. */
     async fillValue(value: string) {
-        await this.filterDrawer().getByRole('textbox').last().fill(value);
+        await this.filterSurface().getByRole('textbox').last().fill(value);
     }
 
-    /** Commit the drawer's draft to the URL. */
+    /** Commit the builder's draft to the URL. */
     async applyFilters() {
-        await this.filterDrawer()
+        await this.filterSurface()
             .getByRole('button', { name: 'Apply' })
             .click();
     }
 
-    /** Clear all conditions from the drawer. */
+    /** Clear all conditions from the builder. */
     async resetFilters() {
-        await this.filterDrawer()
+        await this.filterSurface()
             .getByRole('button', { name: 'Reset' })
             .click();
     }

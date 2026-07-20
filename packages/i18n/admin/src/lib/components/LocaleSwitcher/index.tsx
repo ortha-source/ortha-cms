@@ -1,17 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, ChevronDown, Globe } from 'lucide-react';
 import {
     Button,
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
+    Input,
     Popover,
     PopoverContent,
-    PopoverTrigger
+    PopoverTrigger,
+    cn
 } from '@ortha-cms/design-system';
 import type { RecordsToolbarContext } from '@ortha-cms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
@@ -29,6 +25,10 @@ const messages = defineMessages({
         id: 'i18n.switcher.label',
         defaultMessage: 'Locale: {name}'
     },
+    list: {
+        id: 'i18n.switcher.list',
+        defaultMessage: 'Locales'
+    },
     searchPlaceholder: {
         id: 'i18n.switcher.searchPlaceholder',
         defaultMessage: 'Search locales…'
@@ -43,12 +43,23 @@ const messages = defineMessages({
     }
 });
 
+/** Case-insensitive match of a locale's name/slug against the search query. */
+function matches(haystack: string, query: string): boolean {
+    return haystack.toLowerCase().includes(query.trim().toLowerCase());
+}
+
 /**
  * The records-toolbar **locale switcher** — a searchable dropdown of the
  * configured locales, contributed into the Content Library's toolbar slot.
  * The active locale is the table's `?locale=` URL param (owned by this item's
  * `listParamKeys`); the default locale keeps a clean URL, matching the
  * server's default scoping. Renders nothing for a non-i18n type.
+ *
+ * Structured like the records column picker / query-builder field picker (a
+ * padded `Popover` + a plain `Input` over one `overflow-y-auto` list) rather
+ * than a cmdk `Command`, so the mouse wheel scrolls the list and the rounded
+ * border stays clean. The trigger keeps its `Locale: {name}` label and each row
+ * `role="option"`.
  */
 export function LocaleSwitcher({
     schema,
@@ -57,14 +68,24 @@ export function LocaleSwitcher({
 }: RecordsToolbarContext) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
     const { locales, defaultLocale } = useLocales();
-
-    if (!schema.i18n || locales.length === 0) return null;
 
     const activeSlug = resolveActiveLocale({
         urlLocale: params[LOCALE_PARAM],
         defaultSlug: defaultLocale?.slug
     });
+
+    const filtered = useMemo(
+        () =>
+            locales.filter((locale) =>
+                matches(`${locale.slug} ${locale.name}`, query)
+            ),
+        [locales, query]
+    );
+
+    if (!schema.i18n || locales.length === 0) return null;
+
     const active =
         locales.find((locale) => locale.slug === activeSlug) ?? defaultLocale;
 
@@ -86,7 +107,13 @@ export function LocaleSwitcher({
 
     return (
         <>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover
+                open={open}
+                onOpenChange={(next) => {
+                    setOpen(next);
+                    if (!next) setQuery('');
+                }}
+            >
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
@@ -103,46 +130,68 @@ export function LocaleSwitcher({
                         />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-0" align="end">
-                    <Command>
-                        <CommandInput
-                            placeholder={intl.formatMessage(
-                                messages.searchPlaceholder
-                            )}
-                        />
-                        <CommandList>
-                            <CommandEmpty>
+                <PopoverContent align="end" className="w-56 p-2">
+                    <Input
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder={intl.formatMessage(
+                            messages.searchPlaceholder
+                        )}
+                        aria-label={intl.formatMessage(
+                            messages.searchPlaceholder
+                        )}
+                        className="mb-1 h-8 rounded-lg shadow-none"
+                    />
+                    {/* Only the list scrolls (plain container → mouse wheel
+                        works), so the search box stays put. */}
+                    <div
+                        role="listbox"
+                        aria-label={intl.formatMessage(messages.list)}
+                        className="max-h-72 overflow-y-auto"
+                    >
+                        {filtered.length === 0 ? (
+                            <p className="px-1 py-3 text-center text-xs text-muted-foreground">
                                 {intl.formatMessage(messages.empty)}
-                            </CommandEmpty>
-                            {/* Items live in a CommandGroup so its `p-1` inset keeps
-                            the selected-row highlight clear of the popover's
-                            rounded corners (matches MultiSelect / ⌘K palette). */}
-                            <CommandGroup>
-                                {locales.map((locale) => (
-                                    <CommandItem
+                            </p>
+                        ) : (
+                            filtered.map((locale) => {
+                                const isActive = locale.slug === active?.slug;
+                                return (
+                                    <button
                                         key={locale.slug}
-                                        value={`${locale.slug} ${locale.name}`}
-                                        onSelect={() => select(locale.slug)}
+                                        type="button"
+                                        role="option"
+                                        aria-selected={isActive}
+                                        onClick={() => select(locale.slug)}
+                                        className={cn(
+                                            'flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm',
+                                            'hover:bg-accent hover:text-accent-foreground',
+                                            'focus-visible:bg-accent focus-visible:outline-none',
+                                            isActive && 'bg-accent/50'
+                                        )}
                                     >
                                         <Check
                                             aria-hidden
-                                            className={
-                                                locale.slug === active?.slug
-                                                    ? 'size-4'
-                                                    : 'size-4 opacity-0'
-                                            }
+                                            className={cn(
+                                                'mr-2 size-4 shrink-0',
+                                                isActive
+                                                    ? 'opacity-100'
+                                                    : 'opacity-0'
+                                            )}
                                         />
-                                        {locale.isDefault
-                                            ? intl.formatMessage(
-                                                  messages.defaultSuffix,
-                                                  { name: locale.name }
-                                              )
-                                            : locale.name}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
+                                        <span className="truncate">
+                                            {locale.isDefault
+                                                ? intl.formatMessage(
+                                                      messages.defaultSuffix,
+                                                      { name: locale.name }
+                                                  )
+                                                : locale.name}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
                 </PopoverContent>
             </Popover>
             <LocaleSwitchOverlay />

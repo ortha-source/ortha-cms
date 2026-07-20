@@ -10,7 +10,8 @@ import {
 import {
     FIELD_TYPE,
     type FieldType,
-    type FilterField
+    type FilterField,
+    type RelationValueEditor
 } from '../../../../../types/filter-field.type';
 import {
     OP,
@@ -64,6 +65,8 @@ export type ValueEditorProps = {
     invalid?: boolean;
     /** Id of the rule's error message, wired as `aria-describedby`. */
     describedById?: string;
+    /** Record picker for a relation-id field; falls back to uuid text input. */
+    renderRelationValue?: RelationValueEditor;
 };
 
 const inputTypeFor = (
@@ -99,7 +102,8 @@ export function ValueEditor({
     value,
     onChange,
     invalid,
-    describedById
+    describedById,
+    renderRelationValue
 }: ValueEditorProps) {
     const intl = useIntl();
     // Shared a11y props applied to every editor variant's primary control,
@@ -111,6 +115,30 @@ export function ValueEditor({
     };
 
     if (op === OP.IsEmpty) return null;
+
+    // A relation id is a uuid to the engine, but a RECORD to the user. When
+    // the consumer supplies a picker, the set-membership / equality ops route
+    // to it; comparison ops (gt/lt/…) are meaningless on a uuid and never
+    // reach a relation field anyway (its ops list excludes them).
+    if (
+        field.relationTarget &&
+        renderRelationValue &&
+        (op === OP.IsOneOf || op === OP.Equals || op === OP.NotEquals)
+    ) {
+        const ids = Array.isArray(value)
+            ? value
+            : typeof value === 'string' && value
+              ? [value]
+              : [];
+        return renderRelationValue({
+            target: field.relationTarget,
+            value: ids,
+            onChange: (next) =>
+                onChange(op === OP.IsOneOf ? next : (next[0] ?? '')),
+            invalid,
+            describedById
+        });
+    }
 
     if (op === OP.Between) {
         const range = (value as { from: string; to: string }) ?? {

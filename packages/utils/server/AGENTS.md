@@ -39,7 +39,16 @@ Key concepts:
   by a host-supplied `resolveExtension` hook (e.g. a `role` filter), and the
   `maxDepth` / `maxNodes` / `maxGroupDepth` guards.
 - **Relation kinds** — `one-to-one` / `one-to-many` / `many-to-one` /
-  `many-to-many` / `self-referential` — discriminate the EXISTS subquery shape.
+  `many-to-many` / `self-referential` — discriminate the EXISTS subquery
+  shape. `self-referential` aliases the target so the correlation binds to
+  the outer row (an unaliased self-join would degrade to "a row that is its
+  own parent"). Each `RelationSchema` variant takes an optional `scope`
+  (`RelationScope = (target) => SQL | undefined`) ANDed **inside** the
+  EXISTS — the host's workspace + soft-delete guard, so a relation filter
+  never traverses rows the root query excludes. It is a function, not a
+  prebuilt `SQL`, because a self-join must scope the alias, not the physical
+  table; when a `scope` is set the many-to-many junction-only fast path
+  yields to the full target join.
 - **Operators** — `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, `like`,
   `ilike`, `null` — each mapped to a parameterized Drizzle helper. Values are
   never string-interpolated into SQL.

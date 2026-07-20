@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_286 test cases across 27 spec files._
+_297 test cases across 28 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -315,6 +315,42 @@ _<sub>apps/server-e2e/src/server/content/content-types.spec.ts</sub>_
 | 401s an unauthenticated request |
 | serves the code-defined registry, not the mock catalogue |
 | grants a workspace the real registry slugs on content mode "all" |
+
+<!-- source: apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</sub>_
+
+## Content relation filtering (GET /api/content/:typeName?filter=)
+
+### many-to-one (author.name)
+
+| Test case |
+| --- |
+| filters entries by a related record field |
+| excludes a soft-deleted target (the relation scope) |
+| excludes a target in another workspace (the workspace scope) |
+
+### many-to-many (tags.*)
+
+| Test case |
+| --- |
+| filters by a tag field with EXISTS semantics (no row duplication) |
+| matches only entries linked to the given tag |
+
+### composition + bounds
+
+| Test case |
+| --- |
+| combines a root field and a relation path under OR |
+| 400s an unknown field under a relation |
+| 400s a path deeper than the relation-hop budget |
+
+## Filter fields (GET /api/content-schema/:name/filter-fields)
+
+| Test case |
+| --- |
+| 401s an unauthenticated request |
+| 404s an unknown content type |
+| returns the recursive filterable surface |
 
 <!-- source: apps/server-e2e/src/server/content/list-entries.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_

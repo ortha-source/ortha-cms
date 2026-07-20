@@ -8,6 +8,7 @@ import { CONTENT_REGISTRY } from './content.tokens';
 import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
+import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
 import { CreateEntryController } from './entries/http/controllers/create-entry.controller';
@@ -50,6 +51,10 @@ export class ContentModule {
             global: true,
             controllers: [
                 ListContentSchemaController,
+                // The `:name/filter-fields` route is more specific than
+                // `GetContentSchemaController`'s `:name`, so their order is
+                // immaterial, but keep the schema routes grouped.
+                GetFilterFieldsController,
                 GetContentSchemaController,
                 // Bulk routes carry a literal `bulk` in the `:id` slot, so they
                 // must be registered before the single-item controllers below

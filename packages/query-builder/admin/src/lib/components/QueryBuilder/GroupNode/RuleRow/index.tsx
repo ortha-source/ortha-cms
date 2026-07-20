@@ -2,7 +2,10 @@ import { useId } from 'react';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { X } from 'lucide-react';
 import { Button } from '@ortha-cms/design-system';
-import type { FilterField } from '../../../../types/filter-field.type';
+import type {
+    FilterField,
+    RelationValueEditor
+} from '../../../../types/filter-field.type';
 import { OP, type FilterRule, type OpId } from '../../../../types/filter-tree.type';
 import { defaultValueForOp } from '../../../../utils/defaultValueForOp';
 import { OPS_FOR_TYPE } from '../../../../utils/operators';
@@ -73,6 +76,8 @@ export type RuleRowProps = {
     onRemove: () => void;
     /** When true, render the inline error message under the row if invalid. */
     showErrors?: boolean;
+    /** Value editor for a relation-id rule; forwarded to {@link ValueEditor}. */
+    renderRelationValue?: RelationValueEditor;
 };
 
 /**
@@ -88,7 +93,8 @@ export function RuleRow({
     fields,
     onUpdate,
     onRemove,
-    showErrors = false
+    showErrors = false,
+    renderRelationValue
 }: RuleRowProps) {
     const intl = useIntl();
     const field = fields.find((f) => f.id === rule.fieldId) ?? fields[0];
@@ -98,7 +104,11 @@ export function RuleRow({
 
     return (
         <div className="flex flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Top-align the cells: a relation value editor stacks its trigger
+                over the selected chips, so centering would float the field /
+                operator above it. Top-aligned, the field, operator, and value
+                trigger line up and the chips simply hang below. */}
+            <div className="flex flex-wrap items-start gap-2">
                 <div className="min-w-[7rem] flex-1 basis-0">
                     <FieldPicker
                         fields={fields}
@@ -135,6 +145,7 @@ export function RuleRow({
                             onChange={(value) => onUpdate({ value })}
                             invalid={errorCode !== null}
                             describedById={errorCode ? errorId : undefined}
+                            renderRelationValue={renderRelationValue}
                         />
                     </div>
                 )}

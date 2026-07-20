@@ -39,6 +39,15 @@ export class ContentLibraryPage extends BasePage {
         await this.page.goto(`/workspaces/${workspaceId}/content`);
     }
 
+    /**
+     * The records page mounts the query builder as an **inline accordion panel**
+     * (a `region` labelled by the "Filters" toggle), not the modal drawer the
+     * other list pages use — so override the shared filter helpers' surface.
+     */
+    override filterSurface(): Locator {
+        return this.page.getByRole('region', { name: /Filters/ });
+    }
+
     /** A collapsible group trigger by label ("Collections" / "Pages"). */
     group(label: string): Locator {
         return this.sidebar.getByRole('button', {

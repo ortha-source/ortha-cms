@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState
+} from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ArrowLeft, Filter, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Filter, Plus, Trash2 } from 'lucide-react';
 import {
-    QueryBuilderDrawer,
+    QueryBuilderPanel,
+    QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
     treeToJsonFilter,
@@ -18,7 +26,8 @@ import {
     Button,
     Container,
     ContainerHeader,
-    SearchToolbar
+    SearchToolbar,
+    cn
 } from '@ortha-cms/design-system';
 import type {
     ContentType,
@@ -40,7 +49,8 @@ import { useContentEntries } from '../../../../application/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
 import { useSlotListParams } from '../../../hooks/useSlotListParams';
 import { entryColumns } from '../../../../domain/entryColumns';
-import { filterFieldsFromSchema } from '../../../filterFieldsFromSchema';
+import { useFilterFields } from '../../../../application/useFilterFields';
+import { RelationValuePicker } from '../../RelationValuePicker';
 import {
     RECORDS_COLUMN_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
@@ -86,7 +96,7 @@ const messages = defineMessages({
     },
     filters: {
         id: 'content.records.filters',
-        defaultMessage: 'Filters{count, plural, =0 {} other { (#)}}'
+        defaultMessage: 'Filters{count, plural, =0 {} other { · #}}'
     },
     loading: {
         id: 'content.records.loading',
@@ -235,10 +245,9 @@ export function LoadedRecordsView({
     }, []);
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-    const schemaFilterFields = useMemo(
-        () => filterFieldsFromSchema(schema),
-        [schema]
-    );
+    // Server-derived filter surface (scalar fields + recursive relation paths),
+    // replacing the old client-side `filterFieldsFromSchema` mirror.
+    const schemaFilterFields = useFilterFields(schema.name);
     // Slot-contributed filter fields (e.g. locale aggregates), appended after
     // the schema-derived set. Hook-in-a-loop is rules-of-hooks-safe here:
     // slot items are registered once at boot and never change, so the call
@@ -313,6 +322,19 @@ export function LoadedRecordsView({
         },
         [updateParams]
     );
+
+    // The inline filter panel: its own open state (the toolbar button toggles
+    // it), with the ids wiring the button's `aria-controls` to the region.
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const filtersPanelId = useId();
+    const filtersToggleId = useId();
+    const filtersToggleRef = useRef<HTMLButtonElement>(null);
+    // Return focus to the toggle when the panel collapses (Apply / Esc), so the
+    // now-`inert` panel doesn't strand focus on the body.
+    const setFiltersPanelOpen = useCallback((open: boolean) => {
+        setFiltersOpen(open);
+        if (!open) filtersToggleRef.current?.focus();
+    }, []);
 
     const entries = data?.items ?? [];
     const hasFilters = searchInput.trim().length > 0 || ruleCount > 0;
@@ -424,25 +446,55 @@ export function LoadedRecordsView({
                             onReorder={reorder}
                             visibleCount={visible.length}
                         />
-                        <QueryBuilderDrawer
-                            fields={filterFields}
-                            value={appliedFilter}
-                            onApply={applyFilter}
-                            trigger={
-                                <Button
-                                    variant="outline"
-                                    className="shadow-none"
-                                >
-                                    <Filter aria-hidden className="size-4" />
-                                    {intl.formatMessage(messages.filters, {
-                                        count: ruleCount
-                                    })}
-                                </Button>
-                            }
-                        />
+                        <Button
+                            ref={filtersToggleRef}
+                            id={filtersToggleId}
+                            variant="outline"
+                            className="shadow-none"
+                            aria-expanded={filtersOpen}
+                            aria-controls={filtersPanelId}
+                            onClick={() => setFiltersPanelOpen(!filtersOpen)}
+                        >
+                            <Filter aria-hidden className="size-4" />
+                            {intl.formatMessage(messages.filters, {
+                                count: ruleCount
+                            })}
+                            <ChevronDown
+                                aria-hidden
+                                className={cn(
+                                    'size-4 transition-transform duration-150 motion-reduce:transition-none',
+                                    filtersOpen && 'rotate-180'
+                                )}
+                            />
+                        </Button>
                     </div>
                 }
             />
+
+            {/* The filter builder, inline between the toolbar and the table. It
+                pushes the table down when open (no overlay); collapsed with
+                active filters, the applied conditions read out as removable
+                chips below. */}
+            <QueryBuilderPanel
+                id={filtersPanelId}
+                labelledBy={filtersToggleId}
+                open={filtersOpen}
+                onOpenChange={setFiltersPanelOpen}
+                fields={filterFields}
+                value={appliedFilter}
+                onApply={applyFilter}
+                renderRelationValue={(props) => (
+                    <RelationValuePicker {...props} />
+                )}
+            />
+            {!filtersOpen && appliedFilter && ruleCount > 0 ? (
+                <QueryBuilderSummary
+                    className="mb-4"
+                    tree={appliedFilter}
+                    fields={filterFields}
+                    onChange={applyFilter}
+                />
+            ) : null}
 
             {/* Always-mounted live region so a search/filter/sort that updates
                 the table without a navigation is actually announced — a region

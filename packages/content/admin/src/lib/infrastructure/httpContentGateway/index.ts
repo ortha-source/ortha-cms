@@ -8,7 +8,9 @@ import type {
     ContentTypeSummaryResponse,
     EntryRecord,
     EntryRelations,
-    RelationFieldView
+    FilterFieldsResponse,
+    RelationFieldView,
+    WireFilterField
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
 import { toContentType } from '../contentMapper';
@@ -62,6 +64,17 @@ export const httpContentGateway: ContentGateway = {
                 `/content-schema/${name}`
             );
             return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listFilterFields(name: string): Promise<WireFilterField[]> {
+        try {
+            const { data } = await apiClient.get<FilterFieldsResponse>(
+                `/content-schema/${name}/filter-fields`
+            );
+            return data.fields;
         } catch (error) {
             throw toApiError(error);
         }

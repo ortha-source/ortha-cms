@@ -11,7 +11,8 @@ import {
     QueryBuilder,
     countRules,
     type FilterField,
-    type FilterGroup
+    type FilterGroup,
+    type RelationValueEditor
 } from '@ortha-cms/query-builder-admin';
 
 const messages = defineMessages({
@@ -48,7 +49,9 @@ export function RelationPickerFilters({
     filter,
     onFilterChange,
     open,
-    onOpenChange
+    onOpenChange,
+    portalContainer,
+    renderRelationValue
 }: {
     targetLabel: string;
     search: string;
@@ -59,6 +62,10 @@ export function RelationPickerFilters({
     onFilterChange: (next: FilterGroup | null) => void;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    /** Dialog element the query builder's popovers portal into (mouse-wheel fix). */
+    portalContainer?: HTMLElement | null;
+    /** Record picker for a relation-id rule, forwarded to the query builder. */
+    renderRelationValue?: RelationValueEditor;
 }) {
     const intl = useIntl();
     const ruleCount = countRules(filter);
@@ -101,6 +108,8 @@ export function RelationPickerFilters({
                         fields={filterFields}
                         value={filter}
                         onChange={onFilterChange}
+                        portalContainer={portalContainer}
+                        renderRelationValue={renderRelationValue}
                     />
                     {ruleCount > 0 ? (
                         <Button
