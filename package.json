@@ -3,7 +3,9 @@
     "version": "0.0.0",
     "license": "MIT",
     "scripts": {
-        "prepare": "lefthook install"
+        "prepare": "lefthook install",
+        "start:server": "nx serve server",
+        "start:admin": "nx serve admin"
     },
     "private": true,
     "dependencies": {
