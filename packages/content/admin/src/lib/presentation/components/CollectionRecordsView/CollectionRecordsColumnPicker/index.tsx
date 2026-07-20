@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Columns3 } from 'lucide-react';
 import {
@@ -18,6 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import {
     Button,
+    Input,
     Popover,
     PopoverContent,
     PopoverTrigger
@@ -58,8 +60,30 @@ const messages = defineMessages({
         id: 'content.records.columns.dnd.cancelled',
         defaultMessage:
             'Reordering cancelled. The {column} column returned to its position.'
+    },
+    searchLabel: {
+        id: 'content.records.columns.searchLabel',
+        defaultMessage: 'Search columns'
+    },
+    searchPlaceholder: {
+        id: 'content.records.columns.searchPlaceholder',
+        defaultMessage: 'Search columns…'
+    },
+    searchEmpty: {
+        id: 'content.records.columns.searchEmpty',
+        defaultMessage: 'No column found.'
+    },
+    searchResults: {
+        id: 'content.records.columns.searchResults',
+        defaultMessage:
+            '{count, plural, =0 {No columns found} one {# column} other {# columns}}'
     }
 });
+
+/** Case-insensitive label match for the column search. */
+function matches(label: string, query: string): boolean {
+    return label.toLowerCase().includes(query.trim().toLowerCase());
+}
 
 /**
  * The column-visibility + ordering control: a popover listing every available
@@ -93,6 +117,8 @@ export function CollectionRecordsColumnPicker({
 }) {
     const intl = useIntl();
     const labelOf = useColumnLabel();
+    const [query, setQuery] = useState('');
+    const searching = query.trim().length > 0;
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -102,10 +128,21 @@ export function CollectionRecordsColumnPicker({
 
     const byId = new Map(columns.map((column) => [column.id, column]));
     // Visible columns in persisted display order; hidden ones keep schema order.
-    const visibleColumns = visible
+    const allVisibleColumns = visible
         .map((id) => byId.get(id))
         .filter((column): column is EntryColumn => column !== undefined);
-    const hiddenColumns = columns.filter((column) => !isVisible(column.id));
+    const allHiddenColumns = columns.filter((column) => !isVisible(column.id));
+
+    // The full column set is already in memory (it comes from the schema), so
+    // the search filters locally — no request, like the locale switcher.
+    const visibleColumns = searching
+        ? allVisibleColumns.filter((column) => matches(labelOf(column), query))
+        : allVisibleColumns;
+    const hiddenColumns = searching
+        ? allHiddenColumns.filter((column) => matches(labelOf(column), query))
+        : allHiddenColumns;
+    const noMatches =
+        searching && visibleColumns.length === 0 && hiddenColumns.length === 0;
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -148,62 +185,119 @@ export function CollectionRecordsColumnPicker({
         draggable: intl.formatMessage(messages.dndInstructions)
     };
 
+    // Reordering is suppressed while searching: the rows on screen are a subset,
+    // so dropping one onto another would move it to a position the user can't
+    // see — and a `SortableContext` whose `items` include unrendered ids
+    // misbehaves. Visible rows stay toggleable, just not draggable.
+    const visibleRows = visibleColumns.map((column) =>
+        searching ? (
+            <ColumnRow
+                key={column.id}
+                column={column}
+                label={labelOf(column)}
+                checked
+                disabled={visibleCount <= 1}
+                onToggle={() => onToggle(column.id)}
+                // Spacer keeps the checkbox aligned with the draggable rows.
+                handle={<span className="w-5 shrink-0" />}
+            />
+        ) : (
+            <SortableColumnRow
+                key={column.id}
+                column={column}
+                label={labelOf(column)}
+                // Keep at least one column so the table never blanks.
+                disabled={visibleCount <= 1}
+                onToggle={() => onToggle(column.id)}
+            />
+        )
+    );
+
     return (
-        <Popover>
+        <Popover
+            // Start each visit from the full list rather than the previous
+            // search.
+            onOpenChange={(open) => {
+                if (!open) setQuery('');
+            }}
+        >
             <PopoverTrigger asChild>
                 <Button variant="outline" className="shadow-none">
                     <Columns3 aria-hidden className="size-4" />
                     {intl.formatMessage(messages.trigger)}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent
-                align="end"
-                className="max-h-80 w-64 overflow-y-auto p-2"
-            >
+            <PopoverContent align="end" className="w-64 p-2">
                 <p className="px-1 py-1.5 text-xs font-medium text-muted-foreground">
                     {intl.formatMessage(messages.heading)}
                 </p>
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                    accessibility={{
-                        announcements,
-                        screenReaderInstructions
-                    }}
-                >
-                    <SortableContext
-                        items={visible}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        {visibleColumns.map((column) => (
-                            <SortableColumnRow
-                                key={column.id}
-                                column={column}
-                                label={labelOf(column)}
-                                // Keep at least one column so the table never blanks.
-                                disabled={visibleCount <= 1}
-                                onToggle={() => onToggle(column.id)}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
-                {hiddenColumns.length > 0 && (
-                    <>
-                        <div className="my-1 h-px bg-border" role="separator" />
-                        {hiddenColumns.map((column) => (
-                            <ColumnRow
-                                key={column.id}
-                                column={column}
-                                label={labelOf(column)}
-                                checked={false}
-                                onToggle={() => onToggle(column.id)}
-                                // Spacer aligns the checkbox with the dragged rows.
-                                handle={<span className="w-5 shrink-0" />}
-                            />
-                        ))}
-                    </>
-                )}
+                <Input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
+                    aria-label={intl.formatMessage(messages.searchLabel)}
+                    className="mb-1 h-8 rounded-lg shadow-none"
+                />
+                {/* Filtering is instant and otherwise silent — without this a
+                    screen-reader user types and hears nothing back, neither a
+                    result count nor the empty state. */}
+                <p aria-live="polite" className="sr-only">
+                    {searching
+                        ? intl.formatMessage(messages.searchResults, {
+                              count:
+                                  visibleColumns.length + hiddenColumns.length
+                          })
+                        : ''}
+                </p>
+                {/* Only the list scrolls, so the search box stays put. */}
+                <div className="max-h-72 overflow-y-auto">
+                    {noMatches ? (
+                        <p className="px-1 py-3 text-center text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.searchEmpty)}
+                        </p>
+                    ) : null}
+                    {searching ? (
+                        visibleRows
+                    ) : (
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                            accessibility={{
+                                announcements,
+                                screenReaderInstructions
+                            }}
+                        >
+                            <SortableContext
+                                items={visible}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {visibleRows}
+                            </SortableContext>
+                        </DndContext>
+                    )}
+                    {hiddenColumns.length > 0 && (
+                        <>
+                            {visibleColumns.length > 0 && (
+                                <div
+                                    className="my-1 h-px bg-border"
+                                    role="separator"
+                                />
+                            )}
+                            {hiddenColumns.map((column) => (
+                                <ColumnRow
+                                    key={column.id}
+                                    column={column}
+                                    label={labelOf(column)}
+                                    checked={false}
+                                    onToggle={() => onToggle(column.id)}
+                                    // Spacer aligns the checkbox with the dragged rows.
+                                    handle={<span className="w-5 shrink-0" />}
+                                />
+                            ))}
+                        </>
+                    )}
+                </div>
             </PopoverContent>
         </Popover>
     );

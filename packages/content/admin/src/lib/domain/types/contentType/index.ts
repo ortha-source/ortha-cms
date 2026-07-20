@@ -119,6 +119,18 @@ export type EntryRecord = {
     updatedAt: string;
     /** Field values, keyed by field name. */
     values: Record<string, unknown>;
+    /**
+     * A capped **preview** of this row's relation links, keyed by relation field
+     * name — served only when the list opts in (`relations: 'preview'` plus the
+     * visible `relationFields`), which the records table does and the relation
+     * picker deliberately does not.
+     *
+     * Each field carries one page of refs plus its true `total`, so the cell can
+     * render a titled summary immediately; the dropdown pages through anything
+     * beyond that page via `useRelationFieldLinks`. Additive to {@link values},
+     * which still carries an owning single relation's raw FK.
+     */
+    relations?: Record<string, RelationFieldView>;
 };
 
 /**
@@ -140,6 +152,13 @@ export type RelationRef = {
     slug?: string;
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
+    /**
+     * The link exists but its target could not be resolved — soft-deleted, or
+     * outside the open workspace. The server then sends an id-only ref (`title`
+     * stands in as the raw id), so the UI must render it as unavailable rather
+     * than printing that id. Mirrors the server's `RelationRef.missing`.
+     */
+    missing?: true;
 };
 
 /**
@@ -202,8 +221,7 @@ export type EntryValidationIssue = {
 };
 
 /** Per-entry verdict kind in a bulk-publish dry run — mirror of the server. */
-export type BulkVerdictKind =
-    (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
+export type BulkVerdictKind = (typeof BULK_VERDICT)[keyof typeof BULK_VERDICT];
 
 /**
  * One field's publish-gate check on a record — pass/fail (and the message when

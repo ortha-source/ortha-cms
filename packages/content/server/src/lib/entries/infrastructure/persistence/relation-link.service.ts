@@ -12,7 +12,7 @@ import {
     sql,
     type AnyColumn
 } from 'drizzle-orm';
-import type { PgTable } from 'drizzle-orm/pg-core';
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { AnyContentType, EntryStatus } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
@@ -26,11 +26,28 @@ import { entrySlug, entryTitle } from './entry-row';
 /** A generated content/join table seen as a bag of columns by property name. */
 type Columns = Record<string, AnyColumn>;
 
+/**
+ * The same bag typed as `PgColumn` rather than `AnyColumn` — needed where a
+ * column is fed to Drizzle's *select* builder (as the window previews do), whose
+ * `SelectedFieldsFlat` accepts `PgColumn` but not the broader `AnyColumn`.
+ */
+type SelectableColumns = Record<string, PgColumn>;
+
 /** A generated content row seen as a bag of values by property name. */
 type Row = Record<string, unknown>;
 
 /** Default links per page when the caller doesn't specify one. */
 export const RELATION_PAGE_SIZE = 20;
+
+/**
+ * How many relation fields a page preview resolves at once. `relationFields` is
+ * bounded in bytes but not in count, so a type with many relation columns could
+ * otherwise fan out one concurrent query per field — and each field takes a
+ * connection twice (its window query, then `refsFor`). The pool is small and
+ * app-wide, so cap the fan-out and let the remainder queue in-process rather
+ * than in the pool, where it would block unrelated requests.
+ */
+const PREVIEW_FIELD_CONCURRENCY = 3;
 
 /**
  * A private advisory-lock class (the first `pg_advisory_xact_lock` key)
@@ -124,6 +141,296 @@ export class RelationLinkService {
     }
 
     /**
+     * A capped relation preview for a whole **page** of entries — what the
+     * records table's relation columns render. Returns, per entry id, a
+     * `{ items, total }` view for each requested field.
+     *
+     * The batching is the point: this issues a constant number of queries **per
+     * relation field**, spanning every row on the page (`inArray(ownCol, ids)`),
+     * never one query per row. Contrast {@link readAll}, which is scoped to a
+     * single entry (`eq(ownCol, row.id)`) because the editor opens one record —
+     * calling it in a loop over a page would be a textbook N+1 (a 50-row page
+     * with two relation columns would cost 300 queries; this costs a handful).
+     *
+     * Each field contributes at most `pageSize` refs plus its true `total`, so a
+     * record holding thousands of links reads exactly one page here — the
+     * dropdown pages through the rest via {@link readField}. Only `fields` are
+     * resolved (the table's visible columns), so a hidden relation column costs
+     * nothing.
+     */
+    async previewForEntries(
+        type: AnyContentType,
+        fields: string[],
+        rows: Row[],
+        workspaceId: string,
+        pageSize = RELATION_PAGE_SIZE
+    ): Promise<Map<string, Record<string, RelationFieldView>>> {
+        const out = new Map<string, Record<string, RelationFieldView>>();
+        const sourceIds = rows
+            .map((row) => row['id'])
+            .filter((id): id is string => typeof id === 'string' && !!id);
+        const specs = fields
+            .map((name) => [name, type.fields[name]] as const)
+            .filter(
+                (entry): entry is readonly [string, AnyFieldSpec] =>
+                    entry[1]?.type === CONTENT_FIELD_TYPE.Relation &&
+                    !!entry[1].relation
+            );
+        if (!sourceIds.length || !specs.length) return out;
+        for (const id of sourceIds) out.set(id, {});
+
+        // Each relation field is an independent read, so fan them out
+        // concurrently rather than awaiting one before starting the next — a
+        // table with several relation columns pays one field's latency, not
+        // their sum (the same reasoning as `readAll`).
+        //
+        // Bounded, though: the pool is small and shared app-wide, and each
+        // field holds a connection for its window query and then another for
+        // `refsFor`. A type with many relation columns would otherwise let a
+        // couple of list requests occupy every connection, queueing unrelated
+        // traffic behind a records table's previews.
+        const views: Map<string, RelationFieldView>[] = [];
+        for (let i = 0; i < specs.length; i += PREVIEW_FIELD_CONCURRENCY) {
+            const batch = specs.slice(i, i + PREVIEW_FIELD_CONCURRENCY);
+            views.push(
+                ...(await Promise.all(
+                    batch.map(([name, spec]) =>
+                        this.previewField(
+                            type,
+                            name,
+                            spec,
+                            rows,
+                            sourceIds,
+                            workspaceId,
+                            pageSize
+                        )
+                    )
+                ))
+            );
+        }
+        specs.forEach(([name], index) => {
+            for (const [sourceId, view] of views[index]) {
+                const bucket = out.get(sourceId);
+                if (bucket) bucket[name] = view;
+            }
+        });
+        return out;
+    }
+
+    /**
+     * Preview one relation field across the page, dispatched by storage form —
+     * the same three shapes {@link readField} handles: an owning single relation
+     * (FK on the row), a join-backed relation (owning many-to-many or the
+     * inverse of one), and an inverse-of-single (the owner's FK points back).
+     */
+    private previewField(
+        type: AnyContentType,
+        field: string,
+        spec: AnyFieldSpec,
+        rows: Row[],
+        sourceIds: string[],
+        workspaceId: string,
+        pageSize: number
+    ): Promise<Map<string, RelationFieldView>> {
+        const relation = spec.relation;
+        if (!relation) return Promise.resolve(new Map());
+        if (!relation.many && !relation.inverse)
+            return this.previewSingle(relation.to(), field, rows, workspaceId);
+
+        const join = this.joinPlanFor(type, field, spec);
+        if (join)
+            return this.previewJoin(join, sourceIds, workspaceId, pageSize);
+
+        const inverse = this.inversePlanFor(spec);
+        if (inverse)
+            return this.previewInverse(
+                inverse,
+                sourceIds,
+                workspaceId,
+                pageSize
+            );
+        return Promise.resolve(new Map());
+    }
+
+    /**
+     * Owning **single** relations: the FK already rides each page row, so this
+     * is one batched {@link refsFor} for every row's target at once — which also
+     * de-duplicates, so 50 posts sharing one author resolve that title once
+     * instead of 50 times.
+     */
+    private async previewSingle(
+        target: AnyContentType,
+        field: string,
+        rows: Row[],
+        workspaceId: string
+    ): Promise<Map<string, RelationFieldView>> {
+        const fkBySource = new Map<string, string>();
+        for (const row of rows) {
+            const fk = row[field];
+            const id = row['id'];
+            if (typeof fk === 'string' && fk && typeof id === 'string')
+                fkBySource.set(id, fk);
+        }
+        const out = new Map<string, RelationFieldView>();
+        if (!fkBySource.size) return out;
+
+        const refs = await this.refsFor(
+            target,
+            [...fkBySource.values()],
+            workspaceId
+        );
+        const refById = new Map(refs.map((ref) => [ref.id, ref]));
+        for (const [sourceId, fk] of fkBySource) {
+            // `refsFor` is total — it yields a ref for every id, id-only and
+            // flagged `missing` when the target is gone. So the link is always
+            // represented (`total` counts the link, not whether its target
+            // resolved, exactly as `readField` reports it), and it is the flag,
+            // not an absent item, that tells the UI the target is unavailable.
+            const ref: RelationRef = refById.get(fk) ?? {
+                id: fk,
+                title: fk,
+                missing: true
+            };
+            out.set(sourceId, { items: [ref], total: 1 });
+        }
+        return out;
+    }
+
+    /**
+     * Join-backed relations (owning many-to-many, or the inverse of one), ranked
+     * in a single windowed pass: `row_number()` applies the per-source page cap
+     * and `count(*)` the true total, both partitioned by the owning id. That is
+     * what keeps a 600-link record to `pageSize` rows read instead of 600.
+     */
+    private async previewJoin(
+        join: JoinPlan,
+        sourceIds: string[],
+        workspaceId: string,
+        pageSize: number
+    ): Promise<Map<string, RelationFieldView>> {
+        const cols = join.table as unknown as SelectableColumns;
+        const own = cols[join.ownCol];
+        const ref = cols[join.refCol];
+        const position = cols['position'];
+
+        const ranked = this.db
+            .select({
+                own,
+                ref,
+                rn: sql<number>`row_number() over (partition by ${own} order by ${position} asc, ${ref} asc)`.as(
+                    'rn'
+                ),
+                total: sql<number>`count(*) over (partition by ${own})`.as(
+                    'total'
+                )
+            })
+            .from(join.table)
+            .where(inArray(own, sourceIds))
+            .as('ranked');
+
+        // The window aliases (`rn`/`own`) carry no column type through the
+        // subquery, so compare and order them as raw fragments rather than via
+        // `lte`/`asc`, whose overloads can't resolve an untyped alias.
+        const rows = (await this.db
+            .select()
+            .from(ranked)
+            .where(sql`${ranked.rn} <= ${pageSize}`)
+            .orderBy(sql`${ranked.own} asc, ${ranked.rn} asc`)) as Row[];
+
+        return this.groupPreview(
+            rows,
+            'ref',
+            await this.refsFor(
+                join.target,
+                rows.map((row) => row['ref'] as string),
+                workspaceId
+            )
+        );
+    }
+
+    /**
+     * Inverse-of-single (one-to-many): the links are the owner rows whose FK
+     * points back at each page row. Windowed the same way, and scoped to the
+     * workspace with the soft-delete guard the inverse read side already applies.
+     */
+    private async previewInverse(
+        inverse: InversePlan,
+        sourceIds: string[],
+        workspaceId: string,
+        pageSize: number
+    ): Promise<Map<string, RelationFieldView>> {
+        const cols = inverse.table as unknown as SelectableColumns;
+        const fk = cols[inverse.fkCol];
+        const ranked = this.db
+            .select({
+                own: fk,
+                ref: cols['id'],
+                rn: sql<number>`row_number() over (partition by ${fk} order by ${cols['createdAt']} asc, ${cols['id']} asc)`.as(
+                    'rn'
+                ),
+                total: sql<number>`count(*) over (partition by ${fk})`.as(
+                    'total'
+                )
+            })
+            .from(inverse.table)
+            .where(
+                and(
+                    inArray(fk, sourceIds),
+                    eq(cols['workspaceId'], workspaceId),
+                    cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                )
+            )
+            .as('ranked');
+
+        const rows = (await this.db
+            .select()
+            .from(ranked)
+            .where(sql`${ranked.rn} <= ${pageSize}`)
+            .orderBy(sql`${ranked.own} asc, ${ranked.rn} asc`)) as Row[];
+
+        return this.groupPreview(
+            rows,
+            'ref',
+            await this.refsFor(
+                inverse.target,
+                rows.map((row) => row['ref'] as string),
+                workspaceId
+            )
+        );
+    }
+
+    /**
+     * Fold ranked window rows (already ordered by owner, then rank) into one
+     * `{ items, total }` view per owning id, resolving each link through the
+     * batched `refs`. Shared by the join-backed and inverse previews.
+     */
+    private groupPreview(
+        rows: Row[],
+        refKey: string,
+        refs: RelationRef[]
+    ): Map<string, RelationFieldView> {
+        const refById = new Map(refs.map((ref) => [ref.id, ref]));
+        const out = new Map<string, RelationFieldView>();
+        for (const row of rows) {
+            const sourceId = row['own'] as string;
+            let view = out.get(sourceId);
+            if (!view) {
+                view = { items: [], total: Number(row['total']) };
+                out.set(sourceId, view);
+            }
+            // `refsFor` resolved every ranked id, so there is always a ref —
+            // id-only and flagged `missing` where the target is soft-deleted or
+            // out of workspace. Skipping it here would make `items` shorter
+            // than `total` and leave the cell showing a phantom `+N`.
+            const id = row[refKey] as string;
+            view.items.push(
+                refById.get(id) ?? { id, title: id, missing: true }
+            );
+        }
+        return out;
+    }
+
+    /**
      * One page of a single relation field's links, ordered by `position`
      * (owning) and resolved to display-ready refs (id + title). `row` is the
      * editing entry (its FK columns back a single relation); pass it to avoid a
@@ -169,9 +476,7 @@ export class RelationLinkService {
                     .from(join.table)
                     .where(eq(cols[join.ownCol], row['id']))
             ]);
-            const ids = (rows as Row[]).map(
-                (r) => r[join.refCol] as string
-            );
+            const ids = (rows as Row[]).map((r) => r[join.refCol] as string);
             return {
                 items: await this.refsFor(join.target, ids, workspaceId),
                 total: Number(total)
@@ -411,7 +716,9 @@ export class RelationLinkService {
                     and(
                         eq(cols[inverse.fkCol], row['id']),
                         eq(cols['workspaceId'], workspaceId),
-                        cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                        cols['deletedAt']
+                            ? isNull(cols['deletedAt'])
+                            : undefined
                     )
                 );
             return Number(total);
@@ -481,7 +788,13 @@ export class RelationLinkService {
         const byId = new Map(
             rows.map((row) => [row['id'] as string, this.rowToRef(target, row)])
         );
-        return ids.map((id) => byId.get(id) ?? { id, title: id });
+        // A ref is produced for *every* id, so a link is never silently
+        // dropped — `total` and `items` stay consistent. An id with no live row
+        // is flagged `missing` rather than passed off as a titled record: its
+        // `title` is only the raw id standing in, which the UI must not print.
+        return ids.map(
+            (id) => byId.get(id) ?? { id, title: id, missing: true as const }
+        );
     }
 
     /** Build a display ref from a full target row. */
@@ -579,7 +892,10 @@ export class RelationLinkService {
      * owns no writable link from this side.
      */
     private inversePlanFor(spec: AnyFieldSpec): InversePlan | null {
-        if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation?.inverse)
+        if (
+            spec.type !== CONTENT_FIELD_TYPE.Relation ||
+            !spec.relation?.inverse
+        )
             return null;
         const owner = spec.relation.to();
         const owningField = owner.fields[spec.relation.inverse.field];

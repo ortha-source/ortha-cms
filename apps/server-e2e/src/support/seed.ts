@@ -13,8 +13,11 @@ import { memberships, workspaces } from '@ortha-cms/workspaces-server';
 // The e2e-owned generated content tables (from the harness's own content model,
 // NOT the app's collections). Specs reach these only through the helpers below.
 import {
+    testArticleTags,
     testArticles,
-    testLandingPage
+    testAuthors,
+    testLandingPage,
+    testTags
 } from './content';
 // HashingService is internal to the identity plugin (not re-exported). We reach
 // for the class to pull the SAME provider instance out of the DI container, so
@@ -316,7 +319,8 @@ export async function resetDb(): Promise<void> {
 /**
  * Insert rows into the `test_article` collection (publishable + paranoid). Each
  * row needs at least `text` + `select` (the type's required fields); `status`
- * defaults to `draft`. Returns nothing — assertions go through the HTTP API.
+ * defaults to `draft`. Returns the inserted ids in input order (for wiring up
+ * relations); assertions still go through the HTTP API.
  *
  * Entries are workspace-scoped: pass `workspaceId` to stamp the owning
  * workspace's `workspace_id` on every row (the value the `WorkspaceGuard`
@@ -327,17 +331,83 @@ export async function resetDb(): Promise<void> {
 export async function seedArticles(
     rows: Record<string, unknown>[],
     workspaceId?: string
-): Promise<void> {
-    if (rows.length === 0) return;
+): Promise<string[]> {
+    if (rows.length === 0) return [];
     // The generated table's column set is dynamic, so the insert values aren't
     // statically typed — the column names match the field names by construction.
     // `workspaceId` (the default) merges first so a per-row override wins.
     // `locale` is NOT NULL (the i18n columns have no default), so default it to
     // the config's default locale (`en`); a per-row value wins.
-    await getDatabase()
+    // The generated table's columns aren't statically typed (see the `as never`
+    // on the values above), so project the returned rows rather than naming the
+    // `id` column in `.returning()`.
+    const inserted = (await getDatabase()
         .insert(testArticles)
         .values(
             rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        )
+        .returning()) as { id: string }[];
+    return inserted.map((row) => row.id);
+}
+
+/**
+ * Insert rows into the `test_author` collection and return the inserted ids in
+ * input order, so a caller can wire them into an article's `author` FK (the
+ * many-to-one side of the relation).
+ */
+export async function seedAuthors(
+    rows: Record<string, unknown>[],
+    workspaceId?: string
+): Promise<string[]> {
+    if (rows.length === 0) return [];
+    // `test_author` is i18n, so `locale` is NOT NULL with no default (see
+    // {@link seedArticles}); a per-row value still wins.
+    const inserted = (await getDatabase()
+        .insert(testAuthors)
+        .values(
+            rows.map((row) => ({ workspaceId, locale: 'en', ...row })) as never
+        )
+        .returning()) as { id: string }[];
+    return inserted.map((row) => row.id);
+}
+
+/**
+ * Insert rows into the `test_tag` collection and return the inserted ids in
+ * input order — the far side of the `test_article.tags` many-to-many. Unlike
+ * {@link seedArticles} / {@link seedAuthors}, `test_tag` is **not** i18n, so it
+ * has no `locale` column to default.
+ */
+export async function seedTags(
+    rows: Record<string, unknown>[],
+    workspaceId?: string
+): Promise<string[]> {
+    if (rows.length === 0) return [];
+    const inserted = (await getDatabase()
+        .insert(testTags)
+        .values(rows.map((row) => ({ workspaceId, ...row })) as never)
+        .returning()) as { id: string }[];
+    return inserted.map((row) => row.id);
+}
+
+/**
+ * Link an article to tags in the generated join table, ordered by array index
+ * (`position`) — the same ordering the relation read pages by. Writes the join
+ * rows directly rather than going through the API, so a spec can stand up a
+ * relation with many links cheaply.
+ */
+export async function seedArticleTags(
+    articleId: string,
+    tagIds: string[]
+): Promise<void> {
+    if (tagIds.length === 0) return;
+    await getDatabase()
+        .insert(testArticleTags)
+        .values(
+            tagIds.map((tagId, index) => ({
+                sourceId: articleId,
+                targetId: tagId,
+                position: index
+            })) as never
         );
 }
 

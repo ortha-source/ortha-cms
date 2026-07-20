@@ -22,15 +22,40 @@ import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import {
     DELETED_ONLY,
+    RELATIONS_PREVIEW,
     type ListEntriesQueryDto
 } from '../../http/dto/list-entries-query.dto';
 import type { EntryListView } from '../../types/entry-list-view';
 import { DEFAULT_PAGE_SIZE } from '../../entries.constants';
 import { buildEntryFilterSchema, isScalarField } from './entry-filter-schema';
 import { toRecord } from '../persistence/entry-row';
+import { RelationLinkService } from '../persistence/relation-link.service';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
+
+/**
+ * The relation fields a `?relationFields=` list actually names, intersected with
+ * the type's own relation fields. Unknown names are dropped, so a client string
+ * never reaches a query — only keys already present on `type.fields` survive.
+ */
+function previewFields(type: AnyContentType, raw: string | undefined): string[] {
+    if (!raw) return [];
+    const wanted = new Set(
+        raw
+            .split(',')
+            .map((name) => name.trim())
+            .filter(Boolean)
+    );
+    return Object.entries(type.fields)
+        .filter(
+            ([name, spec]) =>
+                wanted.has(name) &&
+                spec.type === CONTENT_FIELD_TYPE.Relation &&
+                !!spec.relation
+        )
+        .map(([name]) => name);
+}
 
 /** Columns the free-text `search` scans (have searchable textual content). */
 function isTextLike(spec: AnyFieldSpec): boolean {
@@ -52,6 +77,7 @@ function isTextLike(spec: AnyFieldSpec): boolean {
 export class EntriesService {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        private readonly relationLinks: RelationLinkService,
         // The entries extension port (e.g. the i18n plugin's locale scoping) —
         // absent unless a downstream plugin binds it, hence optional.
         @Optional()
@@ -90,14 +116,32 @@ export class EntriesService {
                 .offset((page - 1) * pageSize)
         ]);
 
-        return {
-            items: rows.map((row) =>
-                toRecord(type, row as Record<string, unknown>)
-            ),
-            total,
-            page,
-            pageSize
-        };
+        const items = rows.map((row) =>
+            toRecord(type, row as Record<string, unknown>)
+        );
+
+        // Opt-in relation preview for the records table's visible relation
+        // columns. Batched across the whole page (a constant number of queries
+        // per field), so this never becomes an N+1 over rows — see
+        // `previewForEntries`. Off by default: the relation picker reuses this
+        // endpoint for candidates and must not pay for it.
+        if (query.relations === RELATIONS_PREVIEW && items.length) {
+            const fields = previewFields(type, query.relationFields);
+            if (fields.length) {
+                const previews = await this.relationLinks.previewForEntries(
+                    type,
+                    fields,
+                    rows as Record<string, unknown>[],
+                    workspaceId
+                );
+                for (const item of items) {
+                    const preview = previews.get(item.id);
+                    if (preview) item.relations = preview;
+                }
+            }
+        }
+
+        return { items, total, page, pageSize };
     }
 
     /**

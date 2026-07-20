@@ -14,6 +14,16 @@ import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../../entries.constants';
 export const DELETED_ONLY = 'only';
 
 /**
+ * `?relations=preview` opts the list into a capped relation preview per row.
+ * Opt-in because the relation **picker** reuses this endpoint to list candidates
+ * — it would otherwise pay for relation expansion on every keystroke.
+ */
+export const RELATIONS_PREVIEW = 'preview';
+
+/** Upper bound on the `?relationFields=` list (a comma-separated field list). */
+const RELATION_FIELDS_MAX_LENGTH = 1024;
+
+/**
  * Query parameters for `GET /api/content/:typeName`. Pagination is 1-based; the
  * service applies the defaults (page 1, {@link DEFAULT_PAGE_SIZE}) so the
  * contract has one source of truth. `@Type` coerces the raw query strings — the
@@ -66,6 +76,27 @@ export class ListEntriesQueryDto {
     @IsOptional()
     @IsIn([DELETED_ONLY])
     deleted?: typeof DELETED_ONLY;
+
+    /**
+     * `preview` includes a capped {@link RELATIONS_PREVIEW} of each requested
+     * relation field's links on every row. Absent (the default) returns no
+     * relation data, exactly as before.
+     */
+    @IsOptional()
+    @IsIn([RELATIONS_PREVIEW])
+    relations?: typeof RELATIONS_PREVIEW;
+
+    /**
+     * Comma-separated relation field names to preview — the table's **visible**
+     * relation columns, so a hidden column costs nothing. Ignored without
+     * `?relations=preview`. Names are matched against the type's own relation
+     * fields and anything unknown is dropped, so the raw string never reaches a
+     * query.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(RELATION_FIELDS_MAX_LENGTH)
+    relationFields?: string;
 
     /**
      * Locale slug the list targets — an **extension-owned** param this package

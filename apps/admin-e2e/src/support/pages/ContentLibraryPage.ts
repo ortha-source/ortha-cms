@@ -179,6 +179,16 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('checkbox', { name: label, exact: true });
     }
 
+    /** The column-picker's search box. */
+    get columnSearch(): Locator {
+        return this.page.getByRole('textbox', { name: 'Search columns' });
+    }
+
+    /** The column-picker's "no column found" empty state. */
+    get columnSearchEmpty(): Locator {
+        return this.page.getByText('No column found.', { exact: true });
+    }
+
     /** A column header cell in the records table by label. */
     columnHeader(table: string, label: string): Locator {
         return this.recordsTable(table).getByRole('columnheader', {

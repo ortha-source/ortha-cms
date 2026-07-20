@@ -255,6 +255,57 @@ test.describe('Content Library', () => {
         ).toBeVisible();
     });
 
+    test('the column picker can be searched', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+        await contentLibraryPage.columnsButton.click();
+
+        // Everything is listed until a query narrows it.
+        await expect(contentLibraryPage.columnOption('Title')).toBeVisible();
+        await expect(contentLibraryPage.columnOption('Excerpt')).toBeVisible();
+
+        await contentLibraryPage.columnSearch.fill('exc');
+        await expect(contentLibraryPage.columnOption('Excerpt')).toBeVisible();
+        await expect(contentLibraryPage.columnOption('Title')).toBeHidden();
+
+        // A hidden column found by search is still toggleable.
+        await contentLibraryPage.columnOption('Excerpt').click();
+        await page.keyboard.press('Escape');
+        await expect(
+            contentLibraryPage.columnHeader('Blog posts', 'Excerpt')
+        ).toBeVisible();
+
+        // Reopening starts from the full list, not the previous search.
+        await contentLibraryPage.columnsButton.click();
+        await expect(contentLibraryPage.columnSearch).toHaveValue('');
+        await expect(contentLibraryPage.columnOption('Title')).toBeVisible();
+    });
+
+    test('the column search shows an empty state when nothing matches', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.columnsButton.click();
+        await contentLibraryPage.columnSearch.fill('zzzz');
+
+        await expect(contentLibraryPage.columnSearchEmpty).toBeVisible();
+        await expect(contentLibraryPage.columnOption('Title')).toBeHidden();
+    });
+
     test('Add record and row click route to their stubs', async ({
         page,
         contentLibraryPage

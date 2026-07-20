@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_172 test cases across 24 spec files._
+_182 test cases across 25 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -161,6 +161,8 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selecting a collection shows its records table |
 | searching with no matches shows the empty state |
 | the column picker toggles a column |
+| the column picker can be searched |
+| the column search shows an empty state when nothing matches |
 | Add record and row click route to their stubs |
 | saving a record stays on the editor and shows a success toast |
 | reorders a column via the keyboard |
@@ -185,6 +187,22 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | a brand-new record can be re-targeted to another locale before saving |
 | a translation draft can jump to an existing sibling |
 | the relation picker on a translation-create form is scoped to that locale |
+
+<!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
+_<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_
+
+## Relation cells (records table)
+
+| Test case |
+| --- |
+| shows the first linked title with a +N overflow, not an id |
+| opens a dropdown of links to each related record |
+| loads past the preview once opened |
+| opening the dropdown does not navigate the row |
+| opening one dropdown closes the one already open |
+| renders an em-dash when a relation holds nothing |
+| the dropdown animates on open |
+| the relation dropdown is accessible |
 
 <!-- source: apps/admin-e2e/src/content/relations.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_

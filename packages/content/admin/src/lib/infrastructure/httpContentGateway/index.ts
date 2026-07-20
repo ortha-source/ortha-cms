@@ -80,6 +80,15 @@ export const httpContentGateway: ContentGateway = {
                         ...(params.filter ? { filter: params.filter } : {}),
                         ...(params.sort ? { sort: params.sort } : {}),
                         ...(params.deleted ? { deleted: params.deleted } : {}),
+                        // Both or neither: the server ignores `relations`
+                        // without a field list, and a field list is meaningless
+                        // without the opt-in.
+                        ...(params.relations && params.relationFields
+                            ? {
+                                  relations: params.relations,
+                                  relationFields: params.relationFields
+                              }
+                            : {}),
                         ...Object.fromEntries(
                             Object.entries(params.extra ?? {}).filter(
                                 ([, value]) =>

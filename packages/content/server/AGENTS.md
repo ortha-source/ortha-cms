@@ -197,6 +197,21 @@ global).
   searchable/filterable/sortable and returned **only on publishable types**;
   paranoid types exclude soft-deleted rows by default, or list **only** them with
   `?deleted=only` (the trash view). A malformed filter → 400.
+  **Relation preview (opt-in).** `?relations=preview&relationFields=a,b` adds a
+  `relations` map to each row — per named field, one **capped page** of
+  `RelationRef`s (`RELATION_PAGE_SIZE`) plus the true `total`. It is opt-in
+  because the relation **picker** reuses this endpoint for candidates and must
+  not pay for expansion; the admin sends it only for the records table's
+  **visible** relation columns, so a hidden column costs nothing. Unknown names
+  in `relationFields` are dropped (only keys on `type.fields` reach a query).
+  Resolution is `RelationLinkService.previewForEntries` — **batched across the
+  whole page**: one windowed query per relation *field*
+  (`row_number()` for the cap, `count(*)` for the total, partitioned by the
+  owning id) plus a batched `refsFor` for titles, covering owning single, owning
+  many, and inverse alike. It is deliberately **not** built on the per-entry
+  `readAll` (that would be an N+1 over rows); `relation-preview.spec.ts` pins
+  the query count flat as the page grows. `values` is untouched — an owning
+  single relation still carries its raw FK there, which is what a save submits.
 - **Entry writes** (`EntryWriterService`, generic over the type like the reader;
   `entry-row.ts` holds the shared row↔record mappers). All validate via
   `EntryValidationService` — a failure is **422** with `{ message, issues:
@@ -210,8 +225,12 @@ global).
     - `GET /content/:typeName/:id` — read one live entry (`content:read`).
     - `GET /content/:typeName/:id/relations` — every relation field's **first
       page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
-      `RelationRef = { id, title, slug?, status? }`), for owning single/many
-      **and** inverse back-references. `slug` is the target's slug-field value —
+      `RelationRef = { id, title, slug?, status?, missing? }`), for owning single/many
+      **and** inverse back-references. A link whose target can't be resolved
+      (soft-deleted, or outside the workspace) still yields a ref — id-only and
+      flagged **`missing: true`**, so `items` never runs shorter than `total` —
+      and the admin renders it as an unavailable record rather than printing the
+      raw id. `slug` is the target's slug-field value —
       the field flagged `admin.widget === 'slug'`, else one literally named
       `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
       one and the row's slug is non-empty; the admin renders it as a `/handle`.
