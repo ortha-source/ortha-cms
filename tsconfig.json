@@ -86,9 +86,6 @@
         },
         {
             "path": "./packages/content/domain"
-        },
-        {
-            "path": "./packages/settings/admin"
         }
     ]
 }

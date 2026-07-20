@@ -8,7 +8,6 @@ import { MediaPlugin } from '@ortha-cms/media-admin';
 import { InsightsPlugin } from '@ortha-cms/insights-admin';
 import { UsersPlugin } from '@ortha-cms/users-admin';
 import { ActivityPlugin } from '@ortha-cms/activity-admin';
-import { SettingsPlugin } from '@ortha-cms/settings-admin';
 import './styles.css';
 
 createAdmin({
@@ -25,9 +24,6 @@ createAdmin({
         MediaPlugin(),
         InsightsPlugin(),
         UsersPlugin(),
-        ActivityPlugin(),
-        // Account settings (the Preferences tab + app-wide theme sync). After
-        // ShellPlugin() so the sidebar section slot it contributes into exists.
-        SettingsPlugin()
+        ActivityPlugin()
     ]
 });

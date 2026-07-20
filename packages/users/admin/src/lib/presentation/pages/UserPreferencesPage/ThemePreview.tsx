@@ -42,12 +42,7 @@ function Panel({ tone, edge }: { tone: 'light' | 'dark'; edge: boolean }) {
                 dark ? 'bg-neutral-900' : 'bg-white'
             )}
         >
-            <div
-                className={cn(
-                    'flex w-1/3 flex-col gap-1 p-1.5',
-                    dark ? 'bg-neutral-800' : 'bg-neutral-800'
-                )}
-            >
+            <div className="flex w-1/3 flex-col gap-1 bg-neutral-800 p-1.5">
                 <span className="h-1 w-3/4 rounded-full bg-orange-400/90" />
                 <span className="h-1 w-full rounded-full bg-white/25" />
                 <span className="h-1 w-2/3 rounded-full bg-white/25" />

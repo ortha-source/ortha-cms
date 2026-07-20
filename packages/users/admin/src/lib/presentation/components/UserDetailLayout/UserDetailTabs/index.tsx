@@ -7,10 +7,11 @@ import {
     Building2,
     MonitorSmartphone,
     ShieldCheck,
+    SlidersHorizontal,
     UserRound
 } from 'lucide-react';
 import { Badge, TabNav, TabNavLink } from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+import { AuthStatus, useAuth, useHasPermission } from '@ortha-cms/identity-admin';
 import type { Member } from '../../../../domain/types/member';
 
 /** Intl descriptors for {@link UserDetailTabs}, co-located with the component. */
@@ -26,6 +27,10 @@ const messages = defineMessages({
     signInAccess: {
         id: 'users.detail.rail.signInAccess',
         defaultMessage: 'Sign-in access'
+    },
+    preferences: {
+        id: 'users.detail.rail.preferences',
+        defaultMessage: 'Preferences'
     },
     disabled: { id: 'users.detail.rail.disabled', defaultMessage: 'Disabled' },
     nav: { id: 'users.detail.rail.nav', defaultMessage: 'User detail sections' }
@@ -63,13 +68,18 @@ function UserDetailTab({
  * hero and the active section. The account tabs (General, Role, Workspaces)
  * are always shown; Sessions/Activity and Sign-in access are gated — without
  * the permission the tab is hidden and its route redirects away, so a
- * read-only admin never sees a dead link. Links are absolute (`/users/:id/…`)
- * so active state is unambiguous regardless of the matched tab.
+ * read-only admin never sees a dead link. Preferences is **self-only** — it
+ * carries the current user's own app settings (theme), so it shows only on
+ * their own profile. Links are absolute (`/users/:id/…`) so active state is
+ * unambiguous regardless of the matched tab.
  */
 export function UserDetailTabs({ member }: { member: Member }) {
     const intl = useIntl();
     const canManage = useHasPermission('users:update');
     const canReadActivity = useHasPermission('activity:read');
+    const auth = useAuth();
+    const isSelf =
+        auth.status === AuthStatus.Authenticated && auth.user.id === member.id;
     const base = `/users/${member.id}`;
 
     return (
@@ -113,6 +123,13 @@ export function UserDetailTabs({ member }: { member: Member }) {
                             ? intl.formatMessage(messages.disabled)
                             : undefined
                     }
+                />
+            ) : null}
+            {isSelf ? (
+                <UserDetailTab
+                    to={`${base}/preferences`}
+                    icon={SlidersHorizontal}
+                    label={intl.formatMessage(messages.preferences)}
                 />
             ) : null}
         </TabNav>

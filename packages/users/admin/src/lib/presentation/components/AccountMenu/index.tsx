@@ -92,7 +92,7 @@ export function AccountMenu() {
                             {intl.formatMessage(messages.myProfile)}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            onSelect={() => navigate('/settings/preferences')}
+                            onSelect={() => navigate(`/users/${id}/preferences`)}
                         >
                             <SlidersHorizontal aria-hidden />
                             {intl.formatMessage(messages.preferences)}
