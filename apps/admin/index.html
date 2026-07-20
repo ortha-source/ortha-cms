@@ -8,6 +8,22 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="stylesheet" href="/src/styles.css" />
+        <script>
+            /* Apply the persisted theme before first paint so a dark-mode user
+               never sees a flash of the light canvas. Mirrors the design-system
+               AppearanceProvider (key + resolution); the provider takes over on
+               mount. Kept tiny and dependency-free on purpose. */
+            (function () {
+                try {
+                    var stored = localStorage.getItem('ortha.theme');
+                    var theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+                    var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    var root = document.documentElement;
+                    root.classList.toggle('dark', dark);
+                    root.style.colorScheme = dark ? 'dark' : 'light';
+                } catch (e) {}
+            })();
+        </script>
     </head>
     <body>
         <div id="root"></div>

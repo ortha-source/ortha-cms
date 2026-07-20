@@ -13,6 +13,8 @@ import { LoginController } from './auth/controllers/login.controller';
 import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
 import { UserSessionsController } from './auth/controllers/user-sessions.controller';
+import { PreferencesController } from './preferences/controllers/preferences.controller';
+import { PreferencesService } from './preferences/services/preferences.service';
 import { AuthService } from './auth/services/auth.service';
 import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
@@ -80,7 +82,8 @@ export class IdentityModule {
                 LoginController,
                 MeController,
                 LogoutController,
-                UserSessionsController
+                UserSessionsController,
+                PreferencesController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
@@ -108,6 +111,7 @@ export class IdentityModule {
                 RefreshSessionUseCase,
                 ChangePasswordUseCase,
                 AuthService,
+                PreferencesService,
                 HashingService,
                 CookieService,
                 OriginGuard,

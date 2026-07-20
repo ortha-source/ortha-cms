@@ -49,6 +49,9 @@
             "path": "../../packages/shell/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/settings/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/media/admin/tsconfig.lib.json"
         },
         {

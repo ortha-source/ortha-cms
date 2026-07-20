@@ -9,6 +9,7 @@
         "@ortha-cms/identity-admin": "*",
         "@ortha-cms/insights-admin": "*",
         "@ortha-cms/media-admin": "*",
+        "@ortha-cms/settings-admin": "*",
         "@ortha-cms/shell-admin": "*",
         "@ortha-cms/users-admin": "*",
         "@ortha-cms/workspaces-admin": "*"

@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronsUpDown, LogOut, UserRound } from 'lucide-react';
+import { ChevronsUpDown, LogOut, SlidersHorizontal, UserRound } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
     SidebarMenu,
     SidebarMenuButton,
@@ -23,6 +24,10 @@ const messages = defineMessages({
     myProfile: {
         id: 'users.account.myProfile',
         defaultMessage: 'My profile'
+    },
+    preferences: {
+        id: 'users.account.preferences',
+        defaultMessage: 'Preferences'
     },
     logout: {
         id: 'users.account.logout',
@@ -86,6 +91,13 @@ export function AccountMenu() {
                             <UserRound aria-hidden />
                             {intl.formatMessage(messages.myProfile)}
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() => navigate('/settings/preferences')}
+                        >
+                            <SlidersHorizontal aria-hidden />
+                            {intl.formatMessage(messages.preferences)}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                             disabled={logout.isPending}
                             onSelect={() => logout.mutate()}
