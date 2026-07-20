@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_180 test cases across 25 spec files._
+_182 test cases across 25 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -161,6 +161,8 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selecting a collection shows its records table |
 | searching with no matches shows the empty state |
 | the column picker toggles a column |
+| the column picker can be searched |
+| the column search shows an empty state when nothing matches |
 | Add record and row click route to their stubs |
 | saving a record stays on the editor and shows a success toast |
 | reorders a column via the keyboard |
