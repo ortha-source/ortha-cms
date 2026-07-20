@@ -114,7 +114,9 @@ export function ValueEditor({
         'aria-describedby': describedById
     };
 
-    if (op === OP.IsEmpty) return null;
+    if (op === OP.IsEmpty || op === OP.IsNotEmpty) return null;
+
+    const isMulti = op === OP.IsOneOf || op === OP.NotOneOf;
 
     // A relation id is a uuid to the engine, but a RECORD to the user. When
     // the consumer supplies a picker, the set-membership / equality ops route
@@ -123,7 +125,7 @@ export function ValueEditor({
     if (
         field.relationTarget &&
         renderRelationValue &&
-        (op === OP.IsOneOf || op === OP.Equals || op === OP.NotEquals)
+        (isMulti || op === OP.Equals || op === OP.NotEquals)
     ) {
         const ids = Array.isArray(value)
             ? value
@@ -133,8 +135,7 @@ export function ValueEditor({
         return renderRelationValue({
             target: field.relationTarget,
             value: ids,
-            onChange: (next) =>
-                onChange(op === OP.IsOneOf ? next : (next[0] ?? '')),
+            onChange: (next) => onChange(isMulti ? next : (next[0] ?? '')),
             invalid,
             describedById
         });
@@ -227,10 +228,10 @@ export function ValueEditor({
     }
 
     if (field.type === FIELD_TYPE.Enum && field.enumValues) {
-        if (op === OP.IsOneOf) {
-            // Constrain `is_one_of` on an enum to its declared members so a
-            // value can't be typed that the server would reject with
-            // FILTER_INVALID_VALUE. (Free-text CSV stays for string/uuid fields.)
+        if (isMulti) {
+            // Constrain `is_one_of` / `is none of` on an enum to its declared
+            // members so a value can't be typed that the server would reject
+            // with FILTER_INVALID_VALUE. (Free-text CSV stays for string/uuid.)
             return (
                 <EnumMultiSelect
                     options={field.enumValues}
@@ -269,7 +270,7 @@ export function ValueEditor({
         );
     }
 
-    if (op === OP.IsOneOf) {
+    if (isMulti) {
         return (
             <CsvValueInput
                 value={Array.isArray(value) ? value : []}

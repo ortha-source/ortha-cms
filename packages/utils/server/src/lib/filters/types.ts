@@ -25,6 +25,7 @@ export const FilterOperator = {
     Nin: 'nin',
     Like: 'like',
     Ilike: 'ilike',
+    Nilike: 'nilike',
     Null: 'null'
 } as const;
 

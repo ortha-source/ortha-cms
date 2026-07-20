@@ -144,7 +144,9 @@ export function RuleRow({
                         />
                     </div>
                 )}
-                {field && rule.op !== OP.IsEmpty && (
+                {field &&
+                    rule.op !== OP.IsEmpty &&
+                    rule.op !== OP.IsNotEmpty && (
                     <div className="min-w-[8rem] flex-[1.5] basis-0">
                         <ValueEditor
                             field={field}

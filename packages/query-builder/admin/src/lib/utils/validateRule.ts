@@ -45,7 +45,7 @@ export function validateRule(
     rule: FilterRule,
     field: FilterField
 ): RuleValidationCode | null {
-    if (rule.op === OP.IsEmpty) return null;
+    if (rule.op === OP.IsEmpty || rule.op === OP.IsNotEmpty) return null;
 
     if (rule.op === OP.Between) {
         const v = rule.value as
@@ -73,7 +73,7 @@ export function validateRule(
         return null;
     }
 
-    if (rule.op === OP.IsOneOf) {
+    if (rule.op === OP.IsOneOf || rule.op === OP.NotOneOf) {
         if (!Array.isArray(rule.value) || rule.value.length === 0) {
             return RULE_VALIDATION.MultiRequired;
         }

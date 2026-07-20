@@ -1,4 +1,4 @@
-import { defineMessages, useIntl, type IntlShape } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 import { X } from 'lucide-react';
 import { cn } from '@ortha-cms/design-system';
 import type { FilterField } from '../../types/filter-field.type';
@@ -43,9 +43,10 @@ function flattenRules(group: FilterGroup): FilterRule[] {
 }
 
 /** The value half of a chip's label, or `null` when the operator needs none. */
-function formatValue(rule: FilterRule, intl: IntlShape): string | null {
+function formatValue(rule: FilterRule): string | null {
     switch (rule.op) {
         case OP.IsEmpty:
+        case OP.IsNotEmpty:
             return null;
         case OP.Between: {
             const v = rule.value as { from?: string; to?: string } | null;
@@ -56,6 +57,7 @@ function formatValue(rule: FilterRule, intl: IntlShape): string | null {
             return `${v?.n ?? ''} ${v?.unit ?? ''}`.trim();
         }
         case OP.IsOneOf:
+        case OP.NotOneOf:
             return Array.isArray(rule.value) ? rule.value.join(', ') : '';
         default:
             return typeof rule.value === 'string' ? rule.value : '';
@@ -97,7 +99,7 @@ export function QueryBuilderSummary({
                     : rule.fieldId;
                 const path = [...crumbs, leaf].join(' · ');
                 const op = intl.formatMessage(OP_LABELS[rule.op]);
-                const value = formatValue(rule, intl);
+                const value = formatValue(rule);
 
                 return (
                     <span

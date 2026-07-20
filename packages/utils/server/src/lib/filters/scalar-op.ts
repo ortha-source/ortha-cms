@@ -10,6 +10,7 @@ import {
     lt,
     lte,
     ne,
+    notIlike,
     notInArray,
     type AnyColumn,
     type SQL
@@ -47,6 +48,8 @@ export function scalar(
             return like(col, String(value));
         case FilterOperator.Ilike:
             return ilike(col, String(value));
+        case FilterOperator.Nilike:
+            return notIlike(col, String(value));
         case FilterOperator.Null:
             return value === true ? isNull(col) : isNotNull(col);
     }
