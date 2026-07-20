@@ -210,6 +210,39 @@ test.describe('Relation cells (records table)', () => {
         ).toHaveCount(0);
     });
 
+    test('the dropdown animates on open', async ({ page }) => {
+        await page.goto(ARTICLES_URL);
+        await page
+            .getByRole('button', { name: /Show 7 linked records for Tags/ })
+            .first()
+            .click();
+
+        // Guards the design-system's dropdown motion actually generating CSS:
+        // the shadcn `animate-in` / `zoom-in-95` classes these overlays used to
+        // carry produced nothing (no tailwindcss-animate installed), so the
+        // animation was silently dead. A declared animation-name proves the
+        // rule matched.
+        const animation = await page.getByRole('dialog').evaluate((el) => {
+            // Reached through the element's own view and typed inline: this
+            // project's tsconfig ships no DOM lib, so neither the global
+            // `getComputedStyle` nor `Element.ownerDocument` is declared.
+            const node = el as unknown as {
+                ownerDocument: {
+                    defaultView: {
+                        getComputedStyle: (target: unknown) => {
+                            animationName: string;
+                        };
+                    } | null;
+                };
+            };
+            return (
+                node.ownerDocument.defaultView?.getComputedStyle(el)
+                    .animationName ?? 'none'
+            );
+        });
+        expect(animation).toBe('ds-dropdown-in');
+    });
+
     test('the relation dropdown is accessible', async ({ page, makeAxe }) => {
         await page.goto(ARTICLES_URL);
         await page
