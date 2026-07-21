@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_297 test cases across 28 spec files._
+_311 test cases across 29 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -493,6 +493,45 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | ignores ?locale= on a non-localized type |
+
+<!-- source: apps/server-e2e/src/server/preferences/preferences.spec.ts -->
+_<sub>apps/server-e2e/src/server/preferences/preferences.spec.ts</sub>_
+
+## /api/preferences
+
+### GET (read)
+
+| Test case |
+| --- |
+| defaults to the system theme before anything is saved |
+| returns only the theme (no userId/timestamps leak) |
+| rejects an unauthenticated read with 401 |
+
+### PUT (upsert)
+
+| Test case |
+| --- |
+| creates the row on first save and returns the new theme |
+| updates the existing row on a second save (no duplicate) |
+| accepts each valid theme |
+| rejects an unauthenticated write with 401 |
+
+### PUT (upsert) › validation (400)
+
+| Test case |
+| --- |
+| rejects a theme outside the enum |
+| rejects a missing theme |
+| rejects a non-string theme |
+| rejects an unknown extra field (forbidNonWhitelisted) |
+
+### PUT (upsert) › OriginGuard (CSRF defense)
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured Origin |
+| allows a request with no Origin header |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

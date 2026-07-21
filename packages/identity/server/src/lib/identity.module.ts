@@ -13,6 +13,8 @@ import { LoginController } from './auth/controllers/login.controller';
 import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
 import { UserSessionsController } from './auth/controllers/user-sessions.controller';
+import { PreferencesController } from './preferences/controllers/preferences.controller';
+import { PreferencesService } from './preferences/services/preferences.service';
 import { AuthService } from './auth/services/auth.service';
 import { HashingService } from './auth/services/hashing.service';
 import { CookieService } from './auth/services/cookie.service';
@@ -20,12 +22,8 @@ import { OriginGuard } from './auth/guards/origin.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { AccessPolicy } from './domain/access-policy';
 import { SessionPolicy } from './domain/session-policy';
-import {
-    SESSION_REPOSITORY
-} from './domain/session.repository';
-import {
-    USER_ACCOUNT_REPOSITORY
-} from './domain/user-account.repository';
+import { SESSION_REPOSITORY } from './domain/session.repository';
+import { USER_ACCOUNT_REPOSITORY } from './domain/user-account.repository';
 import { DrizzleSessionRepository } from './infrastructure/persistence/drizzle-session.repository';
 import { DrizzleUserAccountRepository } from './infrastructure/persistence/drizzle-user-account.repository';
 import { UserAccountMapper } from './infrastructure/persistence/user-account.mapper';
@@ -80,7 +78,8 @@ export class IdentityModule {
                 LoginController,
                 MeController,
                 LogoutController,
-                UserSessionsController
+                UserSessionsController,
+                PreferencesController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
@@ -108,6 +107,7 @@ export class IdentityModule {
                 RefreshSessionUseCase,
                 ChangePasswordUseCase,
                 AuthService,
+                PreferencesService,
                 HashingService,
                 CookieService,
                 OriginGuard,

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_184 test cases across 26 spec files._
+_192 test cases across 27 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -337,6 +337,22 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | renders the role as a read-only chip |
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
+
+<!-- source: apps/admin-e2e/src/users/preferences.spec.ts -->
+_<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_
+
+## User preferences (theme)
+
+| Test case |
+| --- |
+| shows the Preferences tab only on your own profile |
+| redirects a deep link to someone else’s preferences |
+| selecting a theme applies it and saves it (PUT /api/preferences) |
+| does not re-save the theme already in effect |
+| hydrates the saved theme app-wide on load |
+| the theme picker has no accessibility violations |
+| the dark theme has no accessibility violations |
+| applies the saved theme on a route that overrides the sidebar |
 
 <!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
 _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_
