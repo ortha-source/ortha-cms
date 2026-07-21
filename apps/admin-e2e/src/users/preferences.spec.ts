@@ -1,7 +1,10 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockMembers } from '../support/api/members';
-import { mockWorkspaces } from '../support/api/workspaces';
+import {
+    mockWorkspaceSettingsApi,
+    mockWorkspaces
+} from '../support/api/workspaces';
 import { mockPreferences } from '../support/api/preferences';
 import {
     mockEmptyActivity,
@@ -116,5 +119,53 @@ test.describe('User preferences (theme)', () => {
         await expect(userDetailPage.themeOption('System')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
+    });
+
+    test('the dark theme has no accessibility violations', async ({
+        page,
+        userDetailPage,
+        makeAxe
+    }) => {
+        // The dark palette is a second, independently authored set of colour
+        // tokens — nothing about the light scan covers it. Without this, a
+        // `*-foreground` that fails contrast on its dark surface ships green.
+        // Seeded as the *stored* theme so ThemeSync applies it app-wide, then
+        // scanned on a page dense with semantic surfaces (badges, buttons,
+        // status pills) rather than the picker alone.
+        await mockPreferences(page, { theme: 'dark' });
+        await page.goto('/users/u_ada/general');
+        await expect.poll(() => userDetailPage.isDark()).toBe(true);
+
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('applies the saved theme on a route that overrides the sidebar', async ({
+        page,
+        userDetailPage,
+        workspaceSettingsPage
+    }) => {
+        // ThemeSync rides the sidebar FOOTER, not the section slot: the
+        // workspace shell replaces the sidebar's *global* region wholesale via
+        // `useSidebarContent`, so a hydrator mounted there would never run for
+        // someone who deep-links straight into a workspace. This deep-links into
+        // the shell — the one place the override is live — rather than the
+        // /workspaces list, which still renders the global sidebar.
+        await mockWorkspaceSettingsApi(page, [
+            {
+                id: 'ws_theme',
+                name: 'Marketing site',
+                slug: 'marketing-site',
+                description: 'Landing pages and the blog.',
+                color: 'violet',
+                status: 'active',
+                members: [{ ...SELF }],
+                content: []
+            }
+        ]);
+        await mockPreferences(page, { theme: 'dark' });
+
+        await workspaceSettingsPage.goto('ws_theme');
+
+        await expect.poll(() => userDetailPage.isDark()).toBe(true);
     });
 });

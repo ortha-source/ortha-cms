@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_188 test cases across 26 spec files._
+_190 test cases across 26 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -341,6 +341,8 @@ _<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_
 | does not re-save the theme already in effect |
 | hydrates the saved theme app-wide on load |
 | the theme picker has no accessibility violations |
+| the dark theme has no accessibility violations |
+| applies the saved theme on a route that overrides the sidebar |
 
 <!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
 _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_

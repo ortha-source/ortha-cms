@@ -44,10 +44,15 @@ React Query's structural sharing keeps working) rather than replacing it.
   shell's `SIDEBAR_FOOTER_SLOT`: a full-width row (avatar + name + email) that
   opens a dropdown with **My profile** (→ their own `/users/:id` detail page)
   and **Logout** (identity's `useLogoutMutation`). It reads the current user
-  from identity's `useAuth`. The plugin also contributes an invisible
-  `ThemeSync` into the shell's `SIDEBAR_SECTION_SLOT`: it pulls the signed-in
-  user's saved theme from `GET /api/preferences` into the design-system
-  `AppearanceProvider`, so the choice takes effect app-wide on load.
+  from identity's `useAuth`. The plugin contributes an invisible `ThemeSync`
+  into the **same footer slot**: it pulls the signed-in user's saved theme from
+  `GET /api/preferences` into the design-system `AppearanceProvider`, so the
+  choice takes effect app-wide on load. It must live in the footer, not
+  `SIDEBAR_SECTION_SLOT` — the section slot belongs to `GlobalSidebar`, which a
+  route can replace wholesale via `useSidebarContent` (the workspace shell
+  does), so a hydrator mounted there would never run for a user who deep-links
+  into a workspace. The footer is the region the shell keeps mounted in both
+  contexts.
 
 ## The pages
 

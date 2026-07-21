@@ -12,13 +12,19 @@ export type UserPreferences = {
 };
 
 /**
- * React Query keys for the current user's preferences. Distinct from
- * `membersKeys` — these are the caller's *own* app preferences, not a member
- * record, so they never invalidate alongside the members list.
+ * React Query keys for a user's own preferences. Distinct from `membersKeys` —
+ * these are the caller's *own* app preferences, not a member record, so they
+ * never invalidate alongside the members list.
+ *
+ * The key is scoped **by user id**, not a flat `'me'`. Sign-out only invalidates
+ * the current-user query; every other cache entry survives it. With a shared
+ * `'me'` key, signing in as someone else on the same machine would read the
+ * previous user's cached theme (and, because this query never goes stale, never
+ * refetch to correct it). Scoping by id makes that structurally impossible.
  */
 export const preferencesKeys = {
-    /** The signed-in user's preferences. */
-    me: ['preferences', 'me'] as const
+    /** One user's preferences. */
+    forUser: (userId: string) => ['preferences', userId] as const
 };
 
 /**

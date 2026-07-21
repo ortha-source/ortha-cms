@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { AuthStatus, useAuth } from '@ortha-cms/identity-admin';
 import {
     httpPreferencesGateway,
     preferencesKeys,
@@ -6,19 +7,28 @@ import {
 } from '../../infrastructure/preferencesGateway';
 
 /**
- * Reads the signed-in user's stored preferences via the gateway. Disabled by
- * default so a caller only fetches once the user is authenticated (the endpoint
- * 401s otherwise); pass `enabled` from the auth state.
+ * Reads the signed-in user's stored preferences via the gateway. It resolves the
+ * caller from `useAuth` itself rather than taking an `enabled` flag, so every
+ * consumer is automatically keyed to — and gated on — the right user: the query
+ * stays disabled until auth resolves (the endpoint 401s otherwise) and its cache
+ * entry is scoped by user id, so a second sign-in on the same machine can't read
+ * the first user's theme.
  *
- * The result seeds both the Preferences tab and the app-wide theme hydration,
- * so `staleTime: Infinity` keeps it from refetching under the two consumers —
- * the mutation writes the cache directly on save.
+ * The result seeds both the Preferences tab and the app-wide theme hydration, so
+ * `staleTime: Infinity` keeps it from refetching under the two consumers — the
+ * mutation writes the cache directly on save.
  */
-export function usePreferences(enabled = true) {
+export function usePreferences() {
+    const auth = useAuth();
+    const userId =
+        auth.status === AuthStatus.Authenticated ? auth.user.id : undefined;
+
     return useQuery<UserPreferences>({
-        queryKey: preferencesKeys.me,
+        // The empty-string key is never actually read — `enabled` is false until
+        // a real id resolves.
+        queryKey: preferencesKeys.forUser(userId ?? ''),
         queryFn: () => httpPreferencesGateway.get(),
-        enabled,
+        enabled: !!userId,
         staleTime: Infinity,
         retry: false
     });

@@ -1,6 +1,9 @@
+import { useRef } from 'react';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { AlertTriangle, Check, Monitor, Moon, Sun } from 'lucide-react';
 import {
+    Alert,
+    AlertDescription,
     Card,
     CardContent,
     CardDescription,
@@ -13,6 +16,7 @@ import {
     useAppearance,
     type ThemePreference
 } from '@ortha-cms/design-system';
+import { usePreferences } from '../../../application/usePreferences';
 import { useUpdateTheme } from '../../../application/useUpdateTheme';
 import { ThemePreview } from './ThemePreview';
 
@@ -59,6 +63,11 @@ const messages = defineMessages({
     failed: {
         id: 'users.preferences.failed',
         defaultMessage: 'Couldn’t save your theme. Please try again.'
+    },
+    loadFailed: {
+        id: 'users.preferences.loadFailed',
+        defaultMessage:
+            'Couldn’t load your saved theme, so this may not be the one stored on your account. Reload to try again — picking a theme below still saves normally.'
     }
 });
 
@@ -96,6 +105,13 @@ const OPTIONS: ThemeOption[] = [
 ];
 
 /**
+ * Stable toast id, so rapid selections (a keyboard user arrowing across the
+ * group selects each option in turn) replace one another in place instead of
+ * stacking a column of "Theme saved."
+ */
+const THEME_TOAST_ID = 'users.preferences.theme';
+
+/**
  * The Preferences tab (shown only on your **own** profile): pick the colour
  * theme (Light / Dark / System). Selection is optimistic — the app re-themes
  * the instant you choose, via the shared {@link useAppearance} provider — then
@@ -106,21 +122,42 @@ const OPTIONS: ThemeOption[] = [
 export function UserPreferencesPage() {
     const intl = useIntl();
     const { theme, resolvedTheme, setTheme } = useAppearance();
+    const preferences = usePreferences();
     const update = useUpdateTheme();
+
+    // The user's most recent choice. Selections can overlap (arrow keys fire one
+    // per keypress) and the responses can land out of order, so a save only owns
+    // the rollback if nothing has superseded it — otherwise a slow failure for
+    // an abandoned choice would yank the UI off the choice the user *did* make,
+    // and onto a `previous` that is by then two selections stale.
+    const latest = useRef<ThemePreference | null>(null);
 
     const select = (next: ThemePreference) => {
         if (next === theme) {
             return;
         }
         const previous = theme;
+        latest.current = next;
         // Apply immediately so the whole UI re-themes as the user chooses…
         setTheme(next);
         // …then persist. On failure, roll the visible choice back.
         update.mutate(next, {
-            onSuccess: () => toast.success(intl.formatMessage(messages.saved)),
+            onSuccess: () => {
+                if (latest.current !== next) {
+                    return;
+                }
+                toast.success(intl.formatMessage(messages.saved), {
+                    id: THEME_TOAST_ID
+                });
+            },
             onError: () => {
+                if (latest.current !== next) {
+                    return;
+                }
                 setTheme(previous);
-                toast.error(intl.formatMessage(messages.failed));
+                toast.error(intl.formatMessage(messages.failed), {
+                    id: THEME_TOAST_ID
+                });
             }
         });
     };
@@ -134,6 +171,18 @@ export function UserPreferencesPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {/* A failed read gets its own state rather than being folded
+                    into "no preference saved": without it the picker would
+                    confidently present the local fallback as the stored choice.
+                    The group stays usable — saving is a separate request. */}
+                {preferences.isError ? (
+                    <Alert variant="warning" className="mb-3">
+                        <AlertTriangle className="size-4" aria-hidden />
+                        <AlertDescription>
+                            {intl.formatMessage(messages.loadFailed)}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
                 <RadioGroup
                     value={theme}
                     onValueChange={(value) => select(value as ThemePreference)}

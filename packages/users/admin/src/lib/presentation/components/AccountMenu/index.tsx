@@ -1,10 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    ChevronsUpDown,
-    LogOut,
-    UserRound
-} from 'lucide-react';
+import { ChevronsUpDown, LogOut, UserRound } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,

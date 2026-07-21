@@ -14,10 +14,20 @@ export type UserPreferences = Pick<
  * The defaults a brand-new user renders with before they have ever saved a
  * preference (no row exists yet). Kept in sync with the schema column default
  * so `get` can synthesise a response without writing a row on read.
+ *
+ * Frozen, and always returned via {@link defaultPreferences} rather than by
+ * reference: it is process-wide shared state, so handing the same object to
+ * every user would let one mutation downstream redefine the default for all of
+ * them.
  */
-export const DEFAULT_PREFERENCES: UserPreferences = {
+export const DEFAULT_PREFERENCES: Readonly<UserPreferences> = Object.freeze({
     theme: 'system'
-};
+});
+
+/** A fresh copy of {@link DEFAULT_PREFERENCES}, safe to hand to one caller. */
+function defaultPreferences(): UserPreferences {
+    return { ...DEFAULT_PREFERENCES };
+}
 
 /** The columns projected into a {@link UserPreferences} response. */
 const PREFERENCE_COLUMNS = {
@@ -27,7 +37,7 @@ const PREFERENCE_COLUMNS = {
 /**
  * Reads and writes the current user's appearance preferences. A thin service
  * over the single `user_preferences` row a user owns: `get` returns the stored
- * row or the shared {@link DEFAULT_PREFERENCES} when none exists yet, and
+ * row or a copy of {@link DEFAULT_PREFERENCES} when none exists yet, and
  * `save` upserts the choice, creating the row on first write.
  */
 @Injectable()
@@ -40,7 +50,7 @@ export class PreferencesService {
             .select(PREFERENCE_COLUMNS)
             .from(userPreferences)
             .where(eq(userPreferences.userId, userId));
-        return row ?? DEFAULT_PREFERENCES;
+        return row ?? defaultPreferences();
     }
 
     /**
@@ -62,6 +72,6 @@ export class PreferencesService {
             .returning(PREFERENCE_COLUMNS);
 
         // `row` is always defined — an upsert with `returning` yields the row.
-        return row ?? DEFAULT_PREFERENCES;
+        return row ?? defaultPreferences();
     }
 }
