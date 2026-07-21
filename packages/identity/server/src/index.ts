@@ -45,3 +45,25 @@ export {
 } from './lib/activity/activity-kinds';
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export * from './lib/schema';
+// External-API bearer tokens. The guard + service back the public content API
+// in `@ortha-cms/content-server`; the scope helper and principal are its
+// contract for turning a token into a workspace + permission set.
+export { ApiTokenGuard } from './lib/api-tokens/http/guards/api-token.guard';
+export {
+    CurrentApiToken
+} from './lib/api-tokens/http/decorators/current-api-token.decorator';
+export type {
+    ApiTokenPrincipal,
+    ApiTokenRequest
+} from './lib/api-tokens/http/decorators/current-api-token.decorator';
+export { ApiTokenService } from './lib/api-tokens/application/api-token.service';
+export type {
+    ApiTokenView,
+    MintApiTokenInput,
+    MintedApiToken
+} from './lib/api-tokens/application/api-token.service';
+export {
+    API_TOKEN_SCOPES,
+    scopePermissions
+} from './lib/api-tokens/domain/api-token-scope';
+export type { ApiTokenScope } from './lib/api-tokens/domain/api-token-scope';

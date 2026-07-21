@@ -8,6 +8,9 @@ import { CONTENT_REGISTRY } from './content.tokens';
 import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
+import { ListPublicEntriesController } from './public/controllers/list-public-entries.controller';
+import { GetPublicEntryController } from './public/controllers/get-public-entry.controller';
+import { PublicSchemaController } from './public/controllers/public-schema.controller';
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
@@ -56,6 +59,14 @@ export class ContentModule {
                 // immaterial, but keep the schema routes grouped.
                 GetFilterFieldsController,
                 GetContentSchemaController,
+                // External bearer-token API (`/api/v1/...`). The public schema
+                // controller carries a literal `content-schema` base; the
+                // single-item reads carry `:id` after `:typeName`, so the public
+                // list route (`v1/content/:typeName`, one segment) never shadows
+                // them — no ordering constraint like the bulk routes below.
+                PublicSchemaController,
+                ListPublicEntriesController,
+                GetPublicEntryController,
                 // Bulk routes carry a literal `bulk` in the `:id` slot, so they
                 // must be registered before the single-item controllers below
                 // (`:typeName/:id/...`) to win the match. The list controller is

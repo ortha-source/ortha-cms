@@ -19,7 +19,10 @@ export const PERMISSIONS = {
     CONTENT_CREATE: 'content:create',
     CONTENT_UPDATE: 'content:update',
     CONTENT_PUBLISH: 'content:publish',
-    CONTENT_DELETE: 'content:delete'
+    CONTENT_DELETE: 'content:delete',
+    TOKENS_READ: 'tokens:read',
+    TOKENS_CREATE: 'tokens:create',
+    TOKENS_DELETE: 'tokens:delete'
 } as const;
 
 /** A `resource:action` permission key drawn from {@link PERMISSIONS}. */

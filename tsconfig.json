@@ -86,6 +86,9 @@
         },
         {
             "path": "./packages/content/domain"
+        },
+        {
+            "path": "./packages/api-tokens/admin"
         }
     ]
 }
