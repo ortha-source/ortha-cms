@@ -1,4 +1,15 @@
 export { cn } from './lib/utils';
+export {
+    AppearanceProvider,
+    useAppearance,
+    DEFAULT_THEME,
+    THEME_STORAGE_KEY
+} from './lib/appearance';
+export type {
+    AppearanceContextValue,
+    ThemePreference,
+    ResolvedTheme
+} from './lib/appearance';
 export { Button, buttonVariants } from './lib/components/ui/button';
 export type { ButtonProps } from './lib/components/ui/button';
 export {

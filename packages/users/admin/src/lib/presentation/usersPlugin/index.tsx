@@ -1,12 +1,17 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { SIDEBAR_FOOTER_SLOT, SIDEBAR_NAV_SLOT } from '@ortha-cms/shell-admin';
+import {
+    SIDEBAR_FOOTER_SLOT,
+    SIDEBAR_NAV_SLOT,
+    SIDEBAR_SECTION_SLOT
+} from '@ortha-cms/shell-admin';
 import { Users } from 'lucide-react';
 import {
     InviteMemberPageSkeleton,
     MembersPageSkeleton
 } from '../components/MembersSkeleton';
 import { AccountMenu } from '../components/AccountMenu';
+import { ThemeSync } from '../components/ThemeSync';
 
 // Lazy-loaded so the Members page is code-split into its own chunk, fetched
 // only when a signed-in user first navigates to `/users`.
@@ -110,6 +115,19 @@ export function UsersPlugin(): UsersAdminPlugin {
                         id: 'users.account',
                         order: 10,
                         Component: AccountMenu
+                    }
+                ]
+            },
+            {
+                // An always-mounted, invisible theme hydrator (renders null):
+                // it pulls the signed-in user's saved theme from the server so
+                // it takes effect app-wide without opening the Preferences tab.
+                slot: SIDEBAR_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'users.themeSync',
+                        order: 0,
+                        Component: ThemeSync
                     }
                 ]
             }

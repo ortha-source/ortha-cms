@@ -1,17 +1,26 @@
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronsUpDown, LogOut, UserRound } from 'lucide-react';
+import {
+    ChevronsUpDown,
+    LogOut,
+    UserRound
+} from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem
 } from '@ortha-cms/design-system';
 import { avatarColorForId, initialsOf } from '@ortha-cms/utils-admin';
-import { AuthStatus, useAuth, useLogoutMutation } from '@ortha-cms/identity-admin';
+import {
+    AuthStatus,
+    useAuth,
+    useLogoutMutation
+} from '@ortha-cms/identity-admin';
 import { MemberAvatar } from '../MemberAvatar';
 
 /** Intl descriptors for {@link AccountMenu}, co-located with the component. */
@@ -86,6 +95,7 @@ export function AccountMenu() {
                             <UserRound aria-hidden />
                             {intl.formatMessage(messages.myProfile)}
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                             disabled={logout.isPending}
                             onSelect={() => logout.mutate()}

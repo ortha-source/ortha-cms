@@ -10,7 +10,11 @@ import {
 import { IntlProvider } from 'react-intl';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@ortha-cms/utils-admin';
-import { TooltipProvider, Toaster } from '@ortha-cms/design-system';
+import {
+    AppearanceProvider,
+    TooltipProvider,
+    Toaster
+} from '@ortha-cms/design-system';
 import type { CreateAdminOptions } from '../types/adminPlugin';
 
 /**
@@ -61,37 +65,41 @@ export function createAdmin(options: CreateAdminOptions): void {
 
     root.render(
         <StrictMode>
-            <QueryClientProvider client={queryClient}>
-                <IntlProvider locale={locale} defaultLocale="en">
-                    <TooltipProvider delayDuration={200}>
-                        <BrowserRouter>
-                            <Routes>
-                                {publicRoutes.map((route) => (
-                                    <Route
-                                        key={route.path}
-                                        path={route.path}
-                                        element={route.element}
-                                    />
-                                ))}
-                                <Route element={layout}>
-                                    {privateRoutes.map((route) => (
+            <AppearanceProvider>
+                <QueryClientProvider client={queryClient}>
+                    <IntlProvider locale={locale} defaultLocale="en">
+                        <TooltipProvider delayDuration={200}>
+                            <BrowserRouter>
+                                <Routes>
+                                    {publicRoutes.map((route) => (
                                         <Route
                                             key={route.path}
                                             path={route.path}
                                             element={route.element}
                                         />
                                     ))}
-                                    <Route
-                                        path="*"
-                                        element={<Navigate to="/" replace />}
-                                    />
-                                </Route>
-                            </Routes>
-                        </BrowserRouter>
-                        <Toaster position="bottom-right" />
-                    </TooltipProvider>
-                </IntlProvider>
-            </QueryClientProvider>
+                                    <Route element={layout}>
+                                        {privateRoutes.map((route) => (
+                                            <Route
+                                                key={route.path}
+                                                path={route.path}
+                                                element={route.element}
+                                            />
+                                        ))}
+                                        <Route
+                                            path="*"
+                                            element={
+                                                <Navigate to="/" replace />
+                                            }
+                                        />
+                                    </Route>
+                                </Routes>
+                            </BrowserRouter>
+                            <Toaster position="bottom-right" />
+                        </TooltipProvider>
+                    </IntlProvider>
+                </QueryClientProvider>
+            </AppearanceProvider>
         </StrictMode>
     );
 }
