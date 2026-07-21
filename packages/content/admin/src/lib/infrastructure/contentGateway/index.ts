@@ -6,7 +6,9 @@ import type {
     ContentTypeDetail,
     EntryRecord,
     RelationDelta,
-    RelationFieldView
+    RelationFieldView,
+    RevisionDetail,
+    RevisionListView
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
 
@@ -97,6 +99,20 @@ export type ContentGateway = {
     ): Promise<RelationCandidatesPage>;
     /** Creates or updates one entry via `POST`/`PATCH /content/:name(/:id)`. */
     saveEntry(name: string, input: SaveEntryInput): Promise<EntryRecord>;
+    /** Lists one entry's revision timeline via `GET …/:id/revisions`. */
+    listRevisions(name: string, id: string): Promise<RevisionListView>;
+    /** Loads one revision + snapshot via `GET …/:id/revisions/:number`. */
+    getRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<RevisionDetail>;
+    /** Restores an entry to a revision via `POST …/:id/revisions/:number/restore`. */
+    restoreRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<EntryRecord>;
     /** Publishes one entry via `POST /content/:name/:id/publish`. */
     publish(name: string, id: string): Promise<EntryRecord>;
     /** Unpublishes one entry via `POST /content/:name/:id/unpublish`. */

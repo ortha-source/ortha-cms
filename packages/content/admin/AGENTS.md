@@ -291,6 +291,31 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
+## Revisions (version history)
+
+Every save is versioned (server: `content_entry_revisions`). The editor surfaces
+this in two mount points that share one cached query and one action core:
+
+- **`useEntryRevisions`** (`application/`) reads the timeline
+  (`GET /content/:type/:id/revisions`), gated on a saved entry id.
+  **`useRevisionActions`** owns the restore mutation
+  (`POST …/revisions/:number/restore`) and invalidates the same caches a save
+  does (records list, read-one, relations, and the revisions prefix).
+- **`RevisionList`** (`EntryEditor/RevisionList/`) is the shared core — a
+  `RevisionRow` per version (number, status badge Live/Draft/Superseded, capture
+  time) plus the **Restore** flow (permission gate on `content:update`, a
+  `ConfirmDialog`, and the success/failure `toast`). Restore re-applies an older
+  snapshot as a **new** revision, so the timeline refreshes in place.
+- Two mount points: the right-rail **`RevisionWidget`** (rendered by
+  `EntrySidebar` below Details, a compact first-N view) and the **History tab**
+  **`HistoryTimeline`** (the full list; prompts to save first on a create form).
+
+The gateway carries `listRevisions` / `getRevision` / `restoreRevision`; the wire
+types (`RevisionSummary` / `RevisionDetail` / `RevisionListView`) live in
+`domain/types/contentType`, mirroring the server. Previewing an old snapshot
+read-only in the form is a Phase-2 (staging) addition; today restore is the
+switch-back path.
+
 ## Extension slots
 
 The library exposes six named slots (`presentation/slots/contentSlots`, via

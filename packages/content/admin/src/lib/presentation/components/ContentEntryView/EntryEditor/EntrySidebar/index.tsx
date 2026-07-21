@@ -18,6 +18,7 @@ import {
 } from './SidebarActionBar';
 import { PublishGate, type PublishGateItem } from './PublishGate';
 import { DetailsBlock } from './DetailsBlock';
+import { RevisionWidget } from '../RevisionWidget';
 
 /** Re-exported for the editor, which computes the gate items. */
 export type { PublishGateItem };
@@ -141,6 +142,13 @@ export function EntrySidebar({
             {publishable && <PublishGate items={gate} />}
 
             <DetailsBlock entry={entry} isCreate={isCreate} />
+
+            {slotContext && entry?.id ? (
+                <RevisionWidget
+                    typeName={slotContext.schema.name}
+                    entryId={entry.id}
+                />
+            ) : null}
 
             {slotContext
                 ? widgets.map((item) => (

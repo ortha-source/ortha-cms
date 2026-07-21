@@ -368,6 +368,36 @@ The DSL / registry / schema-builder / extension-port machinery is deliberately
 forcing it into a domain shape would violate ADR-0003, not honor it. It keeps its
 current layout and public API.
 
+## Revisions — version history (`src/lib/revisions/`)
+
+Every save keeps an immutable **snapshot** of the whole document, so an entry has
+a browsable version history and can be restored. Layered per ADR-0003
+(`domain / application / infrastructure / http`), sibling to `entries/`.
+
+- **Storage.** One generic **HOST-owned** table, `content_entry_revisions`
+  (defined in `revisions/infrastructure/persistence/revision-table.ts`, exported
+  from the decorator-free `/define` barrel and re-exported by the host's
+  `src/content/index.ts` for drizzle-kit — like every `content_<name>` table).
+  One mechanism for all types, matching the generic `EntryWriterService`. Keyed
+  **per-locale** (`entry_id` = the live row), so each translation has its own
+  timeline. `snapshot` (jsonb) is `{ values, relations }`: the field values bag
+  (scalars, localized + shared, single-relation FKs) plus the **full ordered
+  link sets** of every join-backed relation (`RelationLinkService.snapshotLinks`).
+- **Snapshot-on-save.** `EntryWriterService.create`/`update` append a **draft**
+  revision **inside their existing transaction** (via the `REVISION_STORE` port),
+  so the version commits atomically with the row + relation writes; the entry's
+  advisory lock serializes concurrent savers so version numbers can't collide.
+  This is the Phase-1 (history + restore) rollout — the live row still edits in
+  place. Because these writes are **not yet on the `UnitOfWork`**, no
+  `entry.revision.created` outbox event is emitted (same reason `entry.created`/
+  `entry.updated` are still unemitted); the `Revision` model stays event-ready.
+- **HTTP** (workspace-scoped, same guards as the entry routes):
+  `GET :typeName/:id/revisions` (timeline, newest first), `.../revisions/:number`
+  (one snapshot), `POST .../revisions/:number/restore` (`content:update`).
+  `RestoreRevisionUseCase` re-applies a snapshot through `EntryWriterService.update`
+  — which appends a **new** revision — so history is append-only (a restore of v2
+  yields a fresh v6 equal to v2, never a rewrite).
+
 ## Architecture
 
 - `ContentModule.forRoot(registry)` is **global** and exports the

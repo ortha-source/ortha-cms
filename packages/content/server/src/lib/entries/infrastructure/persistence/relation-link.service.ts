@@ -514,6 +514,38 @@ export class RelationLinkService {
         return { items: [], total: 0 };
     }
 
+    /**
+     * The **full** ordered target-id list of every join-backed relation field
+     * (owning many-to-many and the inverse of one) for one entry, keyed by field
+     * name — the relation half of a revision snapshot. Unlike {@link readAll}
+     * (one page + a `total`, for the editor), this reads every link, since a
+     * snapshot must reconstruct the whole set. Runs on the passed executor (the
+     * save transaction), so it captures exactly what committed. Owning single
+     * relations aren't included — their FK already rides the entry's `values`.
+     * The join rows belong to the owning entry (scoped by `row.id`), so no
+     * workspace filter is needed here — the same as the join read in
+     * {@link readField}.
+     */
+    async snapshotLinks(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        row: Row
+    ): Promise<Record<string, string[]>> {
+        const out: Record<string, string[]> = {};
+        for (const [field, spec] of Object.entries(type.fields)) {
+            const join = this.joinPlanFor(type, field, spec);
+            if (!join) continue; // single FK / inverse-of-single: not join-backed
+            const cols = join.table as unknown as Columns;
+            const rows = (await exec
+                .select()
+                .from(join.table)
+                .where(eq(cols[join.ownCol], row['id']))
+                .orderBy(asc(cols['position']), asc(cols[join.refCol]))) as Row[];
+            out[field] = rows.map((r) => r[join.refCol] as string);
+        }
+        return out;
+    }
+
     // ---- writes ------------------------------------------------------------
 
     /**

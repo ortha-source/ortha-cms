@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_286 test cases across 27 spec files._
+_291 test cases across 28 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -315,6 +315,19 @@ _<sub>apps/server-e2e/src/server/content/content-types.spec.ts</sub>_
 | 401s an unauthenticated request |
 | serves the code-defined registry, not the mock catalogue |
 | grants a workspace the real registry slugs on content mode "all" |
+
+<!-- source: apps/server-e2e/src/server/content/entry-revisions.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/entry-revisions.spec.ts</sub>_
+
+## Content entry revisions (/api/content/:type/:id/revisions)
+
+| Test case |
+| --- |
+| records a revision on create, keyed to the acting user |
+| appends an incrementing revision on every save, newest first |
+| captures the whole document — scalars and a many-to-many link set |
+| restores an earlier revision as a new revision (append-only) |
+| 404s an unknown revision number |
 
 <!-- source: apps/server-e2e/src/server/content/list-entries.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_

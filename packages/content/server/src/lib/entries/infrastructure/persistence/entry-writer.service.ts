@@ -41,6 +41,12 @@ import {
     RelationLinkService,
     type DbTransaction
 } from './relation-link.service';
+import {
+    InjectRevisionStore,
+    type RevisionStore
+} from '../../../revisions/application/ports/revision-store';
+import { Revision } from '../../../revisions/domain/revision';
+import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -70,12 +76,48 @@ export class EntryWriterService {
         @InjectDatabase() private readonly db: Database,
         private readonly validation: EntryValidationService,
         private readonly relations: RelationLinkService,
+        // The generic revision store — every save appends an immutable snapshot
+        // inside the same transaction, so the version and the write commit as one.
+        @InjectRevisionStore()
+        private readonly revisionStore: RevisionStore,
         // The entries extension port (e.g. the i18n plugin's locale stamping
         // and sibling sync) — absent unless a plugin binds it, hence optional.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
         private readonly extension?: ContentEntryExtension
     ) {}
+
+    /**
+     * Append an immutable **draft** revision for a just-saved row, on the save's
+     * own transaction so the snapshot commits atomically with it. Captures the
+     * whole document — the field `values` bag plus the full ordered link sets of
+     * every join-backed relation (read back inside `tx`, so it reflects the
+     * committed state). The entry's append lock serializes concurrent savers so
+     * each allocates a distinct version number.
+     */
+    private async appendRevision(
+        tx: DbTransaction,
+        type: AnyContentType,
+        row: Row,
+        workspaceId: string,
+        actorId: string | null
+    ): Promise<void> {
+        const id = row['id'] as string;
+        const links = await this.relations.snapshotLinks(tx, type, row);
+        await this.revisionStore.lockEntry(tx, id);
+        const number = await this.revisionStore.nextNumber(tx, id);
+        const revision = Revision.createDraft({
+            contentType: type.name,
+            entryId: id,
+            workspaceId,
+            localeGroupId: (row['localeGroupId'] as string | undefined) ?? null,
+            locale: (row['locale'] as string | undefined) ?? null,
+            number,
+            snapshot: buildSnapshot(type, row, links),
+            createdBy: actorId
+        });
+        await this.revisionStore.append(tx, revision);
+    }
 
     /**
      * Create an entry **owned by `workspaceId`** (stamped onto the row so the
@@ -101,7 +143,8 @@ export class EntryWriterService {
         workspaceId: string,
         relations?: Record<string, RelationDelta>,
         locale?: string,
-        localeGroupId?: string
+        localeGroupId?: string,
+        actorId?: string | null
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
@@ -170,6 +213,15 @@ export class EntryWriterService {
                         inserted as Row,
                         coerced,
                         workspaceId
+                    );
+                    // Snapshot the just-created document as its first revision,
+                    // inside this same transaction.
+                    await this.appendRevision(
+                        tx,
+                        type,
+                        inserted as Row,
+                        workspaceId,
+                        actorId ?? null
                     );
                     return inserted as Row;
                 }),
@@ -298,7 +350,8 @@ export class EntryWriterService {
         id: string,
         values: Record<string, unknown>,
         workspaceId: string,
-        relations?: Record<string, RelationDelta>
+        relations?: Record<string, RelationDelta>,
+        actorId?: string | null
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
@@ -361,6 +414,15 @@ export class EntryWriterService {
                 updated as Row,
                 coerced,
                 workspaceId
+            );
+            // Snapshot the updated document as a new draft revision, inside this
+            // same transaction.
+            await this.appendRevision(
+                tx,
+                type,
+                updated as Row,
+                workspaceId,
+                actorId ?? null
             );
             return updated as Row;
         });

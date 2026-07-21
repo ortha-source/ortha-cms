@@ -1,9 +1,9 @@
 import {
-    Body,
     Controller,
     Param,
+    ParseIntPipe,
     ParseUUIDPipe,
-    Patch,
+    Post,
     UseGuards
 } from '@nestjs/common';
 import {
@@ -20,43 +20,40 @@ import {
 } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
-import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
-import { SaveEntryDto } from '../dto/save-entry.dto';
-import type { EntryRecord } from '../../types/entry-list-view';
-import { resolveType } from './resolve-type';
+import { resolveType } from '../../../entries/http/controllers/resolve-type';
+import type { EntryRecord } from '../../../entries/types/entry-list-view';
+import { RestoreRevisionUseCase } from '../../application/use-cases/restore-revision.use-case';
 
 /**
- * `PATCH /api/content/:typeName/:id` — replace a live entry's values with a
- * validated bag (the editor always submits the full document). 404 if there's no
- * live row; 422 with the issue list on validation failure. `OriginGuard` defends
- * this state-changing write; `WorkspaceGuard` scopes it to a workspace the caller
- * belongs to; `content:update` gates it.
+ * `POST /api/content/:typeName/:id/revisions/:number/restore` — re-apply an
+ * earlier version onto the live entry. History is append-only: the restore is
+ * itself saved as a new revision. `OriginGuard` defends the write;
+ * `WorkspaceGuard` scopes it; `content:update` gates it (restoring is an edit).
  */
 @UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
 @Controller('content')
-export class UpdateEntryController {
+export class RestoreRevisionController {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        private readonly writer: EntryWriterService
+        private readonly restoreRevision: RestoreRevisionUseCase
     ) {}
 
-    @Patch(':typeName/:id')
-    update(
+    @Post(':typeName/:id/revisions/:number/restore')
+    restore(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @Body() body: SaveEntryDto,
+        @Param('number', ParseIntPipe) number: number,
         @CurrentWorkspace() workspaceId: string,
         @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.update(
+        return this.restoreRevision.execute(
             type,
             id,
-            body.values,
+            number,
             workspaceId,
-            body.relations,
             user?.id ?? null
         );
     }

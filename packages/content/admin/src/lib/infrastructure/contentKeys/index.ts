@@ -71,6 +71,17 @@ export const contentEntryKey = (
 export const contentEntryPrefix = (workspaceId: string, name: string) =>
     ['content-entry', workspaceId, name] as const;
 
+/** One entry's revision timeline (paginated), workspace-scoped. */
+export const entryRevisionsKey = (
+    workspaceId: string,
+    name: string,
+    id: string
+) => ['content-entry-revisions', workspaceId, name, id] as const;
+
+/** Prefix over every revision query for a type in a workspace. */
+export const entryRevisionsPrefix = (workspaceId: string, name: string) =>
+    ['content-entry-revisions', workspaceId, name] as const;
+
 /** One entry's relation links (all fields, first page + total), workspace-scoped. */
 export const entryRelationsKey = (
     workspaceId: string,

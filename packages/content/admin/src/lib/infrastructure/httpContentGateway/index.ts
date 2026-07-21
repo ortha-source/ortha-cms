@@ -8,7 +8,9 @@ import type {
     ContentTypeSummaryResponse,
     EntryRecord,
     EntryRelations,
-    RelationFieldView
+    RelationFieldView,
+    RevisionDetail,
+    RevisionListView
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
 import { toContentType } from '../contentMapper';
@@ -193,6 +195,50 @@ export const httpContentGateway: ContentGateway = {
                       ...body,
                       ...(extra ?? {})
                   });
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listRevisions(
+        name: string,
+        id: string
+    ): Promise<RevisionListView> {
+        try {
+            const { data } = await apiClient.get<RevisionListView>(
+                `/content/${name}/${id}/revisions`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<RevisionDetail> {
+        try {
+            const { data } = await apiClient.get<RevisionDetail>(
+                `/content/${name}/${id}/revisions/${number}`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async restoreRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<EntryRecord> {
+        try {
+            const { data } = await apiClient.post<EntryRecord>(
+                `/content/${name}/${id}/revisions/${number}/restore`
+            );
             return data;
         } catch (error) {
             throw toApiError(error);

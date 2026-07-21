@@ -1,0 +1,175 @@
+import request from 'supertest';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
+import {
+    resetDb,
+    seedActiveUser,
+    seedMembership,
+    seedWorkspace,
+    type SeededUser
+} from '../../support/seed';
+
+const ADMIN_EMAIL = 'revisions-admin@example.com';
+const PASSWORD = 'SecurePass123!';
+
+const VALID = { text: 'First title', select: 'article' } as const;
+
+/**
+ * The entry revision history (`GET /api/content/:type/:id/revisions[/:number]`
+ * and `.../restore`). Every save appends an immutable snapshot; restore
+ * re-applies an earlier one as a **new** revision (append-only history). Covers
+ * the numbering, the newest-first timeline, the snapshot body (scalars + a
+ * many-to-many link set), restore, and the workspace/permission scoping.
+ */
+describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
+    let harness: TestApp;
+    let admin: SeededUser;
+    let workspaceId: string;
+
+    beforeAll(async () => {
+        harness = await createTestApp();
+    });
+
+    afterAll(async () => {
+        await closeTestApp(harness);
+    });
+
+    beforeEach(async () => {
+        await resetDb();
+        admin = await seedActiveUser(harness.app, {
+            email: ADMIN_EMAIL,
+            password: PASSWORD,
+            role: 'admin'
+        });
+        const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
+        workspaceId = ws.id;
+        await seedMembership(admin.id, workspaceId);
+    });
+
+    async function login(email: string) {
+        const agent = request.agent(harness.server);
+        await agent
+            .post('/api/auth/login')
+            .send({ email, password: PASSWORD })
+            .expect(201);
+        agent.set('X-Workspace-Id', workspaceId);
+        return agent;
+    }
+
+    it('records a revision on create, keyed to the acting user', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const create = await agent
+            .post('/api/content/test_article')
+            .send({ values: VALID })
+            .expect(201);
+        const id = create.body.id as string;
+
+        const list = await agent
+            .get(`/api/content/test_article/${id}/revisions`)
+            .expect(200);
+        expect(list.body.total).toBe(1);
+        expect(list.body.items).toHaveLength(1);
+        expect(list.body.items[0]).toMatchObject({
+            number: 1,
+            status: 'draft',
+            isLatest: true,
+            authorId: admin.id
+        });
+    });
+
+    it('appends an incrementing revision on every save, newest first', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const create = await agent
+            .post('/api/content/test_article')
+            .send({ values: VALID })
+            .expect(201);
+        const id = create.body.id as string;
+
+        await agent
+            .patch(`/api/content/test_article/${id}`)
+            .send({ values: { ...VALID, text: 'Second title' } })
+            .expect(200);
+
+        const list = await agent
+            .get(`/api/content/test_article/${id}/revisions`)
+            .expect(200);
+        expect(list.body.total).toBe(2);
+        // Newest first: v2 is latest, v1 is not.
+        expect(list.body.items.map((r: { number: number }) => r.number)).toEqual(
+            [2, 1]
+        );
+        expect(list.body.items[0]).toMatchObject({ number: 2, isLatest: true });
+        expect(list.body.items[1]).toMatchObject({ number: 1, isLatest: false });
+    });
+
+    it('captures the whole document — scalars and a many-to-many link set', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const tag = await agent
+            .post('/api/content/test_tag')
+            .send({ values: { name: 'News' } })
+            .expect(201);
+        const tagId = tag.body.id as string;
+
+        const create = await agent
+            .post('/api/content/test_article')
+            .send({ values: { ...VALID, tags: [tagId] } })
+            .expect(201);
+        const id = create.body.id as string;
+
+        const detail = await agent
+            .get(`/api/content/test_article/${id}/revisions/1`)
+            .expect(200);
+        expect(detail.body.snapshot.values).toMatchObject({
+            text: 'First title',
+            select: 'article'
+        });
+        expect(detail.body.snapshot.relations.tags).toEqual([tagId]);
+    });
+
+    it('restores an earlier revision as a new revision (append-only)', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const create = await agent
+            .post('/api/content/test_article')
+            .send({ values: VALID })
+            .expect(201);
+        const id = create.body.id as string;
+
+        await agent
+            .patch(`/api/content/test_article/${id}`)
+            .send({ values: { ...VALID, text: 'Second title' } })
+            .expect(200);
+
+        // Restore v1 — the record's text returns, and a v3 is appended.
+        const restore = await agent
+            .post(`/api/content/test_article/${id}/revisions/1/restore`)
+            .expect(201);
+        expect(restore.body.values.text).toBe('First title');
+
+        const list = await agent
+            .get(`/api/content/test_article/${id}/revisions`)
+            .expect(200);
+        expect(list.body.total).toBe(3);
+        expect(list.body.items[0]).toMatchObject({ number: 3, isLatest: true });
+
+        const restored = await agent
+            .get(`/api/content/test_article/${id}/revisions/3`)
+            .expect(200);
+        expect(restored.body.snapshot.values.text).toBe('First title');
+    });
+
+    it('404s an unknown revision number', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const create = await agent
+            .post('/api/content/test_article')
+            .send({ values: VALID })
+            .expect(201);
+        const id = create.body.id as string;
+
+        await agent
+            .get(`/api/content/test_article/${id}/revisions/999`)
+            .expect(404);
+    });
+});
