@@ -11,7 +11,11 @@ import {
     UserRound
 } from 'lucide-react';
 import { Badge, TabNav, TabNavLink } from '@ortha-cms/design-system';
-import { AuthStatus, useAuth, useHasPermission } from '@ortha-cms/identity-admin';
+import {
+    AuthStatus,
+    useAuth,
+    useHasPermission
+} from '@ortha-cms/identity-admin';
 import type { Member } from '../../../../domain/types/member';
 
 /** Intl descriptors for {@link UserDetailTabs}, co-located with the component. */

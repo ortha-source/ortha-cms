@@ -22,12 +22,8 @@ import { OriginGuard } from './auth/guards/origin.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { AccessPolicy } from './domain/access-policy';
 import { SessionPolicy } from './domain/session-policy';
-import {
-    SESSION_REPOSITORY
-} from './domain/session.repository';
-import {
-    USER_ACCOUNT_REPOSITORY
-} from './domain/user-account.repository';
+import { SESSION_REPOSITORY } from './domain/session.repository';
+import { USER_ACCOUNT_REPOSITORY } from './domain/user-account.repository';
 import { DrizzleSessionRepository } from './infrastructure/persistence/drizzle-session.repository';
 import { DrizzleUserAccountRepository } from './infrastructure/persistence/drizzle-user-account.repository';
 import { UserAccountMapper } from './infrastructure/persistence/user-account.mapper';

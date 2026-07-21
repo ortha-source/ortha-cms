@@ -1,5 +1,9 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { AuthStatus, useAuth, useHasPermission } from '@ortha-cms/identity-admin';
+import {
+    AuthStatus,
+    useAuth,
+    useHasPermission
+} from '@ortha-cms/identity-admin';
 import { UserDetailLayout } from '../UserDetailLayout';
 import { UserGeneralPage } from '../../pages/UserGeneralPage';
 import { UserRolesPage } from '../../pages/UserRolesPage';

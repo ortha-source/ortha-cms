@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronsUpDown, LogOut, SlidersHorizontal, UserRound } from 'lucide-react';
+import {
+    ChevronsUpDown,
+    LogOut,
+    SlidersHorizontal,
+    UserRound
+} from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,7 +17,11 @@ import {
     SidebarMenuItem
 } from '@ortha-cms/design-system';
 import { avatarColorForId, initialsOf } from '@ortha-cms/utils-admin';
-import { AuthStatus, useAuth, useLogoutMutation } from '@ortha-cms/identity-admin';
+import {
+    AuthStatus,
+    useAuth,
+    useLogoutMutation
+} from '@ortha-cms/identity-admin';
 import { MemberAvatar } from '../MemberAvatar';
 
 /** Intl descriptors for {@link AccountMenu}, co-located with the component. */
@@ -92,7 +101,9 @@ export function AccountMenu() {
                             {intl.formatMessage(messages.myProfile)}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            onSelect={() => navigate(`/users/${id}/preferences`)}
+                            onSelect={() =>
+                                navigate(`/users/${id}/preferences`)
+                            }
                         >
                             <SlidersHorizontal aria-hidden />
                             {intl.formatMessage(messages.preferences)}

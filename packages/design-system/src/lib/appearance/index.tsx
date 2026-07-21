@@ -49,8 +49,10 @@ function readStoredTheme(): ThemePreference {
         return DEFAULT_THEME;
     }
     try {
-        return asTheme(window.localStorage.getItem(THEME_STORAGE_KEY)) ??
-            DEFAULT_THEME;
+        return (
+            asTheme(window.localStorage.getItem(THEME_STORAGE_KEY)) ??
+            DEFAULT_THEME
+        );
     } catch {
         return DEFAULT_THEME;
     }
