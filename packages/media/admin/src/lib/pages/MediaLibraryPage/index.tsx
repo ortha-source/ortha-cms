@@ -67,7 +67,7 @@ const messages = defineMessages({
     },
     deleteFolderBody: {
         id: 'media.page.deleteFolderBody',
-        defaultMessage: 'The folder and everything inside it will be permanently removed.'
+        defaultMessage: 'The folder will be permanently removed. It must be empty first — move or delete its contents.'
     },
     confirmDelete: { id: 'media.page.confirmDelete', defaultMessage: 'Delete' },
     // toasts

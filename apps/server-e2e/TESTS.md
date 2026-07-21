@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_286 test cases across 27 spec files._
+_307 test cases across 29 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -457,6 +457,61 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | ignores ?locale= on a non-localized type |
+
+<!-- source: apps/server-e2e/src/server/media/media-assets.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
+
+## media assets
+
+| Test case |
+| --- |
+| uploads a file and persists the asset |
+| uploads into a folder when folderId is given |
+| streams the uploaded bytes back on download |
+| lists a folder page and the workspace root |
+| renames and moves an asset via PATCH |
+| duplicates an asset |
+| bulk-deletes assets |
+
+### validation
+
+| Test case |
+| --- |
+| rejects an upload with no file (400) |
+| rejects an unknown body field (400) |
+
+### authorization
+
+| Test case |
+| --- |
+| rejects an unauthenticated upload with 401 |
+| forbids a viewer from uploading (403) |
+
+| Test case |
+| --- |
+| never returns an asset from another workspace (404) |
+
+<!-- source: apps/server-e2e/src/server/media/media-folders.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
+
+## media folders
+
+| Test case |
+| --- |
+| creates a folder and lists it with the root count |
+| renames a folder |
+| deletes an empty folder (204) |
+| refuses to delete a non-empty folder with 409 |
+
+### authorization
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| forbids a viewer from creating a folder (403) |
+| lets a viewer read folders (200) |
+| rejects a disallowed Origin on create (403) |
+| allows the configured Origin on create |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
