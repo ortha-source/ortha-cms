@@ -42,9 +42,8 @@ React Query's structural sharing keeps working) rather than replacing it.
   on the `users:read` permission via `useHasPermission`.
 - The sidebar-footer **account menu** (`AccountMenu`), contributed to the
   shell's `SIDEBAR_FOOTER_SLOT`: a full-width row (avatar + name + email) that
-  opens a dropdown with **My profile** (→ their own `/users/:id` detail page),
-  **Preferences** (→ their own `/users/:id/preferences` theme tab), and
-  **Logout** (identity's `useLogoutMutation`). It reads the current user
+  opens a dropdown with **My profile** (→ their own `/users/:id` detail page)
+  and **Logout** (identity's `useLogoutMutation`). It reads the current user
   from identity's `useAuth`. The plugin also contributes an invisible
   `ThemeSync` into the shell's `SIDEBAR_SECTION_SLOT`: it pulls the signed-in
   user's saved theme from `GET /api/preferences` into the design-system

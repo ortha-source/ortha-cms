@@ -106,18 +106,6 @@ test.describe('User preferences (theme)', () => {
         await expect.poll(() => userDetailPage.isDark()).toBe(true);
     });
 
-    test('the account menu links to your own Preferences tab', async ({
-        page,
-        membersPage
-    }) => {
-        await mockPreferences(page);
-        await membersPage.goto();
-        await membersPage.openAccountMenu();
-        await membersPage.accountMenuItem('Preferences').click();
-
-        await expect(page).toHaveURL(/\/users\/u_ada\/preferences/);
-    });
-
     test('the theme picker has no accessibility violations', async ({
         page,
         userDetailPage,
