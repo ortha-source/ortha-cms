@@ -65,6 +65,17 @@ and a permission-by-constant (`PERMISSIONS.MEDIA_*`); state-changing routes add
 `OriginGuard`. Upload uses `FileInterceptor('file')`; download streams via
 `StreamableFile`. Folder delete is **409 when non-empty** (no cascade).
 
+**`GET /media/assets/:id/raw` is the one exception** — it carries no
+`WorkspaceGuard`. Its URL is fetched by the browser itself (`<img src>` for the
+library's thumbnails and detail drawer, download links), and those requests send
+cookies but **cannot** send a custom `X-Workspace-Id` header, so the guard 400'd
+every preview. The scope is **derived, not dropped**: `DownloadAssetQuery.locate`
+reads the asset's owning workspace, the controller requires the caller to be a
+member of *that* workspace (via workspaces-server's exported
+`MembershipCheckQuery`), and only then does `open` touch storage. A non-member
+gets the same 404 as a missing asset, so asset ids can't be probed. Any new route
+whose URL the browser loads directly needs this treatment, not the header guard.
+
 - `GET /media/folders` · `POST /media/folders` · `PATCH|DELETE /media/folders/:id`
 - `GET /media/assets` (`?folderId=&search=&kind=&sort=&page=&pageSize=`) ·
   `POST /media/assets` (multipart) · `GET /media/assets/:id/raw` ·

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_343 test cases across 31 spec files._
+_346 test cases across 31 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -523,6 +523,7 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | Test case |
 | --- |
 | uploads a file and persists the asset |
+| falls back to the uploader’s email when they have no display name |
 | uploads into a folder when folderId is given |
 | streams the uploaded bytes back on download |
 | lists a folder page and the workspace root |
@@ -547,6 +548,13 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | Test case |
 | --- |
 | never returns an asset from another workspace (404) |
+
+### raw download scope
+
+| Test case |
+| --- |
+| streams to a member of the owning workspace, ignoring the header |
+| 404s for a user who is not a member of the owning workspace |
 
 <!-- source: apps/server-e2e/src/server/media/media-folders.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_

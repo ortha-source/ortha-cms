@@ -14,6 +14,8 @@ import {
 const PASSWORD = 'SecurePass123!';
 const ADMIN = 'media-assets-admin@example.com';
 const VIEWER = 'media-assets-viewer@example.com';
+/** A contributor with `users.name` left null — pins the email fallback. */
+const NAMELESS = 'media-assets-nameless@example.com';
 const PNG = Buffer.from('\x89PNG\r\n\x1a\nfake-png-bytes', 'binary');
 
 /**
@@ -81,6 +83,22 @@ describe('media assets', () => {
         });
         expect(asset.url).toContain('/raw');
         await expect(countMediaAssets(workspace.id)).resolves.toBe(1);
+    });
+
+    it('falls back to the uploader’s email when they have no display name', async () => {
+        // `users.name` is nullable and stays null until someone sets it — an
+        // un-personalized invite, or a root admin provisioned without a name.
+        // That must read as the person, not "Unknown".
+        const nameless = await seedActiveUser(harness.app, {
+            email: NAMELESS,
+            password: PASSWORD,
+            role: 'contributor'
+        });
+        await seedMembership(nameless.id, workspace.id);
+
+        const asset = await upload(await login(NAMELESS));
+
+        expect(asset.uploadedBy).toBe(NAMELESS);
     });
 
     it('uploads into a folder when folderId is given', async () => {
@@ -213,8 +231,6 @@ describe('media assets', () => {
 
     it('never returns an asset from another workspace (404)', async () => {
         const other = await seedWorkspace({ name: 'Other', slug: 'other' });
-        // Admin is a member of `other` too, so upload there, then read it while
-        // scoped to the first workspace.
         await seedMembership(admin.id, other.id);
         const otherAgent = request.agent(harness.server);
         await otherAgent
@@ -227,9 +243,69 @@ describe('media assets', () => {
             .attach('file', PNG, { filename: 'x.png', contentType: 'image/png' })
             .expect(201);
 
+        // The *listing* stays header-scoped: workspace 1 never sees it.
         const agent = await login();
-        await agent
-            .get(`/api/media/assets/${foreign.body.id}/raw`)
-            .expect(404);
+        const listed = await agent.get('/api/media/assets').expect(200);
+        expect(
+            listed.body.items.some(
+                (item: { id: string }) => item.id === foreign.body.id
+            )
+        ).toBe(false);
+    });
+
+    /**
+     * The raw route is the one media route without `WorkspaceGuard` — an `<img>`
+     * tag can't send `X-Workspace-Id` — so it derives the workspace from the
+     * asset row and authorizes on membership instead. These two pin that
+     * contract: a member of the *owning* workspace reads it whatever the header
+     * says, and a non-member never does.
+     */
+    describe('raw download scope', () => {
+        it('streams to a member of the owning workspace, ignoring the header', async () => {
+            const other = await seedWorkspace({ name: 'Other', slug: 'other' });
+            await seedMembership(admin.id, other.id);
+            const otherAgent = request.agent(harness.server);
+            await otherAgent
+                .post('/api/auth/login')
+                .send({ email: ADMIN, password: PASSWORD })
+                .expect(201);
+            const foreign = await otherAgent
+                .post('/api/media/assets')
+                .set('X-Workspace-Id', other.id)
+                .attach('file', PNG, {
+                    filename: 'x.png',
+                    contentType: 'image/png'
+                })
+                .expect(201);
+
+            // Scoped to workspace 1, but admin is a member of `other` — which
+            // is what actually grants the read.
+            const agent = await login();
+            const res = await agent
+                .get(`/api/media/assets/${foreign.body.id}/raw`)
+                .expect(200);
+            expect(res.headers['content-type']).toContain('image/png');
+        });
+
+        it('404s for a user who is not a member of the owning workspace', async () => {
+            const asset = await upload(await login());
+
+            // A viewer holds `media:read` (so this clears PermissionsGuard and
+            // genuinely exercises the membership check) but joins no workspace.
+            await seedActiveUser(harness.app, {
+                email: VIEWER,
+                password: PASSWORD,
+                role: 'viewer'
+            });
+            const outsider = request.agent(harness.server);
+            await outsider
+                .post('/api/auth/login')
+                .send({ email: VIEWER, password: PASSWORD })
+                .expect(201);
+
+            await outsider
+                .get(`/api/media/assets/${asset.id}/raw`)
+                .expect(404);
+        });
     });
 });
