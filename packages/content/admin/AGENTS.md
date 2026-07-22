@@ -109,14 +109,38 @@ global ⌘K / Ctrl+K shortcut (both owned by `ContentNavSection`).
 favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   server yet — that is the planned migration point.
 - **Records table data layer** (per-collection): `useContentSchema`
-  (`GET /api/content-schema/:name`, the full field schema) feeds both the columns
-  and the query-builder filter fields (`filterFieldsFromSchema`). `useContentEntries`
+  (`GET /api/content-schema/:name`, the full field schema) feeds the columns.
+  The query-builder **filter fields** are **served, not mirrored**:
+  `useFilterFields` (`GET /api/content-schema/:name/filter-fields`) fetches the
+  recursive filterable surface — the type's own fields **plus its relations'
+  fields** (`author.name`, `author.company.name`) — and `contentMapper.toFilterField`
+  maps each wire path to a query-builder `FilterField` (dotted `id`, `group`
+  breadcrumb, `relationTarget`). This **replaced** the old client-side
+  `filterFieldsFromSchema` mirror (deleted): with a relation graph to walk,
+  hand-mirroring the server's whitelist would drift into user-visible 400s, so
+  the server owns the one traversal that builds both. Because it is **fetched**,
+  it has a failure mode a derived list didn't: `useFilterFields` returns
+  `{ fields, isPending, isError, refetch }` and the panel renders a **loading**
+  and an **error** state (with retry) instead of an empty picker. That is not
+  cosmetic — the Apply gate rejects any rule whose field it can't resolve, so
+  without the definitions Apply can never commit; an empty picker would be a
+  dead button with nothing on screen explaining why. A relation-`id` rule renders
+  the **`RelationValuePicker`** (a searchable, lazily-paginated multi-select over
+  the target type, reusing `useRelationCandidates`), injected into the query
+  builder via `renderRelationValue` at both call sites (the records
+  `QueryBuilderPanel` and the relation picker's inline builder) — rendered as an
+  element so its hooks stay scoped. **The records filter is an inline accordion,
+  not a drawer**: the toolbar "Filters" button toggles a full-width
+  `QueryBuilderPanel` that sits between the toolbar and the table and pushes the
+  table down (height-animated, no overlay); collapsed with active filters, the
+  applied conditions read out as a `QueryBuilderSummary` row of removable chips
+  under the toolbar, and Apply collapses back to it. `useContentEntries`
   fetches `GET /api/content/:name` with `{ search, filter, sort, page, pageSize }`
   → the `{ items, total, page, pageSize }` envelope; the **server** runs search →
   query-builder filter → sort → pagination (this hook owns no row logic). The
-  schema gates the query (disabled until it resolves) and supplies the type name.
-  **`status` is publishable-only**: `entryColumns` offers a Status column and
-  `filterFieldsFromSchema` prepends a Status filter **only when `schema.publishable`**
+  schema gates the columns query and supplies the type name.
+  **`status` is publishable-only**: `entryColumns` offers a Status column and the
+  server's filter surface includes a Status filter **only when publishable**
   (a non-publishable type has no publish state). Sort is a URL param
   (`?sort=<columnId>` asc, `?sort=-<columnId>`
   desc); a header click cycles asc → desc → off, sets `aria-sort` on the
@@ -232,8 +256,8 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
   **`QueryBuilder`**, *not* a drawer — a nested modal over the dialog is an a11y
-  hazard) over the *target type's* real schema (`useContentSchema(target)` →
-  `filterFieldsFromSchema`), and a lazily-scrolled candidate list (accessible
+  hazard) over the *target type's* filterable surface (`useFilterFields(target)`,
+  gated on the dialog being open), and a lazily-scrolled candidate list (accessible
   checkbox group for a many-relation, radio group for a single). Fully controlled —
   the form owns the value (single → one id string, many → string[]). Candidates
   are **served by the API** (`application/useRelationCandidates` → `GET /content/:target`,
@@ -320,7 +344,7 @@ fetching internally.
   rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
-  after `filterFieldsFromSchema`.
+  after the server-derived fields (`useFilterFields`) at the call site.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode
   one-entry read (`listParamKeys`), URL values copied into the create body
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra

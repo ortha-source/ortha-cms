@@ -17,7 +17,8 @@ import {
 } from '../../../../../../application/useRelationCandidates';
 import { useEntrySlotContext } from '../../../../../hooks/useEntrySlotContext';
 import { ENTRY_PARAMS_SLOT } from '../../../../../slots/contentSlots';
-import { filterFieldsFromSchema } from '../../../../../filterFieldsFromSchema';
+import { useFilterFields } from '../../../../../../application/useFilterFields';
+import { RelationValuePicker } from '../../../../RelationValuePicker';
 import { RelationPickerFilters } from './RelationPickerFilters';
 import { RelationCandidateList } from './RelationCandidateList';
 
@@ -85,6 +86,10 @@ export function RelationPickerDialog({
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterGroup | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    // The dialog's element. Radix Dialog scroll-locks the page while open, so the
+    // inline filter's field picker must portal INTO it or its list won't scroll
+    // by mouse wheel (same reason as the records filter drawer).
+    const [dialogEl, setDialogEl] = useState<HTMLDivElement | null>(null);
     const [draft, setDraft] = useState<Set<string>>(new Set());
     // Titles for every candidate checked this round, retained even after it
     // scrolls or filters out of the current `items` window — otherwise a record
@@ -120,10 +125,13 @@ export function RelationPickerDialog({
         targetName,
         open
     );
-    const filterFields = useMemo(
-        () => (schema ? filterFieldsFromSchema(schema) : []),
-        [schema]
-    );
+    // Server-derived filterable surface for the target type (its own fields
+    // plus recursive relation paths), gated on the dialog being open.
+    const {
+        fields: filterFields,
+        isError: filterFieldsError,
+        refetch: refetchFilterFields
+    } = useFilterFields(open ? targetName : undefined);
 
     // Slot-contributed candidate params (e.g. locale scoping from the i18n
     // plugin), computed against the target's schema and the surrounding
@@ -200,7 +208,10 @@ export function RelationPickerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex h-[min(85vh,42rem)] w-full max-w-2xl flex-col gap-4 overflow-hidden">
+            <DialogContent
+                ref={setDialogEl}
+                className="flex h-[min(85vh,42rem)] w-full max-w-2xl flex-col gap-4 overflow-hidden"
+            >
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {
@@ -225,6 +236,12 @@ export function RelationPickerDialog({
                     onFilterChange={setFilter}
                     open={filtersOpen}
                     onOpenChange={setFiltersOpen}
+                    portalContainer={dialogEl}
+                    fieldsError={filterFieldsError}
+                    onRetryFields={refetchFilterFields}
+                    renderRelationValue={(props) => (
+                        <RelationValuePicker {...props} />
+                    )}
                 />
 
                 {/* Result count / selection summary */}

@@ -9,7 +9,9 @@ export const WIRE_OP = {
     Eq: 'eq',
     Ne: 'ne',
     Ilike: 'ilike',
+    Nilike: 'nilike',
     In: 'in',
+    Nin: 'nin',
     Null: 'null',
     Gt: 'gt',
     Gte: 'gte',
@@ -53,7 +55,11 @@ export const WIRE_TO_UI: Partial<Record<WireOp, OpId>> = {
     [WIRE_OP.Eq]: OP.Equals,
     [WIRE_OP.Ne]: OP.NotEquals,
     [WIRE_OP.Ilike]: OP.Contains,
+    [WIRE_OP.Nilike]: OP.NotContains,
     [WIRE_OP.In]: OP.IsOneOf,
+    [WIRE_OP.Nin]: OP.NotOneOf,
+    // `null` maps to `is_empty` by default; the deserialiser promotes a
+    // `value: false` payload to `is_not_empty` (they share this wire op).
     [WIRE_OP.Null]: OP.IsEmpty,
     [WIRE_OP.Gt]: OP.Gt,
     [WIRE_OP.Gte]: OP.Gte,

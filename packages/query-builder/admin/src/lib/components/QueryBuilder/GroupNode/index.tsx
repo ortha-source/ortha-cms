@@ -6,7 +6,10 @@ import {
     SegmentedControlItem,
     cn
 } from '@ortha-cms/design-system';
-import type { FilterField } from '../../../types/filter-field.type';
+import type {
+    FilterField,
+    RelationValueEditor
+} from '../../../types/filter-field.type';
 import {
     COMBINATOR,
     isRule,
@@ -46,6 +49,8 @@ export type GroupNodeProps = {
     ops: GroupNodeOps;
     /** Surface inline validation errors under invalid rules. */
     showErrors?: boolean;
+    /** Value editor for relation-id rules; threaded to every {@link RuleRow}. */
+    renderRelationValue?: RelationValueEditor;
 };
 
 /**
@@ -60,7 +65,8 @@ export function GroupNode({
     fields,
     isRoot = false,
     ops,
-    showErrors = false
+    showErrors = false,
+    renderRelationValue
 }: GroupNodeProps) {
     const intl = useIntl();
 
@@ -115,6 +121,7 @@ export function GroupNode({
                                 }
                                 onRemove={() => ops.onRemoveNode(child.id)}
                                 showErrors={showErrors}
+                                renderRelationValue={renderRelationValue}
                             />
                         ) : (
                             <GroupNode
@@ -123,6 +130,7 @@ export function GroupNode({
                                 fields={fields}
                                 ops={ops}
                                 showErrors={showErrors}
+                                renderRelationValue={renderRelationValue}
                             />
                         )
                     )}

@@ -2,8 +2,15 @@ import { useId } from 'react';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { X } from 'lucide-react';
 import { Button } from '@ortha-cms/design-system';
-import type { FilterField } from '../../../../types/filter-field.type';
-import { OP, type FilterRule, type OpId } from '../../../../types/filter-tree.type';
+import type {
+    FilterField,
+    RelationValueEditor
+} from '../../../../types/filter-field.type';
+import {
+    OP,
+    type FilterRule,
+    type OpId
+} from '../../../../types/filter-tree.type';
 import { defaultValueForOp } from '../../../../utils/defaultValueForOp';
 import { OPS_FOR_TYPE } from '../../../../utils/operators';
 import {
@@ -20,6 +27,10 @@ const messages = defineMessages({
 });
 
 const errorMessages = defineMessages({
+    unknown_field: {
+        id: 'qb.rule.error.unknownField',
+        defaultMessage: 'This field is no longer available — pick another one'
+    },
     value_required: {
         id: 'qb.rule.error.valueRequired',
         defaultMessage: 'Value required'
@@ -55,6 +66,7 @@ const errorMessages = defineMessages({
 });
 
 const ERROR_BY_CODE: Record<RuleValidationCode, MessageDescriptor> = {
+    [RULE_VALIDATION.UnknownField]: errorMessages.unknown_field,
     [RULE_VALIDATION.ValueRequired]: errorMessages.value_required,
     [RULE_VALIDATION.NotUuid]: errorMessages.not_uuid,
     [RULE_VALIDATION.NotNumber]: errorMessages.not_number,
@@ -73,6 +85,8 @@ export type RuleRowProps = {
     onRemove: () => void;
     /** When true, render the inline error message under the row if invalid. */
     showErrors?: boolean;
+    /** Value editor for a relation-id rule; forwarded to {@link ValueEditor}. */
+    renderRelationValue?: RelationValueEditor;
 };
 
 /**
@@ -88,17 +102,37 @@ export function RuleRow({
     fields,
     onUpdate,
     onRemove,
-    showErrors = false
+    showErrors = false,
+    renderRelationValue
 }: RuleRowProps) {
     const intl = useIntl();
-    const field = fields.find((f) => f.id === rule.fieldId) ?? fields[0];
-    const ops = OPS_FOR_TYPE[field.type];
-    const errorCode = showErrors ? validateRule(rule, field) : null;
+    // No `?? fields[0]` fallback: substituting an unrelated field would drive
+    // the operator list and the inline validation off the WRONG type while
+    // `rule.fieldId` kept the stale path — the row would look valid while the
+    // Apply gate (which resolves by id) silently refused to commit. Leaving it
+    // undefined lets the row say what's actually wrong. The field cell still
+    // renders, so re-picking is the fix.
+    const field: FilterField | undefined = fields.find(
+        (f) => f.id === rule.fieldId
+    );
+    const ops = field ? OPS_FOR_TYPE[field.type] : [];
+    // An unknown field is a broken rule, not an unfinished one, so it reports
+    // regardless of `showErrors` — the user never typed it and has no draft to
+    // finish.
+    const errorCode: RuleValidationCode | null = !field
+        ? RULE_VALIDATION.UnknownField
+        : showErrors
+          ? validateRule(rule, field)
+          : null;
     const errorId = useId();
 
     return (
         <div className="flex flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Top-align the cells: a relation value editor stacks its trigger
+                over the selected chips, so centering would float the field /
+                operator above it. Top-aligned, the field, operator, and value
+                trigger line up and the chips simply hang below. */}
+            <div className="flex flex-wrap items-start gap-2">
                 <div className="min-w-[7rem] flex-1 basis-0">
                     <FieldPicker
                         fields={fields}
@@ -117,27 +151,32 @@ export function RuleRow({
                         }}
                     />
                 </div>
-                <div className="min-w-[7rem] flex-1 basis-0">
-                    <OperatorPicker
-                        ops={ops}
-                        value={rule.op}
-                        onChange={(op: OpId) =>
-                            onUpdate({ op, value: defaultValueForOp(op) })
-                        }
-                    />
-                </div>
-                {rule.op !== OP.IsEmpty && (
-                    <div className="min-w-[8rem] flex-[1.5] basis-0">
-                        <ValueEditor
-                            field={field}
-                            op={rule.op}
-                            value={rule.value}
-                            onChange={(value) => onUpdate({ value })}
-                            invalid={errorCode !== null}
-                            describedById={errorCode ? errorId : undefined}
+                {field && (
+                    <div className="min-w-[7rem] flex-1 basis-0">
+                        <OperatorPicker
+                            ops={ops}
+                            value={rule.op}
+                            onChange={(op: OpId) =>
+                                onUpdate({ op, value: defaultValueForOp(op) })
+                            }
                         />
                     </div>
                 )}
+                {field &&
+                    rule.op !== OP.IsEmpty &&
+                    rule.op !== OP.IsNotEmpty && (
+                        <div className="min-w-[8rem] flex-[1.5] basis-0">
+                            <ValueEditor
+                                field={field}
+                                op={rule.op}
+                                value={rule.value}
+                                onChange={(value) => onUpdate({ value })}
+                                invalid={errorCode !== null}
+                                describedById={errorCode ? errorId : undefined}
+                                renderRelationValue={renderRelationValue}
+                            />
+                        </div>
+                    )}
                 <Button
                     type="button"
                     variant="ghost"

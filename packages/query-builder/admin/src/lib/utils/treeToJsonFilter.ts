@@ -89,14 +89,28 @@ function ruleToJson(rule: FilterRule, now: Date): JsonFilterNode {
                 op: WIRE_OP.Ilike,
                 value: `%${escapeLike(scalar(rule.value))}%`
             };
+        case OP.NotContains:
+            return {
+                field: f,
+                op: WIRE_OP.Nilike,
+                value: `%${escapeLike(scalar(rule.value))}%`
+            };
         case OP.IsOneOf:
             return {
                 field: f,
                 op: WIRE_OP.In,
                 value: Array.isArray(rule.value) ? rule.value : []
             };
+        case OP.NotOneOf:
+            return {
+                field: f,
+                op: WIRE_OP.Nin,
+                value: Array.isArray(rule.value) ? rule.value : []
+            };
         case OP.IsEmpty:
             return { field: f, op: WIRE_OP.Null, value: true };
+        case OP.IsNotEmpty:
+            return { field: f, op: WIRE_OP.Null, value: false };
         case OP.Between: {
             const v = rule.value as { from: string; to: string };
             return {

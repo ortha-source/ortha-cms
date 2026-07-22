@@ -14,6 +14,7 @@ export type {
     ScalarFieldSchema,
     FieldSchema,
     RelationSchema,
+    RelationScope,
     FilterSchema,
     ParsedRule,
     ParsedGroup,

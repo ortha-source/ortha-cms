@@ -10,7 +10,10 @@ import {
     DrawerTitle,
     DrawerTrigger
 } from '@ortha-cms/design-system';
-import type { FilterField } from '../../types/filter-field.type';
+import type {
+    FilterField,
+    RelationValueEditor
+} from '../../types/filter-field.type';
 import type { FilterGroup } from '../../types/filter-tree.type';
 import { treeHasInvalidRules } from '../../utils/validateRule';
 import { QueryBuilder } from '../QueryBuilder';
@@ -56,6 +59,8 @@ export type QueryBuilderDrawerProps = {
     trigger: ReactNode;
     /** Drawer edge to slide from. Defaults to `'right'`. */
     direction?: 'left' | 'right';
+    /** Value editor for relation-id rules; forwarded to the {@link QueryBuilder}. */
+    renderRelationValue?: RelationValueEditor;
 };
 
 /**
@@ -74,10 +79,15 @@ export function QueryBuilderDrawer({
     value,
     onApply,
     trigger,
-    direction = 'right'
+    direction = 'right',
+    renderRelationValue
 }: QueryBuilderDrawerProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    // The drawer's own element. vaul scroll-locks the page while open, so the
+    // field picker's popover must portal INTO this node (react-remove-scroll's
+    // allow-listed subtree) or its list won't scroll by mouse wheel.
+    const [contentEl, setContentEl] = useState<HTMLDivElement | null>(null);
     const [draft, setDraft] = useState<FilterGroup | null>(value);
     // Inline rule errors stay hidden until the user clicks Apply with an
     // invalid draft; we don't pre-shame freshly-added rules.
@@ -122,7 +132,7 @@ export function QueryBuilderDrawer({
     return (
         <Drawer direction={direction} open={open} onOpenChange={setOpen}>
             <DrawerTrigger asChild>{trigger}</DrawerTrigger>
-            <DrawerContent className="gap-6 p-6">
+            <DrawerContent ref={setContentEl} className="gap-6 p-6">
                 <DrawerHeader className="space-y-1 p-0">
                     <DrawerTitle>
                         {intl.formatMessage(messages.title)}
@@ -146,6 +156,8 @@ export function QueryBuilderDrawer({
                             value={draft}
                             onChange={setDraft}
                             showErrors={showErrors}
+                            renderRelationValue={renderRelationValue}
+                            portalContainer={contentEl}
                         />
                     </div>
                     <JsonPreview tree={draft} />
