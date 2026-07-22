@@ -5,6 +5,7 @@ import { scalar } from './scalar-op';
 import {
     columnOf,
     primaryKey,
+    rebind,
     type DbLike,
     type TableLike
 } from './table-helpers';
@@ -28,6 +29,12 @@ import type { ParsedFilter, RelationSchema } from './types';
  * Every branch ANDs the relation's optional `scope` predicate (workspace
  * + soft-delete guard) inside the EXISTS, so a relation filter never
  * traverses rows the root query itself excludes.
+ *
+ * Every column that lives on the PARENT side (`fk` for `many-to-one` /
+ * `self-referential`, and any `parentKey`) is re-resolved against `parent`
+ * via {@link rebind}, because `parent` may be an alias of the physical
+ * table — see that helper for why an unaliased column silently correlates
+ * to the wrong row.
  */
 export function relationExists(
     rel: RelationSchema,
@@ -38,7 +45,9 @@ export function relationExists(
     switch (rel.kind) {
         case RelationKind.OneToOne:
         case RelationKind.OneToMany: {
-            const parentKey = rel.parentKey ?? primaryKey(parent);
+            const parentKey = rel.parentKey
+                ? rebind(rel.parentKey, parent)
+                : primaryKey(parent);
             const condition = and(
                 eq(rel.fk, parentKey),
                 rel.scope?.(rel.table),
@@ -54,7 +63,7 @@ export function relationExists(
         case RelationKind.ManyToOne: {
             const targetKey = rel.targetKey ?? primaryKey(rel.table);
             const condition = and(
-                eq(targetKey, rel.fk),
+                eq(targetKey, rebind(rel.fk, parent)),
                 rel.scope?.(rel.table),
                 descend(rel, rel.table, inner, db)
             );
@@ -73,7 +82,7 @@ export function relationExists(
             const target = alias(rel.table as PgTable, rel.alias);
             const targetKey = columnOf(target, 'id');
             const condition = and(
-                eq(targetKey, rel.fk),
+                eq(targetKey, rebind(rel.fk, parent)),
                 rel.scope?.(target),
                 descend(rel, target, inner, db)
             );
@@ -85,7 +94,9 @@ export function relationExists(
             );
         }
         case RelationKind.ManyToMany: {
-            const parentKey = rel.parentKey ?? primaryKey(parent);
+            const parentKey = rel.parentKey
+                ? rebind(rel.parentKey, parent)
+                : primaryKey(parent);
             // The junction-only fast path reads the target FK straight off
             // the join row, skipping the target table. A `scope` lives on
             // that target table, so it can only be enforced through the
@@ -93,9 +104,7 @@ export function relationExists(
             // would silently bypass the workspace / soft-delete guards that
             // `relation.field` enforces.
             const onlyTargetFk =
-                !rel.scope &&
-                inner.path.length === 1 &&
-                inner.path[0] === 'id';
+                !rel.scope && inner.path.length === 1 && inner.path[0] === 'id';
             if (onlyTargetFk) {
                 return exists(
                     db

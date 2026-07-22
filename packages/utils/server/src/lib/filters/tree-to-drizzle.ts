@@ -1,5 +1,6 @@
-import { and, or, type SQL } from 'drizzle-orm';
+import { and, not, or, type SQL } from 'drizzle-orm';
 import { FilterErrorCode, FilterException } from './filter-exceptions';
+import { isNegatingLeaf, positiveLeaf } from './negation';
 import { relationExists } from './relation-exists';
 import { scalar } from './scalar-op';
 import { columnOf, type DbLike, type TableLike } from './table-helpers';
@@ -100,10 +101,15 @@ async function translateRule(
             { relation: key }
         );
     }
-    return relationExists(
-        rel,
-        parent,
-        { path: rule.path.slice(1), op: rule.op, value: rule.value },
-        db
-    );
+    const leaf = { path: rule.path.slice(1), op: rule.op, value: rule.value };
+    // A negating rule on a relation path asks for the ABSENCE of a matching
+    // related row, which is `NOT EXISTS(… positive …)` — NOT the naive
+    // `EXISTS(… negated …)`, which on a to-many relation asserts the
+    // opposite of what the user wrote. The negation wraps the OUTERMOST
+    // hop, so a multi-hop path negates the whole chain ("no (author,
+    // company) pair matches") rather than just its last segment.
+    if (isNegatingLeaf(rule.op, rule.value)) {
+        return not(relationExists(rel, parent, positiveLeaf(leaf), db));
+    }
+    return relationExists(rel, parent, leaf, db);
 }
