@@ -118,7 +118,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   breadcrumb, `relationTarget`). This **replaced** the old client-side
   `filterFieldsFromSchema` mirror (deleted): with a relation graph to walk,
   hand-mirroring the server's whitelist would drift into user-visible 400s, so
-  the server owns the one traversal that builds both. A relation-`id` rule renders
+  the server owns the one traversal that builds both. Because it is **fetched**,
+  it has a failure mode a derived list didn't: `useFilterFields` returns
+  `{ fields, isPending, isError, refetch }` and the panel renders a **loading**
+  and an **error** state (with retry) instead of an empty picker. That is not
+  cosmetic — the Apply gate rejects any rule whose field it can't resolve, so
+  without the definitions Apply can never commit; an empty picker would be a
+  dead button with nothing on screen explaining why. A relation-`id` rule renders
   the **`RelationValuePicker`** (a searchable, lazily-paginated multi-select over
   the target type, reusing `useRelationCandidates`), injected into the query
   builder via `renderRelationValue` at both call sites (the records

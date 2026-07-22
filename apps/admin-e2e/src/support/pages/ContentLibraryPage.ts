@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
@@ -46,6 +46,61 @@ export class ContentLibraryPage extends BasePage {
      */
     override filterSurface(): Locator {
         return this.page.getByRole('region', { name: /Filters/ });
+    }
+
+    /**
+     * Collapse the inline filter panel. The panel stays open after Apply (so
+     * further edits don't need a re-open), and the applied-conditions summary
+     * only renders while it's collapsed — so a summary assertion has to close
+     * it first.
+     */
+    async closeFilters() {
+        await this.filterTrigger().click();
+        await expect(this.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+    }
+
+    /**
+     * One chip in the collapsed filter summary, matched on its readable text
+     * ("Author · Name contains Ada"). The chip is the resting read-out of an
+     * applied condition; removing it re-commits the narrowed tree at once.
+     */
+    filterChip(text: string | RegExp): Locator {
+        return this.page.getByTitle(text);
+    }
+
+    /**
+     * Remove one applied condition from the summary. `label` is the chip's
+     * "<path> <operator>" text — the remove button's accessible name is
+     * "Remove condition <path> <operator>".
+     */
+    async removeFilterChip(label: string) {
+        await this.page
+            .getByRole('button', { name: `Remove condition ${label}` })
+            .click();
+    }
+
+    /** Drop every applied condition from the summary in one action. */
+    async clearAllFilters() {
+        await this.page.getByRole('button', { name: 'Clear all' }).click();
+    }
+
+    /**
+     * The relation-id value editor — a record picker rather than a raw uuid
+     * input. It is the rule's **third** combobox (field, operator, value); like
+     * the other two its trigger is `role="combobox"`, not a plain button.
+     */
+    async openRelationValuePicker() {
+        await this.filterSurface().getByRole('combobox').nth(2).click();
+    }
+
+    /** Toggle one record in the open relation value picker, by its title. */
+    async pickRelationRecord(title: string) {
+        await this.page
+            .getByRole('option', { name: title, exact: true })
+            .click();
     }
 
     /** A collapsible group trigger by label ("Collections" / "Pages"). */
@@ -168,9 +223,7 @@ export class ContentLibraryPage extends BasePage {
     /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
     async saveDraft(): Promise<void> {
         await this.page.getByRole('button', { name: 'More actions' }).click();
-        await this.page
-            .getByRole('menuitem', { name: 'Save draft' })
-            .click();
+        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
     }
 
     /** The "Changes saved." success toast after an edit save. */

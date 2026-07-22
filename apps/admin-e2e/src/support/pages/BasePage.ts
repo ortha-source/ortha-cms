@@ -140,10 +140,35 @@ export abstract class BasePage {
         await this.filterSurface().getByRole('textbox').last().fill(value);
     }
 
+    /** The builder's Apply control — for asserting its enabled/disabled state. */
+    applyButton(): Locator {
+        return this.filterSurface().getByRole('button', { name: 'Apply' });
+    }
+
     /** Commit the builder's draft to the URL. */
     async applyFilters() {
-        await this.filterSurface()
-            .getByRole('button', { name: 'Apply' })
+        await this.applyButton().click();
+    }
+
+    /**
+     * The builder's own "couldn't load the filterable fields" state. Distinct
+     * from an empty picker: without the field definitions every rule fails the
+     * Apply gate, so the panel must say so rather than render a dead button.
+     */
+    filterFieldsError(): Locator {
+        return this.filterSurface().getByRole('alert');
+    }
+
+    /**
+     * Pick the operator by label for the first rule. Unlike
+     * {@link selectOperator} this waits for the option list, so it works for
+     * the operators added alongside relation filtering ("does not contain",
+     * "is none of", "is not empty") whose labels are longer.
+     */
+    async selectOperatorExact(label: string) {
+        await this.filterSurface().getByRole('combobox').nth(1).click();
+        await this.page
+            .getByRole('option', { name: label, exact: true })
             .click();
     }
 

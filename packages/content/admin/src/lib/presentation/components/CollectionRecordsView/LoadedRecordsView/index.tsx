@@ -246,8 +246,15 @@ export function LoadedRecordsView({
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
     // Server-derived filter surface (scalar fields + recursive relation paths),
-    // replacing the old client-side `filterFieldsFromSchema` mirror.
-    const schemaFilterFields = useFilterFields(schema.name);
+    // replacing the old client-side `filterFieldsFromSchema` mirror. Its load
+    // state is threaded into the panel: with no field definitions every rule
+    // fails the Apply gate, so an empty picker would read as a dead button.
+    const {
+        fields: schemaFilterFields,
+        isPending: filterFieldsPending,
+        isError: filterFieldsError,
+        refetch: refetchFilterFields
+    } = useFilterFields(schema.name);
     // Slot-contributed filter fields (e.g. locale aggregates), appended after
     // the schema-derived set. Hook-in-a-loop is rules-of-hooks-safe here:
     // slot items are registered once at boot and never change, so the call
@@ -493,6 +500,9 @@ export function LoadedRecordsView({
                 value={appliedFilter}
                 onApply={applyFilter}
                 onApplied={() => setApplying(true)}
+                fieldsPending={filterFieldsPending}
+                fieldsError={filterFieldsError}
+                onRetryFields={refetchFilterFields}
                 renderRelationValue={(props) => (
                     <RelationValuePicker {...props} />
                 )}

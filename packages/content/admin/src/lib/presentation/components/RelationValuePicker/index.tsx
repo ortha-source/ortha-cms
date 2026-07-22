@@ -1,4 +1,10 @@
-import { useState, type UIEvent } from 'react';
+import {
+    useEffect,
+    useId,
+    useState,
+    type KeyboardEvent,
+    type UIEvent
+} from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import {
@@ -59,6 +65,12 @@ const SCROLL_THRESHOLD = 120;
  *
  * Rendered by the consumer as `<RelationValuePicker {...props} />` so its hooks
  * live in their own component scope, not inside the query builder's cell.
+ *
+ * **Keyboard.** Focus stays in the search box; ↑/↓ move an
+ * `aria-activedescendant` highlight and Enter toggles the highlighted record.
+ * Rows are `tabIndex={-1}` — a candidate list is unbounded (it paginates on
+ * scroll), so Tab-to-reach would be unusable and a `listbox` announcing "3 of
+ * 200" that the keyboard can't traverse would be worse than none.
  */
 export function RelationValuePicker({
     target,
@@ -72,17 +84,14 @@ export function RelationValuePicker({
     const container = usePortalContainer();
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+    const listId = useId();
 
     // The target schema drives candidate titles (same as the relation picker);
     // gated on the popover being open so a closed rule registers no queries.
     const { data: schema } = useContentSchema(target, open);
     const { items, hasMore, isPending, isFetchingNextPage, fetchNextPage } =
-        useRelationCandidates(
-            target,
-            schema?.fields ?? [],
-            { search },
-            open
-        );
+        useRelationCandidates(target, schema?.fields ?? [], { search }, open);
 
     const selected = new Set(value);
     const titleById = new Map(items.map((c) => [c.id, c.title]));
@@ -95,10 +104,33 @@ export function RelationValuePicker({
         onChange([...next]);
     };
 
+    // A new search replaces the whole window, so a stale highlight would point
+    // at a record that is no longer in the list.
+    useEffect(() => setActiveIndex(0), [search, open]);
+
+    const onListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (items.length === 0) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActiveIndex((i) => (i + 1) % items.length);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActiveIndex((i) => (i - 1 + items.length) % items.length);
+        } else if (event.key === 'Enter') {
+            const candidate = items[activeIndex];
+            if (!candidate) return;
+            // Multi-select: Enter toggles and the popover stays open, so the
+            // user can pick several without re-opening it.
+            event.preventDefault();
+            toggle(candidate.id);
+        }
+    };
+
     const handleScroll = (event: UIEvent<HTMLDivElement>) => {
         const el = event.currentTarget;
         if (
-            el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_THRESHOLD &&
+            el.scrollHeight - el.scrollTop - el.clientHeight <=
+                SCROLL_THRESHOLD &&
             hasMore &&
             !isFetchingNextPage
         ) {
@@ -132,19 +164,29 @@ export function RelationValuePicker({
                     className="w-[300px] p-2"
                     align="start"
                     container={container}
+                    onKeyDown={onListKeyDown}
                 >
                     <Input
+                        autoFocus
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder={intl.formatMessage(messages.search)}
                         aria-label={intl.formatMessage(messages.search)}
+                        aria-controls={listId}
+                        aria-activedescendant={
+                            items[activeIndex]
+                                ? `${listId}-${items[activeIndex].id}`
+                                : undefined
+                        }
                         className="mb-1 h-8 rounded-lg shadow-none"
                     />
                     {/* Plain scroll container → the mouse wheel drives the list
                         (cmdk's own list does not), and infinite-scroll pages in
                         as it nears the bottom. */}
                     <div
+                        id={listId}
                         role="listbox"
+                        aria-multiselectable
                         aria-label={intl.formatMessage(messages.list)}
                         onScroll={handleScroll}
                         className="max-h-72 overflow-y-auto"
@@ -154,20 +196,29 @@ export function RelationValuePicker({
                                 {intl.formatMessage(messages.empty)}
                             </p>
                         ) : (
-                            items.map((candidate) => {
+                            items.map((candidate, index) => {
                                 const isSelected = selected.has(candidate.id);
+                                const isHighlighted = index === activeIndex;
                                 return (
                                     <button
                                         key={candidate.id}
+                                        id={`${listId}-${candidate.id}`}
                                         type="button"
+                                        tabIndex={-1}
                                         role="option"
                                         aria-selected={isSelected}
+                                        onMouseEnter={() =>
+                                            setActiveIndex(index)
+                                        }
                                         onClick={() => toggle(candidate.id)}
                                         className={cn(
                                             'flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm',
                                             'hover:bg-accent hover:text-accent-foreground',
-                                            'focus-visible:bg-accent focus-visible:outline-none',
-                                            isSelected && 'bg-accent/50'
+                                            isHighlighted &&
+                                                'bg-accent text-accent-foreground',
+                                            isSelected &&
+                                                !isHighlighted &&
+                                                'bg-accent/50'
                                         )}
                                     >
                                         <Check

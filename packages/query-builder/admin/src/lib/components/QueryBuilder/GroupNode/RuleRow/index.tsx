@@ -6,7 +6,11 @@ import type {
     FilterField,
     RelationValueEditor
 } from '../../../../types/filter-field.type';
-import { OP, type FilterRule, type OpId } from '../../../../types/filter-tree.type';
+import {
+    OP,
+    type FilterRule,
+    type OpId
+} from '../../../../types/filter-tree.type';
 import { defaultValueForOp } from '../../../../utils/defaultValueForOp';
 import { OPS_FOR_TYPE } from '../../../../utils/operators';
 import {
@@ -23,6 +27,10 @@ const messages = defineMessages({
 });
 
 const errorMessages = defineMessages({
+    unknown_field: {
+        id: 'qb.rule.error.unknownField',
+        defaultMessage: 'This field is no longer available — pick another one'
+    },
     value_required: {
         id: 'qb.rule.error.valueRequired',
         defaultMessage: 'Value required'
@@ -58,6 +66,7 @@ const errorMessages = defineMessages({
 });
 
 const ERROR_BY_CODE: Record<RuleValidationCode, MessageDescriptor> = {
+    [RULE_VALIDATION.UnknownField]: errorMessages.unknown_field,
     [RULE_VALIDATION.ValueRequired]: errorMessages.value_required,
     [RULE_VALIDATION.NotUuid]: errorMessages.not_uuid,
     [RULE_VALIDATION.NotNumber]: errorMessages.not_number,
@@ -97,15 +106,24 @@ export function RuleRow({
     renderRelationValue
 }: RuleRowProps) {
     const intl = useIntl();
-    // `field` can be undefined when `fields` is still loading (the panel mounts
-    // and renders URL-restored rules before `useFilterFields` resolves) or when
-    // a saved rule references a field no longer offered. Guard the operator /
-    // value editors, which need the field's type; the field cell still renders
-    // so the user can re-pick.
-    const field: FilterField | undefined =
-        fields.find((f) => f.id === rule.fieldId) ?? fields[0];
+    // No `?? fields[0]` fallback: substituting an unrelated field would drive
+    // the operator list and the inline validation off the WRONG type while
+    // `rule.fieldId` kept the stale path — the row would look valid while the
+    // Apply gate (which resolves by id) silently refused to commit. Leaving it
+    // undefined lets the row say what's actually wrong. The field cell still
+    // renders, so re-picking is the fix.
+    const field: FilterField | undefined = fields.find(
+        (f) => f.id === rule.fieldId
+    );
     const ops = field ? OPS_FOR_TYPE[field.type] : [];
-    const errorCode = field && showErrors ? validateRule(rule, field) : null;
+    // An unknown field is a broken rule, not an unfinished one, so it reports
+    // regardless of `showErrors` — the user never typed it and has no draft to
+    // finish.
+    const errorCode: RuleValidationCode | null = !field
+        ? RULE_VALIDATION.UnknownField
+        : showErrors
+          ? validateRule(rule, field)
+          : null;
     const errorId = useId();
 
     return (
@@ -147,18 +165,18 @@ export function RuleRow({
                 {field &&
                     rule.op !== OP.IsEmpty &&
                     rule.op !== OP.IsNotEmpty && (
-                    <div className="min-w-[8rem] flex-[1.5] basis-0">
-                        <ValueEditor
-                            field={field}
-                            op={rule.op}
-                            value={rule.value}
-                            onChange={(value) => onUpdate({ value })}
-                            invalid={errorCode !== null}
-                            describedById={errorCode ? errorId : undefined}
-                            renderRelationValue={renderRelationValue}
-                        />
-                    </div>
-                )}
+                        <div className="min-w-[8rem] flex-[1.5] basis-0">
+                            <ValueEditor
+                                field={field}
+                                op={rule.op}
+                                value={rule.value}
+                                onChange={(value) => onUpdate({ value })}
+                                invalid={errorCode !== null}
+                                describedById={errorCode ? errorId : undefined}
+                                renderRelationValue={renderRelationValue}
+                            />
+                        </div>
+                    )}
                 <Button
                     type="button"
                     variant="ghost"

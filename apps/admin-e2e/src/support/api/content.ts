@@ -370,13 +370,28 @@ const RELATION_TAG_NAMES = [
  * `article.text`) so the picker assertions read naturally; `tag` has 32 rows so
  * the lazy-scroll window (12) has something to page through.
  */
+/**
+ * Author ids for the relations suite. **Canonical UUIDs**, not readable slugs:
+ * the query builder validates a relation-id rule against the 8-4-4-4-12 form
+ * (Postgres' `uuid` rejects anything else), so a slug-shaped id would fail the
+ * Apply gate here while working fine against the real API. Exported so a spec
+ * can assert on the id a picker wrote.
+ */
+export const RELATION_AUTHOR_IDS = {
+    ada: '11111111-1111-4111-8111-111111111111',
+    grace: '22222222-2222-4222-8222-222222222222',
+    alan: '33333333-3333-4333-8333-333333333333',
+    katherine: '44444444-4444-4444-8444-444444444444',
+    margaret: '55555555-5555-4555-8555-555555555555'
+} as const;
+
 export const RELATIONS_ENTRIES_SEED: Record<string, EntryRecord[]> = {
     author: [
-        seedRow('author-ada', { name: 'Ada Lovelace' }),
-        seedRow('author-grace', { name: 'Grace Hopper' }),
-        seedRow('author-alan', { name: 'Alan Turing' }),
-        seedRow('author-katherine', { name: 'Katherine Johnson' }),
-        seedRow('author-margaret', { name: 'Margaret Hamilton' })
+        seedRow(RELATION_AUTHOR_IDS.ada, { name: 'Ada Lovelace' }),
+        seedRow(RELATION_AUTHOR_IDS.grace, { name: 'Grace Hopper' }),
+        seedRow(RELATION_AUTHOR_IDS.alan, { name: 'Alan Turing' }),
+        seedRow(RELATION_AUTHOR_IDS.katherine, { name: 'Katherine Johnson' }),
+        seedRow(RELATION_AUTHOR_IDS.margaret, { name: 'Margaret Hamilton' })
     ],
     tag: RELATION_TAG_NAMES.map((name, i) =>
         seedRow(`tag-${String(i + 1).padStart(2, '0')}`, { name, slug: name })
@@ -496,6 +511,15 @@ interface ContentSchemaDetailOptions {
     details?: Record<string, ContentTypeDetail>;
     /** Response status; use a 5xx to exercise the error state. */
     status?: number;
+    /**
+     * Status for the `/:name/filter-fields` sub-route only. Defaults to
+     * {@link status}. Set it independently to fail *just* the filterable
+     * surface: the page still renders (the detail schema loads), which is the
+     * only way to reach the filter panel's own error state — the state that
+     * distinguishes "filters failed to load" from "this type has no
+     * filterable fields".
+     */
+    filterFieldsStatus?: number;
 }
 
 /** One filterable path, as `GET /api/content-schema/:name/filter-fields` returns it. */
@@ -533,7 +557,9 @@ function scalarWireType(
 }
 
 function fieldLabelOf(field: ContentFieldSchema): string {
-    return typeof field.admin.label === 'string' ? field.admin.label : field.name;
+    return typeof field.admin.label === 'string'
+        ? field.admin.label
+        : field.name;
 }
 
 /** Push one level's scalar wire fields (envelope status + user scalars). */
@@ -609,15 +635,17 @@ export async function mockContentSchemaDetail(
     page: Page,
     {
         details = CONTENT_DETAIL_SEED,
-        status = 200
+        status = 200,
+        filterFieldsStatus
     }: ContentSchemaDetailOptions = {}
 ): Promise<void> {
+    const surfaceStatus = filterFieldsStatus ?? status;
     await page.route(
         /\/api\/content-schema\/([^/?]+)\/filter-fields(\?.*)?$/,
         async (route) => {
-            if (status >= 400) {
+            if (surfaceStatus >= 400) {
                 await route.fulfill({
-                    status,
+                    status: surfaceStatus,
                     contentType: 'application/json',
                     body: JSON.stringify({ message: 'Server error' })
                 });
@@ -637,25 +665,28 @@ export async function mockContentSchemaDetail(
             });
         }
     );
-    await page.route(/\/api\/content-schema\/([^/?]+)(\?.*)?$/, async (route) => {
-        if (status >= 400) {
+    await page.route(
+        /\/api\/content-schema\/([^/?]+)(\?.*)?$/,
+        async (route) => {
+            if (status >= 400) {
+                await route.fulfill({
+                    status,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ message: 'Server error' })
+                });
+                return;
+            }
+            const name = decodeURIComponent(
+                new URL(route.request().url()).pathname.split('/').pop() ?? ''
+            );
+            const detail = details[name];
             await route.fulfill({
-                status,
+                status: detail ? 200 : 404,
                 contentType: 'application/json',
-                body: JSON.stringify({ message: 'Server error' })
+                body: JSON.stringify(detail ?? { message: 'Not found' })
             });
-            return;
         }
-        const name = decodeURIComponent(
-            new URL(route.request().url()).pathname.split('/').pop() ?? ''
-        );
-        const detail = details[name];
-        await route.fulfill({
-            status: detail ? 200 : 404,
-            contentType: 'application/json',
-            body: JSON.stringify(detail ?? { message: 'Not found' })
-        });
-    });
+    );
 }
 
 /** One fabricated entry row, as `GET /api/content/:name` returns it. */
@@ -858,7 +889,11 @@ export async function mockContentEntries(
         const wanted = (params.get('relationFields') ?? '')
             .split(',')
             .filter(Boolean);
-        if (params.get('relations') === 'preview' && previews && wanted.length) {
+        if (
+            params.get('relations') === 'preview' &&
+            previews &&
+            wanted.length
+        ) {
             const scoped = Object.fromEntries(
                 Object.entries(previews).filter(([field]) =>
                     wanted.includes(field)
@@ -1157,20 +1192,23 @@ export async function spyEntrySave(page: Page): Promise<EntrySaveSpy> {
     });
 
     // Update (`PATCH /content/:name/:id`); other multi-segment writes fall through.
-    await page.route(/\/api\/content\/[^/?]+\/[^/?]+(\?.*)?$/, async (route) => {
-        const req = route.request();
-        if (req.method() !== 'PATCH') return route.fallback();
-        const body = (req.postDataJSON?.() ?? {}) as CapturedSave;
-        bodies.push(body);
-        const id = decodeURIComponent(
-            new URL(req.url()).pathname.split('/').pop() ?? ''
-        );
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify(record(id, body))
-        });
-    });
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+(\?.*)?$/,
+        async (route) => {
+            const req = route.request();
+            if (req.method() !== 'PATCH') return route.fallback();
+            const body = (req.postDataJSON?.() ?? {}) as CapturedSave;
+            bodies.push(body);
+            const id = decodeURIComponent(
+                new URL(req.url()).pathname.split('/').pop() ?? ''
+            );
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(record(id, body))
+            });
+        }
+    );
 
     return {
         get bodies() {

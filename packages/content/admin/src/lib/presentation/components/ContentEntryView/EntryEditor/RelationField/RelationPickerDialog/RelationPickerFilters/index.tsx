@@ -31,6 +31,14 @@ const messages = defineMessages({
     clearFilters: {
         id: 'content.relations.picker.clearFilters',
         defaultMessage: 'Clear filters'
+    },
+    fieldsError: {
+        id: 'content.relations.picker.fieldsError',
+        defaultMessage: "Couldn't load filters."
+    },
+    retry: {
+        id: 'content.relations.picker.retry',
+        defaultMessage: 'Try again'
     }
 });
 
@@ -51,7 +59,9 @@ export function RelationPickerFilters({
     open,
     onOpenChange,
     portalContainer,
-    renderRelationValue
+    renderRelationValue,
+    fieldsError = false,
+    onRetryFields
 }: {
     targetLabel: string;
     search: string;
@@ -66,6 +76,15 @@ export function RelationPickerFilters({
     portalContainer?: HTMLElement | null;
     /** Record picker for a relation-id rule, forwarded to the query builder. */
     renderRelationValue?: RelationValueEditor;
+    /**
+     * The filterable surface failed to load. The trigger is disabled either
+     * way (an empty `filterFields` can't build a rule), but a failure has to
+     * say so — otherwise a disabled Filters button is indistinguishable from
+     * a target type that simply has nothing to filter on.
+     */
+    fieldsError?: boolean;
+    /** Retry the surface request; renders a Try again action when set. */
+    onRetryFields?: () => void;
 }) {
     const intl = useIntl();
     const ruleCount = countRules(filter);
@@ -102,6 +121,23 @@ export function RelationPickerFilters({
                     </Button>
                 </CollapsibleTrigger>
             </div>
+            {fieldsError ? (
+                <p
+                    role="alert"
+                    className="mt-2 flex items-center gap-2 text-xs text-destructive"
+                >
+                    {intl.formatMessage(messages.fieldsError)}
+                    {onRetryFields ? (
+                        <button
+                            type="button"
+                            onClick={onRetryFields}
+                            className="underline underline-offset-2"
+                        >
+                            {intl.formatMessage(messages.retry)}
+                        </button>
+                    ) : null}
+                </p>
+            ) : null}
             <CollapsibleContent>
                 <div className="mt-3 flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
                     <QueryBuilder

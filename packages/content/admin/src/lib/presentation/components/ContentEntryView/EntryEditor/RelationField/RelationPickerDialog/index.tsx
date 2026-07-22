@@ -127,7 +127,11 @@ export function RelationPickerDialog({
     );
     // Server-derived filterable surface for the target type (its own fields
     // plus recursive relation paths), gated on the dialog being open.
-    const filterFields = useFilterFields(open ? targetName : undefined);
+    const {
+        fields: filterFields,
+        isError: filterFieldsError,
+        refetch: refetchFilterFields
+    } = useFilterFields(open ? targetName : undefined);
 
     // Slot-contributed candidate params (e.g. locale scoping from the i18n
     // plugin), computed against the target's schema and the surrounding
@@ -233,6 +237,8 @@ export function RelationPickerDialog({
                     open={filtersOpen}
                     onOpenChange={setFiltersOpen}
                     portalContainer={dialogEl}
+                    fieldsError={filterFieldsError}
+                    onRetryFields={refetchFilterFields}
                     renderRelationValue={(props) => (
                         <RelationValuePicker {...props} />
                     )}

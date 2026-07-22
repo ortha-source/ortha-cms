@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_192 test cases across 27 spec files._
+_202 test cases across 27 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -197,6 +197,31 @@ _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
 | --- |
 | the field picker offers a related type field, grouped |
 | applying a relation-path rule deep-links the dotted path |
+| a "contains" rule wraps its value in escaped wildcards |
+| a relation id rule picks records, not raw uuids |
+| a relation id rule keeps a set for a multi-valued operator |
+
+### negative operators
+
+| Test case |
+| --- |
+| "does not contain" serialises to nilike |
+| "is not empty" serialises to null:false |
+
+### applied-filter summary
+
+| Test case |
+| --- |
+| reads the applied condition back as a chip |
+| removing a chip re-commits the narrowed filter |
+| "Clear all" drops every condition |
+
+### filter fields unavailable
+
+| Test case |
+| --- |
+| shows an error state instead of an empty picker |
+| the table itself still loads |
 
 <!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_

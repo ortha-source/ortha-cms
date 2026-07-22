@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -20,7 +21,10 @@ import {
     type FieldType,
     type FilterField
 } from '../../../../../types/filter-field.type';
-import { buildFieldTree, type RelationNode } from '../../../../../utils/fieldTree';
+import {
+    buildFieldTree,
+    type RelationNode
+} from '../../../../../utils/fieldTree';
 import { usePortalContainer } from '../../../../portalContainer';
 
 const messages = defineMessages({
@@ -84,7 +88,12 @@ function matchesQuery(haystack: string, query: string): boolean {
 /** A rendered row — the union the list maps over and the keyboard walks. */
 type Row =
     | { kind: 'header'; key: string; label: MessageDescriptor }
-    | { kind: 'subheader'; key: string; label: MessageDescriptor; depth: number }
+    | {
+          kind: 'subheader';
+          key: string;
+          label: MessageDescriptor;
+          depth: number;
+      }
     | { kind: 'relation'; key: string; node: RelationNode; depth: number }
     | {
           kind: 'field';
@@ -117,6 +126,14 @@ const isNavigable = (row: Row): boolean =>
  * stays clean), the trigger is `role="combobox"` and field rows `role="option"`,
  * and the content portals into {@link usePortalContainer} so it scrolls inside
  * the filter drawer / dialog.
+ *
+ * **Accessibility.** The list is a real `listbox`: every *navigable* row is an
+ * `option` (a relation row too — it carries `aria-expanded` rather than a
+ * value), and the group headings are `presentation` so they don't sit in the
+ * listbox as invalid children. Focus stays on the search box, which drives the
+ * list via `aria-controls` + `aria-activedescendant` — without that the arrow
+ * keys would move a highlight that assistive tech never hears about. Rows are
+ * `tabIndex={-1}` so Tab leaves the popover instead of walking every field.
  */
 export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
     const intl = useIntl();
@@ -126,6 +143,8 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
     const [activeIndex, setActiveIndex] = useState(0);
     const rowRefs = useRef(new Map<number, HTMLElement>());
+    const listId = useId();
+    const rowId = (index: number) => `${listId}-row-${index}`;
 
     const tree = useMemo(() => buildFieldTree(fields), [fields]);
     const searching = query.trim().length > 0;
@@ -137,7 +156,9 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                 const crumbs = field.group ?? [];
                 const haystack = `${crumbs
                     .map((c) => intl.formatMessage(c))
-                    .join(' ')} ${intl.formatMessage(field.label)} ${field.id}`.toLowerCase();
+                    .join(
+                        ' '
+                    )} ${intl.formatMessage(field.label)} ${field.id}`.toLowerCase();
                 if (matchesQuery(haystack, query)) {
                     out.push({
                         kind: 'field',
@@ -332,9 +353,19 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={intl.formatMessage(messages.search)}
                     aria-label={intl.formatMessage(messages.search)}
+                    // Focus never leaves this box, so it is what announces the
+                    // arrow-key highlight. Without `aria-activedescendant` the
+                    // active row is a purely visual state.
+                    aria-controls={listId}
+                    aria-activedescendant={
+                        rows[activeIndex] && isNavigable(rows[activeIndex])
+                            ? rowId(activeIndex)
+                            : undefined
+                    }
                     className="mb-1 h-8 rounded-lg shadow-none"
                 />
                 <div
+                    id={listId}
                     role="listbox"
                     aria-label={intl.formatMessage(messages.label)}
                     className="max-h-72 overflow-y-auto"
@@ -355,10 +386,15 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                             const depth = row.kind === 'header' ? 0 : row.depth;
                             const indent = { paddingLeft: 8 + depth * 12 };
 
+                            // Headings are `presentation`: a listbox may only
+                            // contain `option`/`group` children, so leaving
+                            // them as plain text would put invalid nodes in
+                            // the accessibility tree.
                             if (row.kind === 'header') {
                                 return (
                                     <p
                                         key={row.key}
+                                        role="presentation"
                                         className="px-2 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"
                                     >
                                         {intl.formatMessage(row.label)}
@@ -369,6 +405,7 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                                 return (
                                     <p
                                         key={row.key}
+                                        role="presentation"
                                         style={indent}
                                         className="px-2 py-1 text-xs text-muted-foreground"
                                     >
@@ -389,8 +426,17 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                                 return (
                                     <button
                                         key={row.key}
+                                        id={rowId(index)}
                                         ref={setRef}
                                         type="button"
+                                        tabIndex={-1}
+                                        // A relation row is an `option` too —
+                                        // the listbox admits no other
+                                        // interactive child — distinguished
+                                        // from a value row by `aria-expanded`
+                                        // and by never being `aria-selected`.
+                                        role="option"
+                                        aria-selected={false}
                                         style={indent}
                                         aria-expanded={isOpen}
                                         aria-label={intl.formatMessage(
@@ -399,7 +445,9 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                                                 : messages.expand,
                                             { name }
                                         )}
-                                        onMouseEnter={() => setActiveIndex(index)}
+                                        onMouseEnter={() =>
+                                            setActiveIndex(index)
+                                        }
                                         onClick={() => toggleRelation(row.key)}
                                         className={cn(
                                             'flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm',
@@ -430,8 +478,10 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                             return (
                                 <button
                                     key={row.key}
+                                    id={rowId(index)}
                                     ref={setRef}
                                     type="button"
+                                    tabIndex={-1}
                                     role="option"
                                     aria-selected={isSelected}
                                     style={indent}
@@ -463,14 +513,18 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                                             </span>
                                         ))}
                                         <span className="truncate">
-                                            {intl.formatMessage(row.field.label)}
+                                            {intl.formatMessage(
+                                                row.field.label
+                                            )}
                                         </span>
                                     </span>
                                     <span
                                         aria-hidden
                                         className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
                                     >
-                                        {intl.formatMessage(typeTagFor(row.field))}
+                                        {intl.formatMessage(
+                                            typeTagFor(row.field)
+                                        )}
                                     </span>
                                 </button>
                             );
