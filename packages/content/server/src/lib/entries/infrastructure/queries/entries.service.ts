@@ -16,7 +16,8 @@ import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,
-    type ContentEntryExtension
+    type ContentEntryExtension,
+    type EntryFilterExtension
 } from '../../../extension/entry-extension';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
@@ -27,7 +28,8 @@ import {
 } from '../../http/dto/list-entries-query.dto';
 import type { EntryListView } from '../../types/entry-list-view';
 import { DEFAULT_PAGE_SIZE } from '../../entries.constants';
-import { buildEntryFilterSchema, isScalarField } from './entry-filter-schema';
+import { isScalarField } from './entry-scalar-fields';
+import { buildEntryFilterSurface } from './entry-filter-surface';
 import { toRecord } from '../persistence/entry-row';
 import { RelationLinkService } from '../persistence/relation-link.service';
 
@@ -39,7 +41,10 @@ type ContentTable = Record<string, AnyColumn>;
  * the type's own relation fields. Unknown names are dropped, so a client string
  * never reaches a query — only keys already present on `type.fields` survive.
  */
-function previewFields(type: AnyContentType, raw: string | undefined): string[] {
+function previewFields(
+    type: AnyContentType,
+    raw: string | undefined
+): string[] {
     if (!raw) return [];
     const wanted = new Set(
         raw
@@ -162,20 +167,25 @@ export class EntriesService {
         // predicate (e.g. the active locale). Both are no-ops for types the
         // extension doesn't apply to.
         const filterExtension = this.extension?.filterExtension(type);
-        const schema = buildEntryFilterSchema(type, filterExtension?.fields);
-        const tree = parseFilterTree(query.filter, schema);
-        const filterSql = await applyFilterTree(
-            tree,
-            schema,
-            type.table,
-            this.db,
-            filterExtension
-                ? {
-                      resolveExtension: (rule) =>
-                          filterExtension.resolve(rule, { type, workspaceId })
-                  }
-                : {}
-        );
+        // Building the surface walks the type's whole relation graph to the
+        // hop budget, so only pay for it when there is actually a filter to
+        // translate — an unfiltered list (the common case) skips it entirely.
+        //
+        // `grantedTypes` is deliberately left unset: this is the SQL
+        // whitelist, not a visibility boundary, and pruning it by grant would
+        // make the *same* saved filter 400 or silently change meaning
+        // depending on which workspace opened it. Grant pruning belongs on
+        // the `/filter-fields` surface the picker renders, where it is
+        // applied. Every relation subquery is workspace-scoped regardless, so
+        // a traversal can never read another workspace's rows.
+        const filterSql = query.filter
+            ? await this.filterPredicate(
+                  type,
+                  query.filter,
+                  workspaceId,
+                  filterExtension
+              )
+            : undefined;
         const table = type.table as unknown as ContentTable;
         return and(
             eq(table['workspaceId'], workspaceId),
@@ -186,6 +196,39 @@ export class EntriesService {
             this.searchPredicate(type, query.search),
             filterSql,
             this.deletedPredicate(type, query)
+        );
+    }
+
+    /**
+     * Translate one `?filter=` payload against the type's filterable surface.
+     * The surface is built per request (content types are code-defined, so it
+     * is pure derivation) and produces BOTH the SQL whitelist used here and
+     * the wire list `/filter-fields` serves — one traversal, so the picker can
+     * never offer a path this rejects. A malformed filter throws a
+     * `FilterException` (HTTP 400).
+     */
+    private async filterPredicate(
+        type: AnyContentType,
+        filter: string,
+        workspaceId: string,
+        filterExtension: EntryFilterExtension | undefined
+    ): Promise<SQL | undefined> {
+        const { schema } = buildEntryFilterSurface(type, {
+            workspaceId,
+            extensionFields: filterExtension?.fields
+        });
+        const tree = parseFilterTree(filter, schema);
+        return applyFilterTree(
+            tree,
+            schema,
+            type.table,
+            this.db,
+            filterExtension
+                ? {
+                      resolveExtension: (rule) =>
+                          filterExtension.resolve(rule, { type, workspaceId })
+                  }
+                : {}
         );
     }
 

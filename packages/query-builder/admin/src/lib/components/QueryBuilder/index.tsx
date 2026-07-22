@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import type { FilterField } from '../../types/filter-field.type';
+import type {
+    FilterField,
+    RelationValueEditor
+} from '../../types/filter-field.type';
 import type { FilterGroup } from '../../types/filter-tree.type';
 import { defaultValueForOp } from '../../utils/defaultValueForOp';
 import { OPS_FOR_TYPE } from '../../utils/operators';
@@ -13,6 +16,7 @@ import {
     updateRule
 } from '../../utils/treeOps';
 import { GroupNode, type GroupNodeOps } from './GroupNode';
+import { PortalContainerContext } from '../portalContainer';
 
 /** Props for {@link QueryBuilder}. */
 export type QueryBuilderProps = {
@@ -33,6 +37,20 @@ export type QueryBuilderProps = {
      * Apply so the user sees what to fix. Default `false`.
      */
     showErrors?: boolean;
+    /**
+     * Renders the value editor for a rule whose field carries a
+     * `relationTarget` (a relation's `id`). Injected because this package
+     * has no data layer. Omit it and relation-id rules use the raw uuid
+     * input.
+     */
+    renderRelationValue?: RelationValueEditor;
+    /**
+     * DOM node the nested popovers (field picker, relation value picker) portal
+     * into. Set it to the scroll-locking ancestor's element (a drawer / dialog)
+     * so their lists scroll by mouse wheel; the `QueryBuilderDrawer` wires this
+     * automatically. Defaults to `document.body`.
+     */
+    portalContainer?: HTMLElement | null;
 };
 
 /**
@@ -47,7 +65,9 @@ export function QueryBuilder({
     fields,
     value,
     onChange,
-    showErrors = false
+    showErrors = false,
+    renderRelationValue,
+    portalContainer
 }: QueryBuilderProps) {
     // Memoise the empty-state group so render stays pure: without this,
     // `newGroup()` runs on every render and produces a fresh id, which
@@ -84,12 +104,15 @@ export function QueryBuilder({
     };
 
     return (
-        <GroupNode
-            group={tree}
-            fields={fields}
-            isRoot
-            ops={ops}
-            showErrors={showErrors}
-        />
+        <PortalContainerContext.Provider value={portalContainer ?? null}>
+            <GroupNode
+                group={tree}
+                fields={fields}
+                isRoot
+                ops={ops}
+                showErrors={showErrors}
+                renderRelationValue={renderRelationValue}
+            />
+        </PortalContainerContext.Provider>
     );
 }

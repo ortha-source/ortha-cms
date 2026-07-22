@@ -18,6 +18,13 @@ import {
  * UI-only completeness checks (e.g. {@link RULE_VALIDATION.ValueRequired}).
  */
 export const RULE_VALIDATION = {
+    /**
+     * The rule's `fieldId` isn't in the offered fields — a filter restored
+     * from a URL or a saved view after the field was renamed or removed.
+     * Unlike the others this can't be fixed by editing the value; the user
+     * has to re-pick the field (or drop the rule).
+     */
+    UnknownField: 'unknown_field',
     ValueRequired: 'value_required',
     NotUuid: 'not_uuid',
     NotNumber: 'not_number',
@@ -45,7 +52,7 @@ export function validateRule(
     rule: FilterRule,
     field: FilterField
 ): RuleValidationCode | null {
-    if (rule.op === OP.IsEmpty) return null;
+    if (rule.op === OP.IsEmpty || rule.op === OP.IsNotEmpty) return null;
 
     if (rule.op === OP.Between) {
         const v = rule.value as
@@ -73,7 +80,7 @@ export function validateRule(
         return null;
     }
 
-    if (rule.op === OP.IsOneOf) {
+    if (rule.op === OP.IsOneOf || rule.op === OP.NotOneOf) {
         if (!Array.isArray(rule.value) || rule.value.length === 0) {
             return RULE_VALIDATION.MultiRequired;
         }

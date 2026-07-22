@@ -23,8 +23,10 @@ export function defaultValueForOp(op: OpId): RuleValue {
         case OP.WithinLast:
             return { n: 7, unit: WITHIN_UNIT.Days };
         case OP.IsOneOf:
+        case OP.NotOneOf:
             return [];
         case OP.IsEmpty:
+        case OP.IsNotEmpty:
             return null;
         default:
             return '';

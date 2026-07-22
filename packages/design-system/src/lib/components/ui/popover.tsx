@@ -11,11 +11,25 @@ const PopoverTrigger = PopoverPrimitive.Trigger;
 
 const PopoverAnchor = PopoverPrimitive.Anchor;
 
+/** Extra prop: portal the content into `container` instead of `document.body`. */
+type PopoverContentProps = React.ComponentPropsWithoutRef<
+    typeof PopoverPrimitive.Content
+> & {
+    /**
+     * Where to portal the content. Defaults to `document.body`. Pass the DOM
+     * node of a **scroll-locking** ancestor (a vaul `Drawer` / Radix `Dialog`)
+     * so the popover renders inside that ancestor's allow-listed subtree —
+     * otherwise react-remove-scroll blocks the popover's mouse-wheel scrolling
+     * (the scrollbar still drags, but the wheel does nothing).
+     */
+    container?: HTMLElement | null;
+};
+
 const PopoverContent = React.forwardRef<
     React.ElementRef<typeof PopoverPrimitive.Content>,
-    React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = 'center', sideOffset = 4, ...props }, ref) => (
-    <PopoverPrimitive.Portal>
+    PopoverContentProps
+>(({ className, align = 'center', sideOffset = 4, container, ...props }, ref) => (
+    <PopoverPrimitive.Portal container={container ?? undefined}>
         <PopoverPrimitive.Content
             ref={ref}
             align={align}

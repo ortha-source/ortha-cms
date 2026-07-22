@@ -62,22 +62,31 @@ export abstract class BasePage {
         return this.page.getByRole('dialog', { name: 'Query Builder' });
     }
 
-    /** Open the filter drawer. */
+    /**
+     * The surface hosting the query builder. The **drawer** (a dialog) by
+     * default; a page that mounts the builder as an **inline panel** overrides
+     * this to return that region, so the shared helpers below work for both.
+     */
+    filterSurface(): Locator {
+        return this.filterDrawer();
+    }
+
+    /** Open the filter surface (drawer or inline panel). */
     async openFilters() {
         await this.filterTrigger().click();
-        await this.filterDrawer().waitFor();
+        await this.filterSurface().waitFor();
     }
 
     /** Add a rule to the (root) group. */
     async addRule() {
-        await this.filterDrawer()
+        await this.filterSurface()
             .getByRole('button', { name: 'Add rule' })
             .click();
     }
 
     /** The field / operator / value comboboxes of the first rule, in order. */
     private ruleCombobox(index: number): Locator {
-        return this.filterDrawer().getByRole('combobox').nth(index);
+        return this.filterSurface().getByRole('combobox').nth(index);
     }
 
     /** Pick a field for the first rule by its visible label (e.g. "Status"). */
@@ -85,6 +94,23 @@ export abstract class BasePage {
         await this.ruleCombobox(0).click();
         await this.page
             .getByRole('option', { name: label, exact: true })
+            .click();
+    }
+
+    /**
+     * Pick a field in the searchable, relation-grouped field picker: type
+     * `search` to disambiguate a leaf label that repeats across relation groups
+     * (e.g. "Name" under both "Author" and "Tags"), then click the leaf option.
+     * Use for a relation-path field (`author.name`); {@link selectField} still
+     * works for a unique flat field.
+     */
+    async selectFieldSearch(search: string, optionLabel: string) {
+        await this.ruleCombobox(0).click();
+        await this.page
+            .getByPlaceholder('Search fields and relations')
+            .fill(search);
+        await this.page
+            .getByRole('option', { name: optionLabel, exact: true })
             .click();
     }
 
@@ -106,24 +132,49 @@ export abstract class BasePage {
 
     /** The inline validation error rendered under an invalid rule. */
     ruleError(): Locator {
-        return this.filterDrawer().getByTestId('qb-rule-error');
+        return this.filterSurface().getByTestId('qb-rule-error');
     }
 
     /** Type a scalar value into the first rule's text input. */
     async fillValue(value: string) {
-        await this.filterDrawer().getByRole('textbox').last().fill(value);
+        await this.filterSurface().getByRole('textbox').last().fill(value);
     }
 
-    /** Commit the drawer's draft to the URL. */
+    /** The builder's Apply control — for asserting its enabled/disabled state. */
+    applyButton(): Locator {
+        return this.filterSurface().getByRole('button', { name: 'Apply' });
+    }
+
+    /** Commit the builder's draft to the URL. */
     async applyFilters() {
-        await this.filterDrawer()
-            .getByRole('button', { name: 'Apply' })
+        await this.applyButton().click();
+    }
+
+    /**
+     * The builder's own "couldn't load the filterable fields" state. Distinct
+     * from an empty picker: without the field definitions every rule fails the
+     * Apply gate, so the panel must say so rather than render a dead button.
+     */
+    filterFieldsError(): Locator {
+        return this.filterSurface().getByRole('alert');
+    }
+
+    /**
+     * Pick the operator by label for the first rule. Unlike
+     * {@link selectOperator} this waits for the option list, so it works for
+     * the operators added alongside relation filtering ("does not contain",
+     * "is none of", "is not empty") whose labels are longer.
+     */
+    async selectOperatorExact(label: string) {
+        await this.filterSurface().getByRole('combobox').nth(1).click();
+        await this.page
+            .getByRole('option', { name: label, exact: true })
             .click();
     }
 
-    /** Clear all conditions from the drawer. */
+    /** Clear all conditions from the builder. */
     async resetFilters() {
-        await this.filterDrawer()
+        await this.filterSurface()
             .getByRole('button', { name: 'Reset' })
             .click();
     }

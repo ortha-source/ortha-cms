@@ -89,15 +89,15 @@ function walk(
     if (typeof obj.field === 'string' && typeof obj.op === 'string') {
         const op = wireOpToUiOp(obj.op as WireOp);
         if (!op) return null;
-        // `null` op carries truthy `value:true` — `value:false` would
-        // mean "is not null" which the FE has no UI for, so drop it
-        // rather than silently rehydrate as `is_empty`.
-        if (op === OP.IsEmpty && obj.value === false) return null;
+        // The `null` wire op is shared: `value:true` → is empty,
+        // `value:false` → is not empty.
+        const resolvedOp =
+            op === OP.IsEmpty && obj.value === false ? OP.IsNotEmpty : op;
         return {
             id: idFactory(),
             fieldId: obj.field,
-            op,
-            value: valueFor(op, obj.value)
+            op: resolvedOp,
+            value: valueFor(resolvedOp, obj.value)
         };
     }
 
@@ -109,9 +109,11 @@ function wireOpToUiOp(wireOp: string): OpId | null {
 }
 
 function valueFor(op: OpId, raw: unknown): RuleValue {
-    if (op === OP.IsEmpty) return null;
-    if (op === OP.IsOneOf) return Array.isArray(raw) ? (raw as string[]) : [];
-    if (op === OP.Contains) {
+    if (op === OP.IsEmpty || op === OP.IsNotEmpty) return null;
+    if (op === OP.IsOneOf || op === OP.NotOneOf) {
+        return Array.isArray(raw) ? (raw as string[]) : [];
+    }
+    if (op === OP.Contains || op === OP.NotContains) {
         // Inverse of treeToJsonFilter's `%${escapeLike(v)}%`: drop the wrapping
         // wildcards, then unescape `\%` / `\_` / `\\` back to the literal text
         // the user typed, so a value containing `%`/`_` round-trips faithfully.

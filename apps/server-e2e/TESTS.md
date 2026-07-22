@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_307 test cases across 29 spec files._
+_343 test cases across 31 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -316,6 +316,63 @@ _<sub>apps/server-e2e/src/server/content/content-types.spec.ts</sub>_
 | serves the code-defined registry, not the mock catalogue |
 | grants a workspace the real registry slugs on content mode "all" |
 
+<!-- source: apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</sub>_
+
+## Content relation filtering (GET /api/content/:typeName?filter=)
+
+### many-to-one (author.name)
+
+| Test case |
+| --- |
+| filters entries by a related record field |
+| excludes a soft-deleted target (the relation scope) |
+| excludes a target in another workspace (the workspace scope) |
+
+### many-to-many (tags.*)
+
+| Test case |
+| --- |
+| filters by a tag field with EXISTS semantics (no row duplication) |
+| matches only entries linked to the given tag |
+
+### negation (NOT EXISTS semantics)
+
+| Test case |
+| --- |
+| excludes an entry that has ANY link matching the negated value |
+| keeps an entry with no links at all under a negated rule |
+| "is empty" on a relation id means "has no related row" |
+| "is not empty" on a relation id means "has a related row" |
+| a negated ROOT column still matches rows where it is NULL |
+
+### self-referential (test_page.parent)
+
+| Test case |
+| --- |
+| filters by the parent's own field |
+| filters through a relation UNDER the self-hop (parent.owner.name) |
+| filters two self-hops deep (parent.parent.title) |
+| does not match a page against its own row |
+
+### composition + bounds
+
+| Test case |
+| --- |
+| combines a root field and a relation path under OR |
+| 400s an unknown field under a relation |
+| 400s a path deeper than the relation-hop budget |
+
+## Filter fields (GET /api/content-schema/:name/filter-fields)
+
+| Test case |
+| --- |
+| 401s an unauthenticated request |
+| 404s an unknown content type |
+| 404s a real type the workspace was not granted |
+| prunes a relation whose target is not granted |
+| returns the recursive filterable surface |
+
 <!-- source: apps/server-e2e/src/server/content/list-entries.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
 
@@ -512,6 +569,45 @@ _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
 | lets a viewer read folders (200) |
 | rejects a disallowed Origin on create (403) |
 | allows the configured Origin on create |
+
+<!-- source: apps/server-e2e/src/server/preferences/preferences.spec.ts -->
+_<sub>apps/server-e2e/src/server/preferences/preferences.spec.ts</sub>_
+
+## /api/preferences
+
+### GET (read)
+
+| Test case |
+| --- |
+| defaults to the system theme before anything is saved |
+| returns only the theme (no userId/timestamps leak) |
+| rejects an unauthenticated read with 401 |
+
+### PUT (upsert)
+
+| Test case |
+| --- |
+| creates the row on first save and returns the new theme |
+| updates the existing row on a second save (no duplicate) |
+| accepts each valid theme |
+| rejects an unauthenticated write with 401 |
+
+### PUT (upsert) › validation (400)
+
+| Test case |
+| --- |
+| rejects a theme outside the enum |
+| rejects a missing theme |
+| rejects a non-string theme |
+| rejects an unknown extra field (forbidNonWhitelisted) |
+
+### PUT (upsert) › OriginGuard (CSRF defense)
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured Origin |
+| allows a request with no Origin header |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

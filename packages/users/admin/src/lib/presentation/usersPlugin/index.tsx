@@ -7,6 +7,7 @@ import {
     MembersPageSkeleton
 } from '../components/MembersSkeleton';
 import { AccountMenu } from '../components/AccountMenu';
+import { ThemeSync } from '../components/ThemeSync';
 
 // Lazy-loaded so the Members page is code-split into its own chunk, fetched
 // only when a signed-in user first navigates to `/users`.
@@ -103,9 +104,24 @@ export function UsersPlugin(): UsersAdminPlugin {
                 ]
             },
             {
-                // The account menu pinned to the sidebar footer.
+                // The account menu pinned to the sidebar footer, plus an
+                // invisible theme hydrator (renders null) that pulls the
+                // signed-in user's saved theme from the server so it takes
+                // effect app-wide without opening the Preferences tab.
+                //
+                // The hydrator lives in the FOOTER, not SIDEBAR_SECTION_SLOT:
+                // the section slot belongs to `GlobalSidebar`, which a route can
+                // replace wholesale via `useSidebarContent` (the workspace shell
+                // does). Mounted there, a user who deep-links straight into a
+                // workspace route would never hydrate their theme. The footer is
+                // the region the shell keeps mounted in *both* contexts.
                 slot: SIDEBAR_FOOTER_SLOT,
                 items: [
+                    {
+                        id: 'users.themeSync',
+                        order: 0,
+                        Component: ThemeSync
+                    },
                     {
                         id: 'users.account',
                         order: 10,

@@ -9,7 +9,11 @@ import {
     users,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
-import { memberships, workspaces } from '@ortha-cms/workspaces-server';
+import {
+    memberships,
+    workspaceContent,
+    workspaces
+} from '@ortha-cms/workspaces-server';
 import { mediaAsset, mediaFolder } from '@ortha-cms/media-server';
 // The e2e-owned generated content tables (from the harness's own content model,
 // NOT the app's collections). Specs reach these only through the helpers below.
@@ -18,6 +22,7 @@ import {
     testArticles,
     testAuthors,
     testLandingPage,
+    testPages,
     testTags
 } from './content';
 // HashingService is internal to the identity plugin (not re-exported). We reach
@@ -161,6 +166,24 @@ export async function seedWorkspace(opts: {
         slug: workspace.slug,
         color: workspace.color
     };
+}
+
+/**
+ * Grant a workspace access to content slugs (the `workspace_content` rows the
+ * create wizard writes). Membership alone is not access: the filter-fields
+ * surface 404s a type the workspace was never granted, and prunes relations
+ * into ungranted targets, so a spec that asserts on the surface has to seed
+ * the grants its assertions assume.
+ */
+export async function seedContentGrants(
+    workspaceId: string,
+    slugs: readonly string[],
+    kind: 'collection' | 'single' = 'collection'
+): Promise<void> {
+    if (slugs.length === 0) return;
+    await getDatabase()
+        .insert(workspaceContent)
+        .values(slugs.map((slug) => ({ workspaceId, kind, slug })));
 }
 
 /** Add a user to a workspace (the `memberships` join). */
@@ -313,7 +336,7 @@ export async function resetDb(): Promise<void> {
         'TRUNCATE TABLE users, workspaces, activity_events, ' +
             'content_test_article, content_test_author, content_test_tag, ' +
             'content_test_seo, content_test_comment, content_test_landing, ' +
-            'media_asset, media_folder ' +
+            'content_test_page, media_asset, media_folder ' +
             'RESTART IDENTITY CASCADE'
     );
 }
@@ -455,6 +478,45 @@ export async function seedTags(
         .values(rows.map((row) => ({ workspaceId, ...row })) as never)
         .returning()) as { id: string }[];
     return inserted.map((row) => row.id);
+}
+
+/**
+ * Insert rows into the `test_page` collection (the self-referential tree) and
+ * return the inserted ids in input order. Rows are inserted **one at a time**,
+ * in order, so a later row can name an earlier one as its `parent` — a batch
+ * insert couldn't reference an id it hasn't returned yet. Not i18n, not
+ * publishable, so `title` is the only required value.
+ */
+export async function seedPages(
+    rows: Record<string, unknown>[],
+    workspaceId?: string
+): Promise<string[]> {
+    const ids: string[] = [];
+    for (const row of rows) {
+        const [inserted] = (await getDatabase()
+            .insert(testPages)
+            .values({ workspaceId, ...row } as never)
+            .returning()) as { id: string }[];
+        ids.push(inserted.id);
+    }
+    return ids;
+}
+
+/**
+ * Soft-delete `test_author` rows (stamp `deleted_at`), so a spec can assert a
+ * relation filter no longer traverses them — the workspace + soft-delete
+ * `scope` the engine ANDs inside a relation's EXISTS subquery. Writes the
+ * tombstone directly rather than through the API, mirroring the other seeders.
+ */
+export async function softDeleteAuthors(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    // Raw parameterized UPDATE (like {@link resetDb}) — the generated table's
+    // columns aren't statically typed, so `getPool` is cleaner than reaching
+    // for an untyped `.id` column off the Drizzle table.
+    await getPool().query(
+        'UPDATE content_test_author SET deleted_at = now() WHERE id = ANY($1::uuid[])',
+        [ids]
+    );
 }
 
 /**

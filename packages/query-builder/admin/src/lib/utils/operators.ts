@@ -8,8 +8,11 @@ export const OPS_FOR_TYPE: Record<FieldType, readonly OpId[]> = {
         OP.Equals,
         OP.NotEquals,
         OP.Contains,
+        OP.NotContains,
         OP.IsOneOf,
-        OP.IsEmpty
+        OP.NotOneOf,
+        OP.IsEmpty,
+        OP.IsNotEmpty
     ],
     [FIELD_TYPE.Number]: [
         OP.Equals,
@@ -19,10 +22,18 @@ export const OPS_FOR_TYPE: Record<FieldType, readonly OpId[]> = {
         OP.Lt,
         OP.Lte,
         OP.Between,
-        OP.IsEmpty
+        OP.IsEmpty,
+        OP.IsNotEmpty
     ],
     [FIELD_TYPE.Boolean]: [OP.Equals],
-    [FIELD_TYPE.Uuid]: [OP.Equals, OP.NotEquals, OP.IsOneOf, OP.IsEmpty],
+    [FIELD_TYPE.Uuid]: [
+        OP.Equals,
+        OP.NotEquals,
+        OP.IsOneOf,
+        OP.NotOneOf,
+        OP.IsEmpty,
+        OP.IsNotEmpty
+    ],
     // No `equals` for dates: the editor is minute-precision (`datetime-local`)
     // while the column is a millisecond `timestamptz`, so `eq` would compare
     // against an instant at `:00` seconds and essentially never match a real
@@ -35,9 +46,17 @@ export const OPS_FOR_TYPE: Record<FieldType, readonly OpId[]> = {
         OP.Lte,
         OP.Between,
         OP.WithinLast,
-        OP.IsEmpty
+        OP.IsEmpty,
+        OP.IsNotEmpty
     ],
-    [FIELD_TYPE.Enum]: [OP.Equals, OP.NotEquals, OP.IsOneOf, OP.IsEmpty]
+    [FIELD_TYPE.Enum]: [
+        OP.Equals,
+        OP.NotEquals,
+        OP.IsOneOf,
+        OP.NotOneOf,
+        OP.IsEmpty,
+        OP.IsNotEmpty
+    ]
 } as const;
 
 /**
@@ -53,8 +72,14 @@ export const OP_LABELS = defineMessages({
     equals: { id: 'qb.op.equals', defaultMessage: 'equals' },
     not_equals: { id: 'qb.op.notEquals', defaultMessage: 'is not' },
     contains: { id: 'qb.op.contains', defaultMessage: 'contains' },
+    not_contains: {
+        id: 'qb.op.notContains',
+        defaultMessage: 'does not contain'
+    },
     is_one_of: { id: 'qb.op.isOneOf', defaultMessage: 'is one of' },
+    not_one_of: { id: 'qb.op.notOneOf', defaultMessage: 'is none of' },
     is_empty: { id: 'qb.op.isEmpty', defaultMessage: 'is empty' },
+    is_not_empty: { id: 'qb.op.isNotEmpty', defaultMessage: 'is not empty' },
     between: { id: 'qb.op.between', defaultMessage: 'between' },
     gt: { id: 'qb.op.gt', defaultMessage: 'greater than' },
     gte: {

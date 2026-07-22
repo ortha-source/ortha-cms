@@ -10,7 +10,8 @@ import {
 import {
     FIELD_TYPE,
     type FieldType,
-    type FilterField
+    type FilterField,
+    type RelationValueEditor
 } from '../../../../../types/filter-field.type';
 import {
     OP,
@@ -64,6 +65,8 @@ export type ValueEditorProps = {
     invalid?: boolean;
     /** Id of the rule's error message, wired as `aria-describedby`. */
     describedById?: string;
+    /** Record picker for a relation-id field; falls back to uuid text input. */
+    renderRelationValue?: RelationValueEditor;
 };
 
 const inputTypeFor = (
@@ -99,7 +102,8 @@ export function ValueEditor({
     value,
     onChange,
     invalid,
-    describedById
+    describedById,
+    renderRelationValue
 }: ValueEditorProps) {
     const intl = useIntl();
     // Shared a11y props applied to every editor variant's primary control,
@@ -110,7 +114,32 @@ export function ValueEditor({
         'aria-describedby': describedById
     };
 
-    if (op === OP.IsEmpty) return null;
+    if (op === OP.IsEmpty || op === OP.IsNotEmpty) return null;
+
+    const isMulti = op === OP.IsOneOf || op === OP.NotOneOf;
+
+    // A relation id is a uuid to the engine, but a RECORD to the user. When
+    // the consumer supplies a picker, the set-membership / equality ops route
+    // to it; comparison ops (gt/lt/…) are meaningless on a uuid and never
+    // reach a relation field anyway (its ops list excludes them).
+    if (
+        field.relationTarget &&
+        renderRelationValue &&
+        (isMulti || op === OP.Equals || op === OP.NotEquals)
+    ) {
+        const ids = Array.isArray(value)
+            ? value
+            : typeof value === 'string' && value
+              ? [value]
+              : [];
+        return renderRelationValue({
+            target: field.relationTarget,
+            value: ids,
+            onChange: (next) => onChange(isMulti ? next : (next[0] ?? '')),
+            invalid,
+            describedById
+        });
+    }
 
     if (op === OP.Between) {
         const range = (value as { from: string; to: string }) ?? {
@@ -199,10 +228,10 @@ export function ValueEditor({
     }
 
     if (field.type === FIELD_TYPE.Enum && field.enumValues) {
-        if (op === OP.IsOneOf) {
-            // Constrain `is_one_of` on an enum to its declared members so a
-            // value can't be typed that the server would reject with
-            // FILTER_INVALID_VALUE. (Free-text CSV stays for string/uuid fields.)
+        if (isMulti) {
+            // Constrain `is_one_of` / `is none of` on an enum to its declared
+            // members so a value can't be typed that the server would reject
+            // with FILTER_INVALID_VALUE. (Free-text CSV stays for string/uuid.)
             return (
                 <EnumMultiSelect
                     options={field.enumValues}
@@ -241,7 +270,7 @@ export function ValueEditor({
         );
     }
 
-    if (op === OP.IsOneOf) {
+    if (isMulti) {
         return (
             <CsvValueInput
                 value={Array.isArray(value) ? value : []}
