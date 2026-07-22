@@ -18,11 +18,13 @@ const messages = defineMessages({
 });
 
 /**
- * The Media Library's folder sidebar — a **flat** nav region on the muted canvas
- * (mirroring the Content Library sidebar), not a bordered island. An "All media"
- * root entry sits above the folder tree, where any folder with sub-folders is
- * collapsible; a New folder action closes the list. Highlights the open folder
- * and dispatches navigation / create up to the page.
+ * The Media Library's folder sidebar — a **flat** nav region sitting flush on the
+ * page background (mirroring the Content Library sidebar), not a bordered island.
+ * The page supplies the divider (`lg:border-r`) via `className`, so the mobile
+ * drawer copy renders without one. An "All media" root entry sits above the
+ * folder tree, where any folder with sub-folders is collapsible; a New folder
+ * action closes the list. Highlights the open folder and dispatches navigation /
+ * create up to the page.
  */
 export function MediaFoldersNav({
     folders,

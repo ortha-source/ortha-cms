@@ -182,6 +182,7 @@ export {
     TableCaption
 } from './lib/components/ui/table';
 export { Checkbox } from './lib/components/ui/checkbox';
+export { Progress } from './lib/components/ui/progress';
 export { RadioGroup, RadioGroupItem } from './lib/components/ui/radio-group';
 export {
     DropdownMenu,

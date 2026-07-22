@@ -10,8 +10,8 @@ import {
     DialogTitle,
     cn
 } from '@ortha-cms/design-system';
-import { UploadCloud, X } from 'lucide-react';
-import { formatBytes } from '../../utils/formatBytes';
+import { UploadCloud } from 'lucide-react';
+import { StagedFileRow } from './StagedFileRow';
 
 /** Intl descriptors for {@link UploadDialog}, co-located. */
 const messages = defineMessages({
@@ -34,7 +34,6 @@ const messages = defineMessages({
         id: 'media.upload.staged',
         defaultMessage: '{count, plural, one {# file ready} other {# files ready}}'
     },
-    remove: { id: 'media.upload.remove', defaultMessage: 'Remove file' },
     cancel: { id: 'media.upload.cancel', defaultMessage: 'Cancel' },
     confirm: {
         id: 'media.upload.confirm',
@@ -43,10 +42,16 @@ const messages = defineMessages({
 });
 
 /**
- * The upload modal — a drag-and-drop zone plus a file picker that stages the
- * chosen files into a removable list before committing. On confirm the parent's
- * `onUpload` receives the real `File` objects, which the data layer streams to
- * the media API. Staged files reset whenever the dialog reopens.
+ * The upload modal — a drag-and-drop zone plus a multi-file picker that stages
+ * the chosen files into a removable, **previewed** list before committing:
+ * images render a real thumbnail off a local object URL (see
+ * {@link StagedFileRow}), other kinds a glyph, so a wrong file is caught before
+ * a byte moves. Files accumulate across several drops/picks.
+ *
+ * On confirm the parent's `onUpload` receives the real `File` objects and the
+ * dialog closes immediately — progress then lives in the page's upload banner,
+ * not here, so the user can keep browsing (and queue more) while bytes move.
+ * Staged files reset whenever the dialog reopens.
  */
 export function UploadDialog({
     open,
@@ -159,30 +164,13 @@ export function UploadDialog({
                                 count: staged.length
                             })}
                         </p>
-                        <ul className="max-h-40 space-y-1 overflow-auto">
+                        <ul className="flex max-h-56 flex-col gap-1 overflow-auto">
                             {staged.map((file, index) => (
-                                <li
-                                    key={`${file.name}-${index}`}
-                                    className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-sm"
-                                >
-                                    <span className="min-w-0 flex-1 truncate">
-                                        {file.name}
-                                    </span>
-                                    <span className="shrink-0 text-xs text-muted-foreground">
-                                        {formatBytes(file.size)}
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="size-7 shrink-0 shadow-none"
-                                        aria-label={intl.formatMessage(
-                                            messages.remove
-                                        )}
-                                        onClick={() => removeAt(index)}
-                                    >
-                                        <X aria-hidden />
-                                    </Button>
-                                </li>
+                                <StagedFileRow
+                                    key={`${file.name}-${file.lastModified}-${index}`}
+                                    file={file}
+                                    onRemove={() => removeAt(index)}
+                                />
                             ))}
                         </ul>
                     </div>

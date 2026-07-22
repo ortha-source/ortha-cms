@@ -4,31 +4,18 @@ import {
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
-    SegmentedControl,
-    SegmentedControlItem,
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger
+    SelectValue
 } from '@ortha-cms/design-system';
-import {
-    FolderPlus,
-    LayoutGrid,
-    List,
-    Search,
-    UploadCloud
-} from 'lucide-react';
+import { FolderPlus, Search, UploadCloud } from 'lucide-react';
 import {
     KIND_FILTER_ALL,
     MEDIA_KIND,
     MEDIA_SORT,
-    MEDIA_VIEW,
-    type MediaSort,
-    type MediaView
+    type MediaSort
 } from '../../constants';
 import type { KindFilter } from '../../hooks/useMediaLibrary';
 
@@ -53,17 +40,14 @@ const messages = defineMessages({
     sortNameDesc: { id: 'media.toolbar.sortNameDesc', defaultMessage: 'Name Z–A' },
     sortLargest: { id: 'media.toolbar.sortLargest', defaultMessage: 'Largest' },
     sortSmallest: { id: 'media.toolbar.sortSmallest', defaultMessage: 'Smallest' },
-    viewGrid: { id: 'media.toolbar.viewGrid', defaultMessage: 'Grid view' },
-    viewList: { id: 'media.toolbar.viewList', defaultMessage: 'List view' },
     newFolder: { id: 'media.toolbar.newFolder', defaultMessage: 'New folder' },
     upload: { id: 'media.toolbar.upload', defaultMessage: 'Upload' }
 });
 
 /**
  * The Media Library's control bar — a search box, a type filter, a sort select,
- * a grid/list view toggle, and (permission-gated) New folder + Upload actions.
- * Fully controlled: every value lives in the page's store and changes dispatch
- * straight back up.
+ * and (permission-gated) New folder + Upload actions. Fully controlled: every
+ * value lives in the page's store and changes dispatch straight back up.
  */
 export function MediaToolbar({
     search,
@@ -72,8 +56,6 @@ export function MediaToolbar({
     onKindFilterChange,
     sort,
     onSortChange,
-    view,
-    onViewChange,
     onNewFolder,
     onUpload,
     canCreate
@@ -84,8 +66,6 @@ export function MediaToolbar({
     onKindFilterChange: (value: KindFilter) => void;
     sort: MediaSort;
     onSortChange: (value: MediaSort) => void;
-    view: MediaView;
-    onViewChange: (value: MediaView) => void;
     onNewFolder: () => void;
     onUpload: () => void;
     canCreate: boolean;
@@ -174,44 +154,6 @@ export function MediaToolbar({
             </Select>
 
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                <SegmentedControl
-                    value={view}
-                    onValueChange={(value) => {
-                        if (value) onViewChange(value as MediaView);
-                    }}
-                >
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <SegmentedControlItem
-                                value={MEDIA_VIEW.Grid}
-                                aria-label={intl.formatMessage(
-                                    messages.viewGrid
-                                )}
-                            >
-                                <LayoutGrid className="size-4" aria-hidden />
-                            </SegmentedControlItem>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            {intl.formatMessage(messages.viewGrid)}
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <SegmentedControlItem
-                                value={MEDIA_VIEW.List}
-                                aria-label={intl.formatMessage(
-                                    messages.viewList
-                                )}
-                            >
-                                <List className="size-4" aria-hidden />
-                            </SegmentedControlItem>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            {intl.formatMessage(messages.viewList)}
-                        </TooltipContent>
-                    </Tooltip>
-                </SegmentedControl>
-
                 {canCreate ? (
                     <>
                         <Button

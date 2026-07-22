@@ -11,7 +11,8 @@ import type {
     MediaFoldersResult,
     MediaGateway,
     MoveAssetsInput,
-    RenameInput
+    RenameInput,
+    UploadOptions
 } from '../mediaGateway';
 import type { MediaAsset } from '../../types/mediaAsset';
 
@@ -85,17 +86,28 @@ export const httpMediaGateway: MediaGateway = {
         }
     },
 
-    async uploadFiles(folderId: string, files: File[]): Promise<void> {
+    async uploadFile(
+        folderId: string,
+        file: File,
+        options?: UploadOptions
+    ): Promise<void> {
         const target = folderParam(folderId);
+        const form = new FormData();
+        form.append('file', file);
+        if (target) form.append('folderId', target);
         try {
-            await Promise.all(
-                files.map((file) => {
-                    const form = new FormData();
-                    form.append('file', file);
-                    if (target) form.append('folderId', target);
-                    return apiClient.post('/media/assets', form);
-                })
-            );
+            await apiClient.post('/media/assets', form, {
+                signal: options?.signal,
+                onUploadProgress: (event) => {
+                    // `total` is absent on some proxies/streams; without it a
+                    // percentage would be a lie, so report nothing and let the
+                    // caller keep showing indeterminate progress.
+                    if (!event.total) return;
+                    options?.onProgress?.(
+                        Math.round((event.loaded / event.total) * 100)
+                    );
+                }
+            });
         } catch (error) {
             throw toApiError(error);
         }

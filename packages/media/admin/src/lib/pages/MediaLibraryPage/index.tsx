@@ -15,7 +15,6 @@ import {
     MEDIA_DELETE,
     MEDIA_READ,
     MEDIA_UPDATE,
-    MEDIA_VIEW,
     ROOT_FOLDER_ID
 } from '../../constants';
 import { useMediaLibrary } from '../../hooks/useMediaLibrary';
@@ -23,11 +22,11 @@ import type { MediaAsset } from '../../types/mediaAsset';
 import type { MediaFolder } from '../../types/mediaFolder';
 import type { AssetActionKind } from '../../components/AssetActionsMenu';
 import { MediaFoldersNav } from '../../components/MediaFoldersNav';
-import { MediaBreadcrumbs } from '../../components/MediaBreadcrumbs';
+import { MediaTopBar } from '../../components/MediaTopBar';
 import { MediaToolbar } from '../../components/MediaToolbar';
 import { MediaSelectionBar } from '../../components/MediaSelectionBar';
+import { MediaUploadBanner } from '../../components/MediaUploadBanner';
 import { MediaGrid } from '../../components/MediaGrid';
-import { MediaTable } from '../../components/MediaTable';
 import { MediaEmptyState } from '../../components/MediaEmptyState';
 import { AssetDetailDrawer } from '../../components/AssetDetailDrawer';
 import { NewFolderDialog } from '../../components/NewFolderDialog';
@@ -40,7 +39,8 @@ const messages = defineMessages({
     title: { id: 'media.page.title', defaultMessage: 'Media Library' },
     subtitle: {
         id: 'media.page.subtitle',
-        defaultMessage: '{count, plural, one {# item} other {# items}} in {location}'
+        defaultMessage:
+            '{count, plural, one {# item} other {# items}} in {location}'
     },
     allMedia: { id: 'media.page.allMedia', defaultMessage: 'All media' },
     noAccess: {
@@ -48,10 +48,14 @@ const messages = defineMessages({
         defaultMessage: 'You don’t have permission to view the media library.'
     },
     openNav: { id: 'media.page.openNav', defaultMessage: 'Folders' },
-    navTitle: { id: 'media.page.navTitle', defaultMessage: 'Folder navigation' },
+    navTitle: {
+        id: 'media.page.navTitle',
+        defaultMessage: 'Folder navigation'
+    },
     selection: {
         id: 'media.page.selection',
-        defaultMessage: '{count, plural, =0 {No items selected} one {# item selected} other {# items selected}}'
+        defaultMessage:
+            '{count, plural, =0 {No items selected} one {# item selected} other {# items selected}}'
     },
     deleteAssetsTitle: {
         id: 'media.page.deleteAssetsTitle',
@@ -59,7 +63,8 @@ const messages = defineMessages({
     },
     deleteAssetsBody: {
         id: 'media.page.deleteAssetsBody',
-        defaultMessage: 'This can’t be undone. The selected assets will be permanently removed.'
+        defaultMessage:
+            'This can’t be undone. The selected assets will be permanently removed.'
     },
     deleteFolderTitle: {
         id: 'media.page.deleteFolderTitle',
@@ -67,27 +72,33 @@ const messages = defineMessages({
     },
     deleteFolderBody: {
         id: 'media.page.deleteFolderBody',
-        defaultMessage: 'The folder will be permanently removed. It must be empty first — move or delete its contents.'
+        defaultMessage:
+            'The folder will be permanently removed. It must be empty first — move or delete its contents.'
     },
     confirmDelete: { id: 'media.page.confirmDelete', defaultMessage: 'Delete' },
     // toasts
-    tCreated: { id: 'media.page.toast.created', defaultMessage: 'Folder “{name}” created' },
-    tUploaded: {
-        id: 'media.page.toast.uploaded',
-        defaultMessage: '{count, plural, one {# asset uploaded} other {# assets uploaded}}'
+    tCreated: {
+        id: 'media.page.toast.created',
+        defaultMessage: 'Folder “{name}” created'
     },
-    tRenamed: { id: 'media.page.toast.renamed', defaultMessage: 'Renamed to “{name}”' },
+    tRenamed: {
+        id: 'media.page.toast.renamed',
+        defaultMessage: 'Renamed to “{name}”'
+    },
     tDuplicated: {
         id: 'media.page.toast.duplicated',
-        defaultMessage: '{count, plural, one {# asset duplicated} other {# assets duplicated}}'
+        defaultMessage:
+            '{count, plural, one {# asset duplicated} other {# assets duplicated}}'
     },
     tMoved: {
         id: 'media.page.toast.moved',
-        defaultMessage: '{count, plural, one {# asset moved} other {# assets moved}}'
+        defaultMessage:
+            '{count, plural, one {# asset moved} other {# assets moved}}'
     },
     tDeletedAssets: {
         id: 'media.page.toast.deletedAssets',
-        defaultMessage: '{count, plural, one {# asset deleted} other {# assets deleted}}'
+        defaultMessage:
+            '{count, plural, one {# asset deleted} other {# assets deleted}}'
     },
     tDeletedFolder: {
         id: 'media.page.toast.deletedFolder',
@@ -97,7 +108,10 @@ const messages = defineMessages({
         id: 'media.page.toast.download',
         defaultMessage: 'Downloading “{name}”'
     },
-    tCopied: { id: 'media.page.toast.copied', defaultMessage: 'Link copied to clipboard' }
+    tCopied: {
+        id: 'media.page.toast.copied',
+        defaultMessage: 'Link copied to clipboard'
+    }
 });
 
 /** A pending rename, tagged by whether it targets an asset or a folder. */
@@ -112,14 +126,24 @@ type DeleteTarget =
 
 /**
  * The Media Library, mounted inside the workspace shell at
- * `/workspaces/:id/media`. This is a **design mockup**: `useMediaLibrary` holds
- * an in-memory, mock-seeded store, and every action (browse folders, upload,
- * create folder, rename, duplicate, move, delete, filter, sort, switch grid/list,
- * open the detail drawer) runs against local state — there is no media server
- * yet. It owns a two-pane layout — a folders sidebar beside the asset browser —
- * plus the detail drawer and the create/rename/move/upload dialogs, and fires a
- * toast per action. Permission flags are placeholders (all enabled) until the
- * media server ships the `media:*` matrix and real `useHasPermission` gates.
+ * `/workspaces/:id/media`. `useMediaLibrary` is the store — folders and the open
+ * folder's assets come from `@ortha-cms/media-server`, and every action (browse
+ * folders, upload, create folder, rename, duplicate, move, delete, filter, sort,
+ * open the detail drawer) runs against the API, firing a toast per action —
+ * except uploads, whose status lives in the `MediaUploadBanner`. Controls gate
+ * on the real `media:*` matrix via `useHasPermission`.
+ *
+ * A sticky `MediaTopBar` heads the page (the shared icon-tile + breadcrumb
+ * header every admin page carries), spanning both panes. Below it sits a
+ * two-pane layout — a folders sidebar beside the asset browser — plus the detail
+ * drawer and the create/rename/move/upload dialogs. Both panes sit
+ * **flush on the canvas** (no muted board, no bordered island), mirroring the
+ * Content Library's work area: the sidebar is divided by a hairline `border-r`
+ * and each pane scrolls independently. Sized with `flex-1` against the workspace
+ * shell's `min-h-svh` column — NOT its own `svh` calc — so there is exactly one
+ * viewport measurement in the chain; a second, independently rounded one can end
+ * up a pixel taller (visible at browser zoom ≠ 100%) and give the document a
+ * phantom scrollbar beside the pane's own.
  */
 export function MediaLibraryPage() {
     const intl = useIntl();
@@ -141,13 +165,9 @@ export function MediaLibraryPage() {
         ? store.currentFolder.name
         : intl.formatMessage(messages.allMedia);
 
-    const hasFilters =
-        store.search.trim() !== '' || store.kindFilter !== 'all';
+    const hasFilters = store.search.trim() !== '' || store.kindFilter !== 'all';
     const isEmpty =
         store.childFolders.length === 0 && store.visibleAssets.length === 0;
-    const allSelected =
-        store.visibleAssets.length > 0 &&
-        store.visibleAssets.every((asset) => store.selectedIds.has(asset.id));
 
     // A single dispatcher every card / row / drawer forwards asset actions to.
     const handleAssetAction = (kind: AssetActionKind, asset: MediaAsset) => {
@@ -194,11 +214,6 @@ export function MediaLibraryPage() {
                 setDeleteTarget({ kind: 'assets', ids: [asset.id] });
                 break;
         }
-    };
-
-    const handleToggleAll = () => {
-        if (allSelected) store.clearSelection();
-        else store.selectAllVisible();
     };
 
     const handleRenameFolder = (folder: MediaFolder) =>
@@ -250,7 +265,7 @@ export function MediaLibraryPage() {
 
     if (!canRead) {
         return (
-            <div className="flex h-[calc(100svh-3rem)] items-center justify-center bg-muted/40 p-6 text-center">
+            <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center">
                 <p className="max-w-sm text-sm text-muted-foreground">
                     {intl.formatMessage(messages.noAccess)}
                 </p>
@@ -259,147 +274,142 @@ export function MediaLibraryPage() {
     }
 
     return (
-        <div className="flex h-[calc(100svh-3rem)] flex-col gap-3 bg-muted/40 p-3 lg:flex-row">
-            <div className="lg:hidden">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="shadow-none"
-                    onClick={() => setNavOpen(true)}
-                >
-                    <PanelLeft aria-hidden />
-                    {intl.formatMessage(messages.openNav)}
-                </Button>
-            </div>
-
-            <MediaFoldersNav
-                className="hidden lg:flex"
-                folders={store.folders}
-                currentFolderId={store.currentFolderId}
-                counts={store.folderCounts}
-                rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <MediaTopBar
+                breadcrumbs={store.breadcrumbs}
                 onNavigate={store.navigateTo}
-                onNewFolder={() => setNewFolderOpen(true)}
-                canCreate={canCreate}
             />
 
-            <main className="min-w-0 flex-1 overflow-auto rounded-xl border bg-background shadow-sm">
-                <div className="p-4 sm:p-6">
-                    <div className="mb-4">
-                        <MediaBreadcrumbs
-                            breadcrumbs={store.breadcrumbs}
-                            onNavigate={store.navigateTo}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
+                <div className="border-b p-3 lg:hidden">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="shadow-none"
+                        onClick={() => setNavOpen(true)}
+                    >
+                        <PanelLeft aria-hidden />
+                        {intl.formatMessage(messages.openNav)}
+                    </Button>
+                </div>
+
+                <MediaFoldersNav
+                    className="hidden lg:flex lg:border-r"
+                    folders={store.folders}
+                    currentFolderId={store.currentFolderId}
+                    counts={store.folderCounts}
+                    rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
+                    onNavigate={store.navigateTo}
+                    onNewFolder={() => setNewFolderOpen(true)}
+                    canCreate={canCreate}
+                />
+
+                <main className="min-w-0 flex-1 overflow-auto">
+                    <div className="p-4 sm:p-6">
+                        <div className="mb-4">
+                            <h1 className="text-2xl font-semibold tracking-[-0.01em]">
+                                {store.currentFolder
+                                    ? store.currentFolder.name
+                                    : intl.formatMessage(messages.title)}
+                            </h1>
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                                {intl.formatMessage(messages.subtitle, {
+                                    count: store.visibleAssets.length,
+                                    location: locationLabel
+                                })}
+                            </p>
+                        </div>
+
+                        <MediaToolbar
+                            search={store.search}
+                            onSearchChange={store.setSearch}
+                            kindFilter={store.kindFilter}
+                            onKindFilterChange={store.setKindFilter}
+                            sort={store.sort}
+                            onSortChange={store.setSort}
+                            onNewFolder={() => setNewFolderOpen(true)}
+                            onUpload={() => setUploadOpen(true)}
+                            canCreate={canCreate}
                         />
-                        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em]">
-                            {store.currentFolder
-                                ? store.currentFolder.name
-                                : intl.formatMessage(messages.title)}
-                        </h1>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.subtitle, {
-                                count: store.visibleAssets.length,
-                                location: locationLabel
+
+                        <p className="sr-only" aria-live="polite">
+                            {intl.formatMessage(messages.selection, {
+                                count: selectedIds.length
                             })}
                         </p>
+
+                        <MediaUploadBanner
+                            items={store.uploadItems}
+                            summary={store.uploadSummary}
+                            onRetry={store.retryUpload}
+                            onCancel={store.cancelUpload}
+                            onDismiss={store.dismissUploads}
+                        />
+
+                        {selectedIds.length > 0 ? (
+                            <MediaSelectionBar
+                                count={selectedIds.length}
+                                onDownload={() =>
+                                    toast.success(
+                                        intl.formatMessage(messages.tDownload, {
+                                            name: `${selectedIds.length} files`
+                                        })
+                                    )
+                                }
+                                onDuplicate={() => {
+                                    store.duplicateAssets(selectedIds);
+                                    toast.success(
+                                        intl.formatMessage(
+                                            messages.tDuplicated,
+                                            {
+                                                count: selectedIds.length
+                                            }
+                                        )
+                                    );
+                                }}
+                                onMove={() => setMoveIds(selectedIds)}
+                                onDelete={() =>
+                                    setDeleteTarget({
+                                        kind: 'assets',
+                                        ids: selectedIds
+                                    })
+                                }
+                                onClear={store.clearSelection}
+                                canCreate={canCreate}
+                                canUpdate={canUpdate}
+                                canDelete={canDelete}
+                            />
+                        ) : null}
+
+                        {isEmpty ? (
+                            <MediaEmptyState
+                                hasFilters={hasFilters}
+                                canCreate={canCreate}
+                                onUpload={() => setUploadOpen(true)}
+                                onClearFilters={() => {
+                                    store.setSearch('');
+                                    store.setKindFilter('all');
+                                }}
+                            />
+                        ) : (
+                            <MediaGrid
+                                folders={store.childFolders}
+                                assets={store.visibleAssets}
+                                folderCounts={store.folderCounts}
+                                selectedIds={store.selectedIds}
+                                onOpenFolder={store.navigateTo}
+                                onRenameFolder={handleRenameFolder}
+                                onDeleteFolder={handleDeleteFolder}
+                                onToggleSelect={store.toggleSelect}
+                                onAssetAction={handleAssetAction}
+                                canCreate={canCreate}
+                                canUpdate={canUpdate}
+                                canDelete={canDelete}
+                            />
+                        )}
                     </div>
-
-                    <MediaToolbar
-                        search={store.search}
-                        onSearchChange={store.setSearch}
-                        kindFilter={store.kindFilter}
-                        onKindFilterChange={store.setKindFilter}
-                        sort={store.sort}
-                        onSortChange={store.setSort}
-                        view={store.view}
-                        onViewChange={store.setView}
-                        onNewFolder={() => setNewFolderOpen(true)}
-                        onUpload={() => setUploadOpen(true)}
-                        canCreate={canCreate}
-                    />
-
-                    <p className="sr-only" aria-live="polite">
-                        {intl.formatMessage(messages.selection, {
-                            count: selectedIds.length
-                        })}
-                    </p>
-
-                    {selectedIds.length > 0 ? (
-                        <MediaSelectionBar
-                            count={selectedIds.length}
-                            onDownload={() =>
-                                toast.success(
-                                    intl.formatMessage(messages.tDownload, {
-                                        name: `${selectedIds.length} files`
-                                    })
-                                )
-                            }
-                            onDuplicate={() => {
-                                store.duplicateAssets(selectedIds);
-                                toast.success(
-                                    intl.formatMessage(messages.tDuplicated, {
-                                        count: selectedIds.length
-                                    })
-                                );
-                            }}
-                            onMove={() => setMoveIds(selectedIds)}
-                            onDelete={() =>
-                                setDeleteTarget({
-                                    kind: 'assets',
-                                    ids: selectedIds
-                                })
-                            }
-                            onClear={store.clearSelection}
-                            canCreate={canCreate}
-                            canUpdate={canUpdate}
-                            canDelete={canDelete}
-                        />
-                    ) : null}
-
-                    {isEmpty ? (
-                        <MediaEmptyState
-                            hasFilters={hasFilters}
-                            canCreate={canCreate}
-                            onUpload={() => setUploadOpen(true)}
-                            onClearFilters={() => {
-                                store.setSearch('');
-                                store.setKindFilter('all');
-                            }}
-                        />
-                    ) : store.view === MEDIA_VIEW.Grid ? (
-                        <MediaGrid
-                            folders={store.childFolders}
-                            assets={store.visibleAssets}
-                            folderCounts={store.folderCounts}
-                            selectedIds={store.selectedIds}
-                            onOpenFolder={store.navigateTo}
-                            onRenameFolder={handleRenameFolder}
-                            onDeleteFolder={handleDeleteFolder}
-                            onToggleSelect={store.toggleSelect}
-                            onAssetAction={handleAssetAction}
-                            canCreate={canCreate}
-                            canUpdate={canUpdate}
-                            canDelete={canDelete}
-                        />
-                    ) : (
-                        <MediaTable
-                            folders={store.childFolders}
-                            assets={store.visibleAssets}
-                            folderCounts={store.folderCounts}
-                            selectedIds={store.selectedIds}
-                            allSelected={allSelected}
-                            onToggleAll={handleToggleAll}
-                            onOpenFolder={store.navigateTo}
-                            onRenameFolder={handleRenameFolder}
-                            onDeleteFolder={handleDeleteFolder}
-                            onToggleSelect={store.toggleSelect}
-                            onAssetAction={handleAssetAction}
-                            canCreate={canCreate}
-                            canUpdate={canUpdate}
-                            canDelete={canDelete}
-                        />
-                    )}
-                </div>
-            </main>
+                </main>
+            </div>
 
             {/* Mobile-only folder navigation, mirroring the inline sidebar. */}
             <Drawer
@@ -459,14 +469,10 @@ export function MediaLibraryPage() {
                 open={uploadOpen}
                 onOpenChange={setUploadOpen}
                 locationLabel={locationLabel}
-                onUpload={(files) => {
-                    store.uploadFiles(files);
-                    toast.success(
-                        intl.formatMessage(messages.tUploaded, {
-                            count: files.length
-                        })
-                    );
-                }}
+                // No toast here: the upload has only been *queued*. Progress and
+                // the per-file outcome are the banner's job — a success toast
+                // fired at submit time would claim a result nobody has yet.
+                onUpload={store.uploadFiles}
             />
 
             <RenameDialog

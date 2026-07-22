@@ -12,15 +12,14 @@ import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
     KIND_FILTER_ALL,
     MEDIA_SORT,
-    MEDIA_VIEW,
     ROOT_FOLDER_ID,
     type MediaKind,
-    type MediaSort,
-    type MediaView
+    type MediaSort
 } from '../../constants';
 import type { MediaFolder } from '../../types/mediaFolder';
 import { mediaKeys } from '../../infrastructure/mediaKeys';
 import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
+import { useUploadQueue } from '../useUploadQueue';
 
 /** The selected kind filter — a {@link MediaKind} or the "all" sentinel. */
 export type KindFilter = MediaKind | typeof KIND_FILTER_ALL;
@@ -51,7 +50,6 @@ export function useMediaLibrary(enabled = true) {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
         () => new Set()
     );
-    const [view, setView] = useState<MediaView>(MEDIA_VIEW.Grid);
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState<MediaSort>(MEDIA_SORT.Newest);
     const [kindFilter, setKindFilter] = useState<KindFilter>(KIND_FILTER_ALL);
@@ -194,11 +192,6 @@ export function useMediaLibrary(enabled = true) {
         });
     }, []);
 
-    /** Select every asset currently visible (respects search/filter). */
-    const selectAllVisible = useCallback(() => {
-        setSelectedIds(new Set(visibleAssets.map((a) => a.id)));
-    }, [visibleAssets]);
-
     const openDetail = useCallback((id: string) => setDetailAssetId(id), []);
     const closeDetail = useCallback(() => setDetailAssetId(null), []);
 
@@ -239,12 +232,9 @@ export function useMediaLibrary(enabled = true) {
         onSuccess: invalidate,
         onError
     });
-    const uploadM = useMutation({
-        mutationFn: (files: File[]) =>
-            httpMediaGateway.uploadFiles(currentFolderId, files),
-        onSuccess: invalidate,
-        onError
-    });
+    // Uploads don't go through `useMutation`: the banner needs per-file progress
+    // and independent per-file failure, which a single mutation can't express.
+    const uploads = useUploadQueue(currentFolderId, invalidate);
 
     const createFolder = useCallback(
         (name: string, parentId: string = currentFolderId) => {
@@ -287,12 +277,7 @@ export function useMediaLibrary(enabled = true) {
         },
         [deleteAssetsM]
     );
-    const uploadFiles = useCallback(
-        (files: File[]) => {
-            if (files.length > 0) uploadM.mutate(files);
-        },
-        [uploadM]
-    );
+    const uploadFiles = uploads.enqueue;
 
     return {
         // data
@@ -311,15 +296,12 @@ export function useMediaLibrary(enabled = true) {
         selectedIds,
         selectedAssets,
         toggleSelect,
-        selectAllVisible,
         clearSelection,
         // detail drawer
         detailAsset,
         openDetail,
         closeDetail,
-        // view controls
-        view,
-        setView,
+        // browse controls
         search,
         setSearch,
         sort,
@@ -336,7 +318,13 @@ export function useMediaLibrary(enabled = true) {
         deleteFolder,
         duplicateAssets,
         moveAssets,
-        uploadFiles
+        uploadFiles,
+        // upload queue (progress banner)
+        uploadItems: uploads.items,
+        uploadSummary: uploads.summary,
+        retryUpload: uploads.retry,
+        cancelUpload: uploads.cancel,
+        dismissUploads: uploads.dismissSettled
     };
 }
 

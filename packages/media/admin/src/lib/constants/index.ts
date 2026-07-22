@@ -26,14 +26,27 @@ export const MEDIA_SEGMENT = 'media';
 /** The synthetic root folder id — the library's top level ("All media"). */
 export const ROOT_FOLDER_ID = 'root';
 
-/** The two ways the asset browser can render its contents. */
-export const MEDIA_VIEW = {
-    Grid: 'grid',
-    List: 'list'
+/** Where one queued upload has got to. */
+export const UPLOAD_STATUS = {
+    /** Queued, waiting for a concurrency slot. */
+    Pending: 'pending',
+    /** Bytes are on the wire. */
+    Uploading: 'uploading',
+    Done: 'done',
+    Failed: 'failed',
+    /** Aborted by the user before it finished. */
+    Cancelled: 'cancelled'
 } as const;
 
-/** A rendering mode for the asset browser (`grid` | `list`). */
-export type MediaView = (typeof MEDIA_VIEW)[keyof typeof MEDIA_VIEW];
+/** One queued upload's state. */
+export type UploadStatus = (typeof UPLOAD_STATUS)[keyof typeof UPLOAD_STATUS];
+
+/**
+ * How many files upload at once. Above ~3 the browser queues the rest anyway
+ * (per-host connection limits) while each one's progress bar crawls, which
+ * reads as a stall; a small pool keeps every active bar visibly moving.
+ */
+export const UPLOAD_CONCURRENCY = 3;
 
 /** The kinds of asset the library recognises, driving icons and filters. */
 export const MEDIA_KIND = {
