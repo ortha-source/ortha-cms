@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_311 test cases across 29 spec files._
+_322 test cases across 29 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -336,6 +336,25 @@ _<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</s
 | filters by a tag field with EXISTS semantics (no row duplication) |
 | matches only entries linked to the given tag |
 
+### negation (NOT EXISTS semantics)
+
+| Test case |
+| --- |
+| excludes an entry that has ANY link matching the negated value |
+| keeps an entry with no links at all under a negated rule |
+| "is empty" on a relation id means "has no related row" |
+| "is not empty" on a relation id means "has a related row" |
+| a negated ROOT column still matches rows where it is NULL |
+
+### self-referential (test_page.parent)
+
+| Test case |
+| --- |
+| filters by the parent's own field |
+| filters through a relation UNDER the self-hop (parent.owner.name) |
+| filters two self-hops deep (parent.parent.title) |
+| does not match a page against its own row |
+
 ### composition + bounds
 
 | Test case |
@@ -350,6 +369,8 @@ _<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</s
 | --- |
 | 401s an unauthenticated request |
 | 404s an unknown content type |
+| 404s a real type the workspace was not granted |
+| prunes a relation whose target is not granted |
 | returns the recursive filterable surface |
 
 <!-- source: apps/server-e2e/src/server/content/list-entries.spec.ts -->

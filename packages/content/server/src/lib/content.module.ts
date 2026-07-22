@@ -9,6 +9,7 @@ import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
+import { WorkspaceGrantsQuery } from './content-types/queries/workspace-grants.query';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
 import { CreateEntryController } from './entries/http/controllers/create-entry.controller';
@@ -74,9 +75,9 @@ export class ContentModule {
                     // Adapt the registry to identity's catalogue port. Summaries
                     // are shape-compatible with `ContentTypeDescriptor`.
                     provide: CONTENT_CATALOG,
-                    useFactory: (
-                        reg: ContentTypeRegistry
-                    ): ContentCatalog => ({ list: () => reg.summaries() }),
+                    useFactory: (reg: ContentTypeRegistry): ContentCatalog => ({
+                        list: () => reg.summaries()
+                    }),
                     inject: [CONTENT_REGISTRY]
                 },
                 // Bind identity's entry-counter port to the registry-backed
@@ -84,8 +85,12 @@ export class ContentModule {
                 // rule sees the real stored entries. Same inversion as the
                 // catalogue above.
                 EntryCounterService,
-                { provide: CONTENT_ENTRY_COUNTER, useExisting: EntryCounterService },
+                {
+                    provide: CONTENT_ENTRY_COUNTER,
+                    useExisting: EntryCounterService
+                },
                 EntryValidationService,
+                WorkspaceGrantsQuery,
                 EntriesService,
                 EntryWriterService,
                 RelationLinkService,
