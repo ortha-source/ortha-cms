@@ -61,6 +61,9 @@ export class UnpublishEntryUseCase {
                 workspaceId
             );
             if (!updated) throw this.notFound(type, id);
+            // Revert the entry's published revision back to draft so the history
+            // timeline no longer shows a live version.
+            await this.writer.markRevisionUnpublished(exec, id, workspaceId);
             await this.outbox.append(entry.pullEvents());
             return toRecord(type, updated);
         });

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_351 test cases across 32 spec files._
+_355 test cases across 32 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -328,6 +328,15 @@ _<sub>apps/server-e2e/src/server/content/entry-revisions.spec.ts</sub>_
 | captures the whole document — scalars and a many-to-many link set |
 | restores an earlier revision as a new revision (append-only) |
 | 404s an unknown revision number |
+
+### publish transitions
+
+| Test case |
+| --- |
+| promotes the latest revision to published on publish |
+| supersedes the previously-published revision when a newer one publishes |
+| reverts the published revision to draft on unpublish |
+| promotes the revision through a bulk publish too |
 
 <!-- source: apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</sub>_

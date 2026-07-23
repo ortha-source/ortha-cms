@@ -6,6 +6,7 @@ import {
     contentEntriesPrefix,
     contentEntryKey,
     entryRelationsPrefix,
+    entryRevisionsPrefix,
     relationFieldLinksPrefix
 } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
@@ -38,6 +39,11 @@ export function useSaveEntry(typeName: string) {
             // server's canonical copy after an update.
             queryClient.invalidateQueries({
                 queryKey: contentEntryKey(workspace.id, typeName, saved.id)
+            });
+            // Every save appends a revision — refresh the timeline so the new
+            // version appears in the right-rail widget + History tab immediately.
+            queryClient.invalidateQueries({
+                queryKey: entryRevisionsPrefix(workspace.id, typeName)
             });
             // Relation links may have changed (staged deltas persist with the
             // save), so drop the relations aggregate **and** the per-field

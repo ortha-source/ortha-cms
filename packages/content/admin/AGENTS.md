@@ -324,7 +324,11 @@ this in two mount points that share one cached query and one action core:
   (`GET /content/:type/:id/revisions`), gated on a saved entry id.
   **`useRevisionActions`** owns the restore mutation
   (`POST …/revisions/:number/restore`) and invalidates the same caches a save
-  does (records list, read-one, relations, and the revisions prefix).
+  does (records list, read-one, relations, and the revisions prefix). Every
+  mutation that changes the timeline invalidates the **revisions prefix** so the
+  widget + History tab refresh immediately: `useSaveEntry` (each save appends a
+  version) and `useEntryStatusActions` (publish/unpublish transition the latest
+  version's status Live↔Draft, and supersede a prior live one server-side).
 - **`RevisionList`** (`EntryEditor/RevisionList/`) is the shared core — a
   `RevisionRow` per version (number, status badge Live/Draft/Superseded, capture
   time) plus the **Restore** flow (permission gate on `content:update`, a

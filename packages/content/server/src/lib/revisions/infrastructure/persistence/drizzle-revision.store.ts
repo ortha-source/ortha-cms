@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, max, sql } from 'drizzle-orm';
+import { and, count, desc, eq, max, ne, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type {
     RevisionExecutor,
@@ -74,6 +74,64 @@ export class DrizzleRevisionStore implements RevisionStore {
         return this.toSummary(inserted as RevisionRow, {
             latestNumber: record.revisionNumber
         });
+    }
+
+    async markPublished(
+        exec: RevisionExecutor,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        const scope = and(
+            eq(revisions.entryId, entryId),
+            eq(revisions.workspaceId, workspaceId)
+        );
+        const [row] = await exec
+            .select({ max: max(revisions.revisionNumber) })
+            .from(revisions)
+            .where(scope);
+        const latest = row?.max == null ? 0 : Number(row.max);
+        if (latest === 0) return;
+        // Demote a previously-published version (there's at most one, and it
+        // isn't the latest we're about to promote) so the timeline keeps a
+        // single live row. Its `published_at` is left as the historical record
+        // of when it was live.
+        await exec
+            .update(revisions)
+            .set({ status: REVISION_STATUS.Superseded })
+            .where(
+                and(
+                    scope,
+                    eq(revisions.status, REVISION_STATUS.Published),
+                    ne(revisions.revisionNumber, latest)
+                )
+            );
+        // Promote the latest version — its snapshot is exactly the live row that
+        // was just published. Re-stamps on an idempotent re-publish, mirroring
+        // the entry row's `markPublished`.
+        await exec
+            .update(revisions)
+            .set({
+                status: REVISION_STATUS.Published,
+                publishedAt: new Date()
+            })
+            .where(and(scope, eq(revisions.revisionNumber, latest)));
+    }
+
+    async markUnpublished(
+        exec: RevisionExecutor,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        await exec
+            .update(revisions)
+            .set({ status: REVISION_STATUS.Draft, publishedAt: null })
+            .where(
+                and(
+                    eq(revisions.entryId, entryId),
+                    eq(revisions.workspaceId, workspaceId),
+                    eq(revisions.status, REVISION_STATUS.Published)
+                )
+            );
     }
 
     async list(

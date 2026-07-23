@@ -54,9 +54,10 @@ export class Revision {
 
     /**
      * Mint a new **draft** revision from a just-saved document. A revision is
-     * never born published: publishing is a separate, deliberate transition on
-     * the latest draft (Phase 2), and a restore appends a fresh draft rather than
-     * rewriting history.
+     * never born published: publishing is a separate, deliberate transition that
+     * promotes the entry's latest draft to `published`
+     * (`RevisionStore.markPublished`, driven by the publish use-case), and a
+     * restore appends a fresh draft rather than rewriting history.
      */
     static createDraft(params: NewRevisionParams): Revision {
         if (!Number.isInteger(params.number) || params.number < 1) {

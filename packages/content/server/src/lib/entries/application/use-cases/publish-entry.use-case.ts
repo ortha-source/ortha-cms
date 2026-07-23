@@ -96,6 +96,9 @@ export class PublishEntryUseCase {
                 workspaceId
             );
             if (!updated) throw this.notFound(type, id);
+            // Promote the entry's latest revision to the live version so the
+            // history timeline reflects the publish (revisions are born drafts).
+            await this.writer.markRevisionPublished(exec, id, workspaceId);
             await this.outbox.append(entry.pullEvents());
             return toRecord(type, updated);
         });

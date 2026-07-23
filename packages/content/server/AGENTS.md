@@ -412,10 +412,21 @@ a browsable version history and can be restored. Layered per ADR-0003
   revision **inside their existing transaction** (via the `REVISION_STORE` port),
   so the version commits atomically with the row + relation writes; the entry's
   advisory lock serializes concurrent savers so version numbers can't collide.
-  This is the Phase-1 (history + restore) rollout — the live row still edits in
-  place. Because these writes are **not yet on the `UnitOfWork`**, no
-  `entry.revision.created` outbox event is emitted (same reason `entry.created`/
-  `entry.updated` are still unemitted); the `Revision` model stays event-ready.
+  The live row still edits in place. Because these writes are **not yet on the
+  `UnitOfWork`**, no `entry.revision.created` outbox event is emitted (same reason
+  `entry.created`/`entry.updated` are still unemitted); the `Revision` model stays
+  event-ready.
+- **Publish transition.** A revision is born a `draft`; publishing the entry
+  promotes its history too. The `publish` / `unpublish` use-cases (and their bulk
+  variants) call `RevisionStore.markPublished` / `markUnpublished` **on the same
+  unit-of-work transaction** as the entry-row status write, so the row and its
+  timeline commit together. `markPublished` promotes the entry's **latest**
+  revision (exactly the just-published live row — every save appends one) to
+  `published` and demotes any prior published one to `superseded`, keeping at most
+  one live version per entry; `markUnpublished` reverts the published revision to
+  `draft`. Without this the timeline would always read `draft` even for a live
+  entry (`RevisionSummary.status` / `isPublished` back the admin's Live/Draft/
+  Superseded badge).
 - **HTTP** (workspace-scoped, same guards as the entry routes):
   `GET :typeName/:id/revisions` (timeline, newest first), `.../revisions/:number`
   (one snapshot), `POST .../revisions/:number/restore` (`content:update`).

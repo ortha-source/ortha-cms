@@ -172,4 +172,117 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
             .get(`/api/content/test_article/${id}/revisions/999`)
             .expect(404);
     });
+
+    describe('publish transitions', () => {
+        it('promotes the latest revision to published on publish', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            expect(list.body.items[0]).toMatchObject({
+                number: 1,
+                status: 'published',
+                isPublished: true,
+                isLatest: true
+            });
+            expect(list.body.items[0].publishedAt).toEqual(expect.any(String));
+        });
+
+        it('supersedes the previously-published revision when a newer one publishes', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            // v1 published, then a fresh save (v2 draft) over the live row.
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Second title' } })
+                .expect(200);
+            // Publishing again promotes v2 and supersedes v1.
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            const byNumber = Object.fromEntries(
+                list.body.items.map((r: { number: number }) => [r.number, r])
+            );
+            expect(byNumber[2]).toMatchObject({
+                status: 'published',
+                isPublished: true,
+                isLatest: true
+            });
+            expect(byNumber[1]).toMatchObject({
+                status: 'superseded',
+                isPublished: false
+            });
+        });
+
+        it('reverts the published revision to draft on unpublish', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await agent
+                .post(`/api/content/test_article/${id}/unpublish`)
+                .expect(201);
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            expect(list.body.items[0]).toMatchObject({
+                number: 1,
+                status: 'draft',
+                isPublished: false
+            });
+            expect(list.body.items[0].publishedAt).toBeUndefined();
+        });
+
+        it('promotes the revision through a bulk publish too', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            await agent
+                .post('/api/content/test_article/bulk/publish')
+                .send({ ids: [id] })
+                .expect(201);
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            expect(list.body.items[0]).toMatchObject({
+                number: 1,
+                status: 'published',
+                isPublished: true
+            });
+        });
+    });
 });

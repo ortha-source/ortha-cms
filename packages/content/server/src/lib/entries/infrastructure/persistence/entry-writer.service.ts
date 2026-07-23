@@ -458,6 +458,34 @@ export class EntryWriterService {
         return row as Row | undefined;
     }
 
+    /**
+     * Transition the entry's **revision history** to reflect a publish: its
+     * latest revision becomes the live (`published`) version and any prior
+     * published one is `superseded`. Runs on the publish transaction's executor
+     * (the active unit of work) so the row's status and its history commit as
+     * one. Delegates to the revision store — every revision is minted a draft, so
+     * this is what makes a published entry read as "Live" in the timeline.
+     */
+    async markRevisionPublished(
+        exec: Database | DbTransaction,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        await this.revisionStore.markPublished(exec, entryId, workspaceId);
+    }
+
+    /**
+     * Revert the entry's published revision back to `draft` on `exec` — the
+     * unpublish counterpart to {@link markRevisionPublished}.
+     */
+    async markRevisionUnpublished(
+        exec: Database | DbTransaction,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        await this.revisionStore.markUnpublished(exec, entryId, workspaceId);
+    }
+
     /** Revert one live row to `status='draft'` (clearing `published_at`) on `exec`. */
     async markDraft(
         exec: Database | DbTransaction,

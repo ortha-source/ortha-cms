@@ -35,6 +35,33 @@ export interface RevisionStore {
     /** Insert a revision on `exec`, returning its summary view. */
     append(exec: RevisionExecutor, revision: Revision): Promise<RevisionSummary>;
 
+    /**
+     * Promote the entry's **latest** revision to `published` (stamping
+     * `published_at`) and demote any previously-published revision to
+     * `superseded`, on `exec`. This is the publish transition the
+     * snapshot-on-save defers — every revision is born a `draft`, so without it
+     * the timeline never shows a version as live. The latest revision is exactly
+     * the just-published live row (every save appends one). Idempotent, and a
+     * no-op for an entry with no revisions.
+     */
+    markPublished(
+        exec: RevisionExecutor,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void>;
+
+    /**
+     * Demote the entry's currently-published revision back to `draft` (clearing
+     * `published_at`) on `exec` — the unpublish counterpart. At most one
+     * revision is published, so this transitions exactly that one; a no-op if
+     * none is.
+     */
+    markUnpublished(
+        exec: RevisionExecutor,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void>;
+
     /** One page of an entry's revisions, newest first, scoped to the workspace. */
     list(
         entryId: string,
