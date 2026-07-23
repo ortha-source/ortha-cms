@@ -540,7 +540,10 @@ export class RelationLinkService {
                 .select()
                 .from(join.table)
                 .where(eq(cols[join.ownCol], row['id']))
-                .orderBy(asc(cols['position']), asc(cols[join.refCol]))) as Row[];
+                .orderBy(
+                    asc(cols['position']),
+                    asc(cols[join.refCol])
+                )) as Row[];
             out[field] = rows.map((r) => r[join.refCol] as string);
         }
         return out;
@@ -791,6 +794,24 @@ export class RelationLinkService {
             .where(eq(cols['sourceId'], sourceId));
         const current = row?.max;
         return current == null ? 0 : Number(current) + 1;
+    }
+
+    /**
+     * Public resolver for callers that hold **raw ids** rather than a live link
+     * set — the revision preview, which reads a historical snapshot's relation id
+     * lists and needs their display titles. Resolves the first `cap` ids (order
+     * preserved) via the same batched lookup as {@link refsFor}; the caller
+     * carries the true count separately and shows a "+N more" past the cap, so a
+     * relation with thousands of links is never resolved whole. A soft-deleted /
+     * foreign id yields a `missing` ref, never a title leak.
+     */
+    async resolveRefs(
+        target: AnyContentType,
+        ids: readonly string[],
+        workspaceId: string,
+        cap: number
+    ): Promise<RelationRef[]> {
+        return this.refsFor(target, ids.slice(0, cap), workspaceId);
     }
 
     /**

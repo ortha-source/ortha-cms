@@ -90,6 +90,19 @@ export const entryRevisionsKey = (
 export const entryRevisionsPrefix = (workspaceId: string, name: string) =>
     ['content-entry-revisions', workspaceId, name] as const;
 
+/**
+ * One revision's full snapshot body (`GET …/:id/revisions/:number`), keyed under
+ * the entry's revision timeline so an `entryRevisionsPrefix` invalidation (on
+ * save / restore / publish) drops it too. A given revision number is immutable,
+ * so the query itself can cache indefinitely.
+ */
+export const revisionDetailKey = (
+    workspaceId: string,
+    name: string,
+    id: string,
+    number: number
+) => [...entryRevisionsKey(workspaceId, name, id), 'detail', number] as const;
+
 /** One entry's relation links (all fields, first page + total), workspace-scoped. */
 export const entryRelationsKey = (
     workspaceId: string,

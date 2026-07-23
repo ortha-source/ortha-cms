@@ -26,7 +26,10 @@ describe('Revision domain model', () => {
             locale: null,
             revisionNumber: 3,
             status: REVISION_STATUS.Draft,
-            snapshot: { values: { title: 'Hello' }, relations: { tags: ['t1'] } },
+            snapshot: {
+                values: { title: 'Hello' },
+                relations: { tags: ['t1'] }
+            },
             createdBy: 'u1'
         });
     });

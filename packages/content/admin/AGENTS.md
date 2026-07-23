@@ -149,7 +149,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   mirroring the Members page. `useEntryColumns` holds the **ordered** visible
   columns in component state (**not persisted** — the choice lasts the session
   and resets on reload) — the array is both the visibility set and the display
-  order, so it powers the column picker's toggles *and* its drag-to-reorder
+  order, so it powers the column picker's toggles _and_ its drag-to-reorder
   (`reorder` via `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart
   default (`domain/entryColumns`, excluding richtext/json) narrowed to the live
   schema, and re-seeded when the open type changes. Row selection is local
@@ -232,13 +232,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   the hidden ones to `useEntryForm` as `ignoreFields`, so a hidden (ungranted)
   relation is excluded from client validation **and** the publish gate — a required
   one can't become an un-satisfiable, invisible block. A **visible** required
-link-managed relation (many / inverse-of-many) *is* publish-gated, but by its
-**effective link count** (`relationRefs[field].total − staged.removed +
+  link-managed relation (many / inverse-of-many) _is_ publish-gated, but by its
+  **effective link count** (`relationRefs[field].total − staged.removed +
 staged.added`), not the values bag it doesn't live in — mirroring the server's
-`assertRequiredRelations`. To seed those counts the aggregate relations read
-(`useEntryRelations`) now fires on **entry open** (not only when the Relations
-tab is first shown), so a populated relation never briefly reads as 0.
-Each assigned record renders as a **`RelationItemRow`** — a generalized row with a
+  `assertRequiredRelations`. To seed those counts the aggregate relations read
+  (`useEntryRelations`) now fires on **entry open** (not only when the Relations
+  tab is first shown), so a populated relation never briefly reads as 0.
+  Each assigned record renders as a **`RelationItemRow`** — a generalized row with a
   **leading slot** (an initials `Avatar` for a single relation, a zero-padded
   `01`/`02` **index** for an ordered many-relation, via `RelationIndex`), the
   **title** + a muted `/handle` (the target's `slug`, else a slugified title — see
@@ -255,8 +255,8 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   new tab`, `Move {title} up` / `down`, `Replace` — are what the e2e drives.
   An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
-  **`QueryBuilder`**, *not* a drawer — a nested modal over the dialog is an a11y
-  hazard) over the *target type's* filterable surface (`useFilterFields(target)`,
+  **`QueryBuilder`**, _not_ a drawer — a nested modal over the dialog is an a11y
+  hazard) over the _target type's_ filterable surface (`useFilterFields(target)`,
   gated on the dialog being open), and a lazily-scrolled candidate list (accessible
   checkbox group for a many-relation, radio group for a single). Fully controlled —
   the form owns the value (single → one id string, many → string[]). Candidates
@@ -273,7 +273,7 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   `EntryEditor` calls `useEntryRelations` (`GET /content/:type/:id/relations` →
   `{ relations: { <field>: { items, total } } }`, each field's **first page** +
   total) **gated on the Relations tab being open** — it never fires on entry
-  load, and single-relation *values* come from the entry read's `values` (their
+  load, and single-relation _values_ come from the entry read's `values` (their
   FK id), so a save preserves them even if the tab was never opened. A relation
   is edited one of two ways, chosen by `RelationFieldSection`:
     - **Single** relations (and **any** relation while creating a not-yet-saved
@@ -296,10 +296,10 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
       the staging and `useSaveEntry` invalidates the field queries. Owning
       many-relations reorder (persisted via `position`); the inverse reads order
       but isn't sortable.
-  A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
-  fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
-  (dirty staging, or a dirty single value) in the section header — so the user
-  sees exactly what a Save will persist.
+      A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
+      fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
+      (dirty staging, or a dirty single value) in the section header — so the user
+      sees exactly what a Save will persist.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by
@@ -322,27 +322,54 @@ this in two mount points that share one cached query and one action core:
 
 - **`useEntryRevisions`** (`application/`) reads the timeline
   (`GET /content/:type/:id/revisions`), gated on a saved entry id.
-  **`useRevisionActions`** owns the restore mutation
-  (`POST …/revisions/:number/restore`) and invalidates the same caches a save
-  does (records list, read-one, relations, and the revisions prefix). Every
-  mutation that changes the timeline invalidates the **revisions prefix** so the
-  widget + History tab refresh immediately: `useSaveEntry` (each save appends a
-  version) and `useEntryStatusActions` (publish/unpublish transition the latest
-  version's status Live↔Draft, and supersede a prior live one server-side).
+  **`useRevisionActions`** owns the **restore** (`POST …/revisions/:number/restore`)
+  and **publish-a-version** (`POST …/revisions/:number/publish`) mutations, both
+  invalidating the same caches a save does (records list, read-one, relations, and
+  the revisions prefix). Every mutation that changes the timeline invalidates the
+  **revisions prefix** so the widget + History tab refresh immediately:
+  `useSaveEntry` (each save appends a version; on a publishable type a save is a
+  **draft** — editing a published entry moves it back to draft while its published
+  version stays live in history) and `useEntryStatusActions` (publish/unpublish).
+- **Publishing a version.** Server-side, publishing a version makes it the live
+  one (the newest publishes in place; an earlier version is restored then
+  published, prior live → superseded), so the editor can build up drafts and then
+  publish the current one **or switch back to any earlier version and publish it**.
+  A `RevisionRow` shows a **Publish** action on any version that isn't already live
+  (publishable type + `content:publish`), and the preview dialog carries a
+  **Publish this version** button; both route through a `ConfirmDialog` + toast in
+  `RevisionList`. A `422` (an incomplete version) surfaces as an error toast.
 - **`RevisionList`** (`EntryEditor/RevisionList/`) is the shared core — a
   `RevisionRow` per version (number, status badge Live/Draft/Superseded, capture
   time) plus the **Restore** flow (permission gate on `content:update`, a
   `ConfirmDialog`, and the success/failure `toast`). Restore re-applies an older
   snapshot as a **new** revision, so the timeline refreshes in place.
+- **Preview / compare** (`RevisionList/RevisionPreviewDialog/`): each earlier
+  version's row carries a **Preview** action opening a diff dialog. It fetches
+  that version's snapshot **and** the latest one (`useRevisionDetail` →
+  `getRevision`; the newest snapshot equals the live record, since every save
+  appends one) and runs the pure `domain/revisionDiff` — a field-by-field compare
+  in schema order (scalars/single-FKs via `values`, join-backed relations via the
+  ordered `relations` id lists). Changed fields render a **Current → Version {n}**
+  pair, unchanged ones collapse behind a toggle. Scalars format via
+  `formatRevisionValue` (a read-only sibling of the records table's `renderCell`);
+  **relation fields render the actual linked records** (`RelationRefList`), not a
+  count — the detail read resolves each field's snapshot ids to titled refs
+  server-side (`RevisionDetail.relationRefs`/`relationTotals`, capped with a "+N
+  more"; a soft-deleted / cross-workspace target reads as "Unavailable record").
+  A **Restore this version** button hands the number back to the list's restore
+  flow (its own `ConfirmDialog`) — never a modal stacked on a modal. The Preview +
+  Restore actions are hidden on the newest row (nothing to compare/apply against),
+  and render **icon-only** in the compact right-rail widget (`compact` prop) vs.
+  labelled in the History tab.
 - Two mount points: the right-rail **`RevisionWidget`** (rendered by
   `EntrySidebar` below Details, a compact first-N view) and the **History tab**
   **`HistoryTimeline`** (the full list; prompts to save first on a create form).
 
 The gateway carries `listRevisions` / `getRevision` / `restoreRevision`; the wire
 types (`RevisionSummary` / `RevisionDetail` / `RevisionListView`) live in
-`domain/types/contentType`, mirroring the server. Previewing an old snapshot
-read-only in the form is a Phase-2 (staging) addition; today restore is the
-switch-back path.
+`domain/types/contentType`, mirroring the server. Previewing a version is a
+**read-only compare against the current record** (the `RevisionPreviewDialog`
+above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
@@ -387,6 +414,7 @@ list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidate
 
 Two generic hooks surface the `localized` schema flag (same way the editor
 already surfaces `required`), so a locale plugin needs no field-level slot:
+
 - `EntryFieldInput` renders a small **localizable indicator**
   (`LocalizedFieldMark` — a `Globe` icon + native `title` + sr-only name) when
   `field.localized`. It shares a single right-aligned **end-adornment** with the

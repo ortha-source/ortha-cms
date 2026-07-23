@@ -567,6 +567,7 @@ export function EntryEditor({
                                 <HistoryTimeline
                                     typeName={schema.name}
                                     entryId={entry?.id}
+                                    schema={schema}
                                 />
                             </TabsContent>
                         </Tabs>

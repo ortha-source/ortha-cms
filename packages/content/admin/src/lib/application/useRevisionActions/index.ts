@@ -12,16 +12,41 @@ import {
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 
 /**
- * Restore-a-revision action for one entry, over the content gateway
- * (`POST /content/:type/:id/revisions/:number/restore`). History is append-only:
- * the restore re-applies an earlier snapshot onto the live row and is itself
- * saved as a new revision, so on success this refreshes the timeline, the entry
- * read-one (Details/status), the records list, and the relation caches — the same
- * surfaces a save invalidates.
+ * Revision actions for one entry, over the content gateway — **restore** and
+ * **publish a specific version**. Both are append-only and mutate the same
+ * surfaces a save does, so each invalidates the timeline, the entry read-one
+ * (Details/status), the records list, and the relation caches.
+ *
+ * - `restore` (`POST …/revisions/:number/restore`) re-applies an earlier snapshot
+ *   onto the live row as a **new draft** revision.
+ * - `publish` (`POST …/revisions/:number/publish`) makes a chosen version live:
+ *   the newest publishes in place, an earlier one is restored then published, so
+ *   its content becomes the live/published version (the prior one superseded).
+ *   Can reject with a 422 when the version fails the publish gate.
  */
 export function useRevisionActions(typeName: string, id: string | undefined) {
     const queryClient = useQueryClient();
     const workspace = useCurrentWorkspace();
+
+    const invalidate = async (savedId: string) => {
+        queryClient.invalidateQueries({
+            queryKey: contentEntriesPrefix(workspace.id, typeName)
+        });
+        queryClient.invalidateQueries({
+            queryKey: contentEntryKey(workspace.id, typeName, savedId)
+        });
+        queryClient.invalidateQueries({
+            queryKey: entryRevisionsPrefix(workspace.id, typeName)
+        });
+        await Promise.all([
+            queryClient.invalidateQueries({
+                queryKey: entryRelationsPrefix(workspace.id, typeName)
+            }),
+            queryClient.invalidateQueries({
+                queryKey: relationFieldLinksPrefix(workspace.id, typeName)
+            })
+        ]);
+    };
 
     const restore = useMutation<EntryRecord, ApiError, number>({
         mutationFn: (number) => {
@@ -32,25 +57,19 @@ export function useRevisionActions(typeName: string, id: string | undefined) {
             }
             return httpContentGateway.restoreRevision(typeName, id, number);
         },
-        onSuccess: async (saved) => {
-            queryClient.invalidateQueries({
-                queryKey: contentEntriesPrefix(workspace.id, typeName)
-            });
-            queryClient.invalidateQueries({
-                queryKey: contentEntryKey(workspace.id, typeName, saved.id)
-            });
-            queryClient.invalidateQueries({
-                queryKey: entryRevisionsPrefix(workspace.id, typeName)
-            });
-            await Promise.all([
-                queryClient.invalidateQueries({
-                    queryKey: entryRelationsPrefix(workspace.id, typeName)
-                }),
-                queryClient.invalidateQueries({
-                    queryKey: relationFieldLinksPrefix(workspace.id, typeName)
-                })
-            ]);
-        }
+        onSuccess: (saved) => invalidate(saved.id)
+    });
+
+    const publish = useMutation<EntryRecord, ApiError, number>({
+        mutationFn: (number) => {
+            if (!id) {
+                return Promise.reject(
+                    new Error('Cannot publish a revision on an unsaved entry.')
+                );
+            }
+            return httpContentGateway.publishRevision(typeName, id, number);
+        },
+        onSuccess: (saved) => invalidate(saved.id)
     });
 
     return {
@@ -59,6 +78,12 @@ export function useRevisionActions(typeName: string, id: string | undefined) {
         /** Whether a restore is in flight. */
         restoring: restore.isPending,
         /** The last restore error, if any (surfaced by the widget as a toast). */
-        restoreError: restore.error
+        restoreError: restore.error,
+        /** Publish revision `number` live (restore-if-needed + publish). */
+        publish: publish.mutate,
+        /** Whether a publish-version is in flight. */
+        publishing: publish.isPending,
+        /** The last publish-version error, if any. */
+        publishError: publish.error
     };
 }

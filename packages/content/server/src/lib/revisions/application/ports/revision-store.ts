@@ -33,7 +33,10 @@ export interface RevisionStore {
     lockEntry(exec: RevisionExecutor, entryId: string): Promise<void>;
 
     /** Insert a revision on `exec`, returning its summary view. */
-    append(exec: RevisionExecutor, revision: Revision): Promise<RevisionSummary>;
+    append(
+        exec: RevisionExecutor,
+        revision: Revision
+    ): Promise<RevisionSummary>;
 
     /**
      * Promote the entry's **latest** revision to `published` (stamping

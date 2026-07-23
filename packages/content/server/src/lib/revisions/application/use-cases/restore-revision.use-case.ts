@@ -3,7 +3,10 @@ import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import { EntryWriterService } from '../../../entries/infrastructure/persistence/entry-writer.service';
 import type { EntryRecord } from '../../../entries/types/entry-list-view';
-import { InjectRevisionStore, type RevisionStore } from '../ports/revision-store';
+import {
+    InjectRevisionStore,
+    type RevisionStore
+} from '../ports/revision-store';
 
 /**
  * Restore an entry to an earlier revision. History is **append-only** — a

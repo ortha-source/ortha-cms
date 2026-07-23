@@ -122,6 +122,12 @@ export type ContentGateway = {
         id: string,
         number: number
     ): Promise<EntryRecord>;
+    /** Publishes a specific version live via `POST …/:id/revisions/:number/publish`. */
+    publishRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<EntryRecord>;
     /** Publishes one entry via `POST /content/:name/:id/publish`. */
     publish(name: string, id: string): Promise<EntryRecord>;
     /** Unpublishes one entry via `POST /content/:name/:id/unpublish`. */

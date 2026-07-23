@@ -142,6 +142,15 @@ export type RevisionSnapshot = {
 export type RevisionDetail = RevisionSummary & {
     /** The captured document. */
     snapshot: RevisionSnapshot;
+    /**
+     * Each relation field's snapshot ids resolved to display refs (title / slug /
+     * status), keyed by field name — so the preview lists the actual linked
+     * records, not raw uuids. Capped per field; `relationTotals` carries the true
+     * count for a "+N more". Mirrors the server's `RevisionDetail.relationRefs`.
+     */
+    relationRefs?: Record<string, RelationRef[]>;
+    /** True link count per relation field (may exceed the capped `relationRefs`). */
+    relationTotals?: Record<string, number>;
 };
 
 /** The paginated revision-timeline envelope. */

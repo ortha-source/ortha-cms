@@ -31,8 +31,11 @@ import { BulkUnpublishEntriesUseCase } from './entries/application/use-cases/bul
 import { REVISION_STORE } from './revisions/application/ports/revision-store';
 import { DrizzleRevisionStore } from './revisions/infrastructure/persistence/drizzle-revision.store';
 import { RestoreRevisionUseCase } from './revisions/application/use-cases/restore-revision.use-case';
+import { PublishRevisionUseCase } from './revisions/application/use-cases/publish-revision.use-case';
+import { RevisionRefsQuery } from './revisions/infrastructure/queries/revision-refs.query';
 import { RevisionsController } from './revisions/http/controllers/revisions.controller';
 import { RestoreRevisionController } from './revisions/http/controllers/restore-revision.controller';
+import { PublishRevisionController } from './revisions/http/controllers/publish-revision.controller';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -77,7 +80,8 @@ export class ContentModule {
                 // literal `revisions` segment can't collide with the single-item
                 // routes above.
                 RevisionsController,
-                RestoreRevisionController
+                RestoreRevisionController,
+                PublishRevisionController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },
@@ -108,6 +112,11 @@ export class ContentModule {
                 // provider is resolved — Nest orders by the dependency graph.
                 { provide: REVISION_STORE, useClass: DrizzleRevisionStore },
                 RestoreRevisionUseCase,
+                // Publish a specific version live (restore-if-needed + publish).
+                PublishRevisionUseCase,
+                // Resolves a previewed revision's relation ids to display refs
+                // (the "exact linked records" the diff shows).
+                RevisionRefsQuery,
                 EntryWriterService,
                 RelationLinkService,
                 // Entries feature, layered per ADR-0003: the publish-lifecycle

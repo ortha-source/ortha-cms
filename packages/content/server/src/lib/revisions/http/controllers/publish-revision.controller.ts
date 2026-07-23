@@ -19,26 +19,28 @@ import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { resolveType } from '../../../entries/http/controllers/resolve-type';
 import type { EntryRecord } from '../../../entries/types/entry-list-view';
-import { RestoreRevisionUseCase } from '../../application/use-cases/restore-revision.use-case';
+import { PublishRevisionUseCase } from '../../application/use-cases/publish-revision.use-case';
 
 /**
- * `POST /api/content/:typeName/:id/revisions/:number/restore` — re-apply an
- * earlier version onto the live entry. History is append-only: the restore is
- * itself saved as a new revision. `OriginGuard` defends the write;
- * `WorkspaceGuard` scopes it; `content:update` gates it (restoring is an edit).
+ * `POST /api/content/:typeName/:id/revisions/:number/publish` — make a specific
+ * version the entry's **live** one. The newest version publishes in place; an
+ * earlier one is restored (as a new revision) then published, so history stays
+ * append-only. `OriginGuard` defends the write; `WorkspaceGuard` scopes it;
+ * `content:publish` gates it. `400` on a non-publishable type, `404` on an
+ * absent version, `422 { issues }` when the version fails the publish gate.
  */
 @UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
-@RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
+@RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
 @Controller('content')
-export class RestoreRevisionController {
+export class PublishRevisionController {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        private readonly restoreRevision: RestoreRevisionUseCase
+        private readonly publishRevision: PublishRevisionUseCase
     ) {}
 
-    @Post(':typeName/:id/revisions/:number/restore')
-    restore(
+    @Post(':typeName/:id/revisions/:number/publish')
+    publish(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
         @Param('number', ParseIntPipe) number: number,
@@ -46,7 +48,7 @@ export class RestoreRevisionController {
         @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.restoreRevision.execute(
+        return this.publishRevision.execute(
             type,
             id,
             number,

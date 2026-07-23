@@ -98,11 +98,14 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
             .expect(200);
         expect(list.body.total).toBe(2);
         // Newest first: v2 is latest, v1 is not.
-        expect(list.body.items.map((r: { number: number }) => r.number)).toEqual(
-            [2, 1]
-        );
+        expect(
+            list.body.items.map((r: { number: number }) => r.number)
+        ).toEqual([2, 1]);
         expect(list.body.items[0]).toMatchObject({ number: 2, isLatest: true });
-        expect(list.body.items[1]).toMatchObject({ number: 1, isLatest: false });
+        expect(list.body.items[1]).toMatchObject({
+            number: 1,
+            isLatest: false
+        });
     });
 
     it('captures the whole document — scalars and a many-to-many link set', async () => {
@@ -127,6 +130,30 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
             select: 'article'
         });
         expect(detail.body.snapshot.relations.tags).toEqual([tagId]);
+    });
+
+    it('resolves relation snapshot ids to titled records in the detail', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const tag = await agent
+            .post('/api/content/test_tag')
+            .send({ values: { name: 'News' } })
+            .expect(201);
+        const tagId = tag.body.id as string;
+
+        const create = await agent
+            .post('/api/content/test_article')
+            .send({ values: { ...VALID, tags: [tagId] } })
+            .expect(201);
+        const id = create.body.id as string;
+
+        const detail = await agent
+            .get(`/api/content/test_article/${id}/revisions/1`)
+            .expect(200);
+        // The preview lists the actual linked record, not the raw uuid.
+        expect(detail.body.relationTotals.tags).toBe(1);
+        expect(detail.body.relationRefs.tags).toEqual([
+            expect.objectContaining({ id: tagId, title: 'News' })
+        ]);
     });
 
     it('restores an earlier revision as a new revision (append-only)', async () => {
@@ -283,6 +310,100 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
                 status: 'published',
                 isPublished: true
             });
+        });
+
+        it('keeps the published version live when a newer draft is saved', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            // Publish v1, then edit + save → v2 draft. The entry moves to draft,
+            // but v1 stays the live version in history.
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            const edited = await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Second title' } })
+                .expect(200);
+            expect(edited.body.status).toBe('draft');
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            const byNumber = Object.fromEntries(
+                list.body.items.map((r: { number: number }) => [r.number, r])
+            );
+            expect(byNumber[1]).toMatchObject({
+                status: 'published',
+                isPublished: true
+            });
+            expect(byNumber[2]).toMatchObject({
+                status: 'draft',
+                isLatest: true
+            });
+        });
+
+        it('publishes a specific earlier version, making it live', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: { ...VALID, text: 'First title' } })
+                .expect(201);
+            const id = create.body.id as string;
+
+            // v1 published, then two more draft saves (v2, v3).
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Second title' } })
+                .expect(200);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Third title' } })
+                .expect(200);
+
+            // Publish v1 (an earlier version): it is restored (appending a new
+            // latest) and that becomes live; the record's content is v1 again.
+            const published = await agent
+                .post(`/api/content/test_article/${id}/revisions/1/publish`)
+                .expect(201);
+            expect(published.body.status).toBe('published');
+            expect(published.body.values.text).toBe('First title');
+
+            const read = await agent
+                .get(`/api/content/test_article/${id}`)
+                .expect(200);
+            expect(read.body.values.text).toBe('First title');
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            // The new latest (a copy of v1) is the live version.
+            expect(list.body.items[0]).toMatchObject({
+                isLatest: true,
+                status: 'published',
+                isPublished: true
+            });
+            expect(list.body.total).toBe(4);
+        });
+
+        it('404s publishing an unknown version', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            await agent
+                .post(`/api/content/test_article/${id}/revisions/999/publish`)
+                .expect(404);
         });
     });
 });

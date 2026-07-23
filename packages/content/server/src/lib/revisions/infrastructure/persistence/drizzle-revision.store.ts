@@ -222,7 +222,8 @@ export class DrizzleRevisionStore implements RevisionStore {
             isLatest: row.revisionNumber === ctx.latestNumber,
             createdAt: row.createdAt.toISOString()
         };
-        if (row.publishedAt) summary.publishedAt = row.publishedAt.toISOString();
+        if (row.publishedAt)
+            summary.publishedAt = row.publishedAt.toISOString();
         if (row.createdBy) summary.authorId = row.createdBy;
         return summary;
     }

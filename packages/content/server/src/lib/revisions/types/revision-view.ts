@@ -1,4 +1,5 @@
 import type { RevisionStatus } from '../domain/revision-status';
+import type { RelationRef } from '../../entries/types/entry-list-view';
 
 /**
  * The immutable document a revision captures — everything the editor submits,
@@ -46,6 +47,18 @@ export interface RevisionSummary {
 export interface RevisionDetail extends RevisionSummary {
     /** The captured document. */
     snapshot: RevisionSnapshot;
+    /**
+     * Each relation field's snapshot ids resolved to display refs (title / slug /
+     * status), keyed by field name — so the preview shows the actual linked
+     * records, not raw uuids. Owning-single fields resolve their FK id from
+     * `snapshot.values`; join-backed fields resolve their id list from
+     * `snapshot.relations`. **Capped per field** (`relationTotals` carries the
+     * true count for a "+N more"), and present only on this detail read — the
+     * timeline summaries stay lean.
+     */
+    relationRefs?: Record<string, RelationRef[]>;
+    /** The true link count per relation field (may exceed the capped refs). */
+    relationTotals?: Record<string, number>;
 }
 
 /** The paginated timeline envelope, matching the list-page convention. */

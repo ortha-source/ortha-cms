@@ -357,22 +357,15 @@ export class EntryWriterService {
         await this.assertRelationTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
-        // written). Always-live types always must; a publishable type must only
-        // when the row is already published (a draft may be saved incomplete).
-        let enforceRequired = !type.publishable;
+        // written). A **publishable** type's save always produces a **draft**
+        // working copy: a draft may be incomplete, so it isn't eagerly validated,
+        // and editing an already-published entry moves it back to draft (its
+        // previously-published *version* stays live in history until the next
+        // publish). A non-publishable type is always live, so every write must
+        // validate now.
+        const enforceRequired = !type.publishable;
         if (!type.publishable) {
-            // Always-live type: every write must validate.
             this.assertValid(type, coerced);
-        } else {
-            // A draft may be saved incomplete, but a **published** row must stay
-            // valid — you can't null out a required field on live content
-            // without unpublishing first.
-            const current = await this.findLive(type, id, workspaceId);
-            if (!current) throw this.notFound(type, id);
-            if (current['status'] === ENTRY_STATUS.Published) {
-                this.assertValid(type, coerced);
-                enforceRequired = true;
-            }
         }
         // One transaction: replace the row's columns, re-sync a whole-set
         // many-relation submitted in `values`, and apply the staged relation
@@ -382,6 +375,15 @@ export class EntryWriterService {
                 .update(type.table)
                 .set({
                     ...toColumns(type, coerced),
+                    // Editing a publishable entry produces a draft working copy —
+                    // a published entry moves back to draft (its live version
+                    // stays published in history until the next publish).
+                    ...(type.publishable
+                        ? {
+                              status: ENTRY_STATUS.Draft,
+                              publishedAt: null
+                          }
+                        : {}),
                     updatedAt: new Date()
                 } as never)
                 .where(this.liveWhere(type, id, workspaceId))
@@ -946,7 +948,10 @@ export class EntryWriterService {
                 .select()
                 .from(target.table)
                 .where(
-                    and(inArray(t['id'], ids), eq(t['workspaceId'], workspaceId))
+                    and(
+                        inArray(t['id'], ids),
+                        eq(t['workspaceId'], workspaceId)
+                    )
                 )) as Row[];
             const present = new Set(rows.map((row) => row['id'] as string));
             for (const ref of refs) {

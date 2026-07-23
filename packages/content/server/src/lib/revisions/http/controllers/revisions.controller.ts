@@ -13,10 +13,7 @@ import {
     PermissionsGuard,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { clampInt } from '@ortha-cms/utils-server';
 import { MAX_PAGE_SIZE } from '../../../entries/entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -30,6 +27,7 @@ import type {
     RevisionDetail,
     RevisionListView
 } from '../../types/revision-view';
+import { RevisionRefsQuery } from '../../infrastructure/queries/revision-refs.query';
 import { REVISIONS_PAGE_SIZE } from '../../revisions.constants';
 
 /**
@@ -46,7 +44,8 @@ export class RevisionsController {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        @InjectRevisionStore() private readonly revisions: RevisionStore
+        @InjectRevisionStore() private readonly revisions: RevisionStore,
+        private readonly refs: RevisionRefsQuery
     ) {}
 
     @Get(':typeName/:id/revisions')
@@ -73,13 +72,15 @@ export class RevisionsController {
         @Param('number', ParseIntPipe) number: number,
         @CurrentWorkspace() workspaceId: string
     ): Promise<RevisionDetail> {
-        resolveType(this.registry, typeName);
+        const type = resolveType(this.registry, typeName);
         const detail = await this.revisions.get(id, workspaceId, number);
         if (!detail) {
             throw new NotFoundException(
                 `No revision #${number} for entry "${id}".`
             );
         }
-        return detail;
+        // Resolve the snapshot's relation ids to display refs so the preview can
+        // list the actual linked records, not raw uuids.
+        return this.refs.enrich(type, detail, workspaceId);
     }
 }

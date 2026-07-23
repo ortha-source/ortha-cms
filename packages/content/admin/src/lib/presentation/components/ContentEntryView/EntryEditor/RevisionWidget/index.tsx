@@ -6,6 +6,7 @@ import {
     CardTitle,
     Spinner
 } from '@ortha-cms/design-system';
+import type { ContentTypeDetail } from '../../../../../domain/types/contentType';
 import { useEntryRevisions } from '../../../../../application/useEntryRevisions';
 import { RevisionList } from '../RevisionList';
 
@@ -36,10 +37,13 @@ const messages = defineMessages({
  */
 export function RevisionWidget({
     typeName,
-    entryId
+    entryId,
+    schema
 }: {
     typeName: string;
     entryId: string;
+    /** The type's full field schema — threaded to the preview diff. */
+    schema: ContentTypeDetail;
 }) {
     const intl = useIntl();
     const { data, isLoading, isError } = useEntryRevisions(typeName, entryId);
@@ -72,7 +76,9 @@ export function RevisionWidget({
                         <RevisionList
                             typeName={typeName}
                             entryId={entryId}
+                            schema={schema}
                             revisions={items.slice(0, WIDGET_LIMIT)}
+                            compact
                         />
                         {overflow > 0 && (
                             <p className="pt-2 text-xs text-muted-foreground">
