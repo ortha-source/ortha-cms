@@ -34,7 +34,14 @@ export class CreateFolderUseCase {
             let parentId: FolderId | null = null;
             if (command.parentId) {
                 parentId = FolderId.create(command.parentId);
-                if (!(await this.folders.exists(parentId, command.workspaceId))) {
+                // FOR SHARE on the parent: serializes against a concurrent
+                // delete of that parent so this child can't be orphaned.
+                if (
+                    !(await this.folders.existsForShare(
+                        parentId,
+                        command.workspaceId
+                    ))
+                ) {
                     throw new FolderNotFoundError(command.parentId);
                 }
             }

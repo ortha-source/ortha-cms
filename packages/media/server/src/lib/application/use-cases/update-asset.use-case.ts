@@ -52,7 +52,12 @@ export class UpdateAssetUseCase {
                     asset.moveTo(null);
                 } else {
                     const target = FolderId.create(patch.folderId);
-                    if (!(await this.folders.exists(target, workspaceId))) {
+                    // FOR SHARE on the destination: serializes against a
+                    // concurrent delete of that folder so the moved asset can't
+                    // land in a folder that is being removed.
+                    if (
+                        !(await this.folders.existsForShare(target, workspaceId))
+                    ) {
                         throw new FolderNotFoundError(patch.folderId);
                     }
                     asset.moveTo(target);

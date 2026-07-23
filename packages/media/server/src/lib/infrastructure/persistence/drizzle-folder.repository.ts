@@ -36,8 +36,28 @@ export class DrizzleFolderRepository implements FolderRepository {
         return row ? this.mapper.toDomain(row) : null;
     }
 
-    /** {@inheritDoc FolderRepository.exists} */
-    async exists(id: FolderId, workspaceId: string): Promise<boolean> {
+    /** {@inheritDoc FolderRepository.findByIdForUpdate} */
+    async findByIdForUpdate(
+        id: FolderId,
+        workspaceId: string
+    ): Promise<Folder | null> {
+        const [row] = await this.uow
+            .current()
+            .select()
+            .from(mediaFolder)
+            .where(
+                and(
+                    eq(mediaFolder.id, id.value),
+                    eq(mediaFolder.workspaceId, workspaceId)
+                )
+            )
+            .limit(1)
+            .for('update');
+        return row ? this.mapper.toDomain(row) : null;
+    }
+
+    /** {@inheritDoc FolderRepository.existsForShare} */
+    async existsForShare(id: FolderId, workspaceId: string): Promise<boolean> {
         const [row] = await this.uow
             .current()
             .select({ id: mediaFolder.id })
@@ -48,7 +68,8 @@ export class DrizzleFolderRepository implements FolderRepository {
                     eq(mediaFolder.workspaceId, workspaceId)
                 )
             )
-            .limit(1);
+            .limit(1)
+            .for('share');
         return !!row;
     }
 

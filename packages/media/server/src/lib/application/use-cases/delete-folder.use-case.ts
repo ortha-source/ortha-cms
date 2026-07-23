@@ -31,7 +31,11 @@ export class DeleteFolderUseCase {
         const id = FolderId.create(folderId);
 
         return this.uow.run(async () => {
-            const folder = await this.folders.findById(id, workspaceId);
+            // Lock the folder row FOR UPDATE *before* the emptiness check, so a
+            // concurrent upload/move/create-subfolder (which takes FOR SHARE on
+            // this same row) can't slip a child in between the count and the
+            // delete and leave an orphaned reference — there is no FK to stop it.
+            const folder = await this.folders.findByIdForUpdate(id, workspaceId);
             if (!folder) {
                 throw new FolderNotFoundError(folderId);
             }

@@ -87,7 +87,13 @@ export class UploadAssetUseCase {
             return await this.uow.run(async () => {
                 if (
                     folderId &&
-                    !(await this.folders.exists(folderId, command.workspaceId))
+                    // FOR SHARE on the destination folder: serializes against a
+                    // concurrent delete so the new asset can't be orphaned into
+                    // a folder that is being removed.
+                    !(await this.folders.existsForShare(
+                        folderId,
+                        command.workspaceId
+                    ))
                 ) {
                     throw new FolderNotFoundError(folderId.value);
                 }
