@@ -25,6 +25,9 @@
             "path": "../../packages/workspaces/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/media/provider-local/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
@@ -38,6 +41,9 @@
         },
         {
             "path": "../../packages/activity/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/media/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/i18n/server/tsconfig.lib.json"

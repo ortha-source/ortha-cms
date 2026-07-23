@@ -14,6 +14,7 @@ import {
     workspaceContent,
     workspaces
 } from '@ortha-cms/workspaces-server';
+import { mediaAsset, mediaFolder } from '@ortha-cms/media-server';
 // The e2e-owned generated content tables (from the harness's own content model,
 // NOT the app's collections). Specs reach these only through the helpers below.
 import {
@@ -335,9 +336,75 @@ export async function resetDb(): Promise<void> {
         'TRUNCATE TABLE users, workspaces, activity_events, ' +
             'content_test_article, content_test_author, content_test_tag, ' +
             'content_test_seo, content_test_comment, content_test_landing, ' +
-            'content_test_page ' +
+            'content_test_page, media_asset, media_folder ' +
             'RESTART IDENTITY CASCADE'
     );
+}
+
+/** A seeded media folder row. */
+export interface SeededMediaFolder {
+    id: string;
+}
+
+/**
+ * Insert a `media_folder` row directly. `parentId` defaults to `null` (a
+ * top-level folder). Scoped to `workspaceId`.
+ */
+export async function seedMediaFolder(opts: {
+    workspaceId: string;
+    name: string;
+    parentId?: string | null;
+}): Promise<SeededMediaFolder> {
+    const [row] = await getDatabase()
+        .insert(mediaFolder)
+        .values({
+            workspaceId: opts.workspaceId,
+            name: opts.name,
+            parentId: opts.parentId ?? null
+        })
+        .returning();
+    return { id: row.id };
+}
+
+/**
+ * Insert a `media_asset` row directly (for list/scoping/permission tests where
+ * the bytes are never read). Its `storage_key` points at the `memory` provider
+ * but no blob is written — use an API upload when the download path is exercised.
+ * `folderId` defaults to `null` (the workspace root).
+ */
+export async function seedMediaAsset(opts: {
+    workspaceId: string;
+    uploadedBy: string;
+    name: string;
+    folderId?: string | null;
+    kind?: 'image' | 'video' | 'audio' | 'document' | 'archive';
+    mimeType?: string;
+    size?: number;
+}): Promise<{ id: string }> {
+    const [row] = await getDatabase()
+        .insert(mediaAsset)
+        .values({
+            workspaceId: opts.workspaceId,
+            folderId: opts.folderId ?? null,
+            name: opts.name,
+            kind: opts.kind ?? 'document',
+            mimeType: opts.mimeType ?? 'application/pdf',
+            size: opts.size ?? 1024,
+            storageKey: `${opts.workspaceId}/seed/${opts.name}`,
+            storageProvider: 'memory',
+            uploadedBy: opts.uploadedBy
+        })
+        .returning();
+    return { id: row.id };
+}
+
+/** Count `media_asset` rows in a workspace — asserts upload/delete side effects. */
+export async function countMediaAssets(workspaceId: string): Promise<number> {
+    const rows = await getDatabase()
+        .select({ id: mediaAsset.id })
+        .from(mediaAsset)
+        .where(eq(mediaAsset.workspaceId, workspaceId));
+    return rows.length;
 }
 
 /**

@@ -5,6 +5,8 @@ import { ContentPlugin } from '@ortha-cms/content-server';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
+import { MediaServerPlugin } from '@ortha-cms/media-server';
+import { createLocalStorageProvider } from '@ortha-cms/media-provider-local';
 import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../ortha.config';
@@ -48,6 +50,23 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
                 dir: () => join(__dirname, '../migrations'),
                 table: '__drizzle_migrations_content'
             }
+        }),
+        // Media — registered after workspaces (its routes use `WorkspaceGuard`)
+        // and identity (its routes use `PermissionsGuard`). The composition root
+        // is the single place that selects storage: register providers by name
+        // and, optionally, a `resolve` handler to route per file. The default
+        // install runs one local-filesystem provider and no handler, so every
+        // upload lands on disk under `config.plugins.media.local.rootDir`.
+        //
+        // To route by file (once the S3 adapter lands), add more providers and a
+        // handler, e.g.:
+        //   providers: { local: createLocalStorageProvider(...), s3: createS3StorageProvider(...) },
+        //   resolve: (ctx) => (ctx.kind === 'video' ? 's3' : 'local'),
+        MediaServerPlugin({
+            providers: {
+                local: createLocalStorageProvider(config.plugins.media.local)
+            },
+            config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n)
     ];
