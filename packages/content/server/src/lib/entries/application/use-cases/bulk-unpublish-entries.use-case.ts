@@ -50,6 +50,15 @@ export class BulkUnpublishEntriesUseCase {
                 ids,
                 workspaceId
             );
+            // Revert each really-transitioned entry's published revision back to
+            // draft — the same set the outbox emits an event for.
+            for (const id of publishedIds) {
+                await this.writer.markRevisionUnpublished(
+                    exec,
+                    id,
+                    workspaceId
+                );
+            }
             await this.outbox.append(
                 publishedIds.flatMap((id) => {
                     const entry = Entry.rehydrate({

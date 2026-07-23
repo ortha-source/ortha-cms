@@ -63,6 +63,15 @@ export class BulkPublishEntriesUseCase {
                     published,
                     workspaceId
                 );
+                // Promote each published entry's latest revision to live, so the
+                // history timeline matches however the entry was published.
+                for (const id of published) {
+                    await this.writer.markRevisionPublished(
+                        exec,
+                        id,
+                        workspaceId
+                    );
+                }
                 await this.outbox.append(
                     published.flatMap((id) => {
                         const entry = Entry.rehydrate({

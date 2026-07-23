@@ -41,6 +41,12 @@ import {
     RelationLinkService,
     type DbTransaction
 } from './relation-link.service';
+import {
+    InjectRevisionStore,
+    type RevisionStore
+} from '../../../revisions/application/ports/revision-store';
+import { Revision } from '../../../revisions/domain/revision';
+import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -70,12 +76,48 @@ export class EntryWriterService {
         @InjectDatabase() private readonly db: Database,
         private readonly validation: EntryValidationService,
         private readonly relations: RelationLinkService,
+        // The generic revision store — every save appends an immutable snapshot
+        // inside the same transaction, so the version and the write commit as one.
+        @InjectRevisionStore()
+        private readonly revisionStore: RevisionStore,
         // The entries extension port (e.g. the i18n plugin's locale stamping
         // and sibling sync) — absent unless a plugin binds it, hence optional.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
         private readonly extension?: ContentEntryExtension
     ) {}
+
+    /**
+     * Append an immutable **draft** revision for a just-saved row, on the save's
+     * own transaction so the snapshot commits atomically with it. Captures the
+     * whole document — the field `values` bag plus the full ordered link sets of
+     * every join-backed relation (read back inside `tx`, so it reflects the
+     * committed state). The entry's append lock serializes concurrent savers so
+     * each allocates a distinct version number.
+     */
+    private async appendRevision(
+        tx: DbTransaction,
+        type: AnyContentType,
+        row: Row,
+        workspaceId: string,
+        actorId: string | null
+    ): Promise<void> {
+        const id = row['id'] as string;
+        const links = await this.relations.snapshotLinks(tx, type, row);
+        await this.revisionStore.lockEntry(tx, id);
+        const number = await this.revisionStore.nextNumber(tx, id);
+        const revision = Revision.createDraft({
+            contentType: type.name,
+            entryId: id,
+            workspaceId,
+            localeGroupId: (row['localeGroupId'] as string | undefined) ?? null,
+            locale: (row['locale'] as string | undefined) ?? null,
+            number,
+            snapshot: buildSnapshot(type, row, links),
+            createdBy: actorId
+        });
+        await this.revisionStore.append(tx, revision);
+    }
 
     /**
      * Create an entry **owned by `workspaceId`** (stamped onto the row so the
@@ -101,7 +143,8 @@ export class EntryWriterService {
         workspaceId: string,
         relations?: Record<string, RelationDelta>,
         locale?: string,
-        localeGroupId?: string
+        localeGroupId?: string,
+        actorId?: string | null
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
@@ -170,6 +213,15 @@ export class EntryWriterService {
                         inserted as Row,
                         coerced,
                         workspaceId
+                    );
+                    // Snapshot the just-created document as its first revision,
+                    // inside this same transaction.
+                    await this.appendRevision(
+                        tx,
+                        type,
+                        inserted as Row,
+                        workspaceId,
+                        actorId ?? null
                     );
                     return inserted as Row;
                 }),
@@ -298,28 +350,22 @@ export class EntryWriterService {
         id: string,
         values: Record<string, unknown>,
         workspaceId: string,
-        relations?: Record<string, RelationDelta>
+        relations?: Record<string, RelationDelta>,
+        actorId?: string | null
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
-        // written). Always-live types always must; a publishable type must only
-        // when the row is already published (a draft may be saved incomplete).
-        let enforceRequired = !type.publishable;
+        // written). A **publishable** type's save always produces a **draft**
+        // working copy: a draft may be incomplete, so it isn't eagerly validated,
+        // and editing an already-published entry moves it back to draft (its
+        // previously-published *version* stays live in history until the next
+        // publish). A non-publishable type is always live, so every write must
+        // validate now.
+        const enforceRequired = !type.publishable;
         if (!type.publishable) {
-            // Always-live type: every write must validate.
             this.assertValid(type, coerced);
-        } else {
-            // A draft may be saved incomplete, but a **published** row must stay
-            // valid — you can't null out a required field on live content
-            // without unpublishing first.
-            const current = await this.findLive(type, id, workspaceId);
-            if (!current) throw this.notFound(type, id);
-            if (current['status'] === ENTRY_STATUS.Published) {
-                this.assertValid(type, coerced);
-                enforceRequired = true;
-            }
         }
         // One transaction: replace the row's columns, re-sync a whole-set
         // many-relation submitted in `values`, and apply the staged relation
@@ -329,6 +375,15 @@ export class EntryWriterService {
                 .update(type.table)
                 .set({
                     ...toColumns(type, coerced),
+                    // Editing a publishable entry produces a draft working copy —
+                    // a published entry moves back to draft (its live version
+                    // stays published in history until the next publish).
+                    ...(type.publishable
+                        ? {
+                              status: ENTRY_STATUS.Draft,
+                              publishedAt: null
+                          }
+                        : {}),
                     updatedAt: new Date()
                 } as never)
                 .where(this.liveWhere(type, id, workspaceId))
@@ -362,6 +417,15 @@ export class EntryWriterService {
                 coerced,
                 workspaceId
             );
+            // Snapshot the updated document as a new draft revision, inside this
+            // same transaction.
+            await this.appendRevision(
+                tx,
+                type,
+                updated as Row,
+                workspaceId,
+                actorId ?? null
+            );
             return updated as Row;
         });
         return toRecord(type, row);
@@ -394,6 +458,34 @@ export class EntryWriterService {
             .where(this.liveWhere(type, id, workspaceId))
             .returning();
         return row as Row | undefined;
+    }
+
+    /**
+     * Transition the entry's **revision history** to reflect a publish: its
+     * latest revision becomes the live (`published`) version and any prior
+     * published one is `superseded`. Runs on the publish transaction's executor
+     * (the active unit of work) so the row's status and its history commit as
+     * one. Delegates to the revision store — every revision is minted a draft, so
+     * this is what makes a published entry read as "Live" in the timeline.
+     */
+    async markRevisionPublished(
+        exec: Database | DbTransaction,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        await this.revisionStore.markPublished(exec, entryId, workspaceId);
+    }
+
+    /**
+     * Revert the entry's published revision back to `draft` on `exec` — the
+     * unpublish counterpart to {@link markRevisionPublished}.
+     */
+    async markRevisionUnpublished(
+        exec: Database | DbTransaction,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        await this.revisionStore.markUnpublished(exec, entryId, workspaceId);
     }
 
     /** Revert one live row to `status='draft'` (clearing `published_at`) on `exec`. */
@@ -856,7 +948,10 @@ export class EntryWriterService {
                 .select()
                 .from(target.table)
                 .where(
-                    and(inArray(t['id'], ids), eq(t['workspaceId'], workspaceId))
+                    and(
+                        inArray(t['id'], ids),
+                        eq(t['workspaceId'], workspaceId)
+                    )
                 )) as Row[];
             const present = new Set(rows.map((row) => row['id'] as string));
             for (const ref of refs) {

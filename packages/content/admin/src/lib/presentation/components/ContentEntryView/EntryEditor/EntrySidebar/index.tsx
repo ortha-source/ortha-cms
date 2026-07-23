@@ -12,12 +12,10 @@ import {
 } from '../../../../../domain/constants';
 import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
 import { ENTRY_SIDEBAR_WIDGET_SLOT } from '../../../../slots/contentSlots';
-import {
-    SidebarActionBar,
-    type PrimaryAction
-} from './SidebarActionBar';
+import { SidebarActionBar, type PrimaryAction } from './SidebarActionBar';
 import { PublishGate, type PublishGateItem } from './PublishGate';
 import { DetailsBlock } from './DetailsBlock';
+import { RevisionWidget } from '../RevisionWidget';
 
 /** Re-exported for the editor, which computes the gate items. */
 export type { PublishGateItem };
@@ -38,7 +36,8 @@ const messages = defineMessages({
     },
     deleteBodyHard: {
         id: 'content.sidebar.deleteBodyHard',
-        defaultMessage: 'This permanently removes the entry and can’t be undone.'
+        defaultMessage:
+            'This permanently removes the entry and can’t be undone.'
     },
     deleteConfirm: {
         id: 'content.sidebar.deleteConfirm',
@@ -141,6 +140,14 @@ export function EntrySidebar({
             {publishable && <PublishGate items={gate} />}
 
             <DetailsBlock entry={entry} isCreate={isCreate} />
+
+            {slotContext && entry?.id ? (
+                <RevisionWidget
+                    typeName={slotContext.schema.name}
+                    entryId={entry.id}
+                    schema={slotContext.schema}
+                />
+            ) : null}
 
             {slotContext
                 ? widgets.map((item) => (

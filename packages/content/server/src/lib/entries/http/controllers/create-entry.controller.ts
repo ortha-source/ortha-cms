@@ -1,14 +1,13 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
+    type PublicUser,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
@@ -39,7 +38,8 @@ export class CreateEntryController {
     create(
         @Param('typeName') typeName: string,
         @Body() body: SaveEntryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
         return this.writer.create(
@@ -48,7 +48,8 @@ export class CreateEntryController {
             workspaceId,
             body.relations,
             body.locale,
-            body.localeGroupId
+            body.localeGroupId,
+            user?.id ?? null
         );
     }
 }

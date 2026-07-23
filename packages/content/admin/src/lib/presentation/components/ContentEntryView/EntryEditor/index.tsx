@@ -29,6 +29,7 @@ import { fieldLabel } from '../../../../domain/entryColumns';
 import { toRelationIds } from '../../../../domain/relationIds';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
+import { HistoryTimeline } from './HistoryTimeline';
 import { RelationFieldSection } from './RelationFieldSection';
 
 const messages = defineMessages({
@@ -63,15 +64,6 @@ const messages = defineMessages({
         id: 'content.editor.mediaBody',
         defaultMessage:
             'Image and file fields for this record will appear here once media support lands.'
-    },
-    historyTitle: {
-        id: 'content.editor.historyTitle',
-        defaultMessage: 'History'
-    },
-    historyBody: {
-        id: 'content.editor.historyBody',
-        defaultMessage:
-            'A timeline of edits to this record will appear here soon.'
     },
     relationRequired: {
         id: 'content.editor.relationRequired',
@@ -572,20 +564,11 @@ export function EntryEditor({
                             </TabsContent>
 
                             <TabsContent value={TAB.History}>
-                                <Card className="shadow-none">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
-                                            {intl.formatMessage(
-                                                messages.historyTitle
-                                            )}
-                                        </CardTitle>
-                                        <CardDescription>
-                                            {intl.formatMessage(
-                                                messages.historyBody
-                                            )}
-                                        </CardDescription>
-                                    </CardHeader>
-                                </Card>
+                                <HistoryTimeline
+                                    typeName={schema.name}
+                                    entryId={entry?.id}
+                                    schema={schema}
+                                />
                             </TabsContent>
                         </Tabs>
                     </div>

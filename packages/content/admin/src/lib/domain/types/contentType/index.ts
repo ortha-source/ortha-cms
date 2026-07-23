@@ -104,6 +104,61 @@ export type ContentTypeDetail = ContentType & {
  * (`id`, `createdAt`, `updatedAt`, and `status` for publishable types) plus a
  * value per schema field, keyed by field name. Served by `GET /api/content/:name`.
  */
+/** A revision's lifecycle state — mirror of the server's `REVISION_STATUS`. */
+export type RevisionStatus = 'draft' | 'published' | 'superseded';
+
+/**
+ * One entry revision as served to the timeline (`GET …/:id/revisions`), without
+ * the snapshot body. Mirrors the server's `RevisionSummary`.
+ */
+export type RevisionSummary = {
+    /** Revision id. */
+    id: string;
+    /** Monotonic version number within the entry (1-based). */
+    number: number;
+    /** Lifecycle state. */
+    status: RevisionStatus;
+    /** Whether this is the entry's current live version. */
+    isPublished: boolean;
+    /** Whether this is the newest revision (the only one publishable). */
+    isLatest: boolean;
+    /** ISO capture timestamp. */
+    createdAt: string;
+    /** ISO publish timestamp, when published. */
+    publishedAt?: string;
+    /** The acting user's id, when known. */
+    authorId?: string;
+};
+
+/** The immutable document a revision captured — `{ values, relations }`. */
+export type RevisionSnapshot = {
+    /** Field values (scalars, localized + shared, single-relation FK ids). */
+    values: Record<string, unknown>;
+    /** Ordered target-id list per join-backed relation field. */
+    relations: Record<string, string[]>;
+};
+
+/** One revision with its full snapshot body (`GET …/:id/revisions/:number`). */
+export type RevisionDetail = RevisionSummary & {
+    /** The captured document. */
+    snapshot: RevisionSnapshot;
+    /**
+     * Each relation field's snapshot ids resolved to display refs (title / slug /
+     * status), keyed by field name — so the preview lists the actual linked
+     * records, not raw uuids. Capped per field; `relationTotals` carries the true
+     * count for a "+N more". Mirrors the server's `RevisionDetail.relationRefs`.
+     */
+    relationRefs?: Record<string, RelationRef[]>;
+    /** True link count per relation field (may exceed the capped `relationRefs`). */
+    relationTotals?: Record<string, number>;
+};
+
+/** The paginated revision-timeline envelope. */
+export type RevisionListView = {
+    items: RevisionSummary[];
+    total: number;
+};
+
 export type EntryRecord = {
     /** Entry id (the `:entryId` route segment). */
     id: string;

@@ -39,6 +39,64 @@ export class ContentLibraryPage extends BasePage {
         await this.page.goto(`/workspaces/${workspaceId}/content`);
     }
 
+    /** Navigate straight to one entry's editor (`/content/:type/:id`). */
+    async gotoEntry(workspaceId: string, typeName: string, id: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/${id}`
+        );
+    }
+
+    /** An entry-editor tab trigger by label ("General" / "History"). */
+    editorTab(name: string): Locator {
+        return this.page.getByRole('tab', { name });
+    }
+
+    /** Open one entry-editor tab. */
+    async openEditorTab(name: string) {
+        await this.editorTab(name).click();
+    }
+
+    /**
+     * The active editor tabpanel — the History tab renders the full revision
+     * timeline (the sidebar widget shows a compact copy, so scope revision
+     * assertions to this panel to avoid matching both).
+     */
+    get editorTabPanel(): Locator {
+        return this.page.getByRole('tabpanel');
+    }
+
+    /** The History timeline's `<li>` for version `n` (scoped to the tab panel). */
+    revisionItem(n: number): Locator {
+        return this.editorTabPanel
+            .getByRole('listitem')
+            .filter({ has: this.page.getByText(`v${n}`, { exact: true }) });
+    }
+
+    /** Every "Live" status badge in the History timeline. */
+    get liveRevisionBadges(): Locator {
+        return this.editorTabPanel.getByText('Live', { exact: true });
+    }
+
+    /** The History-row "Publish version {n}" action (scoped to the tab panel). */
+    revisionPublish(n: number): Locator {
+        return this.editorTabPanel.getByRole('button', {
+            name: `Publish version ${n}`
+        });
+    }
+
+    /** The confirm button inside the publish-version confirmation dialog. */
+    get confirmPublishButton(): Locator {
+        return this.page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Publish', exact: true });
+    }
+
+    /** Publish revision `n` from the History timeline (row action + confirm). */
+    async publishRevision(n: number) {
+        await this.revisionPublish(n).click();
+        await this.confirmPublishButton.click();
+    }
+
     /**
      * The records page mounts the query builder as an **inline accordion panel**
      * (a `region` labelled by the "Filters" toggle), not the modal drawer the

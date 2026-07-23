@@ -4,7 +4,8 @@ import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { EntryRecord } from '../../domain/types/contentType';
 import {
     contentEntriesPrefix,
-    contentEntryPrefix
+    contentEntryPrefix,
+    entryRevisionsPrefix
 } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 
@@ -26,6 +27,11 @@ export function useEntryStatusActions(typeName: string) {
         });
         queryClient.invalidateQueries({
             queryKey: contentEntryPrefix(workspace.id, typeName)
+        });
+        // Publish/unpublish transition the entry's latest revision, so refresh
+        // the timeline (right-rail widget + History tab) to show the new status.
+        queryClient.invalidateQueries({
+            queryKey: entryRevisionsPrefix(workspace.id, typeName)
         });
     };
 

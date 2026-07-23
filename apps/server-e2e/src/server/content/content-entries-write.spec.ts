@@ -126,7 +126,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(fields).toEqual(expect.arrayContaining(['text', 'select']));
         });
 
-        it('allows editing a draft to an incomplete state, but not a published row', async () => {
+        it('allows editing a draft to an incomplete state, and moves a published entry back to draft on edit', async () => {
             const agent = await login(ADMIN_EMAIL);
 
             // A draft may be edited to an incomplete (invalid) state.
@@ -136,15 +136,19 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .send({ values: { text: '' } })
                 .expect(200);
 
-            // A published row must stay valid — clearing a required field 422s.
+            // Editing a published entry moves it back to draft (unpublished
+            // working changes) — its previously-published version stays live in
+            // history until the next publish — so an incomplete save is allowed
+            // and the row's status clears to draft.
             const publishedId = await createArticle(agent);
             await agent
                 .post(`/api/content/test_article/${publishedId}/publish`)
                 .expect(201);
-            await agent
+            const edited = await agent
                 .patch(`/api/content/test_article/${publishedId}`)
                 .send({ values: { text: '', select: 'article' } })
-                .expect(422);
+                .expect(200);
+            expect(edited.body.status).toBe('draft');
         });
 
         it('422s an invalid create of a non-publishable (always-live) type', async () => {
@@ -161,7 +165,9 @@ describe('Content entry writes (/api/content/:type)', () => {
         it('404s reading an unknown id', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .get('/api/content/test_article/00000000-0000-4000-8000-000000000000')
+                .get(
+                    '/api/content/test_article/00000000-0000-4000-8000-000000000000'
+                )
                 .expect(404);
         });
     });
@@ -340,7 +346,9 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .patch(`/api/content/test_article/${id}`)
                 .send({ values: { ...VALID, tags: [] } })
                 .expect(200);
-            expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual([]);
+            expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual(
+                []
+            );
         });
 
         it('422s a many-to-many target in another workspace', async () => {
@@ -378,12 +386,15 @@ describe('Content entry writes (/api/content/:type)', () => {
             // Link on create, in the same request as the values.
             const create = await agent
                 .post('/api/content/test_article')
-                .send({ values: VALID, relations: { tags: { link: [eng, design] } } })
+                .send({
+                    values: VALID,
+                    relations: { tags: { link: [eng, design] } }
+                })
                 .expect(201);
             const id = create.body.id as string;
-            expect((await linkedIds(agent, 'test_article', id, 'tags')).sort()).toEqual(
-                [eng, design].sort()
-            );
+            expect(
+                (await linkedIds(agent, 'test_article', id, 'tags')).sort()
+            ).toEqual([eng, design].sort());
 
             // Unlink on update, via the save payload.
             await agent
@@ -405,7 +416,10 @@ describe('Content entry writes (/api/content/:type)', () => {
                 seedTagIn(workspaceId, 'ee')
             ]);
             // Start with three linked tags.
-            const id = await createArticle(agent, { ...VALID, tags: [a, b, c] });
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [a, b, c]
+            });
 
             // A link delta of two more must MERGE to five — not replace with two.
             // The save body carries no `tags` in `values`, so the whole-set path
@@ -440,7 +454,10 @@ describe('Content entry writes (/api/content/:type)', () => {
 
             await agent
                 .patch(`/api/content/test_article/${id}`)
-                .send({ values: VALID, relations: { tags: { order: [c, a, b] } } })
+                .send({
+                    values: VALID,
+                    relations: { tags: { order: [c, a, b] } }
+                })
                 .expect(200);
             expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual([
                 c,
@@ -485,7 +502,10 @@ describe('Content entry writes (/api/content/:type)', () => {
             const id = await createArticle(agent);
             await agent
                 .patch(`/api/content/test_article/${id}`)
-                .send({ values: VALID, relations: { author: { link: [author] } } })
+                .send({
+                    values: VALID,
+                    relations: { author: { link: [author] } }
+                })
                 .expect(400);
         });
 
@@ -544,12 +564,12 @@ describe('Content entry writes (/api/content/:type)', () => {
                     relations: { articles: { link: [articleId] } }
                 })
                 .expect(200);
-            expect(await linkedIds(agent, 'test_tag', tagId, 'articles')).toEqual([
-                articleId
-            ]);
-            expect(await linkedIds(agent, 'test_article', articleId, 'tags')).toEqual(
-                [tagId]
-            );
+            expect(
+                await linkedIds(agent, 'test_tag', tagId, 'articles')
+            ).toEqual([articleId]);
+            expect(
+                await linkedIds(agent, 'test_article', articleId, 'tags')
+            ).toEqual([tagId]);
         });
 
         it('applies link, unlink, and order in one delta on save', async () => {
@@ -560,7 +580,10 @@ describe('Content entry writes (/api/content/:type)', () => {
                 seedTagIn(workspaceId, 'cc'),
                 seedTagIn(workspaceId, 'dd')
             ]);
-            const id = await createArticle(agent, { ...VALID, tags: [a, b, c] });
+            const id = await createArticle(agent, {
+                ...VALID,
+                tags: [a, b, c]
+            });
 
             // Unlink a, link d, and reorder — all in a single save.
             await agent
@@ -590,12 +613,19 @@ describe('Content entry writes (/api/content/:type)', () => {
             // `tag` is paranoid, so DELETE only soft-deletes the row — the join
             // rows survive, so the article's link is still there.
             await agent.delete(`/api/content/test_tag/${a}`).expect(204);
-            expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual([a, b]);
+            expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual([
+                a,
+                b
+            ]);
 
             // Purging hard-deletes the row; the join rows cascade, so the
             // article's link to it finally disappears.
-            await agent.delete(`/api/content/test_tag/${a}/permanent`).expect(204);
-            expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual([b]);
+            await agent
+                .delete(`/api/content/test_tag/${a}/permanent`)
+                .expect(204);
+            expect(await linkedIds(agent, 'test_article', id, 'tags')).toEqual([
+                b
+            ]);
         });
     });
 
@@ -633,14 +663,20 @@ describe('Content entry writes (/api/content/:type)', () => {
             await agent.delete(`/api/content/test_article/${id}`).expect(204);
 
             // Gone from the default list…
-            const live = await agent.get('/api/content/test_article').expect(200);
-            expect(live.body.items.map((i: { id: string }) => i.id)).not.toContain(id);
+            const live = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+            expect(
+                live.body.items.map((i: { id: string }) => i.id)
+            ).not.toContain(id);
 
             // …but present in the trash view.
             const trash = await agent
                 .get('/api/content/test_article?deleted=only')
                 .expect(200);
-            expect(trash.body.items.map((i: { id: string }) => i.id)).toContain(id);
+            expect(trash.body.items.map((i: { id: string }) => i.id)).toContain(
+                id
+            );
 
             // Reading a soft-deleted row 404s.
             await agent.get(`/api/content/test_article/${id}`).expect(404);
@@ -649,8 +685,12 @@ describe('Content entry writes (/api/content/:type)', () => {
             await agent
                 .post(`/api/content/test_article/${id}/restore`)
                 .expect(201);
-            const relisted = await agent.get('/api/content/test_article').expect(200);
-            expect(relisted.body.items.map((i: { id: string }) => i.id)).toContain(id);
+            const relisted = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+            expect(
+                relisted.body.items.map((i: { id: string }) => i.id)
+            ).toContain(id);
 
             // Delete again, then purge permanently.
             await agent.delete(`/api/content/test_article/${id}`).expect(204);
