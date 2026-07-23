@@ -15,6 +15,7 @@ export type AssetResponse = {
     mimeType: string;
     size: number;
     url: string;
+    variants: string[];
     width: number | null;
     height: number | null;
     duration: number | null;
@@ -58,6 +59,13 @@ export function toMediaFolder(dto: FolderResponse): MediaFolder {
     };
 }
 
+/** The `?variant=` download URL when the asset has that derivative, else null. */
+function variantUrl(dto: AssetResponse, name: string): string | undefined {
+    return dto.variants.includes(name)
+        ? `${dto.url}?variant=${name}`
+        : undefined;
+}
+
 /** Maps a wire asset to the admin model; a null folder → the root sentinel. */
 export function toMediaAsset(dto: AssetResponse): MediaAsset {
     return {
@@ -65,6 +73,8 @@ export function toMediaAsset(dto: AssetResponse): MediaAsset {
         name: dto.name,
         kind: dto.kind as MediaKind,
         url: dto.url,
+        thumbUrl: variantUrl(dto, 'thumb'),
+        previewUrl: variantUrl(dto, 'preview'),
         mimeType: dto.mimeType,
         size: dto.size,
         folderId: dto.folderId ?? ROOT_FOLDER_ID,

@@ -1,14 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Readable } from 'node:stream';
+import { Readable } from 'node:stream';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { PublicUser } from '@ortha-cms/identity-server';
-import { Asset } from '../../domain/asset';
+import { Asset, type AssetMedia, type AssetVariants } from '../../domain/asset';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import { FolderId } from '../../domain/value-objects/folder-id';
 import { FileName } from '../../domain/value-objects/file-name';
 import { MediaKind } from '../../domain/value-objects/media-kind';
 import { StorageKey } from '../../domain/value-objects/storage-key';
 import { FolderNotFoundError } from '../../domain/errors/folder-not-found.error';
+import {
+    IMAGE_PROCESSOR,
+    type ImageProcessor
+} from '../../domain/image-processor';
 import {
     ASSET_REPOSITORY,
     type AssetRepository
@@ -20,6 +24,7 @@ import {
 import {
     STORAGE_REGISTRY,
     STORAGE_RESOLVER,
+    type StorageProvider,
     type StorageRegistry,
     type StorageResolver
 } from '../../domain/storage-provider';
@@ -35,10 +40,26 @@ export interface UploadAssetCommand {
     body: Readable;
 }
 
+/** Buffers a readable fully into memory (bounded by the upload size cap). */
+async function collect(stream: Readable): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(chunk as Buffer);
+    }
+    return Buffer.concat(chunks);
+}
+
 /**
  * Uploads one asset: the resolver picks a backend, the bytes stream to it, then
  * the row + audit event commit atomically. The provider name is recorded on the
  * asset so downloads/deletes route to the same backend.
+ *
+ * For images, the bytes are buffered so the {@link ImageProcessor} can read the
+ * dimensions and generate `thumb`/`preview` derivatives, each stored as its own
+ * blob under the same provider. Derivative generation is best-effort — a source
+ * the processor can't handle just yields no derivatives, never a failed upload.
+ * Every blob written (original + derivatives) is reclaimed if the transaction
+ * rolls back, so a failed upload leaves nothing behind.
  */
 @Injectable()
 export class UploadAssetUseCase {
@@ -47,6 +68,7 @@ export class UploadAssetUseCase {
         private readonly outbox: OutboxWriter,
         @Inject(STORAGE_REGISTRY) private readonly registry: StorageRegistry,
         @Inject(STORAGE_RESOLVER) private readonly resolve: StorageResolver,
+        @Inject(IMAGE_PROCESSOR) private readonly processor: ImageProcessor,
         @Inject(ASSET_REPOSITORY) private readonly assets: AssetRepository,
         @Inject(FOLDER_REPOSITORY) private readonly folders: FolderRepository
     ) {}
@@ -75,15 +97,38 @@ export class UploadAssetUseCase {
             this.registry
         );
         const provider = this.registry.get(providerName);
-        const stored = await provider.put({
-            workspaceId: command.workspaceId,
-            assetId: assetId.value,
-            fileName: fileName.value,
-            contentType: command.contentType,
-            body: command.body
-        });
 
+        // Images are buffered once so both the original write and the processor
+        // can read the same bytes (a stream is single-use); other kinds stream
+        // straight through without ever buffering fully in memory.
+        const buffered =
+            kind.value === 'image' ? await collect(command.body) : null;
+
+        // Track every blob written so any failure — storage or transaction —
+        // reclaims all of them, never just the original.
+        const written: string[] = [];
         try {
+            const original = await provider.put({
+                workspaceId: command.workspaceId,
+                assetId: assetId.value,
+                fileName: fileName.value,
+                contentType: command.contentType,
+                body: buffered ? Readable.from(buffered) : command.body
+            });
+            written.push(original.storageKey);
+
+            let media: Partial<AssetMedia> | undefined;
+            let variants: AssetVariants = {};
+            if (buffered) {
+                ({ media, variants } = await this.deriveImage(
+                    provider,
+                    command,
+                    assetId,
+                    buffered,
+                    written
+                ));
+            }
+
             return await this.uow.run(async () => {
                 if (
                     folderId &&
@@ -102,13 +147,15 @@ export class UploadAssetUseCase {
                     workspaceId: command.workspaceId,
                     folderId,
                     name: fileName,
-                    storageKey: StorageKey.create(stored.storageKey),
+                    storageKey: StorageKey.create(original.storageKey),
                     storageProvider: providerName,
                     kind,
                     mimeType: command.contentType,
-                    size: stored.size,
-                    checksum: stored.checksum,
-                    uploadedBy: actor.id
+                    size: original.size,
+                    checksum: original.checksum,
+                    uploadedBy: actor.id,
+                    media,
+                    variants
                 });
                 await this.assets.save(asset);
                 await this.outbox.append(
@@ -117,10 +164,57 @@ export class UploadAssetUseCase {
                 return asset.id.value;
             });
         } catch (error) {
-            // The transaction rolled back after the blob was written — reclaim
-            // the orphan so a failed upload leaves nothing behind.
-            await provider.remove(stored.storageKey).catch(() => undefined);
+            // Storage or the transaction failed after some blobs landed —
+            // reclaim every one so a failed upload leaves nothing behind.
+            await Promise.all(
+                written.map((key) =>
+                    provider.remove(key).catch(() => undefined)
+                )
+            );
             throw error;
         }
+    }
+
+    /**
+     * Probes the buffered image's dimensions and stores each generated
+     * derivative as its own blob (appending the keys to `written`).
+     */
+    private async deriveImage(
+        provider: StorageProvider,
+        command: UploadAssetCommand,
+        assetId: AssetId,
+        bytes: Buffer,
+        written: string[]
+    ): Promise<{ media?: Partial<AssetMedia>; variants: AssetVariants }> {
+        const processed = await this.processor.process({
+            body: bytes,
+            contentType: command.contentType
+        });
+        if (!processed) {
+            return { variants: {} };
+        }
+
+        const variants: AssetVariants = {};
+        for (const derivative of processed.derivatives) {
+            const put = await provider.put({
+                workspaceId: command.workspaceId,
+                assetId: assetId.value,
+                fileName: `${derivative.name}.webp`,
+                contentType: derivative.contentType,
+                body: Readable.from(derivative.body),
+                isVariant: true
+            });
+            written.push(put.storageKey);
+            variants[derivative.name] = {
+                key: put.storageKey,
+                width: derivative.width,
+                height: derivative.height,
+                size: put.size
+            };
+        }
+        return {
+            media: { width: processed.width, height: processed.height },
+            variants
+        };
     }
 }

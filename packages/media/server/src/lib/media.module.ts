@@ -7,7 +7,9 @@ import {
 } from './domain/storage-provider';
 import { ASSET_REPOSITORY } from './domain/asset.repository';
 import { FOLDER_REPOSITORY } from './domain/folder.repository';
+import { IMAGE_PROCESSOR } from './domain/image-processor';
 import { buildRegistry } from './infrastructure/storage-registry';
+import { SharpImageProcessor } from './infrastructure/image/sharp-image-processor';
 import { AssetMapper } from './infrastructure/persistence/asset.mapper';
 import { FolderMapper } from './infrastructure/persistence/folder.mapper';
 import { DrizzleAssetRepository } from './infrastructure/persistence/drizzle-asset.repository';
@@ -80,6 +82,8 @@ export class MediaModule {
                     useValue: buildRegistry(options.providers)
                 },
                 { provide: STORAGE_RESOLVER, useValue: resolver },
+                // Image processing — probes dimensions + generates derivatives.
+                { provide: IMAGE_PROCESSOR, useClass: SharpImageProcessor },
                 // Ports → Drizzle adapters.
                 { provide: ASSET_REPOSITORY, useClass: DrizzleAssetRepository },
                 {

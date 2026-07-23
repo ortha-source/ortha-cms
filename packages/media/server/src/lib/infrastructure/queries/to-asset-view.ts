@@ -24,6 +24,7 @@ export function toAssetView(row: AssetRow, uploaderName: string): AssetView {
         mimeType: row.mimeType,
         size: row.size,
         url: rawRoute(row.id),
+        variants: Object.keys(row.variants ?? {}),
         width: row.width,
         height: row.height,
         duration: row.duration,
