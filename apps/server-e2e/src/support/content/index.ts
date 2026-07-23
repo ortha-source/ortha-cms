@@ -28,6 +28,7 @@ import { testTag } from './test-tag';
 import { testSeo } from './test-seo';
 import { testComment } from './test-comment';
 import { testLanding } from './test-landing';
+import { testPage } from './test-page';
 
 export {
     testArticle,
@@ -35,7 +36,8 @@ export {
     testTag,
     testSeo,
     testComment,
-    testLanding
+    testLanding,
+    testPage
 };
 
 /** Every content type the e2e harness registers with ContentPlugin. */
@@ -45,7 +47,8 @@ export const testContentTypes: readonly AnyContentType[] = [
     testTag,
     testSeo,
     testComment,
-    testLanding
+    testLanding,
+    testPage
 ];
 
 // --- drizzle-kit schema: physical tables re-exported for migration diffing ---
@@ -55,6 +58,7 @@ export const testTags = testTag.table;
 export const testSeos = testSeo.table;
 export const testComments = testComment.table;
 export const testLandingPage = testLanding.table;
+export const testPages = testPage.table;
 // Join table for the test_article ⇄ test_tag many-to-many. `joinTableOf` throws
 // if the `tags` many-relation is renamed/removed, instead of silently dropping
 // the table from the drizzle-kit diff.

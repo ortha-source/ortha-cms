@@ -1,4 +1,5 @@
 import { Toaster as Sonner, toast } from 'sonner';
+import { useAppearance } from '../../appearance';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -18,12 +19,13 @@ function isToastBodyClick(target: EventTarget | null): boolean {
  * App-wide toast host, pinned to the **top-right**. Typed toasts
  * (`toast.success` / `.error` / `.warning` / `.info`) render on the matching
  * soft semantic surface with same-hue text and icon; each toast carries a
- * close button, and clicking a toast's body dismisses it too. The admin is
- * light-only (no theme provider), so the theme is fixed rather than read from
- * `next-themes`. Mounted once by the host in `createAdmin`; call `toast()`
- * from anywhere to surface a notification.
+ * close button, and clicking a toast's body dismisses it too. The toast surface
+ * follows the app theme — the resolved `light`/`dark` from `useAppearance` is
+ * handed to Sonner so its own chrome matches the admin. Mounted once by the host
+ * in `createAdmin`; call `toast()` from anywhere to surface a notification.
  */
 const Toaster = ({ ...props }: ToasterProps) => {
+    const { resolvedTheme } = useAppearance();
     return (
         /* Sonner renders its toasts in place (no portal), so a wrapper click
            listener can offer press-to-dismiss. Sonner doesn't expose a toast
@@ -35,7 +37,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             }}
         >
             <Sonner
-                theme="light"
+                theme={resolvedTheme}
                 position="top-right"
                 closeButton
                 className="toaster group"

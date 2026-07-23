@@ -44,7 +44,15 @@ React Query's structural sharing keeps working) rather than replacing it.
   shell's `SIDEBAR_FOOTER_SLOT`: a full-width row (avatar + name + email) that
   opens a dropdown with **My profile** (→ their own `/users/:id` detail page)
   and **Logout** (identity's `useLogoutMutation`). It reads the current user
-  from identity's `useAuth`.
+  from identity's `useAuth`. The plugin contributes an invisible `ThemeSync`
+  into the **same footer slot**: it pulls the signed-in user's saved theme from
+  `GET /api/preferences` into the design-system `AppearanceProvider`, so the
+  choice takes effect app-wide on load. It must live in the footer, not
+  `SIDEBAR_SECTION_SLOT` — the section slot belongs to `GlobalSidebar`, which a
+  route can replace wholesale via `useSidebarContent` (the workspace shell
+  does), so a hydrator mounted there would never run for a user who deep-links
+  into a workspace. The footer is the region the shell keeps mounted in both
+  contexts.
 
 ## The pages
 
@@ -68,10 +76,15 @@ tab bar (design-system `TabNav`) above the active tab. Six tab pages:
 **General** (edit name), **Role** (`RolePicker` +
 confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
 **Sessions** (`SessionCard` + revoke), **Activity** (reuses
-`@ortha-cms/activity-admin`'s `useActivityLog`, pinned to `subjectId`), and
-**Access** (suspend/reactivate). The Audit (Sessions, Activity) and Access tabs
-are permission-gated **at the route level** — without `users:update` /
-`activity:read` the tab bar hides them and the route redirects to General.
+`@ortha-cms/activity-admin`'s `useActivityLog`, pinned to `subjectId`),
+**Access** (suspend/reactivate), and **Preferences** (`UserPreferencesPage` —
+the colour-theme picker Light/Dark/System over `/api/preferences`, applied
+optimistically through the design-system `AppearanceProvider`). The Audit
+(Sessions, Activity) and Access tabs are permission-gated **at the route
+level** — without `users:update` / `activity:read` the tab bar hides them and
+the route redirects to General. **Preferences is self-only** — it carries the
+current user's own app settings, so it is gated on `useAuth().user.id ===
+member.id` (hidden and route-redirected on anyone else's profile).
 
 ## Conventions
 

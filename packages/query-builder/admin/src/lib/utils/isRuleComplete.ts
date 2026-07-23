@@ -17,6 +17,7 @@ import {
 export function isRuleComplete(rule: FilterRule): boolean {
     switch (rule.op) {
         case OP.IsEmpty:
+        case OP.IsNotEmpty:
             // The operator carries the full meaning; no value needed.
             return true;
         case OP.Between: {
@@ -34,6 +35,7 @@ export function isRuleComplete(rule: FilterRule): boolean {
             return Boolean(v && typeof v.n === 'number' && v.n > 0 && v.unit);
         }
         case OP.IsOneOf:
+        case OP.NotOneOf:
             return Array.isArray(rule.value) && rule.value.length > 0;
         default:
             return typeof rule.value === 'string' && rule.value.length > 0;

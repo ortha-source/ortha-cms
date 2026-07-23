@@ -187,6 +187,31 @@ global).
 - `GET /content-schema` — summaries of every type (wizard-compatible).
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
   props); 404 if unknown.
+- `GET /content-schema/:name/filter-fields` — the type's **filterable surface**:
+  every scalar path the records-table query builder may filter on, including
+  **recursive relation paths** (`author.name`, `author.company.name`, to a
+  default 2-hop budget). Built by `buildEntryFilterSurface`
+  (`entries/infrastructure/queries/entry-filter-surface.ts`) in **one traversal**
+  that produces BOTH this wire list AND the SQL `FilterSchema` the list endpoint
+  enforces, so the picker can never offer a path the API rejects (an
+  `entry-filter-surface.spec` drift test pins it). **Workspace-scoped**
+  (`WorkspaceGuard`) and **grant-pruned**: `WorkspaceGrantsQuery`
+  (`content-types/queries/`) reads the workspace's `workspace_content` slugs, an
+  ungranted `:name` 404s exactly like an unknown one (no enumeration signal),
+  and the slugs are passed as the builder's `grantedTypes` so the picker never
+  offers a traversal into a collection the caller cannot open. Cardinalities map
+  to the engine's `RelationKind` (owning single →
+  `many-to-one`, owning many → `many-to-many`, inverse-of-single → `one-to-many`,
+  inverse-of-many → `many-to-many` swapped, self single → `self-referential`;
+  self many-to-many skipped in v1), and every emitted relation carries a `scope`
+  (workspace + soft-delete) so a relation filter never matches a soft-deleted or
+  foreign target. The list endpoint (`EntriesService.listWhere`) derives its
+  filter schema from the same builder — **lazily**, only when `?filter=` is
+  present, since building it walks the whole relation graph — so **relation
+  filtering works over the API** regardless of the UI. The list's schema is
+  deliberately **not** grant-pruned: it is the SQL whitelist, not a visibility
+  boundary, and pruning it would make the same saved filter 400 or change
+  meaning depending on which workspace opened it.
 - `GET /content/:typeName` — one page of a collection's entries
   (`?search=&filter=&sort=&page=&pageSize=&deleted=` → `{ items, total, page, pageSize }`).
   Resolves `:typeName` via the registry (404 if unknown), then runs the **generic**

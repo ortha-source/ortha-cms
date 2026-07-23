@@ -9,7 +9,12 @@ import {
     users,
     type RootAdminOutcome
 } from '@ortha-cms/identity-server';
-import { memberships, workspaces } from '@ortha-cms/workspaces-server';
+import {
+    memberships,
+    workspaceContent,
+    workspaces
+} from '@ortha-cms/workspaces-server';
+import { mediaAsset, mediaFolder } from '@ortha-cms/media-server';
 // The e2e-owned generated content tables (from the harness's own content model,
 // NOT the app's collections). Specs reach these only through the helpers below.
 import {
@@ -17,6 +22,7 @@ import {
     testArticles,
     testAuthors,
     testLandingPage,
+    testPages,
     testTags
 } from './content';
 // HashingService is internal to the identity plugin (not re-exported). We reach
@@ -160,6 +166,24 @@ export async function seedWorkspace(opts: {
         slug: workspace.slug,
         color: workspace.color
     };
+}
+
+/**
+ * Grant a workspace access to content slugs (the `workspace_content` rows the
+ * create wizard writes). Membership alone is not access: the filter-fields
+ * surface 404s a type the workspace was never granted, and prunes relations
+ * into ungranted targets, so a spec that asserts on the surface has to seed
+ * the grants its assertions assume.
+ */
+export async function seedContentGrants(
+    workspaceId: string,
+    slugs: readonly string[],
+    kind: 'collection' | 'single' = 'collection'
+): Promise<void> {
+    if (slugs.length === 0) return;
+    await getDatabase()
+        .insert(workspaceContent)
+        .values(slugs.map((slug) => ({ workspaceId, kind, slug })));
 }
 
 /** Add a user to a workspace (the `memberships` join). */
@@ -311,9 +335,76 @@ export async function resetDb(): Promise<void> {
     await getPool().query(
         'TRUNCATE TABLE users, workspaces, activity_events, ' +
             'content_test_article, content_test_author, content_test_tag, ' +
-            'content_test_seo, content_test_comment, content_test_landing ' +
+            'content_test_seo, content_test_comment, content_test_landing, ' +
+            'content_test_page, media_asset, media_folder ' +
             'RESTART IDENTITY CASCADE'
     );
+}
+
+/** A seeded media folder row. */
+export interface SeededMediaFolder {
+    id: string;
+}
+
+/**
+ * Insert a `media_folder` row directly. `parentId` defaults to `null` (a
+ * top-level folder). Scoped to `workspaceId`.
+ */
+export async function seedMediaFolder(opts: {
+    workspaceId: string;
+    name: string;
+    parentId?: string | null;
+}): Promise<SeededMediaFolder> {
+    const [row] = await getDatabase()
+        .insert(mediaFolder)
+        .values({
+            workspaceId: opts.workspaceId,
+            name: opts.name,
+            parentId: opts.parentId ?? null
+        })
+        .returning();
+    return { id: row.id };
+}
+
+/**
+ * Insert a `media_asset` row directly (for list/scoping/permission tests where
+ * the bytes are never read). Its `storage_key` points at the `memory` provider
+ * but no blob is written — use an API upload when the download path is exercised.
+ * `folderId` defaults to `null` (the workspace root).
+ */
+export async function seedMediaAsset(opts: {
+    workspaceId: string;
+    uploadedBy: string;
+    name: string;
+    folderId?: string | null;
+    kind?: 'image' | 'video' | 'audio' | 'document' | 'archive';
+    mimeType?: string;
+    size?: number;
+}): Promise<{ id: string }> {
+    const [row] = await getDatabase()
+        .insert(mediaAsset)
+        .values({
+            workspaceId: opts.workspaceId,
+            folderId: opts.folderId ?? null,
+            name: opts.name,
+            kind: opts.kind ?? 'document',
+            mimeType: opts.mimeType ?? 'application/pdf',
+            size: opts.size ?? 1024,
+            storageKey: `${opts.workspaceId}/seed/${opts.name}`,
+            storageProvider: 'memory',
+            uploadedBy: opts.uploadedBy
+        })
+        .returning();
+    return { id: row.id };
+}
+
+/** Count `media_asset` rows in a workspace — asserts upload/delete side effects. */
+export async function countMediaAssets(workspaceId: string): Promise<number> {
+    const rows = await getDatabase()
+        .select({ id: mediaAsset.id })
+        .from(mediaAsset)
+        .where(eq(mediaAsset.workspaceId, workspaceId));
+    return rows.length;
 }
 
 /**
@@ -387,6 +478,45 @@ export async function seedTags(
         .values(rows.map((row) => ({ workspaceId, ...row })) as never)
         .returning()) as { id: string }[];
     return inserted.map((row) => row.id);
+}
+
+/**
+ * Insert rows into the `test_page` collection (the self-referential tree) and
+ * return the inserted ids in input order. Rows are inserted **one at a time**,
+ * in order, so a later row can name an earlier one as its `parent` — a batch
+ * insert couldn't reference an id it hasn't returned yet. Not i18n, not
+ * publishable, so `title` is the only required value.
+ */
+export async function seedPages(
+    rows: Record<string, unknown>[],
+    workspaceId?: string
+): Promise<string[]> {
+    const ids: string[] = [];
+    for (const row of rows) {
+        const [inserted] = (await getDatabase()
+            .insert(testPages)
+            .values({ workspaceId, ...row } as never)
+            .returning()) as { id: string }[];
+        ids.push(inserted.id);
+    }
+    return ids;
+}
+
+/**
+ * Soft-delete `test_author` rows (stamp `deleted_at`), so a spec can assert a
+ * relation filter no longer traverses them — the workspace + soft-delete
+ * `scope` the engine ANDs inside a relation's EXISTS subquery. Writes the
+ * tombstone directly rather than through the API, mirroring the other seeders.
+ */
+export async function softDeleteAuthors(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    // Raw parameterized UPDATE (like {@link resetDb}) — the generated table's
+    // columns aren't statically typed, so `getPool` is cleaner than reaching
+    // for an untyped `.id` column off the Drizzle table.
+    await getPool().query(
+        'UPDATE content_test_author SET deleted_at = now() WHERE id = ANY($1::uuid[])',
+        [ids]
+    );
 }
 
 /**

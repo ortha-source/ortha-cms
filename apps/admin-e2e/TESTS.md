@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_182 test cases across 25 spec files._
+_207 test cases across 28 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -188,6 +188,41 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | a translation draft can jump to an existing sibling |
 | the relation picker on a translation-create form is scoped to that locale |
 
+<!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
+_<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
+
+## Records filter — relations (query builder)
+
+| Test case |
+| --- |
+| the field picker offers a related type field, grouped |
+| applying a relation-path rule deep-links the dotted path |
+| a "contains" rule wraps its value in escaped wildcards |
+| a relation id rule picks records, not raw uuids |
+| a relation id rule keeps a set for a multi-valued operator |
+
+### negative operators
+
+| Test case |
+| --- |
+| "does not contain" serialises to nilike |
+| "is not empty" serialises to null:false |
+
+### applied-filter summary
+
+| Test case |
+| --- |
+| reads the applied condition back as a chip |
+| removing a chip re-commits the narrowed filter |
+| "Clear all" drops every condition |
+
+### filter fields unavailable
+
+| Test case |
+| --- |
+| shows an error state instead of an empty picker |
+| the table itself still loads |
+
 <!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_
 
@@ -242,6 +277,19 @@ _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 | --- |
 | shows the greeting, stat tiles, and both panels |
 | the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/media/media-library.spec.ts -->
+_<sub>apps/admin-e2e/src/media/media-library.spec.ts</sub>_
+
+## Media Library
+
+| Test case |
+| --- |
+| renders the workspace folders and assets |
+| uploads a file and shows it in the grid |
+| creates a folder |
+| shows a no-access state without media:read |
+| has no accessibility violations |
 
 <!-- source: apps/admin-e2e/src/shell/command-palette.spec.ts -->
 _<sub>apps/admin-e2e/src/shell/command-palette.spec.ts</sub>_
@@ -327,6 +375,22 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | renders the role as a read-only chip |
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
+
+<!-- source: apps/admin-e2e/src/users/preferences.spec.ts -->
+_<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_
+
+## User preferences (theme)
+
+| Test case |
+| --- |
+| shows the Preferences tab only on your own profile |
+| redirects a deep link to someone else’s preferences |
+| selecting a theme applies it and saves it (PUT /api/preferences) |
+| does not re-save the theme already in effect |
+| hydrates the saved theme app-wide on load |
+| the theme picker has no accessibility violations |
+| the dark theme has no accessibility violations |
+| applies the saved theme on a route that overrides the sidebar |
 
 <!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
 _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_

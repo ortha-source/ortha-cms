@@ -230,6 +230,40 @@ export type EntryRelations = {
 };
 
 /**
+ * Coercion type of a filterable path. The string values mirror the
+ * query-builder's `FIELD_TYPE` one-for-one (the mapper casts across), so a
+ * wire type always names a value editor the picker can render.
+ */
+export type FilterFieldType =
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'uuid'
+    | 'date'
+    | 'enum';
+
+/**
+ * One filterable path served by `GET /content-schema/:name/filter-fields` —
+ * a scalar field on the type or, recursively, on one of its relations
+ * (`author.name`). `group` is the breadcrumb of relation labels leading to
+ * the leaf; `relationTarget` is set on a relation's own `id` path so the
+ * picker offers a record chooser instead of a raw uuid input.
+ */
+export type WireFilterField = {
+    path: string;
+    label: string;
+    type: FilterFieldType;
+    enumValues?: readonly string[];
+    group: readonly string[];
+    relationTarget?: string;
+};
+
+/** Response body of `GET /content-schema/:name/filter-fields`. */
+export type FilterFieldsResponse = {
+    fields: WireFilterField[];
+};
+
+/**
  * An incremental change to one many/inverse relation field, sent with the entry
  * save (`{ relations: { <field>: RelationDelta } }`). Only the diff is sent, so a
  * relation with thousands of links is never transmitted (or held) in full.

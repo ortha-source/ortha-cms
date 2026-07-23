@@ -5,10 +5,12 @@ import { ContentPlugin } from '@ortha-cms/content-server';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
+import { MediaServerPlugin } from '@ortha-cms/media-server';
 import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
+import { createInMemoryStorageProvider } from './media-storage';
 
 /**
  * Builds the plugin list the e2e harness boots with — the e2e-owned analogue of
@@ -44,6 +46,12 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
                 dir: () => join(__dirname, '../../migrations/content'),
                 table: '__drizzle_migrations_content'
             }
+        }),
+        // Media ships its own migrations (picked up by the migrate loop) and
+        // registers an in-memory storage provider so uploads never touch disk.
+        MediaServerPlugin({
+            providers: { memory: createInMemoryStorageProvider() },
+            config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n)
     ];

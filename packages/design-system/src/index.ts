@@ -1,4 +1,15 @@
 export { cn } from './lib/utils';
+export {
+    AppearanceProvider,
+    useAppearance,
+    DEFAULT_THEME,
+    THEME_STORAGE_KEY
+} from './lib/appearance';
+export type {
+    AppearanceContextValue,
+    ThemePreference,
+    ResolvedTheme
+} from './lib/appearance';
 export { Button, buttonVariants } from './lib/components/ui/button';
 export type { ButtonProps } from './lib/components/ui/button';
 export {
@@ -171,6 +182,7 @@ export {
     TableCaption
 } from './lib/components/ui/table';
 export { Checkbox } from './lib/components/ui/checkbox';
+export { Progress } from './lib/components/ui/progress';
 export { RadioGroup, RadioGroupItem } from './lib/components/ui/radio-group';
 export {
     DropdownMenu,

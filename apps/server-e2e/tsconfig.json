@@ -27,6 +27,9 @@
             "path": "../../packages/bootstrap/server"
         },
         {
+            "path": "../../packages/media/server"
+        },
+        {
             "path": "../../packages/content/server"
         },
         {

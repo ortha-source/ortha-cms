@@ -1,14 +1,23 @@
 export { QueryBuilder } from './lib/components/QueryBuilder';
 export type { QueryBuilderProps } from './lib/components/QueryBuilder';
+export { usePortalContainer } from './lib/components/portalContainer';
 
 export { QueryBuilderDrawer } from './lib/components/QueryBuilderDrawer';
 export type { QueryBuilderDrawerProps } from './lib/components/QueryBuilderDrawer';
+
+export { QueryBuilderPanel } from './lib/components/QueryBuilderPanel';
+export type { QueryBuilderPanelProps } from './lib/components/QueryBuilderPanel';
+
+export { QueryBuilderSummary } from './lib/components/QueryBuilderSummary';
+export type { QueryBuilderSummaryProps } from './lib/components/QueryBuilderSummary';
 
 export {
     FIELD_TYPE,
     type FilterField,
     type FieldType,
-    type FilterEnumValue
+    type FilterEnumValue,
+    type RelationValueEditor,
+    type RelationValueEditorProps
 } from './lib/types/filter-field.type';
 
 export {

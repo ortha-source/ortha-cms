@@ -8,7 +8,8 @@ import type {
     RelationDelta,
     RelationFieldView,
     RevisionDetail,
-    RevisionListView
+    RevisionListView,
+    WireFilterField
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
 
@@ -73,6 +74,14 @@ export type ContentGateway = {
     listTypes(): Promise<ContentType[]>;
     /** Loads one type's full field schema via `GET /content-schema/:name`. */
     getSchema(name: string): Promise<ContentTypeDetail>;
+    /**
+     * Loads the type's filterable surface via
+     * `GET /content-schema/:name/filter-fields` — every scalar path the query
+     * builder may filter on, including recursive relation paths. Served by the
+     * same traversal that builds the SQL whitelist, so the picker can't offer a
+     * path the API rejects.
+     */
+    listFilterFields(name: string): Promise<WireFilterField[]>;
     /** Loads one page of a collection's records via `GET /content/:name`. */
     listEntries(
         name: string,
