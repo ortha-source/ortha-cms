@@ -34,7 +34,10 @@ import {
     contentEntriesPrefix,
     type ContentEntriesResult
 } from '../../../application/useContentEntries';
-import { useContentEntry } from '../../../application/useContentEntry';
+import {
+    useContentEntry,
+    contentEntryKey
+} from '../../../application/useContentEntry';
 import { usePublishEntryFlow } from '../../../application/usePublishEntryFlow';
 import { useSlotListParams } from '../../hooks/useSlotListParams';
 import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
@@ -221,7 +224,19 @@ export function ContentEntryView({
 
     const onTabChange = (next: string) => {
         const segment = next === DEFAULT_ENTRY_TAB ? '' : `/${next}`;
-        navigate(`${editorPath}${segment}${entryQuerySuffix}`);
+        // A tab change stays on the *same* form, so it carries the URL forward
+        // whole — `location.search`, not just the list params. The create route
+        // also carries create-only params (the i18n plugin's `localeGroupId`,
+        // which joins the new row to a translation group); dropping those here
+        // would quietly turn a translation into an orphan record on save.
+        //
+        // `location.state` rides along too: it holds the create-form prefill a
+        // slot handed us (`translateFrom`, the source record's shared fields),
+        // and this view re-reads it on every render — so navigating without it
+        // would reset a half-filled translation form to blank.
+        navigate(`${editorPath}${segment}${location.search}`, {
+            state: location.state
+        });
     };
 
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
@@ -408,7 +423,19 @@ export function ContentEntryView({
         // and its invalidated query refreshes in place. A single stays put — its
         // `?locale=` re-resolves to the row just created.
         if (mode !== ENTRY_MODE.Single && result.wasCreate) {
-            navigate(`${typePath}/${result.saved.id}${entryQuerySuffix}`);
+            // Prime the edit-mode read with the record the save just returned.
+            // Without it the navigation below lands on `/:type/:id` with a cold
+            // query, so the editor swaps the form the user is looking at for a
+            // full-page spinner and a header that flips "New {label}" → "{label}"
+            // — a jarring flash on every create. The response *is* the canonical
+            // record, so there is nothing to wait for.
+            queryClient.setQueryData(
+                contentEntryKey(workspace.id, type.name, result.saved.id),
+                result.saved
+            );
+            navigate(
+                `${typePath}/${result.saved.id}${tabSegment}${entryQuerySuffix}`
+            );
         }
     };
 
