@@ -28,8 +28,31 @@ function toISODateTime(date: Date): string {
     return `${toISODate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** The field's ISO string → a local `Date`, or undefined. */
-function parseValue(value: string): Date | undefined {
+/** Whether an ISO string carries an explicit zone (`Z`, `+02:00`, `-0500`). */
+function hasTimezone(value: string): boolean {
+    return /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
+}
+
+/**
+ * The field's ISO string → the `Date` the picker should show, or undefined.
+ *
+ * A **datetime** the server round-trips comes back with an explicit zone
+ * (`2026-07-15T12:30:00.000Z`). That is an *instant*, not a wall clock, so it is
+ * parsed as one and the picker renders it in the viewer's local time. Reading
+ * its calendar fields literally — as the naive branch below does — re-labels
+ * 12:30 UTC as 12:30 local, which is why a time saved as 2:30 PM came back
+ * reading 12:30 PM.
+ *
+ * Everything else is a **naive local** string the field itself wrote
+ * (`YYYY-MM-DD`, `YYYY-MM-DDTHH:mm`) and is read field-by-field, with no shift.
+ * A `date` field always takes that path: it has no time of day to convert, and
+ * converting one would risk moving the calendar day across midnight.
+ */
+function parseValue(value: string, withTime: boolean): Date | undefined {
+    if (withTime && hasTimezone(value)) {
+        const instant = new Date(value);
+        return Number.isNaN(instant.getTime()) ? undefined : instant;
+    }
     const match =
         /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(
             value
@@ -73,7 +96,7 @@ export function DateField({
     'aria-describedby'?: string;
 }) {
     const intl = useIntl();
-    const date = parseValue(value);
+    const date = parseValue(value, withTime);
 
     if (withTime) {
         return (

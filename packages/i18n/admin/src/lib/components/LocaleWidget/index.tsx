@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Info } from 'lucide-react';
@@ -109,6 +109,19 @@ export function LocaleWidget({
         entry?.id,
         !!schema.i18n && !isCreate && !!entry
     );
+    // The panel's rows carry each locale's publish status, but they come from
+    // this plugin's own query — which the content plugin's publish/unpublish
+    // mutations know nothing about (they invalidate the content caches, not
+    // ours). So publishing left the current locale's chip reading "Draft" even
+    // though the record was live. The slot context's `entry` *is* refreshed by
+    // those mutations, so treat its status as the trigger: whenever it changes,
+    // re-read the panel.
+    const entryStatus = entry?.status;
+    const refetchLocales = entryLocales.refetch;
+    useEffect(() => {
+        if (!entryStatus) return;
+        void refetchLocales();
+    }, [entryStatus, refetchLocales]);
     const groupSummaries = useLocaleSummaries(
         schema.name,
         [urlGroupId],

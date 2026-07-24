@@ -520,6 +520,37 @@ test.describe('Content Library', () => {
     });
 
     /**
+     * A `datetime` the server round-trips carries an explicit zone. It is an
+     * *instant*, and the control has to render it in the viewer's local time —
+     * reading its calendar fields literally re-labels the UTC hour as a local
+     * one, so a time saved as 2:30 PM came back reading 12:30 PM (#18).
+     *
+     * Pinned to a fixed, DST-free zone so the expected local time is stable
+     * wherever this runs.
+     */
+    test.describe('datetime fields', () => {
+        test.use({ timezoneId: 'Asia/Tokyo' });
+
+        test('renders a UTC instant in the viewer’s local time', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Collections');
+            await contentLibraryPage.typeLink('Blog posts').click();
+            await contentLibraryPage.recordRows('Blog posts').first().click();
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+
+            // The seed's first row carries `publishedAt: 2026-01-01T00:00:00.000Z`.
+            // Tokyo is UTC+9 year-round → 9:00 AM local, never midnight.
+            await expect(
+                contentLibraryPage.dateFieldTrigger('publishedAt')
+            ).toContainText('January 1, 2026 at 9:00 AM');
+        });
+    });
+
+    /**
      * The editor's tabs are **routes**, not component state — so a tab can be
      * linked to and reloaded, and it survives a remount the editor doesn't
      * control (#12, and the locale-switch reset in #19).

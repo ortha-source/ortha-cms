@@ -297,6 +297,15 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('spinbutton', { name: label });
     }
 
+    /**
+     * A `date`/`datetime` field's trigger button, by the field's machine name.
+     * Its text is the formatted value, so asserting on it checks what the user
+     * actually reads off the control.
+     */
+    dateFieldTrigger(fieldName: string): Locator {
+        return this.page.locator(`#entry-field-${fieldName}`);
+    }
+
     /** A field's inline validation message (design-system `FieldError`). */
     fieldError(message: string | RegExp): Locator {
         return this.page.getByRole('alert').filter({ hasText: message });
