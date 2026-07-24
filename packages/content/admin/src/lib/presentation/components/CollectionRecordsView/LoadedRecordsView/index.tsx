@@ -49,6 +49,7 @@ import { useContentEntries } from '../../../../application/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
 import { useSlotListParams } from '../../../hooks/useSlotListParams';
 import { entryColumns } from '../../../../domain/entryColumns';
+import { listParamsQuery } from '../../../../domain/listParamsQuery';
 import { useFilterFields } from '../../../../application/useFilterFields';
 import { RelationValuePicker } from '../../RelationValuePicker';
 import {
@@ -151,6 +152,7 @@ export function LoadedRecordsView({
         page,
         pageSize,
         searchInput,
+        searchPending,
         setSearchInput,
         updateParams
     } = useTableUrlState({
@@ -290,10 +292,13 @@ export function LoadedRecordsView({
         [visibleColumns]
     );
 
-    // Pressing Apply swaps the table for its skeleton until the filtered
-    // request settles (the list otherwise keeps the previous rows via
-    // `keepPreviousData`, so a filter change would show no loading cue).
+    // `keepPreviousData` means a narrowing change leaves the *old* rows on
+    // screen while the new request is in flight — correct for typing (no
+    // flicker per keystroke), but with no cue at all for the deliberate
+    // actions. So Apply and a page change each raise a flag that swaps the
+    // table for its skeleton until the request settles.
     const [applying, setApplying] = useState(false);
+    const [paging, setPaging] = useState(false);
     const { data, isPending, isFetching, isError, isPlaceholderData, refetch } =
         useContentEntries(schema, {
             search: searchParam || undefined,
@@ -308,10 +313,12 @@ export function LoadedRecordsView({
             ...(slotParamKeys.length ? { extra: slotParams } : {})
         });
 
-    // Clear the applying skeleton once the filtered request has settled.
+    // Clear either skeleton once its request has settled.
     useEffect(() => {
-        if (applying && !isFetching) setApplying(false);
-    }, [applying, isFetching]);
+        if (isFetching) return;
+        if (applying) setApplying(false);
+        if (paging) setPaging(false);
+    }, [applying, paging, isFetching]);
 
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? pageSize;
@@ -373,15 +380,14 @@ export function LoadedRecordsView({
         updateParams({ [SEARCH_PARAM]: undefined, filter: undefined });
     };
 
-    // Carry the slot-owned URL params (e.g. the active locale) into the create
-    // route, so a record is created in the context the table was showing.
+    // The slot-owned URL params (e.g. the active locale) as a query suffix, so
+    // every link out of the table keeps the context the table was showing — the
+    // create route below and each row's editor link (passed to the table), whose
+    // editor in turn carries it back on "Back to records".
+    const entryQuery = listParamsQuery(slotParams);
+
     const openCreate = () => {
-        const carried = new URLSearchParams();
-        for (const [key, value] of Object.entries(slotParams)) {
-            if (value !== undefined) carried.set(key, value);
-        }
-        const query = carried.toString();
-        navigate(`${typePath}/${NEW_SEGMENT}${query ? `?${query}` : ''}`);
+        navigate(`${typePath}/${NEW_SEGMENT}${entryQuery}`);
     };
 
     return (
@@ -439,6 +445,7 @@ export function LoadedRecordsView({
             <SearchToolbar
                 value={searchInput}
                 onValueChange={setSearchInput}
+                busy={searchPending || (isFetching && !isPending)}
                 searchLabel={intl.formatMessage(messages.searchLabel)}
                 searchPlaceholder={intl.formatMessage(
                     messages.searchPlaceholder
@@ -539,7 +546,7 @@ export function LoadedRecordsView({
                 })}
             </p>
 
-            {isPending || (applying && isFetching) ? (
+            {isPending || ((applying || paging) && isFetching) ? (
                 <CollectionRecordsSkeleton />
             ) : isError ? (
                 <Alert variant="destructive" role="alert" className="mt-4">
@@ -586,6 +593,7 @@ export function LoadedRecordsView({
                         columns={visibleColumns}
                         extensionData={extensionData}
                         typePath={typePath}
+                        entryQuery={entryQuery}
                         typeName={type.name}
                         workspaceId={workspace.id}
                         publishable={publishable}
@@ -603,12 +611,14 @@ export function LoadedRecordsView({
                         pageCount={pageCount}
                         pageSize={effectivePageSize}
                         total={total}
-                        onPageChange={(next) =>
-                            updateParams({ page: String(next) }, false)
-                        }
-                        onPageSizeChange={(next) =>
-                            updateParams({ pageSize: String(next) })
-                        }
+                        onPageChange={(next) => {
+                            setPaging(true);
+                            updateParams({ page: String(next) }, false);
+                        }}
+                        onPageSizeChange={(next) => {
+                            setPaging(true);
+                            updateParams({ pageSize: String(next) });
+                        }}
                     />
                 </>
             )}

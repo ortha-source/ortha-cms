@@ -132,6 +132,14 @@ export type EntrySlotContext = {
      * `locale` even on a create form, where there's no saved `entry`).
      */
     params: Record<string, string | undefined>;
+    /**
+     * The open tab as a path segment to append when linking to *another* record
+     * in this same editor — `'/relations'`, or `''` on the default tab. A slot
+     * that navigates the user to a sibling record (the i18n plugin's locale
+     * switch) appends it so the reader lands on the tab they were working in
+     * instead of being dropped back on General.
+     */
+    tabSegment: string;
 };
 
 /** One entry-sidebar widget contribution (a card in the right rail). */

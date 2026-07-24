@@ -50,6 +50,12 @@ export type RelationCandidatesResult = {
     isPending: boolean;
     /** Whether the candidate query failed. */
     isError: boolean;
+    /**
+     * Whether **any** candidate request is in flight, including a re-search that
+     * keeps the previous rows on screen. Drives the search box's busy cue — the
+     * picker searches server-side, so without it the box looks inert.
+     */
+    isFetching: boolean;
     /** Whether a further page is currently loading (drives the load-more spinner). */
     isFetchingNextPage: boolean;
     /** Fetch the next page of matches (lazy infinite scroll). */
@@ -117,6 +123,7 @@ export function useRelationCandidates(
         hasMore: query.hasNextPage,
         isPending: enabled && query.isPending,
         isError: query.isError,
+        isFetching: query.isFetching,
         isFetchingNextPage: query.isFetchingNextPage,
         fetchNextPage: query.fetchNextPage
     };

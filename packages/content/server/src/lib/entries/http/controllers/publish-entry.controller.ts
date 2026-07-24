@@ -6,21 +6,27 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
+    type PublicUser,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { PublishEntryUseCase } from '../../application/use-cases/publish-entry.use-case';
 import { UnpublishEntryUseCase } from '../../application/use-cases/unpublish-entry.use-case';
 import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
+
+/** The signed-in user as the outbox's actor envelope, or undefined. */
+function toActor(
+    user?: PublicUser
+): { id: string; email: string | null } | undefined {
+    return user ? { id: user.id, email: user.email ?? null } : undefined;
+}
 
 /**
  * `POST /api/content/:typeName/:id/publish` and `.../unpublish` — the publish
@@ -45,19 +51,26 @@ export class PublishEntryController {
     publish(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.publishEntry.execute(type, id, workspaceId);
+        return this.publishEntry.execute(type, id, workspaceId, toActor(user));
     }
 
     @Post(':typeName/:id/unpublish')
     unpublish(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.unpublishEntry.execute(type, id, workspaceId);
+        return this.unpublishEntry.execute(
+            type,
+            id,
+            workspaceId,
+            toActor(user)
+        );
     }
 }

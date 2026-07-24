@@ -10,7 +10,9 @@ import {
     Tabs,
     TabsContent,
     TabsList,
-    TabsTrigger
+    TabsTrigger,
+    ConfirmDialog,
+    toast
 } from '@ortha-cms/design-system';
 import type {
     ContentField,
@@ -19,7 +21,8 @@ import type {
     RelationDelta,
     StagedRelation
 } from '../../../../domain/types/contentType';
-import { CONTENT_FIELD_TYPE } from '../../../../domain/constants';
+import { useUnsavedChanges } from '@ortha-cms/utils-admin';
+import { CONTENT_FIELD_TYPE, ENTRY_TAB } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
 import { ENTRY_HEADER_SLOT } from '../../../slots/contentSlots';
@@ -68,16 +71,32 @@ const messages = defineMessages({
     relationRequired: {
         id: 'content.editor.relationRequired',
         defaultMessage: 'Needs at least one link'
+    },
+    sharedSaveTitle: {
+        id: 'content.editor.sharedSaveTitle',
+        defaultMessage: 'This also changes the other locales'
+    },
+    sharedSaveBody: {
+        id: 'content.editor.sharedSaveBody',
+        defaultMessage:
+            'You changed {count, plural, one {the shared field “{first}”} other {# shared fields, starting with “{first}”}}. Shared fields aren’t translated — saving applies the new value to every locale of this record, not just this one.'
+    },
+    sharedSaveConfirm: {
+        id: 'content.editor.sharedSaveConfirm',
+        defaultMessage: 'Save anyway'
+    },
+    cancel: { id: 'content.editor.cancel', defaultMessage: 'Cancel' },
+    publishBlocked: {
+        id: 'content.editor.publishBlocked',
+        defaultMessage:
+            'Can’t publish — {count, plural, one {# field needs} other {# fields need}} attention. Start with “{field}”.'
+    },
+    saveBlocked: {
+        id: 'content.editor.saveBlocked',
+        defaultMessage:
+            'Can’t save — {count, plural, one {# field needs} other {# fields need}} attention. Start with “{field}”.'
     }
 });
-
-/** Tab keys for the editor — named so they aren't bare string literals. */
-const TAB = {
-    General: 'general',
-    Relations: 'relations',
-    Media: 'media',
-    History: 'history'
-} as const;
 
 /** A field is hidden when its admin hints say so. */
 function isHidden(field: ContentField): boolean {
@@ -131,7 +150,9 @@ export function EntryEditor({
     onUnpublish,
     onDelete,
     backTo,
-    availableTypeNames
+    availableTypeNames,
+    tab,
+    onTabChange
 }: {
     schema: ContentTypeDetail;
     initialValues: Record<string, unknown>;
@@ -170,6 +191,13 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
+    /**
+     * The open tab, owned by the **route** (`/…/:entryId/relations`) rather than
+     * by this component — so it survives the remount a locale switch causes.
+     */
+    tab: string;
+    /** Navigate to another tab (the caller pushes the route). */
+    onTabChange: (next: string) => void;
 }) {
     const intl = useIntl();
     // Slot-contributed title-row add-ons (e.g. the i18n plugin's locale chip),
@@ -179,8 +207,6 @@ export function EntryEditor({
     // The existing entry's id, or undefined while creating. Many/inverse
     // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
-    // Which tab is active.
-    const [tab, setTab] = useState<string>(TAB.General);
     // First page + total per relation field, for the header counts, to title
     // single relations, and to power the required-relation publish gate. Enabled
     // as soon as there's an existing entry — one request per entry open — rather
@@ -273,7 +299,6 @@ export function EntryEditor({
     // mirrors exactly what the publish endpoint will check without re-running
     // validation over the same values. Publishable only.
     const fieldGate = useMemo<PublishGateItem[]>(() => {
-        if (!publishable) return [];
         return visible
             .filter((field) => !validationIgnored.has(field.name))
             .filter((field) => field.required || form.errors[field.name])
@@ -282,7 +307,7 @@ export function EntryEditor({
                 ok: !form.errors[field.name],
                 message: form.errors[field.name]
             }));
-    }, [publishable, form.errors, visible, validationIgnored]);
+    }, [form.errors, visible, validationIgnored]);
 
     // A **required** many/inverse relation is link-managed, so it never appears
     // in the values bag `validateEntryValues` (and `fieldGate`) checks — the
@@ -292,7 +317,6 @@ export function EntryEditor({
     // This surfaces the block in the publish gate before the server 422, exactly
     // like a required scalar field (#1).
     const relationGate = useMemo<PublishGateItem[]>(() => {
-        if (!publishable) return [];
         const out: PublishGateItem[] = [];
         for (const field of visible) {
             if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
@@ -325,7 +349,6 @@ export function EntryEditor({
         }
         return out;
     }, [
-        publishable,
         visible,
         managedRelationNames,
         ignoredFields,
@@ -371,13 +394,76 @@ export function EntryEditor({
     // relaxed (format-only) gate — required isn't enforced, but a malformed value
     // is still caught client-side. Publishing — or any save of an always-live,
     // non-publishable type — enforces the full rules before submitting.
-    const save = (publish: boolean) => () => {
-        if (publish || !publishable) {
-            form.submit(submitWith(publish));
-        } else {
-            form.submitDraft(submitWith(publish));
-        }
+    // A submit the client rules refused reveals the inline field errors — but
+    // those can sit on a tab the user isn't looking at (or below the fold), so
+    // the button reads as dead: pressed, nothing happened, nothing explained
+    // (#10, #28). Announce it in a toast naming the first offending field, and
+    // move to the tab that field lives on so the marked control is on screen.
+    const announceBlocked = (strict: boolean, publish: boolean) => {
+        const blocking = strict ? form.errors : form.draftErrors;
+        const names = Object.keys(blocking);
+        if (names.length === 0) return;
+        const first =
+            visible.find((field) => blocking[field.name]) ??
+            schema.fields.find((field) => blocking[field.name]);
+        if (first?.type === CONTENT_FIELD_TYPE.Relation)
+            onTabChange(ENTRY_TAB.Relations);
+        else onTabChange(ENTRY_TAB.General);
+        toast.error(
+            intl.formatMessage(
+                publish ? messages.publishBlocked : messages.saveBlocked,
+                {
+                    count: names.length,
+                    field: first ? fieldLabel(first) : names[0]
+                }
+            )
+        );
     };
+
+    const runSave = (publish: boolean) => {
+        // A **draft** of a publishable type can be saved incomplete (relaxed
+        // gate); publishing — or any save of an always-live type — is strict.
+        const strict = publish || !publishable;
+        const submitted = strict
+            ? form.submit(submitWith(publish))
+            : form.submitDraft(submitWith(publish));
+        if (!submitted) announceBlocked(strict, publish);
+    };
+
+    // Shared (non-localized) fields are **synced across the translation group**
+    // on save — the server copies them to every sibling row in the same
+    // transaction. That is invisible from an editor scoped to one locale, so a
+    // save that carries such a change confirms first (#17). Only ever relevant
+    // on a type that *has* both kinds of field; a plain type has no siblings to
+    // affect and never sees this.
+    const dirtySharedFields = generalFields.filter(
+        (field) => !field.localized && isFieldDirty(field.name)
+    );
+    const hasLocalizedFields = visible.some((field) => field.localized);
+    const needsSharedWarning =
+        hasLocalizedFields && !isCreate && dirtySharedFields.length > 0;
+
+    const [pendingPublish, setPendingPublish] = useState<boolean | null>(null);
+
+    const save = (publish: boolean) => () => {
+        if (needsSharedWarning) {
+            setPendingPublish(publish);
+            return;
+        }
+        runSave(publish);
+    };
+
+    // Whether anything at all is unsaved — a dirty field value or staged
+    // relation links. Handed to slot widgets so a locale switch can confirm
+    // before discarding the work instead of dropping it silently (#36).
+    const isDirty =
+        visible.some((field) => isFieldDirty(field.name)) ||
+        Object.values(relationDeltas).some(isStagedDirty);
+
+    // Register with the app-wide guard, so *any* navigation away from a dirty
+    // editor — a sidebar link, a breadcrumb, "Back to records", a browser
+    // reload — confirms first, not just the locale switch.
+    useUnsavedChanges(isDirty);
 
     return (
         <form
@@ -429,23 +515,23 @@ export function EntryEditor({
                     </div>
 
                     <div className="min-w-0">
-                        <Tabs value={tab} onValueChange={setTab}>
+                        <Tabs value={tab} onValueChange={onTabChange}>
                             <TabsList className="mb-4">
-                                <TabsTrigger value={TAB.General}>
+                                <TabsTrigger value={ENTRY_TAB.General}>
                                     {intl.formatMessage(messages.tabGeneral)}
                                 </TabsTrigger>
-                                <TabsTrigger value={TAB.Relations}>
+                                <TabsTrigger value={ENTRY_TAB.Relations}>
                                     {intl.formatMessage(messages.tabRelations)}
                                 </TabsTrigger>
-                                <TabsTrigger value={TAB.Media}>
+                                <TabsTrigger value={ENTRY_TAB.Media}>
                                     {intl.formatMessage(messages.tabMedia)}
                                 </TabsTrigger>
-                                <TabsTrigger value={TAB.History}>
+                                <TabsTrigger value={ENTRY_TAB.History}>
                                     {intl.formatMessage(messages.tabHistory)}
                                 </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value={TAB.General}>
+                            <TabsContent value={ENTRY_TAB.General}>
                                 <EntryFieldSections
                                     fields={generalFields}
                                     form={form}
@@ -453,7 +539,7 @@ export function EntryEditor({
                                 />
                             </TabsContent>
 
-                            <TabsContent value={TAB.Relations}>
+                            <TabsContent value={ENTRY_TAB.Relations}>
                                 {relationFields.length > 0 ? (
                                     <div className="flex flex-col gap-3">
                                         <p className="text-sm text-muted-foreground">
@@ -546,7 +632,7 @@ export function EntryEditor({
                                 )}
                             </TabsContent>
 
-                            <TabsContent value={TAB.Media}>
+                            <TabsContent value={ENTRY_TAB.Media}>
                                 <Card className="shadow-none">
                                     <CardHeader>
                                         <CardTitle className="text-base">
@@ -563,7 +649,7 @@ export function EntryEditor({
                                 </Card>
                             </TabsContent>
 
-                            <TabsContent value={TAB.History}>
+                            <TabsContent value={ENTRY_TAB.History}>
                                 <HistoryTimeline
                                     typeName={schema.name}
                                     entryId={entry?.id}
@@ -587,6 +673,27 @@ export function EntryEditor({
                 onPublish={save(true)}
                 onUnpublish={onUnpublish}
                 onDelete={onDelete}
+            />
+
+            <ConfirmDialog
+                open={pendingPublish !== null}
+                onOpenChange={(open) => {
+                    if (!open) setPendingPublish(null);
+                }}
+                title={intl.formatMessage(messages.sharedSaveTitle)}
+                description={intl.formatMessage(messages.sharedSaveBody, {
+                    count: dirtySharedFields.length,
+                    first: dirtySharedFields[0]
+                        ? fieldLabel(dirtySharedFields[0])
+                        : ''
+                })}
+                confirmLabel={intl.formatMessage(messages.sharedSaveConfirm)}
+                cancelLabel={intl.formatMessage(messages.cancel)}
+                onConfirm={() => {
+                    const publish = pendingPublish ?? false;
+                    setPendingPublish(null);
+                    runSave(publish);
+                }}
             />
         </form>
     );

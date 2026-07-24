@@ -382,9 +382,9 @@ test.describe('Content Library', () => {
             'Updated',
             'Actions'
         ];
-        await expect(
-            contentLibraryPage.columnHeaders('Blog posts')
-        ).toHaveText(expectedBefore);
+        await expect(contentLibraryPage.columnHeaders('Blog posts')).toHaveText(
+            expectedBefore
+        );
 
         // Reordering lives in the column picker (a vertical list), so open it,
         // pick up "Title" with the keyboard, and move it one slot down — which is
@@ -410,9 +410,9 @@ test.describe('Content Library', () => {
             'Updated',
             'Actions'
         ];
-        await expect(
-            contentLibraryPage.columnHeaders('Blog posts')
-        ).toHaveText(expectedAfter);
+        await expect(contentLibraryPage.columnHeaders('Blog posts')).toHaveText(
+            expectedAfter
+        );
     });
 
     test('sorts records by a column, toggling asc → desc → off', async ({
@@ -430,8 +430,14 @@ test.describe('Content Library', () => {
 
         // Title is the first data column, so its cells are `<td>` 2 (the leading
         // selection checkbox is `<td>` 1).
-        const titleCells = contentLibraryPage.recordColumnCells('Blog posts', 2);
-        const titleHeader = contentLibraryPage.columnHeader('Blog posts', 'Title');
+        const titleCells = contentLibraryPage.recordColumnCells(
+            'Blog posts',
+            2
+        );
+        const titleHeader = contentLibraryPage.columnHeader(
+            'Blog posts',
+            'Title'
+        );
 
         // First click → ascending. URL + aria-sort reflect it, and the rendered
         // page is in non-decreasing order.
@@ -472,7 +478,9 @@ test.describe('Content Library', () => {
 
         // Selecting a row shows the bar; the checkbox click must not navigate.
         await contentLibraryPage.rowCheckbox('Blog posts', 0).click();
-        await expect(contentLibraryPage.selectionCount).toHaveText('1 selected');
+        await expect(contentLibraryPage.selectionCount).toHaveText(
+            '1 selected'
+        );
         await expect(page).toHaveURL(/\/content\/blog_post$/);
 
         // Select-all covers the whole page (default page size 10).
@@ -509,5 +517,219 @@ test.describe('Content Library', () => {
             contentLibraryPage.actionItem(/Publish|Unpublish/)
         ).toBeVisible();
         await expect(contentLibraryPage.actionItem('Copy ID')).toBeVisible();
+    });
+
+    /**
+     * Required fields say so in the label, and the control carries
+     * `aria-required` so assistive tech hears it once — not twice (#30).
+     */
+    test.describe('required fields', () => {
+        test('marks a required field and leaves optional ones alone', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'product'
+            );
+
+            // `product.name` and `product.price` are both required.
+            await expect(contentLibraryPage.fieldLabel('name')).toContainText(
+                '*'
+            );
+            await expect(
+                contentLibraryPage.fieldTextbox('Name')
+            ).toHaveAttribute('aria-required', 'true');
+
+            // …while an optional field carries neither.
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'blog_post'
+            );
+            await expect(
+                contentLibraryPage.fieldLabel('excerpt')
+            ).not.toContainText('*');
+            await expect(
+                contentLibraryPage.fieldSpinbutton('Price')
+            ).not.toHaveAttribute('aria-required', 'true');
+        });
+    });
+
+    /**
+     * A `datetime` the server round-trips carries an explicit zone. It is an
+     * *instant*, and the control has to render it in the viewer's local time —
+     * reading its calendar fields literally re-labels the UTC hour as a local
+     * one, so a time saved as 2:30 PM came back reading 12:30 PM (#18).
+     *
+     * Pinned to a fixed, DST-free zone so the expected local time is stable
+     * wherever this runs.
+     */
+    test.describe('datetime fields', () => {
+        test.use({ timezoneId: 'Asia/Tokyo' });
+
+        test('renders a UTC instant in the viewer’s local time', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Collections');
+            await contentLibraryPage.typeLink('Blog posts').click();
+            await contentLibraryPage.recordRows('Blog posts').first().click();
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+
+            // The seed's first row carries `publishedAt: 2026-01-01T00:00:00.000Z`.
+            // Tokyo is UTC+9 year-round → 9:00 AM local, never midnight.
+            await expect(
+                contentLibraryPage.dateFieldTrigger('publishedAt')
+            ).toContainText('January 1, 2026 at 9:00 AM');
+        });
+    });
+
+    /**
+     * The editor's tabs are **routes**, not component state — so a tab can be
+     * linked to and reloaded, and it survives a remount the editor doesn't
+     * control (#12, and the locale-switch reset in #19).
+     */
+    test.describe('entry editor tabs as routes', () => {
+        test('opening a tab puts it in the URL; General stays canonical', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Collections');
+            await contentLibraryPage.typeLink('Blog posts').click();
+            await contentLibraryPage.recordRows('Blog posts').first().click();
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+
+            await contentLibraryPage.openEditorTab('History');
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+\/history$/);
+
+            // Back to the default tab drops the segment rather than spelling it
+            // out, so the bare entry URL stays the canonical short link.
+            await contentLibraryPage.openEditorTab('General');
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+        });
+
+        test('a tab URL can be opened directly', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Collections');
+            await contentLibraryPage.typeLink('Blog posts').click();
+            await contentLibraryPage.recordRows('Blog posts').first().click();
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+
+            // Reloading a tab URL lands back on that tab, not on General.
+            await contentLibraryPage.openEditorTab('History');
+            await page.reload();
+            await expect(
+                contentLibraryPage.editorTab('History')
+            ).toHaveAttribute('aria-selected', 'true');
+        });
+
+        test('a single page carries its tab on the type path', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Pages');
+            await contentLibraryPage.typeLink('Home').click();
+            await expect(page).toHaveURL(/\/content\/home$/);
+
+            // A single's editor is mounted on the type itself, so its tab is a
+            // static segment there — and must not be read as a record id.
+            await contentLibraryPage.openEditorTab('History');
+            await expect(page).toHaveURL(/\/content\/home\/history$/);
+            await expect(
+                contentLibraryPage.editorTab('History')
+            ).toHaveAttribute('aria-selected', 'true');
+        });
+    });
+
+    /**
+     * The entry form's two "the button does nothing" failures (#28, #10): a
+     * `number`/`money` control handing its raw *string* to the validation kernel
+     * (which demands a real `number`), and a submit the client rules refuse
+     * passing silently — no request, no message, an apparently dead button.
+     */
+    test.describe('entry form validation', () => {
+        test('a numeric field accepts a number and sends it as one', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            const spy = await spyEntrySave(page);
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'product'
+            );
+
+            await contentLibraryPage.fieldTextbox('Name').fill('QA widget');
+            await contentLibraryPage.fieldSpinbutton('Price').fill('19.99');
+
+            // A valid entry must not read back as invalid.
+            await expect(
+                contentLibraryPage.fieldError('Must be a number')
+            ).toHaveCount(0);
+
+            await contentLibraryPage.editorSave.click();
+            await expect.poll(() => spy.bodies.length).toBeGreaterThan(0);
+            // The wire value is a JSON number — a string here is what made the
+            // kernel reject every numeric field.
+            expect(spy.bodies[0].values.price).toBe(19.99);
+        });
+
+        test('clearing a numeric field sends nothing rather than NaN', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            const spy = await spyEntrySave(page);
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'blog_post'
+            );
+
+            // `blog_post.price` is optional: typed, then emptied again.
+            await contentLibraryPage.fieldTextbox('Title').fill('QA post');
+            await contentLibraryPage.fieldSpinbutton('Price').fill('5');
+            await contentLibraryPage.fieldSpinbutton('Price').fill('');
+
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => spy.bodies.length).toBeGreaterThan(0);
+            expect(spy.bodies[0].values.price ?? null).toBeNull();
+        });
+
+        test('a blocked publish explains itself instead of doing nothing', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            const spy = await spyEntrySave(page);
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'product'
+            );
+
+            // Both fields are required and empty — publishing can't proceed.
+            await contentLibraryPage.editorSave.click();
+
+            await expect(
+                contentLibraryPage.toast(/Can’t publish/)
+            ).toBeVisible();
+            // …and it names how much is wrong and where to start.
+            await expect(
+                contentLibraryPage.toast(/2 fields need attention/)
+            ).toBeVisible();
+            await expect(contentLibraryPage.toast(/“Name”/)).toBeVisible();
+            // Refused client-side: the API is never called.
+            expect(spy.bodies).toHaveLength(0);
+        });
     });
 });

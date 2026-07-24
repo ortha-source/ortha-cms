@@ -136,6 +136,7 @@ const messages = defineMessages({
 export function CollectionRecordsRowActions({
     record,
     typePath,
+    entryQuery = '',
     typeName,
     publishable,
     paranoid,
@@ -145,6 +146,8 @@ export function CollectionRecordsRowActions({
     record: EntryRecord;
     /** Absolute path to this type, e.g. `/workspaces/:id/content/:typeName`. */
     typePath: string;
+    /** The table's list-param query suffix (e.g. `"?locale=de"`), kept on Edit. */
+    entryQuery?: string;
     /** The content type's machine name (for the action mutations). */
     typeName: string;
     /** Whether the type has a publish workflow (drives Publish/Unpublish). */
@@ -241,7 +244,9 @@ export function CollectionRecordsRowActions({
                         <>
                             <DropdownMenuItem
                                 onSelect={() =>
-                                    navigate(`${typePath}/${record.id}`)
+                                    navigate(
+                                        `${typePath}/${record.id}${entryQuery}`
+                                    )
                                 }
                             >
                                 {canUpdate ? (

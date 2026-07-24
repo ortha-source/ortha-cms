@@ -191,6 +191,7 @@ export function CollectionRecordsTable({
     columns,
     extensionData = {},
     typePath,
+    entryQuery = '',
     typeName,
     workspaceId,
     publishable,
@@ -213,6 +214,12 @@ export function CollectionRecordsTable({
     extensionData?: Record<string, unknown>;
     /** Absolute path to this type, e.g. `/workspaces/:id/content/:typeName`. */
     typePath: string;
+    /**
+     * The table's slot-owned list params as a query suffix (e.g. `"?locale=de"`),
+     * appended to every row's editor link so the record opens in — and returns
+     * to — the context the table was showing.
+     */
+    entryQuery?: string;
     /** The content type's machine name (for the row action mutations). */
     typeName: string;
     /** Open workspace id, for a relation cell's deep links to related records. */
@@ -368,7 +375,7 @@ export function CollectionRecordsTable({
                                         ? undefined
                                         : () =>
                                               navigate(
-                                                  `${typePath}/${record.id}`
+                                                  `${typePath}/${record.id}${entryQuery}`
                                               )
                                 }
                                 className={
@@ -395,7 +402,7 @@ export function CollectionRecordsTable({
                                         through the row-actions menu. */}
                                     {linkColumnIndex === -1 && !trashed ? (
                                         <Link
-                                            to={`${typePath}/${record.id}`}
+                                            to={`${typePath}/${record.id}${entryQuery}`}
                                             className="sr-only"
                                             onClick={(event) =>
                                                 event.stopPropagation()
@@ -447,7 +454,7 @@ export function CollectionRecordsTable({
                                             {index === linkColumnIndex &&
                                             !trashed ? (
                                                 <Link
-                                                    to={`${typePath}/${record.id}`}
+                                                    to={`${typePath}/${record.id}${entryQuery}`}
                                                     className="block hover:underline"
                                                     onClick={(event) =>
                                                         event.stopPropagation()
@@ -470,6 +477,7 @@ export function CollectionRecordsTable({
                                     <CollectionRecordsRowActions
                                         record={record}
                                         typePath={typePath}
+                                        entryQuery={entryQuery}
                                         typeName={typeName}
                                         publishable={publishable}
                                         paranoid={paranoid}

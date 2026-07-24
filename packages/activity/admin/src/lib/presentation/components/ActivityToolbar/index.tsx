@@ -20,6 +20,8 @@ type ActivityToolbarProps = {
     onEmailChange: (value: string) => void;
     /** Optional advanced-filter control rendered on the right. */
     filterControl?: ReactNode;
+    /** Whether a search/filter request driven from here is still settling. */
+    busy?: boolean;
 };
 
 /**
@@ -30,12 +32,14 @@ type ActivityToolbarProps = {
 export function ActivityToolbar({
     email,
     onEmailChange,
-    filterControl
+    filterControl,
+    busy = false
 }: ActivityToolbarProps) {
     const intl = useIntl();
 
     return (
         <SearchToolbar
+            busy={busy}
             value={email}
             onValueChange={onEmailChange}
             searchLabel={intl.formatMessage(messages.searchLabel)}

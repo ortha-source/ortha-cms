@@ -120,6 +120,39 @@ export class EntryWriterService {
     }
 
     /**
+     * Append a revision for each row an extension changed as a side-effect of
+     * this save — the locale siblings a shared (non-localized) field is synced
+     * to, today.
+     *
+     * Without this their stored values move while their timeline doesn't, so
+     * the history claims a change that never happened to them and hides one
+     * that did. Rows are sorted by id before appending: each takes a per-entry
+     * advisory lock, and a stable order across concurrent savers is what keeps
+     * two of them from deadlocking on the pair.
+     */
+    private async appendRevisionsFor(
+        tx: DbTransaction,
+        type: AnyContentType,
+        rows: Record<string, unknown>[] | void,
+        workspaceId: string,
+        actorId: string | null
+    ): Promise<void> {
+        if (!rows?.length) return;
+        const ordered = [...rows].sort((a, b) =>
+            String(a['id']).localeCompare(String(b['id']))
+        );
+        for (const row of ordered) {
+            await this.appendRevision(
+                tx,
+                type,
+                row as Row,
+                workspaceId,
+                actorId
+            );
+        }
+    }
+
+    /**
      * Create an entry **owned by `workspaceId`** (stamped onto the row so the
      * reader's workspace filter and every later scoped write see it). A
      * publishable type starts as a **draft** and may be incomplete — validation
@@ -207,7 +240,7 @@ export class EntryWriterService {
                     // to locale siblings): a sibling created into an existing
                     // group must land consistent with the group's shared values.
                     // A no-op for a fresh, sibling-less group.
-                    await this.extension?.afterUpdate(
+                    const touched = await this.extension?.afterUpdate(
                         tx,
                         type,
                         inserted as Row,
@@ -220,6 +253,15 @@ export class EntryWriterService {
                         tx,
                         type,
                         inserted as Row,
+                        workspaceId,
+                        actorId ?? null
+                    );
+                    // …and one for every sibling the extension rewrote, so a
+                    // shared value landing on them is in their history too.
+                    await this.appendRevisionsFor(
+                        tx,
+                        type,
+                        touched,
                         workspaceId,
                         actorId ?? null
                     );
@@ -410,7 +452,7 @@ export class EntryWriterService {
             // Extension side-effects of a save (e.g. syncing shared fields to
             // locale siblings) run inside the same transaction — a failure
             // rolls the whole save back.
-            await this.extension?.afterUpdate(
+            const touched = await this.extension?.afterUpdate(
                 tx,
                 type,
                 updated as Row,
@@ -423,6 +465,14 @@ export class EntryWriterService {
                 tx,
                 type,
                 updated as Row,
+                workspaceId,
+                actorId ?? null
+            );
+            // …and one for every sibling the extension rewrote.
+            await this.appendRevisionsFor(
+                tx,
+                type,
+                touched,
                 workspaceId,
                 actorId ?? null
             );

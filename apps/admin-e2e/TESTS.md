@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_209 test cases across 29 spec files._
+_226 test cases across 29 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -13,12 +13,12 @@ _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
 
 | Test case |
 | --- |
-| opens the filter drawer from the toolbar |
+| expands the inline filter panel from the toolbar |
 | filters the log by kind and deep-links the choice |
 | reflects the active condition count on the trigger |
 | restores the filter from a deep link on load |
 | blocks Apply when a UUID "is one of" rule has a non-UUID value |
-| the open drawer with a rule is accessible (axe) |
+| the open filter panel with a rule is accessible (axe) |
 | Reset clears the filter and restores the full log |
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
@@ -170,6 +170,34 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selects rows, select-all, and clears the selection |
 | row actions menu offers Edit, Publish, and Copy ID |
 
+### required fields
+
+| Test case |
+| --- |
+| marks a required field and leaves optional ones alone |
+
+### datetime fields
+
+| Test case |
+| --- |
+| renders a UTC instant in the viewer’s local time |
+
+### entry editor tabs as routes
+
+| Test case |
+| --- |
+| opening a tab puts it in the URL; General stays canonical |
+| a tab URL can be opened directly |
+| a single page carries its tab on the type path |
+
+### entry form validation
+
+| Test case |
+| --- |
+| a numeric field accepts a number and sends it as one |
+| clearing a numeric field sends nothing rather than NaN |
+| a blocked publish explains itself instead of doing nothing |
+
 <!-- source: apps/admin-e2e/src/content/entry-revisions.spec.ts -->
 _<sub>apps/admin-e2e/src/content/entry-revisions.spec.ts</sub>_
 
@@ -189,6 +217,12 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | --- |
 | shows the locale switcher on a localized collection |
 | switching locale updates the URL and re-scopes the table |
+| opening a row and going back keeps the active locale |
+| switching locale keeps the tab the user was working in |
+| the default locale keeps a clean URL through the editor |
+| the localized-field mark explains itself on hover and on focus |
+| splits the form into translated and shared field groups |
+| marks a relation whose target collection is localized |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |
 | the entry editor locale switcher shows current / existing / missing |
@@ -197,6 +231,13 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | a brand-new record can be re-targeted to another locale before saving |
 | a translation draft can jump to an existing sibling |
 | the relation picker on a translation-create form is scoped to that locale |
+
+### save after switching locale on a fresh record
+
+| Test case |
+| --- |
+| saving as draft creates a sibling, never a PATCH on the original |
+| publishing creates a sibling, never a PATCH on the original |
 
 <!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
@@ -269,6 +310,7 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | saves staged links as a relations delta, omitting them from values |
 | shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
+| selects every match at once, then clears |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)
 

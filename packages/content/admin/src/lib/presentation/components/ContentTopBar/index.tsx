@@ -16,6 +16,7 @@ import type { ContentType } from '../../../domain/types/contentType';
 import {
     CONTENT_SEGMENT,
     HISTORY_SEGMENT,
+    ENTRY_TAB_SLUGS,
     NEW_SEGMENT,
     TRASH_SEGMENT,
     TYPE_PARAM
@@ -124,7 +125,13 @@ export function ContentTopBar({
         });
 
         // The leaf under the type: create form, trash view, or an open record.
-        const leaf = splat.split('/')[0];
+        // A **single** page's editor is mounted on the type itself, so its tab
+        // slug is the whole splat (`/home/relations`) — that's the open tab, not
+        // a record id, and must not be resolved as one.
+        const first = splat.split('/')[0];
+        const leaf = ENTRY_TAB_SLUGS.some((slug) => slug === first)
+            ? ''
+            : first;
         if (leaf === NEW_SEGMENT) {
             crumbs.push({
                 key: NEW_SEGMENT,

@@ -251,6 +251,16 @@ export class ContentLibraryPage extends BasePage {
         return this.recordRows(label).locator(`td:nth-child(${nthChild})`);
     }
 
+    /**
+     * A record's own editor link — the `<Link>` wrapping the first column's
+     * cell. Prefer this over clicking the row when the table has relation
+     * columns: those cells `stopPropagation`, so a centred row click can land on
+     * one and never navigate.
+     */
+    recordLink(title: string): Locator {
+        return this.page.getByRole('link', { name: title, exact: true });
+    }
+
     /** The records search box. */
     get recordsSearch(): Locator {
         return this.page.getByRole('searchbox', { name: 'Search records' });
@@ -276,6 +286,66 @@ export class ContentLibraryPage extends BasePage {
     /** A form field's text input by its label. */
     fieldTextbox(label: string): Locator {
         return this.page.getByRole('textbox', { name: label });
+    }
+
+    /**
+     * A form field's **numeric** input by its label. A `number`/`money` field
+     * renders `<input type="number">`, which carries the `spinbutton` role — not
+     * `textbox` — so it needs its own handle.
+     */
+    fieldSpinbutton(label: string): Locator {
+        return this.page.getByRole('spinbutton', { name: label });
+    }
+
+    /**
+     * A `date`/`datetime` field's trigger button, by the field's machine name.
+     * Its text is the formatted value, so asserting on it checks what the user
+     * actually reads off the control.
+     */
+    dateFieldTrigger(fieldName: string): Locator {
+        return this.page.locator(`#entry-field-${fieldName}`);
+    }
+
+    /** A form field's `<label>` element, by the field's machine name. */
+    fieldLabel(fieldName: string): Locator {
+        return this.page.locator(`label[for="entry-field-${fieldName}"]`);
+    }
+
+    /** The "Localized field" tooltip trigger inside a field's label row. */
+    get localizedMark(): Locator {
+        return this.page.getByRole('button', { name: 'Localized field' });
+    }
+
+    /** A General-tab field-group heading ("Translated fields" / "Shared fields"). */
+    fieldGroupHeading(title: string): Locator {
+        return this.page.getByRole('heading', { name: title, exact: true });
+    }
+
+    /** The "Localized relation" mark on a relation section header. */
+    get localizedRelationMark(): Locator {
+        return this.page.getByRole('button', { name: 'Localized relation' });
+    }
+
+    /** The open tooltip bubble, wherever it is portalled. */
+    get tooltip(): Locator {
+        return this.page.getByRole('tooltip');
+    }
+
+    /** A field's inline validation message (design-system `FieldError`). */
+    fieldError(message: string | RegExp): Locator {
+        return this.page.getByRole('alert').filter({ hasText: message });
+    }
+
+    /** Navigate straight to a type's create form (`/content/:type/new`). */
+    async gotoNewEntry(workspaceId: string, typeName: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/new`
+        );
+    }
+
+    /** A toast message (sonner, portaled to the body). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
     }
 
     /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */

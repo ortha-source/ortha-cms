@@ -15,3 +15,10 @@ export {
 } from './lib/useTableUrlState';
 export { asAvatarColor, avatarColorForId } from './lib/avatarColor';
 export { initialsOf, initialsFromEmail } from './lib/initials';
+export {
+    UnsavedChangesProvider,
+    useUnsavedChanges,
+    useUnsavedChangesApi,
+    type UnsavedChangesCopy,
+    type UnsavedChangesDialog
+} from './lib/unsavedChanges';

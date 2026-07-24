@@ -13,7 +13,7 @@ export function EntrySlotContextProvider({
     value,
     children
 }: {
-    value: EntrySlotContext;
+    value: EntrySlotContext | null;
     children: ReactNode;
 }) {
     return <Context.Provider value={value}>{children}</Context.Provider>;

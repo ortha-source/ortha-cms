@@ -21,16 +21,23 @@ import type {
 import {
     CONTENT_FIELD_TYPE,
     CONTENT_SEGMENT,
+    DEFAULT_ENTRY_TAB,
     ENTRY_MODE,
+    NEW_SEGMENT,
     type EntryMode
 } from '../../../domain/constants';
+import { entryTabFromPath } from '../../../domain/entryTab';
+import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
 import {
     useContentEntries,
     contentEntriesPrefix,
     type ContentEntriesResult
 } from '../../../application/useContentEntries';
-import { useContentEntry } from '../../../application/useContentEntry';
+import {
+    useContentEntry,
+    contentEntryKey
+} from '../../../application/useContentEntry';
 import { usePublishEntryFlow } from '../../../application/usePublishEntryFlow';
 import { useSlotListParams } from '../../hooks/useSlotListParams';
 import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
@@ -191,6 +198,47 @@ export function ContentEntryView({
     );
     const bodySlotParams = useSlotListParams(bodyParamKeys);
 
+    // The slot-owned list params (e.g. `?locale=de`) this editor was opened
+    // under, as a query suffix. The records table puts them on every row link,
+    // and every route out of the editor carries them back — otherwise "Back to
+    // records" returns to a different locale than the one the user came from.
+    const entryQuerySuffix = listParamsQuery(listSlotParams);
+
+    // The open tab is a **route** segment, not editor state: switching locale
+    // remounts the editor at the sibling's id, and local state reset the user to
+    // General mid-task.
+    const tab = entryTabFromPath(location.pathname);
+
+    // The editor's own base path — a collection row carries its id, a single is
+    // mounted on the type itself. Tab links hang off it, and the query suffix
+    // rides along so a tab change never drops the active locale.
+    const editorPath =
+        mode === ENTRY_MODE.Single
+            ? typePath
+            : `${typePath}/${entryId ?? NEW_SEGMENT}`;
+
+    // The open tab as a path segment (`''` on the default tab, so the bare
+    // entry URL stays canonical) — used for the editor's own tab links and
+    // handed to slots that navigate to a sibling record.
+    const tabSegment = tab === DEFAULT_ENTRY_TAB ? '' : `/${tab}`;
+
+    const onTabChange = (next: string) => {
+        const segment = next === DEFAULT_ENTRY_TAB ? '' : `/${next}`;
+        // A tab change stays on the *same* form, so it carries the URL forward
+        // whole — `location.search`, not just the list params. The create route
+        // also carries create-only params (the i18n plugin's `localeGroupId`,
+        // which joins the new row to a translation group); dropping those here
+        // would quietly turn a translation into an orphan record on save.
+        //
+        // `location.state` rides along too: it holds the create-form prefill a
+        // slot handed us (`translateFrom`, the source record's shared fields),
+        // and this view re-reads it on every render — so navigating without it
+        // would reset a half-filled translation form to blank.
+        navigate(`${editorPath}${segment}${location.search}`, {
+            state: location.state
+        });
+    };
+
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
         schema,
@@ -223,9 +271,20 @@ export function ContentEntryView({
     // The single page's existing row (if any).
     const singleEntry = oneEntryQuery.data?.items[0];
 
+    // Identifies the current edit target for the flow hook: mode + record id +
+    // the create-body params (the i18n plugin's target `locale`/`localeGroupId`).
+    // The editor is reused (not remounted) as the route flips between `/new`,
+    // `/:id`, and a fresh `/new?locale=…` translation create, so the flow keys its
+    // remembered create id on this to avoid PATCHing the prior record after a
+    // locale switch. Stable within one create session (only these inputs change).
+    const editorKey = useMemo(
+        () => `${mode}:${entryId ?? ''}:${JSON.stringify(bodySlotParams)}`,
+        [mode, entryId, bodySlotParams]
+    );
+
     // The save/publish use case: owns the save→publish/unpublish sequencing, the
     // create→update id continuity, and the shared-kernel publish gate.
-    const flow = usePublishEntryFlow(type.name);
+    const flow = usePublishEntryFlow(type.name, editorKey);
 
     const editEntry = entryQuery.data;
 
@@ -375,7 +434,19 @@ export function ContentEntryView({
         // and its invalidated query refreshes in place. A single stays put — its
         // `?locale=` re-resolves to the row just created.
         if (mode !== ENTRY_MODE.Single && result.wasCreate) {
-            navigate(`${typePath}/${result.saved.id}`);
+            // Prime the edit-mode read with the record the save just returned.
+            // Without it the navigation below lands on `/:type/:id` with a cold
+            // query, so the editor swaps the form the user is looking at for a
+            // full-page spinner and a header that flips "New {label}" → "{label}"
+            // — a jarring flash on every create. The response *is* the canonical
+            // record, so there is nothing to wait for.
+            queryClient.setQueryData(
+                contentEntryKey(workspace.id, type.name, result.saved.id),
+                result.saved
+            );
+            navigate(
+                `${typePath}/${result.saved.id}${tabSegment}${entryQuerySuffix}`
+            );
         }
     };
 
@@ -404,7 +475,7 @@ export function ContentEntryView({
                               label: schema.label
                           })
                       );
-                      navigate(typePath);
+                      navigate(`${typePath}${entryQuerySuffix}`);
                   })
                   .catch(onActionError);
           }
@@ -423,7 +494,8 @@ export function ContentEntryView({
         // The entry-params URL values (opaque), so a slot can scope by its own
         // param even on a create form — e.g. i18n reads `?locale=` here to keep
         // the relation picker in-locale when there's no saved `entry` yet.
-        params: { ...listSlotParams, ...bodySlotParams }
+        params: { ...listSlotParams, ...bodySlotParams },
+        tabSegment
     };
 
     // `flex-auto` (not `min-h-full`): fills the pane's remaining height under
@@ -445,8 +517,14 @@ export function ContentEntryView({
                     onSave={onSave}
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
-                    backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                    backTo={
+                        mode === ENTRY_MODE.Single
+                            ? undefined
+                            : `${typePath}${entryQuerySuffix}`
+                    }
                     availableTypeNames={workspace.content}
+                    tab={tab}
+                    onTabChange={onTabChange}
                 />
             </EntrySlotContextProvider>
         </div>

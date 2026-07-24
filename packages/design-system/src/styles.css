@@ -100,3 +100,31 @@
         animation: none;
     }
 }
+
+/* Interactive controls point.
+
+   Tailwind v4's preflight no longer sets `cursor: pointer` on buttons — the
+   reset defers to the UA, which renders `default`. Across the admin that left
+   nearly every control (buttons, the Radix checkbox/radio/combobox triggers,
+   which are all `<button>` under the hood) with an arrow cursor, so nothing
+   read as clickable.
+
+   Restored here, in the shared layer, rather than per call site: this is a
+   property of "is this control operable", not of any one component. Disabled
+   controls opt out and say so instead — Radix marks its own with
+   `data-disabled` / `aria-disabled`, native controls with `:disabled`. */
+@layer base {
+    button:not(:disabled):not([aria-disabled='true']):not([data-disabled]),
+    [role='button']:not([aria-disabled='true']):not([data-disabled]),
+    label:has(> input[type='checkbox']:not(:disabled)),
+    summary {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    button[aria-disabled='true'],
+    [role='button'][aria-disabled='true'],
+    [data-disabled] {
+        cursor: not-allowed;
+    }
+}

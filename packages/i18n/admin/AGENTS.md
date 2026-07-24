@@ -56,7 +56,9 @@ content plugin owns).
   `?locale=…&localeGroupId=…` for singles), carrying the source's values in
   router `state.translateFrom`. Creating the sibling is then just the editor's
   normal **Save (draft) / Publish** (gated `content:create`) — there is **no**
-  dedicated create-translation call.
+  dedicated create-translation call. Every one of those navigations appends the
+  slot context's **`tabSegment`**, so a switch made from the Relations tab lands
+  on the sibling's Relations tab instead of dumping the user back on General.
     - On a **saved** record the group's members come from `useEntryLocales` (by
       the saved id).
     - On a **new/unsaved** record you can still switch the form's target locale
@@ -83,7 +85,7 @@ content plugin owns).
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: the single-mode one-entry read
   carries the active locale (`listParamKeys = ['locale']`), the **create body**
   carries the locale **and** the target group (`createBodyKeys = ['locale',
-  'localeGroupId']` → the server stamps a sibling), and relation-picker
+'localeGroupId']` → the server stamps a sibling), and relation-picker
   candidates are scoped **strictly** to the active locale (`{ locale }`, no
   default fallback) when the target is localized — cross-locale linking isn't
   allowed, so an i18n record links only same-locale targets. The locale is the
@@ -126,11 +128,11 @@ TanStack Query key:
   ids key the cache. Feeds the **Locales column** (a page's unique group ids)
   **and** the **widget in create mode** (the single `localeGroupId` a translation
   draft carries in its URL).
-There is **no** create-translation hook — a sibling is created through the
-Content Library's own editor Save/Publish (the widget navigates to a draft form;
-`createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The
-duplicate-locale **409** / unknown-group **404** surface through the editor's
-normal save-error path.
+  There is **no** create-translation hook — a sibling is created through the
+  Content Library's own editor Save/Publish (the widget navigates to a draft form;
+  `createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The
+  duplicate-locale **409** / unknown-group **404** surface through the editor's
+  normal save-error path.
 
 ## Conventions
 

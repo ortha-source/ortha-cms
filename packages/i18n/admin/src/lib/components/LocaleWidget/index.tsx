@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Info } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
     TooltipTrigger
 } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
+import { useUnsavedChangesApi } from '@ortha-cms/utils-admin';
 import {
     ENTRY_MODE,
     type EntryStatus,
@@ -89,12 +90,14 @@ export function LocaleWidget({
     entry,
     isCreate,
     mode,
-    typePath
+    typePath,
+    tabSegment
 }: EntrySlotContext) {
     const intl = useIntl();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
+    const guard = useUnsavedChangesApi();
     const canCreate = useHasPermission(CONTENT_CREATE);
     const { locales, defaultLocale } = useLocales();
 
@@ -108,6 +111,19 @@ export function LocaleWidget({
         entry?.id,
         !!schema.i18n && !isCreate && !!entry
     );
+    // The panel's rows carry each locale's publish status, but they come from
+    // this plugin's own query — which the content plugin's publish/unpublish
+    // mutations know nothing about (they invalidate the content caches, not
+    // ours). So publishing left the current locale's chip reading "Draft" even
+    // though the record was live. The slot context's `entry` *is* refreshed by
+    // those mutations, so treat its status as the trigger: whenever it changes,
+    // re-read the panel.
+    const entryStatus = entry?.status;
+    const refetchLocales = entryLocales.refetch;
+    useEffect(() => {
+        if (!entryStatus) return;
+        void refetchLocales();
+    }, [entryStatus, refetchLocales]);
     const groupSummaries = useLocaleSummaries(
         schema.name,
         [urlGroupId],
@@ -174,6 +190,16 @@ export function LocaleWidget({
     // Switch to an existing locale, or re-target the form to a missing one
     // (same group). Singles re-resolve their one row via `?locale=`; collections
     // navigate to the sibling's id (or the create route for a new locale).
+    // A switch leaves this record for another, so anything unsaved is gone.
+    // Routed through the **app-wide** guard rather than a local dialog, so this
+    // prompt is the same one every other navigation shows. The guard no-ops
+    // when nothing is dirty (#36).
+    const requestLocale = (slug: string, sibling?: Sibling) => {
+        const run = () => selectLocale(slug, sibling);
+        if (guard) guard.confirmNavigation(run);
+        else run();
+    };
+
     const selectLocale = (slug: string, sibling?: Sibling) => {
         const name = localeName(locales, slug) ?? slug;
         // The draft's shared fields come from the source values: the saved
@@ -191,18 +217,22 @@ export function LocaleWidget({
                 if (sibling) {
                     navigate(
                         isDefaultLocale(slug, defaultLocale?.slug)
-                            ? typePath
-                            : `${typePath}?${LOCALE_PARAM}=${slug}`
+                            ? `${typePath}${tabSegment}`
+                            : `${typePath}${tabSegment}?${LOCALE_PARAM}=${slug}`
                     );
                 } else {
-                    navigate(`${typePath}?${createSearch(slug)}`, { state });
+                    navigate(`${typePath}${tabSegment}?${createSearch(slug)}`, {
+                        state
+                    });
                 }
                 return;
             }
             if (sibling) {
-                navigate(`${typePath}/${sibling.id}`);
+                navigate(`${typePath}/${sibling.id}${tabSegment}`);
             } else {
-                navigate(`${typePath}/new?${createSearch(slug)}`, { state });
+                navigate(`${typePath}/new${tabSegment}?${createSearch(slug)}`, {
+                    state
+                });
             }
         });
     };
@@ -228,7 +258,7 @@ export function LocaleWidget({
                                     onSelect={
                                         actionable
                                             ? () =>
-                                                  selectLocale(
+                                                  requestLocale(
                                                       locale.slug,
                                                       sibling
                                                   )

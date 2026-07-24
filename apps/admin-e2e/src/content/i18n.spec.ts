@@ -1,7 +1,13 @@
+import { type Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { I18N_WORKSPACE, mockI18n } from '../support/api/i18n';
+import {
+    I18N_WORKSPACE,
+    mockI18n,
+    spyEntryWrites,
+    type EntryWrite
+} from '../support/api/i18n';
 import { type ContentLibraryPage } from '../support/pages/ContentLibraryPage';
 
 /**
@@ -59,6 +65,120 @@ test.describe('Content i18n', () => {
         await expect(
             contentLibraryPage.recordsTable('Localized posts')
         ).not.toContainText('Winter boots');
+    });
+
+    test('opening a row and going back keeps the active locale', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.selectLocale(/Deutsch/);
+        await expect(page).toHaveURL(/locale=de/);
+
+        // The row's editor link carries the locale the table was showing…
+        await contentLibraryPage.recordLink('Winterstiefel').click();
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+\?.*locale=de/);
+
+        // …so "Back to records" returns to that same list, not the default one.
+        await contentLibraryPage.editorBackLink.click();
+        await expect(page).toHaveURL(/\/localized_post\?.*locale=de/);
+        await expect(contentLibraryPage.localeSwitcher).toHaveText(/Deutsch/);
+        await expect(
+            contentLibraryPage.recordsTable('Localized posts')
+        ).toContainText('Winterstiefel');
+    });
+
+    test('switching locale keeps the tab the user was working in', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // Working in Relations, switch to the German sibling…
+        await contentLibraryPage.openEditorTab('Relations');
+        await expect(page).toHaveURL(/\/relations$/);
+        await contentLibraryPage.switchLocale('Deutsch').click();
+
+        // …the editor re-targets the sibling **on the same tab**, instead of
+        // dumping the user back on General mid-task.
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+\/relations$/);
+        await expect(contentLibraryPage.editorTab('Relations')).toHaveAttribute(
+            'aria-selected',
+            'true'
+        );
+    });
+
+    test('the default locale keeps a clean URL through the editor', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+
+        // The server scopes to the default locale when `?locale=` is absent, so
+        // the default must not start spelling itself out in the URL.
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+$/);
+        await contentLibraryPage.editorBackLink.click();
+        await expect(page).toHaveURL(/\/localized_post$/);
+    });
+
+    test('the localized-field mark explains itself on hover and on focus', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // It was a bare span with a native `title` — invisible to keyboard and
+        // touch users. Now a real focusable trigger with a tooltip.
+        const mark = contentLibraryPage.localizedMark.first();
+        await mark.hover();
+        await expect(contentLibraryPage.tooltip).toHaveText(
+            /can differ per locale/
+        );
+
+        await mark.blur();
+        await mark.focus();
+        await expect(contentLibraryPage.tooltip).toHaveText(
+            /can differ per locale/
+        );
+    });
+
+    test('splits the form into translated and shared field groups', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // Editing a shared field changes it for *every* locale, so the two sets
+        // are labelled runs rather than interleaved.
+        await expect(
+            contentLibraryPage.fieldGroupHeading('Translated fields')
+        ).toBeVisible();
+        await expect(
+            contentLibraryPage.fieldGroupHeading('Shared fields')
+        ).toBeVisible();
+    });
+
+    test('marks a relation whose target collection is localized', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await contentLibraryPage.openEditorTab('Relations');
+
+        // `related` points at localized_post itself, so its links are per-locale
+        // — the mark is what explains why the picker hides other locales' rows.
+        await expect(
+            contentLibraryPage.localizedRelationMark.first()
+        ).toBeVisible();
+        await contentLibraryPage.localizedRelationMark.first().hover();
+        await expect(contentLibraryPage.tooltip).toHaveText(
+            /links belong to the record’s locale/
+        );
     });
 
     test('switching locale plays a brief "Switching…" overlay', async ({
@@ -125,9 +245,7 @@ test.describe('Content i18n', () => {
         ).toBeVisible();
 
         // The de sibling exists → switch; fr is missing → create.
-        await expect(
-            contentLibraryPage.switchLocale('Deutsch')
-        ).toBeVisible();
+        await expect(contentLibraryPage.switchLocale('Deutsch')).toBeVisible();
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();
@@ -261,5 +379,114 @@ test.describe('Content i18n', () => {
         await relationsEditorPage.selectButton('Localized posts').click();
         await expect(relationsEditorPage.dialog).toBeVisible();
         await candidates;
+    });
+
+    /**
+     * Regression: creating a record in one locale and then, **without leaving the
+     * editor**, switching to another locale and saving must create a **new
+     * sibling** (a POST to the collection), not re-use the just-created record's
+     * id (a PATCH that overwrites it and creates no translation). The editor is
+     * reused — not remounted — across `/new` → `/:id` → `/new?locale=…`, so the
+     * save flow must forget the prior create id when the target locale changes.
+     * See `usePublishEntryFlow` (`editorKey`) + `ContentEntryView`.
+     */
+    test.describe('save after switching locale on a fresh record', () => {
+        /** The bare-collection create POSTs (a new record / sibling). */
+        const creates = (writes: EntryWrite[]) =>
+            writes.filter((write) => write.isCreate);
+        /** Any update PATCH — the symptom of the bug when it re-homes a sibling. */
+        const patches = (writes: EntryWrite[]) =>
+            writes.filter((write) => write.method === 'PATCH');
+
+        /**
+         * Create a fresh record in the default locale via "Save draft", landing on
+         * its own editor URL. Returns the write spy for the caller's assertions.
+         */
+        async function createEnglishDraft(
+            page: Page,
+            contentLibraryPage: ContentLibraryPage
+        ): Promise<EntryWrite[]> {
+            const writes = spyEntryWrites(page);
+            await contentLibraryPage.goto(I18N_WORKSPACE.id);
+            await contentLibraryPage.typeLink('Localized posts').click();
+            await contentLibraryPage.addRecord.click();
+            await expect(page).toHaveURL(/\/localized_post\/new$/);
+
+            await contentLibraryPage.fieldTextbox('Title').fill('Winter boots');
+            await contentLibraryPage.saveDraft();
+
+            // The create POST lands the editor on the new record's own URL.
+            await expect(page).toHaveURL(/\/localized_post\/lp-en-new$/);
+            await expect(
+                contentLibraryPage.createTranslation('Deutsch')
+            ).toBeVisible();
+            return writes;
+        }
+
+        test('saving as draft creates a sibling, never a PATCH on the original', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            const writes = await createEnglishDraft(page, contentLibraryPage);
+
+            // Switch to the (missing) German locale — a fresh create form for the
+            // same translation group, on the reused editor.
+            await contentLibraryPage.createTranslation('Deutsch').click();
+            await expect(page).toHaveURL(/\/localized_post\/new\?/);
+            await expect(page).toHaveURL(/locale=de/);
+
+            await contentLibraryPage
+                .fieldTextbox('Title')
+                .fill('Winterstiefel');
+            await contentLibraryPage.saveDraft();
+
+            // The save creates the German sibling and moves to *its* URL — not a
+            // silent no-op stuck on `/new`, and not the English row's URL. The
+            // active locale rides along on that URL, so the editor still knows
+            // which list to send the user back to.
+            await expect(page).toHaveURL(
+                /\/localized_post\/lp-de-new\?.*locale=de/
+            );
+
+            // Two creates (en, then de); the German save is a POST carrying its
+            // own locale — and crucially there is **no PATCH** re-homing the row.
+            expect(patches(writes)).toHaveLength(0);
+            expect(creates(writes)).toHaveLength(2);
+            expect(creates(writes).at(-1)?.body?.locale).toBe('de');
+        });
+
+        test('publishing creates a sibling, never a PATCH on the original', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            const writes = await createEnglishDraft(page, contentLibraryPage);
+
+            await contentLibraryPage.createTranslation('Deutsch').click();
+            await expect(page).toHaveURL(/locale=de/);
+
+            await contentLibraryPage
+                .fieldTextbox('Title')
+                .fill('Winterstiefel');
+            // The primary action is "Publish" (publishable type, admin may
+            // publish) — create-then-publish, both against the new sibling.
+            await contentLibraryPage.editorSave.click();
+
+            await expect(page).toHaveURL(
+                /\/localized_post\/lp-de-new\?.*locale=de/
+            );
+
+            // The German create is still a POST (not a PATCH on the English id),
+            // followed by a publish POST on the *new* row.
+            expect(patches(writes)).toHaveLength(0);
+            expect(creates(writes)).toHaveLength(2);
+            expect(creates(writes).at(-1)?.body?.locale).toBe('de');
+            expect(
+                writes.some(
+                    (write) =>
+                        write.method === 'POST' &&
+                        write.path.endsWith('/lp-de-new/publish')
+                )
+            ).toBe(true);
+        });
     });
 });

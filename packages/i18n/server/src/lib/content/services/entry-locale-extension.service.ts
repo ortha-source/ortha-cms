@@ -85,7 +85,9 @@ const LOCALE_FIELD_OPS: Record<string, ReadonlySet<string>> = {
  * - **Shared-field sync** — on update, non-`localized` field values propagate
  *   to every sibling row of the translation group, inside the same
  *   transaction; published siblings are re-validated so a draft edit can
- *   never silently invalidate live content.
+ *   never silently invalidate live content. The rewritten siblings are handed
+ *   back to the entries pipeline, which appends a **revision** for each — their
+ *   values changed, so their history has to say so.
  * - **Virtual filters** — `hasLocale` / `missingLocale` / `localeCount`,
  *   resolved to EXISTS / count subqueries over the group (ridden by the
  *   `(locale_group_id, locale)` unique index).
@@ -136,10 +138,7 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             );
         return or(
             strict,
-            and(
-                eq(table['locale'], fallback.slug),
-                notExists(requestedSibling)
-            )
+            and(eq(table['locale'], fallback.slug), notExists(requestedSibling))
         );
     }
 
@@ -209,12 +208,33 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         row: Record<string, unknown>,
         values: Record<string, unknown>,
         workspaceId: string
-    ): Promise<void> {
-        if (!type.i18n) return;
+    ): Promise<Record<string, unknown>[]> {
+        if (!type.i18n) return [];
         const sharedColumns = this.sharedColumns(type, values);
-        if (!sharedColumns) return;
+        if (!sharedColumns) return [];
 
         const table = type.table as unknown as ContentTable;
+        // Only the columns this save actually carries. A field the caller
+        // omitted is `undefined`, which `.set()` skips — so it must be left out
+        // of the change predicate too, or it would compare against a missing
+        // bind parameter.
+        const written = Object.entries(sharedColumns).filter(
+            ([, value]) => value !== undefined
+        );
+        if (!written.length) return [];
+
+        // Only touch siblings whose shared values actually differ. The save's
+        // values bag carries every field the caller sent, so an unconditional
+        // UPDATE rewrote — and, now that the pipeline appends a revision per
+        // touched row, re-versioned — every sibling on every save, even one
+        // that only changed a localized field. `IS DISTINCT FROM` rather than
+        // `<>` so a NULL on either side compares correctly.
+        const differs = or(
+            ...written.map(
+                ([column, value]) =>
+                    sql`${table[column]} IS DISTINCT FROM ${value}`
+            )
+        );
         // Sync every sibling — including soft-deleted ones, so a later restore
         // comes back consistent with the group.
         const siblings = (await tx
@@ -224,7 +244,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 and(
                     eq(table['localeGroupId'], row['localeGroupId'] as string),
                     ne(table['id'], row['id'] as string),
-                    eq(table['workspaceId'], workspaceId)
+                    eq(table['workspaceId'], workspaceId),
+                    differs
                 )
             )
             .returning()) as Record<string, unknown>[];
@@ -247,6 +268,12 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 });
             }
         }
+
+        // Hand the rewritten siblings back so the entries pipeline appends a
+        // revision for each. Their values moved in this transaction; without a
+        // revision their history would skip the change entirely, and a later
+        // "restore" of an older version would silently undo it.
+        return siblings;
     }
 
     /** @inheritdoc */

@@ -37,13 +37,20 @@ registry is the single `@Injectable()` seam that adapts them to DI.
 `EntryLocaleExtensionService` binds content-server's `CONTENT_ENTRY_EXTENSION`
 port to add per-locale row scoping **in-transaction, synchronously**. This is
 **deliberately left as-is** and is **not** turned into a domain-event /
-subscriber: the extension must run *inside* content's entries pipeline
+subscriber: the extension must run _inside_ content's entries pipeline
 (list scoping, create stamping, shared-field sync + re-validation, virtual
 filters), so a port — not an event — is the right integration. ADR-0003 is
 explicit that the layering does **not** force events where an open-host port is
 correct; the port's shape, wiring, and synchronous contract are unchanged by
 this refactor. `LocalePolicy` is the pure re-expression of the fallback rule the
 adapter's SQL encodes; the adapter keeps rendering the query.
+
+`afterUpdate` **returns the sibling rows it rewrote**. Content-server appends a
+revision for each, in the same transaction — a sibling whose shared values moved
+gets the history entry it earned, instead of its timeline skipping the change
+(and a later restore silently undoing it). Revision writing stays on content's
+side on purpose: numbering is serialized per entry by an advisory lock, so a
+second writer allocating numbers out-of-band is how duplicate versions happen.
 
 The content-**localization** plugin for the Ortha CMS server. It makes
 `i18n: true` content types multilingual — **one row per locale**, siblings
@@ -63,7 +70,7 @@ identity's `CONTENT_CATALOG`, roles swapped: the consumer of the behavior
 declares the port, the provider binds it. Every method **no-ops for non-i18n
 types**, so binding the extension never changes an unrelated type's behavior.
 
-The extension owns all locale *behavior*:
+The extension owns all locale _behavior_:
 
 - **`listScope`** — the extra `WHERE` AND-ed into the entries list. Validates
   `?locale=` (unknown → 400), defaults to the configured default locale when
@@ -106,7 +113,7 @@ content's port and reads its `CONTENT_REGISTRY`).
 
 ## HTTP surface (`/api/i18n`)
 
-This plugin's content routes are **reads only** — sibling *creation* goes
+This plugin's content routes are **reads only** — sibling _creation_ goes
 through content-server's `POST /api/content/:type` with a `localeGroupId` (see
 `createColumns` above). All are workspace-scoped (identity's `WorkspaceGuard`)
 and permission-gated; a `:typeName` that isn't localized is a **400**
