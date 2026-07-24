@@ -10,7 +10,8 @@ import {
     Tabs,
     TabsContent,
     TabsList,
-    TabsTrigger
+    TabsTrigger,
+    toast
 } from '@ortha-cms/design-system';
 import type {
     ContentField,
@@ -68,6 +69,16 @@ const messages = defineMessages({
     relationRequired: {
         id: 'content.editor.relationRequired',
         defaultMessage: 'Needs at least one link'
+    },
+    publishBlocked: {
+        id: 'content.editor.publishBlocked',
+        defaultMessage:
+            'Can’t publish — {count, plural, one {# field needs} other {# fields need}} attention. Start with “{field}”.'
+    },
+    saveBlocked: {
+        id: 'content.editor.saveBlocked',
+        defaultMessage:
+            'Can’t save — {count, plural, one {# field needs} other {# fields need}} attention. Start with “{field}”.'
     }
 });
 
@@ -371,12 +382,39 @@ export function EntryEditor({
     // relaxed (format-only) gate — required isn't enforced, but a malformed value
     // is still caught client-side. Publishing — or any save of an always-live,
     // non-publishable type — enforces the full rules before submitting.
+    // A submit the client rules refused reveals the inline field errors — but
+    // those can sit on a tab the user isn't looking at (or below the fold), so
+    // the button reads as dead: pressed, nothing happened, nothing explained
+    // (#10, #28). Announce it in a toast naming the first offending field, and
+    // move to the tab that field lives on so the marked control is on screen.
+    const announceBlocked = (strict: boolean, publish: boolean) => {
+        const blocking = strict ? form.errors : form.draftErrors;
+        const names = Object.keys(blocking);
+        if (names.length === 0) return;
+        const first =
+            visible.find((field) => blocking[field.name]) ??
+            schema.fields.find((field) => blocking[field.name]);
+        if (first?.type === CONTENT_FIELD_TYPE.Relation) setTab(TAB.Relations);
+        else setTab(TAB.General);
+        toast.error(
+            intl.formatMessage(
+                publish ? messages.publishBlocked : messages.saveBlocked,
+                {
+                    count: names.length,
+                    field: first ? fieldLabel(first) : names[0]
+                }
+            )
+        );
+    };
+
     const save = (publish: boolean) => () => {
-        if (publish || !publishable) {
-            form.submit(submitWith(publish));
-        } else {
-            form.submitDraft(submitWith(publish));
-        }
+        // A **draft** of a publishable type can be saved incomplete (relaxed
+        // gate); publishing — or any save of an always-live type — is strict.
+        const strict = publish || !publishable;
+        const submitted = strict
+            ? form.submit(submitWith(publish))
+            : form.submitDraft(submitWith(publish));
+        if (!submitted) announceBlocked(strict, publish);
     };
 
     return (

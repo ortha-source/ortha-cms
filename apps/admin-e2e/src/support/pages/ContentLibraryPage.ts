@@ -278,6 +278,32 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('textbox', { name: label });
     }
 
+    /**
+     * A form field's **numeric** input by its label. A `number`/`money` field
+     * renders `<input type="number">`, which carries the `spinbutton` role — not
+     * `textbox` — so it needs its own handle.
+     */
+    fieldSpinbutton(label: string): Locator {
+        return this.page.getByRole('spinbutton', { name: label });
+    }
+
+    /** A field's inline validation message (design-system `FieldError`). */
+    fieldError(message: string | RegExp): Locator {
+        return this.page.getByRole('alert').filter({ hasText: message });
+    }
+
+    /** Navigate straight to a type's create form (`/content/:type/new`). */
+    async gotoNewEntry(workspaceId: string, typeName: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/new`
+        );
+    }
+
+    /** A toast message (sonner, portaled to the body). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
+    }
+
     /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
     async saveDraft(): Promise<void> {
         await this.page.getByRole('button', { name: 'More actions' }).click();

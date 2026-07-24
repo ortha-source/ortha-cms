@@ -74,6 +74,24 @@ function asText(value: unknown): string {
 }
 
 /**
+ * A numeric control's raw input string coerced to the `number` the validation
+ * kernel — and the write API — expect. An `<input type="number">` still hands
+ * back a *string*, so without this every `number`/`money` field failed the
+ * kernel's `typeof value === 'number'` check and reported "Must be a number"
+ * for a perfectly valid entry.
+ *
+ * An empty box clears the field (`undefined`, so a non-required field reads as
+ * empty rather than `NaN`); an unparseable string is passed through untouched
+ * so the resulting error still describes what the user actually typed.
+ */
+function asNumber(raw: string): unknown {
+    const trimmed = raw.trim();
+    if (trimmed === '') return undefined;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? raw : parsed;
+}
+
+/**
  * Renders the right control for one content field, driven by `field.type`:
  * text/number/money/date/datetime/single-relation use the composite
  * {@link InputField}; richtext/json/many-relation use a `Textarea`; `boolean` an
@@ -138,9 +156,7 @@ export function EntryFieldInput({
                         aria-invalid={!!error}
                         aria-describedby={describedBy}
                         value={
-                            value === true
-                                ? BOOL_SEGMENT.On
-                                : BOOL_SEGMENT.Off
+                            value === true ? BOOL_SEGMENT.On : BOOL_SEGMENT.Off
                         }
                         onValueChange={(next) => {
                             // Radix clears the value when the active item is
@@ -295,12 +311,12 @@ export function EntryFieldInput({
                 return (
                     <Field data-invalid={!!error}>
                         <FieldLabel
-                        htmlFor={id}
-                        className={endAdornment ? 'w-full' : undefined}
-                    >
-                        {label}
-                        {endAdornment}
-                    </FieldLabel>
+                            htmlFor={id}
+                            className={endAdornment ? 'w-full' : undefined}
+                        >
+                            {label}
+                            {endAdornment}
+                        </FieldLabel>
                         <Textarea
                             id={id}
                             value={ids.join('\n')}
@@ -395,7 +411,13 @@ export function EntryFieldInput({
                     description={description}
                     placeholder={admin.placeholder}
                     error={error}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) =>
+                        onChange(
+                            numeric
+                                ? asNumber(event.target.value)
+                                : event.target.value
+                        )
+                    }
                     onBlur={onBlur}
                     className={FLAT}
                     {...(numeric
