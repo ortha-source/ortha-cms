@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { canPublish, type EntryFieldSpecMap } from '@ortha-cms/content-domain';
 import type {
     ContentTypeDetail,
@@ -79,15 +79,36 @@ export type PublishEntryFlow = {
  * the same rule the editor's publish gate shows), and exposes the entry lifecycle
  * mutations. Cache invalidation lives in the underlying mutations.
  *
- * Takes only the stable `typeName` so it can be called unconditionally (before the
+ * Takes the stable `typeName` so it can be called unconditionally (before the
  * schema resolves); the schema and publishable flag are supplied per {@link submit}.
+ *
+ * `editorKey` identifies the current edit target (mode + record id + create-body
+ * params such as the target locale). The editor is **not** remounted when the
+ * route flips between `/new`, `/:id`, and `/new?locale=…` (the same component
+ * renders all three — see `ContentLibraryPage`), so this hook's state survives
+ * those transitions; the key lets it clear the remembered `createdId` when the
+ * target genuinely changes. Without it, after creating record A a subsequent
+ * "create a translation" (a fresh `/new` for another locale) would keep A's id
+ * and issue a **PATCH against A** instead of a POST — overwriting A and creating
+ * no sibling. The key must **not** change within a single create session (e.g. a
+ * create that succeeds then fails to publish), so a retry still targets the draft.
  */
-export function usePublishEntryFlow(typeName: string): PublishEntryFlow {
+export function usePublishEntryFlow(
+    typeName: string,
+    editorKey?: string
+): PublishEntryFlow {
     const save = useSaveEntry(typeName);
     const status = useEntryStatusActions(typeName);
     // In create mode, remember the id returned by a successful create so a retry
     // after a failed chained publish updates that draft instead of re-creating.
     const [createdId, setCreatedId] = useState<string | undefined>(undefined);
+
+    // Forget the remembered create id when the edit target changes (a different
+    // record, or a new-translation create for another locale). The editor isn't
+    // remounted across those navigations, so nothing else resets this state.
+    useEffect(() => {
+        setCreatedId(undefined);
+    }, [editorKey]);
 
     const submit = useCallback(
         async (input: SubmitEntryInput): Promise<SubmitEntryResult> => {
