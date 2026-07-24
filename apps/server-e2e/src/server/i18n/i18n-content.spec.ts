@@ -155,7 +155,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const agent = await login();
             await createArticle(agent); // en
             const de = await createArticle(agent, { locale: 'de' });
-            const res = await agent.get('/api/content/test_article').expect(200);
+            const res = await agent
+                .get('/api/content/test_article')
+                .expect(200);
             const ids = (res.body.items as { id: string }[]).map((i) => i.id);
             expect(ids).not.toContain(de.id);
             expect(
@@ -187,7 +189,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // An en-only group (no de translation).
             const en = await createArticle(agent);
             const res = await agent
-                .get('/api/content/test_article?locale=de&localeFallback=default')
+                .get(
+                    '/api/content/test_article?locale=de&localeFallback=default'
+                )
                 .expect(200);
             const ids = (res.body.items as { id: string }[]).map((i) => i.id);
             // The en row stands in for the missing de translation.
@@ -243,8 +247,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
             });
-            const de = (await createTranslation(agent, en, 'de'))
-                .body as { id: string };
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
             // Give the de row its own localized text.
             await agent
                 .patch(`/api/content/test_article/${de.id}`)
@@ -266,6 +271,77 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.body.values.number).toBe(42);
             // ...localized field untouched.
             expect(deAfter.body.values.text).toBe('DE title');
+        });
+
+        it('appends a revision to each sibling the sync rewrote', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article' }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+
+            const revisionCount = async (id: string) =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+
+            const beforeDe = await revisionCount(de.id);
+
+            // A SHARED field changes on en, so de's stored values change too —
+            // its history has to record that, or a later restore of an older
+            // de version silently undoes a change de never shows.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'EN title', select: 'article', number: 7 }
+                })
+                .expect(200);
+
+            expect(await revisionCount(de.id)).toBe(beforeDe + 1);
+        });
+
+        it('leaves sibling history alone when only a localized field changes', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article', number: 5 }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+
+            const revisionCount = async (id: string) =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+
+            const beforeDe = await revisionCount(de.id);
+
+            // Only `text` (localized) changes; the shared `number` is resent
+            // unchanged. The save's values bag always carries every field, so
+            // the sync must compare rather than rewrite — otherwise every
+            // sibling gains a bogus version on every save.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: {
+                        text: 'EN retitled',
+                        select: 'article',
+                        number: 5
+                    }
+                })
+                .expect(200);
+
+            expect(await revisionCount(de.id)).toBe(beforeDe);
         });
 
         it('does not sync a relation to a localizable target across locales', async () => {
@@ -319,7 +395,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(200);
 
             const deAfter = (
-                await agent.get(`/api/content/test_article/${de.id}`).expect(200)
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
             ).body as { values: Record<string, unknown> };
             expect(deAfter.values.number).toBe(99); // shared field synced
             expect(deAfter.values.author ?? null).toBeNull(); // relation NOT synced
@@ -341,7 +419,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(201);
 
             const enAfter = (
-                await agent.get(`/api/content/test_article/${en.id}`).expect(200)
+                await agent
+                    .get(`/api/content/test_article/${en.id}`)
+                    .expect(200)
             ).body as { values: Record<string, unknown> };
             // The shared field propagates to the pre-existing en row on create...
             expect(enAfter.values.number).toBe(5);
@@ -354,8 +434,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
             });
-            const de = (await createTranslation(agent, en, 'de'))
-                .body as { id: string };
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
             // Publish the de sibling so it must stay valid.
             await agent
                 .post(`/api/content/test_article/${de.id}/publish`)
@@ -394,7 +475,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .get('/api/content/test_article')
                 .query({ filter: rule('hasLocale', 'eq', 'de') })
                 .expect(200);
-            const hasIds = (has.body.items as { id: string }[]).map((i) => i.id);
+            const hasIds = (has.body.items as { id: string }[]).map(
+                (i) => i.id
+            );
             expect(hasIds).toContain(a.id);
             expect(hasIds).not.toContain(b.id);
 
