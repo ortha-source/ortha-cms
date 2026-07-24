@@ -4,7 +4,7 @@
  * strings here — exactly as it restates wire types — as the source for the
  * `ActivityKind` type and the action-label map. Each string mirrors a kind an
  * emitting plugin records (identity owns auth/workspace, users owns member
- * lifecycle).
+ * lifecycle, content owns the entry publish lifecycle).
  */
 export const ACTIVITY_KINDS = [
     'user.invited',
@@ -18,7 +18,9 @@ export const ACTIVITY_KINDS = [
     'user.signed_out',
     'workspace.created',
     'workspace.member_added',
-    'workspace.member_removed'
+    'workspace.member_removed',
+    'entry.published',
+    'entry.unpublished'
 ] as const;
 
 /** A kind the Activity Log knows how to render. */

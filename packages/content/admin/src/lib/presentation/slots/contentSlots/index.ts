@@ -140,6 +140,16 @@ export type EntrySlotContext = {
      * instead of being dropped back on General.
      */
     tabSegment: string;
+    /**
+     * Whether the editor form holds **unsaved** edits — a dirty field value or
+     * staged relation links. A slot that navigates the user away from this
+     * record (the i18n locale switch) must confirm before discarding them;
+     * without this it silently threw the work away.
+     *
+     * `false` from the base context: the form lives inside `EntryEditor`, which
+     * re-provides this context with the real value once it exists.
+     */
+    isDirty: boolean;
 };
 
 /** One entry-sidebar widget contribution (a card in the right rail). */

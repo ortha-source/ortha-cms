@@ -484,7 +484,10 @@ export function ContentEntryView({
         // param even on a create form — e.g. i18n reads `?locale=` here to keep
         // the relation picker in-locale when there's no saved `entry` yet.
         params: { ...listSlotParams, ...bodySlotParams },
-        tabSegment
+        tabSegment,
+        // The form doesn't exist at this level; `EntryEditor` re-provides the
+        // context with the real dirtiness once it does.
+        isDirty: false
     };
 
     // `flex-auto` (not `min-h-full`): fills the pane's remaining height under

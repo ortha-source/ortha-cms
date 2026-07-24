@@ -301,10 +301,16 @@ describe('toAuditRow — event → audit-row parity', () => {
     describe('identity (auth.* → user.*, actor is the signer)', () => {
         it('auth.signed_in → user.signed_in, actor = the user', () => {
             const row = toAuditRow(
-                event('auth.signed_in', 'user', TARGET_USER_ID, {}, {
-                    id: TARGET_USER_ID,
-                    email: 'me@example.com'
-                })
+                event(
+                    'auth.signed_in',
+                    'user',
+                    TARGET_USER_ID,
+                    {},
+                    {
+                        id: TARGET_USER_ID,
+                        email: 'me@example.com'
+                    }
+                )
             );
             expect(row).toEqual({
                 id: EVENT_ID,
@@ -320,10 +326,16 @@ describe('toAuditRow — event → audit-row parity', () => {
 
         it('auth.signed_out → user.signed_out (actorEmail may be null)', () => {
             const row = toAuditRow(
-                event('auth.signed_out', 'user', TARGET_USER_ID, {}, {
-                    id: TARGET_USER_ID,
-                    email: null
-                })
+                event(
+                    'auth.signed_out',
+                    'user',
+                    TARGET_USER_ID,
+                    {},
+                    {
+                        id: TARGET_USER_ID,
+                        email: null
+                    }
+                )
             );
             expect(row).toEqual({
                 id: EVENT_ID,
@@ -338,20 +350,56 @@ describe('toAuditRow — event → audit-row parity', () => {
         });
     });
 
+    describe('content entry lifecycle', () => {
+        it('maps a publish to a content_entry row carrying its type', () => {
+            const row = toAuditRow(
+                event('entry.published', 'content_entry', WORKSPACE_ID, {
+                    contentType: 'article'
+                })
+            );
+            expect(row).toMatchObject({
+                kind: 'entry.published',
+                subjectType: 'content_entry',
+                subjectId: WORKSPACE_ID,
+                meta: { contentType: 'article' }
+            });
+        });
+
+        it('maps an unpublish the same way', () => {
+            const row = toAuditRow(
+                event('entry.unpublished', 'content_entry', WORKSPACE_ID, {
+                    contentType: 'article'
+                })
+            );
+            expect(row).toMatchObject({
+                kind: 'entry.unpublished',
+                subjectType: 'content_entry',
+                meta: { contentType: 'article' }
+            });
+        });
+    });
+
     describe('non-audited kinds', () => {
         it('returns null for an unmapped kind', () => {
             expect(
                 toAuditRow(
-                    event('workspace.something_else', 'workspace', WORKSPACE_ID, {})
+                    event(
+                        'workspace.something_else',
+                        'workspace',
+                        WORKSPACE_ID,
+                        {}
+                    )
                 )
             ).toBeNull();
         });
 
-        it('audits exactly the 18 expected kinds', () => {
+        it('audits exactly the 20 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'auth.signed_in',
                     'auth.signed_out',
+                    'entry.published',
+                    'entry.unpublished',
                     'member.disabled',
                     'member.invite_resent',
                     'member.invited',

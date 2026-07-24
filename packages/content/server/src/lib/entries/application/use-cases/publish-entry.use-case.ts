@@ -4,7 +4,7 @@ import {
     NotFoundException,
     UnprocessableEntityException
 } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import { type EntryStatus } from '@ortha-cms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryValidationService } from '../../../validation/services/entry-validation.service';
@@ -38,7 +38,13 @@ export class PublishEntryUseCase {
     async execute(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        /**
+         * The acting user, merged onto the outbox events so the audit log can
+         * name who did this. Without it every content row in the activity log
+         * read "System".
+         */
+        actor?: { id: string; email: string | null }
     ): Promise<EntryRecord> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -99,7 +105,11 @@ export class PublishEntryUseCase {
             // Promote the entry's latest revision to the live version so the
             // history timeline reflects the publish (revisions are born drafts).
             await this.writer.markRevisionPublished(exec, id, workspaceId);
-            await this.outbox.append(entry.pullEvents());
+            await this.outbox.append(
+                actor
+                    ? attachActor(entry.pullEvents(), actor)
+                    : entry.pullEvents()
+            );
             return toRecord(type, updated);
         });
     }

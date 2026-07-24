@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Info } from 'lucide-react';
@@ -8,6 +8,7 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
+    ConfirmDialog,
     Tooltip,
     TooltipContent,
     TooltipTrigger
@@ -36,6 +37,23 @@ import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 import { LocaleRow } from './LocaleRow';
 
 const messages = defineMessages({
+    discardTitle: {
+        id: 'i18n.widget.discardTitle',
+        defaultMessage: 'Discard your unsaved changes?'
+    },
+    discardBody: {
+        id: 'i18n.widget.discardBody',
+        defaultMessage:
+            'Switching to {locale} opens a different record, so the edits you haven’t saved on this one will be lost.'
+    },
+    discardConfirm: {
+        id: 'i18n.widget.discardConfirm',
+        defaultMessage: 'Switch and discard'
+    },
+    discardCancel: {
+        id: 'i18n.widget.discardCancel',
+        defaultMessage: 'Keep editing'
+    },
     title: { id: 'i18n.widget.title', defaultMessage: 'Locale' },
     descriptionEdit: {
         id: 'i18n.widget.descriptionEdit',
@@ -90,7 +108,8 @@ export function LocaleWidget({
     isCreate,
     mode,
     typePath,
-    tabSegment
+    tabSegment,
+    isDirty
 }: EntrySlotContext) {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -122,6 +141,11 @@ export function LocaleWidget({
         if (!entryStatus) return;
         void refetchLocales();
     }, [entryStatus, refetchLocales]);
+    // A pick held back by the unsaved-changes confirm.
+    const [pending, setPending] = useState<{
+        slug: string;
+        sibling?: Sibling;
+    } | null>(null);
     const groupSummaries = useLocaleSummaries(
         schema.name,
         [urlGroupId],
@@ -188,6 +212,17 @@ export function LocaleWidget({
     // Switch to an existing locale, or re-target the form to a missing one
     // (same group). Singles re-resolve their one row via `?locale=`; collections
     // navigate to the sibling's id (or the create route for a new locale).
+    // A switch leaves this record for another, so anything unsaved is gone. The
+    // editor tells us whether that's the case (`isDirty` on the slot context);
+    // when it is, hold the pick and confirm first (#36).
+    const requestLocale = (slug: string, sibling?: Sibling) => {
+        if (isDirty) {
+            setPending({ slug, sibling });
+            return;
+        }
+        selectLocale(slug, sibling);
+    };
+
     const selectLocale = (slug: string, sibling?: Sibling) => {
         const name = localeName(locales, slug) ?? slug;
         // The draft's shared fields come from the source values: the saved
@@ -246,7 +281,7 @@ export function LocaleWidget({
                                     onSelect={
                                         actionable
                                             ? () =>
-                                                  selectLocale(
+                                                  requestLocale(
                                                       locale.slug,
                                                       sibling
                                                   )
@@ -296,6 +331,26 @@ export function LocaleWidget({
                     </div>
                 </>
             )}
+            <ConfirmDialog
+                open={pending !== null}
+                onOpenChange={(open) => {
+                    if (!open) setPending(null);
+                }}
+                title={intl.formatMessage(messages.discardTitle)}
+                description={intl.formatMessage(messages.discardBody, {
+                    locale: pending
+                        ? (localeName(locales, pending.slug) ?? pending.slug)
+                        : ''
+                })}
+                confirmLabel={intl.formatMessage(messages.discardConfirm)}
+                cancelLabel={intl.formatMessage(messages.discardCancel)}
+                confirmVariant="destructive"
+                onConfirm={() => {
+                    const pick = pending;
+                    setPending(null);
+                    if (pick) selectLocale(pick.slug, pick.sibling);
+                }}
+            />
             <LocaleSwitchOverlay />
         </>
     );
