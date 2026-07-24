@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_224 test cases across 29 spec files._
+_226 test cases across 29 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -231,6 +231,13 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | a brand-new record can be re-targeted to another locale before saving |
 | a translation draft can jump to an existing sibling |
 | the relation picker on a translation-create form is scoped to that locale |
+
+### save after switching locale on a fresh record
+
+| Test case |
+| --- |
+| saving as draft creates a sibling, never a PATCH on the original |
+| publishing creates a sibling, never a PATCH on the original |
 
 <!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_

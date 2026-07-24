@@ -271,9 +271,20 @@ export function ContentEntryView({
     // The single page's existing row (if any).
     const singleEntry = oneEntryQuery.data?.items[0];
 
+    // Identifies the current edit target for the flow hook: mode + record id +
+    // the create-body params (the i18n plugin's target `locale`/`localeGroupId`).
+    // The editor is reused (not remounted) as the route flips between `/new`,
+    // `/:id`, and a fresh `/new?locale=…` translation create, so the flow keys its
+    // remembered create id on this to avoid PATCHing the prior record after a
+    // locale switch. Stable within one create session (only these inputs change).
+    const editorKey = useMemo(
+        () => `${mode}:${entryId ?? ''}:${JSON.stringify(bodySlotParams)}`,
+        [mode, entryId, bodySlotParams]
+    );
+
     // The save/publish use case: owns the save→publish/unpublish sequencing, the
     // create→update id continuity, and the shared-kernel publish gate.
-    const flow = usePublishEntryFlow(type.name);
+    const flow = usePublishEntryFlow(type.name, editorKey);
 
     const editEntry = entryQuery.data;
 

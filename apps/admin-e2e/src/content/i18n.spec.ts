@@ -1,7 +1,13 @@
+import { type Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { I18N_WORKSPACE, mockI18n } from '../support/api/i18n';
+import {
+    I18N_WORKSPACE,
+    mockI18n,
+    spyEntryWrites,
+    type EntryWrite
+} from '../support/api/i18n';
 import { type ContentLibraryPage } from '../support/pages/ContentLibraryPage';
 
 /**
@@ -373,5 +379,108 @@ test.describe('Content i18n', () => {
         await relationsEditorPage.selectButton('Localized posts').click();
         await expect(relationsEditorPage.dialog).toBeVisible();
         await candidates;
+    });
+
+    /**
+     * Regression: creating a record in one locale and then, **without leaving the
+     * editor**, switching to another locale and saving must create a **new
+     * sibling** (a POST to the collection), not re-use the just-created record's
+     * id (a PATCH that overwrites it and creates no translation). The editor is
+     * reused — not remounted — across `/new` → `/:id` → `/new?locale=…`, so the
+     * save flow must forget the prior create id when the target locale changes.
+     * See `usePublishEntryFlow` (`editorKey`) + `ContentEntryView`.
+     */
+    test.describe('save after switching locale on a fresh record', () => {
+        /** The bare-collection create POSTs (a new record / sibling). */
+        const creates = (writes: EntryWrite[]) =>
+            writes.filter((write) => write.isCreate);
+        /** Any update PATCH — the symptom of the bug when it re-homes a sibling. */
+        const patches = (writes: EntryWrite[]) =>
+            writes.filter((write) => write.method === 'PATCH');
+
+        /**
+         * Create a fresh record in the default locale via "Save draft", landing on
+         * its own editor URL. Returns the write spy for the caller's assertions.
+         */
+        async function createEnglishDraft(
+            page: Page,
+            contentLibraryPage: ContentLibraryPage
+        ): Promise<EntryWrite[]> {
+            const writes = spyEntryWrites(page);
+            await contentLibraryPage.goto(I18N_WORKSPACE.id);
+            await contentLibraryPage.typeLink('Localized posts').click();
+            await contentLibraryPage.addRecord.click();
+            await expect(page).toHaveURL(/\/localized_post\/new$/);
+
+            await contentLibraryPage.fieldTextbox('Title').fill('Winter boots');
+            await contentLibraryPage.saveDraft();
+
+            // The create POST lands the editor on the new record's own URL.
+            await expect(page).toHaveURL(/\/localized_post\/lp-en-new$/);
+            await expect(
+                contentLibraryPage.createTranslation('Deutsch')
+            ).toBeVisible();
+            return writes;
+        }
+
+        test('saving as draft creates a sibling, never a PATCH on the original', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            const writes = await createEnglishDraft(page, contentLibraryPage);
+
+            // Switch to the (missing) German locale — a fresh create form for the
+            // same translation group, on the reused editor.
+            await contentLibraryPage.createTranslation('Deutsch').click();
+            await expect(page).toHaveURL(/\/localized_post\/new\?/);
+            await expect(page).toHaveURL(/locale=de/);
+
+            await contentLibraryPage
+                .fieldTextbox('Title')
+                .fill('Winterstiefel');
+            await contentLibraryPage.saveDraft();
+
+            // The save creates the German sibling and moves to *its* URL — not a
+            // silent no-op stuck on `/new`, and not the English row's URL.
+            await expect(page).toHaveURL(/\/localized_post\/lp-de-new$/);
+
+            // Two creates (en, then de); the German save is a POST carrying its
+            // own locale — and crucially there is **no PATCH** re-homing the row.
+            expect(patches(writes)).toHaveLength(0);
+            expect(creates(writes)).toHaveLength(2);
+            expect(creates(writes).at(-1)?.body?.locale).toBe('de');
+        });
+
+        test('publishing creates a sibling, never a PATCH on the original', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            const writes = await createEnglishDraft(page, contentLibraryPage);
+
+            await contentLibraryPage.createTranslation('Deutsch').click();
+            await expect(page).toHaveURL(/locale=de/);
+
+            await contentLibraryPage
+                .fieldTextbox('Title')
+                .fill('Winterstiefel');
+            // The primary action is "Publish" (publishable type, admin may
+            // publish) — create-then-publish, both against the new sibling.
+            await contentLibraryPage.editorSave.click();
+
+            await expect(page).toHaveURL(/\/localized_post\/lp-de-new$/);
+
+            // The German create is still a POST (not a PATCH on the English id),
+            // followed by a publish POST on the *new* row.
+            expect(patches(writes)).toHaveLength(0);
+            expect(creates(writes)).toHaveLength(2);
+            expect(creates(writes).at(-1)?.body?.locale).toBe('de');
+            expect(
+                writes.some(
+                    (write) =>
+                        write.method === 'POST' &&
+                        write.path.endsWith('/lp-de-new/publish')
+                )
+            ).toBe(true);
+        });
     });
 });
