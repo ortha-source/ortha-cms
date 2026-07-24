@@ -5,6 +5,7 @@ export {
     ENTRY_HEADER_SLOT,
     ENTRY_PARAMS_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
+    ENTRY_TAB_SLOT,
     RECORDS_COLUMN_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
     RECORDS_TOOLBAR_SLOT
@@ -14,6 +15,9 @@ export type {
     EntryParamsItem,
     EntrySlotContext,
     EntrySidebarWidgetItem,
+    EntryTabContext,
+    EntryTabForm,
+    EntryTabItem,
     RecordsColumnCellContext,
     RecordsColumnItem,
     RecordsFilterFieldsItem,
@@ -26,9 +30,11 @@ export type {
     ContentType,
     ContentTypeDetail,
     EntryRecord,
-    EntryStatus
+    EntryStatus,
+    MediaRef
 } from './lib/domain/types/contentType';
 export { ENTRY_MODE, type EntryMode } from './lib/domain/constants';
+export { CONTENT_FIELD_TYPE, ENTRY_TAB } from './lib/domain/constants';
 
 // Query-key builders, exported so a slot contributor can invalidate the
 // library's caches after its own mutations (e.g. creating a translation).

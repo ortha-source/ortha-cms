@@ -4,6 +4,7 @@ import {
     toMediaAsset,
     toMediaFolder,
     type AssetListResponse,
+    type AssetResponse,
     type FoldersResponse
 } from '../mediaMapper';
 import type {
@@ -90,24 +91,29 @@ export const httpMediaGateway: MediaGateway = {
         folderId: string,
         file: File,
         options?: UploadOptions
-    ): Promise<void> {
+    ): Promise<MediaAsset> {
         const target = folderParam(folderId);
         const form = new FormData();
         form.append('file', file);
         if (target) form.append('folderId', target);
         try {
-            await apiClient.post('/media/assets', form, {
-                signal: options?.signal,
-                onUploadProgress: (event) => {
-                    // `total` is absent on some proxies/streams; without it a
-                    // percentage would be a lie, so report nothing and let the
-                    // caller keep showing indeterminate progress.
-                    if (!event.total) return;
-                    options?.onProgress?.(
-                        Math.round((event.loaded / event.total) * 100)
-                    );
+            const { data } = await apiClient.post<AssetResponse>(
+                '/media/assets',
+                form,
+                {
+                    signal: options?.signal,
+                    onUploadProgress: (event) => {
+                        // `total` is absent on some proxies/streams; without it a
+                        // percentage would be a lie, so report nothing and let the
+                        // caller keep showing indeterminate progress.
+                        if (!event.total) return;
+                        options?.onProgress?.(
+                            Math.round((event.loaded / event.total) * 100)
+                        );
+                    }
                 }
-            });
+            );
+            return toMediaAsset(data);
         } catch (error) {
             throw toApiError(error);
         }

@@ -4,13 +4,27 @@ import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_NAV_SLOT
 } from '@ortha-cms/workspaces-admin';
+import {
+    CONTENT_FIELD_TYPE,
+    ENTRY_TAB,
+    ENTRY_TAB_SLOT,
+    type ContentTypeDetail
+} from '@ortha-cms/content-admin';
 import { Image } from 'lucide-react';
+import { EntryMediaTab } from '../../components/EntryMediaTab';
 
 const MediaLibraryPage = lazy(() =>
     import('../../pages/MediaLibraryPage').then((module) => ({
         default: module.MediaLibraryPage
     }))
 );
+
+/** The Media tab applies to any type that declares a media field. */
+function hasMediaField(schema: ContentTypeDetail): boolean {
+    return schema.fields.some(
+        (field) => field.type === CONTENT_FIELD_TYPE.Media
+    );
+}
 
 /**
  * Admin-side media plugin shape. A thin alias of {@link AdminPlugin}, kept named
@@ -52,6 +66,26 @@ export function MediaPlugin(): MediaAdminPlugin {
                                 <MediaLibraryPage />
                             </Suspense>
                         )
+                    }
+                ]
+            },
+            // The entry editor's Media tab — rendered by content-admin's
+            // ENTRY_TAB_SLOT only when the open type has a media field, so the
+            // tab appears exactly where media applies. Its `slug` is content's
+            // own `media` tab route, already accepted by the tab router.
+            {
+                slot: ENTRY_TAB_SLOT,
+                items: [
+                    {
+                        id: 'media.entry.tab',
+                        slug: ENTRY_TAB.Media,
+                        label: {
+                            id: 'media.tab.label',
+                            defaultMessage: 'Media'
+                        },
+                        order: 10,
+                        appliesTo: hasMediaField,
+                        Component: EntryMediaTab
                     }
                 ]
             }

@@ -5,12 +5,13 @@
  * `InferEntry` can derive row types with correct nullability.
  */
 
-import { CONTENT_FIELD_TYPE } from '../types/fields';
+import { CONTENT_FIELD_TYPE, MEDIA_KIND_VALUES } from '../types/fields';
 import type {
     BaseFieldOptions,
     FieldSpec,
     FieldType,
     FieldValidation,
+    MediaFieldOptions,
     MoneyFieldOptions,
     NumberFieldOptions,
     RelationFieldOptions,
@@ -184,6 +185,39 @@ function relationInverse<const O extends RelationInverseFieldOptions>(
     };
 }
 
+/**
+ * Attach one or more **Media Library** assets. Stores asset ids in the values
+ * bag — a single `uuid` column (`multiple: false`), or a `jsonb` array of ids
+ * (`multiple: true`), so media rides revisions and locale-sibling sync like any
+ * other field. Asset ids are plain uuids, not a Postgres FK: the assets live in
+ * the media plugin's own schema, so existence and the `accept` restriction are
+ * enforced by the server on save (via the media-asset resolver), not the DB.
+ */
+function media<const O extends MediaFieldOptions = MediaFieldOptions>(
+    options?: O
+): FieldSpec<
+    'media',
+    O extends { multiple: true } ? string[] : WithRequired<O, string>
+> {
+    const accept = options?.accept;
+    if (accept?.kinds) {
+        // Fail at boot on a typo'd kind rather than silently accepting nothing.
+        for (const kind of accept.kinds) {
+            if (!MEDIA_KIND_VALUES.includes(kind)) {
+                throw new Error(
+                    `Invalid media kind ${JSON.stringify(kind)} on a media ` +
+                        `field: expected one of ${MEDIA_KIND_VALUES.join(', ')}.`
+                );
+            }
+        }
+    }
+    return {
+        ...base(CONTENT_FIELD_TYPE.Media, options),
+        multiple: options?.multiple ?? false,
+        ...(accept ? { accept } : {})
+    };
+}
+
 /** The field-builder vocabulary: `field.text()`, `field.relation()`, … */
 export const field = {
     text,
@@ -197,5 +231,6 @@ export const field = {
     multiselect,
     json,
     relation,
-    relationInverse
+    relationInverse,
+    media
 };

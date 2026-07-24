@@ -96,11 +96,36 @@ of the server's RBAC, which is the real enforcer).
   invalidated once per settled batch.
 - Every other action fires a **toast**; failures surface a toast + resync.
 
+## The content editor's Media tab
+
+Beyond the library page, this plugin contributes the **Media tab** of the
+content entry editor via content-admin's **`ENTRY_TAB_SLOT`** (hence the
+`@ortha-cms/content-admin` dependency; the tab appears only when the open type
+has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
+
+- **`EntryMediaTab`** — the slot `Component`. Reads the schema's media fields and
+  renders one **`MediaFieldControl`** each, bound to the editor's shared form via
+  the slot's form bridge (`ctx.form.values` / `setValue` / `errorFor` / `touch`),
+  with the field's label / required mark / localized globe / Changed badge /
+  error. Media values live in the entry values bag; the tab is only their surface.
+- **`MediaFieldControl`** — single or ordered-multiple asset display (thumbnails
+  resolved from `ctx.mediaRefs` or a just-picked/uploaded asset; a `missing` ref
+  renders "Unavailable asset"), with **Select from library**, **Upload**, remove,
+  and reorder. It writes an asset id (single) or id array (multiple).
+- **`MediaPickerDialog`** — a modal over `useMediaLibrary` (browse + search),
+  candidates narrowed to the field's `accept` (the server enforces it on save).
+- **Upload** reuses `mediaGateway.uploadFile` (now returning the created asset),
+  so the file lands in the **library** too and its id is set on the field; the
+  media caches are invalidated so it appears immediately. `acceptsAsset`
+  (`utils/mediaAccept`) mirrors the server's restriction for the picker filter +
+  a post-upload guard.
+
 ## Lives strictly inside a workspace
 
 This plugin contributes **no top-level route and no top-toolbar nav item**. It
 adds an `Image` rail button (`order: 20`) and a `media/*` route to the workspace
-shell — so it only ever renders under `/workspaces/:id/media`.
+shell — plus the content editor's **Media tab** (`ENTRY_TAB_SLOT`, above) — so it
+only renders under `/workspaces/:id/media` and inside the content entry editor.
 
 ## Conventions
 

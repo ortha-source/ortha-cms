@@ -6,9 +6,11 @@ import type {
     ContentType,
     ContentTypeDetail,
     ContentTypeSummaryResponse,
+    EntryMedia,
     EntryRecord,
     EntryRelations,
     FilterFieldsResponse,
+    MediaRef,
     RelationFieldView,
     RevisionDetail,
     RevisionListView,
@@ -141,6 +143,20 @@ export const httpContentGateway: ContentGateway = {
                 `/content/${name}/${id}/relations`
             );
             return data.relations;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getEntryMedia(
+        name: string,
+        id: string
+    ): Promise<Record<string, MediaRef[]>> {
+        try {
+            const { data } = await apiClient.get<EntryMedia>(
+                `/content/${name}/${id}/media`
+            );
+            return data.media;
         } catch (error) {
             throw toApiError(error);
         }

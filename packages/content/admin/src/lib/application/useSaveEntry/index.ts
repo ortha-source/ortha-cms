@@ -5,6 +5,7 @@ import type { EntryRecord } from '../../domain/types/contentType';
 import {
     contentEntriesPrefix,
     contentEntryKey,
+    entryMediaPrefix,
     entryRelationsPrefix,
     entryRevisionsPrefix,
     relationFieldLinksPrefix
@@ -44,6 +45,11 @@ export function useSaveEntry(typeName: string) {
             // version appears in the right-rail widget + History tab immediately.
             queryClient.invalidateQueries({
                 queryKey: entryRevisionsPrefix(workspace.id, typeName)
+            });
+            // Media fields may have changed — refresh the Media tab's resolved
+            // refs so it reflects the saved set (names / missing state).
+            queryClient.invalidateQueries({
+                queryKey: entryMediaPrefix(workspace.id, typeName)
             });
             // Relation links may have changed (staged deltas persist with the
             // save), so drop the relations aggregate **and** the per-field

@@ -215,9 +215,11 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
   tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
   `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
-  toggles/multi-choice; **Relations** = relation fields via the **`RelationField`**
-  picker (empty state otherwise); **Media** + **History** = placeholders; all four
-  tabs always present), and the
+  toggles/multi-choice — **media fields are excluded from General**, rendering on
+  the Media tab instead; **Relations** = relation fields via the **`RelationField`**
+  picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
+  tabs (the media plugin's **Media** tab) render between Relations and History
+  when their `appliesTo` matches the open type; **History** = revisions), and the
   right rail (`EntrySidebar`): a top **action bar** — a primary button
   (**Publish** for a publishable type the user may publish, else **Save** /
   **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
@@ -389,10 +391,11 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes six named slots (`presentation/slots/contentSlots`, via
+The library exposes seven named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills all six. **Slot items are boot-frozen**
+`@ortha-cms/i18n-admin` fills six; `@ortha-cms/media-admin` fills the seventh
+(`ENTRY_TAB_SLOT`, the Media tab). **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
 `RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
@@ -426,6 +429,18 @@ fetching internally.
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
   relation-candidate list params (`relationCandidateParams`, consumed by the
   picker dialog through the slot context).
+- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (id + `slug` + `label` + `order`
+  + `appliesTo` + `Component`). Rendered between Relations and History when
+  `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
+  so the tab router/`entryTabFromPath` accept it. The Component receives an
+  **`EntryTabContext`** — the `EntrySlotContext` plus a **form bridge**
+  (`values` / `errorFor` / `setValue` / `touch` / `isFieldDirty`) and the saved
+  entry's resolved `mediaRefs` — so a contributed tab renders controls bound to
+  the editor's shared form: a field edited there rides Save, the Changed badge,
+  the publish gate, and the 422→field mapping exactly like a General-tab field.
+  `@ortha-cms/media-admin` fills it with the **Media** tab (media fields live in
+  the values bag; the tab is only their rendering surface). `useSaveEntry` also
+  invalidates the entry-media cache so the tab reflects the saved set.
 
 The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
 list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`

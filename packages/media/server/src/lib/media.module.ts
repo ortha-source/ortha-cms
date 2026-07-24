@@ -1,10 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { MEDIA_ASSET_RESOLVER } from '@ortha-cms/content-server';
 import {
     STORAGE_REGISTRY,
     STORAGE_RESOLVER,
     type StorageProvider,
     type StorageResolver
 } from './domain/storage-provider';
+import { MediaAssetResolverQuery } from './infrastructure/queries/media-asset-resolver.query';
 import { ASSET_REPOSITORY } from './domain/asset.repository';
 import { FOLDER_REPOSITORY } from './domain/folder.repository';
 import { buildRegistry } from './infrastructure/storage-registry';
@@ -100,8 +102,18 @@ export class MediaModule {
                 ListAssetsQuery,
                 ListFoldersQuery,
                 AssetViewQuery,
-                DownloadAssetQuery
-            ]
+                DownloadAssetQuery,
+                // Binds content-server's media-asset resolver port, so a content
+                // record's media field can be checked for existence + `accept`
+                // against real assets. Global module, so content-server's
+                // EntryWriterService (also global) resolves it.
+                MediaAssetResolverQuery,
+                {
+                    provide: MEDIA_ASSET_RESOLVER,
+                    useExisting: MediaAssetResolverQuery
+                }
+            ],
+            exports: [MEDIA_ASSET_RESOLVER]
         };
     }
 }

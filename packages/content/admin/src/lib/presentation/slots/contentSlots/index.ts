@@ -21,7 +21,8 @@ import { createSlot } from '@ortha-cms/utils-admin';
 import type { FilterField } from '@ortha-cms/query-builder-admin';
 import type {
     ContentTypeDetail,
-    EntryRecord
+    EntryRecord,
+    MediaRef
 } from '../../../domain/types/contentType';
 import type { EntryMode } from '../../../domain/constants';
 
@@ -222,3 +223,68 @@ export type EntryParamsItem = {
 export const ENTRY_PARAMS_SLOT = createSlot<EntryParamsItem>(
     'content.entry.params'
 );
+
+/**
+ * The minimal form bridge an {@link EntryTabItem} needs to render controls bound
+ * to the editor's shared form — so a contributed tab (e.g. the Media tab) edits
+ * the same `values` the built-in tabs do. A field edited on a slot tab rides
+ * Save, the Changed badge, the publish gate, and the server-422 mapping exactly
+ * like a General-tab field, because it's the same form state.
+ */
+export type EntryTabForm = {
+    /** The current form values, keyed by field name. */
+    values: Record<string, unknown>;
+    /** The (localized) validation error for a field, if any. */
+    errorFor: (field: string) => string | undefined;
+    /** Set a field's value. */
+    setValue: (field: string, value: unknown) => void;
+    /** Mark a field touched (so its error may show). */
+    touch: (field: string) => void;
+    /** Whether a field holds an unsaved edit (drives the Changed badge). */
+    isFieldDirty: (field: string) => boolean;
+};
+
+/** Context handed to a {@link EntryTabItem}'s tab panel — slot context + form. */
+export type EntryTabContext = EntrySlotContext & {
+    /** Form bridge for rendering controls bound to the editor's values. */
+    form: EntryTabForm;
+    /**
+     * The saved entry's media fields resolved to display refs (name / thumbnail
+     * url / kind), keyed by field name — so a tab can label pre-existing assets
+     * without re-fetching. Empty while creating, or when no media resolver is
+     * bound. Freshly picked/uploaded assets aren't here (the tab tracks those
+     * from the picker); a thumbnail always renders from the id regardless.
+     */
+    mediaRefs: Record<string, MediaRef[]>;
+};
+
+/**
+ * One entry-editor tab contribution. A contributed tab renders after the
+ * built-in General/Relations tabs and before History, ordered by {@link order}.
+ * Its {@link slug} MUST be a known editor tab slug (`ENTRY_TAB_SLUGS`) so the
+ * route table and the tab-from-path resolver accept it. The tab appears only
+ * when {@link appliesTo} returns true for the open type (e.g. the Media tab only
+ * when the type has media fields).
+ */
+export type EntryTabItem = {
+    /** Stable id (React key). */
+    id: string;
+    /** URL tab segment — must be one of `ENTRY_TAB_SLUGS`. */
+    slug: string;
+    /** Tab trigger label. */
+    label: MessageDescriptor;
+    /** Sort order among contributed tabs (ascending). */
+    order: number;
+    /** Whether this tab applies to the open type. */
+    appliesTo: (schema: ContentTypeDetail) => boolean;
+    /** The tab panel, rendered with the editor's slot + form context. */
+    Component: ComponentType<EntryTabContext>;
+};
+
+/**
+ * Extra tabs in the entry editor (e.g. the media plugin's Media tab). Declared
+ * here and rendered by `EntryEditor`; contributors register items via their
+ * `AdminPlugin.slots`. Boot-frozen like every slot, so the tab set is stable
+ * across renders.
+ */
+export const ENTRY_TAB_SLOT = createSlot<EntryTabItem>('content.entry.tabs');

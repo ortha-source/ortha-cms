@@ -97,6 +97,25 @@ export const article = collection('article', {
             admin: { description: 'Freeform structured metadata.' }
         }),
 
+        // ---- media (Media Library assets) --------------------------------
+        // Single image, shared across locales. Restricted to image assets.
+        coverImage: field.media({
+            accept: { kinds: ['image'] },
+            admin: { label: 'Cover image', description: 'Shown on cards + hero.' }
+        }),
+        // Single image, per-locale (a localized hero for each translation).
+        localizedHero: field.media({
+            localized: true,
+            accept: { kinds: ['image'] },
+            admin: { label: 'Localized hero image' }
+        }),
+        // Ordered list of images (a gallery). Restricted by MIME wildcard.
+        gallery: field.media({
+            multiple: true,
+            accept: { mimeTypes: ['image/*'] },
+            admin: { label: 'Gallery', description: 'Ordered image gallery.' }
+        }),
+
         // ---- relations ---------------------------------------------------
         // many-to-one, required → ON DELETE RESTRICT (a required single
         // relation cannot be SET NULL). Target is non-i18n ⇒ shared FK.

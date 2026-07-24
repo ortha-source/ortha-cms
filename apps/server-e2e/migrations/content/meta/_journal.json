@@ -15,6 +15,13 @@
       "when": 1784662320879,
       "tag": "0001_test_page",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784929048022,
+      "tag": "0002_media_fields",
+      "breakpoints": true
     }
   ]
 }

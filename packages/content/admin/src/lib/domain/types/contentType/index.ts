@@ -88,6 +88,33 @@ export type ContentField = {
          */
         inverse?: { field: string };
     };
+    /** Holds an ordered list of assets — present only for `media`. */
+    multiple?: boolean;
+    /**
+     * Accepted-asset restriction (kinds / MIME patterns) — present only for
+     * `media` fields that set one. The picker filters candidates by it.
+     */
+    accept?: {
+        kinds?: readonly string[];
+        mimeTypes?: readonly string[];
+    };
+};
+
+/**
+ * One attached asset on a media field, resolved for display — the wire shape of
+ * `GET /api/content/:type/:id/media` (and a revision detail's `mediaRefs`).
+ * Mirrors the server's `MediaRef`. A `missing` ref is an id whose asset was
+ * deleted or lives in another workspace; the UI shows "Unavailable asset".
+ */
+export type MediaRef = {
+    id: string;
+    name: string;
+    /** Raw-stream route for a thumbnail/preview (empty when `missing`). */
+    url: string;
+    kind: string;
+    mimeType: string;
+    alt?: string | null;
+    missing?: boolean;
 };
 
 /**
@@ -236,6 +263,15 @@ export type RelationFieldView = {
  */
 export type EntryRelations = {
     relations: Record<string, RelationFieldView>;
+};
+
+/**
+ * One entry's media fields resolved to display refs, keyed by field name —
+ * served by `GET /api/content/:name/:id/media`; mirrors the server's
+ * `EntryMediaView`. Empty when no media resolver is bound.
+ */
+export type EntryMedia = {
+    media: Record<string, MediaRef[]>;
 };
 
 /**

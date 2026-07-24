@@ -94,6 +94,13 @@ function columnFor(
         case CONTENT_FIELD_TYPE.Multiselect:
             builder = jsonb(col);
             break;
+        case CONTENT_FIELD_TYPE.Media:
+            // A media reference is an asset id (or an ordered list of them).
+            // No FK — the assets live in the media plugin's schema, which this
+            // package can't reference (same convention as `workspace_id`);
+            // existence + the `accept` restriction are enforced in the app layer.
+            builder = spec.multiple ? jsonb(col) : uuid(col);
+            break;
         case CONTENT_FIELD_TYPE.Relation: {
             // An inverse (back-reference) owns no storage — it reuses the owning
             // side's column/join table.

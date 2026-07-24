@@ -23,6 +23,11 @@ import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
 } from '../../../extension/entry-extension';
+import {
+    InjectMediaAssetResolver,
+    type MediaAssetResolver
+} from '../../../extension/media-asset-resolver';
+import { acceptsAsset, describeAccept } from './media-accept';
 import type { AnyContentType } from '../../../types/content-type';
 import { ENTRY_STATUS } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
@@ -84,7 +89,14 @@ export class EntryWriterService {
         // and sibling sync) — absent unless a plugin binds it, hence optional.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
-        private readonly extension?: ContentEntryExtension
+        private readonly extension?: ContentEntryExtension,
+        // The media-asset resolver — bound by the media plugin so a media field's
+        // ids can be checked for existence + `accept` in the workspace. Absent
+        // when media isn't registered, in which case media fields shape-validate
+        // and store only (no existence/restriction check).
+        @Optional()
+        @InjectMediaAssetResolver()
+        private readonly mediaResolver?: MediaAssetResolver
     ) {}
 
     /**
@@ -181,6 +193,7 @@ export class EntryWriterService {
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
+        await this.assertMediaTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
         // Extension-stamped envelope columns (e.g. the validated locale + group
         // id). Resolved before the transaction so an invalid param — unknown
@@ -397,6 +410,7 @@ export class EntryWriterService {
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
+        await this.assertMediaTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
         // written). A **publishable** type's save always produces a **draft**
@@ -1010,6 +1024,74 @@ export class EntryWriterService {
                         field: ref.field,
                         message: 'must reference an existing entry'
                     });
+            }
+        }
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
+        }
+    }
+
+    /**
+     * Validate every media field's asset ids: each must reference an asset that
+     * **exists in the same workspace** and whose kind/MIME satisfies the field's
+     * `accept` restriction. Mirrors {@link assertRelationTargets} — asset ids are
+     * plain uuids with no FK (the assets live in the media plugin's schema), so
+     * without this a caller could reference — or probe — an asset in another
+     * workspace, or attach a disallowed file type. Batched: one resolver lookup
+     * across every media id on the entry.
+     *
+     * A **missing** asset and a **cross-workspace** one both read as the same
+     * uniform 422 (the resolver simply omits them from its map — no
+     * not-found-vs-forbidden enumeration signal). When no resolver is bound (the
+     * media plugin isn't registered) this is a no-op: media fields shape-validate
+     * and store their ids, but existence/restriction aren't enforced.
+     */
+    private async assertMediaTargets(
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<void> {
+        if (!this.mediaResolver) return;
+        // Collect every referenced asset id, remembering which field each came
+        // from so a violation names the right field.
+        const refs: { field: string; id: string }[] = [];
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (spec.type !== CONTENT_FIELD_TYPE.Media) continue;
+            const value = values[name];
+            const ids = Array.isArray(value)
+                ? value
+                : typeof value === 'string' && value
+                  ? [value]
+                  : [];
+            for (const id of ids) {
+                if (typeof id === 'string' && id) refs.push({ field: name, id });
+            }
+        }
+        if (!refs.length) return;
+
+        const resolved = await this.mediaResolver.resolve(
+            [...new Set(refs.map((ref) => ref.id))],
+            workspaceId
+        );
+        const issues: ValidationIssue[] = [];
+        for (const ref of refs) {
+            const asset = resolved.get(ref.id);
+            if (!asset) {
+                issues.push({
+                    field: ref.field,
+                    message: 'must reference an existing asset'
+                });
+                continue;
+            }
+            const spec = type.fields[ref.field];
+            if (!acceptsAsset(spec.accept, asset)) {
+                issues.push({
+                    field: ref.field,
+                    message: `must be ${describeAccept(spec.accept)}`
+                });
             }
         }
         if (issues.length) {

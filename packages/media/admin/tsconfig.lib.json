@@ -26,6 +26,9 @@
             "path": "../../design-system/tsconfig.lib.json"
         },
         {
+            "path": "../../content/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../bootstrap/admin/tsconfig.lib.json"
         }
     ]

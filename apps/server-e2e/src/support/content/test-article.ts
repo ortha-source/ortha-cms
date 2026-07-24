@@ -94,6 +94,22 @@ export const testArticle = collection('test_article', {
                 description: 'Arbitrary structured data as raw JSON.'
             }
         }),
+        // media: single image, shared across locales, restricted to images.
+        image: field.media({
+            accept: { kinds: ['image'] },
+            admin: { label: 'Cover image' }
+        }),
+        // media: single image, per-locale (a localized hero per translation).
+        heroImage: field.media({
+            localized: true,
+            accept: { kinds: ['image'] },
+            admin: { label: 'Localized hero' }
+        }),
+        // media: ordered list of any asset kind (attachments).
+        attachments: field.media({
+            multiple: true,
+            admin: { label: 'Attachments' }
+        }),
         // many-to-one: many articles → one author. Single FK column
         // `author_id`; deleting an author nulls it (the article survives).
         author: field.relation({

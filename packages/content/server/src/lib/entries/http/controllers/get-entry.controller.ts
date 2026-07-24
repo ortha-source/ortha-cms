@@ -20,7 +20,9 @@ import { MAX_PAGE_SIZE } from '../../entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
+import { MediaRefsQuery } from '../../infrastructure/queries/media-refs.query';
 import type {
+    EntryMediaView,
     EntryRecord,
     EntryRelationsView,
     RelationFieldView
@@ -41,7 +43,8 @@ export class GetEntryController {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        private readonly writer: EntryWriterService
+        private readonly writer: EntryWriterService,
+        private readonly mediaRefs: MediaRefsQuery
     ) {}
 
     @Get(':typeName/:id')
@@ -52,6 +55,31 @@ export class GetEntryController {
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
         return this.writer.getOne(type, id, workspaceId);
+    }
+
+    /**
+     * `GET /api/content/:typeName/:id/media` — one entry's media fields resolved
+     * to display refs (name / thumbnail url / kind), keyed by field name, so the
+     * editor's Media tab renders assigned assets by thumbnail without a per-id
+     * round-trip. Empty when no media resolver is bound. 404 when the entry is
+     * missing or soft-deleted in this workspace. `content:read`.
+     */
+    @Get(':typeName/:id/media')
+    async getMedia(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<EntryMediaView> {
+        const type = resolveType(this.registry, typeName);
+        // 404s a missing/soft-deleted entry, and gives us its live values bag.
+        const entry = await this.writer.getOne(type, id, workspaceId);
+        return {
+            media: await this.mediaRefs.forValues(
+                type,
+                entry.values,
+                workspaceId
+            )
+        };
     }
 
     /**

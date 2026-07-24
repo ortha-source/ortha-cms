@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_359 test cases across 32 spec files._
+_368 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -279,6 +279,21 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 403s a viewer on create and delete |
 | lets a contributor create but not delete |
 
+<!-- source: apps/server-e2e/src/server/content/content-media-fields.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-media-fields.spec.ts</sub>_
+
+## Content media fields (/api/content/:type)
+
+| Test case |
+| --- |
+| stores and reads back a single media asset id |
+| 422s a media id that does not exist |
+| 422s a media asset from another workspace (no cross-workspace leak) |
+| 422s an asset whose kind fails the field accept restriction |
+| preserves the order of a multiple media field across an update |
+| resolves media ids to refs via GET /:id/media |
+| captures media ids in the revision snapshot |
+
 <!-- source: apps/server-e2e/src/server/content/content-schema.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-schema.spec.ts</sub>_
 
@@ -516,6 +531,8 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | propagates a non-localized field to siblings but leaves localized fields alone |
+| appends a revision to each sibling the sync rewrote |
+| leaves sibling history alone when only a localized field changes |
 | does not sync a relation to a localizable target across locales |
 | syncs shared fields when a sibling is created into the group |
 | 422s and rolls back when the sync would invalidate a published sibling |

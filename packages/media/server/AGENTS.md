@@ -81,6 +81,18 @@ whose URL the browser loads directly needs this treatment, not the header guard.
   `POST /media/assets` (multipart) · `GET /media/assets/:id/raw` ·
   `PATCH /media/assets/:id` · `DELETE /media/assets` (bulk `{ ids }`)
 
+## Binds content's media-asset resolver
+
+`MediaModule.forRoot` binds content-server's **`MEDIA_ASSET_RESOLVER`** port
+(`infrastructure/queries/media-asset-resolver.query.ts` — a batched,
+workspace-scoped lookup of `media_asset`), so a content record's `field.media`
+values can be checked for existence + the field's `accept` restriction on save,
+and resolved to thumbnails in the editor + revision preview. Same open-host
+inversion as i18n binding content's `CONTENT_ENTRY_EXTENSION`: content declares
+the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
+cycle — content doesn't depend on media). Both modules are global, so content's
+`EntryWriterService` resolves the binding regardless of registration order.
+
 ## Register with the host
 
 After `WorkspacesPlugin` (routes use `WorkspaceGuard`) and `IdentityPlugin`

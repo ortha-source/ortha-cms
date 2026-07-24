@@ -16,6 +16,7 @@
     ],
     "dependencies": {
         "@ortha-cms/bootstrap-admin": "*",
+        "@ortha-cms/content-admin": "*",
         "@ortha-cms/design-system": "*",
         "@ortha-cms/identity-admin": "*",
         "@ortha-cms/utils-admin": "*",
