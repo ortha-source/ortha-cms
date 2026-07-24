@@ -1,13 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type UIEvent
+} from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Button,
+    Checkbox,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogTitle
+    DialogTitle,
+    Spinner
 } from '@ortha-cms/design-system';
 import { countRules, type FilterGroup } from '@ortha-cms/query-builder-admin';
 import { useContentSchema } from '../../../../../../application/useContentSchema';
@@ -21,6 +30,15 @@ import { useFilterFields } from '../../../../../../application/useFilterFields';
 import { RelationValuePicker } from '../../../../RelationValuePicker';
 import { RelationPickerFilters } from './RelationPickerFilters';
 import { RelationCandidateList } from './RelationCandidateList';
+
+/**
+ * Runaway guard for "select all": the most candidate pages it will pull before
+ * stopping and reporting what it managed. Not a product limit — at the picker's
+ * page size this is thousands of records, far past any realistic relation — but
+ * it keeps a mis-sized target type from turning one click into an unbounded
+ * request storm.
+ */
+const SELECT_ALL_PAGE_CEILING = 40;
 
 const messages = defineMessages({
     title: {
@@ -43,14 +61,14 @@ const messages = defineMessages({
         id: 'content.relations.picker.selectAll',
         defaultMessage: 'Select all {count}'
     },
-    clearAll: {
-        id: 'content.relations.picker.clearAll',
-        defaultMessage: 'Clear selection'
+    selectingAll: {
+        id: 'content.relations.picker.selectingAll',
+        defaultMessage: 'Loading all {total}… ({loaded} so far)'
     },
-    selectAllLoadedHint: {
-        id: 'content.relations.picker.selectAllLoadedHint',
+    selectAllCapped: {
+        id: 'content.relations.picker.selectAllCapped',
         defaultMessage:
-            'Selects the {count} loaded so far — scroll for more, then select again.'
+            'Selected the first {loaded} of {total}. Scroll to load more, then select again.'
     },
     selectedCount: {
         id: 'content.relations.picker.selectedCount',
@@ -99,6 +117,9 @@ export function RelationPickerDialog({
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterGroup | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    // "Select all" in progress: pulls the remaining pages, then checks them.
+    const [selectingAll, setSelectingAll] = useState(false);
+    const [pagesPulled, setPagesPulled] = useState(0);
     // The dialog's element. Radix Dialog scroll-locks the page while open, so the
     // inline filter's field picker must portal INTO it or its list won't scroll
     // by mouse wheel (same reason as the records filter drawer).
@@ -128,6 +149,8 @@ export function RelationPickerDialog({
             setDraft(new Set(selectedRef.current));
             setPicked(new Map());
             setSearch('');
+            setSelectingAll(false);
+            setPagesPulled(0);
             setFilter(null);
             setFiltersOpen(false);
         }
@@ -168,6 +191,7 @@ export function RelationPickerDialog({
         hasMore,
         isPending: candidatesPending,
         isError: candidatesError,
+        isFetching: candidatesFetching,
         isFetchingNextPage,
         fetchNextPage
     } = useRelationCandidates(
@@ -219,28 +243,70 @@ export function RelationPickerDialog({
         }
     };
 
-    // Bulk toggle over the candidates **currently loaded**. The list is lazily
-    // paginated, so it can only ever mean "these", never "every match" — the
-    // label says so when more results exist behind the scroll, rather than
-    // implying a whole-result-set select the dialog can't honour.
-    const allLoadedSelected =
-        items.length > 0 && items.every((item) => draft.has(item.id));
-    const hasUnloaded = total > items.length;
-    const toggleAllLoaded = () => {
-        setDraft((current) => {
-            const next = new Set(current);
-            for (const item of items) {
-                if (allLoadedSelected) next.delete(item.id);
-                else next.add(item.id);
-            }
-            return next;
-        });
-        // Remember them so their titles survive leaving the loaded window.
-        setPicked((current) => {
-            const next = new Map(current);
-            for (const item of items) next.set(item.id, item);
-            return next;
-        });
+    // Select-all covers **every match**, not just the loaded window. The list is
+    // lazily paginated, so checking the box drives the pagination to completion
+    // — pulling each remaining page in (which also renders them, so the user
+    // sees what they selected) behind a progress label — and then checks the
+    // lot. `SELECT_ALL_PAGE_CEILING` is a runaway guard, not a product limit:
+    // if a target really holds more than that, we select what we loaded and say
+    // so rather than hanging on a five-figure result set.
+    const allLoaded = !hasMore;
+    const allSelected =
+        items.length > 0 && allLoaded && items.every((i) => draft.has(i.id));
+    const someSelected = items.some((item) => draft.has(item.id));
+
+    const commitSelectAll = useCallback(
+        (rows: RelationCandidate[]) => {
+            setDraft((current) => {
+                const next = new Set(current);
+                for (const row of rows) next.add(row.id);
+                return next;
+            });
+            // Remember them so their titles survive leaving the loaded window.
+            setPicked((current) => {
+                const next = new Map(current);
+                for (const row of rows) next.set(row.id, row);
+                return next;
+            });
+        },
+        [setDraft, setPicked]
+    );
+
+    // Drives the paging while "select all" is in progress. Runs off the query's
+    // own state rather than awaiting `fetchNextPage`, so it stays correct if a
+    // page arrives from cache.
+    useEffect(() => {
+        if (!selectingAll) return;
+        if (isFetchingNextPage) return;
+        if (hasMore && pagesPulled < SELECT_ALL_PAGE_CEILING) {
+            setPagesPulled((n) => n + 1);
+            fetchNextPage();
+            return;
+        }
+        commitSelectAll(items);
+        setSelectingAll(false);
+        setPagesPulled(0);
+    }, [
+        selectingAll,
+        isFetchingNextPage,
+        hasMore,
+        pagesPulled,
+        items,
+        fetchNextPage,
+        commitSelectAll
+    ]);
+
+    const toggleAll = (checked: boolean) => {
+        if (!checked) {
+            setSelectingAll(false);
+            setDraft(new Set());
+            return;
+        }
+        if (hasMore) {
+            setSelectingAll(true);
+            return;
+        }
+        commitSelectAll(items);
     };
 
     return (
@@ -268,6 +334,7 @@ export function RelationPickerDialog({
                     targetLabel={targetLabel}
                     search={search}
                     onSearchChange={setSearch}
+                    busy={isPending || candidatesFetching}
                     filterFields={filterFields}
                     filter={filter}
                     onFilterChange={setFilter}
@@ -286,33 +353,62 @@ export function RelationPickerDialog({
                     <span>{intl.formatMessage(messages.count, { total })}</span>
                     <div className="flex items-center gap-3">
                         {many && items.length > 0 ? (
-                            <Button
-                                type="button"
-                                variant="link"
-                                size="sm"
-                                className="h-auto p-0 text-xs"
-                                onClick={toggleAllLoaded}
-                                title={
-                                    hasUnloaded
-                                        ? intl.formatMessage(
-                                              messages.selectAllLoadedHint,
-                                              { count: items.length }
-                                          )
-                                        : undefined
-                                }
-                            >
-                                {allLoadedSelected
-                                    ? intl.formatMessage(messages.clearAll)
-                                    : intl.formatMessage(messages.selectAll, {
-                                          count: items.length
-                                      })}
-                            </Button>
+                            <label className="flex cursor-pointer items-center gap-2">
+                                <Checkbox
+                                    checked={
+                                        allSelected
+                                            ? true
+                                            : someSelected
+                                              ? 'indeterminate'
+                                              : false
+                                    }
+                                    disabled={selectingAll}
+                                    onCheckedChange={(next) =>
+                                        toggleAll(next === true)
+                                    }
+                                    aria-label={intl.formatMessage(
+                                        messages.selectAll,
+                                        { count: total }
+                                    )}
+                                />
+                                <span className="flex items-center gap-1.5">
+                                    {selectingAll ? (
+                                        <>
+                                            <Spinner
+                                                aria-hidden
+                                                className="size-3.5"
+                                            />
+                                            {intl.formatMessage(
+                                                messages.selectingAll,
+                                                {
+                                                    total,
+                                                    loaded: items.length
+                                                }
+                                            )}
+                                        </>
+                                    ) : (
+                                        intl.formatMessage(messages.selectAll, {
+                                            count: total
+                                        })
+                                    )}
+                                </span>
+                            </label>
                         ) : null}
                         {many && draft.size > 0 ? (
                             <span className="font-medium text-foreground">
                                 {intl.formatMessage(messages.selectedCount, {
                                     count: draft.size
                                 })}
+                            </span>
+                        ) : null}
+                        {many && !selectingAll && someSelected && hasMore ? (
+                            <span
+                                title={intl.formatMessage(
+                                    messages.selectAllCapped,
+                                    { loaded: items.length, total }
+                                )}
+                            >
+                                ⚠
                             </span>
                         ) : null}
                     </div>

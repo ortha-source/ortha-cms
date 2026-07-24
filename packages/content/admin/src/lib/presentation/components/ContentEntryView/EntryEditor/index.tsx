@@ -21,12 +21,10 @@ import type {
     RelationDelta,
     StagedRelation
 } from '../../../../domain/types/contentType';
+import { useUnsavedChanges } from '@ortha-cms/utils-admin';
 import { CONTENT_FIELD_TYPE, ENTRY_TAB } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
-import {
-    useEntrySlotContext,
-    EntrySlotContextProvider
-} from '../../../hooks/useEntrySlotContext';
+import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
 import { ENTRY_HEADER_SLOT } from '../../../slots/contentSlots';
 import { useEntryRelations } from '../../../../application/useEntryRelations';
 import { entryIssuesFrom } from '../../../../infrastructure/entryIssues';
@@ -301,7 +299,6 @@ export function EntryEditor({
     // mirrors exactly what the publish endpoint will check without re-running
     // validation over the same values. Publishable only.
     const fieldGate = useMemo<PublishGateItem[]>(() => {
-        if (!publishable) return [];
         return visible
             .filter((field) => !validationIgnored.has(field.name))
             .filter((field) => field.required || form.errors[field.name])
@@ -310,7 +307,7 @@ export function EntryEditor({
                 ok: !form.errors[field.name],
                 message: form.errors[field.name]
             }));
-    }, [publishable, form.errors, visible, validationIgnored]);
+    }, [form.errors, visible, validationIgnored]);
 
     // A **required** many/inverse relation is link-managed, so it never appears
     // in the values bag `validateEntryValues` (and `fieldGate`) checks — the
@@ -320,7 +317,6 @@ export function EntryEditor({
     // This surfaces the block in the publish gate before the server 422, exactly
     // like a required scalar field (#1).
     const relationGate = useMemo<PublishGateItem[]>(() => {
-        if (!publishable) return [];
         const out: PublishGateItem[] = [];
         for (const field of visible) {
             if (field.type !== CONTENT_FIELD_TYPE.Relation) continue;
@@ -353,7 +349,6 @@ export function EntryEditor({
         }
         return out;
     }, [
-        publishable,
         visible,
         managedRelationNames,
         ignoredFields,
@@ -465,266 +460,241 @@ export function EntryEditor({
         visible.some((field) => isFieldDirty(field.name)) ||
         Object.values(relationDeltas).some(isStagedDirty);
 
+    // Register with the app-wide guard, so *any* navigation away from a dirty
+    // editor — a sidebar link, a breadcrumb, "Back to records", a browser
+    // reload — confirms first, not just the locale switch.
+    useUnsavedChanges(isDirty);
+
     return (
-        // Re-provide the slot context with the form's live dirtiness. The base
-        // context is assembled by `ContentEntryView`, one level above the form,
-        // so it can't know this — and a widget that navigates away (the locale
-        // switch) needs it to avoid discarding unsaved work.
-        <EntrySlotContextProvider
-            value={slotContext ? { ...slotContext, isDirty } : null}
+        <form
+            noValidate
+            className="flex min-h-0 flex-1 flex-col lg:flex-row"
+            onSubmit={(event) => {
+                event.preventDefault();
+                // Submitting (e.g. Enter) runs the primary action — publish for
+                // a publishable type, otherwise a plain save — so it matches the
+                // visually-primary button rather than silently saving a draft.
+                save(publishable)();
+            }}
         >
-            <form
-                noValidate
-                className="flex min-h-0 flex-1 flex-col lg:flex-row"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    // Submitting (e.g. Enter) runs the primary action — publish for
-                    // a publishable type, otherwise a plain save — so it matches the
-                    // visually-primary button rather than silently saving a draft.
-                    save(publishable)();
-                }}
-            >
-                {/* Main column: title + tabs. The card itself is flush (no padding);
+            {/* Main column: title + tabs. The card itself is flush (no padding);
                 padding lives here, inside the pane. `min-w-0` keeps wide field
                 content from widening the page (the card scrolls as a whole). */}
-                <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-6">
-                    {/* Centered reading column: the editor content is capped and
+            <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-6">
+                {/* Centered reading column: the editor content is capped and
                     centered instead of stretching the full pane width. */}
-                    <div className="mx-auto w-full max-w-3xl">
-                        {backTo ? (
-                            <Link
-                                to={backTo}
-                                className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                            >
-                                <ArrowLeft className="size-4" />
-                                {intl.formatMessage(messages.backToList)}
-                            </Link>
-                        ) : null}
-                        <div className="mb-6 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-lg font-semibold tracking-[-0.01em]">
-                                    {title}
-                                </h1>
-                                {slotContext
-                                    ? headerItems.map((item) => (
-                                          <item.Component
-                                              key={item.id}
-                                              {...slotContext}
-                                          />
-                                      ))
-                                    : null}
-                            </div>
-                            {subtitle ? (
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    {subtitle}
-                                </p>
-                            ) : null}
+                <div className="mx-auto w-full max-w-3xl">
+                    {backTo ? (
+                        <Link
+                            to={backTo}
+                            className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            <ArrowLeft className="size-4" />
+                            {intl.formatMessage(messages.backToList)}
+                        </Link>
+                    ) : null}
+                    <div className="mb-6 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="text-lg font-semibold tracking-[-0.01em]">
+                                {title}
+                            </h1>
+                            {slotContext
+                                ? headerItems.map((item) => (
+                                      <item.Component
+                                          key={item.id}
+                                          {...slotContext}
+                                      />
+                                  ))
+                                : null}
                         </div>
+                        {subtitle ? (
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {subtitle}
+                            </p>
+                        ) : null}
+                    </div>
 
-                        <div className="min-w-0">
-                            <Tabs value={tab} onValueChange={onTabChange}>
-                                <TabsList className="mb-4">
-                                    <TabsTrigger value={ENTRY_TAB.General}>
-                                        {intl.formatMessage(
-                                            messages.tabGeneral
-                                        )}
-                                    </TabsTrigger>
-                                    <TabsTrigger value={ENTRY_TAB.Relations}>
-                                        {intl.formatMessage(
-                                            messages.tabRelations
-                                        )}
-                                    </TabsTrigger>
-                                    <TabsTrigger value={ENTRY_TAB.Media}>
-                                        {intl.formatMessage(messages.tabMedia)}
-                                    </TabsTrigger>
-                                    <TabsTrigger value={ENTRY_TAB.History}>
-                                        {intl.formatMessage(
-                                            messages.tabHistory
-                                        )}
-                                    </TabsTrigger>
-                                </TabsList>
+                    <div className="min-w-0">
+                        <Tabs value={tab} onValueChange={onTabChange}>
+                            <TabsList className="mb-4">
+                                <TabsTrigger value={ENTRY_TAB.General}>
+                                    {intl.formatMessage(messages.tabGeneral)}
+                                </TabsTrigger>
+                                <TabsTrigger value={ENTRY_TAB.Relations}>
+                                    {intl.formatMessage(messages.tabRelations)}
+                                </TabsTrigger>
+                                <TabsTrigger value={ENTRY_TAB.Media}>
+                                    {intl.formatMessage(messages.tabMedia)}
+                                </TabsTrigger>
+                                <TabsTrigger value={ENTRY_TAB.History}>
+                                    {intl.formatMessage(messages.tabHistory)}
+                                </TabsTrigger>
+                            </TabsList>
 
-                                <TabsContent value={ENTRY_TAB.General}>
-                                    <EntryFieldSections
-                                        fields={generalFields}
-                                        form={form}
-                                        isChanged={isFieldDirty}
-                                    />
-                                </TabsContent>
+                            <TabsContent value={ENTRY_TAB.General}>
+                                <EntryFieldSections
+                                    fields={generalFields}
+                                    form={form}
+                                    isChanged={isFieldDirty}
+                                />
+                            </TabsContent>
 
-                                <TabsContent value={ENTRY_TAB.Relations}>
-                                    {relationFields.length > 0 ? (
-                                        <div className="flex flex-col gap-3">
-                                            <p className="text-sm text-muted-foreground">
-                                                {intl.formatMessage(
-                                                    messages.relationsSubtitle
-                                                )}
-                                            </p>
-                                            {relationFields.map((field) => {
-                                                // A many/inverse relation is staged +
-                                                // link-managed; a single relation is a
-                                                // plain form value.
-                                                const managed =
-                                                    !!field.relation?.many ||
-                                                    !!field.relation?.inverse;
-                                                const staged = stagedFor(
-                                                    field.name
-                                                );
-                                                // Header count: server total adjusted by
-                                                // the staged add/remove (managed), else
-                                                // the single form value's length. `null`
-                                                // while the managed set's aggregate is
-                                                // still loading, so the header shows a
-                                                // neutral affordance rather than a wrong
-                                                // 0 for a populated relation (#6).
-                                                const count: number | null =
-                                                    managed
-                                                        ? relationsLoading
-                                                            ? null
-                                                            : Math.max(
-                                                                  0,
-                                                                  (relationRefs?.[
-                                                                      field.name
-                                                                  ]?.total ??
-                                                                      0) -
-                                                                      staged
-                                                                          .removed
-                                                                          .length +
-                                                                      staged
-                                                                          .added
-                                                                          .length
-                                                              )
-                                                        : toRelationIds(
-                                                              form.values[
-                                                                  field.name
-                                                              ],
-                                                              false
-                                                          ).length;
-                                                const changed = managed
-                                                    ? isRelationDirty(
-                                                          field.name
-                                                      )
-                                                    : isFieldDirty(field.name);
-                                                return (
-                                                    <RelationFieldSection
-                                                        key={field.name}
-                                                        field={field}
-                                                        count={count}
-                                                        changed={changed}
-                                                        typeName={schema.name}
-                                                        entryId={entryId}
-                                                        value={
-                                                            form.values[
-                                                                field.name
-                                                            ]
-                                                        }
-                                                        error={form.errorFor(
-                                                            field.name
-                                                        )}
-                                                        onChange={(value) =>
-                                                            form.setValue(
-                                                                field.name,
-                                                                value
-                                                            )
-                                                        }
-                                                        onBlur={() =>
-                                                            form.touch(
-                                                                field.name
-                                                            )
-                                                        }
-                                                        initialRefs={
-                                                            relationRefs?.[
-                                                                field.name
-                                                            ]?.items
-                                                        }
-                                                        staged={staged}
-                                                        onStagedChange={(
-                                                            next
-                                                        ) =>
-                                                            setStaged(
-                                                                field.name,
-                                                                next
-                                                            )
-                                                        }
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
+                            <TabsContent value={ENTRY_TAB.Relations}>
+                                {relationFields.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
                                         <p className="text-sm text-muted-foreground">
                                             {intl.formatMessage(
-                                                messages.relationsEmpty
+                                                messages.relationsSubtitle
                                             )}
                                         </p>
-                                    )}
-                                </TabsContent>
+                                        {relationFields.map((field) => {
+                                            // A many/inverse relation is staged +
+                                            // link-managed; a single relation is a
+                                            // plain form value.
+                                            const managed =
+                                                !!field.relation?.many ||
+                                                !!field.relation?.inverse;
+                                            const staged = stagedFor(
+                                                field.name
+                                            );
+                                            // Header count: server total adjusted by
+                                            // the staged add/remove (managed), else
+                                            // the single form value's length. `null`
+                                            // while the managed set's aggregate is
+                                            // still loading, so the header shows a
+                                            // neutral affordance rather than a wrong
+                                            // 0 for a populated relation (#6).
+                                            const count: number | null = managed
+                                                ? relationsLoading
+                                                    ? null
+                                                    : Math.max(
+                                                          0,
+                                                          (relationRefs?.[
+                                                              field.name
+                                                          ]?.total ?? 0) -
+                                                              staged.removed
+                                                                  .length +
+                                                              staged.added
+                                                                  .length
+                                                      )
+                                                : toRelationIds(
+                                                      form.values[field.name],
+                                                      false
+                                                  ).length;
+                                            const changed = managed
+                                                ? isRelationDirty(field.name)
+                                                : isFieldDirty(field.name);
+                                            return (
+                                                <RelationFieldSection
+                                                    key={field.name}
+                                                    field={field}
+                                                    count={count}
+                                                    changed={changed}
+                                                    typeName={schema.name}
+                                                    entryId={entryId}
+                                                    value={
+                                                        form.values[field.name]
+                                                    }
+                                                    error={form.errorFor(
+                                                        field.name
+                                                    )}
+                                                    onChange={(value) =>
+                                                        form.setValue(
+                                                            field.name,
+                                                            value
+                                                        )
+                                                    }
+                                                    onBlur={() =>
+                                                        form.touch(field.name)
+                                                    }
+                                                    initialRefs={
+                                                        relationRefs?.[
+                                                            field.name
+                                                        ]?.items
+                                                    }
+                                                    staged={staged}
+                                                    onStagedChange={(next) =>
+                                                        setStaged(
+                                                            field.name,
+                                                            next
+                                                        )
+                                                    }
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        {intl.formatMessage(
+                                            messages.relationsEmpty
+                                        )}
+                                    </p>
+                                )}
+                            </TabsContent>
 
-                                <TabsContent value={ENTRY_TAB.Media}>
-                                    <Card className="shadow-none">
-                                        <CardHeader>
-                                            <CardTitle className="text-base">
-                                                {intl.formatMessage(
-                                                    messages.mediaTitle
-                                                )}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                {intl.formatMessage(
-                                                    messages.mediaBody
-                                                )}
-                                            </CardDescription>
-                                        </CardHeader>
-                                    </Card>
-                                </TabsContent>
+                            <TabsContent value={ENTRY_TAB.Media}>
+                                <Card className="shadow-none">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            {intl.formatMessage(
+                                                messages.mediaTitle
+                                            )}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {intl.formatMessage(
+                                                messages.mediaBody
+                                            )}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            </TabsContent>
 
-                                <TabsContent value={ENTRY_TAB.History}>
-                                    <HistoryTimeline
-                                        typeName={schema.name}
-                                        entryId={entry?.id}
-                                        schema={schema}
-                                    />
-                                </TabsContent>
-                            </Tabs>
-                        </div>
+                            <TabsContent value={ENTRY_TAB.History}>
+                                <HistoryTimeline
+                                    typeName={schema.name}
+                                    entryId={entry?.id}
+                                    schema={schema}
+                                />
+                            </TabsContent>
+                        </Tabs>
                     </div>
                 </div>
+            </div>
 
-                <EntrySidebar
-                    entry={entry}
-                    publishable={publishable}
-                    paranoid={schema.paranoid ?? false}
-                    isCreate={isCreate}
-                    saving={saving}
-                    mutating={mutating}
-                    gate={gate}
-                    onSaveDraft={save(false)}
-                    onPublish={save(true)}
-                    onUnpublish={onUnpublish}
-                    onDelete={onDelete}
-                />
+            <EntrySidebar
+                entry={entry}
+                publishable={publishable}
+                paranoid={schema.paranoid ?? false}
+                isCreate={isCreate}
+                saving={saving}
+                mutating={mutating}
+                gate={gate}
+                onSaveDraft={save(false)}
+                onPublish={save(true)}
+                onUnpublish={onUnpublish}
+                onDelete={onDelete}
+            />
 
-                <ConfirmDialog
-                    open={pendingPublish !== null}
-                    onOpenChange={(open) => {
-                        if (!open) setPendingPublish(null);
-                    }}
-                    title={intl.formatMessage(messages.sharedSaveTitle)}
-                    description={intl.formatMessage(messages.sharedSaveBody, {
-                        count: dirtySharedFields.length,
-                        first: dirtySharedFields[0]
-                            ? fieldLabel(dirtySharedFields[0])
-                            : ''
-                    })}
-                    confirmLabel={intl.formatMessage(
-                        messages.sharedSaveConfirm
-                    )}
-                    cancelLabel={intl.formatMessage(messages.cancel)}
-                    onConfirm={() => {
-                        const publish = pendingPublish ?? false;
-                        setPendingPublish(null);
-                        runSave(publish);
-                    }}
-                />
-            </form>
-        </EntrySlotContextProvider>
+            <ConfirmDialog
+                open={pendingPublish !== null}
+                onOpenChange={(open) => {
+                    if (!open) setPendingPublish(null);
+                }}
+                title={intl.formatMessage(messages.sharedSaveTitle)}
+                description={intl.formatMessage(messages.sharedSaveBody, {
+                    count: dirtySharedFields.length,
+                    first: dirtySharedFields[0]
+                        ? fieldLabel(dirtySharedFields[0])
+                        : ''
+                })}
+                confirmLabel={intl.formatMessage(messages.sharedSaveConfirm)}
+                cancelLabel={intl.formatMessage(messages.cancel)}
+                onConfirm={() => {
+                    const publish = pendingPublish ?? false;
+                    setPendingPublish(null);
+                    runSave(publish);
+                }}
+            />
+        </form>
     );
 }

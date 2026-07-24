@@ -137,7 +137,7 @@ export function EntrySidebar({
                 onRequestDelete={() => setConfirmDelete(true)}
             />
 
-            {publishable && <PublishGate items={gate} />}
+            <PublishGate items={gate} publishable={publishable} />
 
             <DetailsBlock entry={entry} isCreate={isCreate} />
 

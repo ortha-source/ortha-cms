@@ -13,12 +13,12 @@ _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
 
 | Test case |
 | --- |
-| opens the filter drawer from the toolbar |
+| expands the inline filter panel from the toolbar |
 | filters the log by kind and deep-links the choice |
 | reflects the active condition count on the trigger |
 | restores the filter from a deep link on load |
 | blocks Apply when a UUID "is one of" rule has a non-UUID value |
-| the open drawer with a rule is accessible (axe) |
+| the open filter panel with a rule is accessible (axe) |
 | Reset clears the filter and restores the full log |
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
@@ -310,7 +310,7 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | saves staged links as a relations delta, omitting them from values |
 | shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
-| selects and clears every loaded candidate at once |
+| selects every match at once, then clears |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)
 

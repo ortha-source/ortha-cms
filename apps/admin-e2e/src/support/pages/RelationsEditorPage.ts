@@ -77,7 +77,17 @@ export class RelationsEditorPage extends BasePage {
      * many-relation; used to assert lazy-scroll growth and search narrowing).
      */
     get candidateOptions(): Locator {
-        return this.dialog.getByRole('checkbox');
+        return this.candidateList.getByRole('checkbox');
+    }
+
+    /**
+     * The candidate rows' container. Scoped so the toolbar's **select-all**
+     * checkbox — which sits outside it — is never counted as a candidate.
+     */
+    get candidateList(): Locator {
+        return this.dialog
+            .getByRole('group')
+            .or(this.dialog.getByRole('radiogroup'));
     }
 
     /** One candidate row by its (record title) text — checkbox (many) or radio (single). */
@@ -99,18 +109,18 @@ export class RelationsEditorPage extends BasePage {
 
     /** Only the candidate rows currently checked. */
     get checkedCandidateOptions(): Locator {
-        return this.dialog.getByRole('checkbox', { checked: true });
+        return this.candidateList.getByRole('checkbox', { checked: true });
     }
 
     /**
-     * The picker's bulk toggle. Reads "Select all {n}" until every *loaded*
-     * candidate is checked, then "Clear selection" — the list is lazily
-     * paginated, so it only ever covers what has been fetched.
+     * The picker's bulk **checkbox**. It covers every match, not just the
+     * loaded window: checking it pages the rest in (rendering them) and then
+     * selects the lot, so its label counts the full total.
      */
-    get selectAllButton(): Locator {
-        return this.dialog.getByRole('button', {
-            name: /Select all \d+|Clear selection/
-        });
+    get selectAllCheckbox(): Locator {
+        return this.dialog
+            .getByRole('checkbox', { name: /Select all \d+/ })
+            .first();
     }
 
     /** The picker's "Add {n}" commit button (many relations). */

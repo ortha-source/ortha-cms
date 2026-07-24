@@ -86,6 +86,7 @@ export function MembersPage() {
         page,
         pageSize,
         searchInput,
+        searchPending,
         setSearchInput,
         updateParams
     } = useTableUrlState({
@@ -108,7 +109,10 @@ export function MembersPage() {
         pageSize
     };
 
-    const { data, isPending, isError, refetch } = useMembers(params, canRead);
+    const { data, isPending, isFetching, isError, refetch } = useMembers(
+        params,
+        canRead
+    );
 
     const total = data?.total ?? 0;
     // The server echoes the effective page size; fall back to the requested one
@@ -206,6 +210,7 @@ export function MembersPage() {
                 <MembersToolbar
                     search={searchInput}
                     onSearchChange={setSearchInput}
+                    busy={searchPending || isFetching}
                     filterControl={
                         <QueryBuilderDrawer
                             fields={MEMBERS_FILTER_FIELDS}

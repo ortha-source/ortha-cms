@@ -311,7 +311,7 @@ test.describe('Relation picker', () => {
         await expect(relationsEditorPage.selectButton('Authors')).toBeVisible();
     });
 
-    test('selects and clears every loaded candidate at once', async ({
+    test('selects every match at once, then clears', async ({
         relationsEditorPage
     }) => {
         await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
@@ -322,23 +322,17 @@ test.describe('Relation picker', () => {
         const loaded = await relationsEditorPage.candidateOptions.count();
         expect(loaded).toBeGreaterThan(1);
 
-        // One click checks every candidate currently loaded…
-        await relationsEditorPage.selectAllButton.click();
-        await expect(relationsEditorPage.checkedCandidateOptions).toHaveCount(
-            loaded
-        );
+        // The checkbox counts the **whole** match set, not the loaded window —
+        // checking it pages the rest in and selects everything.
+        await relationsEditorPage.selectAllCheckbox.check();
+        await expect
+            .poll(() => relationsEditorPage.checkedCandidateOptions.count())
+            .toBeGreaterThanOrEqual(loaded);
 
-        // …and the same control then clears them, rather than stranding the
-        // user with no way back out of a bulk select.
-        await expect(relationsEditorPage.selectAllButton).toHaveText(
-            /Clear selection/
-        );
-        await relationsEditorPage.selectAllButton.click();
+        // Unchecking is the way back out of a bulk select.
+        await relationsEditorPage.selectAllCheckbox.uncheck();
         await expect(relationsEditorPage.checkedCandidateOptions).toHaveCount(
             0
-        );
-        await expect(relationsEditorPage.selectAllButton).toHaveText(
-            /Select all \d+/
         );
     });
 });

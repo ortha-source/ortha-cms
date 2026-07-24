@@ -31,6 +31,17 @@ export type TableUrlState = {
     pageSize: number;
     /** Live (debounced-into-URL) search-box value. */
     searchInput: string;
+    /**
+     * Whether the box holds a value the list hasn't caught up with yet — the
+     * 300ms debounce window plus the URL round-trip.
+     *
+     * A list's `isFetching` alone is a poor "searching" cue: it only turns true
+     * *after* the debounce commits, and on a fast connection the request itself
+     * is a few milliseconds, so nothing visible ever happens. OR-ing this in is
+     * what makes the spinner appear on the keystroke, which is when the user is
+     * actually waiting.
+     */
+    searchPending: boolean;
     /** Update the search box; the committed value lands in the URL after a debounce. */
     setSearchInput: (value: string) => void;
     /**
@@ -93,6 +104,7 @@ export function useTableUrlState({
 
     return {
         searchParam,
+        searchPending: searchInput !== searchParam,
         filterParam,
         page,
         pageSize,

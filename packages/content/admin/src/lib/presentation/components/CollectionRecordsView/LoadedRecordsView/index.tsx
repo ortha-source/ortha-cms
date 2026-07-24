@@ -152,6 +152,7 @@ export function LoadedRecordsView({
         page,
         pageSize,
         searchInput,
+        searchPending,
         setSearchInput,
         updateParams
     } = useTableUrlState({
@@ -444,7 +445,7 @@ export function LoadedRecordsView({
             <SearchToolbar
                 value={searchInput}
                 onValueChange={setSearchInput}
-                busy={isFetching && !isPending}
+                busy={searchPending || (isFetching && !isPending)}
                 searchLabel={intl.formatMessage(messages.searchLabel)}
                 searchPlaceholder={intl.formatMessage(
                     messages.searchPlaceholder

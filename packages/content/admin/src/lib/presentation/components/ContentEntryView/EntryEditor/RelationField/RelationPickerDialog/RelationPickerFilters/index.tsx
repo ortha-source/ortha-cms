@@ -5,7 +5,8 @@ import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
-    Input
+    Input,
+    Spinner
 } from '@ortha-cms/design-system';
 import {
     QueryBuilder,
@@ -53,6 +54,7 @@ export function RelationPickerFilters({
     targetLabel,
     search,
     onSearchChange,
+    busy = false,
     filterFields,
     filter,
     onFilterChange,
@@ -66,6 +68,12 @@ export function RelationPickerFilters({
     targetLabel: string;
     search: string;
     onSearchChange: (next: string) => void;
+    /**
+     * Whether a candidate request driven from this box is still settling. The
+     * picker searches **server-side**, so without a cue the box looks inert
+     * while it waits.
+     */
+    busy?: boolean;
     filterFields: readonly FilterField[];
     filter: FilterGroup | null;
     /** Apply a new tree, or `null` to clear all rules. */
@@ -96,7 +104,14 @@ export function RelationPickerFilters({
         <Collapsible open={open} onOpenChange={onOpenChange}>
             <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    {busy ? (
+                        <Spinner
+                            aria-hidden
+                            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                    ) : (
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    )}
                     <Input
                         value={search}
                         onChange={(event) => onSearchChange(event.target.value)}
