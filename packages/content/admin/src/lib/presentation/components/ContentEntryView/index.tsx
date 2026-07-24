@@ -24,6 +24,7 @@ import {
     ENTRY_MODE,
     type EntryMode
 } from '../../../domain/constants';
+import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
 import {
     useContentEntries,
@@ -190,6 +191,12 @@ export function ContentEntryView({
         [entryParamsItems]
     );
     const bodySlotParams = useSlotListParams(bodyParamKeys);
+
+    // The slot-owned list params (e.g. `?locale=de`) this editor was opened
+    // under, as a query suffix. The records table puts them on every row link,
+    // and every route out of the editor carries them back — otherwise "Back to
+    // records" returns to a different locale than the one the user came from.
+    const entryQuerySuffix = listParamsQuery(listSlotParams);
 
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
@@ -375,7 +382,7 @@ export function ContentEntryView({
         // and its invalidated query refreshes in place. A single stays put — its
         // `?locale=` re-resolves to the row just created.
         if (mode !== ENTRY_MODE.Single && result.wasCreate) {
-            navigate(`${typePath}/${result.saved.id}`);
+            navigate(`${typePath}/${result.saved.id}${entryQuerySuffix}`);
         }
     };
 
@@ -404,7 +411,7 @@ export function ContentEntryView({
                               label: schema.label
                           })
                       );
-                      navigate(typePath);
+                      navigate(`${typePath}${entryQuerySuffix}`);
                   })
                   .catch(onActionError);
           }
@@ -445,7 +452,11 @@ export function ContentEntryView({
                     onSave={onSave}
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
-                    backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                    backTo={
+                        mode === ENTRY_MODE.Single
+                            ? undefined
+                            : `${typePath}${entryQuerySuffix}`
+                    }
                     availableTypeNames={workspace.content}
                 />
             </EntrySlotContextProvider>

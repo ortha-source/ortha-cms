@@ -61,6 +61,41 @@ test.describe('Content i18n', () => {
         ).not.toContainText('Winter boots');
     });
 
+    test('opening a row and going back keeps the active locale', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.selectLocale(/Deutsch/);
+        await expect(page).toHaveURL(/locale=de/);
+
+        // The row's editor link carries the locale the table was showing…
+        await contentLibraryPage.recordLink('Winterstiefel').click();
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+\?.*locale=de/);
+
+        // …so "Back to records" returns to that same list, not the default one.
+        await contentLibraryPage.editorBackLink.click();
+        await expect(page).toHaveURL(/\/localized_post\?.*locale=de/);
+        await expect(contentLibraryPage.localeSwitcher).toHaveText(/Deutsch/);
+        await expect(
+            contentLibraryPage.recordsTable('Localized posts')
+        ).toContainText('Winterstiefel');
+    });
+
+    test('the default locale keeps a clean URL through the editor', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+
+        // The server scopes to the default locale when `?locale=` is absent, so
+        // the default must not start spelling itself out in the URL.
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+$/);
+        await contentLibraryPage.editorBackLink.click();
+        await expect(page).toHaveURL(/\/localized_post$/);
+    });
+
     test('switching locale plays a brief "Switching…" overlay', async ({
         contentLibraryPage
     }) => {
@@ -125,9 +160,7 @@ test.describe('Content i18n', () => {
         ).toBeVisible();
 
         // The de sibling exists → switch; fr is missing → create.
-        await expect(
-            contentLibraryPage.switchLocale('Deutsch')
-        ).toBeVisible();
+        await expect(contentLibraryPage.switchLocale('Deutsch')).toBeVisible();
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();

@@ -251,6 +251,16 @@ export class ContentLibraryPage extends BasePage {
         return this.recordRows(label).locator(`td:nth-child(${nthChild})`);
     }
 
+    /**
+     * A record's own editor link — the `<Link>` wrapping the first column's
+     * cell. Prefer this over clicking the row when the table has relation
+     * columns: those cells `stopPropagation`, so a centred row click can land on
+     * one and never navigate.
+     */
+    recordLink(title: string): Locator {
+        return this.page.getByRole('link', { name: title, exact: true });
+    }
+
     /** The records search box. */
     get recordsSearch(): Locator {
         return this.page.getByRole('searchbox', { name: 'Search records' });
