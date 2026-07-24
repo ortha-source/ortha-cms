@@ -441,8 +441,12 @@ test.describe('Content i18n', () => {
             await contentLibraryPage.saveDraft();
 
             // The save creates the German sibling and moves to *its* URL — not a
-            // silent no-op stuck on `/new`, and not the English row's URL.
-            await expect(page).toHaveURL(/\/localized_post\/lp-de-new$/);
+            // silent no-op stuck on `/new`, and not the English row's URL. The
+            // active locale rides along on that URL, so the editor still knows
+            // which list to send the user back to.
+            await expect(page).toHaveURL(
+                /\/localized_post\/lp-de-new\?.*locale=de/
+            );
 
             // Two creates (en, then de); the German save is a POST carrying its
             // own locale — and crucially there is **no PATCH** re-homing the row.
@@ -467,7 +471,9 @@ test.describe('Content i18n', () => {
             // publish) — create-then-publish, both against the new sibling.
             await contentLibraryPage.editorSave.click();
 
-            await expect(page).toHaveURL(/\/localized_post\/lp-de-new$/);
+            await expect(page).toHaveURL(
+                /\/localized_post\/lp-de-new\?.*locale=de/
+            );
 
             // The German create is still a POST (not a PATCH on the English id),
             // followed by a publish POST on the *new* row.
