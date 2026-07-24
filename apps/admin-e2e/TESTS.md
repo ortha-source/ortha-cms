@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_222 test cases across 29 spec files._
+_224 test cases across 29 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -221,6 +221,8 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | switching locale keeps the tab the user was working in |
 | the default locale keeps a clean URL through the editor |
 | the localized-field mark explains itself on hover and on focus |
+| splits the form into translated and shared field groups |
+| marks a relation whose target collection is localized |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |
 | the entry editor locale switcher shows current / existing / missing |

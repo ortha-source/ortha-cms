@@ -316,6 +316,16 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('button', { name: 'Localized field' });
     }
 
+    /** A General-tab field-group heading ("Translated fields" / "Shared fields"). */
+    fieldGroupHeading(title: string): Locator {
+        return this.page.getByRole('heading', { name: title, exact: true });
+    }
+
+    /** The "Localized relation" mark on a relation section header. */
+    get localizedRelationMark(): Locator {
+        return this.page.getByRole('button', { name: 'Localized relation' });
+    }
+
     /** The open tooltip bubble, wherever it is portalled. */
     get tooltip(): Locator {
         return this.page.getByRole('tooltip');

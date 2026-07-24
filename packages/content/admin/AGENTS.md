@@ -436,13 +436,33 @@ Two generic hooks surface the `localized` schema flag (same way the editor
 already surfaces `required`), so a locale plugin needs no field-level slot:
 
 - `EntryFieldInput` renders a small **localizable indicator**
-  (`LocalizedFieldMark` — a `Globe` icon + native `title` + sr-only name) when
-  `field.localized`. It shares a single right-aligned **end-adornment** with the
+  (`LocalizedFieldMark` — a `Globe` in a **`Tooltip`**, opening on hover _and_
+  focus; it was a bare span with a native `title`, which never surfaces for
+  keyboard or touch users) when `field.localized`. Its trigger suppresses the
+  surrounding `<label>`'s activation, so reading the hint never focuses — or, on
+  a toggle, flips — the control it describes. It shares a single right-aligned
+  **end-adornment** with the
   "Changed" badge (the `changed` prop) at the far right of the label row (a
   `w-full` `FieldLabel`, or `InputField`'s `labelAction` slot) — so the badge and
   the globe sit **side by side** instead of overlapping. The `changed` flag comes
   from `EntryFieldSections` (`isChanged`); the badge is no longer an absolute
   overlay. Self-scopes (only i18n types ever mark a field localized).
+- A **required** field's label carries a `RequiredMark` (`*`) and its control
+  carries `aria-required`. The mark is deliberately `aria-hidden`: the control
+  already announces "required", so marking the asterisk up too would say it
+  twice on every required field.
+- `EntryFieldSections` **groups the General tab by locale scope** when the type
+  has both kinds of field: a **Translated fields** run (`localized`) over a
+  **Shared fields** run, each a `FieldGroup` with a one-line explanation —
+  editing a shared field changes it in _every_ locale, which is not something to
+  discover after saving. A type with only one kind (every plain, non-i18n type)
+  keeps the flat, header-free stack, so this is inert outside i18n.
+- `RelationFieldSection` marks a relation whose **target collection** is
+  localized (`targetSchema.i18n`) with a `LocalizedRelationMark`. It labels the
+  _field_, not each linked row: the picker scopes candidates strictly to the
+  record's locale, so every link is necessarily in it — one identical locale
+  repeated down every row would be noise, while _why the picker hides other
+  locales' records_ is the part that isn't obvious.
 - `ContentEntryView` create mode reads `location.state.translateFrom` (a source
   record's values) and seeds the blank form with **only the non-localized**
   fields — the "create a translation" prefill; localized fields start empty.

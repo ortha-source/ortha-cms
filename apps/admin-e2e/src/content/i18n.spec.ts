@@ -140,6 +140,41 @@ test.describe('Content i18n', () => {
         );
     });
 
+    test('splits the form into translated and shared field groups', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // Editing a shared field changes it for *every* locale, so the two sets
+        // are labelled runs rather than interleaved.
+        await expect(
+            contentLibraryPage.fieldGroupHeading('Translated fields')
+        ).toBeVisible();
+        await expect(
+            contentLibraryPage.fieldGroupHeading('Shared fields')
+        ).toBeVisible();
+    });
+
+    test('marks a relation whose target collection is localized', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await contentLibraryPage.openEditorTab('Relations');
+
+        // `related` points at localized_post itself, so its links are per-locale
+        // — the mark is what explains why the picker hides other locales' rows.
+        await expect(
+            contentLibraryPage.localizedRelationMark.first()
+        ).toBeVisible();
+        await contentLibraryPage.localizedRelationMark.first().hover();
+        await expect(contentLibraryPage.tooltip).toHaveText(
+            /links belong to the record’s locale/
+        );
+    });
+
     test('switching locale plays a brief "Switching…" overlay', async ({
         contentLibraryPage
     }) => {
