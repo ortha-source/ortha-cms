@@ -297,10 +297,11 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
                 .expect(201);
             const id = create.body.id as string;
 
+            // The bulk routes all carry `@HttpCode(OK)` — 200, not @Post's 201.
             await agent
                 .post('/api/content/test_article/bulk/publish')
                 .send({ ids: [id] })
-                .expect(201);
+                .expect(200);
 
             const list = await agent
                 .get(`/api/content/test_article/${id}/revisions`)

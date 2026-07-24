@@ -19,6 +19,7 @@
  */
 
 import {
+    contentEntryRevisions,
     joinTableOf,
     type AnyContentType
 } from '@ortha-cms/content-server/define';
@@ -63,3 +64,9 @@ export const testPages = testPage.table;
 // if the `tags` many-relation is renamed/removed, instead of silently dropping
 // the table from the drizzle-kit diff.
 export const testArticleTags = joinTableOf(testArticle, 'tags');
+
+// The revision store — one fixed table (not per-type), defined by
+// content-server and re-exported so drizzle-kit diffs it like any content
+// table. Every entry save appends a revision inside its write transaction, so
+// without this table every create/update 500s.
+export const testContentEntryRevisions = contentEntryRevisions;
