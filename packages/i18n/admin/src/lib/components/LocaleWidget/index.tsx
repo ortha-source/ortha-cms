@@ -89,7 +89,8 @@ export function LocaleWidget({
     entry,
     isCreate,
     mode,
-    typePath
+    typePath,
+    tabSegment
 }: EntrySlotContext) {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -191,18 +192,22 @@ export function LocaleWidget({
                 if (sibling) {
                     navigate(
                         isDefaultLocale(slug, defaultLocale?.slug)
-                            ? typePath
-                            : `${typePath}?${LOCALE_PARAM}=${slug}`
+                            ? `${typePath}${tabSegment}`
+                            : `${typePath}${tabSegment}?${LOCALE_PARAM}=${slug}`
                     );
                 } else {
-                    navigate(`${typePath}?${createSearch(slug)}`, { state });
+                    navigate(`${typePath}${tabSegment}?${createSearch(slug)}`, {
+                        state
+                    });
                 }
                 return;
             }
             if (sibling) {
-                navigate(`${typePath}/${sibling.id}`);
+                navigate(`${typePath}/${sibling.id}${tabSegment}`);
             } else {
-                navigate(`${typePath}/new?${createSearch(slug)}`, { state });
+                navigate(`${typePath}/new${tabSegment}?${createSearch(slug)}`, {
+                    state
+                });
             }
         });
     };

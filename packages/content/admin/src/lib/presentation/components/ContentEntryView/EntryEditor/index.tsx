@@ -20,7 +20,7 @@ import type {
     RelationDelta,
     StagedRelation
 } from '../../../../domain/types/contentType';
-import { CONTENT_FIELD_TYPE } from '../../../../domain/constants';
+import { CONTENT_FIELD_TYPE, ENTRY_TAB } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
 import { ENTRY_HEADER_SLOT } from '../../../slots/contentSlots';
@@ -82,14 +82,6 @@ const messages = defineMessages({
     }
 });
 
-/** Tab keys for the editor — named so they aren't bare string literals. */
-const TAB = {
-    General: 'general',
-    Relations: 'relations',
-    Media: 'media',
-    History: 'history'
-} as const;
-
 /** A field is hidden when its admin hints say so. */
 function isHidden(field: ContentField): boolean {
     return (field.admin as { hidden?: boolean }).hidden === true;
@@ -142,7 +134,9 @@ export function EntryEditor({
     onUnpublish,
     onDelete,
     backTo,
-    availableTypeNames
+    availableTypeNames,
+    tab,
+    onTabChange
 }: {
     schema: ContentTypeDetail;
     initialValues: Record<string, unknown>;
@@ -181,6 +175,13 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
+    /**
+     * The open tab, owned by the **route** (`/…/:entryId/relations`) rather than
+     * by this component — so it survives the remount a locale switch causes.
+     */
+    tab: string;
+    /** Navigate to another tab (the caller pushes the route). */
+    onTabChange: (next: string) => void;
 }) {
     const intl = useIntl();
     // Slot-contributed title-row add-ons (e.g. the i18n plugin's locale chip),
@@ -190,8 +191,6 @@ export function EntryEditor({
     // The existing entry's id, or undefined while creating. Many/inverse
     // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
-    // Which tab is active.
-    const [tab, setTab] = useState<string>(TAB.General);
     // First page + total per relation field, for the header counts, to title
     // single relations, and to power the required-relation publish gate. Enabled
     // as soon as there's an existing entry — one request per entry open — rather
@@ -394,8 +393,9 @@ export function EntryEditor({
         const first =
             visible.find((field) => blocking[field.name]) ??
             schema.fields.find((field) => blocking[field.name]);
-        if (first?.type === CONTENT_FIELD_TYPE.Relation) setTab(TAB.Relations);
-        else setTab(TAB.General);
+        if (first?.type === CONTENT_FIELD_TYPE.Relation)
+            onTabChange(ENTRY_TAB.Relations);
+        else onTabChange(ENTRY_TAB.General);
         toast.error(
             intl.formatMessage(
                 publish ? messages.publishBlocked : messages.saveBlocked,
@@ -467,23 +467,23 @@ export function EntryEditor({
                     </div>
 
                     <div className="min-w-0">
-                        <Tabs value={tab} onValueChange={setTab}>
+                        <Tabs value={tab} onValueChange={onTabChange}>
                             <TabsList className="mb-4">
-                                <TabsTrigger value={TAB.General}>
+                                <TabsTrigger value={ENTRY_TAB.General}>
                                     {intl.formatMessage(messages.tabGeneral)}
                                 </TabsTrigger>
-                                <TabsTrigger value={TAB.Relations}>
+                                <TabsTrigger value={ENTRY_TAB.Relations}>
                                     {intl.formatMessage(messages.tabRelations)}
                                 </TabsTrigger>
-                                <TabsTrigger value={TAB.Media}>
+                                <TabsTrigger value={ENTRY_TAB.Media}>
                                     {intl.formatMessage(messages.tabMedia)}
                                 </TabsTrigger>
-                                <TabsTrigger value={TAB.History}>
+                                <TabsTrigger value={ENTRY_TAB.History}>
                                     {intl.formatMessage(messages.tabHistory)}
                                 </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value={TAB.General}>
+                            <TabsContent value={ENTRY_TAB.General}>
                                 <EntryFieldSections
                                     fields={generalFields}
                                     form={form}
@@ -491,7 +491,7 @@ export function EntryEditor({
                                 />
                             </TabsContent>
 
-                            <TabsContent value={TAB.Relations}>
+                            <TabsContent value={ENTRY_TAB.Relations}>
                                 {relationFields.length > 0 ? (
                                     <div className="flex flex-col gap-3">
                                         <p className="text-sm text-muted-foreground">
@@ -584,7 +584,7 @@ export function EntryEditor({
                                 )}
                             </TabsContent>
 
-                            <TabsContent value={TAB.Media}>
+                            <TabsContent value={ENTRY_TAB.Media}>
                                 <Card className="shadow-none">
                                     <CardHeader>
                                         <CardTitle className="text-base">
@@ -601,7 +601,7 @@ export function EntryEditor({
                                 </Card>
                             </TabsContent>
 
-                            <TabsContent value={TAB.History}>
+                            <TabsContent value={ENTRY_TAB.History}>
                                 <HistoryTimeline
                                     typeName={schema.name}
                                     entryId={entry?.id}

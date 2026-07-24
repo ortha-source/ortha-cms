@@ -82,7 +82,23 @@ outlet driven by nested routes.
 The routes are (`index` → `ContentWelcome`,
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 `ContentEntryRoute` (the create / edit editor); the static `new` segment
-outranks the `:entryId` param). `ContentTypeView` branches on `kind`: a
+outranks the `:entryId` param).
+
+**The editor's tabs are routes**, one segment deeper — `:typeName/:entryId/:tab`
+(and `:typeName/new/:tab`); for a **single**, whose editor is mounted on the type
+itself, each tab slug is spelled out as a **static** segment (`:typeName/general`
+…) so it outranks the `:entryId` route, the same trick `new` and `trash` use. The
+default tab (`general`) is **omitted**, so the bare entry URL stays the canonical
+short link. `domain/entryTab` resolves the open tab from the **last path
+segment** — the two editor shapes don't share one route param (a single's static
+tab segment yields none), and reading the path covers both. Tabs are routes and
+not component state because the editor is remounted by navigations it doesn't
+own: switching locale re-targets it at the sibling's id, which used to drop the
+user back on General mid-task. `EntrySlotContext.tabSegment` (`'/relations'`, or
+`''` on the default) is how a slot that navigates to a sibling record — the i18n
+locale switcher — lands the reader on the tab they were working in.
+
+`ContentTypeView` branches on `kind`: a
 collection renders `CollectionRecordsView` (the records table), a single renders
 `ContentEntryView` in `single` mode (its one-entry editor). The
 sidebar splits types via
@@ -391,11 +407,15 @@ fetching internally.
   `useRowsData` batches per-page data once for all its cells.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a card in the entry editor's right rail,
   rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
-  workspaceId, typePath, **params**) assembled by `ContentEntryView` and shared
+  workspaceId, typePath, **params**, **tabSegment**) assembled by
+  `ContentEntryView` and shared
   via `EntrySlotContextProvider`. `params` is the current URL values of the
   `ENTRY_PARAMS_SLOT` keys (list + create-body), opaque — a slot reads only its
   own keys (e.g. i18n scopes the relation picker by its `locale` even on a create
-  form, where there's no saved `entry`).
+  form, where there's no saved `entry`). `tabSegment` is the open tab as a path
+  segment (`'/relations'`, or `''` on the default tab) — a slot that navigates
+  the user to **another record in this same editor** appends it so they land on
+  the tab they were working in.
 - **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
   rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
@@ -477,7 +497,9 @@ namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
   truth for the `content` mount path, shared by `contentPlugin` (slot `to` +
   route `path`) and `ContentLibraryPage` (`basePath`); `HISTORY_SEGMENT` /
   `TRASH_SEGMENT` / `TYPE_PARAM` drive the nested routes and the sidebar links;
-  `SEARCH_SHORTCUT_KEY` is the ⌘K key; `CONTENT_READ` is the permission gate.
+  `TAB_PARAM` / `ENTRY_TAB` / `ENTRY_TAB_SLUGS` / `DEFAULT_ENTRY_TAB` are the
+  editor's tab routes; `SEARCH_SHORTCUT_KEY` is the ⌘K key; `CONTENT_READ` is
+  the permission gate.
 
 ## Commands
 

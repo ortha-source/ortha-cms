@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_214 test cases across 29 spec files._
+_218 test cases across 29 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -170,6 +170,14 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selects rows, select-all, and clears the selection |
 | row actions menu offers Edit, Publish, and Copy ID |
 
+### entry editor tabs as routes
+
+| Test case |
+| --- |
+| opening a tab puts it in the URL; General stays canonical |
+| a tab URL can be opened directly |
+| a single page carries its tab on the type path |
+
 ### entry form validation
 
 | Test case |
@@ -198,6 +206,7 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | shows the locale switcher on a localized collection |
 | switching locale updates the URL and re-scopes the table |
 | opening a row and going back keeps the active locale |
+| switching locale keeps the tab the user was working in |
 | the default locale keeps a clean URL through the editor |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |

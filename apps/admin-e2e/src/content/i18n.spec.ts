@@ -82,6 +82,28 @@ test.describe('Content i18n', () => {
         ).toContainText('Winterstiefel');
     });
 
+    test('switching locale keeps the tab the user was working in', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // Working in Relations, switch to the German sibling…
+        await contentLibraryPage.openEditorTab('Relations');
+        await expect(page).toHaveURL(/\/relations$/);
+        await contentLibraryPage.switchLocale('Deutsch').click();
+
+        // …the editor re-targets the sibling **on the same tab**, instead of
+        // dumping the user back on General mid-task.
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+\/relations$/);
+        await expect(contentLibraryPage.editorTab('Relations')).toHaveAttribute(
+            'aria-selected',
+            'true'
+        );
+    });
+
     test('the default locale keeps a clean URL through the editor', async ({
         page,
         contentLibraryPage

@@ -520,6 +520,71 @@ test.describe('Content Library', () => {
     });
 
     /**
+     * The editor's tabs are **routes**, not component state — so a tab can be
+     * linked to and reloaded, and it survives a remount the editor doesn't
+     * control (#12, and the locale-switch reset in #19).
+     */
+    test.describe('entry editor tabs as routes', () => {
+        test('opening a tab puts it in the URL; General stays canonical', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Collections');
+            await contentLibraryPage.typeLink('Blog posts').click();
+            await contentLibraryPage.recordRows('Blog posts').first().click();
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+
+            await contentLibraryPage.openEditorTab('History');
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+\/history$/);
+
+            // Back to the default tab drops the segment rather than spelling it
+            // out, so the bare entry URL stays the canonical short link.
+            await contentLibraryPage.openEditorTab('General');
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+        });
+
+        test('a tab URL can be opened directly', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Collections');
+            await contentLibraryPage.typeLink('Blog posts').click();
+            await contentLibraryPage.recordRows('Blog posts').first().click();
+            await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
+
+            // Reloading a tab URL lands back on that tab, not on General.
+            await contentLibraryPage.openEditorTab('History');
+            await page.reload();
+            await expect(
+                contentLibraryPage.editorTab('History')
+            ).toHaveAttribute('aria-selected', 'true');
+        });
+
+        test('a single page carries its tab on the type path', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+            await contentLibraryPage.expandGroup('Pages');
+            await contentLibraryPage.typeLink('Home').click();
+            await expect(page).toHaveURL(/\/content\/home$/);
+
+            // A single's editor is mounted on the type itself, so its tab is a
+            // static segment there — and must not be read as a record id.
+            await contentLibraryPage.openEditorTab('History');
+            await expect(page).toHaveURL(/\/content\/home\/history$/);
+            await expect(
+                contentLibraryPage.editorTab('History')
+            ).toHaveAttribute('aria-selected', 'true');
+        });
+    });
+
+    /**
      * The entry form's two "the button does nothing" failures (#28, #10): a
      * `number`/`money` control handing its raw *string* to the validation kernel
      * (which demands a real `number`), and a submit the client rules refuse

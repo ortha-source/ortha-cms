@@ -21,9 +21,12 @@ import type {
 import {
     CONTENT_FIELD_TYPE,
     CONTENT_SEGMENT,
+    DEFAULT_ENTRY_TAB,
     ENTRY_MODE,
+    NEW_SEGMENT,
     type EntryMode
 } from '../../../domain/constants';
+import { entryTabFromPath } from '../../../domain/entryTab';
 import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
 import {
@@ -197,6 +200,29 @@ export function ContentEntryView({
     // and every route out of the editor carries them back — otherwise "Back to
     // records" returns to a different locale than the one the user came from.
     const entryQuerySuffix = listParamsQuery(listSlotParams);
+
+    // The open tab is a **route** segment, not editor state: switching locale
+    // remounts the editor at the sibling's id, and local state reset the user to
+    // General mid-task.
+    const tab = entryTabFromPath(location.pathname);
+
+    // The editor's own base path — a collection row carries its id, a single is
+    // mounted on the type itself. Tab links hang off it, and the query suffix
+    // rides along so a tab change never drops the active locale.
+    const editorPath =
+        mode === ENTRY_MODE.Single
+            ? typePath
+            : `${typePath}/${entryId ?? NEW_SEGMENT}`;
+
+    // The open tab as a path segment (`''` on the default tab, so the bare
+    // entry URL stays canonical) — used for the editor's own tab links and
+    // handed to slots that navigate to a sibling record.
+    const tabSegment = tab === DEFAULT_ENTRY_TAB ? '' : `/${tab}`;
+
+    const onTabChange = (next: string) => {
+        const segment = next === DEFAULT_ENTRY_TAB ? '' : `/${next}`;
+        navigate(`${editorPath}${segment}${entryQuerySuffix}`);
+    };
 
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
@@ -430,7 +456,8 @@ export function ContentEntryView({
         // The entry-params URL values (opaque), so a slot can scope by its own
         // param even on a create form — e.g. i18n reads `?locale=` here to keep
         // the relation picker in-locale when there's no saved `entry` yet.
-        params: { ...listSlotParams, ...bodySlotParams }
+        params: { ...listSlotParams, ...bodySlotParams },
+        tabSegment
     };
 
     // `flex-auto` (not `min-h-full`): fills the pane's remaining height under
@@ -458,6 +485,8 @@ export function ContentEntryView({
                             : `${typePath}${entryQuerySuffix}`
                     }
                     availableTypeNames={workspace.content}
+                    tab={tab}
+                    onTabChange={onTabChange}
                 />
             </EntrySlotContextProvider>
         </div>
