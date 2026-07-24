@@ -118,6 +118,28 @@ test.describe('Content i18n', () => {
         await expect(page).toHaveURL(/\/localized_post$/);
     });
 
+    test('the localized-field mark explains itself on hover and on focus', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // It was a bare span with a native `title` — invisible to keyboard and
+        // touch users. Now a real focusable trigger with a tooltip.
+        const mark = contentLibraryPage.localizedMark.first();
+        await mark.hover();
+        await expect(contentLibraryPage.tooltip).toHaveText(
+            /can differ per locale/
+        );
+
+        await mark.blur();
+        await mark.focus();
+        await expect(contentLibraryPage.tooltip).toHaveText(
+            /can differ per locale/
+        );
+    });
+
     test('switching locale plays a brief "Switching…" overlay', async ({
         contentLibraryPage
     }) => {

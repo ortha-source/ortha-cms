@@ -39,6 +39,19 @@ const messages = defineMessages({
         id: 'content.relations.picker.count',
         defaultMessage: '{total, plural, one {# record} other {# records}}'
     },
+    selectAll: {
+        id: 'content.relations.picker.selectAll',
+        defaultMessage: 'Select all {count}'
+    },
+    clearAll: {
+        id: 'content.relations.picker.clearAll',
+        defaultMessage: 'Clear selection'
+    },
+    selectAllLoadedHint: {
+        id: 'content.relations.picker.selectAllLoadedHint',
+        defaultMessage:
+            'Selects the {count} loaded so far — scroll for more, then select again.'
+    },
     selectedCount: {
         id: 'content.relations.picker.selectedCount',
         defaultMessage: '{count} selected'
@@ -206,6 +219,30 @@ export function RelationPickerDialog({
         }
     };
 
+    // Bulk toggle over the candidates **currently loaded**. The list is lazily
+    // paginated, so it can only ever mean "these", never "every match" — the
+    // label says so when more results exist behind the scroll, rather than
+    // implying a whole-result-set select the dialog can't honour.
+    const allLoadedSelected =
+        items.length > 0 && items.every((item) => draft.has(item.id));
+    const hasUnloaded = total > items.length;
+    const toggleAllLoaded = () => {
+        setDraft((current) => {
+            const next = new Set(current);
+            for (const item of items) {
+                if (allLoadedSelected) next.delete(item.id);
+                else next.add(item.id);
+            }
+            return next;
+        });
+        // Remember them so their titles survive leaving the loaded window.
+        setPicked((current) => {
+            const next = new Map(current);
+            for (const item of items) next.set(item.id, item);
+            return next;
+        });
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
@@ -244,16 +281,41 @@ export function RelationPickerDialog({
                     )}
                 />
 
-                {/* Result count / selection summary */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                {/* Result count / bulk toggle / selection summary */}
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                     <span>{intl.formatMessage(messages.count, { total })}</span>
-                    {many && draft.size > 0 ? (
-                        <span className="font-medium text-foreground">
-                            {intl.formatMessage(messages.selectedCount, {
-                                count: draft.size
-                            })}
-                        </span>
-                    ) : null}
+                    <div className="flex items-center gap-3">
+                        {many && items.length > 0 ? (
+                            <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-xs"
+                                onClick={toggleAllLoaded}
+                                title={
+                                    hasUnloaded
+                                        ? intl.formatMessage(
+                                              messages.selectAllLoadedHint,
+                                              { count: items.length }
+                                          )
+                                        : undefined
+                                }
+                            >
+                                {allLoadedSelected
+                                    ? intl.formatMessage(messages.clearAll)
+                                    : intl.formatMessage(messages.selectAll, {
+                                          count: items.length
+                                      })}
+                            </Button>
+                        ) : null}
+                        {many && draft.size > 0 ? (
+                            <span className="font-medium text-foreground">
+                                {intl.formatMessage(messages.selectedCount, {
+                                    count: draft.size
+                                })}
+                            </span>
+                        ) : null}
+                    </div>
                 </div>
 
                 <RelationCandidateList

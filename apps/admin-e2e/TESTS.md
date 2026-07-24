@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_219 test cases across 29 spec files._
+_222 test cases across 29 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -170,6 +170,12 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selects rows, select-all, and clears the selection |
 | row actions menu offers Edit, Publish, and Copy ID |
 
+### required fields
+
+| Test case |
+| --- |
+| marks a required field and leaves optional ones alone |
+
 ### datetime fields
 
 | Test case |
@@ -214,6 +220,7 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | opening a row and going back keeps the active locale |
 | switching locale keeps the tab the user was working in |
 | the default locale keeps a clean URL through the editor |
+| the localized-field mark explains itself on hover and on focus |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |
 | the entry editor locale switcher shows current / existing / missing |
@@ -294,6 +301,7 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | saves staged links as a relations delta, omitting them from values |
 | shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
+| selects and clears every loaded candidate at once |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)
 

@@ -291,10 +291,13 @@ export function LoadedRecordsView({
         [visibleColumns]
     );
 
-    // Pressing Apply swaps the table for its skeleton until the filtered
-    // request settles (the list otherwise keeps the previous rows via
-    // `keepPreviousData`, so a filter change would show no loading cue).
+    // `keepPreviousData` means a narrowing change leaves the *old* rows on
+    // screen while the new request is in flight — correct for typing (no
+    // flicker per keystroke), but with no cue at all for the deliberate
+    // actions. So Apply and a page change each raise a flag that swaps the
+    // table for its skeleton until the request settles.
     const [applying, setApplying] = useState(false);
+    const [paging, setPaging] = useState(false);
     const { data, isPending, isFetching, isError, isPlaceholderData, refetch } =
         useContentEntries(schema, {
             search: searchParam || undefined,
@@ -309,10 +312,12 @@ export function LoadedRecordsView({
             ...(slotParamKeys.length ? { extra: slotParams } : {})
         });
 
-    // Clear the applying skeleton once the filtered request has settled.
+    // Clear either skeleton once its request has settled.
     useEffect(() => {
-        if (applying && !isFetching) setApplying(false);
-    }, [applying, isFetching]);
+        if (isFetching) return;
+        if (applying) setApplying(false);
+        if (paging) setPaging(false);
+    }, [applying, paging, isFetching]);
 
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? pageSize;
@@ -439,6 +444,7 @@ export function LoadedRecordsView({
             <SearchToolbar
                 value={searchInput}
                 onValueChange={setSearchInput}
+                busy={isFetching && !isPending}
                 searchLabel={intl.formatMessage(messages.searchLabel)}
                 searchPlaceholder={intl.formatMessage(
                     messages.searchPlaceholder
@@ -539,7 +545,7 @@ export function LoadedRecordsView({
                 })}
             </p>
 
-            {isPending || (applying && isFetching) ? (
+            {isPending || ((applying || paging) && isFetching) ? (
                 <CollectionRecordsSkeleton />
             ) : isError ? (
                 <Alert variant="destructive" role="alert" className="mt-4">
@@ -604,12 +610,14 @@ export function LoadedRecordsView({
                         pageCount={pageCount}
                         pageSize={effectivePageSize}
                         total={total}
-                        onPageChange={(next) =>
-                            updateParams({ page: String(next) }, false)
-                        }
-                        onPageSizeChange={(next) =>
-                            updateParams({ pageSize: String(next) })
-                        }
+                        onPageChange={(next) => {
+                            setPaging(true);
+                            updateParams({ page: String(next) }, false);
+                        }}
+                        onPageSizeChange={(next) => {
+                            setPaging(true);
+                            updateParams({ pageSize: String(next) });
+                        }}
                     />
                 </>
             )}

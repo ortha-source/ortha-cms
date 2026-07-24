@@ -520,6 +520,43 @@ test.describe('Content Library', () => {
     });
 
     /**
+     * Required fields say so in the label, and the control carries
+     * `aria-required` so assistive tech hears it once — not twice (#30).
+     */
+    test.describe('required fields', () => {
+        test('marks a required field and leaves optional ones alone', async ({
+            page,
+            contentLibraryPage
+        }) => {
+            await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'product'
+            );
+
+            // `product.name` and `product.price` are both required.
+            await expect(contentLibraryPage.fieldLabel('name')).toContainText(
+                '*'
+            );
+            await expect(
+                contentLibraryPage.fieldTextbox('Name')
+            ).toHaveAttribute('aria-required', 'true');
+
+            // …while an optional field carries neither.
+            await contentLibraryPage.gotoNewEntry(
+                LIBRARY_WORKSPACE.id,
+                'blog_post'
+            );
+            await expect(
+                contentLibraryPage.fieldLabel('excerpt')
+            ).not.toContainText('*');
+            await expect(
+                contentLibraryPage.fieldSpinbutton('Price')
+            ).not.toHaveAttribute('aria-required', 'true');
+        });
+    });
+
+    /**
      * A `datetime` the server round-trips carries an explicit zone. It is an
      * *instant*, and the control has to render it in the viewer's local time —
      * reading its calendar fields literally re-labels the UTC hour as a local

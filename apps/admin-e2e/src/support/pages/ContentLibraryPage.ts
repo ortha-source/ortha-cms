@@ -306,6 +306,21 @@ export class ContentLibraryPage extends BasePage {
         return this.page.locator(`#entry-field-${fieldName}`);
     }
 
+    /** A form field's `<label>` element, by the field's machine name. */
+    fieldLabel(fieldName: string): Locator {
+        return this.page.locator(`label[for="entry-field-${fieldName}"]`);
+    }
+
+    /** The "Localized field" tooltip trigger inside a field's label row. */
+    get localizedMark(): Locator {
+        return this.page.getByRole('button', { name: 'Localized field' });
+    }
+
+    /** The open tooltip bubble, wherever it is portalled. */
+    get tooltip(): Locator {
+        return this.page.getByRole('tooltip');
+    }
+
     /** A field's inline validation message (design-system `FieldError`). */
     fieldError(message: string | RegExp): Locator {
         return this.page.getByRole('alert').filter({ hasText: message });

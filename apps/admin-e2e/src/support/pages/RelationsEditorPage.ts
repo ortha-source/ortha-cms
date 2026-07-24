@@ -97,6 +97,22 @@ export class RelationsEditorPage extends BasePage {
         await this.page.mouse.wheel(0, 1200);
     }
 
+    /** Only the candidate rows currently checked. */
+    get checkedCandidateOptions(): Locator {
+        return this.dialog.getByRole('checkbox', { checked: true });
+    }
+
+    /**
+     * The picker's bulk toggle. Reads "Select all {n}" until every *loaded*
+     * candidate is checked, then "Clear selection" — the list is lazily
+     * paginated, so it only ever covers what has been fetched.
+     */
+    get selectAllButton(): Locator {
+        return this.dialog.getByRole('button', {
+            name: /Select all \d+|Clear selection/
+        });
+    }
+
     /** The picker's "Add {n}" commit button (many relations). */
     get addSelectedButton(): Locator {
         return this.dialog.getByRole('button', { name: /^Add \d/ });
@@ -172,11 +188,7 @@ export class RelationsEditorPage extends BasePage {
      * publish gate blocking on empty required fields.
      */
     async saveDraft() {
-        await this.page
-            .getByRole('button', { name: 'More actions' })
-            .click();
-        await this.page
-            .getByRole('menuitem', { name: 'Save draft' })
-            .click();
+        await this.page.getByRole('button', { name: 'More actions' }).click();
+        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
     }
 }

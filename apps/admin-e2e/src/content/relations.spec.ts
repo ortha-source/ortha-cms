@@ -310,6 +310,37 @@ test.describe('Relation picker', () => {
         // Back to the empty trigger.
         await expect(relationsEditorPage.selectButton('Authors')).toBeVisible();
     });
+
+    test('selects and clears every loaded candidate at once', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').waitFor();
+
+        const loaded = await relationsEditorPage.candidateOptions.count();
+        expect(loaded).toBeGreaterThan(1);
+
+        // One click checks every candidate currently loaded…
+        await relationsEditorPage.selectAllButton.click();
+        await expect(relationsEditorPage.checkedCandidateOptions).toHaveCount(
+            loaded
+        );
+
+        // …and the same control then clears them, rather than stranding the
+        // user with no way back out of a bulk select.
+        await expect(relationsEditorPage.selectAllButton).toHaveText(
+            /Clear selection/
+        );
+        await relationsEditorPage.selectAllButton.click();
+        await expect(relationsEditorPage.checkedCandidateOptions).toHaveCount(
+            0
+        );
+        await expect(relationsEditorPage.selectAllButton).toHaveText(
+            /Select all \d+/
+        );
+    });
 });
 
 /**

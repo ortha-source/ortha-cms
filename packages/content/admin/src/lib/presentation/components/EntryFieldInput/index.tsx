@@ -22,6 +22,7 @@ import { CONTENT_FIELD_TYPE } from '../../../domain/constants';
 import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
+import { RequiredMark } from './RequiredMark';
 
 const messages = defineMessages({
     selectPlaceholder: {
@@ -131,6 +132,19 @@ export function EntryFieldInput({
                 {field.localized ? <LocalizedFieldMark /> : null}
             </span>
         ) : null;
+    // The label plus its required marker. The mark is presentational (the
+    // controls below carry `aria-required`, which is what gets announced), so
+    // it composes into the label node rather than the accessible name.
+    const labelNode = field.required ? (
+        <>
+            {label}
+            <RequiredMark />
+        </>
+    ) : (
+        label
+    );
+    // Mirrors the marker for assistive tech, spread onto each control.
+    const requiredProps = field.required ? { 'aria-required': true } : {};
     const admin = adminProps(field);
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
@@ -148,12 +162,13 @@ export function EntryFieldInput({
                         id={`${id}-label`}
                         className={endAdornment ? 'w-full' : undefined}
                     >
-                        {label}
+                        {labelNode}
                         {endAdornment}
                     </FieldLabel>
                     <SegmentedControl
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
+                        {...requiredProps}
                         aria-describedby={describedBy}
                         value={
                             value === true ? BOOL_SEGMENT.On : BOOL_SEGMENT.Off
@@ -186,7 +201,7 @@ export function EntryFieldInput({
                         htmlFor={id}
                         className={endAdornment ? 'w-full' : undefined}
                     >
-                        {label}
+                        {labelNode}
                         {endAdornment}
                     </FieldLabel>
                     <Select
@@ -199,6 +214,7 @@ export function EntryFieldInput({
                         <SelectTrigger
                             id={id}
                             aria-invalid={!!error}
+                            {...requiredProps}
                             aria-describedby={describedBy}
                             className={FLAT}
                         >
@@ -235,7 +251,7 @@ export function EntryFieldInput({
                         htmlFor={id}
                         className={endAdornment ? 'w-full' : undefined}
                     >
-                        {label}
+                        {labelNode}
                         {endAdornment}
                     </FieldLabel>
                     <MultiSelect
@@ -248,6 +264,7 @@ export function EntryFieldInput({
                         }}
                         invalid={!!error}
                         aria-describedby={describedBy}
+                        {...requiredProps}
                         placeholder={intl.formatMessage(
                             messages.selectPlaceholder
                         )}
@@ -278,13 +295,14 @@ export function EntryFieldInput({
                         htmlFor={id}
                         className={endAdornment ? 'w-full' : undefined}
                     >
-                        {label}
+                        {labelNode}
                         {endAdornment}
                     </FieldLabel>
                     <Textarea
                         id={id}
                         value={display}
                         rows={isJson ? 6 : 4}
+                        {...requiredProps}
                         className={isJson ? `${FLAT} font-mono text-xs` : FLAT}
                         aria-invalid={!!error}
                         aria-describedby={describedBy}
@@ -314,13 +332,14 @@ export function EntryFieldInput({
                             htmlFor={id}
                             className={endAdornment ? 'w-full' : undefined}
                         >
-                            {label}
+                            {labelNode}
                             {endAdornment}
                         </FieldLabel>
                         <Textarea
                             id={id}
                             value={ids.join('\n')}
                             rows={3}
+                            {...requiredProps}
                             className={`${FLAT} font-mono text-xs`}
                             aria-invalid={!!error}
                             aria-describedby={describedBy}
@@ -349,7 +368,7 @@ export function EntryFieldInput({
             return (
                 <InputField
                     id={id}
-                    label={label}
+                    label={labelNode}
                     labelAction={endAdornment ?? undefined}
                     value={asText(value)}
                     description={
@@ -362,6 +381,7 @@ export function EntryFieldInput({
                     onChange={(event) => onChange(event.target.value)}
                     onBlur={onBlur}
                     className={`${FLAT} font-mono text-xs`}
+                    {...requiredProps}
                 />
             );
         }
@@ -374,7 +394,7 @@ export function EntryFieldInput({
                         htmlFor={id}
                         className={endAdornment ? 'w-full' : undefined}
                     >
-                        {label}
+                        {labelNode}
                         {endAdornment}
                     </FieldLabel>
                     <DateField
@@ -384,6 +404,7 @@ export function EntryFieldInput({
                         onBlur={onBlur}
                         withTime={field.type === CONTENT_FIELD_TYPE.Datetime}
                         invalid={!!error}
+                        {...requiredProps}
                         aria-describedby={describedBy}
                     />
                     {description && (
@@ -405,7 +426,7 @@ export function EntryFieldInput({
             return (
                 <InputField
                     id={id}
-                    label={label}
+                    label={labelNode}
                     labelAction={endAdornment ?? undefined}
                     value={asText(value)}
                     description={description}
@@ -420,6 +441,7 @@ export function EntryFieldInput({
                     }
                     onBlur={onBlur}
                     className={FLAT}
+                    {...requiredProps}
                     {...(numeric
                         ? { type: 'number', inputMode: 'decimal' as const }
                         : {})}
