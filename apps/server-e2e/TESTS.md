@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_372 test cases across 33 spec files._
+_374 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -533,6 +533,8 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | propagates a non-localized field to siblings but leaves localized fields alone |
+| syncs an array-valued shared field (jsonb) without tripping the change predicate |
+| leaves siblings alone when an array-valued shared field is resent unchanged |
 | appends a revision to each sibling the sync rewrote |
 | leaves sibling history alone when only a localized field changes |
 | does not sync a relation to a localizable target across locales |
