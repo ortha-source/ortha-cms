@@ -1,6 +1,7 @@
 import { defineMessages } from 'react-intl';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import {
+    CONTENT_OVERLAY_SLOT,
     ENTRY_HEADER_SLOT,
     ENTRY_PARAMS_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
@@ -10,6 +11,7 @@ import {
     type ContentTypeDetail,
     type EntryRecord,
     type EntrySlotContext,
+    type ContentOverlayItem,
     type EntryHeaderItem,
     type RecordsColumnItem,
     type RecordsToolbarItem,
@@ -28,6 +30,7 @@ import { LocaleSwitcher } from '../../components/LocaleSwitcher';
 import { LocalesColumnCell } from '../../components/LocalesColumnCell';
 import { LocaleWidget } from '../../components/LocaleWidget';
 import { LocaleTitleChip } from '../../components/LocaleTitleChip';
+import { LocaleSwitchOverlay } from '../../components/LocaleSwitchOverlay';
 
 const messages = defineMessages({
     localesColumn: {
@@ -92,6 +95,13 @@ export function I18nPlugin(): I18nAdminPlugin {
         id: SLOT_ITEM_ID.TitleChip,
         Component: LocaleTitleChip
     };
+    // Page-level, not inside the editor: the cover has to stay mounted while
+    // the destination record loads — which is exactly when the editor (and any
+    // widget inside it) is unmounted for its loading state.
+    const switchOverlayItem: ContentOverlayItem = {
+        id: SLOT_ITEM_ID.SwitchOverlay,
+        Component: LocaleSwitchOverlay
+    };
     const filterFieldsItem: RecordsFilterFieldsItem = {
         id: SLOT_ITEM_ID.FilterFields,
         useFields: useLocaleFilterFields
@@ -126,6 +136,7 @@ export function I18nPlugin(): I18nAdminPlugin {
             { slot: RECORDS_COLUMN_SLOT, items: [columnItem] },
             { slot: ENTRY_SIDEBAR_WIDGET_SLOT, items: [widgetItem] },
             { slot: ENTRY_HEADER_SLOT, items: [titleChipItem] },
+            { slot: CONTENT_OVERLAY_SLOT, items: [switchOverlayItem] },
             { slot: RECORDS_FILTER_FIELDS_SLOT, items: [filterFieldsItem] },
             { slot: ENTRY_PARAMS_SLOT, items: [entryParamsItem] }
         ]

@@ -31,7 +31,7 @@ export function useRevisionActions(typeName: string, id: string | undefined) {
             saved
         );
         await refreshEntryCaches(queryClient, workspace.id, typeName, {
-            skipEntry: true
+            primedEntryId: saved.id
         });
     };
 

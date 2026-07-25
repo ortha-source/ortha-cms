@@ -15,9 +15,13 @@ import {
  * refetching the same queries on the way past: the editor used to re-read the
  * record and its whole version timeline twice for one Publish click.
  *
- * `skipEntry` is passed by the writes that return the canonical record: the
- * caller has already seeded the read-one cache with the response, so
- * invalidating it here would throw that away and re-fetch what we just received.
+ * `primedEntryId` names the record the caller has already seeded the read-one
+ * cache with (the write's own response), so it is the one read-one left alone —
+ * invalidating it would throw that away and re-fetch what we just received.
+ * **Every other** cached record of the type is still invalidated: one save can
+ * rewrite rows it didn't name, and the i18n plugin's shared-field sync does
+ * exactly that (a non-localized field is written to every locale sibling). Those
+ * siblings' read-ones must go, or switching locale reads the pre-save copy.
  *
  * **Awaits** every refetch, so a caller's `isPending` covers the refetching too
  * and the editor's saving overlay lifts only once the screen is up to date
@@ -30,8 +34,12 @@ export async function refreshEntryCaches(
     workspaceId: string,
     typeName: string,
     options: {
-        /** Leave the read-one cache alone — the caller primed it with the response. */
-        skipEntry?: boolean;
+        /**
+         * The record whose read-one the caller primed with the write's response.
+         * It is spared; every *other* cached record of this type is invalidated,
+         * since a save can rewrite siblings it didn't name.
+         */
+        primedEntryId?: string;
     } = {}
 ): Promise<void> {
     const prefixes: QueryKey[] = [
@@ -45,15 +53,19 @@ export async function refreshEntryCaches(
         entryRelationsPrefix(workspaceId, typeName),
         relationFieldLinksPrefix(workspaceId, typeName)
     ];
-    if (!options.skipEntry) {
-        prefixes.push(contentEntryPrefix(workspaceId, typeName));
-    }
     try {
-        await Promise.all(
-            prefixes.map((queryKey) =>
+        await Promise.all([
+            ...prefixes.map((queryKey) =>
                 queryClient.invalidateQueries({ queryKey })
-            )
-        );
+            ),
+            // The read-ones, minus the one just primed. `contentEntryKey` is
+            // `['content-entry', ws, type, id]`, so the id is at index 3.
+            queryClient.invalidateQueries({
+                queryKey: contentEntryPrefix(workspaceId, typeName),
+                predicate: (query) =>
+                    query.queryKey[3] !== options.primedEntryId
+            })
+        ]);
     } catch {
         // A background refetch failing must not turn a successful write into a
         // rejected mutation; the query's own error state surfaces it.

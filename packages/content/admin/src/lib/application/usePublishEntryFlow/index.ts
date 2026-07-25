@@ -170,7 +170,7 @@ export function usePublishEntryFlow(
                         queryClient,
                         workspace.id,
                         typeName,
-                        { skipEntry: true }
+                        { primedEntryId: saved.id }
                     );
                     throw error;
                 }

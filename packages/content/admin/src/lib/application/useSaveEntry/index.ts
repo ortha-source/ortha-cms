@@ -55,7 +55,7 @@ export function useSaveEntry(typeName: string) {
             // and flicker the just-linked rows out. Awaiting also keeps the
             // editor's saving overlay up until the screen is current (#7).
             await refreshEntryCaches(queryClient, workspace.id, typeName, {
-                skipEntry: true
+                primedEntryId: saved.id
             });
         }
     });

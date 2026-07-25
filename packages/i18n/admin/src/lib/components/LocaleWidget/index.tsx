@@ -33,7 +33,6 @@ import { useLocales } from '../../api/useLocales';
 import { useEntryLocales } from '../../api/useEntryLocales';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
 import { beginLocaleSwitch } from '../../utils/localeTransition';
-import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 import { LocaleRow } from './LocaleRow';
 
 const messages = defineMessages({
@@ -328,7 +327,6 @@ export function LocaleWidget({
                     </div>
                 </>
             )}
-            <LocaleSwitchOverlay />
         </>
     );
 }

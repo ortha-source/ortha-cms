@@ -18,6 +18,7 @@ import { ContentComingSoon } from '../../components/ContentComingSoon';
 import { ContentEntryRoute } from '../../components/ContentEntryRoute';
 import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
+import { ContentOverlays } from '../../components/ContentOverlays';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
@@ -123,6 +124,10 @@ export function ContentLibraryPage() {
 
     return (
         <ContentPane>
+            {/* Outside the routes on purpose: a viewport-level cover has to
+                outlive the view it covers (the editor unmounts itself while a
+                record loads). */}
+            <ContentOverlays />
             <ContentTopBar types={scopedTypes} basePath={basePath} />
             <Routes>
                 <Route

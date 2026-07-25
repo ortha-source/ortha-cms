@@ -30,7 +30,7 @@ export function useEntryStatusActions(typeName: string) {
             record
         );
         await refreshEntryCaches(queryClient, workspace.id, typeName, {
-            skipEntry: true
+            primedEntryId: record.id
         });
     };
 

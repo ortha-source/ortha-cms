@@ -35,6 +35,7 @@ export const SLOT_ITEM_ID = {
     Widget: 'i18n.localeWidget',
     TitleChip: 'i18n.localeTitleChip',
     FilterFields: 'i18n.filterFields',
+    SwitchOverlay: 'i18n.localeSwitchOverlay',
     EntryParams: 'i18n.entryParams'
 } as const;
 

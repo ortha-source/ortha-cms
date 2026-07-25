@@ -369,7 +369,12 @@ a third state with no column value spelling it made unavoidable.
 - **Write responses seed the cache.** Every entry write returns the canonical
   record, so each mutation `setQueryData`s the read-one instead of invalidating
   it, and `useContentEntry` carries a `staleTime` so the create→`/:type/:id`
-  navigation stops discarding the record it was just handed. Cache-seeded opens
+  navigation stops discarding the record it was just handed. Only the **primed**
+  record is spared (`primedEntryId`) — every *other* cached record of the type is
+  still invalidated, because one save can rewrite rows it didn't name: the i18n
+  shared-field sync writes a non-localized field to every locale sibling, and
+  sparing the whole prefix left a switch to that sibling showing the pre-save
+  copy until a reload. Cache-seeded opens
   pass `initialDataUpdatedAt` (the age of the *list* read), so a stale row still
   refetches. Invalidation ignores `staleTime`, so nothing this app writes goes
   unnoticed.
@@ -443,10 +448,10 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes six named slots (`presentation/slots/contentSlots`, via
+The library exposes seven named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills all six. **Slot items are boot-frozen**
+`@ortha-cms/i18n-admin` fills all seven. **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
 `RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
@@ -475,6 +480,16 @@ fetching internally.
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.
+- **`CONTENT_OVERLAY_SLOT`** — viewport-level chrome, rendered once by
+  `ContentLibraryPage` (via `ContentOverlays`) **outside** its `<Routes>`, so a
+  contribution stays mounted across every navigation within the library —
+  including the window where the entry editor has replaced itself with a loading
+  state. That window is why the slot exists: the i18n plugin's locale-switch
+  cover used to be rendered by the editor's sidebar widget, i.e. inside the very
+  tree that unmounts while the destination record loads, so it vanished
+  mid-transition and came back after — two loaders blinking in sequence. A cover
+  has to outlive the thing it covers. Takes no props; anything view-specific
+  belongs in a narrower slot.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode
   one-entry read (`listParamKeys`), URL values copied into the create body
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
