@@ -9,6 +9,12 @@ import type { ContentField } from '../../domain/types/contentType';
  * the field feeds `@ortha-cms/content-domain`'s validator without a cast at every
  * call site. Runtime values are unchanged; this is a pure structural bridge so the
  * kernel stays the single source of the validation rules.
+ *
+ * **Every field the kernel reads has to be carried across.** `multiple` is the
+ * one that bites: the validator branches on it to expect a `uuid[]` on a media
+ * field, so dropping it made the admin judge a gallery's list against the
+ * single-asset rule and refuse to save ("must be a media asset id") over a value
+ * the server would have accepted.
  */
 export function toFieldSpec(field: ContentField): EntryFieldSpec {
     return {
@@ -16,6 +22,7 @@ export function toFieldSpec(field: ContentField): EntryFieldSpec {
         required: field.required,
         validation: field.validation as EntryFieldSpec['validation'],
         options: field.options,
-        relation: field.relation
+        relation: field.relation,
+        multiple: field.multiple
     };
 }
