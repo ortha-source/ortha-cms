@@ -330,13 +330,17 @@ export async function countActivityRows(): Promise<number> {
  * `users` cascade never reaches it. Every e2e content table is truncated too
  * (content has no FK to `workspaces`, so a workspace cascade never reaches it);
  * `CASCADE` on `content_test_article` also clears its join + comment children.
+ * `content_entry_revisions` is truncated explicitly for the same reason as
+ * `activity_events`: it keys entries by plain uuid with no FK, so no cascade
+ * reaches it and every save's snapshot would otherwise outlive its test.
  */
 export async function resetDb(): Promise<void> {
     await getPool().query(
         'TRUNCATE TABLE users, workspaces, activity_events, ' +
             'content_test_article, content_test_author, content_test_tag, ' +
             'content_test_seo, content_test_comment, content_test_landing, ' +
-            'content_test_page, media_asset, media_folder ' +
+            'content_test_page, content_entry_revisions, ' +
+            'media_asset, media_folder ' +
             'RESTART IDENTITY CASCADE'
     );
 }

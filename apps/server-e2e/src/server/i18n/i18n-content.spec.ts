@@ -456,6 +456,93 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(200);
             expect(enAfter.body.values.select).toBe('article');
         });
+
+        // A shared edit is pending everywhere until it is published. Leaving a
+        // rewritten sibling `published` made the same value live in the
+        // untouched locales while still pending in the edited one.
+        it('moves a rewritten published sibling back to draft, keeping publishedAt', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article' }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            await agent
+                .post(`/api/content/test_article/${en.id}/publish`)
+                .expect(201);
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .expect(201);
+
+            // `select` is shared — editing it on en rewrites the de row too.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { text: 'EN title', select: 'tutorial' } })
+                .expect(200);
+
+            const deAfter = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deAfter.body.values.select).toBe('tutorial');
+            // Draft **with** a publishedAt — the admin's "Modified", not a
+            // never-published draft.
+            expect(deAfter.body.status).toBe('draft');
+            expect(deAfter.body.publishedAt).toEqual(expect.any(String));
+
+            // Its previously-published version stays live in history under the
+            // new draft one.
+            const revs = await agent
+                .get(`/api/content/test_article/${de.id}/revisions`)
+                .expect(200);
+            expect(
+                revs.body.items.filter(
+                    (r: { isPublished: boolean }) => r.isPublished
+                )
+            ).toHaveLength(1);
+            expect(revs.body.items[0]).toMatchObject({
+                isLatest: true,
+                status: 'draft'
+            });
+
+            // The locale panel serves the pair the admin classifies from.
+            const panel = await agent
+                .get(`/api/i18n/content/test_article/${en.id}/locales`)
+                .expect(200);
+            const byLocale = Object.fromEntries(
+                panel.body.items.map((i: { locale: string }) => [i.locale, i])
+            );
+            expect(byLocale['en'].entry).toMatchObject({
+                status: 'draft',
+                publishedAt: expect.any(String)
+            });
+            expect(byLocale['de'].entry).toMatchObject({
+                status: 'draft',
+                publishedAt: expect.any(String)
+            });
+        });
+
+        it('leaves a draft sibling — and its publishedAt — alone', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article' }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { text: 'EN title', select: 'tutorial' } })
+                .expect(200);
+
+            const deAfter = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deAfter.body.status).toBe('draft');
+            // Never published → still null, so it reads as a plain Draft.
+            expect(deAfter.body.publishedAt).toBeNull();
+        });
     });
 
     describe('locale aggregate filters', () => {

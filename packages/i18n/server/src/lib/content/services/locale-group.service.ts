@@ -18,6 +18,13 @@ export interface EntryLocaleItem {
         id: string;
         /** Publish state — publishable types only. */
         status?: EntryStatus;
+        /**
+         * ISO timestamp of when this locale last went live, or `null` if never
+         * — publishable types only. Paired with `status` it separates a
+         * never-published draft from one carrying unpublished edits over live
+         * content, which is the difference the locale switcher renders.
+         */
+        publishedAt?: string | null;
         /** ISO last-updated timestamp. */
         updatedAt: string;
     } | null;
@@ -37,6 +44,8 @@ export interface LocaleSummaryItem {
     entryId: string;
     /** Publish state — publishable types only. */
     status?: EntryStatus;
+    /** When this locale last went live, or `null` — publishable types only. */
+    publishedAt?: string | null;
 }
 
 /** The `POST /api/i18n/content/:typeName/locale-summary` response envelope. */
@@ -103,7 +112,12 @@ export class LocaleGroupService {
                         ? {
                               id: sibling['id'] as string,
                               ...(type.publishable
-                                  ? { status: sibling['status'] as EntryStatus }
+                                  ? {
+                                        status: sibling[
+                                            'status'
+                                        ] as EntryStatus,
+                                        publishedAt: this.publishedAt(sibling)
+                                    }
                                   : {}),
                               updatedAt: (
                                   sibling['updatedAt'] as Date
@@ -151,7 +165,10 @@ export class LocaleGroupService {
                 locale: row['locale'] as string,
                 entryId: row['id'] as string,
                 ...(type.publishable
-                    ? { status: row['status'] as EntryStatus }
+                    ? {
+                          status: row['status'] as EntryStatus,
+                          publishedAt: this.publishedAt(row)
+                      }
                     : {})
             });
         }
@@ -163,6 +180,12 @@ export class LocaleGroupService {
             );
         }
         return { groups };
+    }
+
+    /** A row's `published_at` as an ISO string, or null when it never went live. */
+    private publishedAt(row: Record<string, unknown>): string | null {
+        const value = row['publishedAt'] as Date | null | undefined;
+        return value ? value.toISOString() : null;
     }
 
     /** A predicate AND workspace scope AND (paranoid) the not-deleted guard. */

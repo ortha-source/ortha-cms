@@ -1,13 +1,12 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Badge,
     Card,
     CardContent,
     CardHeader,
     CardTitle
 } from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../../../../domain/types/contentType';
-import { ENTRY_STATUS } from '../../../../../../domain/constants';
+import { EntryStatusBadge } from '../../../../EntryStatusBadge';
 import { MetaRow } from './MetaRow';
 
 const messages = defineMessages({
@@ -16,15 +15,6 @@ const messages = defineMessages({
         defaultMessage: 'Details'
     },
     status: { id: 'content.sidebar.status', defaultMessage: 'Status' },
-    statusDraft: { id: 'content.sidebar.statusDraft', defaultMessage: 'Draft' },
-    statusPublished: {
-        id: 'content.sidebar.statusPublished',
-        defaultMessage: 'Published'
-    },
-    statusNew: {
-        id: 'content.sidebar.statusNew',
-        defaultMessage: 'Not saved yet'
-    },
     created: { id: 'content.sidebar.created', defaultMessage: 'Created' },
     updated: { id: 'content.sidebar.updated', defaultMessage: 'Last updated' },
     entryId: { id: 'content.sidebar.entryId', defaultMessage: 'Entry ID' },
@@ -33,8 +23,8 @@ const messages = defineMessages({
 
 /**
  * The static **Details** card in the entry editor's right rail: the entry's id,
- * publish status (as a badge), and created / last-updated timestamps. Derives the
- * status label + badge variant from `entry`/`isCreate`.
+ * publish status (the shared {@link EntryStatusBadge}), and created /
+ * last-updated timestamps.
  */
 export function DetailsBlock({
     entry,
@@ -45,23 +35,11 @@ export function DetailsBlock({
 }) {
     const intl = useIntl();
     const dash = intl.formatMessage(messages.empty);
-    const published = entry?.status === ENTRY_STATUS.Published;
 
     const fmt = (iso?: string) =>
         iso
             ? intl.formatDate(iso, { dateStyle: 'medium', timeStyle: 'short' })
             : dash;
-
-    const statusLabel = isCreate
-        ? messages.statusNew
-        : published
-          ? messages.statusPublished
-          : messages.statusDraft;
-    const statusVariant = isCreate
-        ? 'outline'
-        : published
-          ? 'success'
-          : 'secondary';
 
     return (
         <Card className="border-border/60 bg-muted/20 shadow-none">
@@ -78,9 +56,7 @@ export function DetailsBlock({
                         </span>
                     </MetaRow>
                     <MetaRow label={intl.formatMessage(messages.status)}>
-                        <Badge variant={statusVariant}>
-                            {intl.formatMessage(statusLabel)}
-                        </Badge>
+                        <EntryStatusBadge entry={entry} isCreate={isCreate} />
                     </MetaRow>
                     <MetaRow label={intl.formatMessage(messages.created)}>
                         {fmt(entry?.createdAt)}

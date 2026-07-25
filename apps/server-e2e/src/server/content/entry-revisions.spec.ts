@@ -297,10 +297,11 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
                 .expect(201);
             const id = create.body.id as string;
 
+            // The bulk routes all carry `@HttpCode(OK)` — 200, not @Post's 201.
             await agent
                 .post('/api/content/test_article/bulk/publish')
                 .send({ ids: [id] })
-                .expect(201);
+                .expect(200);
 
             const list = await agent
                 .get(`/api/content/test_article/${id}/revisions`)
@@ -368,8 +369,8 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
                 .send({ values: { ...VALID, text: 'Third title' } })
                 .expect(200);
 
-            // Publish v1 (an earlier version): it is restored (appending a new
-            // latest) and that becomes live; the record's content is v1 again.
+            // Publish v1 (an earlier version): its content is re-applied to the
+            // live row and **v1 itself** is marked live.
             const published = await agent
                 .post(`/api/content/test_article/${id}/revisions/1/publish`)
                 .expect(201);
@@ -384,13 +385,52 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
             const list = await agent
                 .get(`/api/content/test_article/${id}/revisions`)
                 .expect(200);
-            // The new latest (a copy of v1) is the live version.
-            expect(list.body.items[0]).toMatchObject({
-                isLatest: true,
+            const byNumber = Object.fromEntries(
+                list.body.items.map((r: { number: number }) => [r.number, r])
+            );
+            // v1 is live **in place** — publishing a version marks that version
+            // published, it does not mint a copy of it.
+            expect(byNumber[1]).toMatchObject({
                 status: 'published',
-                isPublished: true
+                isPublished: true,
+                isLatest: false
             });
-            expect(list.body.total).toBe(4);
+            // v3 is still the newest; publishing an earlier version means the
+            // latest is no longer the live content.
+            expect(byNumber[3]).toMatchObject({
+                isLatest: true,
+                isPublished: false
+            });
+            // No fourth version was appended.
+            expect(list.body.total).toBe(3);
+        });
+
+        it('publishes the newest version in place', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const create = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALID })
+                .expect(201);
+            const id = create.body.id as string;
+
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Second title' } })
+                .expect(200);
+
+            await agent
+                .post(`/api/content/test_article/${id}/revisions/2/publish`)
+                .expect(201);
+
+            const list = await agent
+                .get(`/api/content/test_article/${id}/revisions`)
+                .expect(200);
+            expect(list.body.total).toBe(2);
+            expect(list.body.items[0]).toMatchObject({
+                number: 2,
+                isLatest: true,
+                status: 'published'
+            });
         });
 
         it('404s publishing an unknown version', async () => {

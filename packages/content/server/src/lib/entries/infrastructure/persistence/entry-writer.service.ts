@@ -406,7 +406,19 @@ export class EntryWriterService {
         values: Record<string, unknown>,
         workspaceId: string,
         relations?: Record<string, RelationDelta>,
-        actorId?: string | null
+        actorId?: string | null,
+        options?: {
+            /**
+             * Whether this write appends a version of its own (default `true`).
+             * Set `false` by the publish-a-specific-version path, which re-applies
+             * an existing version's snapshot to the live row: that version is
+             * marked published in place, so minting a copy of it would add a
+             * duplicate entry to the timeline for every publish. Locale siblings
+             * the extension rewrites still get their versions — their content
+             * really did change.
+             */
+            appendRevision?: boolean;
+        }
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
@@ -434,11 +446,16 @@ export class EntryWriterService {
                     // Editing a publishable entry produces a draft working copy —
                     // a published entry moves back to draft (its live version
                     // stays published in history until the next publish).
+                    //
+                    // `published_at` is deliberately **kept**: it records that
+                    // this entry has a live published version, which an edit
+                    // does not retract (only `unpublish` does, and `markDraft`
+                    // clears it there). `draft` + a `published_at` is what the
+                    // admin reads as **Modified** — unsaved-to-live changes on
+                    // top of published content — versus a never-published
+                    // `draft`.
                     ...(type.publishable
-                        ? {
-                              status: ENTRY_STATUS.Draft,
-                              publishedAt: null
-                          }
+                        ? { status: ENTRY_STATUS.Draft }
                         : {}),
                     updatedAt: new Date()
                 } as never)
@@ -474,14 +491,17 @@ export class EntryWriterService {
                 workspaceId
             );
             // Snapshot the updated document as a new draft revision, inside this
-            // same transaction.
-            await this.appendRevision(
-                tx,
-                type,
-                updated as Row,
-                workspaceId,
-                actorId ?? null
-            );
+            // same transaction — unless the caller is re-applying a version that
+            // already exists in the timeline (publish-a-version).
+            if (options?.appendRevision ?? true) {
+                await this.appendRevision(
+                    tx,
+                    type,
+                    updated as Row,
+                    workspaceId,
+                    actorId ?? null
+                );
+            }
             // …and one for every sibling the extension rewrote.
             await this.appendRevisionsFor(
                 tx,
@@ -525,19 +545,28 @@ export class EntryWriterService {
     }
 
     /**
-     * Transition the entry's **revision history** to reflect a publish: its
-     * latest revision becomes the live (`published`) version and any prior
-     * published one is `superseded`. Runs on the publish transaction's executor
-     * (the active unit of work) so the row's status and its history commit as
-     * one. Delegates to the revision store — every revision is minted a draft, so
+     * Transition the entry's **revision history** to reflect a publish: one
+     * revision becomes the live (`published`) version and any prior published
+     * one is `superseded`. Runs on the publish transaction's executor (the
+     * active unit of work) so the row's status and its history commit as one.
+     * Delegates to the revision store — every revision is minted a draft, so
      * this is what makes a published entry read as "Live" in the timeline.
+     *
+     * `revisionNumber` targets a **specific** version (publishing an earlier one
+     * in place); omitted, it targets the latest — the row that was just saved.
      */
     async markRevisionPublished(
         exec: Database | DbTransaction,
         entryId: string,
-        workspaceId: string
+        workspaceId: string,
+        revisionNumber?: number
     ): Promise<void> {
-        await this.revisionStore.markPublished(exec, entryId, workspaceId);
+        await this.revisionStore.markPublished(
+            exec,
+            entryId,
+            workspaceId,
+            revisionNumber
+        );
     }
 
     /**

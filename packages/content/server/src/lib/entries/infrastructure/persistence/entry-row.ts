@@ -13,8 +13,8 @@ type Row = Record<string, unknown>;
 
 /**
  * Map a raw DB row to the admin {@link EntryRecord}: envelope fields plus a
- * `values` bag keyed by field name. `status` is emitted only for publishable
- * types. Relations that own no column — many-relations (their links live in join
+ * `values` bag keyed by field name. `status`/`publishedAt` are emitted only for
+ * publishable types. Relations that own no column — many-relations (their links live in join
  * tables) and inverse/back-references (they reuse the owning side's storage) —
  * aren't selected here; an owning single relation passes through as its FK uuid.
  */
@@ -36,6 +36,11 @@ export function toRecord(type: AnyContentType, row: Row): EntryRecord {
     };
     if (type.publishable) {
         record.status = row['status'] as EntryRecord['status'];
+        // Carried alongside `status` because the two together name the publish
+        // state: a `draft` that has a `published_at` still has live content
+        // behind it (the admin's "Modified"), unlike one that never published.
+        const publishedAt = row['publishedAt'] as Date | null | undefined;
+        record.publishedAt = publishedAt ? publishedAt.toISOString() : null;
     }
     if (type.i18n) {
         record.locale = row['locale'] as string;

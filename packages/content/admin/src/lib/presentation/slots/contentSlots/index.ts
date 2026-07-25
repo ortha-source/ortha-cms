@@ -173,6 +173,35 @@ export const ENTRY_HEADER_SLOT = createSlot<EntryHeaderItem>(
     'content.entry.header'
 );
 
+/** One always-mounted overlay contribution for the content library. */
+export type ContentOverlayItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /**
+     * Rendered once at the library's page level, taking no props. Mount only
+     * viewport-level chrome here (a portalled cover) — this renders on **every**
+     * content route, so anything view-specific belongs in a narrower slot.
+     */
+    Component: ComponentType;
+};
+
+/**
+ * Viewport-level overlays for the content library, rendered by
+ * `ContentLibraryPage` **outside** its routes — so a contribution stays mounted
+ * across every navigation *within* the library, including the window where an
+ * entry editor has unmounted itself for its loading state.
+ *
+ * That window is the whole reason this slot exists. The i18n plugin's
+ * locale-switch cover used to be rendered by the editor's sidebar widget, which
+ * is inside the very tree that unmounts while the destination record loads: the
+ * cover vanished mid-transition, exposing the editor's spinner, then came back
+ * when the editor re-rendered — two loaders blinking in sequence. A cover has to
+ * outlive the thing it is covering.
+ */
+export const CONTENT_OVERLAY_SLOT = createSlot<ContentOverlayItem>(
+    'content.overlay'
+);
+
 /** One filter-fields contribution for the records query-builder drawer. */
 export type RecordsFilterFieldsItem = {
     /** Stable id. */

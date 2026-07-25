@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_368 test cases across 33 spec files._
+_372 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -257,6 +257,7 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | --- |
 | publishes then unpublishes a draft |
 | 400s publishing a non-publishable type |
+| keeps publishedAt through an edit and clears it on unpublish |
 
 ### delete / restore / purge (paranoid)
 
@@ -355,6 +356,7 @@ _<sub>apps/server-e2e/src/server/content/entry-revisions.spec.ts</sub>_
 | promotes the revision through a bulk publish too |
 | keeps the published version live when a newer draft is saved |
 | publishes a specific earlier version, making it live |
+| publishes the newest version in place |
 | 404s publishing an unknown version |
 
 <!-- source: apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts -->
@@ -536,6 +538,8 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | does not sync a relation to a localizable target across locales |
 | syncs shared fields when a sibling is created into the group |
 | 422s and rolls back when the sync would invalidate a published sibling |
+| moves a rewritten published sibling back to draft, keeping publishedAt |
+| leaves a draft sibling — and its publishedAt — alone |
 
 ### locale aggregate filters
 

@@ -176,11 +176,18 @@ always live, so its required fields are `NOT NULL`. `EntryWriterService` mirrors
 this: create/update on a publishable type always produce a **draft** working copy
 and are **not** eagerly validated (a draft may be incomplete); publish
 re-validates the stored row. A non-publishable type validates every write.
-**Editing a published entry moves it back to draft** (`status → draft`,
-`published_at` cleared): the save is unpublished working changes, while the
-entry's previously-published _version_ stays live in history until the next
-publish (see Revisions). To make content live again you publish — the entry's
-latest, or any specific version.
+**Editing a published entry moves it back to draft** (`status → draft`): the save
+is unpublished working changes, while the entry's previously-published _version_
+stays live in history until the next publish (see Revisions). To make content
+live again you publish — the entry's latest, or any specific version.
+
+`published_at` is **kept** across that edit — it records that the entry _has_ a
+live version, which editing doesn't retract; only `unpublish` clears it
+(`markDraft`). So the pair carries three states, not two: `published` = live and
+current, `draft` + a `published_at` = live content with unpublished changes on
+top (the admin's **Modified** badge), `draft` + no `published_at` = never
+published. Note this makes `?filter=` on `publishedAt` mean "last went live at",
+not "is currently live" — filter on `status` for the latter.
 
 A **required link-managed relation** (an owning many-to-many, or the inverse of
 one) can't be checked by `EntryValidationService` — its links never travel in the
@@ -451,23 +458,31 @@ a browsable version history and can be restored. Layered per ADR-0003
   promotes its history too. The `publish` / `unpublish` use-cases (and their bulk
   variants) call `RevisionStore.markPublished` / `markUnpublished` **on the same
   unit-of-work transaction** as the entry-row status write, so the row and its
-  timeline commit together. `markPublished` promotes the entry's **latest**
-  revision (exactly the just-published live row — every save appends one) to
-  `published` and demotes any prior published one to `superseded`, keeping at most
-  one live version per entry; `markUnpublished` reverts the published revision to
+  timeline commit together. `markPublished` promotes one revision to `published`
+  and demotes any prior published one to `superseded`, keeping at most one live
+  version per entry — the entry-level publish targets the **latest** (exactly the
+  just-published live row, since every save appends one), while publish-a-version
+  passes the chosen `revisionNumber`; `markUnpublished` reverts the published revision to
   `draft`. Without this the timeline would always read `draft` even for a live
   entry (`RevisionSummary.status` / `isPublished` back the admin's Live/Draft/
   Superseded badge). Because a save moves the entry to draft **but leaves the
   published revision published**, an editor can accumulate draft versions while
   the previously-published one stays live — then publish any version.
-- **Publish a specific version** (`PublishRevisionUseCase`). Publishing the
-  version that is already the latest publishes it in place; publishing an
-  **earlier** version first `RestoreRevisionUseCase`-restores it (re-applying its
-  content as a fresh revision) then publishes that new latest — so history stays
-  append-only and the chosen version's content becomes live (prior live →
-  superseded). Composes the existing restore + entry-publish use-cases; publishing
-  re-validates through the publish gate (a `422` leaves the content restored as a
-  draft, a recoverable state).
+- **Publish a specific version** (`PublishRevisionUseCase`). Publishing marks
+  **that version itself** live — `markPublished` takes the target
+  `revisionNumber` and flips it in place, demoting the prior live one to
+  `superseded`. Publishing an **earlier** version first re-applies its content
+  onto the live row (`RestoreRevisionUseCase` with **`appendRevision: false`**)
+  so the live document matches what is published, but records **no** version for
+  it: publishing v2 leaves the timeline at its existing length with v2 marked
+  live, instead of minting a v6 copy of v2 on every publish. History is still
+  never rewritten or deleted — only version _statuses_ move, which is what
+  publishing is. One consequence to know: after publishing an earlier version the
+  **latest** version is no longer the live content (it is a newer draft that was
+  not published), so `isLatest` ≠ "equals the live row" in that window — the next
+  save appends a version equal to the live row again. Composes the existing
+  restore + entry-publish use-cases; publishing re-validates through the publish
+  gate (a `422` leaves the content re-applied as a draft, a recoverable state).
 - **HTTP** (workspace-scoped, same guards as the entry routes):
   `GET :typeName/:id/revisions` (timeline, newest first), `.../revisions/:number`
   (one snapshot), `POST .../revisions/:number/restore` (`content:update`). The

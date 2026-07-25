@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1784929048022,
-      "tag": "0002_media_fields",
+      "when": 1784927369657,
+      "tag": "0002_content_entry_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784990797227,
+      "tag": "0003_media_fields",
       "breakpoints": true
     }
   ]

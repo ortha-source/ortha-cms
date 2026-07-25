@@ -653,6 +653,52 @@ describe('Content entry writes (/api/content/:type)', () => {
                 )
                 .expect(400);
         });
+
+        // `publishedAt` is the third bit the two-value `status` can't carry: it
+        // separates a never-published draft from a published record with
+        // unpublished edits (the admin's "Modified"). An edit must not clear it;
+        // only an explicit unpublish may.
+        it('keeps publishedAt through an edit and clears it on unpublish', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+
+            const draft = await agent
+                .get(`/api/content/test_article/${id}`)
+                .expect(200);
+            expect(draft.body.publishedAt).toBeNull();
+
+            const published = await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            expect(published.body.publishedAt).toEqual(expect.any(String));
+
+            // Editing moves the row back to draft, but its published version is
+            // still live in history — so the stamp stays.
+            const edited = await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Edited title' } })
+                .expect(200);
+            expect(edited.body.status).toBe('draft');
+            expect(edited.body.publishedAt).toEqual(expect.any(String));
+
+            // The list projection carries it too (the records table reads it).
+            const list = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+            const row = list.body.items.find(
+                (item: { id: string }) => item.id === id
+            );
+            expect(row).toMatchObject({
+                status: 'draft',
+                publishedAt: expect.any(String)
+            });
+
+            const reverted = await agent
+                .post(`/api/content/test_article/${id}/unpublish`)
+                .expect(201);
+            expect(reverted.body.status).toBe('draft');
+            expect(reverted.body.publishedAt).toBeNull();
+        });
     });
 
     describe('delete / restore / purge (paranoid)', () => {

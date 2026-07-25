@@ -1,6 +1,6 @@
 {
-  "id": "8c7a0987-a8a7-41df-901e-41cb93d04af8",
-  "prevId": "f0f54eda-fcef-4609-aa51-0d1a61c5ef93",
+  "id": "338c7ba4-05f9-4a43-9f50-ae801ca80951",
+  "prevId": "8c7a0987-a8a7-41df-901e-41cb93d04af8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -228,6 +228,24 @@
         },
         "json": {
           "name": "json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image": {
+          "name": "image",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hero_image": {
+          "name": "hero_image",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachments": {
+          "name": "attachments",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false

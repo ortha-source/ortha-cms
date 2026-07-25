@@ -2,18 +2,25 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type ApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { EntryRecord } from '../../domain/types/contentType';
-import {
-    contentEntriesPrefix,
-    contentEntryKey,
-    entryMediaPrefix,
-    entryRelationsPrefix,
-    entryRevisionsPrefix,
-    relationFieldLinksPrefix
-} from '../../infrastructure/contentKeys';
+import { contentEntryKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 import type { SaveEntryInput } from '../../infrastructure/contentGateway';
+import { refreshEntryCaches } from '../refreshEntryCaches';
 
 export type { SaveEntryInput } from '../../infrastructure/contentGateway';
+
+/** What {@link useSaveEntry} is called with: the request plus cache-flow control. */
+export type SaveEntryVariables = SaveEntryInput & {
+    /**
+     * Skip this save's cache refresh because a **publish** is chained right
+     * after it ({@link usePublishEntryFlow}) and will run one pass covering both
+     * writes. Without it a Publish click refetches the record and its version
+     * timeline twice — once mid-flight against the just-saved draft, then again
+     * against the published row. The read-one cache is still primed from the
+     * save response, so nothing on screen goes stale in between.
+     */
+    deferRefresh?: boolean;
+};
 
 /**
  * Save mutation for one content type, over the content gateway. Create
@@ -28,48 +35,28 @@ export type { SaveEntryInput } from '../../infrastructure/contentGateway';
 export function useSaveEntry(typeName: string) {
     const queryClient = useQueryClient();
     const workspace = useCurrentWorkspace();
-    return useMutation<EntryRecord, ApiError, SaveEntryInput>({
+    return useMutation<EntryRecord, ApiError, SaveEntryVariables>({
         mutationFn: (input) => httpContentGateway.saveEntry(typeName, input),
-        onSuccess: async (saved) => {
-            // The records list + this entry's read-one can refresh in the
-            // background; nothing on screen depends on them mid-save.
-            queryClient.invalidateQueries({
-                queryKey: contentEntriesPrefix(workspace.id, typeName)
+        onSuccess: async (saved, variables) => {
+            // The write response **is** the canonical record — the same shape
+            // `GET /content/:type/:id` returns, straight off the row it just
+            // wrote. Seeding the read-one cache with it (rather than
+            // invalidating and re-reading) is what keeps a save from costing a
+            // redundant round-trip for a record we were just handed.
+            queryClient.setQueryData(
+                contentEntryKey(workspace.id, typeName, saved.id),
+                saved
+            );
+            // A chained publish owns the refresh for both writes.
+            if (variables.deferRefresh) return;
+            // **Awaited**: the editor clears its staged relation overlay when
+            // this mutation resolves, so returning before the fresh links landed
+            // would render the stale pre-save set (kept via `keepPreviousData`)
+            // and flicker the just-linked rows out. Awaiting also keeps the
+            // editor's saving overlay up until the screen is current (#7).
+            await refreshEntryCaches(queryClient, workspace.id, typeName, {
+                primedEntryId: saved.id
             });
-            // Refresh this entry's read-one cache so the editor reflects the
-            // server's canonical copy after an update.
-            queryClient.invalidateQueries({
-                queryKey: contentEntryKey(workspace.id, typeName, saved.id)
-            });
-            // Every save appends a revision — refresh the timeline so the new
-            // version appears in the right-rail widget + History tab immediately.
-            queryClient.invalidateQueries({
-                queryKey: entryRevisionsPrefix(workspace.id, typeName)
-            });
-            // Media fields may have changed — refresh the Media tab's resolved
-            // refs so it reflects the saved set (names / missing state).
-            queryClient.invalidateQueries({
-                queryKey: entryMediaPrefix(workspace.id, typeName)
-            });
-            // Relation links may have changed (staged deltas persist with the
-            // save), so drop the relations aggregate **and** the per-field
-            // infinite-scroll caches — a re-open re-reads the canonical set.
-            //
-            // **Await** their refetch before the mutation resolves. The editor
-            // clears its staged overlay on the same resolution; if we returned
-            // before the fresh links landed, it would render the stale pre-save
-            // set (kept via `keepPreviousData`) and the just-linked rows would
-            // visibly flicker out until the background refetch caught up. By
-            // awaiting, the overlay is only dropped once the server set already
-            // contains those links, so they stay visible continuously (#7).
-            await Promise.all([
-                queryClient.invalidateQueries({
-                    queryKey: entryRelationsPrefix(workspace.id, typeName)
-                }),
-                queryClient.invalidateQueries({
-                    queryKey: relationFieldLinksPrefix(workspace.id, typeName)
-                })
-            ]);
         }
     });
 }

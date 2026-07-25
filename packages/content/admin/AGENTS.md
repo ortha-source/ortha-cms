@@ -227,7 +227,8 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   live **Publish Gate** (`PublishGateItem[]`, computed by `EntryEditor` from the
   strict kernel-backed validation — each required/invalid field with its pass/fail,
   header `blocking`/`ready`; publishable types only) and a static **Details**
-  block (status, created/updated, id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
+  block (status, created/updated, id). While a save/publish is running, the view
+  covers itself with the **`EntryBusyOverlay`** (see *Save/publish flow* below). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
   control per field type — `date`/`datetime` use a shadcn `Calendar` popover
   (`EntryFieldInput/DateField`, with a time input for datetime), and
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
@@ -333,6 +334,61 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
+## Publish state — four labels over two stored values
+
+The server stores only `draft`/`published`, because a save moves a publishable
+entry back to `draft` while its published *version* stays live in history. That
+conflates two situations a writer must tell apart, so the UI reads a **third**
+signal — `EntryRecord.publishedAt`, which is stamped on publish, cleared only by
+unpublish, and deliberately survives an edit:
+
+| stored                       | shown                | meaning                            |
+| ---------------------------- | -------------------- | ---------------------------------- |
+| (create form)                | **Not saved yet**    | nothing stored                     |
+| `draft`, no `publishedAt`    | **Draft**            | never published                    |
+| `draft`, has `publishedAt`   | **Modified**         | live content + unpublished changes |
+| `published`                  | **Published**        | live and current                   |
+
+`domain/entryStatusView` is the pure classifier; **`presentation/components/
+EntryStatusBadge`** is its one rendering, used by *both* the records table's
+Status column and the editor's Details card so a record can't read two ways in
+the two places it's looked at. Modified is a `warning` badge, not `success` —
+what's live is not what's on screen. The table cell used to print the raw wire
+value (`draft`/`published`, lowercase, untranslated); it is now localized, which
+a third state with no column value spelling it made unavoidable.
+
+## Save/publish flow — one refresh pass, one cover
+
+- **`application/refreshEntryCaches`** is the single cache-refresh pass for any
+  entry write (list, revisions, relations, per-field links, and — unless
+  `skipEntry` — the read-one). Having one definition is what lets the
+  save→publish **chain** run it *once at the end* (`useSaveEntry` takes
+  `deferRefresh`, set by `usePublishEntryFlow` from the same `canPublish` gate,
+  now decided **before** the save) instead of each mutation refetching on the way
+  past — one Publish click used to re-read the record and its whole timeline
+  twice. If the chained publish 422s, the flow runs the deferred pass itself so a
+  landed save isn't left with stale caches.
+- **Write responses seed the cache.** Every entry write returns the canonical
+  record, so each mutation `setQueryData`s the read-one instead of invalidating
+  it, and `useContentEntry` carries a `staleTime` so the create→`/:type/:id`
+  navigation stops discarding the record it was just handed. Only the **primed**
+  record is spared (`primedEntryId`) — every *other* cached record of the type is
+  still invalidated, because one save can rewrite rows it didn't name: the i18n
+  shared-field sync writes a non-localized field to every locale sibling, and
+  sparing the whole prefix left a switch to that sibling showing the pre-save
+  copy until a reload. Cache-seeded opens
+  pass `initialDataUpdatedAt` (the age of the *list* read), so a stale row still
+  refetches. Invalidation ignores `staleTime`, so nothing this app writes goes
+  unnoticed.
+- **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
+  spinner + "Saving…"/"Publishing…", mirroring i18n's locale-switch flourish. Two
+  differences from that one: **no delay** (nothing changes until the server
+  answers, so there's nothing to hide behind a cover — only lag to add), and **no
+  fixed timer** (it's held by `ContentEntryView` around the whole `flow.submit`,
+  refetches included, so it never lifts onto pre-save values). It's held in view
+  state rather than derived from `isPending` because the chain's two mutations
+  are briefly both idle between steps, which would blink the cover mid-flow.
+
 ## Revisions (version history)
 
 Every save is versioned (server: `content_entry_revisions`). The editor surfaces
@@ -348,10 +404,13 @@ this in two mount points that share one cached query and one action core:
   `useSaveEntry` (each save appends a version; on a publishable type a save is a
   **draft** — editing a published entry moves it back to draft while its published
   version stays live in history) and `useEntryStatusActions` (publish/unpublish).
-- **Publishing a version.** Server-side, publishing a version makes it the live
-  one (the newest publishes in place; an earlier version is restored then
-  published, prior live → superseded), so the editor can build up drafts and then
-  publish the current one **or switch back to any earlier version and publish it**.
+- **Publishing a version.** Server-side, publishing a version marks **that
+  version** live in place (prior live → superseded); an earlier version's content
+  is re-applied to the record first, but **no new version is recorded** — the
+  timeline doesn't grow by one on every publish. So the editor can build up drafts
+  and then publish the current one **or switch back to any earlier version and
+  publish it**. After the latter, the "Live" badge and the "Current" (newest)
+  marker sit on different rows — that is the point, not a glitch.
   A `RevisionRow` shows a **Publish** action on any version that isn't already live
   (publishable type + `content:publish`), and the preview dialog carries a
   **Publish this version** button; both route through a `ConfirmDialog` + toast in
@@ -391,10 +450,10 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes seven named slots (`presentation/slots/contentSlots`, via
+The library exposes eight named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills six; `@ortha-cms/media-admin` fills the seventh
+`@ortha-cms/i18n-admin` fills seven; `@ortha-cms/media-admin` fills the eighth
 (`ENTRY_TAB_SLOT`, the Media tab). **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -424,6 +483,16 @@ fetching internally.
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.
+- **`CONTENT_OVERLAY_SLOT`** — viewport-level chrome, rendered once by
+  `ContentLibraryPage` (via `ContentOverlays`) **outside** its `<Routes>`, so a
+  contribution stays mounted across every navigation within the library —
+  including the window where the entry editor has replaced itself with a loading
+  state. That window is why the slot exists: the i18n plugin's locale-switch
+  cover used to be rendered by the editor's sidebar widget, i.e. inside the very
+  tree that unmounts while the destination record loads, so it vanished
+  mid-transition and came back after — two loaders blinking in sequence. A cover
+  has to outlive the thing it covers. Takes no props; anything view-specific
+  belongs in a narrower slot.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode
   one-entry read (`listParamKeys`), URL values copied into the create body
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
