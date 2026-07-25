@@ -15,6 +15,13 @@
       "when": 1784662320879,
       "tag": "0001_test_page",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784927369657,
+      "tag": "0002_content_entry_revisions",
+      "breakpoints": true
     }
   ]
 }
