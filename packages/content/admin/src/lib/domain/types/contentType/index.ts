@@ -164,6 +164,13 @@ export type EntryRecord = {
     id: string;
     /** Publication status — present only on `publishable` types. */
     status?: EntryStatus;
+    /**
+     * ISO timestamp of when this record last went live, or `null` if it never
+     * has (or was unpublished) — present only on `publishable` types. Survives
+     * an edit, so `status: 'draft'` **with** a `publishedAt` is the *modified*
+     * state (live content plus unpublished changes) — see `entryStatusView`.
+     */
+    publishedAt?: string | null;
     /** Locale slug of this row — present only on `i18n` types. */
     locale?: string;
     /** Shared translation-group id — present only on `i18n` types. */

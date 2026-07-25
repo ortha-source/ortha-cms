@@ -13,18 +13,26 @@ import { RestoreRevisionUseCase } from './restore-revision.use-case';
  * editor can switch back to an earlier version and publish it (not only the
  * newest draft).
  *
- * History stays **append-only**. Publishing the version that is already the
- * latest just publishes it in place (identical to the entry-level publish).
- * Publishing an **earlier** version first {@link RestoreRevisionUseCase restores}
- * it — re-applying its content onto the live row as a fresh revision — then
- * publishes that new latest. Either way the outcome is: the chosen version's
- * content becomes live, its revision is marked `published`, and the
- * previously-published one is `superseded` (via {@link PublishEntryUseCase}).
+ * Publishing marks the **chosen version itself** live: it is flipped to
+ * `published` in place and the previously-published one to `superseded` (via
+ * {@link PublishEntryUseCase}). Publishing an **earlier** version first
+ * re-applies its content onto the live row (through
+ * {@link RestoreRevisionUseCase}, with `appendRevision: false`) so the live
+ * document matches what is published — but records **no new version** for it.
+ * Publishing v2 therefore leaves the timeline at its existing length with v2
+ * marked live, rather than minting a v6 copy of v2 on every publish.
+ *
+ * History is still never rewritten or deleted — only version *statuses* move,
+ * which is what publish means. One consequence to know: after publishing an
+ * earlier version the **latest** version is no longer the live content (it is a
+ * newer draft that was not published). The timeline distinguishes the two —
+ * "Live" marks the published version, "Current" the newest one — and the next
+ * save appends a version equal to the live row again.
  *
  * Publishing re-validates through the publish gate, so an incomplete old version
- * surfaces the same `422 { issues }` a normal publish would (the restore has
- * already run in that case, leaving the content live as a draft — a deliberate,
- * recoverable state, not a rewrite of history).
+ * surfaces the same `422 { issues }` a normal publish would (the content has
+ * already been re-applied in that case, leaving it live as a draft — a
+ * deliberate, recoverable state, not a rewrite of history).
  */
 @Injectable()
 export class PublishRevisionUseCase {
@@ -48,15 +56,26 @@ export class PublishRevisionUseCase {
             );
         }
         // Only re-apply an *earlier* version; the latest is already the live row.
+        // `appendRevision: false` — this version already exists in the timeline
+        // and is about to be marked live, so a copy of it would be noise.
         if (!detail.isLatest) {
             await this.restoreRevision.execute(
                 type,
                 id,
                 number,
                 workspaceId,
-                actorId
+                actorId,
+                { appendRevision: false }
             );
         }
-        return this.publishEntry.execute(type, id, workspaceId);
+        // Mark *this* version live (not merely "the latest"), now that the live
+        // row carries its content.
+        return this.publishEntry.execute(
+            type,
+            id,
+            workspaceId,
+            undefined,
+            number
+        );
     }
 }

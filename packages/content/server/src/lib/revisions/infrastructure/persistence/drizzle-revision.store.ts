@@ -79,20 +79,24 @@ export class DrizzleRevisionStore implements RevisionStore {
     async markPublished(
         exec: RevisionExecutor,
         entryId: string,
-        workspaceId: string
+        workspaceId: string,
+        revisionNumber?: number
     ): Promise<void> {
         const scope = and(
             eq(revisions.entryId, entryId),
             eq(revisions.workspaceId, workspaceId)
         );
-        const [row] = await exec
-            .select({ max: max(revisions.revisionNumber) })
-            .from(revisions)
-            .where(scope);
-        const latest = row?.max == null ? 0 : Number(row.max);
-        if (latest === 0) return;
+        let target = revisionNumber;
+        if (target == null) {
+            const [row] = await exec
+                .select({ max: max(revisions.revisionNumber) })
+                .from(revisions)
+                .where(scope);
+            target = row?.max == null ? 0 : Number(row.max);
+        }
+        if (target === 0) return;
         // Demote a previously-published version (there's at most one, and it
-        // isn't the latest we're about to promote) so the timeline keeps a
+        // isn't the one we're about to promote) so the timeline keeps a
         // single live row. Its `published_at` is left as the historical record
         // of when it was live.
         await exec
@@ -102,19 +106,20 @@ export class DrizzleRevisionStore implements RevisionStore {
                 and(
                     scope,
                     eq(revisions.status, REVISION_STATUS.Published),
-                    ne(revisions.revisionNumber, latest)
+                    ne(revisions.revisionNumber, target)
                 )
             );
-        // Promote the latest version — its snapshot is exactly the live row that
-        // was just published. Re-stamps on an idempotent re-publish, mirroring
-        // the entry row's `markPublished`.
+        // Promote the target version — its snapshot is exactly the live row that
+        // was just published (the latest after a save, or the earlier version
+        // whose content the publish just re-applied). Re-stamps on an idempotent
+        // re-publish, mirroring the entry row's `markPublished`.
         await exec
             .update(revisions)
             .set({
                 status: REVISION_STATUS.Published,
                 publishedAt: new Date()
             })
-            .where(and(scope, eq(revisions.revisionNumber, latest)));
+            .where(and(scope, eq(revisions.revisionNumber, target)));
     }
 
     async markUnpublished(

@@ -30,7 +30,16 @@ export class RestoreRevisionUseCase {
         id: string,
         number: number,
         workspaceId: string,
-        actorId: string | null
+        actorId: string | null,
+        options?: {
+            /**
+             * Whether this restore records a new version (default `true` — the
+             * append-only Restore action). {@link PublishRevisionUseCase} passes
+             * `false`: it re-applies the snapshot only so the chosen version's
+             * content is live, then marks *that* version published in place.
+             */
+            appendRevision?: boolean;
+        }
     ): Promise<EntryRecord> {
         const detail = await this.store.get(id, workspaceId, number);
         if (!detail) {
@@ -58,7 +67,8 @@ export class RestoreRevisionUseCase {
             values,
             workspaceId,
             undefined,
-            actorId
+            actorId,
+            options
         );
     }
 }

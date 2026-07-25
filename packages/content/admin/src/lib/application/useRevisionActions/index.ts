@@ -2,14 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type ApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { EntryRecord } from '../../domain/types/contentType';
-import {
-    contentEntriesPrefix,
-    contentEntryKey,
-    entryRelationsPrefix,
-    entryRevisionsPrefix,
-    relationFieldLinksPrefix
-} from '../../infrastructure/contentKeys';
+import { contentEntryKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
+import { refreshEntryCaches } from '../refreshEntryCaches';
 
 /**
  * Revision actions for one entry, over the content gateway — **restore** and
@@ -28,24 +23,16 @@ export function useRevisionActions(typeName: string, id: string | undefined) {
     const queryClient = useQueryClient();
     const workspace = useCurrentWorkspace();
 
-    const invalidate = async (savedId: string) => {
-        queryClient.invalidateQueries({
-            queryKey: contentEntriesPrefix(workspace.id, typeName)
+    // Both endpoints return the resulting record, so seed the read-one cache with
+    // it and let the shared pass refresh everything else.
+    const invalidate = async (saved: EntryRecord) => {
+        queryClient.setQueryData(
+            contentEntryKey(workspace.id, typeName, saved.id),
+            saved
+        );
+        await refreshEntryCaches(queryClient, workspace.id, typeName, {
+            skipEntry: true
         });
-        queryClient.invalidateQueries({
-            queryKey: contentEntryKey(workspace.id, typeName, savedId)
-        });
-        queryClient.invalidateQueries({
-            queryKey: entryRevisionsPrefix(workspace.id, typeName)
-        });
-        await Promise.all([
-            queryClient.invalidateQueries({
-                queryKey: entryRelationsPrefix(workspace.id, typeName)
-            }),
-            queryClient.invalidateQueries({
-                queryKey: relationFieldLinksPrefix(workspace.id, typeName)
-            })
-        ]);
     };
 
     const restore = useMutation<EntryRecord, ApiError, number>({
@@ -57,7 +44,7 @@ export function useRevisionActions(typeName: string, id: string | undefined) {
             }
             return httpContentGateway.restoreRevision(typeName, id, number);
         },
-        onSuccess: (saved) => invalidate(saved.id)
+        onSuccess: invalidate
     });
 
     const publish = useMutation<EntryRecord, ApiError, number>({
@@ -69,7 +56,7 @@ export function useRevisionActions(typeName: string, id: string | undefined) {
             }
             return httpContentGateway.publishRevision(typeName, id, number);
         },
-        onSuccess: (saved) => invalidate(saved.id)
+        onSuccess: invalidate
     });
 
     return {

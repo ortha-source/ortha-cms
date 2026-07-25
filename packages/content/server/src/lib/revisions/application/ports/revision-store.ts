@@ -39,18 +39,23 @@ export interface RevisionStore {
     ): Promise<RevisionSummary>;
 
     /**
-     * Promote the entry's **latest** revision to `published` (stamping
-     * `published_at`) and demote any previously-published revision to
-     * `superseded`, on `exec`. This is the publish transition the
-     * snapshot-on-save defers — every revision is born a `draft`, so without it
-     * the timeline never shows a version as live. The latest revision is exactly
-     * the just-published live row (every save appends one). Idempotent, and a
-     * no-op for an entry with no revisions.
+     * Promote one revision to `published` (stamping `published_at`) and demote
+     * any previously-published revision to `superseded`, on `exec`. This is the
+     * publish transition the snapshot-on-save defers — every revision is born a
+     * `draft`, so without it the timeline never shows a version as live.
+     * Idempotent, and a no-op for an entry with no revisions.
+     *
+     * `revisionNumber` names the version to promote; omitted, it targets the
+     * **latest**, which is exactly the just-published live row (every save
+     * appends one). It is passed only when publishing a *specific* earlier
+     * version, whose content the caller has already re-applied to the live row —
+     * that version becomes live in place instead of being copied to a new one.
      */
     markPublished(
         exec: RevisionExecutor,
         entryId: string,
-        workspaceId: string
+        workspaceId: string,
+        revisionNumber?: number
     ): Promise<void>;
 
     /**

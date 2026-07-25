@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import {
-    Badge,
     Checkbox,
     Table,
     TableBody,
@@ -16,9 +15,9 @@ import type { EntryRecord } from '../../../../domain/types/contentType';
 import type { EntryColumn } from '../../../../domain/entryColumns';
 import {
     COLUMN_KIND,
-    CONTENT_FIELD_TYPE,
-    ENTRY_STATUS
+    CONTENT_FIELD_TYPE
 } from '../../../../domain/constants';
+import { EntryStatusBadge } from '../../EntryStatusBadge';
 import { renderCell } from './renderCell';
 import { RelationCell } from './RelationCell';
 import { CollectionRecordsRowActions } from './CollectionRecordsRowActions';
@@ -126,17 +125,7 @@ function Cell({
     const intl = useIntl();
     switch (column.kind) {
         case COLUMN_KIND.Status:
-            return (
-                <Badge
-                    variant={
-                        record.status === ENTRY_STATUS.Published
-                            ? 'success'
-                            : 'secondary'
-                    }
-                >
-                    {record.status}
-                </Badge>
-            );
+            return <EntryStatusBadge entry={record} />;
         case COLUMN_KIND.Updated:
             return (
                 <span className="text-sm text-muted-foreground">
