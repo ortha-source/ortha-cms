@@ -436,6 +436,13 @@ this in two mount points that share one cached query and one action core:
   count — the detail read resolves each field's snapshot ids to titled refs
   server-side (`RevisionDetail.relationRefs`/`relationTotals`, capped with a "+N
   more"; a soft-deleted / cross-workspace target reads as "Unavailable record").
+  **Media fields render the actual assets** the same way (`MediaRefList` —
+  thumbnail + file name, in stored order), from `RevisionDetail.mediaRefs`, which
+  the server had always resolved and the admin used to drop: a media row printed
+  the bare asset uuid, which tells a reader nothing about what a version held. A
+  side with no resolved list falls back to `formatRevisionValue` — the server
+  omits an empty field (so the row reads "Empty") and omits media wholly when no
+  media plugin is bound, where the stored value beats claiming "No assets".
   A **Restore this version** button hands the number back to the list's restore
   flow (its own `ConfirmDialog`) — never a modal stacked on a modal. The Preview +
   Restore actions are hidden on the newest row (nothing to compare/apply against),

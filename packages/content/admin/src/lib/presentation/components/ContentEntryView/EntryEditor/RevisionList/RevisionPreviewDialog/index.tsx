@@ -21,7 +21,11 @@ import {
     diffRevision
 } from '../../../../../../domain/revisionDiff';
 import { useRevisionDetail } from '../../../../../../application/useRevisionDetail';
-import { RevisionDiffRow, type DiffRelationRefs } from './RevisionDiffRow';
+import {
+    RevisionDiffRow,
+    type DiffMediaRefs,
+    type DiffRelationRefs
+} from './RevisionDiffRow';
 
 const messages = defineMessages({
     title: {
@@ -165,6 +169,14 @@ export function RevisionPreviewDialog({
         revisionTotal: selected.data?.relationTotals?.[fieldName]
     });
 
+    // The same, for media fields: each side's assets as the server resolved them
+    // for that snapshot, so the row shows thumbnails and file names rather than
+    // the asset uuids the values bag stores.
+    const mediaFor = (fieldName: string): DiffMediaRefs => ({
+        current: latest.data?.mediaRefs?.[fieldName],
+        revision: selected.data?.mediaRefs?.[fieldName]
+    });
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">
@@ -231,6 +243,7 @@ export function RevisionPreviewDialog({
                                     diff={entry}
                                     revisionNumber={revision.number}
                                     refs={refsFor(entry.field.name)}
+                                    media={mediaFor(entry.field.name)}
                                 />
                             ))}
                             {showUnchanged &&
@@ -240,6 +253,7 @@ export function RevisionPreviewDialog({
                                         diff={entry}
                                         revisionNumber={revision.number}
                                         refs={refsFor(entry.field.name)}
+                                        media={mediaFor(entry.field.name)}
                                     />
                                 ))}
                         </div>

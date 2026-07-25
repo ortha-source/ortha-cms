@@ -178,6 +178,15 @@ export type RevisionDetail = RevisionSummary & {
     relationRefs?: Record<string, RelationRef[]>;
     /** True link count per relation field (may exceed the capped `relationRefs`). */
     relationTotals?: Record<string, number>;
+    /**
+     * Each media field's snapshot asset ids resolved to display refs (name /
+     * thumbnail url / kind), keyed by field name — so the preview shows the
+     * assets a version held, not raw uuids. A single field resolves the id in
+     * `snapshot.values`; a `multiple` field its ordered list (with a `missing`
+     * placeholder for an id that no longer resolves, so positions hold). Mirrors
+     * the server's `RevisionDetail.mediaRefs`.
+     */
+    mediaRefs?: Record<string, MediaRef[]>;
 };
 
 /** The paginated revision-timeline envelope. */
