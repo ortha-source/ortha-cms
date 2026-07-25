@@ -30,7 +30,7 @@ extension slots: **no routes, no layout, no nav item**. Register it in
 `createAdmin({ plugins })` **after** `ContentPlugin()` (it fills slots the
 content plugin owns).
 
-## What it contributes (the six slots)
+## What it contributes (the seven slots)
 
 - **`RECORDS_TOOLBAR_SLOT` → `LocaleSwitcher`** — a searchable dropdown
   (design-system `Popover` + `Command`) of the configured locales, shown **only
@@ -44,7 +44,10 @@ content plugin owns).
   picker) showing one status-tinted badge per live locale of the row's
   translation group, each linking to that locale's editor. Data is **batched per
   page** by the item's `useRowsData` (`useLocaleSummaries` →
-  `POST …/locale-summary`) — never a request per row.
+  `POST …/locale-summary`) — never a request per row. The tint comes from
+  content-admin's shared `entryStatusView` / `ENTRY_STATUS_VIEW_VARIANT` (see
+  *Publish state* below), and the state rides the link's accessible name — the
+  badge shows the locale slug, so colour alone would convey nothing.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT` → `LocaleWidget`** — the entry editor's **locale
   switcher**, styled like the Details block, live in **both** modes. It lists
   every configured locale: the current one is marked, a locale whose translation
@@ -82,6 +85,9 @@ content plugin owns).
 - **`RECORDS_FILTER_FIELDS_SLOT` → `useLocaleFilterFields`** — **Has locale /
   Missing locale / Locale count** filter fields, resolved server-side by the
   i18n plugin's virtual-field subqueries. Empty for a non-i18n type.
+- **`CONTENT_OVERLAY_SLOT` → `LocaleSwitchOverlay`** — the switch cover, mounted
+  at the library's page level so it outlives the editor's loading state (see
+  *Switch flourish* below).
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: the single-mode one-entry read
   carries the active locale (`listParamKeys = ['locale']`), the **create body**
   carries the locale **and** the target group (`createBodyKeys = ['locale',
@@ -95,25 +101,58 @@ content plugin owns).
 
 ## Switch flourish (`LocaleSwitchOverlay` + `utils/localeTransition`)
 
-Both the toolbar switcher **and** the editor's locale widget trigger a brief,
+Both the toolbar switcher **and** the editor's locale widget trigger a
 non-interactive full-screen overlay — a `Languages` glyph, a spinner, and
-"Switching to <locale>…" — that appears **immediately** over the current view,
-holds, then fades out. A trigger calls `beginLocaleSwitch(name, apply)` (a tiny
-module-level store), passing the **actual swap** (`updateParams` on the toolbar,
-`navigate` in the widget) as `apply` rather than running it inline. The store
-**defers `apply`** (~`COVER_MS`) so the layout change happens **behind** the
-now-covering overlay — otherwise React commits the new content and the overlay in
-the same frame and you'd see the new locale flash through the blur. The backdrop
-is near-opaque (`bg-background/95 backdrop-blur-sm`) so nothing shows through
-during the swap. The `LocaleSwitchOverlay` host — rendered by whichever of the
-two is mounted on the current route — reads the name via `useSyncExternalStore`
-and plays it. The store is module-level **on purpose**: a widget switch
-**navigates** to a sibling's editor, unmounting the trigger, so the transition
-has to outlive it and be re-read by the destination's host. A rapid re-switch
-cancels the pending `apply`/clear (last pick wins). Purely visual
+"Switching to <locale>…" — that appears **immediately** over the current view
+and holds until the destination has loaded. A trigger calls
+`beginLocaleSwitch(name, apply)` (a tiny module-level store), passing the
+**actual swap** (`updateParams` on the toolbar, `navigate` in the widget) as
+`apply` rather than running it inline. The store **defers `apply`** (~`COVER_MS`)
+so the layout change happens **behind** the now-covering overlay — otherwise
+React commits the new content and the overlay in the same frame and you'd see
+the new locale flash through the blur. The backdrop is near-opaque
+(`bg-background/95 backdrop-blur-sm`).
+
+**The host is page-level, not in-view.** It is contributed to content-admin's
+`CONTENT_OVERLAY_SLOT`, which `ContentLibraryPage` renders outside its routes.
+It used to be rendered by the locale widget and the toolbar switcher — i.e.
+*inside* the editor, which unmounts itself for its loading state while the
+destination record loads. So the cover vanished mid-transition, exposing the
+editor's full-page spinner, and reappeared when the editor re-rendered: two
+loaders blinking in sequence. A cover has to outlive the thing it covers.
+
+**The hold is data-driven, not timed.** `LocaleSwitchOverlay` watches
+`useIsFetching()` and calls `settleLocaleSwitch()` once nothing is in flight;
+the store enforces a `MIN_HOLD_MS` floor (a "no requests" reading taken before
+the destination's queries are even issued means nothing) and a `MAX_HOLD_MS`
+ceiling so a stalled request can never leave the page covered. The cover
+therefore lifts onto a rendered form rather than onto a spinner. A rapid
+re-switch cancels the pending `apply` (last pick wins). Purely visual
 (`pointer-events-none`, `motion-reduce:animate-none`), portalled to
-`document.body`, and **timed** (a fixed hold, not tied to the query) — the
-records view / editor still own the real pending state.
+`document.body`.
+
+## Publish state — reuse content-admin's classifier, don't re-derive it
+
+Both surfaces that show a locale's publish state (the widget's `LocaleRow`, the
+records column's `LocaleBadge`) render **content-admin's** `entryStatusView` /
+`ENTRY_STATUS_VIEW_VARIANT` / `EntryStatusBadge`, not their own
+`published ? … : …`. The server stores two values but there are **four** states
+(see content-admin's *Publish state* section) — a locale that has live content
+plus unpublished edits reads **Modified**, which a two-way branch silently
+flattened to "Draft". That is the common case here: editing a **shared**
+(non-`localized`) field rewrites every sibling locale, so a one-locale edit moves
+the whole group into that state.
+
+Both wire views therefore carry **`publishedAt`** alongside `status`
+(`EntryLocaleItem.entry`, `LocaleSummaryItem`) — it is the bit that separates the
+two draft states, and without it the widget cannot tell them apart no matter how
+it renders.
+
+`LocaleWidget` re-reads its panel off the slot context's **`entry.updatedAt`**,
+not `entry.status`: content's write mutations don't know about this plugin's
+queries, and a write that leaves the status where it was still changes the panel
+(a second save keeps it `draft`; a shared-field edit rewrites the *siblings*'
+rows without touching this one's status at all).
 
 ## Data layer
 

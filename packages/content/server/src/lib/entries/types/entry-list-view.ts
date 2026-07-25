@@ -14,6 +14,16 @@ export interface EntryRecord {
     id: string;
     /** Publication status — only on `publishable` types. */
     status?: EntryStatus;
+    /**
+     * ISO timestamp of when this entry last went live, or `null` if it never has
+     * (or was explicitly unpublished) — only on `publishable` types.
+     *
+     * It **survives an edit**: saving a published entry moves it back to `draft`
+     * while its published *version* stays live in history, so `status: 'draft'`
+     * with a `publishedAt` means "published content plus unpublished changes"
+     * (the admin's **Modified** state), which a plain draft has never had.
+     */
+    publishedAt?: string | null;
     /** Locale slug of this row — only on `i18n` types. */
     locale?: string;
     /** Shared translation-group id — only on `i18n` types. */

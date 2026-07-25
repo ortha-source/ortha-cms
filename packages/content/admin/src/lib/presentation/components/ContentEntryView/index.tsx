@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -50,6 +50,11 @@ import {
     mergeEntryValues
 } from '../../../domain/emptyEntryValues';
 import { EntryEditor } from './EntryEditor';
+import {
+    EntryBusyOverlay,
+    ENTRY_BUSY,
+    type EntryBusy
+} from './EntryBusyOverlay';
 
 const messages = defineMessages({
     newTitle: { id: 'content.entry.newTitle', defaultMessage: 'New {label}' },
@@ -250,21 +255,30 @@ export function ContentEntryView({
     );
 
     // Seed edit mode from the records-list cache (the common "opened from the
-    // table" path) so the form is instant, then refetch the canonical copy.
+    // table" path) so the form is instant. The seed carries the **age of the list
+    // read** it came from, not "now": the entry query has a `staleTime`, so
+    // claiming a ten-minute-old list row was just fetched would let the editor
+    // trust it for another window instead of re-reading.
     const cachedEntry = useMemo(() => {
         if (mode !== ENTRY_MODE.Edit || !entryId) return undefined;
         const cached = queryClient.getQueriesData<ContentEntriesResult>({
             queryKey: contentEntriesPrefix(workspace.id, type.name)
         });
-        for (const [, data] of cached) {
+        for (const [key, data] of cached) {
             const hit = data?.items.find((item) => item.id === entryId);
-            if (hit) return hit;
+            if (hit) {
+                return {
+                    entry: hit,
+                    updatedAt: queryClient.getQueryState(key)?.dataUpdatedAt
+                };
+            }
         }
         return undefined;
     }, [mode, entryId, queryClient, type.name, workspace.id]);
 
     const entryQuery = useContentEntry(type.name, entryId, {
-        initialData: cachedEntry,
+        initialData: cachedEntry?.entry,
+        initialDataUpdatedAt: cachedEntry?.updatedAt,
         enabled: mode === ENTRY_MODE.Edit
     });
 
@@ -285,6 +299,13 @@ export function ContentEntryView({
     // The save/publish use case: owns the save→publish/unpublish sequencing, the
     // create→update id continuity, and the shared-kernel publish gate.
     const flow = usePublishEntryFlow(type.name, editorKey);
+
+    // Which write is covering the screen. Held by this view rather than derived
+    // from the mutations' `isPending`, because one submit is a **chain** (save →
+    // publish) whose two mutations are briefly both idle between steps — deriving
+    // it would blink the cover mid-flow. Set before the first request and cleared
+    // only once everything, refetches included, has settled.
+    const [busy, setBusy] = useState<EntryBusy | null>(null);
 
     const editEntry = entryQuery.data;
 
@@ -405,16 +426,29 @@ export function ContentEntryView({
                 (pair): pair is [string, string] => pair[1] !== undefined
             )
         );
-        const result = await flow.submit({
-            schema,
-            publishable,
-            values,
-            publish: options.publish,
-            relations: options.relations,
-            entry: resolved.entry,
-            bodyExtra,
-            ignoreFields: options.ignoreFields
-        });
+        // Cover the editor for the whole write — including the refetches the
+        // mutation awaits — so the form never sits half-updated under the user's
+        // cursor. `finally`, so a 422 uncovers the form it has to annotate.
+        setBusy(
+            options.publish && publishable
+                ? ENTRY_BUSY.Publishing
+                : ENTRY_BUSY.Saving
+        );
+        let result: Awaited<ReturnType<typeof flow.submit>>;
+        try {
+            result = await flow.submit({
+                schema,
+                publishable,
+                values,
+                publish: options.publish,
+                relations: options.relations,
+                entry: resolved.entry,
+                bodyExtra,
+                ignoreFields: options.ignoreFields
+            });
+        } finally {
+            setBusy(null);
+        }
         toast.success(
             intl.formatMessage(
                 result.published
@@ -457,12 +491,17 @@ export function ContentEntryView({
     const onActionError = () =>
         toast.error(intl.formatMessage(messages.actionError));
 
+    // No explicit `refetch()` after this: the mutation primes the read-one cache
+    // with the record it returned and refreshes the rest. The old refetch raced
+    // its own invalidation — `cancelRefetch` aborted the in-flight read and
+    // issued a second one, so an unpublish cost two reads of the same record.
     const onUnpublish =
         editId && publishable
             ? () => {
+                  setBusy(ENTRY_BUSY.Saving);
                   flow.unpublish(editId)
-                      .then(() => entryQuery.refetch())
-                      .catch(onActionError);
+                      .catch(onActionError)
+                      .finally(() => setBusy(null));
               }
             : undefined;
 
@@ -503,6 +542,7 @@ export function ContentEntryView({
     // forcing a permanent pane scroll.
     return (
         <div className="flex flex-auto flex-col">
+            <EntryBusyOverlay busy={busy} />
             <EntrySlotContextProvider value={slotContext}>
                 <EntryEditor
                     schema={schema}

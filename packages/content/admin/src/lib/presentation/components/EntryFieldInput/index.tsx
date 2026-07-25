@@ -135,11 +135,17 @@ export function EntryFieldInput({
     // The label plus its required marker. The mark is presentational (the
     // controls below carry `aria-required`, which is what gets announced), so
     // it composes into the label node rather than the accessible name.
+    //
+    // Wrapped in **one** element on purpose: `FieldLabel` is a flex row with a
+    // `gap-2`, and a bare fragment makes the text and the asterisk two separate
+    // flex items — so the gap lands between them and the `*` floats 8px off the
+    // word it belongs to. As one item they sit together, spaced only by the
+    // mark's own hair-space margin.
     const labelNode = field.required ? (
-        <>
+        <span>
             {label}
             <RequiredMark />
-        </>
+        </span>
     ) : (
         label
     );

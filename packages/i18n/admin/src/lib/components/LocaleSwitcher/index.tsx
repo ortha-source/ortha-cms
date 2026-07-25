@@ -18,7 +18,6 @@ import {
 } from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
 import { beginLocaleSwitch } from '../../utils/localeTransition';
-import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 
 const messages = defineMessages({
     label: {
@@ -243,7 +242,6 @@ export function LocaleSwitcher({
                     </div>
                 </PopoverContent>
             </Popover>
-            <LocaleSwitchOverlay />
         </>
     );
 }

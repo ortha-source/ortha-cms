@@ -237,9 +237,45 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         );
         // Sync every sibling — including soft-deleted ones, so a later restore
         // comes back consistent with the group.
+        //
+        // A **published** sibling moves back to `draft`, exactly as the entry
+        // the user edited does. Its shared values just changed, so its published
+        // *version* is no longer what the row holds — leaving it `published`
+        // made the same shared edit live in the untouched locales while still
+        // pending in the edited one, and left its freshly-appended draft version
+        // describing a row that claimed to be live. `published_at` is kept, so
+        // the sibling reads as **Modified** (live content, unpublished changes)
+        // rather than as a never-published draft. Publishing any locale is still
+        // per-row; this only stops one from silently going live on another's save.
+        const wasPublished = new Set(
+            type.publishable
+                ? (
+                      (await tx
+                          .select({ id: sql<string>`${table['id']}` })
+                          .from(type.table)
+                          .where(
+                              and(
+                                  eq(
+                                      table['localeGroupId'],
+                                      row['localeGroupId'] as string
+                                  ),
+                                  ne(table['id'], row['id'] as string),
+                                  eq(table['workspaceId'], workspaceId),
+                                  eq(table['status'], ENTRY_STATUS.Published),
+                                  differs
+                              )
+                          )
+                          .for('update')) as { id: string }[]
+                  ).map((r) => r.id)
+                : []
+        );
         const siblings = (await tx
             .update(type.table)
-            .set({ ...sharedColumns, updatedAt: new Date() } as never)
+            .set({
+                ...sharedColumns,
+                ...(type.publishable ? { status: ENTRY_STATUS.Draft } : {}),
+                updatedAt: new Date()
+            } as never)
             .where(
                 and(
                     eq(table['localeGroupId'], row['localeGroupId'] as string),
@@ -250,11 +286,14 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             )
             .returning()) as Record<string, unknown>[];
 
-        // A published sibling must stay valid after the shared values land —
-        // re-validate its merged row and abort the whole save otherwise. Drafts
-        // may be temporarily invalid (same rule as saving a draft directly).
+        // A sibling that **was** published must stay valid after the shared
+        // values land — re-validate its merged row and abort the whole save
+        // otherwise. Drafts may be temporarily invalid (same rule as saving a
+        // draft directly). The check reads the pre-write status captured above,
+        // not the row's current one: the UPDATE has just demoted these to
+        // `draft`, so testing the returned status would silently skip every one.
         for (const sibling of siblings) {
-            if (sibling['status'] !== ENTRY_STATUS.Published) continue;
+            if (!wasPublished.has(sibling['id'] as string)) continue;
             const result = this.validation.validate(
                 type,
                 toRecord(type, sibling).values

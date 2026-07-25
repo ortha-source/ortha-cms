@@ -1,11 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { useIsFetching } from '@tanstack/react-query';
 import { Languages } from 'lucide-react';
 import { Spinner, cn } from '@ortha-cms/design-system';
 import {
     getLocaleSwitch,
-    subscribeLocaleSwitch
+    settleLocaleSwitch,
+    subscribeLocaleSwitch,
+    LOCALE_SWITCH_MIN_HOLD_MS
 } from '../../utils/localeTransition';
 
 const messages = defineMessages({
@@ -19,16 +22,23 @@ const messages = defineMessages({
 const FADE_MS = 300;
 
 /**
- * The **locale-switch flourish** host: a brief, non-interactive full-screen
- * overlay — a `Languages` glyph, a spinner, and "Switching to <locale>…". It
- * reads the {@link beginLocaleSwitch} store, so it shows the moment a switch
- * begins, holds, then fades out. Rendered by both the toolbar switcher and the
- * editor's locale widget; whichever is mounted on the current route plays it,
- * which is what lets the flourish carry across a widget switch's navigation.
+ * The **locale-switch flourish** host: a non-interactive full-screen overlay —
+ * a `Languages` glyph, a spinner, and "Switching to <locale>…". It reads the
+ * {@link beginLocaleSwitch} store, so it shows the moment a switch begins, and
+ * **holds until the destination has loaded** (see the `useIsFetching` effect
+ * below), then fades out. Rendered by both the toolbar switcher and the editor's
+ * locale widget; whichever is mounted on the current route plays it, which is
+ * what lets the flourish carry across a widget switch's navigation.
  *
- * Purely visual (`pointer-events-none`, `motion-reduce:animate-none`) — the real
- * data load stays the records view's / editor's job. Portalled to `document.body`
- * so it covers the whole viewport, clear of the toolbar.
+ * Holding for the load is what makes this one cover rather than two: the editor
+ * drops to its own full-page spinner while a not-yet-cached sibling loads, so a
+ * fixed-duration overlay uncovered that spinner mid-fetch and the user saw two
+ * loaders blink in sequence. The cover now spans the whole transition, and the
+ * editor's spinner stays behind it.
+ *
+ * Non-interactive (`pointer-events-none`, `motion-reduce:animate-none`) and
+ * portalled to `document.body` so it covers the whole viewport, clear of the
+ * toolbar.
  */
 export function LocaleSwitchOverlay() {
     const intl = useIntl();
@@ -37,6 +47,23 @@ export function LocaleSwitchOverlay() {
         getLocaleSwitch,
         () => null
     );
+    // Requests in flight anywhere. Right after a locale switch those are the
+    // destination's — its record, relations, revisions and locale panel — so
+    // "none left" is the readiest signal available without this presentational
+    // helper reaching into another plugin's query keys.
+    const fetching = useIsFetching();
+
+    // End the flourish once the destination is quiet. `settleLocaleSwitch`
+    // enforces the minimum hold itself and reports whether it ended, so when it
+    // declines (still inside the floor) we re-check just after the floor passes
+    // — otherwise a switch that loads faster than the floor would never settle,
+    // since `fetching` has already stopped changing.
+    useEffect(() => {
+        if (!active || fetching > 0) return;
+        if (settleLocaleSwitch()) return;
+        const retry = setTimeout(settleLocaleSwitch, LOCALE_SWITCH_MIN_HOLD_MS);
+        return () => clearTimeout(retry);
+    }, [active, fetching]);
     // Mirror the store into local state so the exit can animate: when a switch
     // begins, show it immediately; when it clears, flip to `leaving` and drop
     // the overlay once the fade-out finishes.

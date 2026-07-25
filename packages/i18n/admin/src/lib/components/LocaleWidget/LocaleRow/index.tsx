@@ -1,15 +1,10 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, Plus } from 'lucide-react';
-import { Badge, cn } from '@ortha-cms/design-system';
-import type { EntryStatus } from '@ortha-cms/content-admin';
+import { cn } from '@ortha-cms/design-system';
+import { EntryStatusBadge, type EntryStatus } from '@ortha-cms/content-admin';
 
 const messages = defineMessages({
     add: { id: 'i18n.widget.add', defaultMessage: 'Add' },
-    statusPublished: {
-        id: 'i18n.widget.status.published',
-        defaultMessage: 'Published'
-    },
-    statusDraft: { id: 'i18n.widget.status.draft', defaultMessage: 'Draft' },
     switchLabel: {
         id: 'i18n.widget.switchLabel',
         defaultMessage: 'Switch to the {name} version'
@@ -32,6 +27,7 @@ export function LocaleRow({
     isCurrent,
     exists,
     status,
+    publishedAt,
     onSelect
 }: {
     /** Display name of the locale. */
@@ -42,6 +38,12 @@ export function LocaleRow({
     exists: boolean;
     /** The sibling row's publish status (publishable types only). */
     status?: EntryStatus;
+    /**
+     * When that row last went live, or `null` — publishable types only. Read
+     * with `status` by the shared classifier, so a locale carrying unpublished
+     * edits over live content reads **Modified** instead of a bare "Draft".
+     */
+    publishedAt?: string | null;
     /** Switch to / create this locale. Absent = not actionable. */
     onSelect?: () => void;
 }) {
@@ -65,17 +67,7 @@ export function LocaleRow({
             </span>
             <span className="flex shrink-0 items-center gap-2">
                 {status ? (
-                    <Badge
-                        variant={
-                            status === 'published' ? 'success' : 'secondary'
-                        }
-                    >
-                        {intl.formatMessage(
-                            status === 'published'
-                                ? messages.statusPublished
-                                : messages.statusDraft
-                        )}
-                    </Badge>
+                    <EntryStatusBadge entry={{ status, publishedAt }} />
                 ) : null}
                 {missing && onSelect ? (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">

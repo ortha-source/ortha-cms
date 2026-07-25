@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { canPublish, type EntryFieldSpecMap } from '@ortha-cms/content-domain';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type {
     ContentTypeDetail,
     EntryRecord,
@@ -9,6 +11,7 @@ import { ENTRY_STATUS } from '../../domain/constants';
 import { toFieldSpec } from '../../infrastructure/entryFieldSpec';
 import { useSaveEntry } from '../useSaveEntry';
 import { useEntryStatusActions } from '../useEntryStatusActions';
+import { refreshEntryCaches } from '../refreshEntryCaches';
 
 /** One run of the save/publish use case. */
 export type SubmitEntryInput = {
@@ -99,6 +102,8 @@ export function usePublishEntryFlow(
 ): PublishEntryFlow {
     const save = useSaveEntry(typeName);
     const status = useEntryStatusActions(typeName);
+    const queryClient = useQueryClient();
+    const workspace = useCurrentWorkspace();
     // In create mode, remember the id returned by a successful create so a retry
     // after a failed chained publish updates that draft instead of re-creating.
     const [createdId, setCreatedId] = useState<string | undefined>(undefined);
@@ -113,20 +118,13 @@ export function usePublishEntryFlow(
     const submit = useCallback(
         async (input: SubmitEntryInput): Promise<SubmitEntryResult> => {
             const existingId = input.entry?.id ?? createdId;
-            const saved = await save.mutateAsync({
-                id: existingId,
-                values: input.values,
-                relations: input.relations,
-                ...(input.bodyExtra && Object.keys(input.bodyExtra).length
-                    ? { extra: input.bodyExtra }
-                    : {})
-            });
-            // Record the new id before chaining publish: if publish then fails, the
-            // draft persists and the user's retry must target it (not POST again).
-            if (!existingId) setCreatedId(saved.id);
 
             // The publish gate over the same value set the editor validated: build
             // the kernel field-spec map, skipping the caller's ignored fields.
+            // Decided **before** the save — it reads only the submitted values,
+            // and the save needs to know whether a publish will follow so the two
+            // writes share one cache-refresh pass instead of each running their
+            // own (which refetched the record and its timeline twice per click).
             const fields: EntryFieldSpecMap = {};
             for (const field of input.schema.fields) {
                 if (input.ignoreFields?.has(field.name)) continue;
@@ -136,6 +134,20 @@ export function usePublishEntryFlow(
                 input.publish &&
                 input.publishable &&
                 canPublish(fields, input.values);
+
+            const saved = await save.mutateAsync({
+                id: existingId,
+                values: input.values,
+                relations: input.relations,
+                deferRefresh: willPublish,
+                ...(input.bodyExtra && Object.keys(input.bodyExtra).length
+                    ? { extra: input.bodyExtra }
+                    : {})
+            });
+            // Record the new id before chaining publish: if publish then fails, the
+            // draft persists and the user's retry must target it (not POST again).
+            if (!existingId) setCreatedId(saved.id);
+
             // Saving a publishable entry as a draft moves it to draft **on the
             // server** (the save itself), while its previously-published *version*
             // stays live in history — so we must NOT issue a separate unpublish,
@@ -147,7 +159,21 @@ export function usePublishEntryFlow(
                 input.entry?.status === ENTRY_STATUS.Published;
 
             if (willPublish) {
-                await status.publish.mutateAsync(saved.id);
+                try {
+                    await status.publish.mutateAsync(saved.id);
+                } catch (error) {
+                    // The save landed even though the publish didn't (a 422 from
+                    // the server-side gate). Run the refresh the save deferred to
+                    // this publish, so the timeline and list reflect the stored
+                    // draft, then let the caller surface the field issues.
+                    await refreshEntryCaches(
+                        queryClient,
+                        workspace.id,
+                        typeName,
+                        { primedEntryId: saved.id }
+                    );
+                    throw error;
+                }
             }
 
             return {
@@ -157,7 +183,7 @@ export function usePublishEntryFlow(
                 unpublished: revertedToDraft
             };
         },
-        [save, status, createdId]
+        [save, status, createdId, queryClient, workspace.id, typeName]
     );
 
     const unpublish = useCallback(

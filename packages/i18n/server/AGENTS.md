@@ -87,9 +87,18 @@ The extension owns all locale _behavior_:
 - **`afterUpdate`** — runs inside **both the create and update** transactions
   (so a newly-created sibling lands consistent with its group, not just later
   edits). Syncs every **non-`localized`** column-backed field to the group's
-  sibling rows, then **re-validates any published sibling** via content-server's
-  `EntryValidationService` — a failure throws 422 and rolls the whole save back
-  (a draft edit can't silently invalidate a live translation). A no-op when the
+  sibling rows, **moves a rewritten published sibling back to `draft`** (keeping
+  `published_at`, exactly as a direct edit does — so it reads as *Modified*, not
+  as a never-published draft), then **re-validates any sibling that was
+  published** via content-server's `EntryValidationService` — a failure throws
+  422 and rolls the whole save back (a draft edit can't silently invalidate a
+  live translation). The demotion is what keeps a shared field's publish state
+  consistent across the group: leaving siblings `published` made the same edit
+  live in the untouched locales while still pending in the edited one, and left
+  each sibling's freshly-appended **draft** version describing a row that
+  claimed to be live. Because the guard's `published` test would then always
+  read the just-demoted status, the pre-write statuses are captured with a
+  `SELECT … FOR UPDATE` before the sync. A no-op when the
   group has no other members (a fresh create). Join-backed relation links are
   per-row in v1 (copied at translation creation, not synced), and a **single
   relation whose target is itself i18n** is excluded too (`isPerLocaleRelation`)
@@ -122,11 +131,11 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
 - `GET /api/i18n/locales` — the configured locales (session only; no
   per-workspace data).
 - `GET /api/i18n/content/:typeName/:id/locales` — one entry's **locale panel**:
-  one item per configured locale with the group's row (id, status, updatedAt)
-  or null (`content:read`).
+  one item per configured locale with the group's row (id, status,
+  **publishedAt**, updatedAt) or null (`content:read`).
 - `POST /api/i18n/content/:typeName/locale-summary` — the records table's
   **batched** per-page read: `{ groupIds }` (cap 100) → per-group live members
-  with status. A POST because a page of uuids outgrows a query string; it reads,
+  with status **+ publishedAt**. A POST because a page of uuids outgrows a query string; it reads,
   so no `OriginGuard` (`content:read`).
 
 **Creating a sibling translation:** `POST /api/content/:typeName` with

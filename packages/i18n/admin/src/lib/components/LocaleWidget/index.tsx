@@ -33,7 +33,6 @@ import { useLocales } from '../../api/useLocales';
 import { useEntryLocales } from '../../api/useEntryLocales';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
 import { beginLocaleSwitch } from '../../utils/localeTransition';
-import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 import { LocaleRow } from './LocaleRow';
 
 const messages = defineMessages({
@@ -68,7 +67,12 @@ const messages = defineMessages({
 });
 
 /** A group member resolved for one locale slug (its row id + publish status). */
-type Sibling = { id: string; status?: EntryStatus };
+type Sibling = {
+    id: string;
+    status?: EntryStatus;
+    /** When this locale last went live — read with `status` for the badge. */
+    publishedAt?: string | null;
+};
 
 /**
  * The entry editor's **locale switcher**, contributed into the sidebar widget
@@ -111,19 +115,23 @@ export function LocaleWidget({
         entry?.id,
         !!schema.i18n && !isCreate && !!entry
     );
-    // The panel's rows carry each locale's publish status, but they come from
-    // this plugin's own query — which the content plugin's publish/unpublish
-    // mutations know nothing about (they invalidate the content caches, not
-    // ours). So publishing left the current locale's chip reading "Draft" even
-    // though the record was live. The slot context's `entry` *is* refreshed by
-    // those mutations, so treat its status as the trigger: whenever it changes,
-    // re-read the panel.
-    const entryStatus = entry?.status;
+    // The panel's rows carry each locale's publish state, but they come from
+    // this plugin's own query — which the content plugin's write mutations know
+    // nothing about (they invalidate the content caches, not ours). So a save or
+    // publish left the rows showing whatever they said before it.
+    //
+    // The slot context's `entry` *is* refreshed by those mutations, so it is the
+    // trigger. Keyed on **`updatedAt`, not `status`**: a write that leaves the
+    // status where it was still changes the panel — saving twice in a row keeps
+    // it `draft` both times, and editing a *shared* field rewrites the sibling
+    // locales' rows without touching this one's status at all. `updatedAt` moves
+    // on every write, so the rows can't go stale behind one.
+    const entryUpdatedAt = entry?.updatedAt;
     const refetchLocales = entryLocales.refetch;
     useEffect(() => {
-        if (!entryStatus) return;
+        if (!entryUpdatedAt) return;
         void refetchLocales();
-    }, [entryStatus, refetchLocales]);
+    }, [entryUpdatedAt, refetchLocales]);
     const groupSummaries = useLocaleSummaries(
         schema.name,
         [urlGroupId],
@@ -177,13 +185,23 @@ export function LocaleWidget({
                       (member) => member.locale === slug
                   )
                 : undefined;
-            return item ? { id: item.entryId, status: item.status } : undefined;
+            return item
+                ? {
+                      id: item.entryId,
+                      status: item.status,
+                      publishedAt: item.publishedAt
+                  }
+                : undefined;
         }
         const item = entryLocales.data?.items?.find(
             (candidate) => candidate.locale === slug
         );
         return item?.entry
-            ? { id: item.entry.id, status: item.entry.status }
+            ? {
+                  id: item.entry.id,
+                  status: item.entry.status,
+                  publishedAt: item.entry.publishedAt
+              }
             : undefined;
     };
 
@@ -255,6 +273,7 @@ export function LocaleWidget({
                                     isCurrent={isCurrent}
                                     exists={!!sibling}
                                     status={sibling?.status}
+                                    publishedAt={sibling?.publishedAt}
                                     onSelect={
                                         actionable
                                             ? () =>
@@ -308,7 +327,6 @@ export function LocaleWidget({
                     </div>
                 </>
             )}
-            <LocaleSwitchOverlay />
         </>
     );
 }

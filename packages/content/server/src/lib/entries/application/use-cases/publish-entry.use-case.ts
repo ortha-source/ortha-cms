@@ -44,7 +44,14 @@ export class PublishEntryUseCase {
          * name who did this. Without it every content row in the activity log
          * read "System".
          */
-        actor?: { id: string; email: string | null }
+        actor?: { id: string; email: string | null },
+        /**
+         * The version to mark live, when publishing a **specific** earlier one
+         * whose content the caller already re-applied to the live row. Omitted
+         * (the entry-level publish), the latest version is promoted — it is the
+         * row that was just published.
+         */
+        revisionNumber?: number
     ): Promise<EntryRecord> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -102,9 +109,15 @@ export class PublishEntryUseCase {
                 workspaceId
             );
             if (!updated) throw this.notFound(type, id);
-            // Promote the entry's latest revision to the live version so the
-            // history timeline reflects the publish (revisions are born drafts).
-            await this.writer.markRevisionPublished(exec, id, workspaceId);
+            // Promote the published revision to the live version so the history
+            // timeline reflects the publish (revisions are born drafts) — the
+            // caller's chosen version, else the latest.
+            await this.writer.markRevisionPublished(
+                exec,
+                id,
+                workspaceId,
+                revisionNumber
+            );
             await this.outbox.append(
                 actor
                     ? attachActor(entry.pullEvents(), actor)
