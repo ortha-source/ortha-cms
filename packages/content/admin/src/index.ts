@@ -30,6 +30,18 @@ export type {
 } from './lib/domain/types/contentType';
 export { ENTRY_MODE, type EntryMode } from './lib/domain/constants';
 
+// The publish-state classification + its one rendering, exported so a plugin
+// contributing its own view of an entry (the i18n locale rows and the records
+// Locales column) shows the same four states with the same labels and tints —
+// rather than re-deriving Published/Draft and losing "Modified".
+export {
+    entryStatusView,
+    ENTRY_STATUS_VIEW,
+    ENTRY_STATUS_VIEW_VARIANT,
+    type EntryStatusView
+} from './lib/domain/entryStatusView';
+export { EntryStatusBadge } from './lib/presentation/components/EntryStatusBadge';
+
 // Query-key builders, exported so a slot contributor can invalidate the
 // library's caches after its own mutations (e.g. creating a translation).
 export {

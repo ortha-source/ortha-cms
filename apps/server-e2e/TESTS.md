@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_363 test cases across 32 spec files._
+_365 test cases across 32 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -523,6 +523,8 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | does not sync a relation to a localizable target across locales |
 | syncs shared fields when a sibling is created into the group |
 | 422s and rolls back when the sync would invalidate a published sibling |
+| moves a rewritten published sibling back to draft, keeping publishedAt |
+| leaves a draft sibling — and its publishedAt — alone |
 
 ### locale aggregate filters
 

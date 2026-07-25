@@ -3,6 +3,7 @@ import { Badge } from '@ortha-cms/design-system';
 import {
     entryStatusView,
     ENTRY_STATUS_VIEW,
+    ENTRY_STATUS_VIEW_VARIANT,
     type EntryStatusView
 } from '../../../domain/entryStatusView';
 import type { EntryRecord } from '../../../domain/types/contentType';
@@ -27,18 +28,6 @@ const LABEL: Record<EntryStatusView, (typeof messages)[keyof typeof messages]> =
         [ENTRY_STATUS_VIEW.Modified]: messages.modified,
         [ENTRY_STATUS_VIEW.Published]: messages.published
     };
-
-// Modified is `warning`, not `success`: what is live is *not* what's on screen,
-// so it must not read as a clean published record.
-const VARIANT: Record<
-    EntryStatusView,
-    'outline' | 'secondary' | 'warning' | 'success'
-> = {
-    [ENTRY_STATUS_VIEW.New]: 'outline',
-    [ENTRY_STATUS_VIEW.Draft]: 'secondary',
-    [ENTRY_STATUS_VIEW.Modified]: 'warning',
-    [ENTRY_STATUS_VIEW.Published]: 'success'
-};
 
 /**
  * One record's publish state as a badge — the single rendering of
@@ -66,7 +55,7 @@ export function EntryStatusBadge({
     const view = isCreate ? ENTRY_STATUS_VIEW.New : entryStatusView(entry);
     return (
         <Badge
-            variant={VARIANT[view]}
+            variant={ENTRY_STATUS_VIEW_VARIANT[view]}
             title={
                 view === ENTRY_STATUS_VIEW.Modified
                     ? intl.formatMessage(messages.modifiedHint)

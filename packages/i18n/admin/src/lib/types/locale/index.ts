@@ -30,6 +30,13 @@ export type EntryLocaleItem = {
         id: string;
         /** Publish state — publishable types only. */
         status?: EntryStatus;
+        /**
+         * When this locale last went live, or `null` if never — publishable
+         * types only. With `status` it names the four states the switcher
+         * renders (see content-admin's `entryStatusView`): a `draft` that has a
+         * `publishedAt` is *modified*, not a plain draft.
+         */
+        publishedAt?: string | null;
         /** ISO last-updated timestamp. */
         updatedAt: string;
     } | null;
@@ -48,6 +55,8 @@ export type LocaleSummaryItem = {
     entryId: string;
     /** Publish state — publishable types only. */
     status?: EntryStatus;
+    /** When this locale last went live, or `null` — publishable types only. */
+    publishedAt?: string | null;
 };
 
 /** The `POST /api/i18n/content/:type/locale-summary` envelope. */

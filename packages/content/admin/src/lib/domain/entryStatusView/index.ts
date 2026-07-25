@@ -21,6 +21,24 @@ export type EntryStatusView =
     (typeof ENTRY_STATUS_VIEW)[keyof typeof ENTRY_STATUS_VIEW];
 
 /**
+ * The design-system `Badge` variant per state, shared so every surface tints a
+ * record's publish state the same way — the editor's Details card, the records
+ * table's Status column, and the i18n plugin's locale rows/badges.
+ *
+ * Modified is `warning`, not `success`: what is live is *not* what's on screen,
+ * so it must not read as a clean published record.
+ */
+export const ENTRY_STATUS_VIEW_VARIANT: Record<
+    EntryStatusView,
+    'outline' | 'secondary' | 'warning' | 'success'
+> = {
+    [ENTRY_STATUS_VIEW.New]: 'outline',
+    [ENTRY_STATUS_VIEW.Draft]: 'secondary',
+    [ENTRY_STATUS_VIEW.Modified]: 'warning',
+    [ENTRY_STATUS_VIEW.Published]: 'success'
+};
+
+/**
  * Classify a record's publish state for display.
  *
  * The server has only two stored states — a save moves a publishable entry back

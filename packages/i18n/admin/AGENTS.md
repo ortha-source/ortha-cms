@@ -44,7 +44,10 @@ content plugin owns).
   picker) showing one status-tinted badge per live locale of the row's
   translation group, each linking to that locale's editor. Data is **batched per
   page** by the item's `useRowsData` (`useLocaleSummaries` →
-  `POST …/locale-summary`) — never a request per row.
+  `POST …/locale-summary`) — never a request per row. The tint comes from
+  content-admin's shared `entryStatusView` / `ENTRY_STATUS_VIEW_VARIANT` (see
+  *Publish state* below), and the state rides the link's accessible name — the
+  badge shows the locale slug, so colour alone would convey nothing.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT` → `LocaleWidget`** — the entry editor's **locale
   switcher**, styled like the Details block, live in **both** modes. It lists
   every configured locale: the current one is marked, a locale whose translation
@@ -114,6 +117,29 @@ cancels the pending `apply`/clear (last pick wins). Purely visual
 (`pointer-events-none`, `motion-reduce:animate-none`), portalled to
 `document.body`, and **timed** (a fixed hold, not tied to the query) — the
 records view / editor still own the real pending state.
+
+## Publish state — reuse content-admin's classifier, don't re-derive it
+
+Both surfaces that show a locale's publish state (the widget's `LocaleRow`, the
+records column's `LocaleBadge`) render **content-admin's** `entryStatusView` /
+`ENTRY_STATUS_VIEW_VARIANT` / `EntryStatusBadge`, not their own
+`published ? … : …`. The server stores two values but there are **four** states
+(see content-admin's *Publish state* section) — a locale that has live content
+plus unpublished edits reads **Modified**, which a two-way branch silently
+flattened to "Draft". That is the common case here: editing a **shared**
+(non-`localized`) field rewrites every sibling locale, so a one-locale edit moves
+the whole group into that state.
+
+Both wire views therefore carry **`publishedAt`** alongside `status`
+(`EntryLocaleItem.entry`, `LocaleSummaryItem`) — it is the bit that separates the
+two draft states, and without it the widget cannot tell them apart no matter how
+it renders.
+
+`LocaleWidget` re-reads its panel off the slot context's **`entry.updatedAt`**,
+not `entry.status`: content's write mutations don't know about this plugin's
+queries, and a write that leaves the status where it was still changes the panel
+(a second save keeps it `draft`; a shared-field edit rewrites the *siblings*'
+rows without touching this one's status at all).
 
 ## Data layer
 
