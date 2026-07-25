@@ -1,22 +1,48 @@
 import { useMemo, useState } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
-import { Check, Folder, Search } from 'lucide-react';
+import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
+import { FileSearch, Folder, Search } from 'lucide-react';
 import {
-    Badge,
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
     Button,
-    cn,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    Input
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+    Skeleton
 } from '@ortha-cms/design-system';
-import { useMediaLibrary } from '../../hooks/useMediaLibrary';
+import {
+    KIND_FILTER_ALL,
+    MEDIA_KIND,
+    MEDIA_SORT,
+    ROOT_FOLDER_ID,
+    type MediaKind,
+    type MediaSort
+} from '../../constants';
+import { useMediaLibrary, type KindFilter } from '../../hooks/useMediaLibrary';
 import type { MediaAsset } from '../../types/mediaAsset';
 import { acceptsAsset, type MediaAccept } from '../../utils/mediaAccept';
-import { MediaThumbnail } from '../MediaThumbnail';
+import { MediaPickerTile } from './MediaPickerTile';
 
 const messages = defineMessages({
     titleSingle: {
@@ -27,28 +53,111 @@ const messages = defineMessages({
         id: 'media.picker.titleMultiple',
         defaultMessage: 'Select assets'
     },
-    description: {
-        id: 'media.picker.description',
-        defaultMessage: 'Choose from the Media Library, or upload from the field.'
+    descriptionSingle: {
+        id: 'media.picker.descriptionSingle',
+        defaultMessage:
+            'Browse the Media Library and pick the asset for this field.'
     },
-    search: { id: 'media.picker.search', defaultMessage: 'Search assets…' },
+    descriptionMultiple: {
+        id: 'media.picker.descriptionMultiple',
+        defaultMessage:
+            'Browse the Media Library and pick every asset to attach — they are added in the order you select them.'
+    },
+    search: { id: 'media.picker.search', defaultMessage: 'Search assets' },
+    searchPlaceholder: {
+        id: 'media.picker.searchPlaceholder',
+        defaultMessage: 'Search name or tag…'
+    },
     root: { id: 'media.picker.root', defaultMessage: 'All media' },
-    empty: {
-        id: 'media.picker.empty',
-        defaultMessage: 'No matching assets in this folder.'
+    breadcrumb: {
+        id: 'media.picker.breadcrumb',
+        defaultMessage: 'Folder path'
     },
-    loading: { id: 'media.picker.loading', defaultMessage: 'Loading assets…' },
+    folders: { id: 'media.picker.folders', defaultMessage: 'Folders' },
+    kindLabel: {
+        id: 'media.picker.kindLabel',
+        defaultMessage: 'Filter by type'
+    },
+    kindAll: { id: 'media.picker.kindAll', defaultMessage: 'All types' },
+    kindImage: { id: 'media.picker.kindImage', defaultMessage: 'Images' },
+    kindVideo: { id: 'media.picker.kindVideo', defaultMessage: 'Videos' },
+    kindAudio: { id: 'media.picker.kindAudio', defaultMessage: 'Audio' },
+    kindDocument: {
+        id: 'media.picker.kindDocument',
+        defaultMessage: 'Documents'
+    },
+    kindArchive: { id: 'media.picker.kindArchive', defaultMessage: 'Archives' },
+    sortLabel: { id: 'media.picker.sortLabel', defaultMessage: 'Sort' },
+    sortNewest: {
+        id: 'media.picker.sortNewest',
+        defaultMessage: 'Newest first'
+    },
+    sortOldest: {
+        id: 'media.picker.sortOldest',
+        defaultMessage: 'Oldest first'
+    },
+    sortNameAsc: { id: 'media.picker.sortNameAsc', defaultMessage: 'Name A–Z' },
+    sortNameDesc: {
+        id: 'media.picker.sortNameDesc',
+        defaultMessage: 'Name Z–A'
+    },
+    emptyTitle: {
+        id: 'media.picker.emptyTitle',
+        defaultMessage: 'Nothing to pick here'
+    },
+    emptyBody: {
+        id: 'media.picker.emptyBody',
+        defaultMessage:
+            'This folder has no asset this field accepts. Try another folder, or upload a file from the field.'
+    },
+    filteredTitle: {
+        id: 'media.picker.filteredTitle',
+        defaultMessage: 'No matching assets'
+    },
+    filteredBody: {
+        id: 'media.picker.filteredBody',
+        defaultMessage: 'Try a different search term or clear the filters.'
+    },
+    clear: { id: 'media.picker.clear', defaultMessage: 'Clear filters' },
     cancel: { id: 'media.picker.cancel', defaultMessage: 'Cancel' },
-    confirm: { id: 'media.picker.confirm', defaultMessage: 'Add selected' },
-    selected: { id: 'media.picker.selected', defaultMessage: '{count} selected' }
+    confirmSingle: {
+        id: 'media.picker.confirmSingle',
+        defaultMessage: 'Select asset'
+    },
+    confirmMultiple: {
+        id: 'media.picker.confirmMultiple',
+        defaultMessage: 'Add selected'
+    },
+    selected: {
+        id: 'media.picker.selected',
+        defaultMessage:
+            '{count, plural, one {# asset selected} other {# assets selected}}'
+    },
+    nothingSelected: {
+        id: 'media.picker.nothingSelected',
+        defaultMessage: 'Nothing selected yet'
+    }
 });
+
+/** The filter label for each asset kind, so the select can list only allowed ones. */
+const KIND_LABEL: Record<MediaKind, MessageDescriptor> = {
+    [MEDIA_KIND.Image]: messages.kindImage,
+    [MEDIA_KIND.Video]: messages.kindVideo,
+    [MEDIA_KIND.Audio]: messages.kindAudio,
+    [MEDIA_KIND.Document]: messages.kindDocument,
+    [MEDIA_KIND.Archive]: messages.kindArchive
+};
+
+/** How many placeholder tiles stand in for the first, unknown-size page. */
+const SKELETON_TILES = 8;
 
 /**
  * A modal picker over the Media Library for a content record's media field.
- * Reuses {@link useMediaLibrary} for browsing (folders + search), narrows the
- * candidates to the field's `accept` restriction, and returns the chosen
- * asset(s). Single mode selects exactly one (confirming immediately on pick is
- * avoided so the user can preview); multiple accumulates a set. Fully
+ * Reuses {@link useMediaLibrary} for browsing — a breadcrumb + folder chips to
+ * walk the tree in **both** directions, plus search, a type filter, and a sort —
+ * and narrows the candidates to the field's `accept` restriction. Single mode
+ * selects exactly one (confirming on pick is avoided so the user can preview);
+ * multiple accumulates a set, marking what the field already holds. Fully
  * controlled — the caller owns the field value.
  */
 export function MediaPickerDialog({
@@ -56,17 +165,22 @@ export function MediaPickerDialog({
     onOpenChange,
     multiple,
     accept,
+    attachedIds,
     onConfirm
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     multiple: boolean;
     accept?: MediaAccept;
+    /** Ids already on the field — marked in the grid so a pick isn't a duplicate. */
+    attachedIds?: string[];
     onConfirm: (assets: MediaAsset[]) => void;
 }) {
     const intl = useIntl();
     const library = useMediaLibrary(open);
     const [picked, setPicked] = useState<Map<string, MediaAsset>>(new Map());
+
+    const attached = useMemo(() => new Set(attachedIds ?? []), [attachedIds]);
 
     // Candidates: the folder's search/kind-filtered assets, further restricted
     // to what the field accepts (the server enforces this too, on save).
@@ -74,6 +188,23 @@ export function MediaPickerDialog({
         () => library.visibleAssets.filter((a) => acceptsAsset(accept, a)),
         [library.visibleAssets, accept]
     );
+
+    // Only the kinds this field can hold are worth filtering by; a field pinned
+    // to one kind gets no select at all (it would have a single option).
+    const kindOptions = useMemo<MediaKind[]>(() => {
+        const all = Object.values(MEDIA_KIND);
+        if (accept?.mimeTypes?.length || !accept?.kinds?.length) return all;
+        const allowed = accept.kinds;
+        return all.filter((kind) => allowed.includes(kind));
+    }, [accept]);
+
+    const hasFilters =
+        !!library.search.trim() || library.kindFilter !== KIND_FILTER_ALL;
+
+    const clearFilters = () => {
+        library.setSearch('');
+        library.setKindFilter(KIND_FILTER_ALL);
+    };
 
     const toggle = (asset: MediaAsset) => {
         setPicked((current) => {
@@ -86,6 +217,9 @@ export function MediaPickerDialog({
 
     const close = () => {
         setPicked(new Map());
+        // A search left over from the last visit would silently hide the library
+        // the next time the dialog opens.
+        clearFilters();
         onOpenChange(false);
     };
 
@@ -94,9 +228,18 @@ export function MediaPickerDialog({
         close();
     };
 
+    const crumbs = [
+        { id: ROOT_FOLDER_ID, name: intl.formatMessage(messages.root) },
+        ...library.breadcrumbs.map((folder) => ({
+            id: folder.id,
+            name: folder.name
+        }))
+    ];
+    const lastCrumb = crumbs.length - 1;
+
     return (
         <Dialog open={open} onOpenChange={(next) => (next ? null : close())}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="flex max-h-[85vh] w-[min(56rem,92vw)] max-w-none flex-col gap-4 overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(
@@ -106,103 +249,221 @@ export function MediaPickerDialog({
                         )}
                     </DialogTitle>
                     <DialogDescription>
-                        {intl.formatMessage(messages.description)}
+                        {intl.formatMessage(
+                            multiple
+                                ? messages.descriptionMultiple
+                                : messages.descriptionSingle
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                        <Search
-                            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                            aria-hidden
-                        />
-                        <Input
+                <div className="flex flex-wrap items-center gap-2">
+                    <InputGroup className="w-full shadow-none sm:w-auto sm:min-w-[16rem] sm:flex-1">
+                        <InputGroupAddon>
+                            <Search />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                            type="search"
                             value={library.search}
-                            onChange={(e) => library.setSearch(e.target.value)}
-                            placeholder={intl.formatMessage(messages.search)}
-                            className="pl-8"
+                            onChange={(event) =>
+                                library.setSearch(event.target.value)
+                            }
                             aria-label={intl.formatMessage(messages.search)}
+                            placeholder={intl.formatMessage(
+                                messages.searchPlaceholder
+                            )}
                         />
-                    </div>
+                    </InputGroup>
+
+                    {kindOptions.length > 1 ? (
+                        <Select
+                            value={library.kindFilter}
+                            onValueChange={(value) =>
+                                library.setKindFilter(value as KindFilter)
+                            }
+                        >
+                            <SelectTrigger
+                                className="w-[9.5rem] shadow-none"
+                                aria-label={intl.formatMessage(
+                                    messages.kindLabel
+                                )}
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={KIND_FILTER_ALL}>
+                                    {intl.formatMessage(messages.kindAll)}
+                                </SelectItem>
+                                {kindOptions.map((kind) => (
+                                    <SelectItem key={kind} value={kind}>
+                                        {intl.formatMessage(KIND_LABEL[kind])}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : null}
+
+                    <Select
+                        value={library.sort}
+                        onValueChange={(value) =>
+                            library.setSort(value as MediaSort)
+                        }
+                    >
+                        <SelectTrigger
+                            className="w-[9.5rem] shadow-none"
+                            aria-label={intl.formatMessage(messages.sortLabel)}
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={MEDIA_SORT.Newest}>
+                                {intl.formatMessage(messages.sortNewest)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.Oldest}>
+                                {intl.formatMessage(messages.sortOldest)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.NameAsc}>
+                                {intl.formatMessage(messages.sortNameAsc)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.NameDesc}>
+                                {intl.formatMessage(messages.sortNameDesc)}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                {/* Folder navigation — click a child folder to descend. */}
-                {library.childFolders.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                        {library.childFolders.map((folder) => (
-                            <Button
-                                key={folder.id}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => library.navigateTo(folder.id)}
+                {/* Walk the tree both ways: crumbs go up, the chips below descend. */}
+                <Breadcrumb
+                    aria-label={intl.formatMessage(messages.breadcrumb)}
+                    className="min-h-8"
+                >
+                    <BreadcrumbList className="text-xs">
+                        {crumbs.map((crumb, index) => [
+                            index > 0 ? (
+                                <BreadcrumbSeparator key={`${crumb.id}-sep`} />
+                            ) : null,
+                            <BreadcrumbItem
+                                key={crumb.id}
+                                className="min-w-0 whitespace-nowrap"
                             >
-                                <Folder className="size-3.5" aria-hidden />
-                                {folder.name}
-                            </Button>
-                        ))}
-                    </div>
-                ) : null}
-
-                <div className="max-h-80 overflow-y-auto rounded-md border p-2">
-                    {library.isLoading ? (
-                        <p className="p-4 text-center text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.loading)}
-                        </p>
-                    ) : candidates.length === 0 ? (
-                        <p className="p-4 text-center text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.empty)}
-                        </p>
-                    ) : (
-                        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                            {candidates.map((asset) => {
-                                const isPicked = picked.has(asset.id);
-                                return (
-                                    <li key={asset.id}>
+                                {index === lastCrumb ? (
+                                    <BreadcrumbPage className="font-medium">
+                                        {crumb.name}
+                                    </BreadcrumbPage>
+                                ) : (
+                                    <BreadcrumbLink asChild>
                                         <button
                                             type="button"
-                                            aria-pressed={isPicked}
-                                            onClick={() => toggle(asset)}
-                                            className={cn(
-                                                'group relative block w-full overflow-hidden rounded-md border text-left transition',
-                                                isPicked
-                                                    ? 'border-primary ring-2 ring-primary'
-                                                    : 'border-border hover:border-primary/50'
-                                            )}
+                                            onClick={() =>
+                                                library.navigateTo(crumb.id)
+                                            }
                                         >
-                                            <MediaThumbnail
-                                                asset={asset}
-                                                className="aspect-square w-full"
-                                            />
-                                            {isPicked ? (
-                                                <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
-                                                    <Check
-                                                        className="size-3"
-                                                        aria-hidden
-                                                    />
-                                                </span>
-                                            ) : null}
-                                            <span className="block truncate px-1.5 py-1 text-xs">
-                                                {asset.name}
-                                            </span>
+                                            {crumb.name}
                                         </button>
+                                    </BreadcrumbLink>
+                                )}
+                            </BreadcrumbItem>
+                        ])}
+                    </BreadcrumbList>
+                </Breadcrumb>
+
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border bg-muted/20 p-3">
+                    {library.childFolders.length > 0 ? (
+                        <ul
+                            aria-label={intl.formatMessage(messages.folders)}
+                            className="mb-3 flex flex-wrap gap-1.5"
+                        >
+                            {library.childFolders.map((folder) => (
+                                <li key={folder.id}>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="bg-card shadow-none"
+                                        onClick={() =>
+                                            library.navigateTo(folder.id)
+                                        }
+                                    >
+                                        <Folder
+                                            className="size-3.5"
+                                            aria-hidden
+                                        />
+                                        {folder.name}
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
+
+                    {library.isLoading ? (
+                        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                            {Array.from(
+                                { length: SKELETON_TILES },
+                                (_, index) => (
+                                    <li key={index}>
+                                        <Skeleton className="aspect-[4/3] w-full rounded-lg" />
                                     </li>
-                                );
-                            })}
+                                )
+                            )}
+                        </ul>
+                    ) : candidates.length === 0 ? (
+                        <Empty className="py-10">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <FileSearch aria-hidden />
+                                </EmptyMedia>
+                                <EmptyTitle className="text-base">
+                                    {intl.formatMessage(
+                                        hasFilters
+                                            ? messages.filteredTitle
+                                            : messages.emptyTitle
+                                    )}
+                                </EmptyTitle>
+                                <EmptyDescription>
+                                    {intl.formatMessage(
+                                        hasFilters
+                                            ? messages.filteredBody
+                                            : messages.emptyBody
+                                    )}
+                                </EmptyDescription>
+                            </EmptyHeader>
+                            {hasFilters ? (
+                                <EmptyContent>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="shadow-none"
+                                        onClick={clearFilters}
+                                    >
+                                        {intl.formatMessage(messages.clear)}
+                                    </Button>
+                                </EmptyContent>
+                            ) : null}
+                        </Empty>
+                    ) : (
+                        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                            {candidates.map((asset) => (
+                                <li key={asset.id}>
+                                    <MediaPickerTile
+                                        asset={asset}
+                                        picked={picked.has(asset.id)}
+                                        attached={attached.has(asset.id)}
+                                        onToggle={() => toggle(asset)}
+                                    />
+                                </li>
+                            ))}
                         </ul>
                     )}
                 </div>
 
                 <DialogFooter className="items-center sm:justify-between">
-                    {picked.size > 0 ? (
-                        <Badge variant="secondary">
-                            {intl.formatMessage(messages.selected, {
-                                count: picked.size
-                            })}
-                        </Badge>
-                    ) : (
-                        <span />
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                        {picked.size > 0
+                            ? intl.formatMessage(messages.selected, {
+                                  count: picked.size
+                              })
+                            : intl.formatMessage(messages.nothingSelected)}
+                    </p>
                     <div className="flex gap-2">
                         <Button type="button" variant="ghost" onClick={close}>
                             {intl.formatMessage(messages.cancel)}
@@ -212,7 +473,11 @@ export function MediaPickerDialog({
                             onClick={confirm}
                             disabled={picked.size === 0}
                         >
-                            {intl.formatMessage(messages.confirm)}
+                            {intl.formatMessage(
+                                multiple
+                                    ? messages.confirmMultiple
+                                    : messages.confirmSingle
+                            )}
                         </Button>
                     </div>
                 </DialogFooter>

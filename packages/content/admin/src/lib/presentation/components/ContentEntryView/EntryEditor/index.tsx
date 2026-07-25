@@ -145,6 +145,7 @@ export function EntryEditor({
     onDelete,
     backTo,
     availableTypeNames,
+    presave,
     tab,
     onTabChange
 }: {
@@ -185,6 +186,13 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
+    /**
+     * The presave contributions' opaque handles, keyed by item id — passed
+     * straight through to a contributed tab, which reads only its own key. The
+     * handles come from hooks mounted by `ContentEntryView`, so the state behind
+     * them (staged media uploads) survives switching tab.
+     */
+    presave?: Record<string, unknown>;
     /**
      * The open tab, owned by the **route** (`/…/:entryId/relations`) rather than
      * by this component — so it survives the remount a locale switch causes.
@@ -319,7 +327,8 @@ export function EntryEditor({
                   touch: form.touch,
                   isFieldDirty
               },
-              mediaRefs
+              mediaRefs,
+              presave: presave ?? {}
           }
         : undefined;
 
@@ -561,7 +570,10 @@ export function EntryEditor({
                                     {intl.formatMessage(messages.tabRelations)}
                                 </TabsTrigger>
                                 {tabItems.map((item) => (
-                                    <TabsTrigger key={item.id} value={item.slug}>
+                                    <TabsTrigger
+                                        key={item.id}
+                                        value={item.slug}
+                                    >
                                         {intl.formatMessage(item.label)}
                                     </TabsTrigger>
                                 ))}

@@ -6,12 +6,17 @@ import {
 } from '@ortha-cms/workspaces-admin';
 import {
     CONTENT_FIELD_TYPE,
+    ENTRY_PRESAVE_SLOT,
     ENTRY_TAB,
     ENTRY_TAB_SLOT,
     type ContentTypeDetail
 } from '@ortha-cms/content-admin';
 import { Image } from 'lucide-react';
 import { EntryMediaTab } from '../../components/EntryMediaTab';
+import {
+    MEDIA_PRESAVE_ID,
+    usePendingMediaUploads
+} from '../../hooks/usePendingMediaUploads';
 
 const MediaLibraryPage = lazy(() =>
     import('../../pages/MediaLibraryPage').then((module) => ({
@@ -86,6 +91,20 @@ export function MediaPlugin(): MediaAdminPlugin {
                         order: 10,
                         appliesTo: hasMediaField,
                         Component: EntryMediaTab
+                    }
+                ]
+            },
+            // Files chosen on a media field are staged, not uploaded: this step
+            // runs inside the record's save and puts them in the library then,
+            // so an abandoned edit leaves no orphan assets behind. It also owns
+            // the staging state, mounted above the tab body (a route) so it
+            // survives switching tabs.
+            {
+                slot: ENTRY_PRESAVE_SLOT,
+                items: [
+                    {
+                        id: MEDIA_PRESAVE_ID,
+                        usePresave: usePendingMediaUploads
                     }
                 ]
             }

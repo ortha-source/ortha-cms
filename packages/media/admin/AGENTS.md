@@ -93,7 +93,9 @@ of the server's RBAC, which is the real enforcer).
   re-renders only the small `UploadItem` rows. Because the dialog closes on
   submit, **there is no upload success toast** — it would claim a result that
   hasn't happened; the banner is the status surface, and the query cache is
-  invalidated once per settled batch.
+  invalidated once per settled batch. The **dialog** is shared with the content
+  editor's media field (below); the queue and banner are the library's own, since
+  a field defers its uploads to the record's save.
 - Every other action fires a **toast**; failures surface a toast + resync.
 
 ## The content editor's Media tab
@@ -104,21 +106,90 @@ content entry editor via content-admin's **`ENTRY_TAB_SLOT`** (hence the
 has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
 
 - **`EntryMediaTab`** — the slot `Component`. Reads the schema's media fields and
-  renders one **`MediaFieldControl`** each, bound to the editor's shared form via
-  the slot's form bridge (`ctx.form.values` / `setValue` / `errorFor` / `touch`),
-  with the field's label / required mark / localized globe / Changed badge /
-  error. Media values live in the entry values bag; the tab is only their surface.
-- **`MediaFieldControl`** — single or ordered-multiple asset display (thumbnails
-  resolved from `ctx.mediaRefs` or a just-picked/uploaded asset; a `missing` ref
-  renders "Unavailable asset"), with **Select from library**, **Upload**, remove,
-  and reorder. It writes an asset id (single) or id array (multiple).
-- **`MediaPickerDialog`** — a modal over `useMediaLibrary` (browse + search),
-  candidates narrowed to the field's `accept` (the server enforces it on save).
-- **Upload** reuses `mediaGateway.uploadFile` (now returning the created asset),
-  so the file lands in the **library** too and its id is set on the field; the
-  media caches are invalidated so it appears immediately. `acceptsAsset`
-  (`utils/mediaAccept`) mirrors the server's restriction for the picker filter +
-  a post-upload guard.
+  renders one **`MediaFieldSection`** each, bound to the editor's shared form via
+  the slot's form bridge (`ctx.form.values` / `setValue` / `errorFor` / `touch` /
+  `isFieldDirty`). Media values live in the entry values bag; the tab is only
+  their surface.
+- **`MediaFieldSection`** — one field as a **titled card**, deliberately the same
+  shape as the Relations tab's `RelationFieldSection` so the two contributed tabs
+  read as one editor: header (label + required mark, the localized globe in a
+  `Tooltip`, the **shared** `ChangedBadge` imported from `@ortha-cms/content-admin`
+  — not a look-alike that would drift — and an error alert icon) over a one-line
+  description of what the field holds, then the control; an error tints the card
+  border. The `FieldLabel`'s `htmlFor` points at the control's picker button
+  (the field's one labelable control).
+- **`MediaFieldControl`** — the control itself. Attached assets render as
+  **`MediaFieldItem`** tiles in a panel that is also a **drop zone** (highlight
+  held by a drag-depth counter, since nested tiles fire `dragleave` as the
+  pointer crosses them). Empty, the panel is a dashed `Empty` state that says so
+  and invites the drop. Below sit **Select from library** / **Add from library** /
+  **Replace**, **Upload**, and a muted meta line (attached count + the `accept`
+  hint — the hint was a `Badge` beside the buttons, which read like an action). It
+  writes an asset id (single) or id array (multiple).
+- **`MediaFieldItem`** — one attached asset: the real image (or the deterministic
+  `assetGradient` behind its kind glyph) over the name and whatever type / size /
+  dimensions are known (`types/mediaFieldDisplay` is the merge of a server
+  `MediaRef` and a locally-picked `MediaAsset` — a ref carries no size), with
+  hover/focus-revealed controls: open in a new tab, remove, and — multiple only —
+  nudge up/down beside a position badge. A `missing` ref is an explicit warning
+  tile carrying the dead id, so it can be found and removed.
+- **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`: search, a type
+  filter (listing only the kinds the field's `accept` allows, hidden when that
+  leaves one), a sort, **breadcrumbs** over the folder chips — descending used to
+  be one-way, with no path back up — and a grid of **`MediaPickerTile`**s
+  (thumbnail + name + size/dimensions, `aria-pressed`, an "Attached" mark on what
+  the field already holds). Skeleton tiles while loading, an `Empty` (with Clear
+  filters) when nothing matches. Candidates are narrowed to the field's `accept`
+  (the server enforces it on save); closing resets the selection **and** the
+  filters, so a stale search can't hide the library on the next open.
+- **Upload — the library's dialog, but nothing moves until Save.** Picking a file
+  opens the same **`UploadDialog`** the library toolbar opens (stage → preview →
+  confirm; dropping files on the field panel opens it *pre-staged*, so a drop is
+  reviewed rather than sent blind), narrowed by new optional props: `multiple` /
+  `accept` / `description` / `hint` / `confirmLabel` / `initialFiles`. (A single
+  field stages exactly one file; `initialFiles` defaults to a module-level
+  constant — an inline `[]` would re-seed the staging on every render.)
+  Confirming **stages** the files; the bytes go up when the record is saved or
+  published. See *Deferred uploads* below.
+    `acceptsFile` (`utils/mediaAccept`, over the local `kindFromMime`) checks a
+  staged file against the field's `accept` at the moment it's chosen, so a
+  rejected file never reaches the value; the server re-checks the real asset on
+  save, which is the enforcing pass.
+
+## Deferred uploads — a record and its new assets are one commit
+
+**`hooks/usePendingMediaUploads`** is the plugin's contribution to content-admin's
+**`ENTRY_PRESAVE_SLOT`**, and it is what makes "choose a file" and "save the
+record" a single write. An upload is a write: uploading the moment a file is
+picked fills the Media Library with assets for a record the user then abandons.
+
+- A staged file gets a **placeholder uuid**, and that is what the form value
+  holds. A real uuid on purpose — the shared kernel validates a media value as a
+  uuid (or uuid[]), so a staged file satisfies client validation, the Changed
+  badge, and the publish gate exactly like an attached asset. The `File` itself
+  lives in the hook's map (`types/pendingUpload`), keyed by that placeholder.
+- The hook is mounted by **`ContentEntryView`**, not by the tab: editor tabs are
+  routes, so the Media panel unmounts the moment the user switches tab. Its
+  `handle` reaches the panel back down through `EntryTabContext.presave[id]`
+  (opaque; a tab reads only its own key, the same contract as
+  `EntrySlotContext.params`), and `MediaFieldControl` renders the staged files as
+  dashed "Uploads on save" tiles previewing off a local object URL.
+- **`commit`** runs inside the save, before the write and under the busy cover:
+  it uploads every staged file the values still reference (`UPLOAD_CONCURRENCY`
+  at a time, one request each) and returns the values with the placeholders
+  swapped for real asset ids. A failed file **aborts the save** with a toast
+  naming it — nothing is written, so the form keeps its placeholders. The files
+  that *did* upload remember their asset id (`PendingUpload.uploadedId`), so a
+  retry attaches them instead of uploading twice.
+- **`settle`** runs after the write succeeded: object URLs revoked, staging
+  dropped (the re-seeded form now holds the saved record's real ids).
+- Uploads land in `ROOT_FOLDER_ID`; the media caches are invalidated as soon as
+  anything uploads, even if the write behind it then fails.
+- Removing, replacing, or re-picking releases the staged file in one place
+  (`setIds`) — the preview blob is revoked and the save stops uploading a file
+  nothing references.
+- **Picking an existing library asset is not deferred** — it is already uploaded;
+  attaching its id is an ordinary form edit that rides Save like any other.
 
 ## Lives strictly inside a workspace
 

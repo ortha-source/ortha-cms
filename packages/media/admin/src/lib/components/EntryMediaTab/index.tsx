@@ -1,49 +1,37 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Globe } from 'lucide-react';
-import {
-    Field,
-    FieldDescription,
-    FieldError,
-    FieldLabel
-} from '@ortha-cms/design-system';
 import {
     CONTENT_FIELD_TYPE,
-    type ContentField,
     type EntryTabContext
 } from '@ortha-cms/content-admin';
-import { MediaFieldControl } from '../MediaFieldControl';
-import type { MediaAccept } from '../../utils/mediaAccept';
+import { MEDIA_PRESAVE_ID } from '../../hooks/usePendingMediaUploads';
+import type { MediaPendingUploads } from '../../types/pendingUpload';
+import { MediaFieldSection } from './MediaFieldSection';
 
 const messages = defineMessages({
     subtitle: {
         id: 'media.tab.subtitle',
         defaultMessage:
             'Attach images and files from the Media Library, or upload new ones — uploads are added to the library too.'
-    },
-    changed: { id: 'media.tab.changed', defaultMessage: 'Changed' },
-    localized: {
-        id: 'media.tab.localized',
-        defaultMessage: 'This asset varies per locale.'
     }
 });
 
-/** The display label for a field — its admin label, else its machine name. */
-function labelOf(field: ContentField): string {
-    const label = field.admin?.['label'];
-    return typeof label === 'string' && label ? label : field.name;
-}
-
 /**
  * The entry editor's **Media tab**, contributed by the media plugin through
- * content-admin's `ENTRY_TAB_SLOT`. Renders one {@link MediaFieldControl} per
- * media field on the type, bound to the editor's shared form — so a change here
- * rides Save, the publish gate, and the 422→field mapping exactly like a
- * General-tab field. Media values live in the entry `values` bag; this tab is
- * only their rendering surface.
+ * content-admin's `ENTRY_TAB_SLOT`. Renders one {@link MediaFieldSection} per
+ * media field on the type — the same titled-card shape the Relations tab uses —
+ * bound to the editor's shared form, so a change here rides Save, the publish
+ * gate, and the 422→field mapping exactly like a General-tab field. Media values
+ * live in the entry `values` bag; this tab is only their rendering surface.
  */
 export function EntryMediaTab(ctx: EntryTabContext) {
     const intl = useIntl();
     const { schema, form, mediaRefs } = ctx;
+    // The plugin's own presave handle — the staging for files chosen here, held
+    // above this panel (which unmounts on every tab switch) and uploaded by the
+    // save. A tab reads only its own key from `presave`.
+    const uploads = ctx.presave[MEDIA_PRESAVE_ID] as
+        | MediaPendingUploads
+        | undefined;
     const fields = schema.fields.filter(
         (field) => field.type === CONTENT_FIELD_TYPE.Media
     );
@@ -55,64 +43,19 @@ export function EntryMediaTab(ctx: EntryTabContext) {
             <p className="text-sm text-muted-foreground">
                 {intl.formatMessage(messages.subtitle)}
             </p>
-            {fields.map((field) => {
-                const error = form.errorFor(field.name);
-                const changed = form.isFieldDirty(field.name);
-                const description = field.admin?.['description'];
-                const errorId = `media-field-${field.name}-error`;
-                return (
-                    <Field key={field.name} data-invalid={!!error}>
-                        <FieldLabel className="w-full" htmlFor={`media-field-${field.name}`}>
-                            <span className="flex items-center gap-1">
-                                {labelOf(field)}
-                                {field.required ? (
-                                    <span
-                                        aria-hidden
-                                        className="text-destructive"
-                                    >
-                                        *
-                                    </span>
-                                ) : null}
-                            </span>
-                            <span className="ml-auto flex items-center gap-1.5">
-                                {changed ? (
-                                    <span className="text-xs text-muted-foreground">
-                                        {intl.formatMessage(messages.changed)}
-                                    </span>
-                                ) : null}
-                                {field.localized ? (
-                                    <Globe
-                                        className="size-3.5 text-muted-foreground"
-                                        aria-label={intl.formatMessage(
-                                            messages.localized
-                                        )}
-                                    />
-                                ) : null}
-                            </span>
-                        </FieldLabel>
-                        <MediaFieldControl
-                            id={`media-field-${field.name}`}
-                            multiple={!!field.multiple}
-                            accept={field.accept as MediaAccept | undefined}
-                            required={field.required}
-                            value={form.values[field.name]}
-                            initialRefs={mediaRefs[field.name]}
-                            invalid={!!error}
-                            describedBy={error ? errorId : undefined}
-                            onChange={(value) =>
-                                form.setValue(field.name, value)
-                            }
-                            onBlur={() => form.touch(field.name)}
-                        />
-                        {!error && typeof description === 'string' ? (
-                            <FieldDescription>{description}</FieldDescription>
-                        ) : null}
-                        {error ? (
-                            <FieldError id={errorId}>{error}</FieldError>
-                        ) : null}
-                    </Field>
-                );
-            })}
+            {fields.map((field) => (
+                <MediaFieldSection
+                    key={field.name}
+                    field={field}
+                    error={form.errorFor(field.name)}
+                    changed={form.isFieldDirty(field.name)}
+                    value={form.values[field.name]}
+                    initialRefs={mediaRefs[field.name]}
+                    uploads={uploads}
+                    onChange={(value) => form.setValue(field.name, value)}
+                    onBlur={() => form.touch(field.name)}
+                />
+            ))}
         </div>
     );
 }

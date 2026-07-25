@@ -1,70 +1,85 @@
 import { useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { useQueryClient } from '@tanstack/react-query';
+import { ImagePlus, UploadCloud } from 'lucide-react';
 import {
-    ArrowDown,
-    ArrowUp,
-    FileWarning,
-    ImagePlus,
-    Trash2,
-    Upload
-} from 'lucide-react';
-import { Badge, Button, cn, Spinner, toast } from '@ortha-cms/design-system';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+    Button,
+    cn,
+    Empty,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+    toast
+} from '@ortha-cms/design-system';
 import type { MediaRef } from '@ortha-cms/content-admin';
-import { ROOT_FOLDER_ID, MEDIA_KIND } from '../../constants';
-import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
-import { mediaKeys } from '../../infrastructure/mediaKeys';
+import { MEDIA_KIND } from '../../constants';
 import type { MediaAsset } from '../../types/mediaAsset';
+import type { MediaFieldDisplay } from '../../types/mediaFieldDisplay';
+import type { MediaPendingUploads } from '../../types/pendingUpload';
+import { kindFromMime } from '../../utils/kindFromMime';
 import {
-    acceptsAsset,
+    acceptsFile,
     describeAccept,
     type MediaAccept
 } from '../../utils/mediaAccept';
-import { MediaKindIcon } from '../MediaKindIcon';
 import { MediaPickerDialog } from '../MediaPickerDialog';
+import { UploadDialog } from '../UploadDialog';
+import { MediaFieldItem } from './MediaFieldItem';
 
 const messages = defineMessages({
     select: { id: 'media.field.select', defaultMessage: 'Select from library' },
     add: { id: 'media.field.add', defaultMessage: 'Add from library' },
     upload: { id: 'media.field.upload', defaultMessage: 'Upload' },
-    uploading: { id: 'media.field.uploading', defaultMessage: 'Uploading…' },
-    remove: { id: 'media.field.remove', defaultMessage: 'Remove {name}' },
     replace: { id: 'media.field.replace', defaultMessage: 'Replace' },
-    moveUp: { id: 'media.field.moveUp', defaultMessage: 'Move {name} up' },
-    moveDown: { id: 'media.field.moveDown', defaultMessage: 'Move {name} down' },
+    attach: { id: 'media.field.attach', defaultMessage: 'Attach files' },
+    uploadTo: {
+        id: 'media.field.uploadTo',
+        defaultMessage:
+            'Files are attached now and uploaded to {location} when you save the record.'
+    },
+    stagedCount: {
+        id: 'media.field.stagedCount',
+        defaultMessage:
+            '{count, plural, one {# file uploads on save} other {# files upload on save}}'
+    },
+    uploadHintAccept: {
+        id: 'media.field.uploadHintAccept',
+        defaultMessage: 'This field accepts {what}. Up to 250 MB each.'
+    },
+    libraryRoot: { id: 'media.field.libraryRoot', defaultMessage: 'All media' },
     emptySingle: {
         id: 'media.field.emptySingle',
-        defaultMessage: 'No asset selected.'
+        defaultMessage: 'No asset selected'
     },
     emptyMultiple: {
         id: 'media.field.emptyMultiple',
-        defaultMessage: 'No assets attached.'
+        defaultMessage: 'No assets attached'
     },
-    accepts: { id: 'media.field.accepts', defaultMessage: 'Accepts: {what}' },
-    unavailable: {
-        id: 'media.field.unavailable',
-        defaultMessage: 'Unavailable asset'
+    emptyBody: {
+        id: 'media.field.emptyBody',
+        defaultMessage:
+            'Drop a file here, or pick one from the Media Library. New files upload when you save.'
     },
-    uploadFailed: {
-        id: 'media.field.uploadFailed',
-        defaultMessage: 'Upload failed. Please try again.'
+    dropHere: {
+        id: 'media.field.dropHere',
+        defaultMessage: 'Drop to attach'
+    },
+    dropBody: {
+        id: 'media.field.dropBody',
+        defaultMessage:
+            'Dropped files open in the upload dialog first, so you can check them.'
+    },
+    accepts: { id: 'media.field.accepts', defaultMessage: 'Accepts {what}' },
+    count: {
+        id: 'media.field.count',
+        defaultMessage:
+            '{count, plural, one {# asset attached} other {# assets attached}}'
     },
     uploadRejected: {
         id: 'media.field.uploadRejected',
         defaultMessage: '{name} is not an accepted file type for this field.'
     }
 });
-
-/** The display facts one attached asset needs, from a ref or a picked asset. */
-type Display = {
-    id: string;
-    name: string;
-    url: string;
-    kind: string;
-    mimeType: string;
-    missing?: boolean;
-};
 
 /** Normalize the field value (single id | id[] | null) to an ordered id list. */
 function toIds(value: unknown): string[] {
@@ -78,14 +93,29 @@ function rawUrl(id: string): string {
     return `/api/media/assets/${id}/raw`;
 }
 
+/** Whether a drag carries files (as opposed to text or an in-page element). */
+function dragHasFiles(transfer: DataTransfer | null): boolean {
+    return !!transfer && Array.from(transfer.types).includes('Files');
+}
+
 /**
  * The editor control for one media field — a single asset or an ordered list.
- * Renders each attached asset as a thumbnail (resolved from the server-provided
- * refs or a just-picked/uploaded asset), and offers **Select from library** (the
- * {@link MediaPickerDialog}) and **Upload** (reuses the media upload endpoint, so
- * the file lands in the library too). Multiple mode adds reorder + per-item
- * remove. Fully controlled: the parent (the Media tab, bound to the entry form)
- * owns the value as an asset id or id array.
+ * The attached assets render as preview tiles ({@link MediaFieldItem}, resolved
+ * from the server-provided refs or a just-picked/uploaded asset) inside a panel
+ * that doubles as a **drop zone**. Below it sit **Select from library** (the
+ * {@link MediaPickerDialog}) and **Upload**, plus the field's accept hint and, in
+ * multiple mode, the attached count.
+ *
+ * **Choosing a file uploads nothing.** The {@link UploadDialog} — the Media
+ * Library's own modal, reused whole — stages and previews the files (a drop on
+ * the panel opens it pre-staged), and confirming only *stages* them: they get a
+ * placeholder id, render as "Pending upload" tiles, and the bytes move when the
+ * record is **saved or published** (`usePendingMediaUploads`, the plugin's
+ * presave contribution). So abandoning an edit leaves nothing behind in the
+ * library, and a record plus its new assets land as one commit.
+ *
+ * Fully controlled: the parent (the Media tab, bound to the entry form) owns the
+ * value as an asset id or id array.
  */
 export function MediaFieldControl({
     id,
@@ -96,6 +126,7 @@ export function MediaFieldControl({
     invalid,
     describedBy,
     required,
+    uploads,
     onChange,
     onBlur
 }: {
@@ -108,24 +139,49 @@ export function MediaFieldControl({
     invalid?: boolean;
     describedBy?: string;
     required?: boolean;
+    /**
+     * The editor-level staging for not-yet-uploaded files. Absent when no presave
+     * contribution is mounted — the control then offers library picking only,
+     * rather than an Upload button that could never commit.
+     */
+    uploads?: MediaPendingUploads;
     onChange: (value: unknown) => void;
     onBlur?: () => void;
 }) {
     const intl = useIntl();
-    const workspace = useCurrentWorkspace();
-    const queryClient = useQueryClient();
-    const fileInput = useRef<HTMLInputElement>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
-    const [uploading, setUploading] = useState(false);
+    const [uploadOpen, setUploadOpen] = useState(false);
+    // Files dropped on the panel, staged into the upload dialog when it opens —
+    // a drop gets the same preview-before-you-commit step as the Upload button.
+    const [dropped, setDropped] = useState<File[]>([]);
+    const [dragging, setDragging] = useState(false);
+    // Nested elements fire dragleave as the pointer crosses them, so the highlight
+    // is held by a depth counter rather than the last event to arrive.
+    const dragDepth = useRef(0);
     // Locally-known assets (just picked or uploaded), merged over the server refs
     // so a freshly-added asset shows its real name/thumbnail before any refetch.
     const [known, setKnown] = useState<Map<string, MediaAsset>>(new Map());
 
     const ids = toIds(value);
 
-    const displays = useMemo<Display[]>(() => {
+    const pending = uploads?.pending;
+
+    const displays = useMemo<MediaFieldDisplay[]>(() => {
         const refs = new Map(initialRefs?.map((ref) => [ref.id, ref]));
         return ids.map((assetId) => {
+            // A staged (not yet uploaded) file: everything is known locally, and
+            // an image previews straight off its object URL.
+            const staged = pending?.get(assetId);
+            if (staged)
+                return {
+                    id: assetId,
+                    name: staged.file.name,
+                    url: staged.previewUrl ?? '',
+                    kind: kindFromMime(staged.file.type),
+                    mimeType: staged.file.type,
+                    size: staged.file.size,
+                    pending: true
+                };
             const local = known.get(assetId);
             if (local)
                 return {
@@ -133,7 +189,9 @@ export function MediaFieldControl({
                     name: local.name,
                     url: local.url,
                     kind: local.kind,
-                    mimeType: local.mimeType
+                    mimeType: local.mimeType,
+                    size: local.size,
+                    dimensions: local.dimensions
                 };
             const ref = refs.get(assetId);
             if (ref)
@@ -155,7 +213,7 @@ export function MediaFieldControl({
                 mimeType: ''
             };
         });
-    }, [ids, initialRefs, known]);
+    }, [ids, initialRefs, known, pending]);
 
     const remember = (assets: MediaAsset[]) => {
         setKnown((current) => {
@@ -166,11 +224,22 @@ export function MediaFieldControl({
     };
 
     const setIds = (nextIds: string[]) => {
+        // Anything staged that just left the field is forgotten here — one place,
+        // so a remove, a replace, and a re-pick all release the preview blob (and
+        // stop the save uploading a file nothing references).
+        if (pending) {
+            const kept = new Set(nextIds);
+            for (const assetId of ids) {
+                if (!kept.has(assetId) && pending.has(assetId))
+                    uploads?.drop(assetId);
+            }
+        }
         onChange(multiple ? nextIds : (nextIds[0] ?? null));
         onBlur?.();
     };
 
     const onPicked = (assets: MediaAsset[]) => {
+        if (!assets.length) return;
         remember(assets);
         if (multiple) {
             // Append the newly-picked, skipping any already attached.
@@ -184,36 +253,33 @@ export function MediaFieldControl({
         }
     };
 
-    const onUpload = async (files: FileList | null) => {
-        const file = files?.[0];
-        if (fileInput.current) fileInput.current.value = '';
-        if (!file) return;
-        setUploading(true);
-        try {
-            const asset = await httpMediaGateway.uploadFile(
-                ROOT_FOLDER_ID,
-                file
-            );
-            // The library should show the new asset immediately.
-            queryClient.invalidateQueries({
-                queryKey: mediaKeys.all(workspace.id)
-            });
-            // Guard the field's own restriction — the asset is in the library
-            // regardless, but it can't be attached to a field that rejects it.
-            if (!acceptsAsset(accept, asset)) {
+    /**
+     * Stage the confirmed files against the field — no request yet. Each gets a
+     * placeholder id that rides the form until the save uploads it. The field's
+     * own `accept` is enforced here on the file's MIME type (the server checks
+     * the real asset again on save), so a rejected file never reaches the value.
+     */
+    const onStaged = (files: File[]) => {
+        if (!uploads) return;
+        const allowed: File[] = [];
+        for (const file of files) {
+            if (acceptsFile(accept, file)) allowed.push(file);
+            else
                 toast.error(
                     intl.formatMessage(messages.uploadRejected, {
-                        name: asset.name
+                        name: file.name
                     })
                 );
-                return;
-            }
-            onPicked([asset]);
-        } catch {
-            toast.error(intl.formatMessage(messages.uploadFailed));
-        } finally {
-            setUploading(false);
         }
+        if (!allowed.length) return;
+        const staged = uploads.stage(multiple ? allowed : allowed.slice(0, 1));
+        setIds(multiple ? [...ids, ...staged] : staged.slice(0, 1));
+    };
+
+    /** Open the upload dialog, optionally pre-staged with dropped files. */
+    const openUploadWith = (files: File[]) => {
+        setDropped(multiple ? files : files.slice(0, 1));
+        setUploadOpen(true);
     };
 
     const removeAt = (index: number) =>
@@ -232,136 +298,116 @@ export function MediaFieldControl({
         const mimes = accept?.mimeTypes ?? [];
         const kinds = accept?.kinds ?? [];
         const fromKinds = kinds
-            .filter((k) => k === MEDIA_KIND.Image || k === MEDIA_KIND.Video || k === MEDIA_KIND.Audio)
+            .filter(
+                (k) =>
+                    k === MEDIA_KIND.Image ||
+                    k === MEDIA_KIND.Video ||
+                    k === MEDIA_KIND.Audio
+            )
             .map((k) => `${k}/*`);
         const all = [...mimes, ...fromKinds];
         return all.length ? all.join(',') : undefined;
     }, [accept]);
 
     const acceptHint = describeAccept(accept);
+    const isEmpty = displays.length === 0;
+    const stagedCount = displays.filter((item) => item.pending).length;
 
     return (
-        <div className="flex flex-col gap-3" aria-describedby={describedBy}>
-            {displays.length > 0 ? (
-                <ul className="flex flex-wrap gap-2">
-                    {displays.map((item, index) => (
-                        <li
-                            key={`${item.id}-${index}`}
-                            className={cn(
-                                'group relative w-28 overflow-hidden rounded-md border bg-card',
-                                item.missing && 'border-destructive/60'
-                            )}
-                        >
-                            <div className="relative aspect-square w-full bg-muted">
-                                {item.missing ? (
-                                    <span className="flex size-full flex-col items-center justify-center gap-1 text-destructive">
-                                        <FileWarning
-                                            className="size-6"
-                                            aria-hidden
-                                        />
-                                    </span>
-                                ) : item.kind === MEDIA_KIND.Image ||
-                                  item.kind === '' ? (
-                                    <img
-                                        src={item.url}
-                                        alt={item.name}
-                                        loading="lazy"
-                                        className="absolute inset-0 size-full object-cover"
-                                    />
+        <div className="flex flex-col gap-3">
+            <div
+                onDragEnter={(event) => {
+                    if (!dragHasFiles(event.dataTransfer)) return;
+                    dragDepth.current += 1;
+                    setDragging(true);
+                }}
+                onDragOver={(event) => {
+                    // Without this the browser opens the file instead of dropping.
+                    if (dragHasFiles(event.dataTransfer))
+                        event.preventDefault();
+                }}
+                onDragLeave={() => {
+                    dragDepth.current = Math.max(0, dragDepth.current - 1);
+                    if (dragDepth.current === 0) setDragging(false);
+                }}
+                onDrop={(event) => {
+                    if (!dragHasFiles(event.dataTransfer) || !uploads) return;
+                    event.preventDefault();
+                    dragDepth.current = 0;
+                    setDragging(false);
+                    // Straight into the same dialog the Upload button opens, so
+                    // a drop is reviewed before it's staged.
+                    openUploadWith(Array.from(event.dataTransfer.files));
+                }}
+                className={cn(
+                    'rounded-xl border bg-muted/20 p-3 transition-colors',
+                    isEmpty && 'border-dashed',
+                    invalid && 'border-destructive/60',
+                    dragging && 'border-primary bg-primary/5'
+                )}
+            >
+                {isEmpty ? (
+                    <Empty className="gap-4 p-6 md:p-8">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                {dragging ? (
+                                    <UploadCloud aria-hidden />
                                 ) : (
-                                    <span className="flex size-full items-center justify-center">
-                                        <MediaKindIcon
-                                            kind={item.kind as never}
-                                            className="size-8 text-muted-foreground"
-                                        />
-                                    </span>
+                                    <ImagePlus aria-hidden />
                                 )}
-                                {multiple ? (
-                                    <span className="absolute left-1 top-1 grid size-5 place-items-center rounded bg-black/55 text-[11px] font-medium text-white tabular-nums">
-                                        {index + 1}
-                                    </span>
-                                ) : null}
-                            </div>
-                            <p className="truncate px-1.5 py-1 text-xs">
-                                {item.missing
-                                    ? intl.formatMessage(messages.unavailable)
-                                    : item.name}
-                            </p>
-                            <div className="flex items-center justify-end gap-0.5 border-t px-1 py-0.5">
-                                {multiple ? (
-                                    <>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-6"
-                                            disabled={index === 0}
-                                            aria-label={intl.formatMessage(
-                                                messages.moveUp,
-                                                { name: item.name }
-                                            )}
-                                            onClick={() => move(index, -1)}
-                                        >
-                                            <ArrowUp className="size-3.5" />
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-6"
-                                            disabled={
-                                                index === displays.length - 1
-                                            }
-                                            aria-label={intl.formatMessage(
-                                                messages.moveDown,
-                                                { name: item.name }
-                                            )}
-                                            onClick={() => move(index, 1)}
-                                        >
-                                            <ArrowDown className="size-3.5" />
-                                        </Button>
-                                    </>
-                                ) : null}
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-6 text-muted-foreground hover:text-destructive"
-                                    aria-label={intl.formatMessage(
-                                        messages.remove,
-                                        { name: item.name }
-                                    )}
-                                    onClick={() => removeAt(index)}
-                                >
-                                    <Trash2 className="size-3.5" />
-                                </Button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p
-                    className={cn(
-                        'text-sm text-muted-foreground',
-                        invalid && 'text-destructive'
-                    )}
-                >
-                    {intl.formatMessage(
-                        multiple
-                            ? messages.emptyMultiple
-                            : messages.emptySingle
-                    )}
-                </p>
-            )}
+                            </EmptyMedia>
+                            <EmptyTitle className="text-base">
+                                {dragging
+                                    ? intl.formatMessage(messages.dropHere)
+                                    : intl.formatMessage(
+                                          multiple
+                                              ? messages.emptyMultiple
+                                              : messages.emptySingle
+                                      )}
+                            </EmptyTitle>
+                            <EmptyDescription>
+                                {intl.formatMessage(
+                                    dragging
+                                        ? messages.dropBody
+                                        : messages.emptyBody
+                                )}
+                            </EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
+                ) : (
+                    <ul
+                        className={cn(
+                            'grid gap-3',
+                            multiple
+                                ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4'
+                                : 'grid-cols-1 sm:max-w-[15rem]'
+                        )}
+                    >
+                        {displays.map((item, index) => (
+                            <MediaFieldItem
+                                key={`${item.id}-${index}`}
+                                item={item}
+                                index={index}
+                                total={displays.length}
+                                multiple={multiple}
+                                onRemove={() => removeAt(index)}
+                                onMove={(delta) => move(index, delta)}
+                            />
+                        ))}
+                    </ul>
+                )}
+            </div>
 
             <div className="flex flex-wrap items-center gap-2">
                 <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="shadow-none"
                     id={id}
                     aria-required={required}
                     aria-invalid={invalid}
+                    aria-describedby={describedBy}
                     onClick={() => setPickerOpen(true)}
                 >
                     <ImagePlus className="size-4" aria-hidden />
@@ -373,36 +419,42 @@ export function MediaFieldControl({
                               : messages.select
                     )}
                 </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploading}
-                    onClick={() => fileInput.current?.click()}
-                >
-                    {uploading ? (
-                        <Spinner className="size-4" />
-                    ) : (
-                        <Upload className="size-4" aria-hidden />
-                    )}
-                    {intl.formatMessage(
-                        uploading ? messages.uploading : messages.upload
-                    )}
-                </Button>
-                {acceptHint ? (
-                    <Badge variant="outline" className="font-normal">
-                        {intl.formatMessage(messages.accepts, {
-                            what: acceptHint
-                        })}
-                    </Badge>
+                {uploads ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shadow-none"
+                        onClick={() => openUploadWith([])}
+                    >
+                        <UploadCloud className="size-4" aria-hidden />
+                        {intl.formatMessage(messages.upload)}
+                    </Button>
                 ) : null}
-                <input
-                    ref={fileInput}
-                    type="file"
-                    accept={acceptAttr}
-                    className="hidden"
-                    onChange={(e) => onUpload(e.target.files)}
-                />
+
+                <p className="ml-auto flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    {stagedCount > 0 ? (
+                        <span className="text-foreground">
+                            {intl.formatMessage(messages.stagedCount, {
+                                count: stagedCount
+                            })}
+                        </span>
+                    ) : null}
+                    {multiple && displays.length > 0 ? (
+                        <span>
+                            {intl.formatMessage(messages.count, {
+                                count: displays.length
+                            })}
+                        </span>
+                    ) : null}
+                    {acceptHint ? (
+                        <span>
+                            {intl.formatMessage(messages.accepts, {
+                                what: acceptHint
+                            })}
+                        </span>
+                    ) : null}
+                </p>
             </div>
 
             <MediaPickerDialog
@@ -410,7 +462,31 @@ export function MediaFieldControl({
                 onOpenChange={setPickerOpen}
                 multiple={multiple}
                 accept={accept}
+                attachedIds={ids}
                 onConfirm={onPicked}
+            />
+
+            {/* The Media Library's own upload modal — same staging, previews,
+                and copy; narrowed to what this field accepts. */}
+            <UploadDialog
+                open={uploadOpen}
+                onOpenChange={setUploadOpen}
+                locationLabel={intl.formatMessage(messages.libraryRoot)}
+                description={intl.formatMessage(messages.uploadTo, {
+                    location: intl.formatMessage(messages.libraryRoot)
+                })}
+                hint={
+                    acceptHint
+                        ? intl.formatMessage(messages.uploadHintAccept, {
+                              what: acceptHint
+                          })
+                        : undefined
+                }
+                accept={acceptAttr}
+                multiple={multiple}
+                confirmLabel={intl.formatMessage(messages.attach)}
+                initialFiles={dropped}
+                onUpload={onStaged}
             />
         </div>
     );

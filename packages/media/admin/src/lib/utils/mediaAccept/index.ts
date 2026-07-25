@@ -1,4 +1,5 @@
 import type { MediaAsset } from '../../types/mediaAsset';
+import { kindFromMime } from '../kindFromMime';
 
 /** A media field's accepted-asset restriction (mirrors the server's `accept`). */
 export type MediaAccept = {
@@ -9,7 +10,8 @@ export type MediaAccept = {
 /** A MIME pattern matches a concrete MIME exactly or as a `type/*` glob. */
 function mimeMatches(pattern: string, mimeType: string): boolean {
     if (pattern === mimeType) return true;
-    if (pattern.endsWith('/*')) return mimeType.startsWith(pattern.slice(0, -1));
+    if (pattern.endsWith('/*'))
+        return mimeType.startsWith(pattern.slice(0, -1));
     return false;
 }
 
@@ -30,6 +32,23 @@ export function acceptsAsset(
     if (kinds.includes(asset.kind)) return true;
     if (mimeTypes.some((p) => mimeMatches(p, asset.mimeType))) return true;
     return false;
+}
+
+/**
+ * Whether a **local file** satisfies a media field's `accept`, judged from its
+ * MIME type before it is uploaded — so a file staged on a field is checked at
+ * the moment it's chosen rather than after the save uploads it. The kind is the
+ * rough local classification ({@link kindFromMime}); the server re-checks the
+ * real asset on save, which is the enforcing pass.
+ */
+export function acceptsFile(
+    accept: MediaAccept | undefined,
+    file: File
+): boolean {
+    return acceptsAsset(accept, {
+        kind: kindFromMime(file.type),
+        mimeType: file.type
+    });
 }
 
 /**

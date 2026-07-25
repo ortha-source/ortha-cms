@@ -198,9 +198,8 @@ export type ContentOverlayItem = {
  * when the editor re-rendered — two loaders blinking in sequence. A cover has to
  * outlive the thing it is covering.
  */
-export const CONTENT_OVERLAY_SLOT = createSlot<ContentOverlayItem>(
-    'content.overlay'
-);
+export const CONTENT_OVERLAY_SLOT =
+    createSlot<ContentOverlayItem>('content.overlay');
 
 /** One filter-fields contribution for the records query-builder drawer. */
 export type RecordsFilterFieldsItem = {
@@ -285,6 +284,13 @@ export type EntryTabContext = EntrySlotContext & {
      * from the picker); a thumbnail always renders from the id regardless.
      */
     mediaRefs: Record<string, MediaRef[]>;
+    /**
+     * The {@link EntryPresave.handle}s of every presave contribution, keyed by
+     * item id — opaque, and a tab reads only its own key. It is how a tab reaches
+     * state mounted above it (staged uploads survive a tab switch; the tab body
+     * does not).
+     */
+    presave: Record<string, unknown>;
 };
 
 /**
@@ -317,3 +323,57 @@ export type EntryTabItem = {
  * across renders.
  */
 export const ENTRY_TAB_SLOT = createSlot<EntryTabItem>('content.entry.tabs');
+
+/**
+ * One plugin's participation in the **save itself** — work that must happen
+ * between "the user pressed Save/Publish" and the write, plus the state that
+ * work is staged in.
+ */
+export type EntryPresave = {
+    /**
+     * Runs inside the save, after client validation and **before** the write,
+     * with the values about to be sent; returns the values to actually save.
+     * The media plugin uploads the files staged on media fields here and swaps
+     * their placeholder ids for the real asset ids — so nothing is uploaded
+     * until the record is saved. Throwing **aborts the save**: nothing is
+     * written and the editor stays put, so the step owns surfacing its own
+     * failure (a toast naming the file).
+     */
+    commit: (input: {
+        values: Record<string, unknown>;
+        publish: boolean;
+    }) => Promise<Record<string, unknown>>;
+    /** Called after the write succeeded, to drop whatever `commit` consumed. */
+    settle?: () => void;
+    /**
+     * Opaque handle published to contributed tabs as
+     * `EntryTabContext.presave[id]`. This is how a tab's controls reach staging
+     * state that has to **outlive the tab body**: editor tabs are routes, so the
+     * panel unmounts the moment the user switches tab, while this hook is
+     * mounted by the entry view for the editor's whole life. A slot reads only
+     * its own key (same contract as `EntrySlotContext.params`).
+     */
+    handle?: unknown;
+};
+
+/** A contribution to the entry save. See {@link EntryPresave}. */
+export type EntryPresaveItem = {
+    /** Stable id — also the key its `handle` is published under. */
+    id: string;
+    /**
+     * Hook mounted **once per entry view**, for the editor's whole life. Called
+     * unconditionally in slot order, which is rules-of-hooks-safe because slot
+     * items are boot-frozen (the same guarantee `RECORDS_COLUMN_SLOT.useRowsData`
+     * relies on).
+     */
+    usePresave: () => EntryPresave;
+};
+
+/**
+ * Contributions to the entry **save**: an async step run before the write, and
+ * the staging state behind it. Mounted by `ContentEntryView` (which owns the
+ * busy overlay covering the whole write, uploads included).
+ */
+export const ENTRY_PRESAVE_SLOT = createSlot<EntryPresaveItem>(
+    'content.entry.presave'
+);

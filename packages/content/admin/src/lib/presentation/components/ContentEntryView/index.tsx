@@ -43,6 +43,7 @@ import { useSlotListParams } from '../../hooks/useSlotListParams';
 import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
 import {
     ENTRY_PARAMS_SLOT,
+    ENTRY_PRESAVE_SLOT,
     type EntrySlotContext
 } from '../../slots/contentSlots';
 import {
@@ -202,6 +203,17 @@ export function ContentEntryView({
         [entryParamsItems]
     );
     const bodySlotParams = useSlotListParams(bodyParamKeys);
+
+    // Slot-contributed **save steps** (the media plugin's staged uploads). Their
+    // hooks are mounted here — above the editor, so their staging outlives a tab
+    // switch — and called unconditionally in slot order, which is safe because
+    // slot items are boot-frozen. Each one's `commit` runs inside `onSave`,
+    // before the write and under the same busy cover.
+    const presaveItems = ENTRY_PRESAVE_SLOT.getItems();
+    const presaves = presaveItems.map((item) => item.usePresave());
+    const presaveHandles = Object.fromEntries(
+        presaveItems.map((item, index) => [item.id, presaves[index]?.handle])
+    );
 
     // The slot-owned list params (e.g. `?locale=de`) this editor was opened
     // under, as a query suffix. The records table puts them on every row link,
@@ -434,12 +446,30 @@ export function ContentEntryView({
                 ? ENTRY_BUSY.Publishing
                 : ENTRY_BUSY.Saving
         );
+        // Slot-contributed save steps run first, under the cover, and may rewrite
+        // the values — this is where the media plugin uploads the files staged on
+        // media fields and swaps in the real asset ids. A step that throws aborts
+        // the save (it has already surfaced its own failure); nothing is written,
+        // so the values keep their placeholders and a retry resumes where it got
+        // to rather than re-uploading.
+        let toSave = values;
+        try {
+            for (const step of presaves) {
+                toSave = await step.commit({
+                    values: toSave,
+                    publish: options.publish
+                });
+            }
+        } catch (error) {
+            setBusy(null);
+            throw error;
+        }
         let result: Awaited<ReturnType<typeof flow.submit>>;
         try {
             result = await flow.submit({
                 schema,
                 publishable,
-                values,
+                values: toSave,
                 publish: options.publish,
                 relations: options.relations,
                 entry: resolved.entry,
@@ -449,6 +479,10 @@ export function ContentEntryView({
         } finally {
             setBusy(null);
         }
+        // The write landed, so every presave step can drop what it consumed (the
+        // media plugin revokes its preview URLs and forgets the staged files —
+        // the saved record now carries the real ids).
+        for (const step of presaves) step.settle?.();
         toast.success(
             intl.formatMessage(
                 result.published
@@ -563,6 +597,7 @@ export function ContentEntryView({
                             : `${typePath}${entryQuerySuffix}`
                     }
                     availableTypeNames={workspace.content}
+                    presave={presaveHandles}
                     tab={tab}
                     onTabChange={onTabChange}
                 />
