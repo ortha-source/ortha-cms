@@ -41,7 +41,9 @@ export function AppRightPanel() {
             aria-label={shown ? panel?.title : undefined}
             inert={!shown}
             className={cn(
-                'sticky top-0 flex h-svh shrink-0 flex-col bg-background',
+                // Full height of the viewport-bounded shell row, so the panel
+                // scrolls on its own instead of riding the inset's scrollport.
+                'flex h-full shrink-0 flex-col bg-background',
                 shown ? 'w-[22rem] border-l' : 'w-0 overflow-hidden'
             )}
         >
