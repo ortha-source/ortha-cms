@@ -1,4 +1,4 @@
-import { Sidebar, SidebarFooter, SidebarRail } from '@ortha-cms/design-system';
+import { Sidebar, SidebarFooter } from '@ortha-cms/design-system';
 import { byOrder } from '@ortha-cms/utils-admin';
 import { SIDEBAR_FOOTER_SLOT } from '../../slots/sidebarSlots';
 import { useSidebarContentOverride } from '../../utils/sidebarContent';
@@ -21,7 +21,15 @@ import { GlobalSidebar } from './GlobalSidebar';
  * `collapsible="offcanvas"` — collapsing slides the whole panel off-screen (the
  * content nav, collections/pages included, doesn't reduce cleanly to icons), and
  * a reveal button ({@link SidebarToggle}) brings it back. On mobile it renders as
- * an overlay drawer. `SidebarRail` is the thin edge strip that also toggles it.
+ * an overlay drawer.
+ *
+ * shadcn's `SidebarRail` is deliberately **not** rendered. It is a 16px-wide
+ * invisible strip hanging off the panel's edge that toggles on click — with
+ * `offcanvas` it is shifted outside the panel and paints a hairline plus a full
+ * `bg-sidebar` block on hover, so it reads as a stray bar in the page with
+ * nothing explaining it. It is also `tabIndex={-1}`, so it's a mouse-only
+ * affordance for something already covered three ways: the in-header trigger,
+ * the `TopBar`'s inline reveal trigger, and ⌘B.
  */
 export function AppSidebar() {
     const override = useSidebarContentOverride();
@@ -37,7 +45,6 @@ export function AppSidebar() {
                     ))}
                 </SidebarFooter>
             ) : null}
-            <SidebarRail />
         </Sidebar>
     );
 }

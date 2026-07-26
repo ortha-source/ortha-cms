@@ -8,7 +8,12 @@ when collapsed (or on mobile, where it's an overlay drawer) the reveal trigger
 renders **inline in the page's `TopBar`** (the design-system primitive owns
 that), and the floating `SidebarToggle` (fixed top-left) is only the fallback
 for bar-less pages — it hides itself via `:has()` whenever the open page
-renders a top bar (today that means it shows on Home only). It
+renders a top bar (today that means it shows on Home only). shadcn's
+`SidebarRail` is deliberately **not** rendered: it's a 16px invisible strip
+hanging off the panel edge that (under `offcanvas`) sits outside the panel and
+paints a hairline plus a `bg-sidebar` block on hover — a stray bar in the page
+with nothing explaining it — and being `tabIndex={-1}` it's a mouse-only
+duplicate of three toggles that already exist. It
 **owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
@@ -62,14 +67,14 @@ per-workspace nav. The footer stays persistent across both contexts.
 - `HomePage` — greets the signed-in user and renders the dashboard from
   `HOME_SECTION_SLOT`.
 - `SIDEBAR_NAV_SLOT` / `SidebarItem` (`{ labelId, defaultLabel, to, end?, group,
-  order, icon, permission? }`) — the primary nav slot; `group` is
+order, icon, permission? }`) — the primary nav slot; `group` is
   `'overview' | 'directory'`.
 - `SIDEBAR_SECTION_SLOT` / `SidebarSectionItem` (`{ id, order, Component }`) —
   data-driven sections below the nav.
 - `SIDEBAR_FOOTER_SLOT` / `SidebarFooterItem` (`{ id, order, Component }`) — the
   persistent footer (account menu).
 - `HOME_SECTION_SLOT` / `HomeSectionItem` (`{ id, region: 'stat' | 'panel',
-  order, Component }`) — the home dashboard's tiles + panels.
+order, Component }`) — the home dashboard's tiles + panels.
 - `useSidebarContent(render, deps)` / `SidebarContentProvider` — the mechanism a
   route uses to take over the sidebar's contextual region.
 

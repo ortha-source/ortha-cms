@@ -143,15 +143,20 @@ export type EntrySlotContext = {
     tabSegment: string;
 };
 
-/** One entry-sidebar widget contribution (a card in the right rail). */
+/** One entry-sidebar widget contribution (a section of the Properties rail). */
 export type EntrySidebarWidgetItem = {
     /** Stable id (used as the React key). */
     id: string;
-    /** The widget, rendered below the Details block. */
+    /**
+     * The widget, rendered below the Revisions block. The rail is **one flat
+     * panel** whose blocks are separated by dividers, so a widget should render
+     * the exported `EntrySidebarSection` (and `EntrySidebarRow`) rather than a
+     * card of its own — otherwise it is the one floating box in the panel.
+     */
     Component: ComponentType<EntrySlotContext>;
 };
 
-/** Card blocks appended to the entry editor's right rail. */
+/** Sections appended to the entry editor's Properties rail. */
 export const ENTRY_SIDEBAR_WIDGET_SLOT = createSlot<EntrySidebarWidgetItem>(
     'content.entry.sidebar'
 );

@@ -220,15 +220,16 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
   tabs (the media plugin's **Media** tab) render between Relations and History
   when their `appliesTo` matches the open type; **History** = revisions), and the
-  right rail (`EntrySidebar`): a top **action bar** — a primary button
+  right rail (`EntrySidebar`) — the **Properties panel** (see below): a top
+  **action bar** — a primary button
   (**Publish** for a publishable type the user may publish, else **Save** /
   **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
-  Unpublish, Delete; each permission-gated) — over stacked **card blocks**: a
+  Unpublish, Delete; each permission-gated) — over a
   live **Publish Gate** (`PublishGateItem[]`, computed by `EntryEditor` from the
   strict kernel-backed validation — each required/invalid field with its pass/fail,
   header `blocking`/`ready`; publishable types only) and a static **Details**
   block (status, created/updated, id). While a save/publish is running, the view
-  covers itself with the **`EntryBusyOverlay`** (see *Save/publish flow* below). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
+  covers itself with the **`EntryBusyOverlay`** (see _Save/publish flow_ below). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
   control per field type — `date`/`datetime` use a shadcn `Calendar` popover
   (`EntryFieldInput/DateField`, with a time input for datetime), and
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
@@ -337,24 +338,68 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
+## The Properties rail — one collapsible panel, not floating cards
+
+The entry editor's right rail (`EntrySidebar`) is a **single flat panel**: a
+header reading **Properties** with a collapse toggle, then a run of sections told
+apart by **dividers**. It is deliberately not a column of cards — every block
+used to draw its own border, tinted background, and heading, so a rail of five
+blocks read as five floating boxes stacked on a page rather than one surface with
+sections.
+
+- **`EntrySidebarSection`** (title + optional `action` adornment + optional
+  `description`) and **`EntrySidebarRow`** (a `<dt>`/`<dd>` label-left /
+  value-right pair, `stacked` for a long value like a UUID) are the panel's whole
+  chrome. Both are **exported from the package index** — a plugin filling
+  `ENTRY_SIDEBAR_WIDGET_SLOT` (the i18n **Locale** panel) renders _these_, for the
+  same reason `ChangedBadge` and `EntryStatusBadge` are shared: a widget with a
+  card of its own would be the one floating box left in the panel.
+- **The divider belongs to the rail, not the section.** The blocks sit in a
+  `divide-y` wrapper, so a contributed widget is separated exactly like a
+  built-in one without drawing a border itself (and a widget that renders `null`
+  — `LocaleWidget` on a non-i18n type — leaves no stray rule behind).
+- **Collapsed**, the rail becomes a narrow strip (a horizontal bar under the form
+  below `lg`) holding the expand toggle plus the **same** primary action and ⋯
+  menu, via `SidebarActionBar`'s `compact` mode (icon-only primary, its label
+  becoming the accessible name). A collapse that hid Save would be a trap — the
+  form's only write actions live in this rail.
+- **It slides, it doesn't snap.** The `<aside>` transitions its width on the app
+  sidebar's timing (`transition-[width] duration-200 ease-linear`, opted out
+  under `motion-reduce`), and the main column — `flex-1` — takes up the space
+  continuously. `overflow-hidden` plus a **fixed-width inner box** are what make
+  it a slide and not a reflow: the contents keep their own width and are clipped
+  rather than re-wrapping every frame. The inner box is pinned right (`ml-auto`)
+  because the rail narrows from the left, so what's on screen stays put while the
+  panel closes. Only one set of controls is ever mounted (the two states are a
+  branch, not a cross-fade) — duplicating them would give the editor two buttons
+  named "Save".
+- The state is persisted in `localStorage`
+  (`presentation/hooks/useEntrySidebarCollapsed`, guarded like
+  `useContentFavorites`) because the editor is **remounted by navigations it
+  doesn't own** — a locale switch re-targets it at a sibling record, and a
+  single's tab segments are separate routes. A rail that sprang back open on
+  every such move would be a setting the user can't actually make.
+- Headings run `h1` (the record title) → `h2` (the panel's "Properties") → `h3`
+  (each section), so the rail doesn't skip a level.
+
 ## Publish state — four labels over two stored values
 
 The server stores only `draft`/`published`, because a save moves a publishable
-entry back to `draft` while its published *version* stays live in history. That
+entry back to `draft` while its published _version_ stays live in history. That
 conflates two situations a writer must tell apart, so the UI reads a **third**
 signal — `EntryRecord.publishedAt`, which is stamped on publish, cleared only by
 unpublish, and deliberately survives an edit:
 
-| stored                       | shown                | meaning                            |
-| ---------------------------- | -------------------- | ---------------------------------- |
-| (create form)                | **Not saved yet**    | nothing stored                     |
-| `draft`, no `publishedAt`    | **Draft**            | never published                    |
-| `draft`, has `publishedAt`   | **Modified**         | live content + unpublished changes |
-| `published`                  | **Published**        | live and current                   |
+| stored                     | shown             | meaning                            |
+| -------------------------- | ----------------- | ---------------------------------- |
+| (create form)              | **Not saved yet** | nothing stored                     |
+| `draft`, no `publishedAt`  | **Draft**         | never published                    |
+| `draft`, has `publishedAt` | **Modified**      | live content + unpublished changes |
+| `published`                | **Published**     | live and current                   |
 
 `domain/entryStatusView` is the pure classifier; **`presentation/components/
-EntryStatusBadge`** is its one rendering, used by *both* the records table's
-Status column and the editor's Details card so a record can't read two ways in
+EntryStatusBadge`** is its one rendering, used by _both_ the records table's
+Status column and the editor's Details block so a record can't read two ways in
 the two places it's looked at. Modified is a `warning` badge, not `success` —
 what's live is not what's on screen. The table cell used to print the raw wire
 value (`draft`/`published`, lowercase, untranslated); it is now localized, which
@@ -365,7 +410,7 @@ a third state with no column value spelling it made unavoidable.
 - **`application/refreshEntryCaches`** is the single cache-refresh pass for any
   entry write (list, revisions, relations, per-field links, and — unless
   `skipEntry` — the read-one). Having one definition is what lets the
-  save→publish **chain** run it *once at the end* (`useSaveEntry` takes
+  save→publish **chain** run it _once at the end_ (`useSaveEntry` takes
   `deferRefresh`, set by `usePublishEntryFlow` from the same `canPublish` gate,
   now decided **before** the save) instead of each mutation refetching on the way
   past — one Publish click used to re-read the record and its whole timeline
@@ -375,12 +420,12 @@ a third state with no column value spelling it made unavoidable.
   record, so each mutation `setQueryData`s the read-one instead of invalidating
   it, and `useContentEntry` carries a `staleTime` so the create→`/:type/:id`
   navigation stops discarding the record it was just handed. Only the **primed**
-  record is spared (`primedEntryId`) — every *other* cached record of the type is
+  record is spared (`primedEntryId`) — every _other_ cached record of the type is
   still invalidated, because one save can rewrite rows it didn't name: the i18n
   shared-field sync writes a non-localized field to every locale sibling, and
   sparing the whole prefix left a switch to that sibling showing the pre-save
   copy until a reload. Cache-seeded opens
-  pass `initialDataUpdatedAt` (the age of the *list* read), so a stale row still
+  pass `initialDataUpdatedAt` (the age of the _list_ read), so a stale row still
   refetches. Invalidation ignores `staleTime`, so nothing this app writes goes
   unnoticed.
 - **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
@@ -480,7 +525,9 @@ fetching internally.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional
   `useRowsData` batches per-page data once for all its cells.
-- **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a card in the entry editor's right rail,
+- **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a **section** of the entry editor's
+  Properties rail (render the exported `EntrySidebarSection` /
+  `EntrySidebarRow`, not a card — see _The Properties rail_ above),
   rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
   workspaceId, typePath, **params**, **tabSegment**) assembled by
   `ContentEntryView` and shared
@@ -512,19 +559,19 @@ fetching internally.
   relation-candidate list params (`relationCandidateParams`, consumed by the
   picker dialog through the slot context).
 - **`ENTRY_TAB_SLOT`** — a whole editor **tab** (id + `slug` + `label` + `order`
-  + `appliesTo` + `Component`). Rendered between Relations and History when
-  `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
-  so the tab router/`entryTabFromPath` accept it. The Component receives an
-  **`EntryTabContext`** — the `EntrySlotContext` plus a **form bridge**
-  (`values` / `errorFor` / `setValue` / `touch` / `isFieldDirty`) and the saved
-  entry's resolved `mediaRefs` — so a contributed tab renders controls bound to
-  the editor's shared form: a field edited there rides Save, the Changed badge,
-  the publish gate, and the 422→field mapping exactly like a General-tab field.
-  `@ortha-cms/media-admin` fills it with the **Media** tab (media fields live in
-  the values bag; the tab is only their rendering surface). `useSaveEntry` also
-  invalidates the entry-media cache so the tab reflects the saved set. The
-  context also carries **`presave`** — the handles below, so a tab reaches state
-  that has to outlive its own body.
+    - `appliesTo` + `Component`). Rendered between Relations and History when
+      `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
+      so the tab router/`entryTabFromPath` accept it. The Component receives an
+      **`EntryTabContext`** — the `EntrySlotContext` plus a **form bridge**
+      (`values` / `errorFor` / `setValue` / `touch` / `isFieldDirty`) and the saved
+      entry's resolved `mediaRefs` — so a contributed tab renders controls bound to
+      the editor's shared form: a field edited there rides Save, the Changed badge,
+      the publish gate, and the 422→field mapping exactly like a General-tab field.
+      `@ortha-cms/media-admin` fills it with the **Media** tab (media fields live in
+      the values bag; the tab is only their rendering surface). `useSaveEntry` also
+      invalidates the entry-media cache so the tab reflects the saved set. The
+      context also carries **`presave`** — the handles below, so a tab reaches state
+      that has to outlive its own body.
 - **`ENTRY_PRESAVE_SLOT`** — a plugin's participation in the **save itself**:
   `usePresave()` is mounted once per `ContentEntryView` and returns
   `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client

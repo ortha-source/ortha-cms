@@ -50,6 +50,7 @@ export function SidebarActionBar({
     primary,
     busy,
     saving,
+    compact = false,
     showSaveDraft,
     showPublish,
     showUnpublish,
@@ -65,6 +66,13 @@ export function SidebarActionBar({
     busy: boolean;
     /** A save/publish specifically is in flight — shows the primary spinner. */
     saving: boolean;
+    /**
+     * Render for the **collapsed** rail: an icon-only primary (its label becomes
+     * the accessible name) beside the ⋯ menu, laid out by the strip rather than
+     * by a wrapper of its own. Saving must stay reachable with the rail shut —
+     * a collapse that hides the Save button would be a trap.
+     */
+    compact?: boolean;
     showSaveDraft: boolean;
     showPublish: boolean;
     showUnpublish: boolean;
@@ -76,20 +84,25 @@ export function SidebarActionBar({
     onRequestDelete: () => void;
 }) {
     const intl = useIntl();
-    const hasMenu =
-        showSaveDraft || showPublish || showUnpublish || showDelete;
+    const hasMenu = showSaveDraft || showPublish || showUnpublish || showDelete;
 
     if (!primary && !hasMenu) return null;
 
     const primaryMeta = primary ? PRIMARY_META[primary.kind] : null;
     const PrimaryIcon = primaryMeta?.icon;
 
-    return (
-        <div className="flex items-center gap-2">
+    const actions = (
+        <>
             {primary && primaryMeta && PrimaryIcon && (
                 <Button
                     type="button"
-                    className="flex-1"
+                    className={compact ? 'shrink-0' : 'flex-1'}
+                    size={compact ? 'icon' : undefined}
+                    aria-label={
+                        compact
+                            ? intl.formatMessage(primaryMeta.label)
+                            : undefined
+                    }
                     onClick={primary.onClick}
                     disabled={busy}
                 >
@@ -98,7 +111,7 @@ export function SidebarActionBar({
                     ) : (
                         <PrimaryIcon aria-hidden />
                     )}
-                    {intl.formatMessage(primaryMeta.label)}
+                    {compact ? null : intl.formatMessage(primaryMeta.label)}
                 </Button>
             )}
             {hasMenu && (
@@ -151,6 +164,14 @@ export function SidebarActionBar({
                     </DropdownMenuContent>
                 </DropdownMenu>
             )}
-        </div>
+        </>
+    );
+
+    // Compact renders straight into the collapsed strip's own flex row/column,
+    // so it contributes no wrapper — the strip decides the direction.
+    return compact ? (
+        actions
+    ) : (
+        <div className="flex items-center gap-2">{actions}</div>
     );
 }

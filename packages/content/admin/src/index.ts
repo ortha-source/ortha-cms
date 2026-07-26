@@ -59,6 +59,13 @@ export { EntryStatusBadge } from './lib/presentation/components/EntryStatusBadge
 // look-alike that drifts.
 export { ChangedBadge } from './lib/presentation/components/ChangedBadge';
 
+// The entry rail's chrome. The rail is one flat panel of divider-separated
+// sections, so a plugin contributing an `ENTRY_SIDEBAR_WIDGET_SLOT` widget
+// renders *these* rather than a card of its own — a widget that drew its own
+// border and background would be the one floating box left in the panel.
+export { EntrySidebarSection } from './lib/presentation/components/EntrySidebarSection';
+export { EntrySidebarRow } from './lib/presentation/components/EntrySidebarRow';
+
 // Query-key builders, exported so a slot contributor can invalidate the
 // library's caches after its own mutations (e.g. creating a translation).
 export { contentEntriesPrefix } from './lib/application/useContentEntries';

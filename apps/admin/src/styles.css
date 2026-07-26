@@ -246,23 +246,31 @@
     * {
         @apply border-border;
     }
-    html {
-        /* The document owns vertical scrolling: the sticky chrome is anchored
-           to the viewport scrollport, and ordinary pages grow past the fold
-           and scroll. Pages that opt into a fixed-height "island" (e.g. the
-           Content Library) are bounded to the viewport and run their own
-           inner scroll, so they never push the document. Clip the horizontal
-           axis with `clip` (not `hidden`) — it hides sideways overflow
-           without creating a scroll container, so it leaves
-           `position: sticky` intact. */
-        @apply overflow-x-clip;
-    }
+    /* The document owns vertical scrolling: the sticky chrome is anchored to
+       the viewport scrollport, and ordinary pages grow past the fold and
+       scroll. Pages that opt into a fixed-height "island" (e.g. the Content
+       Library) are bounded to the viewport and run their own inner scroll, so
+       they never push the document.
+
+       `html` deliberately carries **no** overflow of its own. Sideways overflow
+       is clipped on `#root` instead (below), because the CSS overflow rules say
+       a non-`visible` overflow on `html` — `overflow-x: clip` included — stops
+       `body`'s overflow from propagating to the viewport. Radix's overlays
+       (`DropdownMenu`, `Select`, `Dialog`, …) lock scrolling by setting
+       `body { overflow: hidden }` and compensating for the scrollbar they
+       expect that to remove with `body[data-scroll-locked] { margin-right:
+       <scrollbar> }`. With `html` clipping, the `hidden` never reached the
+       viewport: the scrollbar stayed, the compensation still applied, and the
+       whole layout jumped ~15px sideways every time any menu opened or closed
+       (the ⋯ menu in the entry editor's Properties rail being where it reads
+       worst). The lock itself was inert for the same reason. */
     body {
         @apply bg-background text-foreground;
     }
     #root {
         /* `overflow-x-clip`, not `-hidden`: `hidden` would make #root a scroll
-           container and break the sticky chrome once the document scrolls. */
+           container and break the sticky chrome once the document scrolls.
+           This is the *only* horizontal clip — see the note above `body`. */
         @apply min-h-svh overflow-x-clip;
     }
     ::selection {
