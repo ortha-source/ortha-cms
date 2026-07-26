@@ -24,6 +24,13 @@ hand-written):
   `WizardStepCard`, `WizardFooter`) lives in `ui/wizard.tsx` — copy-free and
   i18n-free, configured by the consumer.
 
+## Notes
+
+- `TopBar` composes with `TopBarIcon` (leading tile) and **`TopBarActions`** (the
+  trailing, `ml-auto` region for page actions — place it as the bar's _last_
+  child). `TopBarActions` is presentational only; who fills it is the consumer's
+  business, because the design system can't reach the shell's context.
+
 ## TS conventions
 
 - `type` over `interface`

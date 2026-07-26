@@ -63,4 +63,23 @@ const TopBarIcon = React.forwardRef<
 ));
 TopBarIcon.displayName = 'TopBarIcon';
 
-export { TopBar, TopBarIcon };
+/**
+ * The bar's trailing region: page-level actions, pushed to the right edge. Place
+ * it as the **last** child of a {@link TopBar} — `ml-auto` is what separates it
+ * from the breadcrumb, so anything after it would be pushed off the end.
+ * Presentational; who fills it is the consumer's business.
+ */
+const TopBarActions = React.forwardRef<
+    HTMLDivElement,
+    React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+    <div
+        ref={ref}
+        data-slot="top-bar-actions"
+        className={cn('ml-auto flex shrink-0 items-center gap-2', className)}
+        {...props}
+    />
+));
+TopBarActions.displayName = 'TopBarActions';
+
+export { TopBar, TopBarIcon, TopBarActions };

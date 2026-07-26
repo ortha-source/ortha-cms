@@ -12,6 +12,7 @@ import {
     TopBar,
     TopBarIcon
 } from '@ortha-cms/design-system';
+import { PageActions } from '@ortha-cms/shell-admin';
 import type { ContentType } from '../../../domain/types/contentType';
 import {
     CONTENT_SEGMENT,
@@ -182,6 +183,11 @@ export function ContentTopBar({
                     ])}
                 </BreadcrumbList>
             </Breadcrumb>
+            {/* The shell's page-actions region — the open entry editor portals
+                its Publish + ⋯ in here, and the Properties panel's expand
+                button appears here while that panel is collapsed. Last child on
+                purpose: the region is `ml-auto`. */}
+            <PageActions />
         </TopBar>
     );
 }

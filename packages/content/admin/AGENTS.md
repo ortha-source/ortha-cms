@@ -338,14 +338,36 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
-## The Properties rail — one collapsible panel, not floating cards
+## The Properties panel + the editor's actions live in the app chrome
 
-The entry editor's right rail (`EntrySidebar`) is a **single flat panel**: a
-header reading **Properties** with a collapse toggle, then a run of sections told
-apart by **dividers**. It is deliberately not a column of cards — every block
-used to draw its own border, tinted background, and heading, so a rail of five
-blocks read as five floating boxes stacked on a page rather than one surface with
-sections.
+The entry editor no longer draws its own rail or its own action bar. Both render
+into **shell-owned regions** (`@ortha-cms/shell-admin`), filled by portal from
+inside the editor:
+
+- **`RightPanelPortal title="Properties"`** ← `EntrySidebar`, the panel body.
+  The shell's `AppRightPanel` supplies the column, the heading, the collapse
+  toggle and the independent scroll; collapsed, the column disappears and the
+  reopen button shows up in the top bar.
+- **`PageActionsPortal`** ← **`EntryActions`**, the write actions (the primary
+  **Publish** / **Save** / **Save draft** button + the ⋯ menu holding Save draft,
+  Save & publish, Unpublish, Delete, each permission-gated, plus the delete
+  `ConfirmDialog`). They sit in the top bar because the panel can be collapsed
+  away entirely and a record you can't save is a trap.
+  `ContentTopBar` renders the shell's `<PageActions />` as its last child, which
+  is the region they land in.
+
+**Why portals and not "hand the shell a node".** React resolves context by where
+a node is _rendered_. Rendered by the shell, this content would be cut off from
+`useCurrentWorkspace` (every entry query needs it), from `EntrySlotContext` (the
+i18n **Locale** widget), and from the editor's own handlers and busy state.
+`createPortal` moves only the DOM. `ContentNavSection` is the counter-example —
+it renders above `CurrentWorkspaceProvider` and has to re-resolve the workspace
+by hand.
+
+The panel body itself is a **single flat surface**: a run of sections told apart
+by **dividers**, deliberately not a column of cards — every block used to draw
+its own border, tinted background, and heading, so five blocks read as five
+floating boxes stacked on a page rather than one surface with sections.
 
 - **`EntrySidebarSection`** (title + optional `action` adornment + optional
   `description`) and **`EntrySidebarRow`** (a `<dt>`/`<dd>` label-left /
@@ -358,26 +380,16 @@ sections.
   `divide-y` wrapper, so a contributed widget is separated exactly like a
   built-in one without drawing a border itself (and a widget that renders `null`
   — `LocaleWidget` on a non-i18n type — leaves no stray rule behind).
-- **Collapsed**, the rail becomes a narrow strip (a horizontal bar under the form
-  below `lg`) holding the expand toggle plus the **same** primary action and ⋯
-  menu, via `SidebarActionBar`'s `compact` mode (icon-only primary, its label
-  becoming the accessible name). A collapse that hid Save would be a trap — the
-  form's only write actions live in this rail.
-- **The swap is instant — leave it that way.** Two motion treatments were built
-  for this collapse and both were rejected: a `transition-[width]` slide (the
-  content vanished ahead of it, since the two layouts are a branch) and then a
-  cross-fade that faded the outgoing layout out before swapping. Don't try a
-  third. Only one set of controls is ever mounted, which is also why a
-  cross-fade is awkward here — rendering both layouts at once would give the
-  editor two buttons named "Save".
-- The state is persisted in `localStorage`
-  (`presentation/hooks/useEntrySidebarCollapsed`, guarded like
-  `useContentFavorites`) because the editor is **remounted by navigations it
-  doesn't own** — a locale switch re-targets it at a sibling record, and a
-  single's tab segments are separate routes. A rail that sprang back open on
-  every such move would be a setting the user can't actually make.
-- Headings run `h1` (the record title) → `h2` (the panel's "Properties") → `h3`
-  (each section), so the rail doesn't skip a level.
+- **Collapse is the shell's, not ours** — including its persistence, so it
+  survives the remounts this editor takes from navigations it doesn't own (a
+  locale switch re-targets it at a sibling record; a single's tab segments are
+  separate routes). `EntrySidebar` renders **chrome-less**: no column, no
+  heading, no toggle.
+- **The collapse is instant — leave it that way.** Two motion treatments were
+  built for it and both were rejected: a `transition-[width]` slide and then a
+  cross-fade. Don't try a third.
+- Headings run `h1` (the record title) in the page → `h2` ("Properties", the
+  shell panel's heading) → `h3` (each section).
 
 ## Publish state — four labels over two stored values
 

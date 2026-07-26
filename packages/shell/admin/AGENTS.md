@@ -20,6 +20,38 @@ duplicate of three toggles that already exist. It
 non-`public` routes but stays auth-agnostic — so the shell is what makes private
 routes render only for signed-in users.
 
+## Page-fillable chrome regions (`utils/pageChrome`)
+
+Besides the sidebar, the shell owns two regions it does **not** fill — a page
+does, from inside its own tree:
+
+- **The top bar's trailing actions** — `<PageActions />` draws the region (a
+  design-system `TopBarActions`); a page pushes controls into it with
+  `<PageActionsPortal>`. `PageTopBar` renders `PageActions` already; a page that
+  composes `TopBar` itself (content-admin's `ContentTopBar`) adds it as the bar's
+  **last** child, since the region is `ml-auto`.
+- **The right panel** — `AppRightPanel` (rendered by `AppShell` as the column
+  after `SidebarInset`) supplies a header aligned to the top bar (`h-12` +
+  bottom border, so the two read as one band) over an independently scrolling
+  body; a page fills it with `<RightPanelPortal title="…">`. Registering a panel
+  is what makes the column and its toggle exist at all — with none registered
+  the column is zero-width and `inert`. Collapsed, the column disappears and the
+  reopen button appears in the top bar's actions region, because the panel has
+  no width left to draw a control in. The open/collapsed state lives in
+  `PageChromeProvider` (persisted, `ortha:right-panel`) rather than with the
+  filler, since the control that flips it is chrome.
+
+**Both are filled by `createPortal`, not by handing the shell a node** the way
+`useSidebarContent` does. React resolves context by where a node is _rendered_,
+so shell-rendered content is cut off from everything below the shell — the open
+workspace, a plugin's slot context, a page's form handlers and busy state. A
+portal moves the DOM and keeps the React tree. (`ContentNavSection` in
+content-admin shows the cost of the alternative: it re-resolves the open
+workspace by hand because it renders above `CurrentWorkspaceProvider`.) The
+portal hosts stay mounted whether or not anything fills them — a portal needs its
+target to exist, and keeping the panel host mounted means collapsing never
+unmounts the filler and throws away its state.
+
 It **owns the sidebar's slots** — all `createSlot` extension points (primitive
 from `@ortha-cms/utils-admin`):
 
@@ -77,6 +109,9 @@ order, icon, permission? }`) — the primary nav slot; `group` is
 order, Component }`) — the home dashboard's tiles + panels.
 - `useSidebarContent(render, deps)` / `SidebarContentProvider` — the mechanism a
   route uses to take over the sidebar's contextual region.
+- `PageActionsPortal` / `RightPanelPortal` / `PageActions` / `useRightPanel` —
+  the page-fillable chrome regions (see above). `AppShell` mounts their
+  `PageChromeProvider`; `AppRightPanel` draws the panel column.
 
 ## Architecture
 

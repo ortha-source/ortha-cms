@@ -106,7 +106,7 @@ export {
     BreadcrumbSeparator,
     BreadcrumbEllipsis
 } from './lib/components/ui/breadcrumb';
-export { TopBar, TopBarIcon } from './lib/components/ui/top-bar';
+export { TopBar, TopBarIcon, TopBarActions } from './lib/components/ui/top-bar';
 export {
     InputGroup,
     InputGroupAddon,

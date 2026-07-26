@@ -11,6 +11,7 @@ import {
     TopBar,
     TopBarIcon
 } from '@ortha-cms/design-system';
+import { PageActions } from '../PageActions';
 
 /** Intl descriptors for {@link PageTopBar}, co-located here. */
 const messages = defineMessages({
@@ -81,6 +82,9 @@ export function PageTopBar({
                     ])}
                 </BreadcrumbList>
             </Breadcrumb>
+            {/* Last child on purpose — the region is `ml-auto`, so anything
+                after it would be pushed off the bar's end. */}
+            <PageActions />
         </TopBar>
     );
 }

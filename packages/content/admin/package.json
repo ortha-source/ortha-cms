@@ -23,6 +23,7 @@
         "@ortha-cms/design-system": "*",
         "@ortha-cms/identity-admin": "*",
         "@ortha-cms/query-builder-admin": "*",
+        "@ortha-cms/shell-admin": "*",
         "@ortha-cms/utils-admin": "*",
         "@ortha-cms/workspaces-admin": "*",
         "@tanstack/react-query": "^5.0.0",
