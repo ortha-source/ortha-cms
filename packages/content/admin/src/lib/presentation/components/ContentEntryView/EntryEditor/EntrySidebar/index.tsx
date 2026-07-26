@@ -73,8 +73,8 @@ const messages = defineMessages({
  *
  * **Collapsed** it becomes a narrow strip holding the expand toggle and the same
  * primary action + ⋯ menu (`compact`) — a collapse that hid Save would be a
- * trap. The rail **slides** between the two widths rather than snapping, on the
- * app sidebar's timing. The state is persisted
+ * trap. The swap is **instant**, deliberately: both a width slide and a
+ * cross-fade were built and rejected. The state is persisted
  * ({@link useEntrySidebarCollapsed}) because the editor is remounted by
  * navigations it doesn't own.
  *
@@ -208,16 +208,12 @@ export function EntrySidebar({
 
     return (
         <aside
-            // The rail slides between its two widths (matching the app
-            // sidebar's `duration-200 ease-linear`) — the main column is
-            // `flex-1`, so it takes up the space continuously as this animates.
-            // `overflow-hidden` + the fixed-width inner box are what make it a
-            // *slide* rather than a reflow: the contents keep their own width
-            // and are clipped, instead of re-wrapping on every frame. The inner
-            // box is pinned right (`ml-auto`) because the rail narrows from the
-            // left, so what's on screen stays put while the panel closes.
+            // Collapsing is a **plain state change** — the two widths swap with
+            // no transition, and the main column (`flex-1`) takes up the space
+            // immediately. Animating it was tried twice (a width slide, then a
+            // cross-fade) and rejected both times; leave it instant.
             className={cn(
-                'flex w-full shrink-0 flex-col overflow-hidden border-t border-border/60 transition-[width] duration-200 ease-linear motion-reduce:transition-none lg:border-l lg:border-t-0',
+                'flex w-full shrink-0 flex-col overflow-hidden border-t border-border/60 lg:border-l lg:border-t-0',
                 collapsed ? 'lg:w-14' : 'lg:w-[23rem]'
             )}
             aria-label={intl.formatMessage(messages.aside)}
@@ -226,12 +222,12 @@ export function EntrySidebar({
                 // Collapsed: a strip carrying the toggle and the same write
                 // actions — a horizontal bar under the form on narrow screens,
                 // a narrow column beside it from `lg` up.
-                <div className="ml-auto flex w-full items-center gap-2 p-3 lg:w-14 lg:flex-col lg:py-4">
+                <div className="flex w-full items-center gap-2 p-3 lg:flex-col lg:py-4">
                     {toggleButton}
                     {actionBar}
                 </div>
             ) : (
-                <div className="ml-auto flex w-full flex-col lg:w-[23rem]">
+                <div className="flex w-full flex-col">
                     <div className="flex items-center justify-between gap-2 border-b border-border/60 px-5 py-3">
                         <h2 className="text-sm font-semibold tracking-[-0.01em]">
                             {intl.formatMessage(messages.panelTitle)}

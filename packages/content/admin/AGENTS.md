@@ -363,16 +363,13 @@ sections.
   menu, via `SidebarActionBar`'s `compact` mode (icon-only primary, its label
   becoming the accessible name). A collapse that hid Save would be a trap — the
   form's only write actions live in this rail.
-- **It slides, it doesn't snap.** The `<aside>` transitions its width on the app
-  sidebar's timing (`transition-[width] duration-200 ease-linear`, opted out
-  under `motion-reduce`), and the main column — `flex-1` — takes up the space
-  continuously. `overflow-hidden` plus a **fixed-width inner box** are what make
-  it a slide and not a reflow: the contents keep their own width and are clipped
-  rather than re-wrapping every frame. The inner box is pinned right (`ml-auto`)
-  because the rail narrows from the left, so what's on screen stays put while the
-  panel closes. Only one set of controls is ever mounted (the two states are a
-  branch, not a cross-fade) — duplicating them would give the editor two buttons
-  named "Save".
+- **The swap is instant — leave it that way.** Two motion treatments were built
+  for this collapse and both were rejected: a `transition-[width]` slide (the
+  content vanished ahead of it, since the two layouts are a branch) and then a
+  cross-fade that faded the outgoing layout out before swapping. Don't try a
+  third. Only one set of controls is ever mounted, which is also why a
+  cross-fade is awkward here — rendering both layouts at once would give the
+  editor two buttons named "Save".
 - The state is persisted in `localStorage`
   (`presentation/hooks/useEntrySidebarCollapsed`, guarded like
   `useContentFavorites`) because the editor is **remounted by navigations it
