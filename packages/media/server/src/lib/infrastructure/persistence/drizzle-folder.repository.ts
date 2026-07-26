@@ -14,6 +14,9 @@ import { FolderMapper } from './folder.mapper';
  * contents and `findDescendantsForUpdate` walks the subtree a delete cascades
  * over.
  */
+/** How many times a cascading delete re-walks a subtree that keeps moving. */
+const SUBTREE_WALK_ROUNDS = 5;
+
 @Injectable()
 export class DrizzleFolderRepository implements FolderRepository {
     constructor(
@@ -132,8 +135,65 @@ export class DrizzleFolderRepository implements FolderRepository {
     ): Promise<Folder[]> {
         // A recursive walk down `parent_id`, carrying the depth so the caller
         // can delete children before parents. `FOR UPDATE` can't be applied to
-        // a recursive CTE's own SELECT (Postgres rejects it there), so the CTE
+        // a recursive CTE's own SELECT (Postgres rejects it there), so the walk
         // only *finds* the subtree and a second statement takes the locks.
+        const rows = (await this.walkSubtree(id, workspaceId)).map((rowId) => ({
+            id: rowId
+        }));
+        let ids = rows.map((row) => row.id);
+        if (!ids.length) return [];
+
+        // Re-read the rows under lock, then restore the depth-first order the
+        // CTE established (a plain `IN` query has no order of its own).
+        //
+        // Walking again after the lock is what closes the window the lock can't:
+        // the CTE takes no locks, so a subfolder created under a *descendant*
+        // between the two statements wouldn't be in `ids` — it would survive its
+        // own parent's deletion and be left dangling. Once every id we know
+        // about is locked, a re-walk either agrees (done) or reveals the new
+        // child, which we then lock too. It converges because each round can
+        // only find folders whose parent is already locked, and those inserts
+        // now block on us.
+        for (let round = 0; ; round += 1) {
+            const locked = await this.uow
+                .current()
+                .select()
+                .from(mediaFolder)
+                .where(
+                    and(
+                        inArray(mediaFolder.id, ids),
+                        eq(mediaFolder.workspaceId, workspaceId)
+                    )
+                )
+                .for('update');
+            const recheck = await this.walkSubtree(id, workspaceId);
+            const known = new Set(ids);
+            if (
+                recheck.length === ids.length &&
+                recheck.every((each) => known.has(each))
+            ) {
+                const byId = new Map(locked.map((row) => [row.id, row]));
+                return ids
+                    .map((rowId) => byId.get(rowId))
+                    .filter((row) => !!row)
+                    .map((row) => this.mapper.toDomain(row));
+            }
+            // A safety valve: the loop is bounded by the tree's depth in
+            // practice, and a caller starving forever would hold locks.
+            if (round >= SUBTREE_WALK_ROUNDS) {
+                throw new Error(
+                    `folder subtree kept changing under a delete (${id.value})`
+                );
+            }
+            ids = recheck;
+        }
+    }
+
+    /** The subtree's ids, deepest-first. Takes no locks — see the caller. */
+    private async walkSubtree(
+        id: FolderId,
+        workspaceId: string
+    ): Promise<string[]> {
         const { rows } = await this.uow.current().execute<{ id: string }>(sql`
             WITH RECURSIVE subtree AS (
                 SELECT id, 1 AS depth
@@ -148,27 +208,7 @@ export class DrizzleFolderRepository implements FolderRepository {
             )
             SELECT id FROM subtree ORDER BY depth DESC
         `);
-        const ids = rows.map((row) => row.id);
-        if (!ids.length) return [];
-
-        // Re-read the rows under lock, then restore the depth-first order the
-        // CTE established (a plain `IN` query has no order of its own).
-        const locked = await this.uow
-            .current()
-            .select()
-            .from(mediaFolder)
-            .where(
-                and(
-                    inArray(mediaFolder.id, ids),
-                    eq(mediaFolder.workspaceId, workspaceId)
-                )
-            )
-            .for('update');
-        const byId = new Map(locked.map((row) => [row.id, row]));
-        return ids
-            .map((rowId) => byId.get(rowId))
-            .filter((row) => !!row)
-            .map((row) => this.mapper.toDomain(row));
+        return rows.map((row) => row.id);
     }
 
     /** {@inheritDoc FolderRepository.countAssets} */

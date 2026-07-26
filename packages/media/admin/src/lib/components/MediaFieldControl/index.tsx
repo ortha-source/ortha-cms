@@ -11,8 +11,9 @@ import {
     EmptyTitle,
     toast
 } from '@ortha-cms/design-system';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import type { MediaRef } from '@ortha-cms/content-admin';
-import { MEDIA_KIND } from '../../constants';
+import { MEDIA_CREATE, MEDIA_KIND, MEDIA_READ } from '../../constants';
 import type { MediaAsset } from '../../types/mediaAsset';
 import type { MediaFieldDisplay } from '../../types/mediaFieldDisplay';
 import type { MediaPendingUploads } from '../../types/pendingUpload';
@@ -60,6 +61,10 @@ const messages = defineMessages({
         defaultMessage:
             'Drop a file here, or pick one from the Media Library. New files upload when you save.'
     },
+    emptyBodyPickOnly: {
+        id: 'media.field.emptyBodyPickOnly',
+        defaultMessage: 'Pick an asset from the Media Library.'
+    },
     dropHere: {
         id: 'media.field.dropHere',
         defaultMessage: 'Drop to attach'
@@ -78,6 +83,11 @@ const messages = defineMessages({
     uploadRejected: {
         id: 'media.field.uploadRejected',
         defaultMessage: '{name} is not an accepted file type for this field.'
+    },
+    noMediaAccess: {
+        id: 'media.field.noMediaAccess',
+        defaultMessage:
+            'You don’t have access to the Media Library, so this field can only be read.'
     }
 });
 
@@ -86,6 +96,11 @@ function toIds(value: unknown): string[] {
     if (Array.isArray(value))
         return value.filter((v): v is string => typeof v === 'string' && !!v);
     return typeof value === 'string' && value ? [value] : [];
+}
+
+/** The original-bytes route for an id we know nothing else about. */
+function rawUrl(id: string): string {
+    return `/api/media/assets/${id}/raw`;
 }
 
 /** Whether a drag carries files (as opposed to text or an in-page element). */
@@ -118,6 +133,7 @@ export function MediaFieldControl({
     accept,
     value,
     initialRefs,
+    refsPending,
     invalid,
     describedBy,
     required,
@@ -131,6 +147,13 @@ export function MediaFieldControl({
     value: unknown;
     /** Server-resolved refs for pre-existing ids (names / thumbnails / missing). */
     initialRefs?: MediaRef[];
+    /**
+     * Whether the entry's media read is still in flight. Distinguishes "not
+     * resolved **yet**" (wait, render a placeholder) from "resolved to nothing"
+     * (the read failed or no media plugin is bound — fall back to the raw route
+     * rather than waiting forever).
+     */
+    refsPending?: boolean;
     invalid?: boolean;
     describedBy?: string;
     required?: boolean;
@@ -144,6 +167,12 @@ export function MediaFieldControl({
     onBlur?: () => void;
 }) {
     const intl = useIntl();
+    // Mirror the server's media matrix. Without these the controls still
+    // *render*, and the failure lands late and loud: a deferred upload 403s
+    // inside the save, which aborts the whole record write — so a missing
+    // permission would cost the user their unrelated edits too.
+    const canPickMedia = useHasPermission(MEDIA_READ);
+    const canUploadMedia = useHasPermission(MEDIA_CREATE);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [uploadOpen, setUploadOpen] = useState(false);
     // Files dropped on the panel, staged into the upload dialog when it opens —
@@ -159,6 +188,9 @@ export function MediaFieldControl({
 
     const ids = toIds(value);
 
+    // Staging is only offered when the user may actually upload; the presave
+    // step would otherwise fail the save on their behalf.
+    const canStage = !!uploads && canUploadMedia;
     const pending = uploads?.pending;
 
     const displays = useMemo<MediaFieldDisplay[]>(() => {
@@ -201,27 +233,31 @@ export function MediaFieldControl({
                     mimeType: ref.mimeType,
                     missing: ref.missing
                 };
-            // Nothing known about this id yet — the entry's media read is still
-            // in flight. Render a placeholder rather than guessing the raw
-            // route: that guess made every edit-mode open pull **full-size
-            // originals** for the window before the refs landed, and print a
-            // uuid where the file name goes. The refs replace this within one
-            // request; if a host somehow runs the admin plugin without the
-            // media server binding, the tile stays a placeholder rather than
-            // showing an image — the trade this accepts.
+            // Nothing known about this id. While the entry's media read is in
+            // flight, wait: guessing the raw route made every edit-mode open
+            // pull **full-size originals** to draw 180px tiles, and printed a
+            // uuid where the file name goes. Once the read has settled without
+            // a ref (it failed, or no media plugin is bound) waiting would
+            // never end — so fall back to the raw route and show *something*.
+            // The id names the controls either way, so "Remove …" stays unique.
+            if (refsPending)
+                return {
+                    id: assetId,
+                    name: assetId,
+                    url: '',
+                    kind: '',
+                    mimeType: '',
+                    resolving: true
+                };
             return {
-                // The id is the only handle there is, so it names the tile's
-                // controls ("Remove <id>"); the visible label says "Loading
-                // asset…" instead of printing a uuid where a file name goes.
                 id: assetId,
                 name: assetId,
-                url: '',
-                kind: '',
-                mimeType: '',
-                resolving: true
+                url: rawUrl(assetId),
+                kind: MEDIA_KIND.Image,
+                mimeType: ''
             };
         });
-    }, [ids, initialRefs, known, pending]);
+    }, [ids, initialRefs, known, pending, refsPending]);
 
     const remember = (assets: MediaAsset[]) => {
         setKnown((current) => {
@@ -268,7 +304,7 @@ export function MediaFieldControl({
      * the real asset again on save), so a rejected file never reaches the value.
      */
     const onStaged = (files: File[]) => {
-        if (!uploads) return;
+        if (!uploads || !canStage) return;
         const allowed: File[] = [];
         for (const file of files) {
             if (acceptsFile(accept, file)) allowed.push(file);
@@ -325,7 +361,7 @@ export function MediaFieldControl({
         <div className="flex flex-col gap-3">
             <div
                 onDragEnter={(event) => {
-                    if (!dragHasFiles(event.dataTransfer)) return;
+                    if (!dragHasFiles(event.dataTransfer) || !canStage) return;
                     dragDepth.current += 1;
                     setDragging(true);
                 }}
@@ -339,7 +375,7 @@ export function MediaFieldControl({
                     if (dragDepth.current === 0) setDragging(false);
                 }}
                 onDrop={(event) => {
-                    if (!dragHasFiles(event.dataTransfer) || !uploads) return;
+                    if (!dragHasFiles(event.dataTransfer) || !canStage) return;
                     event.preventDefault();
                     dragDepth.current = 0;
                     setDragging(false);
@@ -377,7 +413,9 @@ export function MediaFieldControl({
                                 {intl.formatMessage(
                                     dragging
                                         ? messages.dropBody
-                                        : messages.emptyBody
+                                        : canStage
+                                          ? messages.emptyBody
+                                          : messages.emptyBodyPickOnly
                                 )}
                             </EmptyDescription>
                         </EmptyHeader>
@@ -416,6 +454,7 @@ export function MediaFieldControl({
                     aria-required={required}
                     aria-invalid={invalid}
                     aria-describedby={describedBy}
+                    disabled={!canPickMedia}
                     onClick={() => setPickerOpen(true)}
                 >
                     <ImagePlus className="size-4" aria-hidden />
@@ -427,7 +466,7 @@ export function MediaFieldControl({
                               : messages.select
                     )}
                 </Button>
-                {uploads ? (
+                {canStage ? (
                     <Button
                         type="button"
                         variant="outline"
@@ -447,6 +486,7 @@ export function MediaFieldControl({
                         'ml-auto flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground',
                         !stagedCount &&
                             !acceptHint &&
+                            canPickMedia &&
                             !(multiple && displays.length > 0) &&
                             'hidden'
                     )}
@@ -472,17 +512,27 @@ export function MediaFieldControl({
                             })}
                         </span>
                     ) : null}
+                    {canPickMedia ? null : (
+                        <span>
+                            {intl.formatMessage(messages.noMediaAccess)}
+                        </span>
+                    )}
                 </p>
             </div>
 
-            <MediaPickerDialog
-                open={pickerOpen}
-                onOpenChange={setPickerOpen}
-                multiple={multiple}
-                accept={accept}
-                attachedIds={ids}
-                onConfirm={onPicked}
-            />
+            {/* Mounted only while open: the picker carries a whole
+                `useMediaLibrary` store (queries + every mutation), and a type
+                with three media fields would otherwise idle three of them. */}
+            {pickerOpen ? (
+                <MediaPickerDialog
+                    open
+                    onOpenChange={setPickerOpen}
+                    multiple={multiple}
+                    accept={accept}
+                    attachedIds={ids}
+                    onConfirm={onPicked}
+                />
+            ) : null}
 
             {/* The Media Library's own upload modal — same staging, previews,
                 and copy; narrowed to what this field accepts. */}

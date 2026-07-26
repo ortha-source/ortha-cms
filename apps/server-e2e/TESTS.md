@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_381 test cases across 33 spec files._
+_382 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -588,6 +588,7 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | probes dimensions and generates thumb + preview for a large image |
 | skips preview for a small image but still makes a thumb |
 | serves the original when the requested variant does not exist |
+| falls back to the original for a bogus ?variant= |
 | produces no derivatives for a non-image upload |
 | carries the derivatives onto a duplicated image |
 

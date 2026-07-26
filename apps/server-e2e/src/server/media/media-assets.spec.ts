@@ -1,6 +1,10 @@
 import request from 'supertest';
 import sharp from 'sharp';
-import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
 import {
     countMediaAssets,
     resetDb,
@@ -42,7 +46,10 @@ describe('media assets', () => {
             role: 'admin',
             name: 'Media Admin'
         });
-        workspace = await seedWorkspace({ name: 'Workspace', slug: 'workspace' });
+        workspace = await seedWorkspace({
+            name: 'Workspace',
+            slug: 'workspace'
+        });
         await seedMembership(admin.id, workspace.id);
     });
 
@@ -112,7 +119,10 @@ describe('media assets', () => {
         const res = await agent
             .post('/api/media/assets')
             .field('folderId', folder.id)
-            .attach('file', PNG, { filename: 'a.png', contentType: 'image/png' })
+            .attach('file', PNG, {
+                filename: 'a.png',
+                contentType: 'image/png'
+            })
             .expect(201);
         expect(res.body.folderId).toBe(folder.id);
     });
@@ -189,7 +199,10 @@ describe('media assets', () => {
      */
     describe('image derivatives', () => {
         /** A solid-colour PNG of the given size — real, Sharp-decodable bytes. */
-        async function makeImage(width: number, height: number): Promise<Buffer> {
+        async function makeImage(
+            width: number,
+            height: number
+        ): Promise<Buffer> {
             return sharp({
                 create: {
                     width,
@@ -230,7 +243,9 @@ describe('media assets', () => {
                     .get(`/api/media/assets/${asset.id}/raw?variant=${variant}`)
                     .expect(200);
                 expect(res.headers['content-type']).toContain('image/webp');
-                expect(Number(res.headers['content-length'])).toBeGreaterThan(0);
+                expect(Number(res.headers['content-length'])).toBeGreaterThan(
+                    0
+                );
             }
         });
 
@@ -255,6 +270,22 @@ describe('media assets', () => {
                 .expect(200);
             expect(res.headers['content-type']).toContain('image/png');
             expect(Number(res.headers['content-length'])).toBe(PNG.length);
+        });
+
+        it('falls back to the original for a bogus ?variant=', async () => {
+            const agent = await login();
+            const asset = await uploadImage(agent, await makeImage(600, 400));
+
+            // `variants` is a plain JSON object, so a prototype member name
+            // must not be mistaken for a stored derivative — indexing it bare
+            // returned a truthy non-variant, and the provider then got an
+            // `undefined` key.
+            for (const variant of ['nope', 'toString', 'constructor']) {
+                const res = await agent
+                    .get(`/api/media/assets/${asset.id}/raw?variant=${variant}`)
+                    .expect(200);
+                expect(res.headers['content-type']).toContain('image/png');
+            }
         });
 
         it('produces no derivatives for a non-image upload', async () => {
@@ -352,7 +383,10 @@ describe('media assets', () => {
         const foreign = await otherAgent
             .post('/api/media/assets')
             .set('X-Workspace-Id', other.id)
-            .attach('file', PNG, { filename: 'x.png', contentType: 'image/png' })
+            .attach('file', PNG, {
+                filename: 'x.png',
+                contentType: 'image/png'
+            })
             .expect(201);
 
         // The *listing* stays header-scoped: workspace 1 never sees it.
@@ -415,9 +449,7 @@ describe('media assets', () => {
                 .send({ email: VIEWER, password: PASSWORD })
                 .expect(201);
 
-            await outsider
-                .get(`/api/media/assets/${asset.id}/raw`)
-                .expect(404);
+            await outsider.get(`/api/media/assets/${asset.id}/raw`).expect(404);
         });
     });
 });

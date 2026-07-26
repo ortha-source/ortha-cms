@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_238 test cases across 30 spec files._
+_242 test cases across 30 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -255,6 +255,10 @@ _<sub>apps/admin-e2e/src/content/media-fields.spec.ts</sub>_
 | appends to a multiple field and reorders it |
 | shows a saved record’s assets by name, not by id |
 | waits for the ref instead of fetching the original |
+| falls back to the original once the read resolves nothing |
+| says the library failed to load, not that it is empty |
+| offers no upload without media:create |
+| disables library picking without media:read |
 | has no accessibility violations, picker included |
 
 <!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->

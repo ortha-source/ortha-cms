@@ -125,6 +125,21 @@ export interface MediaUploadSpy {
 }
 
 /**
+ * Fail every media **read** (`/api/media/folders`, `/api/media/assets`) with a
+ * 500. Register **after** {@link mockMediaApi} so it wins the match — for
+ * asserting that a surface distinguishes "couldn't load" from "nothing here".
+ */
+export async function failMediaReads(page: Page): Promise<void> {
+    await page.route(
+        /\/api\/media\/(folders|assets)(\?.*)?$/,
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            await route.fulfill(json({ message: 'Server error' }, 500));
+        }
+    );
+}
+
+/**
  * Stub the media API with a **stateful** in-memory store, so a spec can drive
  * the full Media Library against a deterministic backend: folders + assets read,
  * multipart upload (parses the filename from the body), create/rename/delete

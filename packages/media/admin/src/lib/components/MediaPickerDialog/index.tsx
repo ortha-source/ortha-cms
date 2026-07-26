@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
-import { FileSearch, Folder, Search } from 'lucide-react';
+import { FileSearch, Folder, Search, TriangleAlert } from 'lucide-react';
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -119,6 +119,16 @@ const messages = defineMessages({
         defaultMessage: 'Try a different search term or clear the filters.'
     },
     clear: { id: 'media.picker.clear', defaultMessage: 'Clear filters' },
+    errorTitle: {
+        id: 'media.picker.errorTitle',
+        defaultMessage: 'Couldn’t load the library'
+    },
+    errorBody: {
+        id: 'media.picker.errorBody',
+        defaultMessage:
+            'The Media Library didn’t load — this isn’t the same as having no assets. Try again, or check that you have access to it.'
+    },
+    retry: { id: 'media.picker.retry', defaultMessage: 'Try again' },
     cancel: { id: 'media.picker.cancel', defaultMessage: 'Cancel' },
     confirmSingle: {
         id: 'media.picker.confirmSingle',
@@ -395,7 +405,35 @@ export function MediaPickerDialog({
                         </ul>
                     ) : null}
 
-                    {library.isLoading ? (
+                    {library.isError ? (
+                        /* An error is NOT the empty state: telling someone the
+                           folder has nothing they can pick, when the read
+                           actually failed (or they lack `media:read`), sends
+                           them off to hunt for assets that are right there. */
+                        <Empty className="py-10">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <TriangleAlert aria-hidden />
+                                </EmptyMedia>
+                                <EmptyTitle className="text-base">
+                                    {intl.formatMessage(messages.errorTitle)}
+                                </EmptyTitle>
+                                <EmptyDescription role="alert">
+                                    {intl.formatMessage(messages.errorBody)}
+                                </EmptyDescription>
+                            </EmptyHeader>
+                            <EmptyContent>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="shadow-none"
+                                    onClick={library.reload}
+                                >
+                                    {intl.formatMessage(messages.retry)}
+                                </Button>
+                            </EmptyContent>
+                        </Empty>
+                    ) : library.isLoading ? (
                         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                             {Array.from(
                                 { length: SKELETON_TILES },

@@ -15,6 +15,7 @@ import {
     type EntrySaveSpy
 } from '../support/api/content';
 import {
+    failMediaReads,
     mockMediaApi,
     uploadedAssetId,
     MEDIA_ASSET_IDS,
@@ -240,10 +241,9 @@ test.describe('Entry editor — Media tab', () => {
         page,
         mediaFieldPage
     }) => {
-        // The record holds an id; its media read never resolves it (here by
-        // returning nothing — in life, by still being in flight). The tile must
-        // not guess `/raw`: that guess fetched a full-size original on every
-        // edit-mode open, to draw a 180px tile.
+        // The record holds an id and the media read is still in flight. The
+        // tile must not guess `/raw`: that guess fetched a full-size original
+        // on every edit-mode open, to draw a 180px tile.
         await mockContentEntryRead(page, {
             records: {
                 'article/article-2': {
@@ -252,12 +252,92 @@ test.describe('Entry editor — Media tab', () => {
                 }
             }
         });
-        await mockEntryMedia(page, { media: {} });
+        await mockEntryMedia(page, { media: {}, delayMs: 4000 });
         await mediaFieldPage.gotoArticle(WS, 'article-2');
         await mediaFieldPage.openMediaTab();
 
         await expect(mediaFieldPage.resolvingTile).toBeVisible();
         await expect(mediaFieldPage.rawImages).toHaveCount(0);
+    });
+
+    test('falls back to the original once the read resolves nothing', async ({
+        page,
+        mediaFieldPage
+    }) => {
+        // Settled-with-no-ref is not the same as still-loading: waiting on a
+        // read that already answered would leave the tile blank forever (a host
+        // with no media server binding, or a failed read).
+        await mockContentEntryRead(page, {
+            records: {
+                'article/article-3': {
+                    text: 'Saved',
+                    cover: MEDIA_ASSET_IDS.hero
+                }
+            }
+        });
+        await mockEntryMedia(page, { media: {} });
+        await mediaFieldPage.gotoArticle(WS, 'article-3');
+        await mediaFieldPage.openMediaTab();
+
+        await expect(mediaFieldPage.rawImages).toHaveCount(1);
+        await expect(mediaFieldPage.resolvingTile).toBeHidden();
+    });
+
+    test('says the library failed to load, not that it is empty', async ({
+        page,
+        mediaFieldPage
+    }) => {
+        // "No assets here" for a failed read sends the user hunting for assets
+        // that exist — the error state has to be its own thing.
+        await failMediaReads(page);
+        await mediaFieldPage.gotoNewArticle(WS);
+        await mediaFieldPage.openMediaTab();
+
+        await mediaFieldPage.libraryButton('Select from library').click();
+        // The app's QueryClient keeps TanStack's default retries, so the read
+        // spends a few seconds in backoff before it settles as an error — the
+        // skeletons are correct until then.
+        await expect(mediaFieldPage.pickerLoadError).toBeVisible({
+            timeout: 20_000
+        });
+        await expect(mediaFieldPage.pickerRetry).toBeVisible();
+        await expect(
+            mediaFieldPage.pickerDialog.getByText('Nothing to pick here')
+        ).toBeHidden();
+    });
+
+    test('offers no upload without media:create', async ({
+        page,
+        mediaFieldPage
+    }) => {
+        // Uploads are deferred to the save, so an ungranted upload would 403
+        // *inside* the write and take the whole record save down with it.
+        await mockSignedIn(page, {
+            permissions: ['content:read', 'content:update', 'media:read']
+        });
+        await mediaFieldPage.gotoNewArticle(WS);
+        await mediaFieldPage.openMediaTab();
+
+        await expect(
+            mediaFieldPage.libraryButton('Select from library')
+        ).toBeEnabled();
+        await expect(mediaFieldPage.uploadButton('Cover image')).toHaveCount(0);
+    });
+
+    test('disables library picking without media:read', async ({
+        page,
+        mediaFieldPage
+    }) => {
+        await mockSignedIn(page, {
+            permissions: ['content:read', 'content:update']
+        });
+        await mediaFieldPage.gotoNewArticle(WS);
+        await mediaFieldPage.openMediaTab();
+
+        await expect(
+            mediaFieldPage.libraryButton('Select from library')
+        ).toBeDisabled();
+        await expect(mediaFieldPage.noMediaAccess).toBeVisible();
     });
 
     test('has no accessibility violations, picker included', async ({

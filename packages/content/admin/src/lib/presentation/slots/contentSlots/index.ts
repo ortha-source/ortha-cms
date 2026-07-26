@@ -285,6 +285,13 @@ export type EntryTabContext = EntrySlotContext & {
      */
     mediaRefs: Record<string, MediaRef[]>;
     /**
+     * Whether {@link EntryTabContext.mediaRefs} is still loading (or failed).
+     * A tab that renders a ref-backed thumbnail needs to tell "not resolved
+     * **yet**" from "resolved to nothing": the first is a placeholder, the
+     * second is a real absence it should stop waiting on.
+     */
+    mediaRefsPending: boolean;
+    /**
      * The {@link EntryPresave.handle}s of every presave contribution, keyed by
      * item id — opaque, and a tab reads only its own key. It is how a tab reaches
      * state mounted above it (staged uploads survive a tab switch; the tab body

@@ -1108,6 +1108,11 @@ interface EntryMediaOptions {
      * (a brand-new record) resolves to nothing attached.
      */
     media?: Record<string, Record<string, MediaRefSeed[]>>;
+    /**
+     * Hold the response open this long — the window in which a tile has ids but
+     * no refs yet, which is exactly when it must not guess an asset's URL.
+     */
+    delayMs?: number;
 }
 
 /**
@@ -1119,11 +1124,14 @@ interface EntryMediaOptions {
  */
 export async function mockEntryMedia(
     page: Page,
-    { media = {} }: EntryMediaOptions = {}
+    { media = {}, delayMs }: EntryMediaOptions = {}
 ): Promise<void> {
     await page.route(
         /\/api\/content\/[^/?]+\/[^/?]+\/media(\?.*)?$/,
         async (route) => {
+            if (delayMs) {
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
             const parts = new URL(route.request().url()).pathname
                 .split('/')
                 .filter(Boolean);

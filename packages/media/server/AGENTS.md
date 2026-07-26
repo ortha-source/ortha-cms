@@ -96,7 +96,12 @@ worst possible bug here, so an e2e pins it), then re-reads the rows `FOR UPDATE`
 and returns them **deepest-first**, so no parent is removed before its children
 and a concurrent upload/move/create-subfolder serializes against the delete
 instead of orphaning itself. (`FOR UPDATE` can't be attached to a recursive
-CTE's own SELECT — Postgres rejects it — hence the two statements.)
+CTE's own SELECT — Postgres rejects it — hence the two statements.) It then
+**re-walks and loops** until the subtree stops changing: the CTE takes no locks,
+so a subfolder created under a *descendant* between the two statements would
+otherwise survive its own parent's deletion. Once every known id is locked, a
+re-walk either agrees or reveals the new child — and further inserts under it
+now block on us — so it converges (bounded by `SUBTREE_WALK_ROUNDS`).
 `reclaimAssetBlobs` is shared with the bulk asset delete so neither path can
 forget the derivatives.
 
@@ -146,7 +151,9 @@ never overwrite the original). The keys + dims live in the `media_asset.variants
 jsonb column. Generation is best-effort: a source the processor can't decode
 (SVG, corrupt bytes) yields no derivatives and never fails the upload. Downloads
 serve a derivative via `GET /media/assets/:id/raw?variant=thumb|preview`, falling
-back to the original when absent. Duplicate copies the derivative blobs too;
+back to the original when absent — matched with `Object.hasOwn`, since `variants`
+is a plain JSON object and a bare index would take `?variant=toString` for a
+stored derivative and hand the provider an `undefined` key. Duplicate copies the derivative blobs too;
 delete reclaims them (`Asset.storageKeys`).
 
 ## Not yet (follow-ups)

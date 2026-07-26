@@ -310,7 +310,11 @@ export function EntryEditor({
     );
     // The saved entry's media fields resolved to refs (thumbnails/names), for
     // any media tab. One request per entry open; disabled in create mode.
-    const mediaRefs = useEntryMedia(schema.name, entryId, !!entryId).data ?? {};
+    const mediaQuery = useEntryMedia(schema.name, entryId, !!entryId);
+    const mediaRefs = mediaQuery.data ?? {};
+    // Only *pending* counts as "wait": a failed read must resolve to "nothing
+    // here" so a contributed tab falls back instead of waiting forever.
+    const mediaRefsPending = mediaQuery.isPending && !!entryId;
 
     // The context a contributed tab renders with — the slot context plus a form
     // bridge, so a tab's controls read and write the editor's shared form (a
@@ -328,6 +332,7 @@ export function EntryEditor({
                   isFieldDirty
               },
               mediaRefs,
+              mediaRefsPending,
               presave: presave ?? {}
           }
         : undefined;

@@ -63,6 +63,7 @@ export function MediaFieldSection({
     changed,
     value,
     initialRefs,
+    refsPending,
     uploads,
     onChange,
     onBlur
@@ -74,6 +75,8 @@ export function MediaFieldSection({
     value: unknown;
     /** Server-resolved refs for the already-saved ids. */
     initialRefs?: MediaRef[];
+    /** Whether those refs are still loading (a tile waits rather than guesses). */
+    refsPending?: boolean;
     /** Editor-level staging for files that upload with the record. */
     uploads?: MediaPendingUploads;
     onChange: (value: unknown) => void;
@@ -163,6 +166,7 @@ export function MediaFieldSection({
                 required={field.required}
                 value={value}
                 initialRefs={initialRefs}
+                refsPending={refsPending}
                 uploads={uploads}
                 invalid={!!error}
                 describedBy={error ? errorId : undefined}

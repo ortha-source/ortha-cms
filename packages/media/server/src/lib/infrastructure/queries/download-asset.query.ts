@@ -46,10 +46,7 @@ export class DownloadAssetQuery {
      * original; an unknown/absent variant transparently falls back to the
      * original, so a stale link never 404s.
      */
-    async locate(
-        id: string,
-        variant?: string
-    ): Promise<AssetLocation | null> {
+    async locate(id: string, variant?: string): Promise<AssetLocation | null> {
         const [row] = await this.db
             .select({
                 workspaceId: mediaAsset.workspaceId,
@@ -66,7 +63,13 @@ export class DownloadAssetQuery {
         if (!row) return null;
 
         const { variants, ...base } = row;
-        const chosen = variant ? variants?.[variant] : undefined;
+        // `hasOwn`, not a bare index: `variants` is a plain JSON object, so
+        // `?variant=toString` would otherwise resolve a prototype member,
+        // enter this branch with no `key`, and blow up in the provider.
+        const chosen =
+            variant && variants && Object.hasOwn(variants, variant)
+                ? variants[variant]
+                : undefined;
         if (chosen) {
             return {
                 ...base,

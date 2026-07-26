@@ -116,6 +116,16 @@ export class MediaFieldPage extends BasePage {
             .allInnerTexts();
     }
 
+    /** The note shown when the user can't reach the Media Library at all. */
+    get noMediaAccess(): Locator {
+        // `.first()`: every media field on the type carries the note.
+        return this.page
+            .getByText('You don’t have access to the Media Library', {
+                exact: false
+            })
+            .first();
+    }
+
     /** The placeholder a tile shows while its asset ref is still in flight. */
     get resolvingTile(): Locator {
         return this.page.getByText('Loading asset…').first();
@@ -147,6 +157,16 @@ export class MediaFieldPage extends BasePage {
         return this.pickerDialog.getByRole('button', {
             name: new RegExp(name.replace('.', '\\.'))
         });
+    }
+
+    /** The picker's "couldn't load" state — distinct from its empty state. */
+    get pickerLoadError(): Locator {
+        return this.pickerDialog.getByText('Couldn’t load the library');
+    }
+
+    /** The picker's retry control. */
+    get pickerRetry(): Locator {
+        return this.pickerDialog.getByRole('button', { name: 'Try again' });
     }
 
     /** The picker's search box. */

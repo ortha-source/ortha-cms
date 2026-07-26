@@ -25,7 +25,7 @@ const messages = defineMessages({
  */
 export function EntryMediaTab(ctx: EntryTabContext) {
     const intl = useIntl();
-    const { schema, form, mediaRefs } = ctx;
+    const { schema, form, mediaRefs, mediaRefsPending } = ctx;
     // The plugin's own presave handle — the staging for files chosen here, held
     // above this panel (which unmounts on every tab switch) and uploaded by the
     // save. A tab reads only its own key from `presave`.
@@ -51,6 +51,7 @@ export function EntryMediaTab(ctx: EntryTabContext) {
                     changed={form.isFieldDirty(field.name)}
                     value={form.values[field.name]}
                     initialRefs={mediaRefs[field.name]}
+                    refsPending={mediaRefsPending}
                     uploads={uploads}
                     onChange={(value) => form.setValue(field.name, value)}
                     onBlur={() => form.touch(field.name)}

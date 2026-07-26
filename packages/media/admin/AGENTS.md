@@ -148,10 +148,22 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   An id whose ref hasn't arrived yet renders a **`resolving` placeholder**, not a
   guessed `/raw` URL: guessing meant every edit-mode open fetched full-size
   originals for the window before `useEntryMedia` landed — to draw a 180px tile —
-  and printed a uuid where the file name goes. (The trade: a host running the
-  admin plugin *without* the media server binding would sit on placeholders
-  rather than showing images. An admin-e2e pins the no-`/raw`-request behaviour.)
-- **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`: search, a type
+  and printed a uuid where the file name goes. Waiting is keyed on
+  `EntryTabContext.mediaRefsPending`, so it ends: once the read **settles**
+  without a ref (it failed, or no media server binding is present) the tile falls
+  back to the original rather than waiting forever. Both halves are pinned by
+  admin-e2e.
+
+**Uploading is gated on `media:create`, picking on `media:read`** — not decoration:
+uploads are deferred into the save, so an ungranted upload 403s *inside the write*
+and takes the user's unrelated edits down with it. Without `media:create` the
+Upload button and the drop zone are gone; without `media:read` the picker trigger
+is disabled and the card says why.
+- **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`, **permission-
+  aware** (the trigger is disabled without `media:read`, and the field says why)
+  and with its own **error** state: a failed library read offers a retry instead
+  of the empty state, because "nothing here" for a read that never landed sends
+  the user hunting for assets that exist. Search, a type
   filter (listing only the kinds the field's `accept` allows, hidden when that
   leaves one), a sort, **breadcrumbs** over the folder chips — descending used to
   be one-way, with no path back up — and a grid of **`MediaPickerTile`**s
