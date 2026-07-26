@@ -63,6 +63,7 @@ export function MediaFolderCard({
             </button>
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                 <FolderActionsMenu
+                    name={folder.name}
                     onOpen={() => onOpen(folder.id)}
                     onRename={() => onRename(folder)}
                     onDelete={() => onDelete(folder)}

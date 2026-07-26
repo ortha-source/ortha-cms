@@ -78,6 +78,14 @@ of the server's RBAC, which is the real enforcer).
 - **Detail drawer** — **`AssetDetailDrawer`** (preview, actions, metadata, alt, tags).
 - **Dialogs** — **`NewFolderDialog`**, **`UploadDialog`**, **`RenameDialog`**,
   **`MoveAssetsDialog`**, and `ConfirmDialog`.
+- **Deleting a folder takes its contents with it**, so the confirmation says so:
+  `utils/folderContents` counts the subtree from the already-loaded tree
+  (`folders` + `folderCounts` — no extra request, as fresh as the last folders
+  read) and the prompt reads "Delete “X” and everything inside?" over "…also
+  deletes 3 assets and 1 subfolder". An empty folder gets the plain wording
+  instead — reciting an inventory of nothing is just noise. The per-folder ⋯
+  trigger is named after its folder ("Actions for Images"), so a grid of folders
+  isn't a row of identical "Folder actions" buttons.
 - **Upload — stage, preview, then watch it go.** `UploadDialog` takes multiple
   files (drag-and-drop *and* a `multiple` picker, accumulating across drops) and
   stages them as **`StagedFileRow`**s: images get a real thumbnail from a local

@@ -143,7 +143,11 @@ export class Asset {
             state.mimeType,
             state.size,
             state.checksum,
-            { width: state.width, height: state.height, duration: state.duration },
+            {
+                width: state.width,
+                height: state.height,
+                duration: state.duration
+            },
             state.variants,
             [...state.tags],
             state.alt,

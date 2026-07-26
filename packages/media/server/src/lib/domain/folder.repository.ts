@@ -16,7 +16,10 @@ export interface FolderRepository {
      * concurrent insert-of-a-child serialize on this row instead of racing
      * into an orphaned reference (there is no FK to catch one).
      */
-    findByIdForUpdate(id: FolderId, workspaceId: string): Promise<Folder | null>;
+    findByIdForUpdate(
+        id: FolderId,
+        workspaceId: string
+    ): Promise<Folder | null>;
     /**
      * Whether a folder with `id` exists within `workspaceId`, taking a
      * `FOR SHARE` lock on the row. Every write that attaches a child to this
@@ -29,10 +32,21 @@ export interface FolderRepository {
     save(folder: Folder): Promise<void>;
     /** Removes the folder row. */
     delete(folder: Folder): Promise<void>;
-    /** How many folders have `id` as their parent (emptiness check). */
+    /** How many folders have `id` as their parent. */
     countChildFolders(id: FolderId, workspaceId: string): Promise<number>;
-    /** How many assets live directly in `id` (emptiness check). */
+    /** How many assets live directly in `id`. */
     countAssets(id: FolderId, workspaceId: string): Promise<number>;
+    /**
+     * Every folder **below** `id` (the subtree, `id` itself excluded), locked
+     * `FOR UPDATE` and ordered **deepest-first** — the order a cascading delete
+     * removes them in, so a parent never goes before its children. The same
+     * lock the target takes, so a concurrent upload into any folder of the
+     * subtree serializes against the delete rather than orphaning itself.
+     */
+    findDescendantsForUpdate(
+        id: FolderId,
+        workspaceId: string
+    ): Promise<Folder[]>;
 }
 
 /**

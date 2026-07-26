@@ -33,6 +33,7 @@ import { NewFolderDialog } from '../../components/NewFolderDialog';
 import { RenameDialog } from '../../components/RenameDialog';
 import { MoveAssetsDialog } from '../../components/MoveAssetsDialog';
 import { UploadDialog } from '../../components/UploadDialog';
+import { folderContents } from '../../utils/folderContents';
 
 /** Intl descriptors for the Media Library page + its toasts, co-located. */
 const messages = defineMessages({
@@ -80,10 +81,25 @@ const messages = defineMessages({
         id: 'media.page.deleteFolderTitle',
         defaultMessage: 'Delete “{name}”?'
     },
+    deleteFolderTitleFull: {
+        id: 'media.page.deleteFolderTitleFull',
+        defaultMessage: 'Delete “{name}” and everything inside?'
+    },
     deleteFolderBody: {
         id: 'media.page.deleteFolderBody',
         defaultMessage:
-            'The folder will be permanently removed. It must be empty first — move or delete its contents.'
+            'This folder is empty. It will be permanently removed — this can’t be undone.'
+    },
+    /**
+     * Names exactly what goes with the folder. Both counts are always spelled
+     * out (`=0` included) so the sentence reads the same shape however the
+     * folder is filled, and nobody has to infer that "3 assets" also means the
+     * subfolders they sit in.
+     */
+    deleteFolderBodyFull: {
+        id: 'media.page.deleteFolderBodyFull',
+        defaultMessage:
+            'Deleting it also deletes {assets, plural, =0 {no assets} one {# asset} other {# assets}} and {folders, plural, =0 {no subfolders} one {# subfolder} other {# subfolders}} inside it. This can’t be undone.'
     },
     confirmDelete: { id: 'media.page.confirmDelete', defaultMessage: 'Delete' },
     // toasts
@@ -285,6 +301,19 @@ export function MediaLibraryPage() {
         setDeleteTarget(null);
     };
 
+    // What the pending folder delete would take with it, so the confirmation
+    // can say so — a folder delete cascades now, and an unqualified "Delete?"
+    // over a populated tree is the kind of prompt people regret answering.
+    const doomed =
+        deleteTarget?.kind === 'folder'
+            ? folderContents(
+                  store.folders,
+                  store.folderCounts,
+                  deleteTarget.folder.id
+              )
+            : null;
+    const isEmptyFolder = !!doomed && !doomed.assets && !doomed.folders;
+
     const selectedIds = store.selectedAssets.map((asset) => asset.id);
 
     if (!canRead) {
@@ -302,7 +331,10 @@ export function MediaLibraryPage() {
     if (store.isError) {
         return (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-                <p className="max-w-sm text-sm text-muted-foreground" role="alert">
+                <p
+                    className="max-w-sm text-sm text-muted-foreground"
+                    role="alert"
+                >
                     {intl.formatMessage(messages.loadError)}
                 </p>
                 <Button variant="outline" onClick={store.reload}>
@@ -554,9 +586,12 @@ export function MediaLibraryPage() {
                 }}
                 title={
                     deleteTarget?.kind === 'folder'
-                        ? intl.formatMessage(messages.deleteFolderTitle, {
-                              name: deleteTarget.folder.name
-                          })
+                        ? intl.formatMessage(
+                              isEmptyFolder
+                                  ? messages.deleteFolderTitle
+                                  : messages.deleteFolderTitleFull,
+                              { name: deleteTarget.folder.name }
+                          )
                         : intl.formatMessage(messages.deleteAssetsTitle, {
                               count:
                                   deleteTarget?.kind === 'assets'
@@ -566,7 +601,15 @@ export function MediaLibraryPage() {
                 }
                 description={
                     deleteTarget?.kind === 'folder'
-                        ? intl.formatMessage(messages.deleteFolderBody)
+                        ? isEmptyFolder
+                            ? intl.formatMessage(messages.deleteFolderBody)
+                            : intl.formatMessage(
+                                  messages.deleteFolderBodyFull,
+                                  {
+                                      assets: doomed?.assets ?? 0,
+                                      folders: doomed?.folders ?? 0
+                                  }
+                              )
                         : intl.formatMessage(messages.deleteAssetsBody)
                 }
                 confirmLabel={intl.formatMessage(messages.confirmDelete)}

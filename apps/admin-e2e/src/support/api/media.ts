@@ -194,17 +194,29 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
                 return;
             }
             if (method === 'DELETE') {
-                const nonEmpty =
-                    assets.some((a) => a.folderId === id) ||
-                    folders.some((f) => f.parentId === id);
-                if (nonEmpty) {
-                    await route.fulfill(
-                        json({ message: 'Folder not empty' }, 409)
-                    );
-                    return;
+                // Deleting a folder takes its whole subtree with it, as the
+                // server does — a non-empty folder is no longer a 409.
+                const doomed = new Set<string>([id]);
+                for (let added = true; added; ) {
+                    added = false;
+                    for (const folder of folders) {
+                        if (
+                            folder.parentId &&
+                            doomed.has(folder.parentId) &&
+                            !doomed.has(folder.id)
+                        ) {
+                            doomed.add(folder.id);
+                            added = true;
+                        }
+                    }
                 }
-                const index = folders.findIndex((f) => f.id === id);
-                if (index >= 0) folders.splice(index, 1);
+                for (let i = folders.length - 1; i >= 0; i -= 1) {
+                    if (doomed.has(folders[i].id)) folders.splice(i, 1);
+                }
+                for (let i = assets.length - 1; i >= 0; i -= 1) {
+                    const folderId = assets[i].folderId;
+                    if (folderId && doomed.has(folderId)) assets.splice(i, 1);
+                }
                 await route.fulfill({ status: 204, body: '' });
                 return;
             }

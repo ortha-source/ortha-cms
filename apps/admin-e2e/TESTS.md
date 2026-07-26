@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_235 test cases across 30 spec files._
+_237 test cases across 30 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -357,6 +357,8 @@ _<sub>apps/admin-e2e/src/media/media-library.spec.ts</sub>_
 | renders the workspace folders and assets |
 | uploads a file and shows it in the grid |
 | creates a folder |
+| warns that deleting a folder takes its contents with it |
+| says a folder is empty when it holds nothing |
 | shows a no-access state without media:read |
 | has no accessibility violations |
 

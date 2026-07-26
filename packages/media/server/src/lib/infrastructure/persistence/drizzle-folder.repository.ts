@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { UnitOfWork } from '@ortha-cms/database';
 import { Folder } from '../../domain/folder';
 import type { FolderId } from '../../domain/value-objects/folder-id';
@@ -10,8 +10,9 @@ import { FolderMapper } from './folder.mapper';
 
 /**
  * Drizzle-backed {@link FolderRepository}. Runs through {@link UnitOfWork} so
- * writes join the ambient transaction; the count helpers back the delete
- * use-case's emptiness guard.
+ * writes join the ambient transaction; the count helpers report a folder's
+ * contents and `findDescendantsForUpdate` walks the subtree a delete cascades
+ * over.
  */
 @Injectable()
 export class DrizzleFolderRepository implements FolderRepository {
@@ -122,6 +123,52 @@ export class DrizzleFolderRepository implements FolderRepository {
                 )
             );
         return row?.value ?? 0;
+    }
+
+    /** {@inheritDoc FolderRepository.findDescendantsForUpdate} */
+    async findDescendantsForUpdate(
+        id: FolderId,
+        workspaceId: string
+    ): Promise<Folder[]> {
+        // A recursive walk down `parent_id`, carrying the depth so the caller
+        // can delete children before parents. `FOR UPDATE` can't be applied to
+        // a recursive CTE's own SELECT (Postgres rejects it there), so the CTE
+        // only *finds* the subtree and a second statement takes the locks.
+        const { rows } = await this.uow.current().execute<{ id: string }>(sql`
+            WITH RECURSIVE subtree AS (
+                SELECT id, 1 AS depth
+                FROM ${mediaFolder}
+                WHERE ${mediaFolder.parentId} = ${id.value}
+                  AND ${mediaFolder.workspaceId} = ${workspaceId}
+                UNION ALL
+                SELECT child.id, parent.depth + 1
+                FROM ${mediaFolder} AS child
+                JOIN subtree AS parent ON child.parent_id = parent.id
+                WHERE child.workspace_id = ${workspaceId}
+            )
+            SELECT id FROM subtree ORDER BY depth DESC
+        `);
+        const ids = rows.map((row) => row.id);
+        if (!ids.length) return [];
+
+        // Re-read the rows under lock, then restore the depth-first order the
+        // CTE established (a plain `IN` query has no order of its own).
+        const locked = await this.uow
+            .current()
+            .select()
+            .from(mediaFolder)
+            .where(
+                and(
+                    inArray(mediaFolder.id, ids),
+                    eq(mediaFolder.workspaceId, workspaceId)
+                )
+            )
+            .for('update');
+        const byId = new Map(locked.map((row) => [row.id, row]));
+        return ids
+            .map((rowId) => byId.get(rowId))
+            .filter((row) => !!row)
+            .map((row) => this.mapper.toDomain(row));
     }
 
     /** {@inheritDoc FolderRepository.countAssets} */

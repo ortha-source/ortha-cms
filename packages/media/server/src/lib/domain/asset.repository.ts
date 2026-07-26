@@ -1,5 +1,6 @@
 import type { Asset } from './asset';
 import type { AssetId } from './value-objects/asset-id';
+import type { FolderId } from './value-objects/folder-id';
 
 /**
  * The persistence **port** for the {@link Asset} aggregate. Application code
@@ -12,6 +13,15 @@ export interface AssetRepository {
     findById(id: AssetId, workspaceId: string): Promise<Asset | null>;
     /** Loads the assets among `ids` that exist within `workspaceId`. */
     findManyByIds(ids: AssetId[], workspaceId: string): Promise<Asset[]>;
+    /**
+     * Loads every asset living directly in any of `folderIds` — what a folder
+     * cascade deletes. Root assets (`folder_id is null`) are never included:
+     * the root isn't a folder anyone can delete.
+     */
+    findManyByFolderIds(
+        folderIds: FolderId[],
+        workspaceId: string
+    ): Promise<Asset[]>;
     /** Inserts a new aggregate or applies a loaded aggregate's edits. */
     save(asset: Asset): Promise<void>;
     /** Removes the asset row (the blob is reclaimed post-commit). */

@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { PublicUser } from '@ortha-cms/identity-server';
-import { Asset } from '../../domain/asset';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import {
     ASSET_REPOSITORY,
@@ -11,6 +10,7 @@ import {
     STORAGE_REGISTRY,
     type StorageRegistry
 } from '../../domain/storage-provider';
+import { reclaimAssetBlobs } from '../reclaim-asset-blobs';
 
 /**
  * Bulk-deletes assets. The rows and their `media.asset.deleted` events commit
@@ -50,20 +50,9 @@ export class DeleteAssetsUseCase {
             return found;
         });
 
-        await Promise.all(removed.map((asset) => this.reclaim(asset)));
+        await Promise.all(
+            removed.map((asset) => reclaimAssetBlobs(this.registry, asset))
+        );
         return removed.length;
-    }
-
-    private async reclaim(asset: Asset): Promise<void> {
-        try {
-            const provider = this.registry.get(asset.storageProvider);
-            // The original plus every generated derivative (thumb/preview).
-            await Promise.all(
-                asset.storageKeys.map((key) => provider.remove(key))
-            );
-        } catch {
-            // Best-effort: a failed blob delete leaves an orphan for GC, never
-            // an error to the caller (the row is already gone).
-        }
     }
 }

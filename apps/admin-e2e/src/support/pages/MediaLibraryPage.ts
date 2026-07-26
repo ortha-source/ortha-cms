@@ -57,6 +57,39 @@ export class MediaLibraryPage extends BasePage {
             .click();
     }
 
+    // --- folder actions ---
+
+    /**
+     * The per-folder "⋯" menu trigger. Named after its folder ("Actions for
+     * Images"), so it needs no positional scoping — and a screen-reader user
+     * isn't handed a row of identical "Folder actions" buttons.
+     */
+    folderActions(name: string): Locator {
+        return this.page.getByRole('button', { name: `Actions for ${name}` });
+    }
+
+    /** Open a folder's menu and choose Delete — stops at the confirmation. */
+    async startDeleteFolder(name: string) {
+        await this.folderActions(name).click();
+        await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    }
+
+    /**
+     * The open confirm dialog (a plain `dialog` — the design-system
+     * `ConfirmDialog` builds on `Dialog`, not `AlertDialog`). Its title varies
+     * with what the folder holds, so match on the heading role, not the text.
+     */
+    get confirmDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /** Confirm the pending destructive action. */
+    async confirmDelete() {
+        await this.confirmDialog
+            .getByRole('button', { name: 'Delete', exact: true })
+            .click();
+    }
+
     // --- new folder ---
 
     /** Run the create-folder flow end to end. */
@@ -66,8 +99,6 @@ export class MediaLibraryPage extends BasePage {
             .first()
             .click();
         await this.page.getByLabel('Folder name').fill(name);
-        await this.page
-            .getByRole('button', { name: 'Create folder' })
-            .click();
+        await this.page.getByRole('button', { name: 'Create folder' }).click();
     }
 }

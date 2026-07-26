@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_380 test cases across 33 spec files._
+_381 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -626,7 +626,8 @@ _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
 | creates a folder and lists it with the root count |
 | renames a folder |
 | deletes an empty folder (204) |
-| refuses to delete a non-empty folder with 409 |
+| deletes a non-empty folder together with everything inside it |
+| cascades only inside the caller’s workspace |
 
 ### authorization
 

@@ -1,11 +1,6 @@
-import {
-    BadRequestException,
-    ConflictException,
-    NotFoundException
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
     AssetNotFoundError,
-    FolderNotEmptyError,
     FolderNotFoundError,
     InvalidFileNameError,
     InvalidFolderNameError,
@@ -23,9 +18,6 @@ export function toHttp(error: unknown): never {
         error instanceof FolderNotFoundError
     ) {
         throw new NotFoundException(error.message);
-    }
-    if (error instanceof FolderNotEmptyError) {
-        throw new ConflictException(error.message);
     }
     if (
         error instanceof InvalidMediaIdError ||

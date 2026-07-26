@@ -12,7 +12,10 @@ import { FolderOpen, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 
 /** Intl descriptors for {@link FolderActionsMenu}, co-located. */
 const messages = defineMessages({
-    trigger: { id: 'media.folder.actions.trigger', defaultMessage: 'Folder actions' },
+    trigger: {
+        id: 'media.folder.actions.trigger',
+        defaultMessage: 'Actions for {name}'
+    },
     open: { id: 'media.folder.actions.open', defaultMessage: 'Open' },
     rename: { id: 'media.folder.actions.rename', defaultMessage: 'Rename' },
     delete: { id: 'media.folder.actions.delete', defaultMessage: 'Delete' }
@@ -24,6 +27,7 @@ const messages = defineMessages({
  * caller passes the matching permission. Pass `trigger` to override the default ⋯.
  */
 export function FolderActionsMenu({
+    name,
     onOpen,
     onRename,
     onDelete,
@@ -31,6 +35,12 @@ export function FolderActionsMenu({
     canDelete,
     trigger
 }: {
+    /**
+     * The folder this menu acts on — its name goes in the trigger's accessible
+     * name, so a grid of folders doesn't present a row of buttons all called
+     * "Folder actions" with nothing to tell them apart.
+     */
+    name: string;
     onOpen: () => void;
     onRename: () => void;
     onDelete: () => void;
@@ -48,7 +58,9 @@ export function FolderActionsMenu({
                         variant="ghost"
                         size="icon"
                         className="size-8 shadow-none"
-                        aria-label={intl.formatMessage(messages.trigger)}
+                        aria-label={intl.formatMessage(messages.trigger, {
+                            name
+                        })}
                     >
                         <MoreVertical aria-hidden />
                     </Button>

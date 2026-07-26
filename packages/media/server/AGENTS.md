@@ -63,7 +63,7 @@ removes the row in-transaction and reclaims the blob **post-commit**.
 Every route carries `WorkspaceGuard` (X-Workspace-Id → `@CurrentWorkspace()`)
 and a permission-by-constant (`PERMISSIONS.MEDIA_*`); state-changing routes add
 `OriginGuard`. Upload uses `FileInterceptor('file')`; download streams via
-`StreamableFile`. Folder delete is **409 when non-empty** (no cascade).
+`StreamableFile`. **Folder delete cascades** — see below.
 
 **`GET /media/assets/:id/raw` is the one exception** — it carries no
 `WorkspaceGuard`. Its URL is fetched by the browser itself (`<img src>` for the
@@ -80,6 +80,25 @@ whose URL the browser loads directly needs this treatment, not the header guard.
 - `GET /media/assets` (`?folderId=&search=&kind=&sort=&page=&pageSize=`) ·
   `POST /media/assets` (multipart) · `GET /media/assets/:id/raw` ·
   `PATCH /media/assets/:id` · `DELETE /media/assets` (bulk `{ ids }`)
+
+## Folder delete cascades
+
+Deleting a folder removes **the whole subtree**: every descendant folder and
+every asset in any of them, in one transaction, with the blobs (originals +
+derivatives) reclaimed post-commit. It used to `409` on a non-empty folder,
+which made a populated tree undeletable without emptying it by hand, level by
+level — the guard belongs in the UI's confirmation, which names what will go,
+not in a server the user can't argue with. `FolderNotEmptyError` is gone.
+
+`findDescendantsForUpdate` walks `parent_id` with a recursive CTE (workspace
+filter in **both** branches — a cascade that escaped its tenant would be the
+worst possible bug here, so an e2e pins it), then re-reads the rows `FOR UPDATE`
+and returns them **deepest-first**, so no parent is removed before its children
+and a concurrent upload/move/create-subfolder serializes against the delete
+instead of orphaning itself. (`FOR UPDATE` can't be attached to a recursive
+CTE's own SELECT — Postgres rejects it — hence the two statements.)
+`reclaimAssetBlobs` is shared with the bulk asset delete so neither path can
+forget the derivatives.
 
 ## Binds content's media-asset resolver
 
