@@ -31,7 +31,9 @@ export interface FolderResponse {
 const NOW = '2026-07-01T12:00:00.000Z';
 const raw = (id: string) => `/api/media/assets/${id}/raw`;
 
-const asset = (over: Partial<AssetResponse> & { id: string; name: string }): AssetResponse => ({
+const asset = (
+    over: Partial<AssetResponse> & { id: string; name: string }
+): AssetResponse => ({
     folderId: null,
     kind: 'document',
     mimeType: 'application/pdf',
@@ -48,15 +50,50 @@ const asset = (over: Partial<AssetResponse> & { id: string; name: string }): Ass
     ...over
 });
 
+/**
+ * Asset ids are **uuids**, as the real API's are — a media field stores the id
+ * in the entry values, where the shared validation kernel shape-checks it, so a
+ * friendlier `a_hero` would be rejected client-side before any save.
+ */
+export const MEDIA_ASSET_IDS = {
+    hero: '11111111-1111-4111-8111-111111111111',
+    report: '22222222-2222-4222-8222-222222222222',
+    inside: '33333333-3333-4333-8333-333333333333'
+} as const;
+
+/** The uuid the upload mock mints for the `n`-th file it accepts (1-based). */
+export function uploadedAssetId(n: number): string {
+    return `44444444-4444-4444-8444-${String(n).padStart(12, '0')}`;
+}
+
 /** Deterministic seed: one folder + a couple of root assets. */
 export const MEDIA_SEED = {
     folders: [
-        { id: 'fold_images', name: 'Images', parentId: null, assetCount: 1, createdAt: NOW }
+        {
+            id: 'fold_images',
+            name: 'Images',
+            parentId: null,
+            assetCount: 1,
+            createdAt: NOW
+        }
     ] as FolderResponse[],
     assets: [
-        asset({ id: 'a_hero', name: 'hero.png', kind: 'image', mimeType: 'image/png', width: 1200, height: 800 }),
-        asset({ id: 'a_report', name: 'report.pdf' }),
-        asset({ id: 'a_inside', name: 'inside.png', kind: 'image', mimeType: 'image/png', folderId: 'fold_images' })
+        asset({
+            id: MEDIA_ASSET_IDS.hero,
+            name: 'hero.png',
+            kind: 'image',
+            mimeType: 'image/png',
+            width: 1200,
+            height: 800
+        }),
+        asset({ id: MEDIA_ASSET_IDS.report, name: 'report.pdf' }),
+        asset({
+            id: MEDIA_ASSET_IDS.inside,
+            name: 'inside.png',
+            kind: 'image',
+            mimeType: 'image/png',
+            folderId: 'fold_images'
+        })
     ] as AssetResponse[]
 };
 
@@ -92,6 +129,9 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
     let uploads = 0;
     let seq = 0;
     const nextId = (prefix: string) => `${prefix}_${(seq += 1)}`;
+    // Assets get uuids (see MEDIA_ASSET_IDS); folders keep readable ids, since
+    // nothing validates their shape.
+    const nextAssetId = () => uploadedAssetId((seq += 1));
 
     const rootCount = () => assets.filter((a) => a.folderId === null).length;
     const withCounts = (): FolderResponse[] =>
@@ -129,42 +169,49 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
     });
 
     // PATCH (rename) + DELETE (empty-only) a folder.
-    await page.route(/\/api\/media\/folders\/([^/?]+)(\?.*)?$/, async (route) => {
-        const id = segments(route.request().url())[4];
-        const folder = folders.find((f) => f.id === id);
-        const method = route.request().method();
-        if (method === 'PATCH') {
-            if (folder) {
-                const { name } = route.request().postDataJSON() as {
-                    name: string;
-                };
-                folder.name = name;
-            }
-            await route.fulfill(json({ id }));
-            return;
-        }
-        if (method === 'DELETE') {
-            const nonEmpty =
-                assets.some((a) => a.folderId === id) ||
-                folders.some((f) => f.parentId === id);
-            if (nonEmpty) {
-                await route.fulfill(json({ message: 'Folder not empty' }, 409));
+    await page.route(
+        /\/api\/media\/folders\/([^/?]+)(\?.*)?$/,
+        async (route) => {
+            const id = segments(route.request().url())[4];
+            const folder = folders.find((f) => f.id === id);
+            const method = route.request().method();
+            if (method === 'PATCH') {
+                if (folder) {
+                    const { name } = route.request().postDataJSON() as {
+                        name: string;
+                    };
+                    folder.name = name;
+                }
+                await route.fulfill(json({ id }));
                 return;
             }
-            const index = folders.findIndex((f) => f.id === id);
-            if (index >= 0) folders.splice(index, 1);
-            await route.fulfill({ status: 204, body: '' });
-            return;
+            if (method === 'DELETE') {
+                const nonEmpty =
+                    assets.some((a) => a.folderId === id) ||
+                    folders.some((f) => f.parentId === id);
+                if (nonEmpty) {
+                    await route.fulfill(
+                        json({ message: 'Folder not empty' }, 409)
+                    );
+                    return;
+                }
+                const index = folders.findIndex((f) => f.id === id);
+                if (index >= 0) folders.splice(index, 1);
+                await route.fulfill({ status: 204, body: '' });
+                return;
+            }
+            await route.fallback();
         }
-        await route.fallback();
-    });
+    );
 
     // GET (list) + POST (upload) + DELETE (bulk) assets.
     await page.route(/\/api\/media\/assets(\?.*)?$/, async (route) => {
         const request = route.request();
         const method = request.method();
         if (method === 'GET') {
-            const folderId = new URL(request.url()).searchParams.get('folderId');
+            const folderId = new URL(request.url()).searchParams.get(
+                'folderId'
+            );
             const items = assets.filter((a) =>
                 folderId ? a.folderId === folderId : a.folderId === null
             );
@@ -181,13 +228,17 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
                 /name="folderId"\r?\n\r?\n([^\r\n]+)/
             );
             const name = nameMatch?.[1] ?? 'upload.bin';
-            const id = nextId('asset');
+            const id = nextAssetId();
             const created = asset({
                 id,
                 name,
                 folderId: folderMatch?.[1] ?? null,
-                kind: /\.(png|jpe?g|gif|webp)$/i.test(name) ? 'image' : 'document',
-                mimeType: /\.png$/i.test(name) ? 'image/png' : 'application/octet-stream'
+                kind: /\.(png|jpe?g|gif|webp)$/i.test(name)
+                    ? 'image'
+                    : 'document',
+                mimeType: /\.png$/i.test(name)
+                    ? 'image/png'
+                    : 'application/octet-stream'
             });
             assets.unshift(created);
             await route.fulfill(json(created, 201));
@@ -206,16 +257,21 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
     });
 
     // PATCH a single asset (rename / move / retag / alt).
-    await page.route(/\/api\/media\/assets\/([^/?]+)(\?.*)?$/, async (route) => {
-        if (route.request().method() !== 'PATCH') return route.fallback();
-        const id = segments(route.request().url())[4];
-        const found = assets.find((a) => a.id === id);
-        if (found) {
-            const patch = route.request().postDataJSON() as Partial<AssetResponse>;
-            Object.assign(found, patch);
+    await page.route(
+        /\/api\/media\/assets\/([^/?]+)(\?.*)?$/,
+        async (route) => {
+            if (route.request().method() !== 'PATCH') return route.fallback();
+            const id = segments(route.request().url())[4];
+            const found = assets.find((a) => a.id === id);
+            if (found) {
+                const patch = route
+                    .request()
+                    .postDataJSON() as Partial<AssetResponse>;
+                Object.assign(found, patch);
+            }
+            await route.fulfill(json(found ?? {}, found ? 200 : 404));
         }
-        await route.fulfill(json(found ?? {}, found ? 200 : 404));
-    });
+    );
 
     // Duplicate an asset.
     await page.route(
@@ -232,20 +288,23 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
                 dot > 0
                     ? `${source.name.slice(0, dot)} copy${source.name.slice(dot)}`
                     : `${source.name} copy`;
-            const copy = asset({ ...source, id: nextId('asset'), name });
+            const copy = asset({ ...source, id: nextAssetId(), name });
             assets.unshift(copy);
             await route.fulfill(json(copy, 201));
         }
     );
 
     // The byte route — a 1px PNG so image tiles load.
-    await page.route(/\/api\/media\/assets\/([^/?]+)\/raw(\?.*)?$/, async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'image/png',
-            body: PNG_1PX
-        });
-    });
+    await page.route(
+        /\/api\/media\/assets\/([^/?]+)\/raw(\?.*)?$/,
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'image/png',
+                body: PNG_1PX
+            });
+        }
+    );
 
     return {
         get count() {

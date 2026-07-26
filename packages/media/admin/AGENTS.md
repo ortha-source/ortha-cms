@@ -112,12 +112,16 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   their surface.
 - **`MediaFieldSection`** — one field as a **titled card**, deliberately the same
   shape as the Relations tab's `RelationFieldSection` so the two contributed tabs
-  read as one editor: header (label + required mark, the localized globe in a
+  read as one editor: header (heading + required mark, the localized globe in a
   `Tooltip`, the **shared** `ChangedBadge` imported from `@ortha-cms/content-admin`
   — not a look-alike that would drift — and an error alert icon) over a one-line
   description of what the field holds, then the control; an error tints the card
-  border. The `FieldLabel`'s `htmlFor` points at the control's picker button
-  (the field's one labelable control).
+  border. The field is named as a **group** (`aria-labelledby` → its `<h3>`), not
+  by a `<label for>` pointing at a button: a media field is a *composite* control
+  (pick / upload / remove / reorder), and a label would **replace** the trigger's
+  own accessible name — the a11y tree read "Cover image, button" instead of
+  "Select from library". As a group it reads "Cover image, group" and then each
+  action by its own name, which is also what makes the e2e locators legible.
 - **`MediaFieldControl`** — the control itself. Attached assets render as
   **`MediaFieldItem`** tiles in a panel that is also a **drop zone** (highlight
   held by a drag-depth counter, since nested tiles fire `dragleave` as the
@@ -207,11 +211,32 @@ JSDoc on exports; **one component per file** with `<name>/index.ts(x)` folders
 permissions, root-folder id in `src/lib/constants/`); co-located `react-intl`
 messages namespaced `media.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
+## End-to-end cover
+
+The **Media tab** has an admin-e2e suite —
+`apps/admin-e2e/src/content/media-fields.spec.ts`, driven by the
+`MediaFieldPage` page object: picking from the library, the `accept` narrowing,
+walking into a folder and back out via the breadcrumb, staging an upload and
+asserting it is sent **only** on save (an upload spy proves the count is 0 until
+then), dropping a staged file, appending + reordering a multiple field, a saved
+record's assets resolving to names, and an axe scan with the picker open. Its
+seeds are `MEDIA_FIELDS_*` in `support/api/content.ts` (their schema is what
+makes the tab appear) plus the existing `mockMediaApi`.
+
+Two harness details worth keeping: mock asset ids are **uuids**
+(`MEDIA_ASSET_IDS` / `uploadedAssetId`), because the shared kernel shape-checks a
+media value and a friendlier `a_hero` is refused client-side before any save;
+and `mockEntryMedia` must be registered **after** `mockContentEntryWrites`,
+whose multi-segment route would otherwise answer `/:id/media` with an entry
+record.
+
+The **Media Library page** still has only `media-library.spec.ts`.
+
 ## Not yet (follow-ups)
 
-Server-side pagination for large folders; an admin-e2e suite (axe + keyboard +
-upload via `setInputFiles`); real thumbnail derivatives; alt/tag editing in the
-drawer (read-only today).
+Server-side pagination for large folders; a keyboard suite for the field and the
+library; real thumbnail derivatives; alt/tag editing in the drawer (read-only
+today).
 
 ## Commands
 

@@ -183,10 +183,20 @@ describe('Content media fields (/api/content/:type)', () => {
             .expect(200);
         expect(detail.body.snapshot.values.image).toBe(imageId);
         expect(detail.body.snapshot.values.attachments).toEqual([a, b]);
-        // Enriched with resolved media refs (thumbnails), not raw uuids.
+        // Enriched with resolved media refs, not raw uuids — the admin's version
+        // preview renders the **name** and the thumbnail `url` from these, so
+        // they're part of the contract, not just the id.
         expect(detail.body.mediaRefs.image[0]).toMatchObject({
             id: imageId,
-            kind: 'image'
+            name: 'cover.png',
+            kind: 'image',
+            url: `/api/media/assets/${imageId}/raw`
         });
+        // A `multiple` field resolves its whole list, in stored order.
+        expect(
+            (detail.body.mediaRefs.attachments as { name: string }[]).map(
+                (ref) => ref.name
+            )
+        ).toEqual(['a.png', 'b.png']);
     });
 });

@@ -5,7 +5,6 @@ import {
     Field,
     FieldDescription,
     FieldError,
-    FieldLabel,
     Tooltip,
     TooltipContent,
     TooltipTrigger
@@ -83,11 +82,21 @@ export function MediaFieldSection({
     const intl = useIntl();
     const controlId = `media-field-${field.name}`;
     const errorId = `${controlId}-error`;
+    const titleId = `${controlId}-title`;
     const description = field.admin?.['description'];
 
     return (
         <Field
             data-invalid={!!error}
+            // The field is a **composite** control (pick / upload / remove /
+            // reorder), so it is named as a `group` rather than by a `<label
+            // for>` pointing at one button — a label would *replace* that
+            // button's own name, and "Cover image, button" tells the user
+            // nothing about what pressing it does. Named as a group, a screen
+            // reader reads "Cover image, group" and then each action by its
+            // own name. Same shape as a relation card, which titles itself
+            // with a heading for the same reason.
+            aria-labelledby={titleId}
             className={cn(
                 'gap-3 rounded-2xl border bg-card p-4',
                 error && 'border-destructive/50'
@@ -96,17 +105,14 @@ export function MediaFieldSection({
             <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <FieldLabel
-                            htmlFor={controlId}
-                            className="text-sm font-medium"
-                        >
+                        <h3 id={titleId} className="text-sm font-medium">
                             {labelOf(field)}
                             {field.required ? (
                                 <span aria-hidden className="text-destructive">
                                     *
                                 </span>
                             ) : null}
-                        </FieldLabel>
+                        </h3>
                         {field.localized ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>

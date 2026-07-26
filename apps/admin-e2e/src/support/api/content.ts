@@ -27,6 +27,10 @@ interface ContentFieldSchema {
         unique?: boolean;
         inverse?: { field: string };
     };
+    /** `media` fields: an ordered list of asset ids rather than one id. */
+    multiple?: boolean;
+    /** `media` fields: the asset restriction the picker filters by. */
+    accept?: { kinds?: string[]; mimeTypes?: string[] };
 }
 
 /** A content type with its full field schema (the `:name` detail route). */
@@ -176,6 +180,61 @@ export const RELATIONS_SCHEMA_SEED: ContentTypeSummary[] = [
     { name: 'tag', kind: 'collection', label: 'Tags' },
     { name: 'seo_meta', kind: 'collection', label: 'SEO metadata' }
 ];
+
+/**
+ * The media-fields suite's catalogue — one publishable collection whose schema
+ * carries both media shapes, so the entry editor contributes its **Media** tab
+ * (`appliesTo` checks for a media field).
+ */
+export const MEDIA_FIELDS_SCHEMA_SEED: ContentTypeSummary[] = [
+    {
+        name: 'article',
+        kind: 'collection',
+        label: 'Articles',
+        publishable: true
+    }
+];
+
+/**
+ * Full field schema for the media-fields suite: a required title, a **single**
+ * media field restricted to images (`Cover image`), and a **multiple** one
+ * (`Gallery`) — the two shapes the field control renders differently (replace vs
+ * append + reorder). Kept separate from {@link RELATIONS_DETAIL_SEED} so the
+ * Media tab only appears where a suite asked for it.
+ */
+export const MEDIA_FIELDS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    article: {
+        name: 'article',
+        kind: 'collection',
+        label: 'Articles',
+        publishable: true,
+        fields: [
+            {
+                name: 'text',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Title' }
+            },
+            {
+                name: 'cover',
+                type: 'media',
+                required: false,
+                validation: {},
+                admin: { label: 'Cover image' },
+                accept: { kinds: ['image'] }
+            },
+            {
+                name: 'gallery',
+                type: 'media',
+                required: false,
+                validation: {},
+                admin: { label: 'Gallery' },
+                multiple: true
+            }
+        ]
+    }
+};
 
 /** Full field schemas for the relations suite (article + its three targets). */
 export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
@@ -449,6 +508,15 @@ export const RELATIONS_SCOPED_WORKSPACE: WorkspaceView = {
     name: 'Relations scoped demo',
     slug: 'relations-scoped-demo',
     content: ['article', 'author', 'seo_meta']
+};
+
+/** A workspace granted the media-fields suite's one collection. */
+export const MEDIA_FIELDS_WORKSPACE: WorkspaceView = {
+    ...LIBRARY_WORKSPACE,
+    id: 'ws_media',
+    name: 'Media fields demo',
+    slug: 'media-fields-demo',
+    content: ['article']
 };
 
 /** A workspace granted only a subset — one collection + one page. */
@@ -970,6 +1038,103 @@ export async function mockEntryRelations(
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({ relations: view })
+            });
+        }
+    );
+}
+
+interface ContentEntryReadOptions {
+    /**
+     * Values per `"<type>/<id>"`, served by the read-one endpoint. Everything
+     * else about the record is fabricated (timestamps, draft status).
+     */
+    records: Record<string, Record<string, unknown>>;
+}
+
+/**
+ * Stub `GET /api/content/:name/:id` for named records. {@link
+ * mockContentEntryWrites} already answers the read-one, but only with values
+ * fabricated from the schema — `null` for anything it has no generator for, a
+ * media field included. Use this when a test needs an existing record to hold
+ * *specific* values (e.g. an attached asset id). Register **after** the write
+ * mock, and note it claims only `GET`: writes still fall through.
+ */
+export async function mockContentEntryRead(
+    page: Page,
+    { records }: ContentEntryReadOptions
+): Promise<void> {
+    const now = '2026-01-01T00:00:00.000Z';
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+(\?.*)?$/,
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            const parts = new URL(route.request().url()).pathname
+                .split('/')
+                .filter(Boolean);
+            const name = decodeURIComponent(parts[2] ?? '');
+            const id = decodeURIComponent(parts[3] ?? '');
+            const values = records[`${name}/${id}`];
+            if (!values) return route.fallback();
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    id,
+                    status: 'draft',
+                    createdAt: now,
+                    updatedAt: now,
+                    values
+                })
+            });
+        }
+    );
+}
+
+/** One attached asset, as the entry-media read resolves it. */
+export interface MediaRefSeed {
+    id: string;
+    name: string;
+    /** Raw-stream route the tile renders (empty on a `missing` ref). */
+    url: string;
+    kind: string;
+    mimeType: string;
+    /** The id resolved to nothing — deleted, or in another workspace. */
+    missing?: boolean;
+}
+
+interface EntryMediaOptions {
+    /**
+     * Attached assets keyed by `"<type>/<id>"` then field name. A missing entry
+     * (a brand-new record) resolves to nothing attached.
+     */
+    media?: Record<string, Record<string, MediaRefSeed[]>>;
+}
+
+/**
+ * Stub `GET /api/content/:name/:id/media` — the editor's resolve of a saved
+ * record's media ids to display refs (name / thumbnail url / kind), which the
+ * Media tab renders instead of raw uuids. Register **after**
+ * {@link mockContentEntryWrites}, whose multi-segment route would otherwise
+ * answer this path with an entry record.
+ */
+export async function mockEntryMedia(
+    page: Page,
+    { media = {} }: EntryMediaOptions = {}
+): Promise<void> {
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+\/media(\?.*)?$/,
+        async (route) => {
+            const parts = new URL(route.request().url()).pathname
+                .split('/')
+                .filter(Boolean);
+            // ['api','content',name,id,'media']
+            const key = `${decodeURIComponent(
+                parts[2] ?? ''
+            )}/${decodeURIComponent(parts[3] ?? '')}`;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ media: media[key] ?? {} })
             });
         }
     );

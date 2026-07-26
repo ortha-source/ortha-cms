@@ -432,7 +432,17 @@ export function MediaFieldControl({
                     </Button>
                 ) : null}
 
-                <p className="ml-auto flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                {/* Only when it has something to say — an always-rendered
+                    element leaves an empty paragraph in the accessibility tree. */}
+                <p
+                    className={cn(
+                        'ml-auto flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground',
+                        !stagedCount &&
+                            !acceptHint &&
+                            !(multiple && displays.length > 0) &&
+                            'hidden'
+                    )}
+                >
                     {stagedCount > 0 ? (
                         <span className="text-foreground">
                             {intl.formatMessage(messages.stagedCount, {
