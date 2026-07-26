@@ -37,6 +37,10 @@ const messages = defineMessages({
         id: 'media.fieldItem.pending',
         defaultMessage: 'Uploads on save'
     },
+    resolving: {
+        id: 'media.fieldItem.resolving',
+        defaultMessage: 'Loading asset…'
+    },
     position: {
         id: 'media.fieldItem.position',
         defaultMessage: 'Position {index} of {total}'
@@ -62,7 +66,9 @@ function kindOf(kind: string): MediaKind {
  * what is known of its type / size / dimensions, with the per-item controls
  * revealed on hover or focus: open in a new tab, remove, and — in an ordered
  * multiple field — nudge up/down. A `missing` ref renders as an explicit warning
- * tile instead of a broken preview, so a dead id can still be found and removed.
+ * tile instead of a broken preview, so a dead id can still be found and removed,
+ * and a `resolving` one (its ref still in flight) renders a placeholder rather
+ * than guessing a URL — a guess would fetch the full-size original.
  */
 export function MediaFieldItem({
     item,
@@ -82,9 +88,7 @@ export function MediaFieldItem({
     onMove: (delta: number) => void;
 }) {
     const intl = useIntl();
-    // An unresolved id (`kind: ''`) is still worth rendering as an image — the
-    // raw route serves it, and the kind fills in on the next media read.
-    const asImage = item.kind === MEDIA_KIND.Image || item.kind === '';
+    const asImage = item.kind === MEDIA_KIND.Image;
     const meta = [
         formatKind(item.mimeType),
         typeof item.size === 'number' ? formatBytes(item.size) : null,
@@ -100,18 +104,26 @@ export function MediaFieldItem({
             className={cn(
                 'group/item relative overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md',
                 item.missing && 'border-destructive/50',
-                item.pending && 'border-dashed'
+                (item.pending || item.resolving) && 'border-dashed'
             )}
         >
             <div
                 className="relative aspect-[4/3] w-full overflow-hidden bg-muted"
                 style={
-                    !item.missing && !asImage
+                    !item.missing && !item.resolving && !asImage
                         ? { backgroundImage: assetGradient(item.id) }
                         : undefined
                 }
             >
-                {item.missing ? (
+                {item.resolving ? (
+                    <span
+                        className="flex size-full animate-pulse items-center justify-center bg-muted text-[11px] text-muted-foreground"
+                        // The name is unknown too, so the tile announces what it
+                        // is doing rather than showing a bare grey box.
+                    >
+                        {intl.formatMessage(messages.resolving)}
+                    </span>
+                ) : item.missing ? (
                     <span className="flex size-full flex-col items-center justify-center gap-1 bg-destructive/5 px-2 text-center text-destructive">
                         <FileWarning className="size-6" aria-hidden />
                         <span className="text-[11px] font-medium leading-tight">
@@ -153,7 +165,7 @@ export function MediaFieldItem({
                 ) : null}
 
                 <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-md bg-background/85 p-0.5 shadow-sm backdrop-blur transition-opacity focus-within:opacity-100 group-hover/item:opacity-100 sm:opacity-0">
-                    {item.missing || item.pending ? null : (
+                    {item.missing || item.pending || item.resolving ? null : (
                         <Button
                             asChild
                             variant="ghost"
@@ -226,16 +238,21 @@ export function MediaFieldItem({
                 <p
                     className={cn(
                         'truncate text-xs font-medium',
-                        item.missing && 'text-destructive'
+                        item.missing && 'text-destructive',
+                        item.resolving && 'text-muted-foreground'
                     )}
-                    title={item.missing ? undefined : item.name}
+                    title={
+                        item.missing || item.resolving ? undefined : item.name
+                    }
                 >
                     {item.missing
                         ? intl.formatMessage(messages.unavailable)
-                        : item.name}
+                        : item.resolving
+                          ? intl.formatMessage(messages.resolving)
+                          : item.name}
                 </p>
                 <p className="truncate text-[11px] text-muted-foreground">
-                    {item.missing ? item.id : meta}
+                    {item.missing ? item.id : item.resolving ? '' : meta}
                 </p>
             </div>
         </li>

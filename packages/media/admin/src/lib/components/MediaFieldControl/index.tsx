@@ -88,11 +88,6 @@ function toIds(value: unknown): string[] {
     return typeof value === 'string' && value ? [value] : [];
 }
 
-/** A raw-stream url for an id, for a freshly-known asset with no server ref yet. */
-function rawUrl(id: string): string {
-    return `/api/media/assets/${id}/raw`;
-}
-
 /** Whether a drag carries files (as opposed to text or an in-page element). */
 function dragHasFiles(transfer: DataTransfer | null): boolean {
     return !!transfer && Array.from(transfer.types).includes('Files');
@@ -206,14 +201,24 @@ export function MediaFieldControl({
                     mimeType: ref.mimeType,
                     missing: ref.missing
                 };
-            // No info yet (e.g. reopened before the media read landed) — render a
-            // thumbnail by id; the name fills in on the next read.
+            // Nothing known about this id yet — the entry's media read is still
+            // in flight. Render a placeholder rather than guessing the raw
+            // route: that guess made every edit-mode open pull **full-size
+            // originals** for the window before the refs landed, and print a
+            // uuid where the file name goes. The refs replace this within one
+            // request; if a host somehow runs the admin plugin without the
+            // media server binding, the tile stays a placeholder rather than
+            // showing an image — the trade this accepts.
             return {
+                // The id is the only handle there is, so it names the tile's
+                // controls ("Remove <id>"); the visible label says "Loading
+                // asset…" instead of printing a uuid where a file name goes.
                 id: assetId,
                 name: assetId,
-                url: rawUrl(assetId),
+                url: '',
                 kind: '',
-                mimeType: ''
+                mimeType: '',
+                resolving: true
             };
         });
     }, [ids, initialRefs, known, pending]);

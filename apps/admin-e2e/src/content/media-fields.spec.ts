@@ -236,6 +236,30 @@ test.describe('Entry editor — Media tab', () => {
         await expect(mediaFieldPage.removeAsset('hero.png')).toBeVisible();
     });
 
+    test('waits for the ref instead of fetching the original', async ({
+        page,
+        mediaFieldPage
+    }) => {
+        // The record holds an id; its media read never resolves it (here by
+        // returning nothing — in life, by still being in flight). The tile must
+        // not guess `/raw`: that guess fetched a full-size original on every
+        // edit-mode open, to draw a 180px tile.
+        await mockContentEntryRead(page, {
+            records: {
+                'article/article-2': {
+                    text: 'Saved',
+                    cover: MEDIA_ASSET_IDS.hero
+                }
+            }
+        });
+        await mockEntryMedia(page, { media: {} });
+        await mediaFieldPage.gotoArticle(WS, 'article-2');
+        await mediaFieldPage.openMediaTab();
+
+        await expect(mediaFieldPage.resolvingTile).toBeVisible();
+        await expect(mediaFieldPage.rawImages).toHaveCount(0);
+    });
+
     test('has no accessibility violations, picker included', async ({
         mediaFieldPage,
         makeAxe

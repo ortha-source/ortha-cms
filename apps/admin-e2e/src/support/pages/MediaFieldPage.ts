@@ -116,6 +116,16 @@ export class MediaFieldPage extends BasePage {
             .allInnerTexts();
     }
 
+    /** The placeholder a tile shows while its asset ref is still in flight. */
+    get resolvingTile(): Locator {
+        return this.page.getByText('Loading asset…').first();
+    }
+
+    /** Every `<img>` on the page pointing at an asset's raw route. */
+    get rawImages(): Locator {
+        return this.page.locator('img[src*="/raw"]');
+    }
+
     /**
      * The "Uploads on save" marker a staged (not yet uploaded) tile carries.
      * Exact, or it also matches the footer's "1 file uploads on save" (text

@@ -138,13 +138,19 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   **Replace**, **Upload**, and a muted meta line (attached count + the `accept`
   hint — the hint was a `Badge` beside the buttons, which read like an action). It
   writes an asset id (single) or id array (multiple).
-- **`MediaFieldItem`** — one attached asset: the real image (or the deterministic
-  `assetGradient` behind its kind glyph) over the name and whatever type / size /
-  dimensions are known (`types/mediaFieldDisplay` is the merge of a server
+- **`MediaFieldItem`** — one attached asset: the **thumb derivative** (or the
+  deterministic `assetGradient` behind its kind glyph) over the name and whatever
+  type / size / dimensions are known (`types/mediaFieldDisplay` is the merge of a server
   `MediaRef` and a locally-picked `MediaAsset` — a ref carries no size), with
-  hover/focus-revealed controls: open in a new tab, remove, and — multiple only —
-  nudge up/down beside a position badge. A `missing` ref is an explicit warning
-  tile carrying the dead id, so it can be found and removed.
+  hover/focus-revealed controls: open in a new tab (the **original**), remove,
+  and — multiple only — nudge up/down beside a position badge. A `missing` ref is
+  an explicit warning tile carrying the dead id, so it can be found and removed.
+  An id whose ref hasn't arrived yet renders a **`resolving` placeholder**, not a
+  guessed `/raw` URL: guessing meant every edit-mode open fetched full-size
+  originals for the window before `useEntryMedia` landed — to draw a 180px tile —
+  and printed a uuid where the file name goes. (The trade: a host running the
+  admin plugin *without* the media server binding would sit on placeholders
+  rather than showing images. An admin-e2e pins the no-`/raw`-request behaviour.)
 - **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`: search, a type
   filter (listing only the kinds the field's `accept` allows, hidden when that
   leaves one), a sort, **breadcrumbs** over the folder chips — descending used to

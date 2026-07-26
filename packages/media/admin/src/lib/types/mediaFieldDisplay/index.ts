@@ -33,4 +33,12 @@ export type MediaFieldDisplay = {
      * placeholder standing in for the asset.
      */
     pending?: boolean;
+    /**
+     * The id is real but nothing is known about it yet — the entry's media read
+     * is still in flight. The tile renders a placeholder rather than guessing
+     * the asset's raw route: guessing meant every edit-mode open fetched
+     * **full-size originals** for the moment before the refs landed (and
+     * labelled each tile with a uuid).
+     */
+    resolving?: boolean;
 };
