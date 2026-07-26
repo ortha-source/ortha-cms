@@ -40,8 +40,16 @@ export class DownloadAssetQuery {
      * (an `<img>` tag can't send the `X-Workspace-Id` header). Returns `null`
      * when there is no such asset; the caller must still authorize the returned
      * `workspaceId` before opening the stream.
+     *
+     * When `variant` names a generated derivative the asset actually has, the
+     * returned location points at that derivative (WebP) instead of the
+     * original; an unknown/absent variant transparently falls back to the
+     * original, so a stale link never 404s.
      */
-    async locate(id: string): Promise<AssetLocation | null> {
+    async locate(
+        id: string,
+        variant?: string
+    ): Promise<AssetLocation | null> {
         const [row] = await this.db
             .select({
                 workspaceId: mediaAsset.workspaceId,
@@ -49,12 +57,25 @@ export class DownloadAssetQuery {
                 storageKey: mediaAsset.storageKey,
                 mimeType: mediaAsset.mimeType,
                 name: mediaAsset.name,
-                size: mediaAsset.size
+                size: mediaAsset.size,
+                variants: mediaAsset.variants
             })
             .from(mediaAsset)
             .where(eq(mediaAsset.id, id))
             .limit(1);
-        return row ?? null;
+        if (!row) return null;
+
+        const { variants, ...base } = row;
+        const chosen = variant ? variants?.[variant] : undefined;
+        if (chosen) {
+            return {
+                ...base,
+                storageKey: chosen.key,
+                mimeType: 'image/webp',
+                size: chosen.size
+            };
+        }
+        return base;
     }
 
     /** Opens the byte stream for an already-authorized asset. */

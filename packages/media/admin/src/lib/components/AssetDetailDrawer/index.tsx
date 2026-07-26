@@ -106,6 +106,7 @@ export function AssetDetailDrawer({
                         <div className="flex-1 space-y-5 overflow-auto p-4">
                             <MediaThumbnail
                                 asset={asset}
+                                size="preview"
                                 className="aspect-video w-full rounded-xl"
                                 iconClassName="size-12"
                             />

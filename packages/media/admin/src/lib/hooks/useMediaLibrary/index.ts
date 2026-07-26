@@ -292,6 +292,7 @@ export function useMediaLibrary(enabled = true) {
         // load state
         isLoading: foldersQuery.isPending || assetsQuery.isPending,
         isError: foldersQuery.isError || assetsQuery.isError,
+        reload: invalidate,
         // selection
         selectedIds,
         selectedAssets,

@@ -12,8 +12,12 @@ export type MediaAsset = {
     name: string;
     /** Coarse category driving the icon, badge, and kind filter. */
     kind: MediaKind;
-    /** Route the browser fetches to stream the bytes (preview / download). */
+    /** Route the browser fetches to stream the original bytes (download). */
     url: string;
+    /** Small (~320px) WebP derivative for grid tiles; `undefined` if none. */
+    thumbUrl?: string;
+    /** Larger (~1280px) WebP derivative for the detail drawer; `undefined` if none. */
+    previewUrl?: string;
     /** MIME type, e.g. `image/png`. */
     mimeType: string;
     /** File size in bytes. */

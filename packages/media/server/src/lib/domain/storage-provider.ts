@@ -19,6 +19,13 @@ export interface PutObject {
     contentType: string;
     /** The upload body, a stream so large files never buffer fully in memory. */
     body: Readable;
+    /**
+     * When set, this blob is a generated derivative (e.g. a `thumb`/`preview`
+     * of the original), not the uploaded file itself. Providers key it in a
+     * separate namespace so a derivative can never overwrite the original —
+     * even when the user's file is literally named `thumb.webp`.
+     */
+    isVariant?: boolean;
 }
 
 /**

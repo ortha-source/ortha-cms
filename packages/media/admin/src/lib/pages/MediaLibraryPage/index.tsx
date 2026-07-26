@@ -47,6 +47,16 @@ const messages = defineMessages({
         id: 'media.page.noAccess',
         defaultMessage: 'You don’t have permission to view the media library.'
     },
+    loadError: {
+        id: 'media.page.loadError',
+        defaultMessage: 'We couldn’t load the media library.'
+    },
+    retry: { id: 'media.page.retry', defaultMessage: 'Try again' },
+    truncated: {
+        id: 'media.page.truncated',
+        defaultMessage:
+            'Showing the first {shown} of {total} items. Search or filter to narrow the list.'
+    },
     openNav: { id: 'media.page.openNav', defaultMessage: 'Folders' },
     navTitle: {
         id: 'media.page.navTitle',
@@ -169,6 +179,25 @@ export function MediaLibraryPage() {
     const isEmpty =
         store.childFolders.length === 0 && store.visibleAssets.length === 0;
 
+    // The gateway fetches one bounded page of assets and filters client-side, so
+    // a folder holding more than that page can't show them all. Surface the cap
+    // rather than silently hiding the overflow. (The true per-folder count comes
+    // from the folders query, independent of the loaded page.)
+    const loadedCount = store.assets.length;
+    const totalCount = store.folderCounts.get(store.currentFolderId) ?? 0;
+    const isTruncated = totalCount > loadedCount;
+
+    // Triggers a browser download for one asset (its bytes stream from the
+    // `media:read`-gated raw route). Shared by the row action and bulk download.
+    const downloadAsset = (asset: MediaAsset) => {
+        const link = document.createElement('a');
+        link.href = asset.url;
+        link.download = asset.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
     // A single dispatcher every card / row / drawer forwards asset actions to.
     const handleAssetAction = (kind: AssetActionKind, asset: MediaAsset) => {
         switch (kind) {
@@ -176,12 +205,7 @@ export function MediaLibraryPage() {
                 store.openDetail(asset.id);
                 break;
             case 'download': {
-                const link = document.createElement('a');
-                link.href = asset.url;
-                link.download = asset.name;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
+                downloadAsset(asset);
                 toast.success(
                     intl.formatMessage(messages.tDownload, { name: asset.name })
                 );
@@ -273,6 +297,21 @@ export function MediaLibraryPage() {
         );
     }
 
+    // A failed load gets its own state with a retry — never the empty state,
+    // which would misread a server error as "this folder is empty".
+    if (store.isError) {
+        return (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+                <p className="max-w-sm text-sm text-muted-foreground" role="alert">
+                    {intl.formatMessage(messages.loadError)}
+                </p>
+                <Button variant="outline" onClick={store.reload}>
+                    {intl.formatMessage(messages.retry)}
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <MediaTopBar
@@ -349,13 +388,14 @@ export function MediaLibraryPage() {
                         {selectedIds.length > 0 ? (
                             <MediaSelectionBar
                                 count={selectedIds.length}
-                                onDownload={() =>
+                                onDownload={() => {
+                                    store.selectedAssets.forEach(downloadAsset);
                                     toast.success(
                                         intl.formatMessage(messages.tDownload, {
                                             name: `${selectedIds.length} files`
                                         })
-                                    )
-                                }
+                                    );
+                                }}
                                 onDuplicate={() => {
                                     store.duplicateAssets(selectedIds);
                                     toast.success(
@@ -379,6 +419,18 @@ export function MediaLibraryPage() {
                                 canUpdate={canUpdate}
                                 canDelete={canDelete}
                             />
+                        ) : null}
+
+                        {isTruncated ? (
+                            <p
+                                className="mb-3 text-sm text-muted-foreground"
+                                role="status"
+                            >
+                                {intl.formatMessage(messages.truncated, {
+                                    shown: loadedCount,
+                                    total: totalCount
+                                })}
+                            </p>
                         ) : null}
 
                         {isEmpty ? (

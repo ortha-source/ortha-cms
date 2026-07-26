@@ -10,8 +10,14 @@ export interface AssetView {
     kind: string;
     mimeType: string;
     size: number;
-    /** Route the browser fetches to stream the bytes. */
+    /** Route the browser fetches to stream the original bytes. */
     url: string;
+    /**
+     * Names of the generated derivatives available for this asset (`thumb`,
+     * `preview`) — fetch each at `${url}?variant=<name>`. Empty for non-images
+     * or images too small to derive.
+     */
+    variants: string[];
     width: number | null;
     height: number | null;
     duration: number | null;

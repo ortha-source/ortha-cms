@@ -111,11 +111,25 @@ Owns its schema, ships its migrations:
 `npx nx run @ortha-cms/media-server:db:generate --name=<change>` then
 `npx nx run server:db:migrate`.
 
+## Image derivatives
+
+On upload, raster images are buffered and run through the `ImageProcessor` port
+(`domain/image-processor.ts`; Sharp adapter in `infrastructure/image/`): it reads
+the source dimensions (persisted to `width`/`height`) and generates WebP
+derivatives — **`thumb` (≤320px)** and **`preview` (≤1280px)**, never upscaled —
+each stored as its own blob under the same provider via
+`PutObject.isVariant` (a reserved `variants/` key namespace, so a derivative can
+never overwrite the original). The keys + dims live in the `media_asset.variants`
+jsonb column. Generation is best-effort: a source the processor can't decode
+(SVG, corrupt bytes) yields no derivatives and never fails the upload. Downloads
+serve a derivative via `GET /media/assets/:id/raw?variant=thumb|preview`, falling
+back to the original when absent. Duplicate copies the derivative blobs too;
+delete reclaims them (`Asset.storageKeys`).
+
 ## Not yet (follow-ups)
 
-Admin rewire (the `media-admin` mockup → this API), server-e2e + admin-e2e
-suites, image dimension/duration probing, the real S3 adapter, and a
-`media.asset.deleted` outbox subscriber for blob GC. See the implementation
+server-e2e + admin-e2e suites, **video duration probing**, the real S3 adapter,
+and a `media.asset.deleted` outbox subscriber for blob GC. See the implementation
 plan for the phased rollout.
 
 ## Commands

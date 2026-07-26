@@ -32,8 +32,17 @@ function sanitize(name: string): string {
 export function createLocalStorageProvider(
     config: LocalStorageConfig
 ): StorageProvider {
-    const keyFor = (workspaceId: string, assetId: string, fileName: string) =>
-        `${workspaceId}/${assetId}/${sanitize(fileName)}`;
+    const keyFor = (
+        workspaceId: string,
+        assetId: string,
+        fileName: string,
+        isVariant: boolean
+    ) =>
+        isVariant
+            ? // Derivatives live in a reserved `variants/` sub-namespace, so
+              // they can never collide with the original blob's key.
+              `${workspaceId}/${assetId}/variants/${sanitize(fileName)}`
+            : `${workspaceId}/${assetId}/${sanitize(fileName)}`;
     const absolute = (storageKey: string) => join(config.rootDir, storageKey);
 
     return {
@@ -41,7 +50,8 @@ export function createLocalStorageProvider(
             const storageKey = keyFor(
                 object.workspaceId,
                 object.assetId,
-                object.fileName
+                object.fileName,
+                object.isVariant ?? false
             );
             const target = absolute(storageKey);
             await mkdir(dirname(target), { recursive: true });

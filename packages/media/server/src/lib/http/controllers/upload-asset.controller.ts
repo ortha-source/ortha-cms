@@ -5,6 +5,7 @@ import {
     NotFoundException,
     Post,
     UploadedFile,
+    UseFilters,
     UseGuards,
     UseInterceptors
 } from '@nestjs/common';
@@ -23,7 +24,18 @@ import { UploadAssetUseCase } from '../../application/use-cases/upload-asset.use
 import { AssetViewQuery } from '../../infrastructure/queries/asset-view.query';
 import { UploadAssetDto } from '../../application/dto/upload-asset.dto';
 import type { AssetView } from '../../types/asset-view';
+import { MulterUploadFilter } from '../multer-upload.filter';
 import { toHttp } from '../to-http';
+
+/**
+ * Hard ceiling on a single upload, in bytes. Bounds the memory multer buffers
+ * per request (it stops reading at the cap and errors), so an oversized POST
+ * can't exhaust the heap. Sourced from the same `MEDIA_MAX_UPLOAD_BYTES` env as
+ * `config.plugins.media.maxUploadBytes`, so the two stay in lockstep; the
+ * interceptor can't read DI config, hence the module-level read here.
+ */
+const MAX_UPLOAD_BYTES =
+    Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800;
 
 /** The subset of a multer file the controller reads (avoids an @types/multer dep). */
 interface UploadedMediaFile {
@@ -39,6 +51,7 @@ interface UploadedMediaFile {
  * to the caller's workspace.
  */
 @UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseFilters(MulterUploadFilter)
 @RequirePermissions(PERMISSIONS.MEDIA_CREATE)
 @Controller('media')
 export class UploadAssetController {
@@ -49,7 +62,9 @@ export class UploadAssetController {
 
     /** Uploads one file and returns its asset view. */
     @Post('assets')
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(
+        FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } })
+    )
     async create(
         @UploadedFile() file: UploadedMediaFile | undefined,
         @Body() body: UploadAssetDto,

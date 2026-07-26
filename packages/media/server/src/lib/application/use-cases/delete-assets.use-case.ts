@@ -57,7 +57,10 @@ export class DeleteAssetsUseCase {
     private async reclaim(asset: Asset): Promise<void> {
         try {
             const provider = this.registry.get(asset.storageProvider);
-            await provider.remove(asset.storageKey.value);
+            // The original plus every generated derivative (thumb/preview).
+            await Promise.all(
+                asset.storageKeys.map((key) => provider.remove(key))
+            );
         } catch {
             // Best-effort: a failed blob delete leaves an orphan for GC, never
             // an error to the caller (the row is already gone).

@@ -13,6 +13,21 @@ export interface AssetMedia {
     duration: number | null;
 }
 
+/**
+ * A generated display derivative of an image — its storage key (held by the
+ * same provider as the original) plus intrinsic size. Keyed by variant name
+ * (`thumb`, `preview`) in {@link Asset.variants}.
+ */
+export interface AssetVariant {
+    key: string;
+    width: number;
+    height: number;
+    size: number;
+}
+
+/** The generated derivatives of an asset, by variant name. */
+export type AssetVariants = Record<string, AssetVariant>;
+
 /** Everything needed to build a brand-new asset (post-upload). */
 export interface NewAssetProps {
     id: AssetId;
@@ -28,6 +43,8 @@ export interface NewAssetProps {
     checksum: string | null;
     uploadedBy: string;
     media?: Partial<AssetMedia>;
+    /** Generated derivatives keyed by variant name (`thumb`/`preview`). */
+    variants?: AssetVariants;
 }
 
 /** The persisted shape used to rehydrate a loaded asset. */
@@ -45,6 +62,7 @@ export interface AssetState {
     width: number | null;
     height: number | null;
     duration: number | null;
+    variants: AssetVariants;
     tags: string[];
     alt: string | null;
     uploadedBy: string;
@@ -73,6 +91,7 @@ export class Asset {
         private readonly _size: number,
         private readonly _checksum: string | null,
         private readonly _media: AssetMedia,
+        private readonly _variants: AssetVariants,
         private _tags: string[],
         private _alt: string | null,
         private readonly _uploadedBy: string,
@@ -97,6 +116,7 @@ export class Asset {
                 height: props.media?.height ?? null,
                 duration: props.media?.duration ?? null
             },
+            props.variants ?? {},
             [],
             null,
             props.uploadedBy,
@@ -124,6 +144,7 @@ export class Asset {
             state.size,
             state.checksum,
             { width: state.width, height: state.height, duration: state.duration },
+            state.variants,
             [...state.tags],
             state.alt,
             state.uploadedBy,
@@ -174,6 +195,17 @@ export class Asset {
     /** Optional visual / temporal metadata. */
     get media(): AssetMedia {
         return this._media;
+    }
+    /** The generated derivatives, keyed by variant name. */
+    get variants(): AssetVariants {
+        return this._variants;
+    }
+    /** Every storage key this asset owns — the original plus its derivatives. */
+    get storageKeys(): string[] {
+        return [
+            this._storageKey.value,
+            ...Object.values(this._variants).map((v) => v.key)
+        ];
     }
     /** A copy of the current tags. */
     get tags(): string[] {

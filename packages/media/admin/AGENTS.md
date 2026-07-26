@@ -211,6 +211,14 @@ JSDoc on exports; **one component per file** with `<name>/index.ts(x)` folders
 permissions, root-folder id in `src/lib/constants/`); co-located `react-intl`
 messages namespaced `media.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
+## Thumbnails — the grid never loads a full-size original
+
+Image assets carry server-generated WebP derivatives — `thumbUrl` (~320px) and
+`previewUrl` (~1280px), mapped from the API's `variants` by `mediaMapper`.
+`MediaThumbnail` renders the `thumb` in grid + picker tiles and the `preview` in
+the detail drawer (`size` prop), falling back to the full `url` when a derivative
+is absent (an SVG, or an image too small to derive).
+
 ## End-to-end cover
 
 The **Media tab** has an admin-e2e suite —
@@ -235,8 +243,7 @@ The **Media Library page** still has only `media-library.spec.ts`.
 ## Not yet (follow-ups)
 
 Server-side pagination for large folders; a keyboard suite for the field and the
-library; real thumbnail derivatives; alt/tag editing in the drawer (read-only
-today).
+library; alt/tag editing in the drawer (read-only today).
 
 ## Commands
 
