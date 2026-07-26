@@ -62,6 +62,15 @@ export class MediaRefsQuery {
                           id: asset.id,
                           name: asset.name,
                           url: asset.url,
+                          // Only when the resolver has them — an asset with no
+                          // derivative keeps the ref clean rather than carrying
+                          // an undefined the admin has to test twice.
+                          ...(asset.thumbUrl
+                              ? { thumbUrl: asset.thumbUrl }
+                              : {}),
+                          ...(asset.previewUrl
+                              ? { previewUrl: asset.previewUrl }
+                              : {}),
                           kind: asset.kind,
                           mimeType: asset.mimeType,
                           alt: asset.alt

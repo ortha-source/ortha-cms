@@ -109,8 +109,16 @@ export type ContentField = {
 export type MediaRef = {
     id: string;
     name: string;
-    /** Raw-stream route for a thumbnail/preview (empty when `missing`). */
+    /** Raw-stream route for the **original** bytes (empty when `missing`). */
     url: string;
+    /**
+     * The small (~320px) derivative, when the media plugin generated one — what
+     * a tile should render, so a record's media costs a thumbnail rather than a
+     * full-size original. Absent for a non-image, an SVG, or a tiny image.
+     */
+    thumbUrl?: string;
+    /** The larger (~1280px) derivative, same caveats as {@link MediaRef.thumbUrl}. */
+    previewUrl?: string;
     kind: string;
     mimeType: string;
     alt?: string | null;

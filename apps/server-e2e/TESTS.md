@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_379 test cases across 33 spec files._
+_380 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -292,6 +292,7 @@ _<sub>apps/server-e2e/src/server/content/content-media-fields.spec.ts</sub>_
 | 422s a media asset from another workspace (no cross-workspace leak) |
 | 422s an asset whose kind fails the field accept restriction |
 | preserves the order of a multiple media field across an update |
+| carries the thumb/preview derivative urls on a resolved ref |
 | resolves media ids to refs via GET /:id/media |
 | captures media ids in the revision snapshot |
 

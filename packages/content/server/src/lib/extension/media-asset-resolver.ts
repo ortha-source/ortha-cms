@@ -37,6 +37,15 @@ export interface ResolvedMediaAsset {
     name: string;
     /** The route the browser fetches to stream the bytes. */
     url: string;
+    /**
+     * Route for the small (~320px) derivative, when the media plugin generated
+     * one — what a field tile or a revision-preview chip should render instead
+     * of the full original. Absent for a non-image, an SVG, or an image too
+     * small to derive; the caller falls back to {@link url}.
+     */
+    thumbUrl?: string;
+    /** Route for the larger (~1280px) derivative, same caveats as {@link thumbUrl}. */
+    previewUrl?: string;
     /** Alt text, when set. */
     alt: string | null;
 }

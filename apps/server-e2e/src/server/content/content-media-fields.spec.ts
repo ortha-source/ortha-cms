@@ -1,4 +1,5 @@
 import request from 'supertest';
+import sharp from 'sharp';
 import {
     closeTestApp,
     createTestApp,
@@ -149,6 +150,42 @@ describe('Content media fields (/api/content/:type)', () => {
             .send({ values: { ...BASE, attachments: [c, a, b] } })
             .expect(200);
         expect(updated.body.values.attachments).toEqual([c, a, b]);
+    });
+
+    it('carries the thumb/preview derivative urls on a resolved ref', async () => {
+        const agent = await login();
+        // A real, decodable image — the fake PNG the other cases use produces no
+        // derivatives, which is exactly the fallback path asserted below.
+        const png = await sharp({
+            create: {
+                width: 900,
+                height: 600,
+                channels: 3,
+                background: { r: 20, g: 120, b: 200 }
+            }
+        })
+            .png()
+            .toBuffer();
+        const imageId = await upload(agent, png, 'wide.png', 'image/png');
+        const docId = await upload(agent, PDF, 'notes.pdf', 'application/pdf');
+        const created = await create(agent, {
+            image: imageId,
+            attachments: [docId]
+        }).expect(201);
+
+        const res = await agent
+            .get(`/api/content/test_article/${created.body.id}/media`)
+            .expect(200);
+        // The editor tile renders the derivative, not the original — that is the
+        // whole point of resolving refs server-side.
+        expect(res.body.media.image[0]).toMatchObject({
+            url: `/api/media/assets/${imageId}/raw`,
+            thumbUrl: `/api/media/assets/${imageId}/raw?variant=thumb`,
+            previewUrl: `/api/media/assets/${imageId}/raw?variant=preview`
+        });
+        // A non-image has no derivative, so the ref carries none and the tile
+        // falls back to the original.
+        expect(res.body.media.attachments[0].thumbUrl).toBeUndefined();
     });
 
     it('resolves media ids to refs via GET /:id/media', async () => {

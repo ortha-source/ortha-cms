@@ -437,7 +437,8 @@ this in two mount points that share one cached query and one action core:
   server-side (`RevisionDetail.relationRefs`/`relationTotals`, capped with a "+N
   more"; a soft-deleted / cross-workspace target reads as "Unavailable record").
   **Media fields render the actual assets** the same way (`MediaRefList` —
-  thumbnail + file name, in stored order), from `RevisionDetail.mediaRefs`, which
+  thumbnail + file name, in stored order — the ref's `thumbUrl` derivative when
+  the asset has one, else the original), from `RevisionDetail.mediaRefs`, which
   the server had always resolved and the admin used to drop: a media row printed
   the bare asset uuid, which tells a reader nothing about what a version held. A
   side with no resolved list falls back to `formatRevisionValue` — the server

@@ -9,6 +9,12 @@ export interface AssetResponse {
     mimeType: string;
     size: number;
     url: string;
+    /**
+     * Names of the server-generated derivatives (`thumb` / `preview`), fetched
+     * at `${url}?variant=<name>`. The mapper reads this, so it must be present
+     * on every asset — `[]` for a non-image.
+     */
+    variants: string[];
     width: number | null;
     height: number | null;
     duration: number | null;
@@ -39,6 +45,8 @@ const asset = (
     mimeType: 'application/pdf',
     size: 2048,
     url: raw(over.id),
+    // Images derive; everything else keeps the original only. Overridable.
+    variants: over.kind === 'image' ? ['thumb', 'preview'] : [],
     width: null,
     height: null,
     duration: null,

@@ -35,7 +35,8 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                 kind: mediaAsset.kind,
                 mimeType: mediaAsset.mimeType,
                 name: mediaAsset.name,
-                alt: mediaAsset.alt
+                alt: mediaAsset.alt,
+                variants: mediaAsset.variants
             })
             .from(mediaAsset)
             .where(
@@ -46,12 +47,20 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
             );
 
         for (const row of rows) {
+            const raw = `/api/media/assets/${row.id}/raw`;
+            const variants = (row.variants ?? {}) as Record<string, unknown>;
+            const variantUrl = (name: string) =>
+                variants[name] ? `${raw}?variant=${name}` : undefined;
             result.set(row.id, {
                 id: row.id,
                 kind: row.kind,
                 mimeType: row.mimeType,
                 name: row.name,
-                url: `/api/media/assets/${row.id}/raw`,
+                url: raw,
+                // Same `?variant=` route the library's own tiles use, so a
+                // record's media costs the editor a thumbnail, not an original.
+                thumbUrl: variantUrl('thumb'),
+                previewUrl: variantUrl('preview'),
                 alt: row.alt
             });
         }

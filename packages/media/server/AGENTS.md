@@ -87,7 +87,11 @@ whose URL the browser loads directly needs this treatment, not the header guard.
 (`infrastructure/queries/media-asset-resolver.query.ts` — a batched,
 workspace-scoped lookup of `media_asset`), so a content record's `field.media`
 values can be checked for existence + the field's `accept` restriction on save,
-and resolved to thumbnails in the editor + revision preview. Same open-host
+and resolved for display in the editor + revision preview. The resolved ref
+carries the **derivative** routes too (`thumbUrl` / `previewUrl`, the same
+`?variant=` URLs the library's own tiles use), so a record's media costs the
+editor a thumbnail rather than a full-size original; an asset with no derivative
+(non-image, SVG, tiny) omits them and the admin falls back to `url`. Same open-host
 inversion as i18n binding content's `CONTENT_ENTRY_EXTENSION`: content declares
 the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's
@@ -128,9 +132,11 @@ delete reclaims them (`Asset.storageKeys`).
 
 ## Not yet (follow-ups)
 
-server-e2e + admin-e2e suites, **video duration probing**, the real S3 adapter,
-and a `media.asset.deleted` outbox subscriber for blob GC. See the implementation
-plan for the phased rollout.
+**Video duration probing**, the real S3 adapter, and a `media.asset.deleted`
+outbox subscriber for blob GC. (The e2e suites listed here before now exist:
+`apps/server-e2e/src/server/media/media-assets.spec.ts` covers derivatives +
+variant serving, and the admin side has `media-library.spec.ts` +
+`content/media-fields.spec.ts`.)
 
 ## Commands
 

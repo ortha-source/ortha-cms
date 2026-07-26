@@ -99,8 +99,17 @@ export interface MediaRef {
     id: string;
     /** Original file name / display label. */
     name: string;
-    /** Raw-stream route the browser fetches for a thumbnail/preview. */
+    /** Raw-stream route for the **original** bytes (download, or the fallback). */
     url: string;
+    /**
+     * Route for the small (~320px) derivative the media plugin generated, when
+     * there is one — what an editor tile or a version-preview chip renders, so a
+     * form full of media doesn't pull full-size originals. Absent for a
+     * non-image, an SVG, or an image too small to derive.
+     */
+    thumbUrl?: string;
+    /** Route for the larger (~1280px) derivative, same caveats as {@link thumbUrl}. */
+    previewUrl?: string;
     /** Coarse kind — image/video/audio/document/archive. */
     kind: string;
     /** MIME type, e.g. `image/png`. */

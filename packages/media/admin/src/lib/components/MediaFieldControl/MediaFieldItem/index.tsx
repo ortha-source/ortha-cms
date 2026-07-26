@@ -161,7 +161,7 @@ export function MediaFieldItem({
                             className="size-6"
                         >
                             <a
-                                href={item.url}
+                                href={item.originalUrl ?? item.url}
                                 target="_blank"
                                 rel="noreferrer"
                                 aria-label={intl.formatMessage(

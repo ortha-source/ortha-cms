@@ -63,7 +63,10 @@ export function MediaRefList({ refs }: { refs: readonly MediaRef[] }) {
                 const Glyph = ref.missing
                     ? FileWarning
                     : (KIND_ICON[ref.kind] ?? FileText);
-                const isImage = !ref.missing && ref.kind === 'image' && ref.url;
+                // A 32px chip renders the thumb derivative; the original is only
+                // the fallback for an asset that has none (SVG, tiny image).
+                const src = ref.thumbUrl ?? ref.previewUrl ?? ref.url;
+                const isImage = !ref.missing && ref.kind === 'image' && !!src;
                 return (
                     <li
                         key={`${ref.id}-${index}`}
@@ -73,7 +76,7 @@ export function MediaRefList({ refs }: { refs: readonly MediaRef[] }) {
                         <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
                             {isImage ? (
                                 <img
-                                    src={ref.url}
+                                    src={src}
                                     alt=""
                                     loading="lazy"
                                     className="size-full object-cover"

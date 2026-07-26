@@ -219,6 +219,13 @@ Image assets carry server-generated WebP derivatives — `thumbUrl` (~320px) and
 the detail drawer (`size` prop), falling back to the full `url` when a derivative
 is absent (an SVG, or an image too small to derive).
 
+The **field tiles** follow the same rule from the other side of the wire:
+`MediaRef` now carries `thumbUrl` / `previewUrl` (resolved by media-server's
+`MediaAssetResolverQuery`), so `MediaFieldDisplay.url` is the derivative and
+`originalUrl` — the full bytes — is reserved for the tile's open-in-a-new-tab
+link. A staged upload puts its local object URL in the same slot, so the tile
+renders one way regardless of where the image came from.
+
 ## End-to-end cover
 
 The **Media tab** has an admin-e2e suite —

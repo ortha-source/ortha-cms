@@ -9,8 +9,15 @@ export type MediaFieldDisplay = {
     id: string;
     /** File name, or the raw id while nothing else is known yet. */
     name: string;
-    /** Raw-stream route for the preview (empty when `missing`). */
+    /**
+     * What the tile renders — the small derivative when the asset has one, else
+     * the original. A tile is ~180px wide, so pulling a full-size original for
+     * it is pure waste; a staged (not yet uploaded) file uses its local object
+     * URL here, which is the same idea from the other direction.
+     */
     url: string;
+    /** The original bytes — the "open in a new tab" target, never the tile's `src`. */
+    originalUrl?: string;
     /** Coarse kind; empty string when the asset hasn't been resolved yet. */
     kind: string;
     mimeType: string;

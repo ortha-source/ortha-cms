@@ -187,7 +187,9 @@ export function MediaFieldControl({
                 return {
                     id: assetId,
                     name: local.name,
-                    url: local.url,
+                    // Tiles are small: prefer the derivative the server made.
+                    url: local.thumbUrl ?? local.previewUrl ?? local.url,
+                    originalUrl: local.url,
                     kind: local.kind,
                     mimeType: local.mimeType,
                     size: local.size,
@@ -198,7 +200,8 @@ export function MediaFieldControl({
                 return {
                     id: assetId,
                     name: ref.name,
-                    url: ref.url,
+                    url: ref.thumbUrl ?? ref.previewUrl ?? ref.url,
+                    originalUrl: ref.url,
                     kind: ref.kind,
                     mimeType: ref.mimeType,
                     missing: ref.missing
