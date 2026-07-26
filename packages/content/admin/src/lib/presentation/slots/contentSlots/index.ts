@@ -21,7 +21,8 @@ import { createSlot } from '@ortha-cms/utils-admin';
 import type { FilterField } from '@ortha-cms/query-builder-admin';
 import type {
     ContentTypeDetail,
-    EntryRecord
+    EntryRecord,
+    MediaRef
 } from '../../../domain/types/contentType';
 import type { EntryMode } from '../../../domain/constants';
 
@@ -197,9 +198,8 @@ export type ContentOverlayItem = {
  * when the editor re-rendered — two loaders blinking in sequence. A cover has to
  * outlive the thing it is covering.
  */
-export const CONTENT_OVERLAY_SLOT = createSlot<ContentOverlayItem>(
-    'content.overlay'
-);
+export const CONTENT_OVERLAY_SLOT =
+    createSlot<ContentOverlayItem>('content.overlay');
 
 /** One filter-fields contribution for the records query-builder drawer. */
 export type RecordsFilterFieldsItem = {
@@ -250,4 +250,137 @@ export type EntryParamsItem = {
 /** Entry-editor param plumbing contributions. */
 export const ENTRY_PARAMS_SLOT = createSlot<EntryParamsItem>(
     'content.entry.params'
+);
+
+/**
+ * The minimal form bridge an {@link EntryTabItem} needs to render controls bound
+ * to the editor's shared form — so a contributed tab (e.g. the Media tab) edits
+ * the same `values` the built-in tabs do. A field edited on a slot tab rides
+ * Save, the Changed badge, the publish gate, and the server-422 mapping exactly
+ * like a General-tab field, because it's the same form state.
+ */
+export type EntryTabForm = {
+    /** The current form values, keyed by field name. */
+    values: Record<string, unknown>;
+    /** The (localized) validation error for a field, if any. */
+    errorFor: (field: string) => string | undefined;
+    /** Set a field's value. */
+    setValue: (field: string, value: unknown) => void;
+    /** Mark a field touched (so its error may show). */
+    touch: (field: string) => void;
+    /** Whether a field holds an unsaved edit (drives the Changed badge). */
+    isFieldDirty: (field: string) => boolean;
+};
+
+/** Context handed to a {@link EntryTabItem}'s tab panel — slot context + form. */
+export type EntryTabContext = EntrySlotContext & {
+    /** Form bridge for rendering controls bound to the editor's values. */
+    form: EntryTabForm;
+    /**
+     * The saved entry's media fields resolved to display refs (name / thumbnail
+     * url / kind), keyed by field name — so a tab can label pre-existing assets
+     * without re-fetching. Empty while creating, or when no media resolver is
+     * bound. Freshly picked/uploaded assets aren't here (the tab tracks those
+     * from the picker); a thumbnail always renders from the id regardless.
+     */
+    mediaRefs: Record<string, MediaRef[]>;
+    /**
+     * Whether {@link EntryTabContext.mediaRefs} is still loading (or failed).
+     * A tab that renders a ref-backed thumbnail needs to tell "not resolved
+     * **yet**" from "resolved to nothing": the first is a placeholder, the
+     * second is a real absence it should stop waiting on.
+     */
+    mediaRefsPending: boolean;
+    /**
+     * The {@link EntryPresave.handle}s of every presave contribution, keyed by
+     * item id — opaque, and a tab reads only its own key. It is how a tab reaches
+     * state mounted above it (staged uploads survive a tab switch; the tab body
+     * does not).
+     */
+    presave: Record<string, unknown>;
+};
+
+/**
+ * One entry-editor tab contribution. A contributed tab renders after the
+ * built-in General/Relations tabs and before History, ordered by {@link order}.
+ * Its {@link slug} MUST be a known editor tab slug (`ENTRY_TAB_SLUGS`) so the
+ * route table and the tab-from-path resolver accept it. The tab appears only
+ * when {@link appliesTo} returns true for the open type (e.g. the Media tab only
+ * when the type has media fields).
+ */
+export type EntryTabItem = {
+    /** Stable id (React key). */
+    id: string;
+    /** URL tab segment — must be one of `ENTRY_TAB_SLUGS`. */
+    slug: string;
+    /** Tab trigger label. */
+    label: MessageDescriptor;
+    /** Sort order among contributed tabs (ascending). */
+    order: number;
+    /** Whether this tab applies to the open type. */
+    appliesTo: (schema: ContentTypeDetail) => boolean;
+    /** The tab panel, rendered with the editor's slot + form context. */
+    Component: ComponentType<EntryTabContext>;
+};
+
+/**
+ * Extra tabs in the entry editor (e.g. the media plugin's Media tab). Declared
+ * here and rendered by `EntryEditor`; contributors register items via their
+ * `AdminPlugin.slots`. Boot-frozen like every slot, so the tab set is stable
+ * across renders.
+ */
+export const ENTRY_TAB_SLOT = createSlot<EntryTabItem>('content.entry.tabs');
+
+/**
+ * One plugin's participation in the **save itself** — work that must happen
+ * between "the user pressed Save/Publish" and the write, plus the state that
+ * work is staged in.
+ */
+export type EntryPresave = {
+    /**
+     * Runs inside the save, after client validation and **before** the write,
+     * with the values about to be sent; returns the values to actually save.
+     * The media plugin uploads the files staged on media fields here and swaps
+     * their placeholder ids for the real asset ids — so nothing is uploaded
+     * until the record is saved. Throwing **aborts the save**: nothing is
+     * written and the editor stays put, so the step owns surfacing its own
+     * failure (a toast naming the file).
+     */
+    commit: (input: {
+        values: Record<string, unknown>;
+        publish: boolean;
+    }) => Promise<Record<string, unknown>>;
+    /** Called after the write succeeded, to drop whatever `commit` consumed. */
+    settle?: () => void;
+    /**
+     * Opaque handle published to contributed tabs as
+     * `EntryTabContext.presave[id]`. This is how a tab's controls reach staging
+     * state that has to **outlive the tab body**: editor tabs are routes, so the
+     * panel unmounts the moment the user switches tab, while this hook is
+     * mounted by the entry view for the editor's whole life. A slot reads only
+     * its own key (same contract as `EntrySlotContext.params`).
+     */
+    handle?: unknown;
+};
+
+/** A contribution to the entry save. See {@link EntryPresave}. */
+export type EntryPresaveItem = {
+    /** Stable id — also the key its `handle` is published under. */
+    id: string;
+    /**
+     * Hook mounted **once per entry view**, for the editor's whole life. Called
+     * unconditionally in slot order, which is rules-of-hooks-safe because slot
+     * items are boot-frozen (the same guarantee `RECORDS_COLUMN_SLOT.useRowsData`
+     * relies on).
+     */
+    usePresave: () => EntryPresave;
+};
+
+/**
+ * Contributions to the entry **save**: an async step run before the write, and
+ * the staging state behind it. Mounted by `ContentEntryView` (which owns the
+ * busy overlay covering the whole write, uploads included).
+ */
+export const ENTRY_PRESAVE_SLOT = createSlot<EntryPresaveItem>(
+    'content.entry.presave'
 );

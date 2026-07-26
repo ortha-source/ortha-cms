@@ -29,6 +29,7 @@ export class AssetMapper {
             width: row.width,
             height: row.height,
             duration: row.duration,
+            variants: row.variants ?? {},
             tags: row.tags ?? [],
             alt: row.alt,
             uploadedBy: row.uploadedBy
@@ -51,6 +52,7 @@ export class AssetMapper {
             width: asset.media.width,
             height: asset.media.height,
             duration: asset.media.duration,
+            variants: asset.variants,
             tags: asset.tags,
             alt: asset.alt,
             uploadedBy: asset.uploadedBy

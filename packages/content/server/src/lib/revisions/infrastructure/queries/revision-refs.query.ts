@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import { RelationLinkService } from '../../../entries/infrastructure/persistence/relation-link.service';
+import { MediaRefsQuery } from '../../../entries/infrastructure/queries/media-refs.query';
 import type { RelationRef } from '../../../entries/types/entry-list-view';
 import type { RevisionDetail } from '../../types/revision-view';
 import { PREVIEW_RELATION_REF_CAP } from '../../revisions.constants';
@@ -19,7 +20,12 @@ import { PREVIEW_RELATION_REF_CAP } from '../../revisions.constants';
  */
 @Injectable()
 export class RevisionRefsQuery {
-    constructor(private readonly relations: RelationLinkService) {}
+    constructor(
+        private readonly relations: RelationLinkService,
+        // Resolves a snapshot's media ids to display refs (thumbnails); no-ops
+        // when the media plugin isn't registered.
+        private readonly media: MediaRefsQuery
+    ) {}
 
     async enrich(
         type: AnyContentType,
@@ -49,7 +55,18 @@ export class RevisionRefsQuery {
             );
         }
 
-        return { ...detail, relationRefs, relationTotals };
+        const mediaRefs = await this.media.forValues(
+            type,
+            detail.snapshot.values,
+            workspaceId
+        );
+
+        return {
+            ...detail,
+            relationRefs,
+            relationTotals,
+            ...(Object.keys(mediaRefs).length ? { mediaRefs } : {})
+        };
     }
 }
 

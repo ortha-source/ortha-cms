@@ -19,8 +19,12 @@ import { DeleteFolderUseCase } from '../../application/use-cases/delete-folder.u
 import { toHttp } from '../to-http';
 
 /**
- * `DELETE /api/media/folders/:id` — delete an empty folder. A non-empty folder
- * yields `409`. Gated on `media:delete`.
+ * `DELETE /api/media/folders/:id` — delete a folder **and everything inside
+ * it**: every descendant folder and every asset in any of them, in one
+ * transaction. Gated on `media:delete`. The confirmation that names what will
+ * go is the admin's job; this route is unconditional (it used to `409` on a
+ * non-empty folder, which made a populated tree undeletable without emptying it
+ * by hand).
  */
 @UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.MEDIA_DELETE)
@@ -28,7 +32,7 @@ import { toHttp } from '../to-http';
 export class DeleteFolderController {
     constructor(private readonly deleteFolder: DeleteFolderUseCase) {}
 
-    /** Deletes an empty folder. */
+    /** Deletes the folder and its whole subtree. */
     @Delete('folders/:id')
     @HttpCode(204)
     async remove(

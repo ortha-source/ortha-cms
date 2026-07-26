@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_365 test cases across 32 spec files._
+_382 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -280,6 +280,22 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 403s a viewer on create and delete |
 | lets a contributor create but not delete |
 
+<!-- source: apps/server-e2e/src/server/content/content-media-fields.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-media-fields.spec.ts</sub>_
+
+## Content media fields (/api/content/:type)
+
+| Test case |
+| --- |
+| stores and reads back a single media asset id |
+| 422s a media id that does not exist |
+| 422s a media asset from another workspace (no cross-workspace leak) |
+| 422s an asset whose kind fails the field accept restriction |
+| preserves the order of a multiple media field across an update |
+| carries the thumb/preview derivative urls on a resolved ref |
+| resolves media ids to refs via GET /:id/media |
+| captures media ids in the revision snapshot |
+
 <!-- source: apps/server-e2e/src/server/content/content-schema.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-schema.spec.ts</sub>_
 
@@ -518,6 +534,8 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | propagates a non-localized field to siblings but leaves localized fields alone |
+| syncs an array-valued shared field (jsonb) without tripping the change predicate |
+| leaves siblings alone when an array-valued shared field is resent unchanged |
 | appends a revision to each sibling the sync rewrote |
 | leaves sibling history alone when only a localized field changes |
 | does not sync a relation to a localizable target across locales |
@@ -563,6 +581,17 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | duplicates an asset |
 | bulk-deletes assets |
 
+### image derivatives
+
+| Test case |
+| --- |
+| probes dimensions and generates thumb + preview for a large image |
+| skips preview for a small image but still makes a thumb |
+| serves the original when the requested variant does not exist |
+| falls back to the original for a bogus ?variant= |
+| produces no derivatives for a non-image upload |
+| carries the derivatives onto a duplicated image |
+
 ### validation
 
 | Test case |
@@ -598,7 +627,8 @@ _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
 | creates a folder and lists it with the root count |
 | renames a folder |
 | deletes an empty folder (204) |
-| refuses to delete a non-empty folder with 409 |
+| deletes a non-empty folder together with everything inside it |
+| cascades only inside the caller’s workspace |
 
 ### authorization
 

@@ -30,7 +30,7 @@ export const post = collection('post', {
   normalize options, run `assertName` + `assertFields`, build the tables, and
   return a typed `ContentType`.
 - `field.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
-  `datetime`/`select`/`multiselect`/`json`/`relation`) each return a JSON-serializable
+  `datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a JSON-serializable
   `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
 - `relation({ to })` takes a **lazy thunk** so mutually-referencing collection
   files can import each other. `onDelete` defaults to `'cascade'` when
@@ -62,6 +62,35 @@ which carries no storage of its own — model it as the single relation on the
 `unique: true`. **many-to-many** is `many: true` (the generated join table). See
 the reference collections in `apps/server/src/collections` (`article` wires up
 `author`, `seo_meta`, `tag`, and `comment`).
+
+### Media fields (`field.media`)
+
+`field.media({ multiple?, accept?, required?, localized? })` attaches **Media
+Library** assets to a record. Storage lives **in the values bag**, not a join
+table: a single field is a `uuid('<field>')` column, a `multiple: true` field a
+`jsonb('<field>')` array of ids (mirroring `multiselect`). Asset ids are **plain
+uuids, not a Postgres FK** — the assets live in the media plugin's own schema, so
+(exactly like `workspace_id`) there is no cross-plugin FK, and existence + the
+`accept` restriction are enforced in the app layer, not the DB. Because media
+values ride the values bag, they are captured by the **revision snapshot**,
+synced across locale siblings when **shared** (unmarked), and per-locale when
+`localized: true` — all for free, like any scalar. `accept` restricts the
+allowed assets by coarse `kinds` (image/video/audio/document/archive) and/or
+`mimeTypes` (exact or `type/*` glob); an unknown kind is rejected at define time.
+
+**The `MEDIA_ASSET_RESOLVER` port.** The pure kernel only shape-checks a media
+id (uuid / uuid[]). Verifying an asset **exists in the workspace** and **matches
+`accept`** needs the media table, so content-server *declares* a DI port
+(`extension/media-asset-resolver.ts`: `MEDIA_ASSET_RESOLVER` symbol +
+`MediaAssetResolver` interface) that the media plugin *binds* — the same
+inversion as `CONTENT_ENTRY_EXTENSION`. `EntryWriterService.assertMediaTargets`
+injects it `@Optional()` and runs alongside `assertRelationTargets`: a missing,
+cross-workspace, or disallowed asset is a uniform **422** (no
+not-found-vs-forbidden enumeration signal). Unbound (media plugin absent) it is a
+no-op — media fields shape-validate and store, but skip existence/restriction.
+`GET /content/:type/:id/media` (`MediaRefsQuery`) resolves an entry's media ids
+to display refs (name/thumbnail-url/kind), and the revision detail's `mediaRefs`
+reuses the same query; both no-op without a resolver.
 
 ### Metadata flags (`publishable` / `paranoid` / `i18n`)
 

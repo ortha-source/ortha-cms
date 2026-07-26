@@ -5,7 +5,9 @@ export {
     CONTENT_OVERLAY_SLOT,
     ENTRY_HEADER_SLOT,
     ENTRY_PARAMS_SLOT,
+    ENTRY_PRESAVE_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
+    ENTRY_TAB_SLOT,
     RECORDS_COLUMN_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
     RECORDS_TOOLBAR_SLOT
@@ -14,8 +16,13 @@ export type {
     ContentOverlayItem,
     EntryHeaderItem,
     EntryParamsItem,
+    EntryPresave,
+    EntryPresaveItem,
     EntrySlotContext,
     EntrySidebarWidgetItem,
+    EntryTabContext,
+    EntryTabForm,
+    EntryTabItem,
     RecordsColumnCellContext,
     RecordsColumnItem,
     RecordsFilterFieldsItem,
@@ -28,9 +35,11 @@ export type {
     ContentType,
     ContentTypeDetail,
     EntryRecord,
-    EntryStatus
+    EntryStatus,
+    MediaRef
 } from './lib/domain/types/contentType';
 export { ENTRY_MODE, type EntryMode } from './lib/domain/constants';
+export { CONTENT_FIELD_TYPE, ENTRY_TAB } from './lib/domain/constants';
 
 // The publish-state classification + its one rendering, exported so a plugin
 // contributing its own view of an entry (the i18n locale rows and the records
@@ -44,9 +53,13 @@ export {
 } from './lib/domain/entryStatusView';
 export { EntryStatusBadge } from './lib/presentation/components/EntryStatusBadge';
 
+// The editor's "unsaved edits" pill, exported for the same reason: a plugin
+// contributing an entry tab (the media plugin's Media tab) marks a changed field
+// with the *same* badge the General and Relations tabs use, instead of a
+// look-alike that drifts.
+export { ChangedBadge } from './lib/presentation/components/ChangedBadge';
+
 // Query-key builders, exported so a slot contributor can invalidate the
 // library's caches after its own mutations (e.g. creating a translation).
-export {
-    contentEntriesPrefix
-} from './lib/application/useContentEntries';
+export { contentEntriesPrefix } from './lib/application/useContentEntries';
 export { contentEntryKey } from './lib/application/useContentEntry';

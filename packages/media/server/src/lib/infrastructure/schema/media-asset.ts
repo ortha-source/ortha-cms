@@ -20,6 +20,18 @@ export const mediaKind = pgEnum('media_kind', [
 ]);
 
 /**
+ * One stored image derivative: its storage key (same provider as the original)
+ * plus intrinsic dimensions and byte size, keyed by variant name in the
+ * `variants` column.
+ */
+export interface StoredVariant {
+    key: string;
+    width: number;
+    height: number;
+    size: number;
+}
+
+/**
  * A stored media asset. Carries lightweight metadata plus a pointer to the
  * bytes: `storageKey` (opaque, provider-owned) and `storageProvider` (which
  * backend holds it). `folderId` null = the workspace root. Bytes never live in
@@ -42,6 +54,11 @@ export const mediaAsset = pgTable(
         height: integer('height'),
         duration: integer('duration'),
         tags: jsonb('tags').$type<string[]>().notNull().default([]),
+        /** Generated display derivatives (`thumb`/`preview`), keyed by name. */
+        variants: jsonb('variants')
+            .$type<Record<string, StoredVariant>>()
+            .notNull()
+            .default({}),
         alt: text('alt'),
         uploadedBy: uuid('uploaded_by').notNull(),
         createdAt: timestamp('created_at', { withTimezone: true })

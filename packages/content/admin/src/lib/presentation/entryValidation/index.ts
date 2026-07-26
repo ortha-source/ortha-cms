@@ -70,6 +70,14 @@ const messages = defineMessages({
     entryIds: {
         id: 'content.form.error.entryIds',
         defaultMessage: 'Must be a list of valid entry ids'
+    },
+    mediaId: {
+        id: 'content.form.error.mediaId',
+        defaultMessage: 'Must be a valid media asset'
+    },
+    mediaIds: {
+        id: 'content.form.error.mediaIds',
+        defaultMessage: 'Must be a list of valid media assets'
     }
 });
 
@@ -116,6 +124,12 @@ function localizeIssue(
     if (m.startsWith('must be a subset')) return t(messages.options);
     if (m === 'must be an array of entry ids') return t(messages.entryIds);
     if (m === 'must be an entry id') return t(messages.entryId);
+    // Media reasons were unmapped, so a media field showed the kernel's raw
+    // English ("must be a media asset id") — the string that made the gallery
+    // bug read as a mystery.
+    if (m === 'must be an array of media asset ids')
+        return t(messages.mediaIds);
+    if (m === 'must be a media asset id') return t(messages.mediaId);
     return m;
 }
 
@@ -154,8 +168,13 @@ export function validateEntryValues(
         // present-but-malformed value is gated. A non-empty value still runs the
         // full kernel rules below.
         if (!requireRequired && isEmptyFieldValue(value)) continue;
-        const issues = validateFieldValue(field.name, toFieldSpec(field), value);
-        if (issues.length > 0) errors[field.name] = localizeIssue(field, issues[0], intl);
+        const issues = validateFieldValue(
+            field.name,
+            toFieldSpec(field),
+            value
+        );
+        if (issues.length > 0)
+            errors[field.name] = localizeIssue(field, issues[0], intl);
     }
     return errors;
 }

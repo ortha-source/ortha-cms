@@ -78,6 +78,14 @@ of the server's RBAC, which is the real enforcer).
 - **Detail drawer** — **`AssetDetailDrawer`** (preview, actions, metadata, alt, tags).
 - **Dialogs** — **`NewFolderDialog`**, **`UploadDialog`**, **`RenameDialog`**,
   **`MoveAssetsDialog`**, and `ConfirmDialog`.
+- **Deleting a folder takes its contents with it**, so the confirmation says so:
+  `utils/folderContents` counts the subtree from the already-loaded tree
+  (`folders` + `folderCounts` — no extra request, as fresh as the last folders
+  read) and the prompt reads "Delete “X” and everything inside?" over "…also
+  deletes 3 assets and 1 subfolder". An empty folder gets the plain wording
+  instead — reciting an inventory of nothing is just noise. The per-folder ⋯
+  trigger is named after its folder ("Actions for Images"), so a grid of folders
+  isn't a row of identical "Folder actions" buttons.
 - **Upload — stage, preview, then watch it go.** `UploadDialog` takes multiple
   files (drag-and-drop *and* a `multiple` picker, accumulating across drops) and
   stages them as **`StagedFileRow`**s: images get a real thumbnail from a local
@@ -93,14 +101,132 @@ of the server's RBAC, which is the real enforcer).
   re-renders only the small `UploadItem` rows. Because the dialog closes on
   submit, **there is no upload success toast** — it would claim a result that
   hasn't happened; the banner is the status surface, and the query cache is
-  invalidated once per settled batch.
+  invalidated once per settled batch. The **dialog** is shared with the content
+  editor's media field (below); the queue and banner are the library's own, since
+  a field defers its uploads to the record's save.
 - Every other action fires a **toast**; failures surface a toast + resync.
+
+## The content editor's Media tab
+
+Beyond the library page, this plugin contributes the **Media tab** of the
+content entry editor via content-admin's **`ENTRY_TAB_SLOT`** (hence the
+`@ortha-cms/content-admin` dependency; the tab appears only when the open type
+has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
+
+- **`EntryMediaTab`** — the slot `Component`. Reads the schema's media fields and
+  renders one **`MediaFieldSection`** each, bound to the editor's shared form via
+  the slot's form bridge (`ctx.form.values` / `setValue` / `errorFor` / `touch` /
+  `isFieldDirty`). Media values live in the entry values bag; the tab is only
+  their surface.
+- **`MediaFieldSection`** — one field as a **titled card**, deliberately the same
+  shape as the Relations tab's `RelationFieldSection` so the two contributed tabs
+  read as one editor: header (heading + required mark, the localized globe in a
+  `Tooltip`, the **shared** `ChangedBadge` imported from `@ortha-cms/content-admin`
+  — not a look-alike that would drift — and an error alert icon) over a one-line
+  description of what the field holds, then the control; an error tints the card
+  border. The field is named as a **group** (`aria-labelledby` → its `<h3>`), not
+  by a `<label for>` pointing at a button: a media field is a *composite* control
+  (pick / upload / remove / reorder), and a label would **replace** the trigger's
+  own accessible name — the a11y tree read "Cover image, button" instead of
+  "Select from library". As a group it reads "Cover image, group" and then each
+  action by its own name, which is also what makes the e2e locators legible.
+- **`MediaFieldControl`** — the control itself. Attached assets render as
+  **`MediaFieldItem`** tiles in a panel that is also a **drop zone** (highlight
+  held by a drag-depth counter, since nested tiles fire `dragleave` as the
+  pointer crosses them). Empty, the panel is a dashed `Empty` state that says so
+  and invites the drop. Below sit **Select from library** / **Add from library** /
+  **Replace**, **Upload**, and a muted meta line (attached count + the `accept`
+  hint — the hint was a `Badge` beside the buttons, which read like an action). It
+  writes an asset id (single) or id array (multiple).
+- **`MediaFieldItem`** — one attached asset: the **thumb derivative** (or the
+  deterministic `assetGradient` behind its kind glyph) over the name and whatever
+  type / size / dimensions are known (`types/mediaFieldDisplay` is the merge of a server
+  `MediaRef` and a locally-picked `MediaAsset` — a ref carries no size), with
+  hover/focus-revealed controls: open in a new tab (the **original**), remove,
+  and — multiple only — nudge up/down beside a position badge. A `missing` ref is
+  an explicit warning tile carrying the dead id, so it can be found and removed.
+  An id whose ref hasn't arrived yet renders a **`resolving` placeholder**, not a
+  guessed `/raw` URL: guessing meant every edit-mode open fetched full-size
+  originals for the window before `useEntryMedia` landed — to draw a 180px tile —
+  and printed a uuid where the file name goes. Waiting is keyed on
+  `EntryTabContext.mediaRefsPending`, so it ends: once the read **settles**
+  without a ref (it failed, or no media server binding is present) the tile falls
+  back to the original rather than waiting forever. Both halves are pinned by
+  admin-e2e.
+
+**Uploading is gated on `media:create`, picking on `media:read`** — not decoration:
+uploads are deferred into the save, so an ungranted upload 403s *inside the write*
+and takes the user's unrelated edits down with it. Without `media:create` the
+Upload button and the drop zone are gone; without `media:read` the picker trigger
+is disabled and the card says why.
+- **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`, **permission-
+  aware** (the trigger is disabled without `media:read`, and the field says why)
+  and with its own **error** state: a failed library read offers a retry instead
+  of the empty state, because "nothing here" for a read that never landed sends
+  the user hunting for assets that exist. Search, a type
+  filter (listing only the kinds the field's `accept` allows, hidden when that
+  leaves one), a sort, **breadcrumbs** over the folder chips — descending used to
+  be one-way, with no path back up — and a grid of **`MediaPickerTile`**s
+  (thumbnail + name + size/dimensions, `aria-pressed`, an "Attached" mark on what
+  the field already holds). Skeleton tiles while loading, an `Empty` (with Clear
+  filters) when nothing matches. Candidates are narrowed to the field's `accept`
+  (the server enforces it on save); closing resets the selection **and** the
+  filters, so a stale search can't hide the library on the next open.
+- **Upload — the library's dialog, but nothing moves until Save.** Picking a file
+  opens the same **`UploadDialog`** the library toolbar opens (stage → preview →
+  confirm; dropping files on the field panel opens it *pre-staged*, so a drop is
+  reviewed rather than sent blind), narrowed by new optional props: `multiple` /
+  `accept` / `description` / `hint` / `confirmLabel` / `initialFiles`. (A single
+  field stages exactly one file; `initialFiles` defaults to a module-level
+  constant — an inline `[]` would re-seed the staging on every render.)
+  Confirming **stages** the files; the bytes go up when the record is saved or
+  published. See *Deferred uploads* below.
+    `acceptsFile` (`utils/mediaAccept`, over the local `kindFromMime`) checks a
+  staged file against the field's `accept` at the moment it's chosen, so a
+  rejected file never reaches the value; the server re-checks the real asset on
+  save, which is the enforcing pass.
+
+## Deferred uploads — a record and its new assets are one commit
+
+**`hooks/usePendingMediaUploads`** is the plugin's contribution to content-admin's
+**`ENTRY_PRESAVE_SLOT`**, and it is what makes "choose a file" and "save the
+record" a single write. An upload is a write: uploading the moment a file is
+picked fills the Media Library with assets for a record the user then abandons.
+
+- A staged file gets a **placeholder uuid**, and that is what the form value
+  holds. A real uuid on purpose — the shared kernel validates a media value as a
+  uuid (or uuid[]), so a staged file satisfies client validation, the Changed
+  badge, and the publish gate exactly like an attached asset. The `File` itself
+  lives in the hook's map (`types/pendingUpload`), keyed by that placeholder.
+- The hook is mounted by **`ContentEntryView`**, not by the tab: editor tabs are
+  routes, so the Media panel unmounts the moment the user switches tab. Its
+  `handle` reaches the panel back down through `EntryTabContext.presave[id]`
+  (opaque; a tab reads only its own key, the same contract as
+  `EntrySlotContext.params`), and `MediaFieldControl` renders the staged files as
+  dashed "Uploads on save" tiles previewing off a local object URL.
+- **`commit`** runs inside the save, before the write and under the busy cover:
+  it uploads every staged file the values still reference (`UPLOAD_CONCURRENCY`
+  at a time, one request each) and returns the values with the placeholders
+  swapped for real asset ids. A failed file **aborts the save** with a toast
+  naming it — nothing is written, so the form keeps its placeholders. The files
+  that *did* upload remember their asset id (`PendingUpload.uploadedId`), so a
+  retry attaches them instead of uploading twice.
+- **`settle`** runs after the write succeeded: object URLs revoked, staging
+  dropped (the re-seeded form now holds the saved record's real ids).
+- Uploads land in `ROOT_FOLDER_ID`; the media caches are invalidated as soon as
+  anything uploads, even if the write behind it then fails.
+- Removing, replacing, or re-picking releases the staged file in one place
+  (`setIds`) — the preview blob is revoked and the save stops uploading a file
+  nothing references.
+- **Picking an existing library asset is not deferred** — it is already uploaded;
+  attaching its id is an ordinary form edit that rides Save like any other.
 
 ## Lives strictly inside a workspace
 
 This plugin contributes **no top-level route and no top-toolbar nav item**. It
 adds an `Image` rail button (`order: 20`) and a `media/*` route to the workspace
-shell — so it only ever renders under `/workspaces/:id/media`.
+shell — plus the content editor's **Media tab** (`ENTRY_TAB_SLOT`, above) — so it
+only renders under `/workspaces/:id/media` and inside the content entry editor.
 
 ## Conventions
 
@@ -111,11 +237,46 @@ JSDoc on exports; **one component per file** with `<name>/index.ts(x)` folders
 permissions, root-folder id in `src/lib/constants/`); co-located `react-intl`
 messages namespaced `media.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
+## Thumbnails — the grid never loads a full-size original
+
+Image assets carry server-generated WebP derivatives — `thumbUrl` (~320px) and
+`previewUrl` (~1280px), mapped from the API's `variants` by `mediaMapper`.
+`MediaThumbnail` renders the `thumb` in grid + picker tiles and the `preview` in
+the detail drawer (`size` prop), falling back to the full `url` when a derivative
+is absent (an SVG, or an image too small to derive).
+
+The **field tiles** follow the same rule from the other side of the wire:
+`MediaRef` now carries `thumbUrl` / `previewUrl` (resolved by media-server's
+`MediaAssetResolverQuery`), so `MediaFieldDisplay.url` is the derivative and
+`originalUrl` — the full bytes — is reserved for the tile's open-in-a-new-tab
+link. A staged upload puts its local object URL in the same slot, so the tile
+renders one way regardless of where the image came from.
+
+## End-to-end cover
+
+The **Media tab** has an admin-e2e suite —
+`apps/admin-e2e/src/content/media-fields.spec.ts`, driven by the
+`MediaFieldPage` page object: picking from the library, the `accept` narrowing,
+walking into a folder and back out via the breadcrumb, staging an upload and
+asserting it is sent **only** on save (an upload spy proves the count is 0 until
+then), dropping a staged file, appending + reordering a multiple field, a saved
+record's assets resolving to names, and an axe scan with the picker open. Its
+seeds are `MEDIA_FIELDS_*` in `support/api/content.ts` (their schema is what
+makes the tab appear) plus the existing `mockMediaApi`.
+
+Two harness details worth keeping: mock asset ids are **uuids**
+(`MEDIA_ASSET_IDS` / `uploadedAssetId`), because the shared kernel shape-checks a
+media value and a friendlier `a_hero` is refused client-side before any save;
+and `mockEntryMedia` must be registered **after** `mockContentEntryWrites`,
+whose multi-segment route would otherwise answer `/:id/media` with an entry
+record.
+
+The **Media Library page** still has only `media-library.spec.ts`.
+
 ## Not yet (follow-ups)
 
-Server-side pagination for large folders; an admin-e2e suite (axe + keyboard +
-upload via `setInputFiles`); real thumbnail derivatives; alt/tag editing in the
-drawer (read-only today).
+Server-side pagination for large folders; a keyboard suite for the field and the
+library; alt/tag editing in the drawer (read-only today).
 
 ## Commands
 

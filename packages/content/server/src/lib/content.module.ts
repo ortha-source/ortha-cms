@@ -20,6 +20,7 @@ import { DeleteEntryController } from './entries/http/controllers/delete-entry.c
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
+import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
 import { EntryWriterService } from './entries/infrastructure/persistence/entry-writer.service';
 import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
 import { RelationLinkService } from './entries/infrastructure/persistence/relation-link.service';
@@ -106,6 +107,10 @@ export class ContentModule {
                 EntryValidationService,
                 WorkspaceGrantsQuery,
                 EntriesService,
+                // Resolves media field ids → display refs (thumbnails); injected
+                // by the entry-media read endpoint and the revision refs query.
+                // No-ops when the media plugin binds no resolver.
+                MediaRefsQuery,
                 // The generic revision store, bound to its Drizzle adapter and
                 // injected by EntryWriterService (snapshot-on-save) + the
                 // revisions read/restore. Registered before EntryWriterService's

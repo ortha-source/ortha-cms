@@ -221,6 +221,84 @@ describe('content-type i18n metadata', () => {
     });
 });
 
+describe('media fields', () => {
+    /** A generated column's SQL type (`uuid`, `jsonb`, …). */
+    const sqlType = (type: AnyContentType, col: string) =>
+        (
+            (type.table as unknown as Record<string, { getSQLType(): string }>)[
+                col
+            ]
+        ).getSQLType();
+
+    it('field.media() normalizes multiple (default false) + accept', () => {
+        const single = field.media();
+        expect(single.type).toBe('media');
+        expect(single.multiple).toBe(false);
+        expect(single.accept).toBeUndefined();
+
+        const many = field.media({
+            multiple: true,
+            accept: { kinds: ['image'], mimeTypes: ['image/png'] }
+        });
+        expect(many.multiple).toBe(true);
+        expect(many.accept).toEqual({
+            kinds: ['image'],
+            mimeTypes: ['image/png']
+        });
+    });
+
+    it('rejects an unknown media kind at define time', () => {
+        expect(() =>
+            // @ts-expect-error — an invalid kind must fail at build, not runtime.
+            field.media({ accept: { kinds: ['picture'] } })
+        ).toThrow(/Invalid media kind/);
+    });
+
+    it('a single media field is a uuid column (no FK, no join table)', () => {
+        const post = collection('post', {
+            fields: { cover: field.media() }
+        });
+        expect(sqlType(post, 'cover')).toBe('uuid');
+        expect(Object.keys(post.joinTables ?? {})).not.toContain('cover');
+    });
+
+    it('a multiple media field is a jsonb column', () => {
+        const post = collection('post', {
+            fields: { gallery: field.media({ multiple: true }) }
+        });
+        expect(sqlType(post, 'gallery')).toBe('jsonb');
+    });
+
+    it('a required media field is NOT NULL on a non-publishable type', () => {
+        const post = collection('post', {
+            fields: { cover: field.media({ required: true }) }
+        });
+        const col = (
+            post.table as unknown as Record<string, { notNull: boolean }>
+        ).cover;
+        expect(col.notNull).toBe(true);
+    });
+
+    it('a required media field stays nullable on a publishable type', () => {
+        const post = collection('post', {
+            publishable: true,
+            fields: { cover: field.media({ required: true }) }
+        });
+        const col = (
+            post.table as unknown as Record<string, { notNull: boolean }>
+        ).cover;
+        expect(col.notNull).toBe(false);
+    });
+
+    it('rejects a localized media field on a non-i18n type', () => {
+        expect(() =>
+            collection('post', {
+                fields: { cover: field.media({ localized: true }) }
+            })
+        ).toThrow(/localized, but the type does not set i18n/);
+    });
+});
+
 describe('joinTableOf()', () => {
     const tag = collection('tag', { fields: { name: field.text() } });
     const post = collection('post', {

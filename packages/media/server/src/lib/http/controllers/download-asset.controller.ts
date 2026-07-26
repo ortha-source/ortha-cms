@@ -4,6 +4,7 @@ import {
     NotFoundException,
     Param,
     ParseUUIDPipe,
+    Query,
     StreamableFile,
     UseGuards
 } from '@nestjs/common';
@@ -40,13 +41,17 @@ export class DownloadAssetController {
         private readonly members: MembershipCheckQuery
     ) {}
 
-    /** Streams one asset's bytes inline. */
+    /**
+     * Streams one asset's bytes inline. `?variant=thumb|preview` serves a
+     * generated derivative when present, else the original.
+     */
     @Get('assets/:id/raw')
     async raw(
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentUser() user: PublicUser
+        @CurrentUser() user: PublicUser,
+        @Query('variant') variant?: string
     ): Promise<StreamableFile> {
-        const location = await this.query.locate(id);
+        const location = await this.query.locate(id, variant);
         // A non-member gets the same 404 as a missing asset — distinguishing
         // them would let anyone probe which asset ids exist in other workspaces.
         if (!location || !(await this.members.isMember(user.id, location.workspaceId))) {

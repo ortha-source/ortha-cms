@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { PublicUser } from '@ortha-cms/identity-server';
-import { Asset } from '../../domain/asset';
+import { Asset, type AssetVariants } from '../../domain/asset';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import { FileName } from '../../domain/value-objects/file-name';
 import { StorageKey } from '../../domain/value-objects/storage-key';
@@ -68,18 +68,45 @@ export class DuplicateAssetUseCase {
             this.registry
         );
         const provider = this.registry.get(providerName);
-        const sourceStream = await this.registry
-            .get(source.storageProvider)
-            .get(source.storageKey.value);
-        const stored = await provider.put({
-            workspaceId,
-            assetId: newId.value,
-            fileName: copyName,
-            contentType: source.mimeType,
-            body: sourceStream
-        });
+        const sourceProvider = this.registry.get(source.storageProvider);
 
+        // Track every copied blob so a rolled-back duplicate reclaims all of
+        // them, not just the original.
+        const written: string[] = [];
         try {
+            const sourceStream = await sourceProvider.get(
+                source.storageKey.value
+            );
+            const stored = await provider.put({
+                workspaceId,
+                assetId: newId.value,
+                fileName: copyName,
+                contentType: source.mimeType,
+                body: sourceStream
+            });
+            written.push(stored.storageKey);
+
+            // Copy each derivative to the new asset, keeping the same variant
+            // names + dimensions so the copy renders without re-processing.
+            const variants: AssetVariants = {};
+            for (const [name, variant] of Object.entries(source.variants)) {
+                const put = await provider.put({
+                    workspaceId,
+                    assetId: newId.value,
+                    fileName: `${name}.webp`,
+                    contentType: 'image/webp',
+                    body: await sourceProvider.get(variant.key),
+                    isVariant: true
+                });
+                written.push(put.storageKey);
+                variants[name] = {
+                    key: put.storageKey,
+                    width: variant.width,
+                    height: variant.height,
+                    size: put.size
+                };
+            }
+
             return await this.uow.run(async () => {
                 const copy = Asset.create({
                     id: newId,
@@ -93,7 +120,8 @@ export class DuplicateAssetUseCase {
                     size: stored.size,
                     checksum: stored.checksum,
                     uploadedBy: actor.id,
-                    media: source.media
+                    media: source.media,
+                    variants
                 });
                 if (source.tags.length > 0) copy.retag(source.tags);
                 if (source.alt) copy.setAlt(source.alt);
@@ -102,7 +130,9 @@ export class DuplicateAssetUseCase {
                 return copy.id.value;
             });
         } catch (error) {
-            await provider.remove(stored.storageKey).catch(() => undefined);
+            await Promise.all(
+                written.map((key) => provider.remove(key).catch(() => undefined))
+            );
             throw error;
         }
     }

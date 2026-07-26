@@ -42,6 +42,12 @@ const fields: EntryFieldSpecMap = {
         type: CONTENT_FIELD_TYPE.Relation,
         required: false,
         relation: { many: true }
+    },
+    cover: { type: CONTENT_FIELD_TYPE.Media, required: false },
+    photos: {
+        type: CONTENT_FIELD_TYPE.Media,
+        required: false,
+        multiple: true
     }
 };
 
@@ -65,7 +71,9 @@ describe('validateEntryValues', () => {
                 publishAt: '2026-01-02T03:04:05Z',
                 color: 'red',
                 author: UUID,
-                tags: [UUID]
+                tags: [UUID],
+                cover: UUID,
+                photos: [UUID]
             },
             { rejectUnknownKeys: true, typeName: 'thing' }
         );
@@ -180,5 +188,70 @@ describe('validateEntryValues', () => {
             mystery: 1
         }).issues;
         expect(issues.map((i) => i.field)).not.toContain('mystery');
+    });
+});
+
+describe('validateEntryValues — media fields', () => {
+    // Validate the shared `fields` map with a valid title plus the media values
+    // under test, keeping only the media-field issues.
+    const only = (values: Record<string, unknown>) =>
+        validateEntryValues(fields, { title: 'hello', ...values }).issues.filter(
+            (i) => i.field === 'cover' || i.field === 'photos'
+        );
+
+    it('accepts a uuid for a single media field', () => {
+        expect(only({ cover: UUID })).toEqual([]);
+    });
+
+    it('rejects a non-uuid single media value', () => {
+        expect(only({ cover: 'not-a-uuid' })).toContainEqual({
+            field: 'cover',
+            message: 'must be a media asset id'
+        });
+    });
+
+    it('accepts a uuid[] for a multiple media field', () => {
+        expect(only({ photos: [UUID, UUID] })).toEqual([]);
+    });
+
+    it('rejects a bare string for a multiple media field', () => {
+        expect(only({ photos: UUID })).toContainEqual({
+            field: 'photos',
+            message: 'must be an array of media asset ids'
+        });
+    });
+
+    it('rejects a multiple media array containing a non-uuid', () => {
+        expect(only({ photos: [UUID, 'nope'] })).toContainEqual({
+            field: 'photos',
+            message: 'must be an array of media asset ids'
+        });
+    });
+
+    it('treats empty single/multiple as absent (not required)', () => {
+        expect(only({ cover: '', photos: [] })).toEqual([]);
+    });
+
+    it('trips required on an empty required media field', () => {
+        const requiredFields = {
+            hero: {
+                type: CONTENT_FIELD_TYPE.Media,
+                required: true
+            },
+            shots: {
+                type: CONTENT_FIELD_TYPE.Media,
+                required: true,
+                multiple: true
+            }
+        };
+        const issues = validateEntryValues(requiredFields, {
+            hero: null,
+            shots: []
+        }).issues;
+        expect(issues).toContainEqual({ field: 'hero', message: 'is required' });
+        expect(issues).toContainEqual({
+            field: 'shots',
+            message: 'is required'
+        });
     });
 });

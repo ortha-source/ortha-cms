@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_226 test cases across 29 spec files._
+_242 test cases across 30 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -239,6 +239,28 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | saving as draft creates a sibling, never a PATCH on the original |
 | publishing creates a sibling, never a PATCH on the original |
 
+<!-- source: apps/admin-e2e/src/content/media-fields.spec.ts -->
+_<sub>apps/admin-e2e/src/content/media-fields.spec.ts</sub>_
+
+## Entry editor — Media tab
+
+| Test case |
+| --- |
+| renders a card per media field, each with its empty state |
+| attaches an asset picked from the library and saves its id |
+| restricts the picker to the kinds the field accepts |
+| walks into a folder and back out through the breadcrumb |
+| stages an upload and sends it only when the record is saved |
+| drops a staged file without ever uploading it |
+| appends to a multiple field and reorders it |
+| shows a saved record’s assets by name, not by id |
+| waits for the ref instead of fetching the original |
+| falls back to the original once the read resolves nothing |
+| says the library failed to load, not that it is empty |
+| offers no upload without media:create |
+| disables library picking without media:read |
+| has no accessibility violations, picker included |
+
 <!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
 
@@ -340,6 +362,8 @@ _<sub>apps/admin-e2e/src/media/media-library.spec.ts</sub>_
 | renders the workspace folders and assets |
 | uploads a file and shows it in the grid |
 | creates a folder |
+| warns that deleting a folder takes its contents with it |
+| says a folder is empty when it holds nothing |
 | shows a no-access state without media:read |
 | has no accessibility violations |
 

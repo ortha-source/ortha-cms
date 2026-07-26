@@ -229,10 +229,18 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // touched row, re-versioned — every sibling on every save, even one
         // that only changed a localized field. `IS DISTINCT FROM` rather than
         // `<>` so a NULL on either side compares correctly.
+        //
+        // Each value is bound with **its column's own encoder** (`sql.param`),
+        // the same mapping `.set()` applies below. Interpolating it bare made an
+        // array-valued field (a `jsonb` multiselect, json, or a multiple media
+        // field) expand into a parameter *list* — `IS DISTINCT FROM ($1, $2, $3)`
+        // — which Postgres reads as a record and rejects with
+        // `operator does not exist: jsonb = record`, failing every save of an
+        // i18n type that carried one.
         const differs = or(
             ...written.map(
                 ([column, value]) =>
-                    sql`${table[column]} IS DISTINCT FROM ${value}`
+                    sql`${table[column]} IS DISTINCT FROM ${sql.param(value, table[column])}`
             )
         );
         // Sync every sibling — including soft-deleted ones, so a later restore

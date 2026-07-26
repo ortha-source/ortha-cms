@@ -1,5 +1,8 @@
 import type { RevisionStatus } from '../domain/revision-status';
-import type { RelationRef } from '../../entries/types/entry-list-view';
+import type {
+    MediaRef,
+    RelationRef
+} from '../../entries/types/entry-list-view';
 
 /**
  * The immutable document a revision captures — everything the editor submits,
@@ -59,6 +62,15 @@ export interface RevisionDetail extends RevisionSummary {
     relationRefs?: Record<string, RelationRef[]>;
     /** The true link count per relation field (may exceed the capped refs). */
     relationTotals?: Record<string, number>;
+    /**
+     * Each media field's snapshot asset ids resolved to display refs (name /
+     * thumbnail url / kind), keyed by field name — so the preview shows the
+     * actual assets, not raw uuids. A single field resolves its id from
+     * `snapshot.values`; a `multiple` field its ordered id list. An asset that
+     * can't be resolved (deleted / out of workspace) is an id-only `missing` ref.
+     * Present only when a media resolver is bound.
+     */
+    mediaRefs?: Record<string, MediaRef[]>;
 }
 
 /** The paginated timeline envelope, matching the list-page convention. */

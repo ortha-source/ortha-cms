@@ -3,4 +3,3 @@ export { InvalidFileNameError } from './invalid-file-name.error';
 export { InvalidFolderNameError } from './invalid-folder-name.error';
 export { AssetNotFoundError } from './asset-not-found.error';
 export { FolderNotFoundError } from './folder-not-found.error';
-export { FolderNotEmptyError } from './folder-not-empty.error';

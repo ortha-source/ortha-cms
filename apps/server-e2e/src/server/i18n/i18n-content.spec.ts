@@ -273,6 +273,90 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.body.values.text).toBe('DE title');
         });
 
+        it('syncs an array-valued shared field (jsonb) without tripping the change predicate', async () => {
+            const agent = await login();
+            // `multiselect` and `json` are jsonb columns, and they are shared.
+            // The sync's "did it actually change?" predicate binds each value
+            // as a parameter; interpolating an array bare expands it into a
+            // parameter *list*, which Postgres reads as a record and rejects
+            // (`operator does not exist: jsonb = record`) — failing every save
+            // of an i18n type that carried one, not just the sync.
+            const en = await createArticle(agent, {
+                values: {
+                    text: 'EN title',
+                    select: 'article',
+                    multiselect: ['draft', 'featured'],
+                    json: { a: 1 }
+                }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: {
+                        text: 'EN title',
+                        select: 'article',
+                        multiselect: ['featured', 'pinned', 'archived'],
+                        json: { a: 2 }
+                    }
+                })
+                .expect(200);
+
+            const deAfter = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deAfter.body.values.multiselect).toEqual([
+                'featured',
+                'pinned',
+                'archived'
+            ]);
+            expect(deAfter.body.values.json).toEqual({ a: 2 });
+        });
+
+        it('leaves siblings alone when an array-valued shared field is resent unchanged', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: {
+                    text: 'EN title',
+                    select: 'article',
+                    multiselect: ['draft', 'featured']
+                }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+
+            const revisionCount = async (id: string) =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+
+            const beforeDe = await revisionCount(de.id);
+
+            // Same array, same order, resent with a localized edit: the jsonb
+            // comparison has to see it as equal, or every save re-versions the
+            // whole group.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: {
+                        text: 'EN retitled',
+                        select: 'article',
+                        multiselect: ['draft', 'featured']
+                    }
+                })
+                .expect(200);
+
+            expect(await revisionCount(de.id)).toBe(beforeDe);
+        });
+
         it('appends a revision to each sibling the sync rewrote', async () => {
             const agent = await login();
             const en = await createArticle(agent, {

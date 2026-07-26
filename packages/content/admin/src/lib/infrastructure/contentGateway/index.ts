@@ -5,6 +5,7 @@ import type {
     ContentType,
     ContentTypeDetail,
     EntryRecord,
+    MediaRef,
     RelationDelta,
     RelationFieldView,
     RevisionDetail,
@@ -94,6 +95,11 @@ export type ContentGateway = {
         name: string,
         id: string
     ): Promise<Record<string, RelationFieldView>>;
+    /** Loads an entry's media fields resolved to refs via `GET …/:id/media`. */
+    getEntryMedia(
+        name: string,
+        id: string
+    ): Promise<Record<string, MediaRef[]>>;
     /** Loads one relation field's link page via `GET …/relations/:field`. */
     getRelationField(
         name: string,

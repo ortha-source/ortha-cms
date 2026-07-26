@@ -1,5 +1,9 @@
 import request from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
     resetDb,
@@ -18,7 +22,7 @@ const VIEWER = 'media-folders-viewer@example.com';
 
 /**
  * `/api/media/folders` — create, list (with the root asset count), rename, and
- * the empty-only delete (409 when the folder still holds assets).
+ * the cascading delete (a folder takes its whole subtree with it).
  */
 describe('media folders', () => {
     let harness: TestApp;
@@ -39,7 +43,10 @@ describe('media folders', () => {
             role: 'admin',
             name: 'Media Admin'
         });
-        workspace = await seedWorkspace({ name: 'Workspace', slug: 'workspace' });
+        workspace = await seedWorkspace({
+            name: 'Workspace',
+            slug: 'workspace'
+        });
         await seedMembership(admin.id, workspace.id);
     });
 
@@ -102,20 +109,86 @@ describe('media folders', () => {
         expect(res.body.folders).toHaveLength(0);
     });
 
-    it('refuses to delete a non-empty folder with 409', async () => {
+    it('deletes a non-empty folder together with everything inside it', async () => {
         const agent = await login();
-        const folder = await seedMediaFolder({
+        const parent = await seedMediaFolder({
             workspaceId: workspace.id,
-            name: 'Full'
+            name: 'Campaign'
+        });
+        const child = await seedMediaFolder({
+            workspaceId: workspace.id,
+            name: 'Drafts',
+            parentId: parent.id
         });
         await seedMediaAsset({
             workspaceId: workspace.id,
             uploadedBy: admin.id,
-            name: 'file.pdf',
-            folderId: folder.id
+            name: 'brief.pdf',
+            folderId: parent.id
+        });
+        const nested = await seedMediaAsset({
+            workspaceId: workspace.id,
+            uploadedBy: admin.id,
+            name: 'draft.pdf',
+            folderId: child.id
+        });
+        // A sibling outside the subtree must survive — the cascade is scoped to
+        // the folder it was asked about, not "everything that looks related".
+        const untouched = await seedMediaAsset({
+            workspaceId: workspace.id,
+            uploadedBy: admin.id,
+            name: 'keep.pdf',
+            folderId: null
         });
 
-        await agent.delete(`/api/media/folders/${folder.id}`).expect(409);
+        await agent.delete(`/api/media/folders/${parent.id}`).expect(204);
+
+        const folders = await agent.get('/api/media/folders').expect(200);
+        expect(folders.body.folders).toHaveLength(0);
+
+        const assets = await agent.get('/api/media/assets').expect(200);
+        expect(
+            assets.body.items.map((item: { id: string }) => item.id)
+        ).toEqual([untouched.id]);
+        // The nested asset is gone for good, bytes included.
+        await agent.get(`/api/media/assets/${nested.id}/raw`).expect(404);
+    });
+
+    it('cascades only inside the caller\u2019s workspace', async () => {
+        // A recursive walk with a missing workspace filter would reach across
+        // tenants, so pin it: two workspaces, same-shaped trees, one delete.
+        const other = await seedWorkspace({ name: 'Other', slug: 'other-ws' });
+        await seedMembership(admin.id, other.id);
+        const mine = await seedMediaFolder({
+            workspaceId: workspace.id,
+            name: 'Shared name'
+        });
+        const theirs = await seedMediaFolder({
+            workspaceId: other.id,
+            name: 'Shared name'
+        });
+        const theirAsset = await seedMediaAsset({
+            workspaceId: other.id,
+            uploadedBy: admin.id,
+            name: 'theirs.pdf',
+            folderId: theirs.id
+        });
+
+        const agent = await login();
+        await agent.delete(`/api/media/folders/${mine.id}`).expect(204);
+
+        const otherAgent = await login();
+        otherAgent.set('X-Workspace-Id', other.id);
+        const folders = await otherAgent.get('/api/media/folders').expect(200);
+        expect(folders.body.folders).toHaveLength(1);
+        // Still listed inside their folder. (Asserted through the API rather
+        // than `/raw`: a seeded asset is a row with no blob behind it.)
+        const theirAssets = await otherAgent
+            .get(`/api/media/assets?folderId=${theirs.id}`)
+            .expect(200);
+        expect(theirAssets.body.items.map((a: { id: string }) => a.id)).toEqual(
+            [theirAsset.id]
+        );
     });
 
     describe('authorization', () => {

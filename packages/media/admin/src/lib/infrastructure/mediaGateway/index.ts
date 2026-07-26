@@ -42,15 +42,17 @@ export type MediaGateway = {
     renameFolder(input: RenameInput): Promise<void>;
     deleteFolder(id: string): Promise<void>;
     /**
-     * Uploads **one** file. The queue (concurrency, per-file progress, retries)
-     * is the caller's — the gateway stays a thin one-request-per-call seam so a
-     * failure maps to exactly one file.
+     * Uploads **one** file and returns the created asset (the server echoes its
+     * view). The queue (concurrency, per-file progress, retries) is the
+     * caller's — the gateway stays a thin one-request-per-call seam so a failure
+     * maps to exactly one file. The upload-queue caller ignores the return; the
+     * media-field picker uses it to set the field value to the new asset id.
      */
     uploadFile(
         folderId: string,
         file: File,
         options?: UploadOptions
-    ): Promise<void>;
+    ): Promise<MediaAsset>;
     renameAsset(input: RenameInput): Promise<void>;
     moveAssets(input: MoveAssetsInput): Promise<void>;
     duplicateAssets(ids: string[]): Promise<void>;

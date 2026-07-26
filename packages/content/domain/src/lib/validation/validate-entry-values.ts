@@ -161,6 +161,23 @@ export function validateFieldValue(
             }
             break;
         }
+        case CONTENT_FIELD_TYPE.Media: {
+            // Shape only — an asset id is a uuid (single) or a uuid[] (multiple).
+            // Existence in the workspace and the kind/MIME `accept` restriction
+            // need the media table, so they're enforced server-side, not here.
+            if (spec.multiple) {
+                if (
+                    !Array.isArray(value) ||
+                    value.some(
+                        (id) => typeof id !== 'string' || !UUID_RE.test(id)
+                    )
+                )
+                    fail('must be an array of media asset ids');
+            } else if (typeof value !== 'string' || !UUID_RE.test(value)) {
+                fail('must be a media asset id');
+            }
+            break;
+        }
     }
     return issues;
 }

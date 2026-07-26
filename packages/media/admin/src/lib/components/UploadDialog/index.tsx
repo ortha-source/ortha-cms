@@ -13,6 +13,9 @@ import {
 import { UploadCloud } from 'lucide-react';
 import { StagedFileRow } from './StagedFileRow';
 
+/** Stable default for `initialFiles`, so the seeding effect isn't re-run. */
+const NO_FILES: File[] = [];
+
 /** Intl descriptors for {@link UploadDialog}, co-located. */
 const messages = defineMessages({
     title: { id: 'media.upload.title', defaultMessage: 'Upload assets' },
@@ -32,7 +35,8 @@ const messages = defineMessages({
     },
     staged: {
         id: 'media.upload.staged',
-        defaultMessage: '{count, plural, one {# file ready} other {# files ready}}'
+        defaultMessage:
+            '{count, plural, one {# file ready} other {# files ready}}'
     },
     cancel: { id: 'media.upload.cancel', defaultMessage: 'Cancel' },
     confirm: {
@@ -49,20 +53,46 @@ const messages = defineMessages({
  * a byte moves. Files accumulate across several drops/picks.
  *
  * On confirm the parent's `onUpload` receives the real `File` objects and the
- * dialog closes immediately — progress then lives in the page's upload banner,
+ * dialog closes immediately — progress then lives in the caller's upload banner,
  * not here, so the user can keep browsing (and queue more) while bytes move.
- * Staged files reset whenever the dialog reopens.
+ * Staged files reset whenever the dialog reopens, seeded from `initialFiles`.
+ *
+ * **Shared by both upload entry points** — the Media Library's toolbar and a
+ * content record's media field — so staging, previewing, and the copy are
+ * identical in the two places. The field narrows it with `multiple` / `accept` /
+ * its own `description` + `hint`; everything else is the same dialog.
  */
 export function UploadDialog({
     open,
     onOpenChange,
     locationLabel,
+    description,
+    hint,
+    confirmLabel,
+    accept,
+    multiple = true,
+    initialFiles = NO_FILES,
     onUpload
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /** Human name of the destination folder (e.g. "All media"). */
     locationLabel: string;
+    /** Overrides the default "Files upload to {location}." sentence. */
+    description?: string;
+    /** Overrides the default size/type hint under the browse button. */
+    hint?: string;
+    /**
+     * Overrides the confirm button's "Upload {n} files". A media field stages the
+     * files (they upload with the record), so there the button attaches.
+     */
+    confirmLabel?: string;
+    /** `accept` attribute for the file input (best-effort; the server enforces). */
+    accept?: string;
+    /** False stages exactly one file — a later pick replaces it. */
+    multiple?: boolean;
+    /** Files to stage as the dialog opens (e.g. dropped onto a media field). */
+    initialFiles?: File[];
     onUpload: (files: File[]) => void;
 }) {
     const intl = useIntl();
@@ -72,14 +102,18 @@ export function UploadDialog({
 
     useEffect(() => {
         if (open) {
-            setStaged([]);
+            setStaged(initialFiles);
             setDragging(false);
         }
-    }, [open]);
+    }, [open, initialFiles]);
 
     const addFiles = (files: FileList | null) => {
         if (!files) return;
-        setStaged((prev) => [...prev, ...Array.from(files)]);
+        const picked = Array.from(files);
+        // A single-asset field holds one file: the newest pick replaces the last.
+        setStaged((prev) =>
+            multiple ? [...prev, ...picked] : picked.slice(0, 1)
+        );
     };
 
     const removeAt = (index: number) => {
@@ -100,9 +134,10 @@ export function UploadDialog({
                         {intl.formatMessage(messages.title)}
                     </DialogTitle>
                     <DialogDescription>
-                        {intl.formatMessage(messages.description, {
-                            location: locationLabel
-                        })}
+                        {description ??
+                            intl.formatMessage(messages.description, {
+                                location: locationLabel
+                            })}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -143,12 +178,13 @@ export function UploadDialog({
                         {intl.formatMessage(messages.browse)}
                     </Button>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.hint)}
+                        {hint ?? intl.formatMessage(messages.hint)}
                     </p>
                     <input
                         ref={inputRef}
                         type="file"
-                        multiple
+                        accept={accept}
+                        multiple={multiple}
                         className="sr-only"
                         onChange={(event) => {
                             addFiles(event.target.files);
@@ -177,13 +213,17 @@ export function UploadDialog({
                 ) : null}
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
                         {intl.formatMessage(messages.cancel)}
                     </Button>
                     <Button onClick={submit} disabled={staged.length === 0}>
-                        {intl.formatMessage(messages.confirm, {
-                            count: staged.length
-                        })}
+                        {confirmLabel ??
+                            intl.formatMessage(messages.confirm, {
+                                count: staged.length
+                            })}
                     </Button>
                 </DialogFooter>
             </DialogContent>

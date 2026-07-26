@@ -2,6 +2,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import {
     contentEntriesPrefix,
     contentEntryPrefix,
+    entryMediaPrefix,
     entryRelationsPrefix,
     entryRevisionsPrefix,
     relationFieldLinksPrefix
@@ -51,7 +52,12 @@ export async function refreshEntryCaches(
         // Relation links may have changed (staged deltas persist with the save),
         // so drop the aggregate **and** the per-field infinite-scroll caches.
         entryRelationsPrefix(workspaceId, typeName),
-        relationFieldLinksPrefix(workspaceId, typeName)
+        relationFieldLinksPrefix(workspaceId, typeName),
+        // Media fields may have changed — refresh the Media tab's resolved refs
+        // so it reflects the saved set (names / missing state). In the shared
+        // pass rather than only on save: a restore or publish-a-version rewrites
+        // the values bag too, media refs included.
+        entryMediaPrefix(workspaceId, typeName)
     ];
     try {
         await Promise.all([

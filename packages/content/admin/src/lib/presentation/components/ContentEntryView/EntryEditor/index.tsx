@@ -3,10 +3,6 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import {
-    Card,
-    CardDescription,
-    CardHeader,
-    CardTitle,
     Tabs,
     TabsContent,
     TabsList,
@@ -25,8 +21,13 @@ import { useUnsavedChanges } from '@ortha-cms/utils-admin';
 import { CONTENT_FIELD_TYPE, ENTRY_TAB } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
-import { ENTRY_HEADER_SLOT } from '../../../slots/contentSlots';
+import {
+    ENTRY_HEADER_SLOT,
+    ENTRY_TAB_SLOT,
+    type EntryTabContext
+} from '../../../slots/contentSlots';
 import { useEntryRelations } from '../../../../application/useEntryRelations';
+import { useEntryMedia } from '../../../../application/useEntryMedia';
 import { entryIssuesFrom } from '../../../../infrastructure/entryIssues';
 import { fieldLabel } from '../../../../domain/entryColumns';
 import { toRelationIds } from '../../../../domain/relationIds';
@@ -48,7 +49,6 @@ const messages = defineMessages({
         id: 'content.editor.tabRelations',
         defaultMessage: 'Relations'
     },
-    tabMedia: { id: 'content.editor.tabMedia', defaultMessage: 'Media' },
     tabHistory: {
         id: 'content.editor.tabHistory',
         defaultMessage: 'History'
@@ -61,12 +61,6 @@ const messages = defineMessages({
         id: 'content.editor.relationsSubtitle',
         defaultMessage:
             'Assign related records and set the order they appear in the delivery API.'
-    },
-    mediaTitle: { id: 'content.editor.mediaTitle', defaultMessage: 'Media' },
-    mediaBody: {
-        id: 'content.editor.mediaBody',
-        defaultMessage:
-            'Image and file fields for this record will appear here once media support lands.'
     },
     relationRequired: {
         id: 'content.editor.relationRequired',
@@ -151,6 +145,7 @@ export function EntryEditor({
     onDelete,
     backTo,
     availableTypeNames,
+    presave,
     tab,
     onTabChange
 }: {
@@ -191,6 +186,13 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
+    /**
+     * The presave contributions' opaque handles, keyed by item id — passed
+     * straight through to a contributed tab, which reads only its own key. The
+     * handles come from hooks mounted by `ContentEntryView`, so the state behind
+     * them (staged media uploads) survives switching tab.
+     */
+    presave?: Record<string, unknown>;
     /**
      * The open tab, owned by the **route** (`/…/:entryId/relations`) rather than
      * by this component — so it survives the remount a locale switch causes.
@@ -284,14 +286,56 @@ export function EntryEditor({
     });
 
     const visible = schema.fields.filter((field) => !isHidden(field));
+    // Media fields render on their own contributed tab (media-admin's Media
+    // tab), not inline in General — so exclude both relations and media here.
     const generalFields = visible.filter(
-        (field) => field.type !== CONTENT_FIELD_TYPE.Relation
+        (field) =>
+            field.type !== CONTENT_FIELD_TYPE.Relation &&
+            field.type !== CONTENT_FIELD_TYPE.Media
     );
     const relationFields = visible.filter(
         (field) =>
             field.type === CONTENT_FIELD_TYPE.Relation &&
             !ignoredFields.has(field.name)
     );
+
+    // Contributed editor tabs (e.g. media-admin's Media tab), applicable to this
+    // type, ordered. Rendered between the built-in Relations and History tabs.
+    const tabItems = useMemo(
+        () =>
+            ENTRY_TAB_SLOT.getItems()
+                .filter((item) => item.appliesTo(schema))
+                .sort((a, b) => a.order - b.order),
+        [schema]
+    );
+    // The saved entry's media fields resolved to refs (thumbnails/names), for
+    // any media tab. One request per entry open; disabled in create mode.
+    const mediaQuery = useEntryMedia(schema.name, entryId, !!entryId);
+    const mediaRefs = mediaQuery.data ?? {};
+    // Only *pending* counts as "wait": a failed read must resolve to "nothing
+    // here" so a contributed tab falls back instead of waiting forever.
+    const mediaRefsPending = mediaQuery.isPending && !!entryId;
+
+    // The context a contributed tab renders with — the slot context plus a form
+    // bridge, so a tab's controls read and write the editor's shared form (a
+    // media field edited on the Media tab rides Save / the gate / the 422
+    // mapping exactly like a General field). Undefined until the slot context is
+    // ready (mirrors the header slot's guard).
+    const tabContext: EntryTabContext | undefined = slotContext
+        ? {
+              ...slotContext,
+              form: {
+                  values: form.values,
+                  errorFor: form.errorFor,
+                  setValue: form.setValue,
+                  touch: form.touch,
+                  isFieldDirty
+              },
+              mediaRefs,
+              mediaRefsPending,
+              presave: presave ?? {}
+          }
+        : undefined;
 
     // The publish gate: each field that must hold to publish — every required
     // field, plus any field whose current value is invalid — with its live
@@ -408,6 +452,8 @@ export function EntryEditor({
             schema.fields.find((field) => blocking[field.name]);
         if (first?.type === CONTENT_FIELD_TYPE.Relation)
             onTabChange(ENTRY_TAB.Relations);
+        else if (first?.type === CONTENT_FIELD_TYPE.Media)
+            onTabChange(ENTRY_TAB.Media);
         else onTabChange(ENTRY_TAB.General);
         toast.error(
             intl.formatMessage(
@@ -436,8 +482,13 @@ export function EntryEditor({
     // save that carries such a change confirms first (#17). Only ever relevant
     // on a type that *has* both kinds of field; a plain type has no siblings to
     // affect and never sees this.
-    const dirtySharedFields = generalFields.filter(
-        (field) => !field.localized && isFieldDirty(field.name)
+    // Every non-relation field (General **and** Media) that's shared and dirty —
+    // a media field syncs to siblings the same as a scalar, so it belongs here.
+    const dirtySharedFields = visible.filter(
+        (field) =>
+            field.type !== CONTENT_FIELD_TYPE.Relation &&
+            !field.localized &&
+            isFieldDirty(field.name)
     );
     const hasLocalizedFields = visible.some((field) => field.localized);
     const needsSharedWarning =
@@ -523,9 +574,14 @@ export function EntryEditor({
                                 <TabsTrigger value={ENTRY_TAB.Relations}>
                                     {intl.formatMessage(messages.tabRelations)}
                                 </TabsTrigger>
-                                <TabsTrigger value={ENTRY_TAB.Media}>
-                                    {intl.formatMessage(messages.tabMedia)}
-                                </TabsTrigger>
+                                {tabItems.map((item) => (
+                                    <TabsTrigger
+                                        key={item.id}
+                                        value={item.slug}
+                                    >
+                                        {intl.formatMessage(item.label)}
+                                    </TabsTrigger>
+                                ))}
                                 <TabsTrigger value={ENTRY_TAB.History}>
                                     {intl.formatMessage(messages.tabHistory)}
                                 </TabsTrigger>
@@ -632,22 +688,16 @@ export function EntryEditor({
                                 )}
                             </TabsContent>
 
-                            <TabsContent value={ENTRY_TAB.Media}>
-                                <Card className="shadow-none">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
-                                            {intl.formatMessage(
-                                                messages.mediaTitle
-                                            )}
-                                        </CardTitle>
-                                        <CardDescription>
-                                            {intl.formatMessage(
-                                                messages.mediaBody
-                                            )}
-                                        </CardDescription>
-                                    </CardHeader>
-                                </Card>
-                            </TabsContent>
+                            {tabContext
+                                ? tabItems.map((item) => (
+                                      <TabsContent
+                                          key={item.id}
+                                          value={item.slug}
+                                      >
+                                          <item.Component {...tabContext} />
+                                      </TabsContent>
+                                  ))
+                                : null}
 
                             <TabsContent value={ENTRY_TAB.History}>
                                 <HistoryTimeline

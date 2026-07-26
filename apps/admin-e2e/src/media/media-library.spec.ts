@@ -59,6 +59,45 @@ test.describe('Media Library', () => {
         await expect(mediaLibraryPage.folderTile('Campaigns')).toBeVisible();
     });
 
+    test('warns that deleting a folder takes its contents with it', async ({
+        page,
+        mediaLibraryPage
+    }) => {
+        await mockMediaApi(page);
+        await mediaLibraryPage.goto(WORKSPACE_ID);
+
+        // The seeded "Images" folder holds one asset — the confirmation has to
+        // say so, because the delete cascades.
+        await mediaLibraryPage.startDeleteFolder('Images');
+
+        await expect(mediaLibraryPage.confirmDialog).toContainText(
+            'and everything inside'
+        );
+        await expect(mediaLibraryPage.confirmDialog).toContainText('1 asset');
+
+        await mediaLibraryPage.confirmDelete();
+        await expect(mediaLibraryPage.folderTile('Images')).toBeHidden();
+    });
+
+    test('says a folder is empty when it holds nothing', async ({
+        page,
+        mediaLibraryPage
+    }) => {
+        await mockMediaApi(page);
+        await mediaLibraryPage.goto(WORKSPACE_ID);
+        await mediaLibraryPage.createFolder('Scratch');
+
+        await mediaLibraryPage.startDeleteFolder('Scratch');
+
+        // No inventory to recite — the prompt shouldn't imply there is one.
+        await expect(mediaLibraryPage.confirmDialog).toContainText(
+            'This folder is empty'
+        );
+        await expect(mediaLibraryPage.confirmDialog).not.toContainText(
+            'everything inside'
+        );
+    });
+
     test('shows a no-access state without media:read', async ({
         page,
         mediaLibraryPage

@@ -33,6 +33,7 @@ import { NewFolderDialog } from '../../components/NewFolderDialog';
 import { RenameDialog } from '../../components/RenameDialog';
 import { MoveAssetsDialog } from '../../components/MoveAssetsDialog';
 import { UploadDialog } from '../../components/UploadDialog';
+import { folderContents } from '../../utils/folderContents';
 
 /** Intl descriptors for the Media Library page + its toasts, co-located. */
 const messages = defineMessages({
@@ -46,6 +47,16 @@ const messages = defineMessages({
     noAccess: {
         id: 'media.page.noAccess',
         defaultMessage: 'You don’t have permission to view the media library.'
+    },
+    loadError: {
+        id: 'media.page.loadError',
+        defaultMessage: 'We couldn’t load the media library.'
+    },
+    retry: { id: 'media.page.retry', defaultMessage: 'Try again' },
+    truncated: {
+        id: 'media.page.truncated',
+        defaultMessage:
+            'Showing the first {shown} of {total} items. Search or filter to narrow the list.'
     },
     openNav: { id: 'media.page.openNav', defaultMessage: 'Folders' },
     navTitle: {
@@ -70,10 +81,25 @@ const messages = defineMessages({
         id: 'media.page.deleteFolderTitle',
         defaultMessage: 'Delete “{name}”?'
     },
+    deleteFolderTitleFull: {
+        id: 'media.page.deleteFolderTitleFull',
+        defaultMessage: 'Delete “{name}” and everything inside?'
+    },
     deleteFolderBody: {
         id: 'media.page.deleteFolderBody',
         defaultMessage:
-            'The folder will be permanently removed. It must be empty first — move or delete its contents.'
+            'This folder is empty. It will be permanently removed — this can’t be undone.'
+    },
+    /**
+     * Names exactly what goes with the folder. Both counts are always spelled
+     * out (`=0` included) so the sentence reads the same shape however the
+     * folder is filled, and nobody has to infer that "3 assets" also means the
+     * subfolders they sit in.
+     */
+    deleteFolderBodyFull: {
+        id: 'media.page.deleteFolderBodyFull',
+        defaultMessage:
+            'Deleting it also deletes {assets, plural, =0 {no assets} one {# asset} other {# assets}} and {folders, plural, =0 {no subfolders} one {# subfolder} other {# subfolders}} inside it. This can’t be undone.'
     },
     confirmDelete: { id: 'media.page.confirmDelete', defaultMessage: 'Delete' },
     // toasts
@@ -169,6 +195,25 @@ export function MediaLibraryPage() {
     const isEmpty =
         store.childFolders.length === 0 && store.visibleAssets.length === 0;
 
+    // The gateway fetches one bounded page of assets and filters client-side, so
+    // a folder holding more than that page can't show them all. Surface the cap
+    // rather than silently hiding the overflow. (The true per-folder count comes
+    // from the folders query, independent of the loaded page.)
+    const loadedCount = store.assets.length;
+    const totalCount = store.folderCounts.get(store.currentFolderId) ?? 0;
+    const isTruncated = totalCount > loadedCount;
+
+    // Triggers a browser download for one asset (its bytes stream from the
+    // `media:read`-gated raw route). Shared by the row action and bulk download.
+    const downloadAsset = (asset: MediaAsset) => {
+        const link = document.createElement('a');
+        link.href = asset.url;
+        link.download = asset.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
     // A single dispatcher every card / row / drawer forwards asset actions to.
     const handleAssetAction = (kind: AssetActionKind, asset: MediaAsset) => {
         switch (kind) {
@@ -176,12 +221,7 @@ export function MediaLibraryPage() {
                 store.openDetail(asset.id);
                 break;
             case 'download': {
-                const link = document.createElement('a');
-                link.href = asset.url;
-                link.download = asset.name;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
+                downloadAsset(asset);
                 toast.success(
                     intl.formatMessage(messages.tDownload, { name: asset.name })
                 );
@@ -261,6 +301,19 @@ export function MediaLibraryPage() {
         setDeleteTarget(null);
     };
 
+    // What the pending folder delete would take with it, so the confirmation
+    // can say so — a folder delete cascades now, and an unqualified "Delete?"
+    // over a populated tree is the kind of prompt people regret answering.
+    const doomed =
+        deleteTarget?.kind === 'folder'
+            ? folderContents(
+                  store.folders,
+                  store.folderCounts,
+                  deleteTarget.folder.id
+              )
+            : null;
+    const isEmptyFolder = !!doomed && !doomed.assets && !doomed.folders;
+
     const selectedIds = store.selectedAssets.map((asset) => asset.id);
 
     if (!canRead) {
@@ -269,6 +322,24 @@ export function MediaLibraryPage() {
                 <p className="max-w-sm text-sm text-muted-foreground">
                     {intl.formatMessage(messages.noAccess)}
                 </p>
+            </div>
+        );
+    }
+
+    // A failed load gets its own state with a retry — never the empty state,
+    // which would misread a server error as "this folder is empty".
+    if (store.isError) {
+        return (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+                <p
+                    className="max-w-sm text-sm text-muted-foreground"
+                    role="alert"
+                >
+                    {intl.formatMessage(messages.loadError)}
+                </p>
+                <Button variant="outline" onClick={store.reload}>
+                    {intl.formatMessage(messages.retry)}
+                </Button>
             </div>
         );
     }
@@ -349,13 +420,14 @@ export function MediaLibraryPage() {
                         {selectedIds.length > 0 ? (
                             <MediaSelectionBar
                                 count={selectedIds.length}
-                                onDownload={() =>
+                                onDownload={() => {
+                                    store.selectedAssets.forEach(downloadAsset);
                                     toast.success(
                                         intl.formatMessage(messages.tDownload, {
                                             name: `${selectedIds.length} files`
                                         })
-                                    )
-                                }
+                                    );
+                                }}
                                 onDuplicate={() => {
                                     store.duplicateAssets(selectedIds);
                                     toast.success(
@@ -379,6 +451,18 @@ export function MediaLibraryPage() {
                                 canUpdate={canUpdate}
                                 canDelete={canDelete}
                             />
+                        ) : null}
+
+                        {isTruncated ? (
+                            <p
+                                className="mb-3 text-sm text-muted-foreground"
+                                role="status"
+                            >
+                                {intl.formatMessage(messages.truncated, {
+                                    shown: loadedCount,
+                                    total: totalCount
+                                })}
+                            </p>
                         ) : null}
 
                         {isEmpty ? (
@@ -502,9 +586,12 @@ export function MediaLibraryPage() {
                 }}
                 title={
                     deleteTarget?.kind === 'folder'
-                        ? intl.formatMessage(messages.deleteFolderTitle, {
-                              name: deleteTarget.folder.name
-                          })
+                        ? intl.formatMessage(
+                              isEmptyFolder
+                                  ? messages.deleteFolderTitle
+                                  : messages.deleteFolderTitleFull,
+                              { name: deleteTarget.folder.name }
+                          )
                         : intl.formatMessage(messages.deleteAssetsTitle, {
                               count:
                                   deleteTarget?.kind === 'assets'
@@ -514,7 +601,15 @@ export function MediaLibraryPage() {
                 }
                 description={
                     deleteTarget?.kind === 'folder'
-                        ? intl.formatMessage(messages.deleteFolderBody)
+                        ? isEmptyFolder
+                            ? intl.formatMessage(messages.deleteFolderBody)
+                            : intl.formatMessage(
+                                  messages.deleteFolderBodyFull,
+                                  {
+                                      assets: doomed?.assets ?? 0,
+                                      folders: doomed?.folders ?? 0
+                                  }
+                              )
                         : intl.formatMessage(messages.deleteAssetsBody)
                 }
                 confirmLabel={intl.formatMessage(messages.confirmDelete)}

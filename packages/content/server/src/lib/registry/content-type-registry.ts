@@ -33,6 +33,13 @@ export interface SerializedField {
         /** Present when this field is the inverse side of a two-way relation. */
         inverse?: { field: string };
     };
+    /** Holds an ordered list of asset ids — present only on media fields. */
+    multiple?: boolean;
+    /**
+     * Accepted-asset restriction (kinds / MIME patterns) — media fields only,
+     * present only when the field sets one. The admin picker filters by it.
+     */
+    accept?: { kinds?: readonly string[]; mimeTypes?: readonly string[] };
 }
 
 /** Wire shape of a content type (summary, wizard-compatible). */
@@ -153,6 +160,12 @@ export class ContentTypeRegistry {
             validation: { ...spec.validation },
             admin: { ...spec.admin },
             ...(spec.options ? { options: spec.options } : {}),
+            ...(spec.type === CONTENT_FIELD_TYPE.Media
+                ? {
+                      multiple: !!spec.multiple,
+                      ...(spec.accept ? { accept: spec.accept } : {})
+                  }
+                : {}),
             ...(spec.relation
                 ? {
                       relation: {

@@ -24,7 +24,8 @@ export const CONTENT_FIELD_TYPE = {
     Select: 'select',
     Multiselect: 'multiselect',
     Json: 'json',
-    Relation: 'relation'
+    Relation: 'relation',
+    Media: 'media'
 } as const;
 
 /** Built-in field type identifiers. */
@@ -173,6 +174,45 @@ export interface SelectFieldOptions<
     options: TOptions;
 }
 
+/** The coarse media categories the library groups assets by. */
+export type MediaKindValue =
+    | 'image'
+    | 'video'
+    | 'audio'
+    | 'document'
+    | 'archive';
+
+/** The valid {@link MediaKindValue}s, for define-time validation of `accept`. */
+export const MEDIA_KIND_VALUES: readonly MediaKindValue[] = [
+    'image',
+    'video',
+    'audio',
+    'document',
+    'archive'
+];
+
+/**
+ * Restricts which assets a media field accepts. Both filters are optional and
+ * combine as OR within each list; an asset passes when it matches **any** listed
+ * kind **or** any listed MIME pattern (an absent `accept`, or one with neither
+ * list, accepts anything). A MIME pattern is either exact (`image/png`) or a
+ * `type/*` wildcard (`image/*`). Enforced server-side on save.
+ */
+export interface MediaAccept {
+    /** Allowed coarse kinds (image/video/audio/document/archive). */
+    kinds?: readonly MediaKindValue[];
+    /** Allowed MIME types — exact (`application/pdf`) or wildcard (`image/*`). */
+    mimeTypes?: readonly string[];
+}
+
+/** Options for `field.media()` — attach one or more Media Library assets. */
+export interface MediaFieldOptions extends BaseFieldOptions {
+    /** Hold an ordered list of assets rather than a single one. Defaults false. */
+    multiple?: boolean;
+    /** Restrict the accepted assets by kind and/or MIME. Defaults to any asset. */
+    accept?: MediaAccept;
+}
+
 export interface RelationFieldOptions extends BaseFieldOptions {
     /** Lazy target content type. */
     to: () => AnyContentType;
@@ -223,6 +263,10 @@ export interface FieldSpec<
     readonly options?: readonly string[];
     /** Relation config — relation fields only. */
     readonly relation?: RelationSpec;
+    /** Holds an ordered list of asset ids — media fields only. */
+    readonly multiple?: boolean;
+    /** Accepted-asset restriction — media fields only. */
+    readonly accept?: MediaAccept;
     /** Phantom compile-time value type. Never assigned. */
     readonly _value?: TValue;
 }

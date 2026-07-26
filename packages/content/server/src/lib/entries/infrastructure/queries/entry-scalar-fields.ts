@@ -8,8 +8,8 @@ import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
  * The filter scalar type for one content field, or `null` to leave it
  * unfilterable. Mirrors the admin's `filterFieldsFromSchema`: text-like fields
  * filter as strings, `select` as an enum of its options, numerics as numbers,
- * dates as dates. `json`/`multiselect` have no scalar editor, and `relation`
- * filtering (by raw FK uuid) has no UI yet — all skipped.
+ * dates as dates. `json`/`multiselect`/`media` have no scalar editor, and
+ * `relation` filtering (by raw FK uuid) has no UI yet — all skipped.
  */
 export function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
     switch (spec.type) {
@@ -30,7 +30,7 @@ export function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
         case CONTENT_FIELD_TYPE.Datetime:
             return { type: ScalarFieldType.Date };
         default:
-            // json / multiselect / relation
+            // json / multiselect / media / relation
             return null;
     }
 }

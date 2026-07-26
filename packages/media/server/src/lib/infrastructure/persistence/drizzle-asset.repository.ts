@@ -3,6 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { UnitOfWork } from '@ortha-cms/database';
 import { Asset } from '../../domain/asset';
 import type { AssetId } from '../../domain/value-objects/asset-id';
+import type { FolderId } from '../../domain/value-objects/folder-id';
 import type { AssetRepository } from '../../domain/asset.repository';
 import { mediaAsset } from '../schema/media-asset';
 import { AssetMapper } from './asset.mapper';
@@ -37,10 +38,7 @@ export class DrizzleAssetRepository implements AssetRepository {
     }
 
     /** {@inheritDoc AssetRepository.findManyByIds} */
-    async findManyByIds(
-        ids: AssetId[],
-        workspaceId: string
-    ): Promise<Asset[]> {
+    async findManyByIds(ids: AssetId[], workspaceId: string): Promise<Asset[]> {
         if (ids.length === 0) return [];
         const rows = await this.uow
             .current()
@@ -52,6 +50,28 @@ export class DrizzleAssetRepository implements AssetRepository {
                     inArray(
                         mediaAsset.id,
                         ids.map((id) => id.value)
+                    )
+                )
+            );
+        return rows.map((row) => this.mapper.toDomain(row));
+    }
+
+    /** {@inheritDoc AssetRepository.findManyByFolderIds} */
+    async findManyByFolderIds(
+        folderIds: FolderId[],
+        workspaceId: string
+    ): Promise<Asset[]> {
+        if (folderIds.length === 0) return [];
+        const rows = await this.uow
+            .current()
+            .select()
+            .from(mediaAsset)
+            .where(
+                and(
+                    eq(mediaAsset.workspaceId, workspaceId),
+                    inArray(
+                        mediaAsset.folderId,
+                        folderIds.map((id) => id.value)
                     )
                 )
             );

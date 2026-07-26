@@ -1,5 +1,10 @@
 import request from 'supertest';
-import { closeTestApp, createTestApp, type TestApp } from '../../support/test-app';
+import sharp from 'sharp';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
 import {
     countMediaAssets,
     resetDb,
@@ -41,7 +46,10 @@ describe('media assets', () => {
             role: 'admin',
             name: 'Media Admin'
         });
-        workspace = await seedWorkspace({ name: 'Workspace', slug: 'workspace' });
+        workspace = await seedWorkspace({
+            name: 'Workspace',
+            slug: 'workspace'
+        });
         await seedMembership(admin.id, workspace.id);
     });
 
@@ -111,7 +119,10 @@ describe('media assets', () => {
         const res = await agent
             .post('/api/media/assets')
             .field('folderId', folder.id)
-            .attach('file', PNG, { filename: 'a.png', contentType: 'image/png' })
+            .attach('file', PNG, {
+                filename: 'a.png',
+                contentType: 'image/png'
+            })
             .expect(201);
         expect(res.body.folderId).toBe(folder.id);
     });
@@ -179,6 +190,138 @@ describe('media assets', () => {
         await expect(countMediaAssets(workspace.id)).resolves.toBe(0);
     });
 
+    /**
+     * On upload, raster images are probed for dimensions and get WebP
+     * derivatives — `thumb` (<=320px) + `preview` (<=1280px) — served from the
+     * raw route via `?variant=`. These need *real* decodable bytes (the module
+     * `PNG` is a fake, which is exactly why it exercises the graceful "no
+     * derivatives" path below), so they synthesize images with Sharp.
+     */
+    describe('image derivatives', () => {
+        /** A solid-colour PNG of the given size — real, Sharp-decodable bytes. */
+        async function makeImage(
+            width: number,
+            height: number
+        ): Promise<Buffer> {
+            return sharp({
+                create: {
+                    width,
+                    height,
+                    channels: 3,
+                    background: { r: 10, g: 120, b: 200 }
+                }
+            })
+                .png()
+                .toBuffer();
+        }
+
+        async function uploadImage(
+            agent: ReturnType<typeof request.agent>,
+            bytes: Buffer,
+            filename = 'photo.png'
+        ) {
+            const res = await agent
+                .post('/api/media/assets')
+                .attach('file', bytes, { filename, contentType: 'image/png' })
+                .expect(201);
+            return res.body;
+        }
+
+        it('probes dimensions and generates thumb + preview for a large image', async () => {
+            const agent = await login();
+            const asset = await uploadImage(agent, await makeImage(800, 600));
+
+            expect(asset).toMatchObject({ width: 800, height: 600 });
+            // Order isn't asserted — jsonb doesn't preserve object key order.
+            expect(asset.variants).toEqual(
+                expect.arrayContaining(['thumb', 'preview'])
+            );
+            expect(asset.variants).toHaveLength(2);
+
+            for (const variant of ['thumb', 'preview']) {
+                const res = await agent
+                    .get(`/api/media/assets/${asset.id}/raw?variant=${variant}`)
+                    .expect(200);
+                expect(res.headers['content-type']).toContain('image/webp');
+                expect(Number(res.headers['content-length'])).toBeGreaterThan(
+                    0
+                );
+            }
+        });
+
+        it('skips preview for a small image but still makes a thumb', async () => {
+            const agent = await login();
+            const asset = await uploadImage(agent, await makeImage(100, 80));
+
+            expect(asset).toMatchObject({ width: 100, height: 80 });
+            expect(asset.variants).toEqual(['thumb']);
+        });
+
+        it('serves the original when the requested variant does not exist', async () => {
+            const agent = await login();
+            // The fake PNG can't be decoded, so no derivatives are produced —
+            // the upload still succeeds and the row carries none.
+            const asset = await upload(agent);
+            expect(asset.variants).toEqual([]);
+            expect(asset).toMatchObject({ width: null, height: null });
+
+            const res = await agent
+                .get(`/api/media/assets/${asset.id}/raw?variant=thumb`)
+                .expect(200);
+            expect(res.headers['content-type']).toContain('image/png');
+            expect(Number(res.headers['content-length'])).toBe(PNG.length);
+        });
+
+        it('falls back to the original for a bogus ?variant=', async () => {
+            const agent = await login();
+            const asset = await uploadImage(agent, await makeImage(600, 400));
+
+            // `variants` is a plain JSON object, so a prototype member name
+            // must not be mistaken for a stored derivative — indexing it bare
+            // returned a truthy non-variant, and the provider then got an
+            // `undefined` key.
+            for (const variant of ['nope', 'toString', 'constructor']) {
+                const res = await agent
+                    .get(`/api/media/assets/${asset.id}/raw?variant=${variant}`)
+                    .expect(200);
+                expect(res.headers['content-type']).toContain('image/png');
+            }
+        });
+
+        it('produces no derivatives for a non-image upload', async () => {
+            const agent = await login();
+            const res = await agent
+                .post('/api/media/assets')
+                .attach('file', Buffer.from('plain text'), {
+                    filename: 'notes.txt',
+                    contentType: 'text/plain'
+                })
+                .expect(201);
+
+            expect(res.body.kind).toBe('document');
+            expect(res.body.variants).toEqual([]);
+            expect(res.body).toMatchObject({ width: null, height: null });
+        });
+
+        it('carries the derivatives onto a duplicated image', async () => {
+            const agent = await login();
+            const asset = await uploadImage(agent, await makeImage(800, 600));
+
+            const copy = await agent
+                .post(`/api/media/assets/${asset.id}/duplicate`)
+                .expect(201);
+            expect(copy.body.variants).toEqual(
+                expect.arrayContaining(['thumb', 'preview'])
+            );
+            expect(copy.body.variants).toHaveLength(2);
+
+            const res = await agent
+                .get(`/api/media/assets/${copy.body.id}/raw?variant=thumb`)
+                .expect(200);
+            expect(res.headers['content-type']).toContain('image/webp');
+        });
+    });
+
     describe('validation', () => {
         it('rejects an upload with no file (400)', async () => {
             const agent = await login();
@@ -240,7 +383,10 @@ describe('media assets', () => {
         const foreign = await otherAgent
             .post('/api/media/assets')
             .set('X-Workspace-Id', other.id)
-            .attach('file', PNG, { filename: 'x.png', contentType: 'image/png' })
+            .attach('file', PNG, {
+                filename: 'x.png',
+                contentType: 'image/png'
+            })
             .expect(201);
 
         // The *listing* stays header-scoped: workspace 1 never sees it.
@@ -303,9 +449,7 @@ describe('media assets', () => {
                 .send({ email: VIEWER, password: PASSWORD })
                 .expect(201);
 
-            await outsider
-                .get(`/api/media/assets/${asset.id}/raw`)
-                .expect(404);
+            await outsider.get(`/api/media/assets/${asset.id}/raw`).expect(404);
         });
     });
 });

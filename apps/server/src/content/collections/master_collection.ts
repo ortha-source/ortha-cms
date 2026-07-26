@@ -102,6 +102,21 @@ export const master_collection = collection('master_collection', {
         // ---- json escape hatch --------------------------------------------
         metadata: field.json(),
 
+        // ---- media: single/multiple, localized/shared, restricted ---------
+        // localized single image (per-locale hero)
+        heroImage: field.media({
+            localized: true,
+            accept: { kinds: ['image'] },
+            admin: { label: 'Hero image' }
+        }),
+        // shared multiple, any asset kind
+        attachments: field.media({ multiple: true }),
+        // shared single, restricted to PDF by exact MIME
+        brochure: field.media({
+            accept: { mimeTypes: ['application/pdf'] },
+            admin: { label: 'Brochure (PDF)' }
+        }),
+
         // ---- relations: every cardinality ---------------------------------
         // many-to-one, required, RESTRICT
         owner: field.relation({

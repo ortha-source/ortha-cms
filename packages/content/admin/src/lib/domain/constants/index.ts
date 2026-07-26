@@ -115,7 +115,8 @@ export const CONTENT_FIELD_TYPE = {
     Select: 'select',
     Multiselect: 'multiselect',
     Json: 'json',
-    Relation: 'relation'
+    Relation: 'relation',
+    Media: 'media'
 } as const;
 
 /**

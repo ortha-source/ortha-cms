@@ -215,9 +215,11 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
   tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
   `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
-  toggles/multi-choice; **Relations** = relation fields via the **`RelationField`**
-  picker (empty state otherwise); **Media** + **History** = placeholders; all four
-  tabs always present), and the
+  toggles/multi-choice — **media fields are excluded from General**, rendering on
+  the Media tab instead; **Relations** = relation fields via the **`RelationField`**
+  picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
+  tabs (the media plugin's **Media** tab) render between Relations and History
+  when their `appliesTo` matches the open type; **History** = revisions), and the
   right rail (`EntrySidebar`): a top **action bar** — a primary button
   (**Publish** for a publishable type the user may publish, else **Save** /
   **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
@@ -316,7 +318,10 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
       A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
       fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
       (dirty staging, or a dirty single value) in the section header — so the user
-      sees exactly what a Save will persist.
+      sees exactly what a Save will persist. It is **exported from the package
+      index** (like `EntryStatusBadge`) so a plugin contributing an `ENTRY_TAB_SLOT`
+      tab — the media plugin's Media tab — marks a changed field with the same
+      badge instead of a look-alike that drifts.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by
@@ -431,6 +436,14 @@ this in two mount points that share one cached query and one action core:
   count — the detail read resolves each field's snapshot ids to titled refs
   server-side (`RevisionDetail.relationRefs`/`relationTotals`, capped with a "+N
   more"; a soft-deleted / cross-workspace target reads as "Unavailable record").
+  **Media fields render the actual assets** the same way (`MediaRefList` —
+  thumbnail + file name, in stored order — the ref's `thumbUrl` derivative when
+  the asset has one, else the original), from `RevisionDetail.mediaRefs`, which
+  the server had always resolved and the admin used to drop: a media row printed
+  the bare asset uuid, which tells a reader nothing about what a version held. A
+  side with no resolved list falls back to `formatRevisionValue` — the server
+  omits an empty field (so the row reads "Empty") and omits media wholly when no
+  media plugin is bound, where the stored value beats claiming "No assets".
   A **Restore this version** button hands the number back to the list's restore
   flow (its own `ConfirmDialog`) — never a modal stacked on a modal. The Preview +
   Restore actions are hidden on the newest row (nothing to compare/apply against),
@@ -448,13 +461,16 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes seven named slots (`presentation/slots/contentSlots`, via
+The library exposes nine named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills all seven. **Slot items are boot-frozen**
+`@ortha-cms/i18n-admin` fills seven; `@ortha-cms/media-admin` fills the other two
+(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads).
+**Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
-makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
-`RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
+makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
+`RECORDS_FILTER_FIELDS_SLOT.useFields`, `ENTRY_PRESAVE_SLOT.usePresave`)
+rules-of-hooks-safe when the render
 sites call them in a loop — the call order never changes; an item gates its own
 fetching internally.
 
@@ -495,6 +511,34 @@ fetching internally.
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
   relation-candidate list params (`relationCandidateParams`, consumed by the
   picker dialog through the slot context).
+- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (id + `slug` + `label` + `order`
+  + `appliesTo` + `Component`). Rendered between Relations and History when
+  `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
+  so the tab router/`entryTabFromPath` accept it. The Component receives an
+  **`EntryTabContext`** — the `EntrySlotContext` plus a **form bridge**
+  (`values` / `errorFor` / `setValue` / `touch` / `isFieldDirty`) and the saved
+  entry's resolved `mediaRefs` — so a contributed tab renders controls bound to
+  the editor's shared form: a field edited there rides Save, the Changed badge,
+  the publish gate, and the 422→field mapping exactly like a General-tab field.
+  `@ortha-cms/media-admin` fills it with the **Media** tab (media fields live in
+  the values bag; the tab is only their rendering surface). `useSaveEntry` also
+  invalidates the entry-media cache so the tab reflects the saved set. The
+  context also carries **`presave`** — the handles below, so a tab reaches state
+  that has to outlive its own body.
+- **`ENTRY_PRESAVE_SLOT`** — a plugin's participation in the **save itself**:
+  `usePresave()` is mounted once per `ContentEntryView` and returns
+  `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client
+  validation and **before** the write, under the busy cover, and returns the
+  values actually saved — throwing aborts the save (the step owns surfacing its
+  own failure). `settle()` runs once the write succeeded. `handle` is published
+  to contributed tabs as `EntryTabContext.presave[id]`, opaque, each tab reading
+  only its own key.
+  This is what lets `@ortha-cms/media-admin` **defer uploads to Save**: files
+  chosen on a media field are staged under a placeholder uuid (which the values
+  bag holds, so validation and the publish gate treat them like any asset id),
+  and `commit` uploads them and swaps in the real ids. The staging lives in the
+  hook because editor **tabs are routes** — the Media panel unmounts on every tab
+  switch, and a file staged there must not die with it.
 
 The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
 list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`

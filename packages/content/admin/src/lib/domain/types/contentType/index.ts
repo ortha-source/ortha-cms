@@ -88,6 +88,41 @@ export type ContentField = {
          */
         inverse?: { field: string };
     };
+    /** Holds an ordered list of assets — present only for `media`. */
+    multiple?: boolean;
+    /**
+     * Accepted-asset restriction (kinds / MIME patterns) — present only for
+     * `media` fields that set one. The picker filters candidates by it.
+     */
+    accept?: {
+        kinds?: readonly string[];
+        mimeTypes?: readonly string[];
+    };
+};
+
+/**
+ * One attached asset on a media field, resolved for display — the wire shape of
+ * `GET /api/content/:type/:id/media` (and a revision detail's `mediaRefs`).
+ * Mirrors the server's `MediaRef`. A `missing` ref is an id whose asset was
+ * deleted or lives in another workspace; the UI shows "Unavailable asset".
+ */
+export type MediaRef = {
+    id: string;
+    name: string;
+    /** Raw-stream route for the **original** bytes (empty when `missing`). */
+    url: string;
+    /**
+     * The small (~320px) derivative, when the media plugin generated one — what
+     * a tile should render, so a record's media costs a thumbnail rather than a
+     * full-size original. Absent for a non-image, an SVG, or a tiny image.
+     */
+    thumbUrl?: string;
+    /** The larger (~1280px) derivative, same caveats as {@link MediaRef.thumbUrl}. */
+    previewUrl?: string;
+    kind: string;
+    mimeType: string;
+    alt?: string | null;
+    missing?: boolean;
 };
 
 /**
@@ -151,6 +186,15 @@ export type RevisionDetail = RevisionSummary & {
     relationRefs?: Record<string, RelationRef[]>;
     /** True link count per relation field (may exceed the capped `relationRefs`). */
     relationTotals?: Record<string, number>;
+    /**
+     * Each media field's snapshot asset ids resolved to display refs (name /
+     * thumbnail url / kind), keyed by field name — so the preview shows the
+     * assets a version held, not raw uuids. A single field resolves the id in
+     * `snapshot.values`; a `multiple` field its ordered list (with a `missing`
+     * placeholder for an id that no longer resolves, so positions hold). Mirrors
+     * the server's `RevisionDetail.mediaRefs`.
+     */
+    mediaRefs?: Record<string, MediaRef[]>;
 };
 
 /** The paginated revision-timeline envelope. */
@@ -243,6 +287,15 @@ export type RelationFieldView = {
  */
 export type EntryRelations = {
     relations: Record<string, RelationFieldView>;
+};
+
+/**
+ * One entry's media fields resolved to display refs, keyed by field name —
+ * served by `GET /api/content/:name/:id/media`; mirrors the server's
+ * `EntryMediaView`. Empty when no media resolver is bound.
+ */
+export type EntryMedia = {
+    media: Record<string, MediaRef[]>;
 };
 
 /**

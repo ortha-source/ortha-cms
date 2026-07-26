@@ -114,6 +114,17 @@ export const entryRelationsKey = (
 export const entryRelationsPrefix = (workspaceId: string, name: string) =>
     ['content-entry-relations', workspaceId, name] as const;
 
+/** One entry's media fields resolved to refs (all media fields), workspace-scoped. */
+export const entryMediaKey = (
+    workspaceId: string,
+    name: string,
+    id: string
+) => ['content-entry-media', workspaceId, name, id] as const;
+
+/** Prefix over every entry-media query for a type in a workspace. */
+export const entryMediaPrefix = (workspaceId: string, name: string) =>
+    ['content-entry-media', workspaceId, name] as const;
+
 /** One relation field's paginated links, workspace-scoped. */
 export const relationFieldLinksKey = (
     workspaceId: string,
