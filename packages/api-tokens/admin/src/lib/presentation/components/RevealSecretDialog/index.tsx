@@ -90,13 +90,21 @@ export function RevealSecretDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex items-center gap-2">
+                {/* `min-w-0` on the row is load-bearing: `DialogContent` is a
+                    grid, whose items default to `min-width: auto`, so without it
+                    the unbreakable token string widens this row past the
+                    dialog's `max-w-lg` and the copy button lands outside the
+                    panel. With it the row can shrink and the `truncate` below
+                    takes effect. The button is `shrink-0` so the code block —
+                    not the control — gives up the space. */}
+                <div className="flex min-w-0 items-center gap-2">
                     <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-3 py-2 font-mono text-sm">
                         {secret}
                     </code>
                     <Button
                         type="button"
                         variant="outline"
+                        className="shrink-0"
                         onClick={copy}
                         aria-label={intl.formatMessage(messages.copy)}
                     >

@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { MoreHorizontal } from 'lucide-react';
 import {
     Badge,
     Button,
     ConfirmDialog,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
     Table,
     TableBody,
     TableCell,
@@ -49,6 +54,11 @@ const messages = defineMessages({
         defaultMessage: 'Revoked'
     },
     revoke: { id: 'apiTokens.table.revoke', defaultMessage: 'Revoke' },
+    caption: { id: 'apiTokens.table.caption', defaultMessage: 'API tokens' },
+    open: {
+        id: 'apiTokens.table.open',
+        defaultMessage: 'Actions for {name}'
+    },
     confirmTitle: {
         id: 'apiTokens.table.confirmTitle',
         defaultMessage: 'Revoke this token?'
@@ -107,102 +117,147 @@ export function ApiTokensTable({
 
     return (
         <>
-            <Table className="mt-4">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>
-                            {intl.formatMessage(messages.name)}
-                        </TableHead>
-                        <TableHead>
-                            {intl.formatMessage(messages.workspace)}
-                        </TableHead>
-                        <TableHead>
-                            {intl.formatMessage(messages.token)}
-                        </TableHead>
-                        <TableHead>
-                            {intl.formatMessage(messages.scope)}
-                        </TableHead>
-                        <TableHead>
-                            {intl.formatMessage(messages.status)}
-                        </TableHead>
-                        <TableHead>
-                            {intl.formatMessage(messages.expires)}
-                        </TableHead>
-                        <TableHead>
-                            {intl.formatMessage(messages.lastUsed)}
-                        </TableHead>
-                        {canRevoke ? (
-                            <TableHead className="text-right">
-                                <span className="sr-only">
-                                    {intl.formatMessage(messages.actions)}
-                                </span>
+            <div className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs">
+                <Table aria-label={intl.formatMessage(messages.caption)}>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.name)}
                             </TableHead>
-                        ) : null}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {tokens.map((token) => (
-                        <TableRow key={token.id}>
-                            <TableCell className="font-medium">
-                                {token.name}
-                            </TableCell>
-                            <TableCell>
-                                {resolveWorkspaceName(token.workspaceId)}
-                            </TableCell>
-                            <TableCell>
-                                <code className="font-mono text-xs text-muted-foreground">
-                                    {token.lookupPrefix}…
-                                </code>
-                            </TableCell>
-                            <TableCell>
-                                <Badge
-                                    variant={
-                                        token.scope === 'full'
-                                            ? 'default'
-                                            : 'secondary'
-                                    }
-                                >
-                                    {intl.formatMessage(
-                                        messages[SCOPE_LABEL[token.scope]]
-                                    )}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={STATUS_VARIANT[token.status]}>
-                                    {intl.formatMessage(
-                                        messages[STATUS_LABEL[token.status]]
-                                    )}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                {formatDate(
-                                    token.expiresAt,
-                                    intl.formatMessage(messages.never)
-                                )}
-                            </TableCell>
-                            <TableCell>
-                                {formatDate(
-                                    token.lastUsedAt,
-                                    intl.formatMessage(messages.neverUsed)
-                                )}
-                            </TableCell>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.workspace)}
+                            </TableHead>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.token)}
+                            </TableHead>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.scope)}
+                            </TableHead>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.status)}
+                            </TableHead>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.expires)}
+                            </TableHead>
+                            <TableHead
+                                scope="col"
+                                className="whitespace-nowrap"
+                            >
+                                {intl.formatMessage(messages.lastUsed)}
+                            </TableHead>
                             {canRevoke ? (
-                                <TableCell className="text-right">
-                                    {token.status === 'active' ? (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setPending(token)}
-                                        >
-                                            {intl.formatMessage(messages.revoke)}
-                                        </Button>
-                                    ) : null}
-                                </TableCell>
+                                <TableHead scope="col" className="w-12">
+                                    <span className="sr-only">
+                                        {intl.formatMessage(messages.actions)}
+                                    </span>
+                                </TableHead>
                             ) : null}
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {tokens.map((token) => (
+                            <TableRow key={token.id}>
+                                <TableCell className="font-medium">
+                                    {token.name}
+                                </TableCell>
+                                <TableCell>
+                                    {resolveWorkspaceName(token.workspaceId)}
+                                </TableCell>
+                                <TableCell>
+                                    <code className="font-mono text-xs text-muted-foreground">
+                                        {token.lookupPrefix}…
+                                    </code>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={
+                                            token.scope === 'full'
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {intl.formatMessage(
+                                            messages[SCOPE_LABEL[token.scope]]
+                                        )}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={STATUS_VARIANT[token.status]}
+                                    >
+                                        {intl.formatMessage(
+                                            messages[STATUS_LABEL[token.status]]
+                                        )}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {formatDate(
+                                        token.expiresAt,
+                                        intl.formatMessage(messages.never)
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {formatDate(
+                                        token.lastUsedAt,
+                                        intl.formatMessage(messages.neverUsed)
+                                    )}
+                                </TableCell>
+                                {canRevoke ? (
+                                    <TableCell className="text-right">
+                                        {token.status === 'active' ? (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-8"
+                                                        aria-label={intl.formatMessage(
+                                                            messages.open,
+                                                            { name: token.name }
+                                                        )}
+                                                    >
+                                                        <MoreHorizontal />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:text-destructive"
+                                                        onSelect={() =>
+                                                            setPending(token)
+                                                        }
+                                                    >
+                                                        {intl.formatMessage(
+                                                            messages.revoke
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ) : null}
+                                    </TableCell>
+                                ) : null}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
 
             <ConfirmDialog
                 open={pending !== null}
