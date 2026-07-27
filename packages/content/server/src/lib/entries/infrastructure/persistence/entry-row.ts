@@ -17,8 +17,20 @@ type Row = Record<string, unknown>;
  * publishable types. Relations that own no column — many-relations (their links live in join
  * tables) and inverse/back-references (they reuse the owning side's storage) —
  * aren't selected here; an owning single relation passes through as its FK uuid.
+ *
+ * `fields` (from `?fields=`) narrows the `values` bag to the named subset; the
+ * envelope is always emitted, since it identifies the record rather than
+ * describing it. The narrowing is a **projection of the row, not of the query**
+ * — the caller still reads the whole row. That is deliberate: the relation
+ * preview reads single-relation FK columns straight off the raw row, and
+ * `entryTitle`/`entrySlug` scan arbitrary columns, so a narrowed `SELECT` would
+ * silently starve them. This trims the response, not the disk read.
  */
-export function toRecord(type: AnyContentType, row: Row): EntryRecord {
+export function toRecord(
+    type: AnyContentType,
+    row: Row,
+    fields?: ReadonlySet<string>
+): EntryRecord {
     const values: Record<string, unknown> = {};
     for (const [name, spec] of Object.entries(type.fields)) {
         if (
@@ -26,6 +38,7 @@ export function toRecord(type: AnyContentType, row: Row): EntryRecord {
             (spec.relation?.many || spec.relation?.inverse)
         )
             continue;
+        if (fields && !fields.has(name)) continue;
         values[name] = row[name] ?? null;
     }
     const record: EntryRecord = {

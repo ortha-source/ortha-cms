@@ -31,6 +31,7 @@ import { DEFAULT_PAGE_SIZE } from '../../entries.constants';
 import { isScalarField } from './entry-scalar-fields';
 import { buildEntryFilterSurface } from './entry-filter-surface';
 import { toRecord } from '../persistence/entry-row';
+import { parseFieldSelection } from '../persistence/field-selection';
 import { RelationLinkService } from '../persistence/relation-link.service';
 
 /** A generated content table seen as a bag of columns by property name. */
@@ -121,8 +122,12 @@ export class EntriesService {
                 .offset((page - 1) * pageSize)
         ]);
 
+        // `?fields=` narrows each row's `values` bag. Parsed here rather than in
+        // the controller so the list and the single-entry read share one
+        // definition of what a selectable field is — and one 400 on a typo.
+        const selection = parseFieldSelection(type, query.fields);
         const items = rows.map((row) =>
-            toRecord(type, row as Record<string, unknown>)
+            toRecord(type, row as Record<string, unknown>, selection)
         );
 
         // Opt-in relation preview for the records table's visible relation

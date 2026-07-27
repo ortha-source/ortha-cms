@@ -11,3 +11,6 @@ export const FILTER_MAX_LENGTH = 4096;
 
 /** Max ids a single bulk action (`{ ids }`) may target — bounds the statement. */
 export const BULK_MAX_IDS = 100;
+
+/** Max length of the raw `?fields=` list (a comma-separated field list). */
+export const FIELDS_MAX_LENGTH = 1024;

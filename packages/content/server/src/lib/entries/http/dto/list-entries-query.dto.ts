@@ -8,7 +8,11 @@ import {
     MaxLength,
     Min
 } from 'class-validator';
-import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../../entries.constants';
+import {
+    FIELDS_MAX_LENGTH,
+    FILTER_MAX_LENGTH,
+    MAX_PAGE_SIZE
+} from '../../entries.constants';
 
 /** `?deleted=only` flips the list to the trash view (soft-deleted rows). */
 export const DELETED_ONLY = 'only';
@@ -97,6 +101,19 @@ export class ListEntriesQueryDto {
     @IsString()
     @MaxLength(RELATION_FIELDS_MAX_LENGTH)
     relationFields?: string;
+
+    /**
+     * Comma-separated field names to return in each row's `values` bag —
+     * sparse fieldsets, so a list that only renders a title needn't ship every
+     * richtext body. Absent (the default) returns the whole record. Names are
+     * validated against the type's column-owning fields; an unknown one is a
+     * **400** rather than a silent drop (see `parseFieldSelection`). The
+     * envelope (`id`, timestamps, `status`, `locale`) is always returned.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(FIELDS_MAX_LENGTH)
+    fields?: string;
 
     /**
      * Locale slug the list targets — an **extension-owned** param this package

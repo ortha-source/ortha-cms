@@ -42,6 +42,7 @@ import type {
 } from '../../types/entry-list-view';
 import type { BulkActionResult } from '../../types/bulk-publish';
 import { coerceValues, toColumns, toRecord } from './entry-row';
+import { parseFieldSelection } from './field-selection';
 import {
     RelationLinkService,
     type DbTransaction
@@ -383,15 +384,20 @@ export class EntryWriterService {
         return spec;
     }
 
-    /** Read one live entry in the workspace, or 404. */
+    /**
+     * Read one live entry in the workspace, or 404. `fields` (from `?fields=`)
+     * narrows the returned `values` bag; omitted, the whole record is returned.
+     */
     async getOne(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        fields?: string
     ): Promise<EntryRecord> {
+        const selection = parseFieldSelection(type, fields);
         const row = await this.findLive(type, id, workspaceId);
         if (!row) throw this.notFound(type, id);
-        return toRecord(type, row);
+        return toRecord(type, row, selection);
     }
 
     /**
