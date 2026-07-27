@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@ortha-cms/shell-admin';
 import { KeyRound } from 'lucide-react';
-import { ApiTokensSkeleton } from '../components/ApiTokensSkeleton';
+import { ApiTokensPageSkeleton } from '../components/ApiTokensSkeleton';
 
 // Lazy-loaded so the page is code-split into its own chunk, fetched only when a
 // signed-in user first navigates to `/api-tokens`.
@@ -45,7 +45,7 @@ export function ApiTokensPlugin(): ApiTokensAdminPlugin {
             {
                 path: '/api-tokens',
                 element: (
-                    <Suspense fallback={<ApiTokensSkeleton />}>
+                    <Suspense fallback={<ApiTokensPageSkeleton />}>
                         <ApiTokensPage />
                     </Suspense>
                 )
