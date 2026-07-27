@@ -46,6 +46,9 @@
             "path": "../../packages/users/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/api-tokens/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/shell/admin/tsconfig.lib.json"
         },
         {

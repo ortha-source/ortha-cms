@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_382 test cases across 33 spec files._
+_387 test cases across 34 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -66,6 +66,19 @@ _<sub>apps/server-e2e/src/server/activity/activity.spec.ts</sub>_
 | --- |
 | records user.signed_out for the session owner |
 | records nothing extra for a logout with no live session |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
+
+## API token management (/api/api-tokens)
+
+| Test case |
+| --- |
+| mints a token and returns the plaintext exactly once |
+| rejects an expiry in the past |
+| revokes a token |
+| gates management on the tokens permissions |
+| requires authentication |
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
