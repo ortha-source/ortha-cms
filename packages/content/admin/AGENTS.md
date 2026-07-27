@@ -157,7 +157,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   schema gates the columns query and supplies the type name.
   **`status` is publishable-only**: `entryColumns` offers a Status column and the
   server's filter surface includes a Status filter **only when publishable**
-  (a non-publishable type has no publish state). Sort is a URL param
+  (a non-publishable type has no publish state). The same rule holds **wherever
+  publish state is drawn** — the editor rail's Details **Status** row, the
+  **Revisions** rows' Live/Draft/Superseded badges (and the preview dialog's),
+  and the i18n **Locale** rows' badges are all gated on `publishable`. On an
+  always-live type those would label a state the type doesn't have; a version
+  there was simply saved, so a Revisions row keeps its number, its "Current"
+  marker and its time, and nothing else. Sort is a URL param
   (`?sort=<columnId>` asc, `?sort=-<columnId>`
   desc); a header click cycles asc → desc → off, sets `aria-sort` on the
   `<th>`, and resets the page. URL state (search/filter/sort/page) is owned by

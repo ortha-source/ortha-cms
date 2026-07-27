@@ -20,12 +20,19 @@ const messages = defineMessages({
  * The static **Details** section of the entry editor's right rail: the entry's
  * publish status (the shared {@link EntryStatusBadge}), created / last-updated
  * timestamps, and its id.
+ *
+ * **Status is publishable-only.** An always-live type has no publish workflow,
+ * so "Draft" there names a state it doesn't have — the same rule the records
+ * table applies to its Status column (`domain/entryColumns`).
  */
 export function DetailsBlock({
     entry,
+    publishable,
     isCreate
 }: {
     entry?: EntryRecord;
+    /** Whether the type has a publish workflow — decides the Status row. */
+    publishable: boolean;
     isCreate: boolean;
 }) {
     const intl = useIntl();
@@ -39,9 +46,13 @@ export function DetailsBlock({
     return (
         <EntrySidebarSection title={intl.formatMessage(messages.detailsTitle)}>
             <dl className="flex flex-col gap-3">
-                <EntrySidebarRow label={intl.formatMessage(messages.status)}>
-                    <EntryStatusBadge entry={entry} isCreate={isCreate} />
-                </EntrySidebarRow>
+                {publishable ? (
+                    <EntrySidebarRow
+                        label={intl.formatMessage(messages.status)}
+                    >
+                        <EntryStatusBadge entry={entry} isCreate={isCreate} />
+                    </EntrySidebarRow>
+                ) : null}
                 <EntrySidebarRow label={intl.formatMessage(messages.created)}>
                     {fmt(entry?.createdAt)}
                 </EntrySidebarRow>

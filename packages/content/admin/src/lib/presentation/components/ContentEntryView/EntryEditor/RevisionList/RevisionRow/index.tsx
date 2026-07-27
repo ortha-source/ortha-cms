@@ -113,9 +113,16 @@ export function RevisionRow({
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <div className="flex items-center gap-2">
-                    <Badge variant={STATUS_VARIANT[revision.status]}>
-                        {intl.formatMessage(STATUS_LABEL[revision.status])}
-                    </Badge>
+                    {/* Live / Draft / Superseded describe a publish workflow.
+                        On an always-live type there isn't one — every version
+                        was simply saved — so the badge would label a state the
+                        type doesn't have. "Current" still means something and
+                        stays. */}
+                    {publishable && (
+                        <Badge variant={STATUS_VARIANT[revision.status]}>
+                            {intl.formatMessage(STATUS_LABEL[revision.status])}
+                        </Badge>
+                    )}
                     {revision.isLatest && (
                         <span className="text-xs text-muted-foreground">
                             {intl.formatMessage(messages.current)}

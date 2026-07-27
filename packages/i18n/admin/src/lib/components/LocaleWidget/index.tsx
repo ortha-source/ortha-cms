@@ -254,8 +254,19 @@ export function LocaleWidget({
                             name={locale.name}
                             isCurrent={isCurrent}
                             exists={!!sibling}
-                            status={sibling?.status}
-                            publishedAt={sibling?.publishedAt}
+                            // Publish state is **publishable-only**: an
+                            // always-live type has no publish workflow, so a
+                            // "Draft" chip beside a locale would name a state
+                            // the type doesn't have. Withholding it here is
+                            // what hides the badge (see `LocaleRow`).
+                            status={
+                                schema.publishable ? sibling?.status : undefined
+                            }
+                            publishedAt={
+                                schema.publishable
+                                    ? sibling?.publishedAt
+                                    : undefined
+                            }
                             onSelect={
                                 actionable
                                     ? () => requestLocale(locale.slug, sibling)

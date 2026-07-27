@@ -185,9 +185,14 @@ export function RevisionPreviewDialog({
                         {intl.formatMessage(messages.title, {
                             n: revision.number
                         })}
-                        <Badge variant={STATUS_VARIANT[revision.status]}>
-                            {intl.formatMessage(STATUS_LABEL[revision.status])}
-                        </Badge>
+                        {/* Publishable types only — see `RevisionRow`. */}
+                        {(schema.publishable ?? false) && (
+                            <Badge variant={STATUS_VARIANT[revision.status]}>
+                                {intl.formatMessage(
+                                    STATUS_LABEL[revision.status]
+                                )}
+                            </Badge>
+                        )}
                     </DialogTitle>
                     <DialogDescription>
                         {intl.formatMessage(messages.subtitle)}

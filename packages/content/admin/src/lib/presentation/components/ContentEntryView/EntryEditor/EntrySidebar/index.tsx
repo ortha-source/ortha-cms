@@ -49,7 +49,11 @@ export function EntrySidebar({
         <div className="flex flex-col divide-y divide-border/60">
             <PublishGate items={gate} publishable={publishable} />
 
-            <DetailsBlock entry={entry} isCreate={isCreate} />
+            <DetailsBlock
+                entry={entry}
+                publishable={publishable}
+                isCreate={isCreate}
+            />
 
             {slotContext && entry?.id ? (
                 <RevisionWidget

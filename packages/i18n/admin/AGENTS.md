@@ -54,7 +54,9 @@ content plugin owns).
   divider-separated sections, so a card of our own would be the single floating
   box in it (content-admin's _The Properties rail_ section is the contract). It lists
   every configured locale: the current one is marked, a locale whose translation
-  already exists is a switch target (with its publish status → navigates to that
+  already exists is a switch target (with its publish status, **on a publishable
+  type only** — an always-live type has no publish state, so `LocaleWidget`
+  withholds `status`/`publishedAt` and the row draws no badge → navigates to that
   sibling's editor, or `?locale=` for singles), and a missing locale is dimmed
   but selectable → it **re-targets the form** to that locale (a draft create form
   scoped to that locale + the same group:
