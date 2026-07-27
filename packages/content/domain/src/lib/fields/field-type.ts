@@ -11,6 +11,7 @@
 export const CONTENT_FIELD_TYPE = {
     Text: 'text',
     RichText: 'richtext',
+    Wysiwyg: 'wysiwyg',
     Number: 'number',
     Money: 'money',
     Boolean: 'boolean',

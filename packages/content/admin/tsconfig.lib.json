@@ -14,13 +14,19 @@
     "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
     "references": [
         {
-            "path": "../../shell/admin/tsconfig.lib.json"
+            "path": "../../wysiwyg/core/tsconfig.lib.json"
+        },
+        {
+            "path": "../../wysiwyg/admin/tsconfig.lib.json"
         },
         {
             "path": "../../workspaces/admin/tsconfig.lib.json"
         },
         {
             "path": "../../utils/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../shell/admin/tsconfig.lib.json"
         },
         {
             "path": "../../query-builder/admin/tsconfig.lib.json"

@@ -5,6 +5,8 @@
  * once). Being publishable, `required` fields stay **nullable** columns and
  * are enforced only at publish time (an incomplete draft still saves).
  *
+ * `body` is a `wysiwyg` field — the block editor, stored as sanitized HTML.
+ *
  * Fields cover every builder; relations cover every cardinality:
  *   - many-to-one, required, ON DELETE RESTRICT ....... `author`
  *   - one-to-one (UNIQUE FK) .......................... `seo`
@@ -53,10 +55,12 @@ export const article = collection('article', {
             maxLength: 320,
             admin: { widget: 'textarea', description: 'Card / meta summary.' }
         }),
-        body: field.richtext({
+        body: field.wysiwyg({
             required: true,
             localized: true,
-            admin: { description: 'The article body.' }
+            admin: {
+                description: 'The article body. Type “/” for blocks.'
+            }
         }),
 
         // ---- numeric -----------------------------------------------------

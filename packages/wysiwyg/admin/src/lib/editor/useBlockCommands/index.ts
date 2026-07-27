@@ -1,0 +1,483 @@
+import { useMemo } from 'react';
+import {
+    BLOCK_TYPE,
+    PARAGRAPH_TYPE,
+    blockAt,
+    createBlock,
+    escapeHtmlText,
+    htmlToPlainText,
+    insertAt,
+    isEmptyHtml,
+    moveBlock,
+    nextPath,
+    parentPath,
+    pathAfter,
+    previousPath,
+    removeAt,
+    replaceAt,
+    updateAt,
+    type BlockAttrs,
+    type BlockPath,
+    type BlockSchema,
+    type WysiwygBlock
+} from '@ortha-cms/wysiwyg-core';
+import { CARET } from '../../utils/constants';
+import { HISTORY, type EditorDocument } from '../useEditorDocument';
+
+/**
+ * Every structural edit the editor can make, expressed over **paths** rather
+ * than the DOM.
+ *
+ * This is where the editor's behavior actually lives — what Enter does at the
+ * end of a list item, what Backspace does at the start of a heading, what Tab
+ * does to a bullet. Keeping it here (pure functions over the block tree, with
+ * the focus request as the only side effect) is what lets the block renderers
+ * stay presentational and the whole set be reasoned about without a browser.
+ *
+ * **One command per user action.** Each command is built from the block list
+ * this hook closed over, so calling two in the same event handler would compute
+ * the second from a tree the first has already replaced — the second silently
+ * wins and the first edit disappears. Anything that looks like two steps
+ * (convert *and* keep the leftover text) is therefore one command here.
+ */
+export interface BlockCommands {
+    /** Replaces a block's inline HTML. Coalesced in history — this is typing. */
+    setHtml(path: BlockPath, html: string): void;
+    /** Merges `attrs` into a block (a heading level, a callout tone). */
+    setAttrs(path: BlockPath, attrs: BlockAttrs): void;
+    /** Converts a block to another type, applying that type's defaults. */
+    setType(path: BlockPath, type: string, attrs?: BlockAttrs): void;
+    /**
+     * Applies a block type chosen from the slash menu or matched by a markdown
+     * input rule, given the HTML **left in the block** once the trigger text was
+     * removed. Converts the block in place when nothing else is in it, and
+     * inserts a new block below when there is.
+     */
+    applyBlockType(
+        path: BlockPath,
+        type: string,
+        attrs: BlockAttrs | undefined,
+        remainingHtml: string
+    ): void;
+    /** Splits a block at the caret — the Enter key. */
+    split(path: BlockPath, before: string, after: string): void;
+    /** Backspace at the start of a block. */
+    mergeBackward(path: BlockPath): void;
+    /** Delete at the end of a block. */
+    mergeForward(path: BlockPath): void;
+    /** Inserts blocks directly after `path` and focuses the first. */
+    insertAfter(path: BlockPath, blocks: readonly WysiwygBlock[]): void;
+    /** Removes a block (and its subtree). */
+    remove(path: BlockPath): void;
+    /** Inserts a copy of a block directly below it. */
+    duplicate(path: BlockPath): void;
+    /** Moves a block to a slot — the drag-and-drop drop. */
+    move(from: BlockPath, to: BlockPath): void;
+    /** Moves a block one place up (-1) or down (+1) among its siblings. */
+    moveBy(path: BlockPath, delta: -1 | 1): void;
+    /** Nests a block under the sibling above it — Tab. */
+    indent(path: BlockPath): void;
+    /** Lifts a block out of its parent — Shift+Tab. */
+    outdent(path: BlockPath): void;
+    /** Flips a to-do block's checked state. */
+    toggleChecked(path: BlockPath): void;
+    /** Whether `path` can currently be indented (drives the Tab key). */
+    canIndent(path: BlockPath): boolean;
+    /** Moves the caret to the nearest editable block above (-1) or below (+1). */
+    focusNeighbour(path: BlockPath, direction: -1 | 1): void;
+}
+
+/** Builds the command set for a document. */
+export function useBlockCommands(
+    document: EditorDocument,
+    schema: BlockSchema
+): BlockCommands {
+    const { blocks, commit, requestFocus } = document;
+
+    return useMemo<BlockCommands>(() => {
+        /** A new block of `type`, with the children that type can't exist without. */
+        const blockOfType = (type: string, attrs?: BlockAttrs): WysiwygBlock =>
+            createBlock(type, {
+                attrs: {
+                    ...(schema.get(type)?.defaultAttrs ?? {}),
+                    ...(attrs ?? {})
+                },
+                children: seedChildren(type)
+            });
+
+        const setHtml: BlockCommands['setHtml'] = (path, html) => {
+            commit(
+                updateAt(blocks, path, (block) => ({ ...block, html })),
+                HISTORY.Coalesce
+            );
+        };
+
+        const setAttrs: BlockCommands['setAttrs'] = (path, attrs) => {
+            commit(
+                updateAt(blocks, path, (block) => ({
+                    ...block,
+                    attrs: { ...block.attrs, ...attrs }
+                }))
+            );
+        };
+
+        /** The block `path` becomes when converted to `type`. */
+        const converted = (
+            block: WysiwygBlock,
+            type: string,
+            attrs?: BlockAttrs,
+            html = block.html
+        ): WysiwygBlock => {
+            const definition = schema.get(type);
+            return {
+                ...block,
+                type,
+                // The old attrs belonged to the old type; carrying them over
+                // would leave a heading's `level` on a code block.
+                attrs: {
+                    ...(definition?.defaultAttrs ?? {}),
+                    ...(attrs ?? {})
+                },
+                html: definition?.content === 'void' ? '' : contentFor(type, html),
+                children:
+                    block.children.length > 0
+                        ? block.children
+                        : seedChildren(type)
+            };
+        };
+
+        const setType: BlockCommands['setType'] = (path, type, attrs) => {
+            commit(
+                updateAt(blocks, path, (block) => converted(block, type, attrs))
+            );
+            requestFocus(path, CARET.End);
+        };
+
+        const applyBlockType: BlockCommands['applyBlockType'] = (
+            path,
+            type,
+            attrs,
+            remainingHtml
+        ) => {
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            const definition = schema.get(type);
+            const isVoid = definition?.content === 'void';
+            const isContainer = definition?.content === 'container';
+            const blank = isEmptyHtml(remainingHtml);
+
+            // Nothing else in the block: the block *becomes* the chosen type.
+            if (blank && !isVoid) {
+                commit(
+                    updateAt(blocks, path, (current) =>
+                        converted(current, type, attrs, '')
+                    )
+                );
+                requestFocus(isContainer ? [...path, 0, 0] : path, CARET.End);
+                return;
+            }
+
+            // A void block has nowhere to put a caret, so it always comes with
+            // a paragraph after it — otherwise choosing "Divider" as the last
+            // block of a document ends the document.
+            const created = blockOfType(type, attrs);
+            const trailing = createBlock(PARAGRAPH_TYPE);
+            if (blank) {
+                commit(replaceAt(blocks, path, [created, trailing]));
+                requestFocus(pathAfter(path), CARET.Start);
+                return;
+            }
+            commit(
+                replaceAt(blocks, path, [
+                    { ...block, html: remainingHtml },
+                    created,
+                    ...(isVoid ? [trailing] : [])
+                ])
+            );
+            const target = pathAfter(path);
+            requestFocus(
+                isVoid ? pathAfter(target) : isContainer ? [...target, 0, 0] : target,
+                CARET.Start
+            );
+        };
+
+        const split: BlockCommands['split'] = (path, before, after) => {
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            const definition = schema.get(block.type);
+
+            // Enter on an empty continuing block (an empty bullet) leaves the
+            // list rather than adding another empty one — the universal way out.
+            if (
+                definition?.continueOnEnter &&
+                before === '' &&
+                after === '' &&
+                block.children.length === 0
+            ) {
+                setType(path, PARAGRAPH_TYPE);
+                return;
+            }
+
+            // A toggle's Enter belongs *inside* it: the summary is one line, and
+            // the body is what the author is about to write.
+            if (block.type === BLOCK_TYPE.Toggle) {
+                commit(
+                    updateAt(blocks, path, (current) => ({
+                        ...current,
+                        html: before,
+                        attrs: { ...current.attrs, open: true },
+                        children: [
+                            createBlock(PARAGRAPH_TYPE, { html: after }),
+                            ...current.children
+                        ]
+                    }))
+                );
+                requestFocus([...path, 0], CARET.Start);
+                return;
+            }
+
+            const continues = definition?.continueOnEnter ?? false;
+            const tail = createBlock(continues ? block.type : PARAGRAPH_TYPE, {
+                html: after,
+                // A new to-do starts unchecked however the one above it sits.
+                attrs: continues
+                    ? {
+                          ...block.attrs,
+                          ...(block.type === BLOCK_TYPE.Todo
+                              ? { checked: false }
+                              : {})
+                      }
+                    : {}
+            });
+            commit(replaceAt(blocks, path, [{ ...block, html: before }, tail]));
+            requestFocus(pathAfter(path), CARET.Start);
+        };
+
+        const outdent: BlockCommands['outdent'] = (path) => {
+            const parent = parentPath(path);
+            if (!parent) return;
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            const target = pathAfter(parent);
+            commit(insertAt(removeAt(blocks, path), target, [block]));
+            requestFocus(target, CARET.End);
+        };
+
+        const mergeBackward: BlockCommands['mergeBackward'] = (path) => {
+            const block = blockAt(blocks, path);
+            if (!block) return;
+
+            // First Backspace strips the block's *type* — a heading becomes a
+            // paragraph before it starts eating the block above it. The caret
+            // stays at the **start**, so pressing Backspace again merges;
+            // `setType` is not reused here because it lands the caret at the
+            // end, where a second Backspace would delete a character instead.
+            if (block.type !== PARAGRAPH_TYPE) {
+                commit(
+                    updateAt(blocks, path, (current) =>
+                        converted(current, PARAGRAPH_TYPE)
+                    )
+                );
+                requestFocus(path, CARET.Start);
+                return;
+            }
+            // A nested block lifts out before it merges.
+            if (path.length > 1) {
+                outdent(path);
+                return;
+            }
+
+            const target = previousPath(blocks, path);
+            const previous = target && blockAt(blocks, target);
+            if (!target || !previous) return;
+            if (schema.get(previous.type)?.content !== 'inline') {
+                // Backspacing into a divider (or a layout) deletes it rather
+                // than merging text into something that can't hold any.
+                commit(removeAt(blocks, target));
+                return;
+            }
+            const seam = htmlToPlainText(previous.html).length;
+            const merged = updateAt(blocks, target, (current) => ({
+                ...current,
+                html: current.html + block.html,
+                children: [...current.children, ...block.children]
+            }));
+            commit(removeAt(merged, path));
+            requestFocus(target, seam);
+        };
+
+        const mergeForward: BlockCommands['mergeForward'] = (path) => {
+            const block = blockAt(blocks, path);
+            const targetPath = pathAfter(path);
+            const next = blockAt(blocks, targetPath);
+            if (!block || !next) return;
+            if (schema.get(next.type)?.content !== 'inline') {
+                commit(removeAt(blocks, targetPath));
+                return;
+            }
+            const seam = htmlToPlainText(block.html).length;
+            const merged = updateAt(blocks, path, (current) => ({
+                ...current,
+                html: current.html + next.html,
+                children: [...current.children, ...next.children]
+            }));
+            commit(removeAt(merged, targetPath));
+            requestFocus(path, seam);
+        };
+
+        const insertAfter: BlockCommands['insertAfter'] = (path, inserted) => {
+            if (inserted.length === 0) return;
+            const target = pathAfter(path);
+            commit(insertAt(blocks, target, inserted));
+            requestFocus(target, CARET.End);
+        };
+
+        const remove: BlockCommands['remove'] = (path) => {
+            const target = previousPath(blocks, path);
+            const next = removeAt(blocks, path);
+            // An editor with no blocks has nowhere to put the caret.
+            commit(next.length === 0 ? [createBlock(PARAGRAPH_TYPE)] : next);
+            requestFocus(target ?? [0], CARET.End);
+        };
+
+        const duplicate: BlockCommands['duplicate'] = (path) => {
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            commit(insertAt(blocks, pathAfter(path), [cloneBlock(block)]));
+        };
+
+        const move: BlockCommands['move'] = (from, to) => {
+            commit(moveBlock(blocks, from, to));
+        };
+
+        const moveBy: BlockCommands['moveBy'] = (path, delta) => {
+            const index = path[path.length - 1];
+            const target = [...path.slice(0, -1), index + delta];
+            if (index + delta < 0 || !blockAt(blocks, target)) return;
+            // A downward move names the slot *after* the sibling it swaps with,
+            // because slots are counted before this block is lifted out.
+            commit(
+                moveBlock(
+                    blocks,
+                    path,
+                    delta === 1 ? [...path.slice(0, -1), index + 2] : target
+                )
+            );
+        };
+
+        const canIndent: BlockCommands['canIndent'] = (path) => {
+            const index = path[path.length - 1];
+            if (index === 0) return false;
+            const sibling = blockAt(blocks, [...path.slice(0, -1), index - 1]);
+            return !!sibling && schema.get(sibling.type)?.content !== 'void';
+        };
+
+        const indent: BlockCommands['indent'] = (path) => {
+            if (!canIndent(path)) return;
+            const block = blockAt(blocks, path);
+            const index = path[path.length - 1];
+            const siblingPath = [...path.slice(0, -1), index - 1];
+            const sibling = blockAt(blocks, siblingPath);
+            if (!block || !sibling) return;
+
+            const removed = removeAt(blocks, path);
+            commit(
+                updateAt(removed, siblingPath, (current) => ({
+                    ...current,
+                    children: [...current.children, block]
+                }))
+            );
+            requestFocus([...siblingPath, sibling.children.length], CARET.End);
+        };
+
+        const toggleChecked: BlockCommands['toggleChecked'] = (path) => {
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            setAttrs(path, { checked: block.attrs['checked'] !== true });
+        };
+
+        const focusNeighbour: BlockCommands['focusNeighbour'] = (
+            path,
+            direction
+        ) => {
+            let candidate =
+                direction === -1
+                    ? previousPath(blocks, path)
+                    : nextPath(blocks, path);
+            // Step over anything with no caret to offer (a divider, a layout
+            // wrapper) so an arrow key never appears to do nothing.
+            while (candidate) {
+                const block = blockAt(blocks, candidate);
+                if (block && schema.get(block.type)?.content === 'inline') {
+                    requestFocus(
+                        candidate,
+                        direction === -1 ? CARET.End : CARET.Start
+                    );
+                    return;
+                }
+                candidate =
+                    direction === -1
+                        ? previousPath(blocks, candidate)
+                        : nextPath(blocks, candidate);
+            }
+        };
+
+        return {
+            setHtml,
+            setAttrs,
+            setType,
+            applyBlockType,
+            split,
+            mergeBackward,
+            mergeForward,
+            insertAfter,
+            remove,
+            duplicate,
+            move,
+            moveBy,
+            indent,
+            outdent,
+            toggleChecked,
+            canIndent,
+            focusNeighbour
+        };
+    }, [blocks, commit, requestFocus, schema]);
+}
+
+/** A copy of a block and its subtree, with fresh ids. */
+function cloneBlock(block: WysiwygBlock): WysiwygBlock {
+    return createBlock(block.type, {
+        html: block.html,
+        attrs: block.attrs,
+        children: block.children.map(cloneBlock)
+    });
+}
+
+/**
+ * The children a newly-created block of `type` needs to be usable. A layout
+ * with no columns, or a toggle with no body, has nothing to put a caret in.
+ */
+function seedChildren(type: string): WysiwygBlock[] {
+    if (type === BLOCK_TYPE.Columns) return [seedColumn(), seedColumn()];
+    if (type === BLOCK_TYPE.Column || type === BLOCK_TYPE.Toggle) {
+        return [createBlock(PARAGRAPH_TYPE)];
+    }
+    return [];
+}
+
+/** One seeded column, holding an empty paragraph to type into. */
+function seedColumn(): WysiwygBlock {
+    return createBlock(BLOCK_TYPE.Column, {
+        children: [createBlock(PARAGRAPH_TYPE)]
+    });
+}
+
+/**
+ * The content to carry into a converted block. Everything keeps its formatting
+ * except code, whose content is escaped plain text — moving `<strong>` markup
+ * into a code block would show the tags as if the author had typed them.
+ */
+function contentFor(type: string, html: string): string {
+    if (type !== BLOCK_TYPE.Code) return html;
+    return escapeHtmlText(htmlToPlainText(html));
+}

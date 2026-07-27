@@ -15,6 +15,7 @@ import {
     SelectValue,
     Textarea
 } from '@ortha-cms/design-system';
+import { WysiwygEditor } from '@ortha-cms/wysiwyg-admin';
 import type { ContentField } from '../../../domain/types/contentType';
 import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
@@ -286,6 +287,39 @@ export function EntryFieldInput({
                 </Field>
             );
         }
+
+        case CONTENT_FIELD_TYPE.Wysiwyg:
+            return (
+                <Field data-invalid={!!error}>
+                    <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {labelNode}
+                        {endAdornment}
+                    </FieldLabel>
+                    {/*
+                      The editor is a controlled HTML-in/HTML-out control, so it
+                      drops into the form exactly like an input: the same
+                      `value`/`onChange`, the same 422→field mapping, the same
+                      publish gate. It carries no label of its own — the field
+                      row owns that — and reports `''` when empty so a `required`
+                      rule sees an empty document as empty.
+                    */}
+                    <WysiwygEditor
+                        id={id}
+                        value={asText(value)}
+                        invalid={!!error}
+                        aria-describedby={describedBy}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                    />
+                    {description && (
+                        <FieldDescription>{description}</FieldDescription>
+                    )}
+                    {error && <FieldError id={errorId}>{error}</FieldError>}
+                </Field>
+            );
 
         case CONTENT_FIELD_TYPE.RichText:
         case CONTENT_FIELD_TYPE.Json: {

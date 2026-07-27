@@ -13,5 +13,8 @@
     },
     "files": [
         "src"
-    ]
+    ],
+    "dependencies": {
+        "@ortha-cms/wysiwyg-core": "*"
+    }
 }

@@ -29,9 +29,10 @@ export const post = collection('post', {
 - `collection()` (multi-entry) and `single()` (one entry, routed at `path`)
   normalize options, run `assertName` + `assertFields`, build the tables, and
   return a typed `ContentType`.
-- `field.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
-  `datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a JSON-serializable
-  `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
+- `field.*` field builders (`text`/`richtext`/`wysiwyg`/`number`/`money`/`boolean`/
+  `date`/`datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a
+  JSON-serializable `FieldSpec` carrying its value type as a phantom generic (for
+  `InferEntry`).
 - `relation({ to })` takes a **lazy thunk** so mutually-referencing collection
   files can import each other. `onDelete` defaults to `'cascade'` when
   `required`, else `'set null'`. A **required single relation with
@@ -62,6 +63,35 @@ which carries no storage of its own — model it as the single relation on the
 `unique: true`. **many-to-many** is `many: true` (the generated join table). See
 the reference collections in `apps/server/src/collections` (`article` wires up
 `author`, `seo_meta`, `tag`, and `comment`).
+
+### Wysiwyg fields (`field.wysiwyg`)
+
+`field.wysiwyg({ minLength?, maxLength?, required?, localized? })` is long-form
+content edited with the **block editor** (`@ortha-cms/wysiwyg-admin`) and stored
+as **HTML** in a plain `text` column — the same storage as `richtext`, and a
+different contract.
+
+**The value is canonicalized and sanitized on every write.** `coerceValues`
+(`entries/infrastructure/persistence/entry-row.ts`) runs
+`normalizeWysiwygHtml` (`@ortha-cms/wysiwyg-core`) over the incoming string
+before validation and before storage. That placement is the point:
+
+- the admin sanitizes too, but the admin is a **client** — a value reaching this
+  column may come from any API caller, so the allow-list has to be applied
+  somewhere a caller cannot skip;
+- normalizing (not merely filtering) means the same content stores identically
+  however it was authored, so a **revision diff shows real edits** rather than
+  formatting noise;
+- an empty document normalizes to `''`, so `isEmptyFieldValue` still sees an
+  untouched field as empty and `required` behaves like every other field.
+
+`minLength`/`maxLength` are measured on the **text**, not the markup (the shared
+kernel's `htmlTextLength`) — otherwise bolding a word would eat into the budget.
+Filtering/search treat it as a string column, like `richtext`; it is **excluded
+from the entry-title candidates** (`TITLE_FIELD_TYPES`) for the same reason
+`richtext` is — a document is not a label.
+
+Prefer it over `richtext`, which is a raw textarea the CMS never inspects.
 
 ### Media fields (`field.media`)
 

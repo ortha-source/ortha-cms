@@ -67,6 +67,7 @@ function isTextLike(spec: AnyFieldSpec): boolean {
     return (
         spec.type === CONTENT_FIELD_TYPE.Text ||
         spec.type === CONTENT_FIELD_TYPE.RichText ||
+        spec.type === CONTENT_FIELD_TYPE.Wysiwyg ||
         spec.type === CONTENT_FIELD_TYPE.Select
     );
 }

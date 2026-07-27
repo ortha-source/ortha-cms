@@ -26,6 +26,8 @@
         "@ortha-cms/shell-admin": "*",
         "@ortha-cms/utils-admin": "*",
         "@ortha-cms/workspaces-admin": "*",
+        "@ortha-cms/wysiwyg-admin": "*",
+        "@ortha-cms/wysiwyg-core": "*",
         "@tanstack/react-query": "^5.0.0",
         "lucide-react": "^1.17.0",
         "react-intl": "^7.0.0"

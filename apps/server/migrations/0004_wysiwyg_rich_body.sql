@@ -1,0 +1,1 @@
+ALTER TABLE "content_master_collection" ADD COLUMN "rich_body" text;

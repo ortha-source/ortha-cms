@@ -41,6 +41,8 @@ detail.
 | `design-system`       | `@ortha-cms/design-system`       | shadcn/ui component library + Tailwind. Governed by the `shadcn` skill.                                                                                                                                                                                          |
 | `utils/admin`         | `@ortha-cms/utils-admin`         | Shared admin plumbing: `apiClient`, `queryClient`, slots, error handling.                                                                                                                                                                                        |
 | `utils/server`        | `@ortha-cms/utils-server`        | Shared server utilities.                                                                                                                                                                                                                                         |
+| `wysiwyg/core`        | `@ortha-cms/wysiwyg-core`        | Block-editor **kernel**: document model, extensible block schema, HTML parse/sanitize/serialize. Zero deps, runs on both runtimes.                                                                                                                                                |
+| `wysiwyg/admin`       | `@ortha-cms/wysiwyg-admin`       | The React block editor (`WysiwygEditor`) — Notion/Coda-shaped, HTML in/out. Backs the `wysiwyg` content field type.                                                                                                                                                              |
 | `nx`                  | `@ortha-cms/nx`                  | **Nx plugin.** Infers the `db:generate` / `db:migrate` targets.                                                                                                                                                                                                  |
 
 > Regenerate this table whenever an app or package is added/removed/renamed.
@@ -73,6 +75,10 @@ detail.
 - **Workspace** — a tenant/grouping. **Membership** — an M:N user↔workspace link.
 - **Activity event** — an append-only audit row, written _in the same
   transaction_ as the mutation it records.
+- **`wysiwyg` field** — a content field whose value is **sanitized HTML**,
+  edited with the block editor (`@ortha-cms/wysiwyg-admin`) and canonicalized on
+  every write by `normalizeWysiwygHtml` (`@ortha-cms/wysiwyg-core`). Distinct
+  from `richtext`, a plain textarea the CMS never inspects.
 - **`workspace_content`** — ⚠️ an access-control mapping (workspace → code-defined
   content slug), **not** a content-storage table. There is no content CMS yet.
 - **ADR** — Architecture Decision Record. See [`docs/adr/`](docs/adr/README.md).

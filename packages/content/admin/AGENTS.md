@@ -236,7 +236,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   header `blocking`/`ready`; publishable types only) and a static **Details**
   block (status, created/updated, id). While a save/publish is running, the view
   covers itself with the **`EntryBusyOverlay`** (see _Save/publish flow_ below). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
-  control per field type — `date`/`datetime` use a shadcn `Calendar` popover
+  control per field type — a **`wysiwyg`** field renders the block editor
+  (`WysiwygEditor` from `@ortha-cms/wysiwyg-admin`), a controlled HTML-in/HTML-out
+  control that rides Save, the Changed badge, the publish gate and the 422→field
+  mapping exactly like an `<input>`; its **records cell** and its **revision
+  diff** render `htmlExcerpt` / `htmlToPlainText` rather than the markup (a
+  document is compared by its words, and a list view is the one place rendering
+  author-supplied HTML buys nothing); `date`/`datetime` use a shadcn `Calendar` popover
   (`EntryFieldInput/DateField`, with a time input for datetime), and
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so

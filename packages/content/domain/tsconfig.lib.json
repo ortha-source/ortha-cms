@@ -10,5 +10,5 @@
     },
     "include": ["src/**/*.ts"],
     "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
-    "references": []
+    "references": [{ "path": "../../wysiwyg/core/tsconfig.lib.json" }]
 }

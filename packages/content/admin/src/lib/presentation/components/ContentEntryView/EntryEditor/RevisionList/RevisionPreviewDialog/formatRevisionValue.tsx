@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { IntlShape } from 'react-intl';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../../../domain/types/contentType';
+import { htmlToPlainText } from '@ortha-cms/wysiwyg-core';
 import { CONTENT_FIELD_TYPE } from '../../../../../../domain/constants';
 
 /** True for a null / undefined / blank / empty-array value. */
@@ -77,6 +78,15 @@ export function formatRevisionValue(
                 <code className="block whitespace-pre-wrap break-words font-mono text-xs">
                     {JSON.stringify(value, null, 2)}
                 </code>
+            );
+        case CONTENT_FIELD_TYPE.Wysiwyg:
+            // Compared as text: a diff between two versions of a document is
+            // about the words, and two identical paragraphs would otherwise
+            // read as different because their markup was written differently.
+            return (
+                <span className="whitespace-pre-wrap break-words">
+                    {htmlToPlainText(String(value))}
+                </span>
             );
         case CONTENT_FIELD_TYPE.RichText:
         case CONTENT_FIELD_TYPE.Text:

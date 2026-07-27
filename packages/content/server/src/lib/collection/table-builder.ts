@@ -64,6 +64,7 @@ function columnFor(
     switch (spec.type) {
         case CONTENT_FIELD_TYPE.Text:
         case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.Wysiwyg:
         case CONTENT_FIELD_TYPE.Select:
             builder = text(col);
             break;

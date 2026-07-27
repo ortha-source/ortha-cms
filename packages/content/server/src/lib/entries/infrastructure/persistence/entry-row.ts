@@ -4,6 +4,7 @@
  * have one definition each. No DB access, no NestJS — just shape translation.
  */
 
+import { normalizeWysiwygHtml } from '@ortha-cms/wysiwyg-core';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, isEmptyFieldValue } from '../../../types/fields';
 import type { EntryRecord } from '../../types/entry-list-view';
@@ -77,6 +78,19 @@ export function coerceValues(
             case CONTENT_FIELD_TYPE.Money:
                 // NaN when unparseable — the validator reports "must be a number".
                 value = typeof value === 'number' ? value : Number(value);
+                break;
+            case CONTENT_FIELD_TYPE.Wysiwyg:
+                // Canonicalize *and* sanitize, here, on the way in. The admin
+                // sanitizes too, but the admin is a client: a value reaching
+                // this column may have come from any API caller, so the
+                // allow-list has to be applied somewhere they cannot skip.
+                // Normalizing also means two authors writing the same content
+                // by different routes store identical markup, so a revision
+                // diff shows real edits rather than formatting noise.
+                value =
+                    typeof value === 'string'
+                        ? normalizeWysiwygHtml(value)
+                        : null;
                 break;
             case CONTENT_FIELD_TYPE.Json:
                 if (typeof value === 'string') {

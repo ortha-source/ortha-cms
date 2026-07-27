@@ -255,3 +255,51 @@ describe('validateEntryValues — media fields', () => {
         });
     });
 });
+
+describe('validateEntryValues — wysiwyg fields', () => {
+    const wysiwygFields: EntryFieldSpecMap = {
+        body: {
+            type: CONTENT_FIELD_TYPE.Wysiwyg,
+            required: true,
+            validation: { minLength: 5, maxLength: 20 }
+        }
+    };
+
+    const issuesFor = (value: unknown): string[] =>
+        validateEntryValues(wysiwygFields, { body: value }).issues.map(
+            (issue) => issue.message
+        );
+
+    it('accepts HTML whose text is within the limits', () => {
+        expect(issuesFor('<p>Hello there</p>')).toEqual([]);
+    });
+
+    it('measures length on the text, not on the markup', () => {
+        // 10 characters of text wrapped in markup far longer than `maxLength`.
+        expect(
+            issuesFor(
+                '<p><strong><em>Hello</em> <u>you</u>!</strong></p>'
+            )
+        ).toEqual([]);
+    });
+
+    it('rejects text below minLength', () => {
+        expect(issuesFor('<p><strong>hi</strong></p>')).toEqual([
+            'must be at least 5 characters'
+        ]);
+    });
+
+    it('rejects text above maxLength', () => {
+        expect(issuesFor(`<p>${'a'.repeat(21)}</p>`)).toEqual([
+            'must be at most 20 characters'
+        ]);
+    });
+
+    it('treats empty markup as an empty required value', () => {
+        expect(issuesFor('')).toEqual(['is required']);
+    });
+
+    it('rejects a non-string value', () => {
+        expect(issuesFor({ blocks: [] })).toEqual(['must be a string']);
+    });
+});

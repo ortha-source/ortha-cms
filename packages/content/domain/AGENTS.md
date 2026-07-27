@@ -9,10 +9,17 @@ so only `content` gets a kernel.
 ## The one hard rule
 
 **Pure TypeScript — no React, no NestJS, no Drizzle, no `class-validator`, no
-node-only APIs beyond plain JS.** The package has **zero dependencies**. It
-imports nothing from `content-server`, so `content-server` (and later
-`content-admin`) may depend on it without a cycle. Keep it that way: anything
-needing a framework belongs in the consuming package.
+node-only APIs beyond plain JS.** It imports nothing from `content-server`, so
+`content-server` (and `content-admin`) may depend on it without a cycle. Keep it
+that way: anything needing a framework belongs in the consuming package.
+
+Its **one** dependency is `@ortha-cms/wysiwyg-core`, itself a zero-dependency
+pure-TS kernel, for `htmlTextLength`. A `wysiwyg` field's `minLength`/`maxLength`
+are measured on the **text**, not the markup — counting the markup would make a
+limit depend on how the text happened to be formatted — and that measurement has
+to be the *same* one the editor and the server's canonicalization use. A
+hand-rolled tag-stripper here would be a second definition of "how long is this
+document", i.e. exactly the drift this package exists to prevent.
 
 ## What lives here
 
@@ -27,7 +34,8 @@ needing a framework belongs in the consuming package.
   pure rules (`validateFieldValue`, `validateEntryValues`) extracted verbatim
   from the server's original `EntryValidationService`, operating on a serialized
   `EntryFieldSpec` map (`lib/fields/`). Messages and edge cases are identical, so
-  the server's delegation is a behavior-preserving refactor.
+  the server's delegation is a behavior-preserving refactor. The `wysiwyg` case
+  is the one addition: its length rules run over `htmlTextLength(value)`.
 - **The publish gate** (`lib/validation/publish-gate.ts`) — `canPublish`, the
   predicate derived from the same validator ("are the values complete + valid to
   publish"). Covers the **values bag** only; a required link-managed relation is

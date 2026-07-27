@@ -39,6 +39,7 @@ export function fieldLabel(field: ContentField): string {
 /** Field types that render poorly in a cell, so they're off by default. */
 const HEAVY_TYPES = new Set<string>([
     CONTENT_FIELD_TYPE.RichText,
+    CONTENT_FIELD_TYPE.Wysiwyg,
     CONTENT_FIELD_TYPE.Json,
     // Media stores raw asset ids in the values bag — a uuid (or array) is not a
     // useful cell, and there's no per-page media resolver on the list, so keep

@@ -3,6 +3,7 @@ import type { IntlShape } from 'react-intl';
 import { FileText } from 'lucide-react';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../domain/types/contentType';
+import { htmlExcerpt } from '@ortha-cms/wysiwyg-core';
 import { CONTENT_FIELD_TYPE } from '../../../../domain/constants';
 
 /** The em-dash placeholder for an empty cell. */
@@ -94,6 +95,15 @@ export function renderCell(
                     <span className="max-w-[24ch] truncate font-mono text-xs">
                         {JSON.stringify(value)}
                     </span>
+                </span>
+            );
+        case CONTENT_FIELD_TYPE.Wysiwyg:
+            // The stored value is HTML; a cell shows what it *says*. Rendering
+            // the markup in a table would also mean rendering author-supplied
+            // HTML in a list view, which is the one place it buys nothing.
+            return (
+                <span className="block max-w-[28ch] truncate">
+                    {htmlExcerpt(String(value))}
                 </span>
             );
         case CONTENT_FIELD_TYPE.RichText:

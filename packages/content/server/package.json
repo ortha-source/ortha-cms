@@ -27,6 +27,7 @@
         "@ortha-cms/identity-server": "*",
         "@ortha-cms/utils-server": "*",
         "@ortha-cms/workspaces-server": "*",
+        "@ortha-cms/wysiwyg-core": "*",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.15.1",
         "drizzle-orm": "^0.45.0"

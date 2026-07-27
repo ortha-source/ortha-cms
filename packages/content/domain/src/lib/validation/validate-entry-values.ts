@@ -9,6 +9,7 @@
  * over a serialized {@link EntryFieldSpec} map and a values bag.
  */
 
+import { htmlTextLength } from '@ortha-cms/wysiwyg-core';
 import {
     CONTENT_FIELD_TYPE,
     isEmptyFieldValue
@@ -94,6 +95,23 @@ export function validateFieldValue(
                 fail(`must be at most ${v.maxLength} characters`);
             if (v.pattern && !compiledPattern(v.pattern).test(value))
                 fail(`must match pattern ${v.pattern}`);
+            break;
+        }
+        case CONTENT_FIELD_TYPE.Wysiwyg: {
+            if (typeof value !== 'string') {
+                fail('must be a string');
+                break;
+            }
+            // Length is measured on the **text**, not on the markup: bolding a
+            // word would otherwise eat into a `maxLength` budget, and a limit
+            // that depends on how the text was formatted is not a limit an
+            // author can work to. `htmlTextLength` is the same measurement the
+            // editor and the server's canonicalization use.
+            const length = htmlTextLength(value);
+            if (v.minLength !== undefined && length < v.minLength)
+                fail(`must be at least ${v.minLength} characters`);
+            if (v.maxLength !== undefined && length > v.maxLength)
+                fail(`must be at most ${v.maxLength} characters`);
             break;
         }
         case CONTENT_FIELD_TYPE.Number:

@@ -20,6 +20,11 @@
 - `apps/admin` — React 19 + Vite SPA (admin UI)
 - `apps/server` — NestJS API
 - `packages/design-system` — `@ortha-cms/design-system`, shadcn/ui library
+- `packages/wysiwyg/{core,admin}` — the custom **block editor**.
+  `@ortha-cms/wysiwyg-core` is a zero-dependency, DOM-free kernel (document
+  model, extensible block schema, HTML parse/sanitize/serialize) used by **both**
+  runtimes; `@ortha-cms/wysiwyg-admin` is the React editor. Backs the `wysiwyg`
+  content field type, whose stored value is plain sanitized HTML.
 - `packages/bootstrap/{admin,server}` — the application **hosts** that turn a
   list of plugins into a running app
     - `@ortha-cms/bootstrap-admin` — `createAdmin({ plugins })`: mounts the React

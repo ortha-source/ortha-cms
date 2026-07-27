@@ -43,6 +43,7 @@ const FIELD_RANK: Record<string, number> = {
     [CONTENT_FIELD_TYPE.Boolean]: 1,
     [CONTENT_FIELD_TYPE.Multiselect]: 1,
     [CONTENT_FIELD_TYPE.RichText]: 2,
+    [CONTENT_FIELD_TYPE.Wysiwyg]: 2,
     [CONTENT_FIELD_TYPE.Json]: 2
 };
 

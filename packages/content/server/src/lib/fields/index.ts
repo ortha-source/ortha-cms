@@ -70,6 +70,21 @@ function richtext<const O extends TextFieldOptions = TextFieldOptions>(
     return base(CONTENT_FIELD_TYPE.RichText, options, { minLength, maxLength });
 }
 
+/**
+ * Block-editor rich text, stored as **HTML** (see `@ortha-cms/wysiwyg-core`).
+ *
+ * Unlike {@link richtext} — a plain textarea whose contents the CMS never looks
+ * at — a wysiwyg value is canonicalized and sanitized on every write, so what
+ * the column holds is always markup the platform itself would have produced.
+ * `minLength`/`maxLength` are measured on the **text**, not the markup.
+ */
+function wysiwyg<const O extends TextFieldOptions = TextFieldOptions>(
+    options?: O
+): FieldSpec<'wysiwyg', WithRequired<O, string>> {
+    const { minLength, maxLength } = options ?? {};
+    return base(CONTENT_FIELD_TYPE.Wysiwyg, options, { minLength, maxLength });
+}
+
 /** Floating-point number (or integer with `integer: true`). */
 function number<const O extends NumberFieldOptions = NumberFieldOptions>(
     options?: O
@@ -222,6 +237,7 @@ function media<const O extends MediaFieldOptions = MediaFieldOptions>(
 export const field = {
     text,
     richtext,
+    wysiwyg,
     number,
     money,
     boolean,

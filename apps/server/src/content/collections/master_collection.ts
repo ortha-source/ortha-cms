@@ -3,8 +3,9 @@
  *
  * One type that exercises **every** DSL capability at once:
  *   - all three envelope flags: `publishable` + `paranoid` + `i18n`
- *   - every field builder: text / richtext / number / money / boolean / date /
- *     datetime / select / multiselect / json / relation / relationInverse
+ *   - every field builder: text / richtext / wysiwyg / number / money /
+ *     boolean / date / datetime / select / multiselect / json / relation /
+ *     relationInverse
  *   - every text validation (minLength / maxLength / pattern) and admin widget
  *     (textarea / slug / color / email + custom pass-through props)
  *   - localized vs shared fields; required vs optional
@@ -74,6 +75,17 @@ export const master_collection = collection('master_collection', {
             required: true,
             localized: true,
             maxLength: 50000
+        }),
+
+        // ---- wysiwyg (block editor, stored as sanitized HTML) -------------
+        // `maxLength` counts the **text**, not the markup — see `field.wysiwyg`.
+        richBody: field.wysiwyg({
+            localized: true,
+            maxLength: 50000,
+            admin: {
+                label: 'Rich body',
+                description: 'Block editor — type “/” for commands.'
+            }
         }),
 
         // ---- number: float, integer, bounded ------------------------------

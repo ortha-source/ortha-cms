@@ -15,6 +15,7 @@ export function scalarTypeFor(spec: AnyFieldSpec): ScalarFieldSchema | null {
     switch (spec.type) {
         case CONTENT_FIELD_TYPE.Text:
         case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.Wysiwyg:
             return { type: ScalarFieldType.String };
         case CONTENT_FIELD_TYPE.Select:
             return {

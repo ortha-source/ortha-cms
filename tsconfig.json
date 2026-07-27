@@ -95,6 +95,12 @@
         },
         {
             "path": "./packages/media/server"
+        },
+        {
+            "path": "./packages/wysiwyg/core"
+        },
+        {
+            "path": "./packages/wysiwyg/admin"
         }
     ]
 }
