@@ -1,7 +1,8 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ServerModule } from './server.module';
-import { docsEnabled, mountDocs } from './utils/mount-docs';
+import { docsEnabled } from './utils/docs-document';
+import { mountDocs } from './utils/mount-docs';
 import type { CreateServerOptions } from './types/server-plugin';
 
 /**

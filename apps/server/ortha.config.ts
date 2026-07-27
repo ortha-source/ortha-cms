@@ -26,8 +26,11 @@ export interface OrthaConfig {
     globalPrefix: string;
     /** Database connection settings. */
     database: OrthaDatabaseConfig;
-    /** Scalar API-reference/playground settings. */
-    docs: ServerDocsConfig;
+    /**
+     * Scalar API-reference/playground settings. Optional — omitted, the host
+     * applies its own defaults (on outside production, at `/docs`).
+     */
+    docs?: ServerDocsConfig;
     /** Per-plugin runtime config, keyed by plugin name. */
     plugins: {
         /** Identity plugin settings. */

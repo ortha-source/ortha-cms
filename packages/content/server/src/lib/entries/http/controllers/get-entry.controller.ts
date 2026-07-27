@@ -11,10 +11,7 @@ import {
     PermissionsGuard,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { clampInt } from '@ortha-cms/utils-server';
 import { MAX_PAGE_SIZE } from '../../entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -47,14 +44,19 @@ export class GetEntryController {
         private readonly mediaRefs: MediaRefsQuery
     ) {}
 
+    /**
+     * `?fields=title,slug` narrows the returned `values` bag to those fields;
+     * omitted, the whole record is returned. An unknown name is a 400.
+     */
     @Get(':typeName/:id')
     getOne(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @Query('fields') fields?: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.getOne(type, id, workspaceId);
+        return this.writer.getOne(type, id, workspaceId, fields);
     }
 
     /**

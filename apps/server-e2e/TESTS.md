@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_382 test cases across 33 spec files._
+_391 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -439,6 +439,20 @@ _<sub>apps/server-e2e/src/server/content/list-entries.spec.ts</sub>_
 | applies the query-builder `?filter=` tree |
 | 404s an unknown content type |
 | 400s a page size over the cap |
+
+### field selection (?fields=)
+
+| Test case |
+| --- |
+| narrows every row’s values to the named field |
+| accepts several fields |
+| keeps the envelope — id, status and the page envelope survive |
+| returns the whole record when the param is absent |
+| narrows the single-entry read too |
+| 400s an unknown field rather than silently dropping it |
+| 400s a many-relation — it owns no value on the row |
+| combines with ?search= without widening the result set |
+| leaves the media route’s full read intact |
 
 ### publishable-only status
 

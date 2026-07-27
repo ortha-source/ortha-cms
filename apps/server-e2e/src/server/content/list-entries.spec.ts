@@ -68,7 +68,10 @@ describe('Content entries (GET /api/content/:typeName)', () => {
             ],
             workspaceId
         );
-        await seedLanding([{ text: 'Home page', select: 'light' }], workspaceId);
+        await seedLanding(
+            [{ text: 'Home page', select: 'light' }],
+            workspaceId
+        );
     });
 
     /**
@@ -131,7 +134,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
                 .expect(200);
 
             expect(res.body.total).toBe(1);
-            expect((res.body.items as EntryItem[])[0].values.text).toBe('Alpha');
+            expect((res.body.items as EntryItem[])[0].values.text).toBe(
+                'Alpha'
+            );
         });
 
         it('sorts by a column, descending with the `-` prefix', async () => {
@@ -180,10 +185,127 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         });
     });
 
+    describe('field selection (?fields=)', () => {
+        it('narrows every row’s values to the named field', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/content/test_article')
+                .query({ fields: 'text' })
+                .expect(200);
+
+            expect(res.body.items).toHaveLength(3);
+            for (const item of res.body.items as EntryItem[]) {
+                expect(Object.keys(item.values)).toEqual(['text']);
+            }
+        });
+
+        it('accepts several fields', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/content/test_article')
+                .query({ fields: 'text,select' })
+                .expect(200);
+
+            for (const item of res.body.items as EntryItem[]) {
+                expect(Object.keys(item.values).sort()).toEqual([
+                    'select',
+                    'text'
+                ]);
+            }
+        });
+
+        it('keeps the envelope — id, status and the page envelope survive', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/content/test_article')
+                .query({ fields: 'text' })
+                .expect(200);
+
+            const [item] = res.body.items as EntryItem[];
+            expect(item.id).toEqual(expect.any(String));
+            // `status` is envelope, not a value — `?fields=` must not drop it.
+            expect(item.status).toBeDefined();
+            expect(res.body).toMatchObject({ total: 3, page: 1 });
+        });
+
+        it('returns the whole record when the param is absent', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+
+            const [item] = res.body.items as EntryItem[];
+            expect(Object.keys(item.values).length).toBeGreaterThan(1);
+            expect(item.values).toHaveProperty('select');
+        });
+
+        it('narrows the single-entry read too', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const list = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+            const id = (list.body.items as EntryItem[])[0].id;
+
+            const res = await agent
+                .get(`/api/content/test_article/${id}`)
+                .query({ fields: 'text' })
+                .expect(200);
+
+            expect(res.body.values).toEqual({ text: expect.any(String) });
+            expect(res.body.id).toBe(id);
+        });
+
+        it('400s an unknown field rather than silently dropping it', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get('/api/content/test_article')
+                .query({ fields: 'text,nope' })
+                .expect(400);
+        });
+
+        it('400s a many-relation — it owns no value on the row', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get('/api/content/test_article')
+                .query({ fields: 'tags' })
+                .expect(400);
+        });
+
+        it('combines with ?search= without widening the result set', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/content/test_article')
+                .query({ fields: 'text', search: 'alph' })
+                .expect(200);
+
+            expect(res.body.total).toBe(1);
+            expect((res.body.items as EntryItem[])[0].values).toEqual({
+                text: 'Alpha'
+            });
+        });
+
+        it('leaves the media route’s full read intact', async () => {
+            // `GET :id/media` resolves media ids off the entry's own values bag,
+            // so it must keep reading the whole record regardless of `?fields=`.
+            const agent = await login(ADMIN_EMAIL);
+            const list = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+            const id = (list.body.items as EntryItem[])[0].id;
+
+            await agent
+                .get(`/api/content/test_article/${id}/media`)
+                .query({ fields: 'text' })
+                .expect(200);
+        });
+    });
+
     describe('publishable-only status', () => {
         it('omits `status` for a non-publishable type', async () => {
             const agent = await login(ADMIN_EMAIL);
-            const res = await agent.get('/api/content/test_landing').expect(200);
+            const res = await agent
+                .get('/api/content/test_landing')
+                .expect(200);
 
             const [item] = res.body.items as EntryItem[];
             expect(item.status).toBeUndefined();
@@ -219,7 +341,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
             // Workspace A (the suite default) sees only its three rows…
             const agentA = await login(ADMIN_EMAIL);
-            const resA = await agentA.get('/api/content/test_article').expect(200);
+            const resA = await agentA
+                .get('/api/content/test_article')
+                .expect(200);
             expect(resA.body.total).toBe(3);
             const textsA = (resA.body.items as EntryItem[]).map(
                 (item) => item.values.text
@@ -229,7 +353,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
             // …and workspace B sees only its one row.
             const agentB = await login(ADMIN_EMAIL, wsB.id);
-            const resB = await agentB.get('/api/content/test_article').expect(200);
+            const resB = await agentB
+                .get('/api/content/test_article')
+                .expect(200);
             expect(resB.body.total).toBe(1);
             expect((resB.body.items as EntryItem[])[0].values.text).toBe(
                 'Delta'
