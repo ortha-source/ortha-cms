@@ -12,6 +12,8 @@
         "@nestjs/common": "^11.0.0",
         "@nestjs/core": "^11.0.0",
         "@nestjs/platform-express": "^11.0.0",
+        "@nestjs/swagger": "^11.4.6",
+        "@scalar/nestjs-api-reference": "^1.2.11",
         "axios": "^1.6.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",

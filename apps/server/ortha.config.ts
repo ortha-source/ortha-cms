@@ -7,6 +7,7 @@
  * values come from the environment; stable tuning lives here as literals.
  */
 
+import type { ServerDocsConfig } from '@ortha-cms/bootstrap-server';
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
 import type { MediaPluginConfig } from '@ortha-cms/media-server';
@@ -25,6 +26,8 @@ export interface OrthaConfig {
     globalPrefix: string;
     /** Database connection settings. */
     database: OrthaDatabaseConfig;
+    /** Scalar API-reference/playground settings. */
+    docs: ServerDocsConfig;
     /** Per-plugin runtime config, keyed by plugin name. */
     plugins: {
         /** Identity plugin settings. */
@@ -41,6 +44,15 @@ const config: OrthaConfig = {
     globalPrefix: 'api',
     database: {
         url: process.env['DATABASE_URL'] ?? ''
+    },
+    docs: {
+        // The reference enumerates every route, parameter, and auth scheme, so
+        // it is off in production unless `API_DOCS=true` turns it back on
+        // deliberately. Everywhere else it defaults on (see `docsEnabled`).
+        enabled: process.env['API_DOCS']
+            ? process.env['API_DOCS'] === 'true'
+            : undefined,
+        path: process.env['API_DOCS_PATH'] ?? '/docs'
     },
     plugins: {
         identity: {

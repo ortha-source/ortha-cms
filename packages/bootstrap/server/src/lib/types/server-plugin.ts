@@ -30,6 +30,30 @@ export interface ServerPlugin {
     };
 }
 
+/**
+ * API-reference (Scalar) settings. The docs describe the running app's own
+ * routes, so they are generated from the live Nest metadata at boot rather than
+ * from a checked-in spec that could drift.
+ */
+export interface ServerDocsConfig {
+    /**
+     * Whether to mount the reference at all. **Defaults to off in production**
+     * and on everywhere else: the page enumerates every route, parameter, and
+     * auth scheme, which is a map of the attack surface — publishing it is a
+     * deliberate act, not a default.
+     */
+    enabled?: boolean;
+    /**
+     * Path the reference is served from, relative to the host root (NOT behind
+     * the global API prefix — it is a page, not an API route). Defaults to
+     * `/docs`; the external-API reference is mounted at `<path>/public` and the
+     * raw OpenAPI documents at `<path>/openapi.json` + `<path>/public/openapi.json`.
+     */
+    path?: string;
+    /** Version string shown on the reference. Defaults to `1.0.0`. */
+    version?: string;
+}
+
 /** Options for {@link createServer}. */
 export interface CreateServerOptions {
     /** Plugins to register. */
@@ -38,4 +62,6 @@ export interface CreateServerOptions {
     port?: number;
     /** Global API prefix. Defaults to "api". */
     globalPrefix?: string;
+    /** API-reference/playground settings. Off in production by default. */
+    docs?: ServerDocsConfig;
 }
