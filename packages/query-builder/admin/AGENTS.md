@@ -39,6 +39,12 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
   reduced-motion-aware), caps the rules list and scrolls it internally, and
   is a `role="region"` labelled by the toggle (used by the **content records**
   page). No portal container is needed — an inline panel isn't scroll-locked.
+  Takes `fieldsPending` / `fieldsError` / `onRetryFields` for a consumer whose
+  `fields` are **fetched**: it renders a loading or error state in place of the
+  builder and disables Apply. Required, not optional polish — the Apply gate
+  rejects every rule whose field it can't resolve, so without the definitions
+  Apply can never commit and an empty picker reads as a dead button. Reset
+  stays enabled throughout (clearing the applied filter needs no definitions).
 - `QueryBuilderSummary` — the collapsed resting summary: one removable chip
   per applied condition ("Author · Email contains @lilly ×") plus "Clear
   all"; removing a chip re-commits the narrowed tree at once.
@@ -97,6 +103,27 @@ name), so the existing e2e selectors keep working. Selecting a relation's own
 `id` field yields a record-picker value editor; a rule always keeps a field
 (our model has no field-less rule), so there is no destructive clear — the
 cell re-opens the picker to change the field.
+
+**The picker's listbox is a real listbox.** Every *navigable* row is an
+`option` — including a relation row, which carries `aria-expanded` instead of
+a value (a listbox admits no other interactive child). Group headings are
+`role="presentation"`, so they don't sit in the tree as invalid children.
+Focus never leaves the search box: it owns `aria-controls` + a live
+`aria-activedescendant`, and rows are `tabIndex={-1}`. Both halves matter —
+an arrow-key highlight with no `aria-activedescendant` is a purely visual
+state assistive tech never hears, and options reachable only by Tab would
+announce a position the keyboard can't act on. The same pattern is required
+of any injected `renderRelationValue` editor (see `RelationValuePicker` in
+content-admin) and of the locale switcher.
+
+**Unknown fields.** `RuleRow` resolves its field by id with **no**
+`?? fields[0]` fallback. Substituting an unrelated field would drive the
+operator list and the inline validation off the wrong type while the rule
+still carried the stale path — the row would look valid while the Apply gate
+(which also resolves by id) silently refused to commit. Instead the rule
+reports `RULE_VALIDATION.UnknownField`, unconditionally (it is a broken rule,
+not an unfinished draft), and the field cell stays rendered so re-picking
+fixes it.
 
 **Portaling inside scroll-locked containers.** A `Popover` portals to
 `document.body` by default, but the records filter mounts in a vaul

@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { Search } from 'lucide-react';
 
+import { Spinner } from './spinner';
+
 import { cn } from '../../utils';
 import { InputGroup, InputGroupAddon, InputGroupInput } from './input-group';
 
@@ -20,6 +22,13 @@ export type SearchToolbarProps = {
      * search box. i18n is the consumer's concern, kept out of this primitive.
      */
     actions?: React.ReactNode;
+    /**
+     * Whether a request driven by this toolbar is in flight. Swaps the leading
+     * magnifier for a spinner, so a list that keeps its previous rows while
+     * refetching still shows that something is happening. Purely visual — the
+     * list owns the announcement (its own live region says "Loading…").
+     */
+    busy?: boolean;
     className?: string;
 };
 
@@ -35,6 +44,7 @@ export function SearchToolbar({
     searchLabel,
     searchPlaceholder,
     actions,
+    busy = false,
     className
 }: SearchToolbarProps) {
     return (
@@ -43,7 +53,11 @@ export function SearchToolbar({
         >
             <InputGroup className="w-full shadow-none sm:max-w-[360px]">
                 <InputGroupAddon>
-                    <Search />
+                    {busy ? (
+                        <Spinner aria-hidden className="size-4" />
+                    ) : (
+                        <Search />
+                    )}
                 </InputGroupAddon>
                 <InputGroupInput
                     type="search"

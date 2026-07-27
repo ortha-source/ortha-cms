@@ -23,6 +23,11 @@ import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
 } from '../../../extension/entry-extension';
+import {
+    InjectMediaAssetResolver,
+    type MediaAssetResolver
+} from '../../../extension/media-asset-resolver';
+import { acceptsAsset, describeAccept } from './media-accept';
 import type { AnyContentType } from '../../../types/content-type';
 import { ENTRY_STATUS } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
@@ -41,6 +46,12 @@ import {
     RelationLinkService,
     type DbTransaction
 } from './relation-link.service';
+import {
+    InjectRevisionStore,
+    type RevisionStore
+} from '../../../revisions/application/ports/revision-store';
+import { Revision } from '../../../revisions/domain/revision';
+import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -70,12 +81,88 @@ export class EntryWriterService {
         @InjectDatabase() private readonly db: Database,
         private readonly validation: EntryValidationService,
         private readonly relations: RelationLinkService,
+        // The generic revision store — every save appends an immutable snapshot
+        // inside the same transaction, so the version and the write commit as one.
+        @InjectRevisionStore()
+        private readonly revisionStore: RevisionStore,
         // The entries extension port (e.g. the i18n plugin's locale stamping
         // and sibling sync) — absent unless a plugin binds it, hence optional.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
-        private readonly extension?: ContentEntryExtension
+        private readonly extension?: ContentEntryExtension,
+        // The media-asset resolver — bound by the media plugin so a media field's
+        // ids can be checked for existence + `accept` in the workspace. Absent
+        // when media isn't registered, in which case media fields shape-validate
+        // and store only (no existence/restriction check).
+        @Optional()
+        @InjectMediaAssetResolver()
+        private readonly mediaResolver?: MediaAssetResolver
     ) {}
+
+    /**
+     * Append an immutable **draft** revision for a just-saved row, on the save's
+     * own transaction so the snapshot commits atomically with it. Captures the
+     * whole document — the field `values` bag plus the full ordered link sets of
+     * every join-backed relation (read back inside `tx`, so it reflects the
+     * committed state). The entry's append lock serializes concurrent savers so
+     * each allocates a distinct version number.
+     */
+    private async appendRevision(
+        tx: DbTransaction,
+        type: AnyContentType,
+        row: Row,
+        workspaceId: string,
+        actorId: string | null
+    ): Promise<void> {
+        const id = row['id'] as string;
+        const links = await this.relations.snapshotLinks(tx, type, row);
+        await this.revisionStore.lockEntry(tx, id);
+        const number = await this.revisionStore.nextNumber(tx, id);
+        const revision = Revision.createDraft({
+            contentType: type.name,
+            entryId: id,
+            workspaceId,
+            localeGroupId: (row['localeGroupId'] as string | undefined) ?? null,
+            locale: (row['locale'] as string | undefined) ?? null,
+            number,
+            snapshot: buildSnapshot(type, row, links),
+            createdBy: actorId
+        });
+        await this.revisionStore.append(tx, revision);
+    }
+
+    /**
+     * Append a revision for each row an extension changed as a side-effect of
+     * this save — the locale siblings a shared (non-localized) field is synced
+     * to, today.
+     *
+     * Without this their stored values move while their timeline doesn't, so
+     * the history claims a change that never happened to them and hides one
+     * that did. Rows are sorted by id before appending: each takes a per-entry
+     * advisory lock, and a stable order across concurrent savers is what keeps
+     * two of them from deadlocking on the pair.
+     */
+    private async appendRevisionsFor(
+        tx: DbTransaction,
+        type: AnyContentType,
+        rows: Record<string, unknown>[] | void,
+        workspaceId: string,
+        actorId: string | null
+    ): Promise<void> {
+        if (!rows?.length) return;
+        const ordered = [...rows].sort((a, b) =>
+            String(a['id']).localeCompare(String(b['id']))
+        );
+        for (const row of ordered) {
+            await this.appendRevision(
+                tx,
+                type,
+                row as Row,
+                workspaceId,
+                actorId
+            );
+        }
+    }
 
     /**
      * Create an entry **owned by `workspaceId`** (stamped onto the row so the
@@ -101,10 +188,12 @@ export class EntryWriterService {
         workspaceId: string,
         relations?: Record<string, RelationDelta>,
         locale?: string,
-        localeGroupId?: string
+        localeGroupId?: string,
+        actorId?: string | null
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
+        await this.assertMediaTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
         // Extension-stamped envelope columns (e.g. the validated locale + group
         // id). Resolved before the transaction so an invalid param — unknown
@@ -164,12 +253,30 @@ export class EntryWriterService {
                     // to locale siblings): a sibling created into an existing
                     // group must land consistent with the group's shared values.
                     // A no-op for a fresh, sibling-less group.
-                    await this.extension?.afterUpdate(
+                    const touched = await this.extension?.afterUpdate(
                         tx,
                         type,
                         inserted as Row,
                         coerced,
                         workspaceId
+                    );
+                    // Snapshot the just-created document as its first revision,
+                    // inside this same transaction.
+                    await this.appendRevision(
+                        tx,
+                        type,
+                        inserted as Row,
+                        workspaceId,
+                        actorId ?? null
+                    );
+                    // …and one for every sibling the extension rewrote, so a
+                    // shared value landing on them is in their history too.
+                    await this.appendRevisionsFor(
+                        tx,
+                        type,
+                        touched,
+                        workspaceId,
+                        actorId ?? null
                     );
                     return inserted as Row;
                 }),
@@ -298,28 +405,35 @@ export class EntryWriterService {
         id: string,
         values: Record<string, unknown>,
         workspaceId: string,
-        relations?: Record<string, RelationDelta>
+        relations?: Record<string, RelationDelta>,
+        actorId?: string | null,
+        options?: {
+            /**
+             * Whether this write appends a version of its own (default `true`).
+             * Set `false` by the publish-a-specific-version path, which re-applies
+             * an existing version's snapshot to the live row: that version is
+             * marked published in place, so minting a copy of it would add a
+             * duplicate entry to the timeline for every publish. Locale siblings
+             * the extension rewrites still get their versions — their content
+             * really did change.
+             */
+            appendRevision?: boolean;
+        }
     ): Promise<EntryRecord> {
         const coerced = coerceValues(type, values);
         await this.assertRelationTargets(type, coerced, workspaceId);
+        await this.assertMediaTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
-        // written). Always-live types always must; a publishable type must only
-        // when the row is already published (a draft may be saved incomplete).
-        let enforceRequired = !type.publishable;
+        // written). A **publishable** type's save always produces a **draft**
+        // working copy: a draft may be incomplete, so it isn't eagerly validated,
+        // and editing an already-published entry moves it back to draft (its
+        // previously-published *version* stays live in history until the next
+        // publish). A non-publishable type is always live, so every write must
+        // validate now.
+        const enforceRequired = !type.publishable;
         if (!type.publishable) {
-            // Always-live type: every write must validate.
             this.assertValid(type, coerced);
-        } else {
-            // A draft may be saved incomplete, but a **published** row must stay
-            // valid — you can't null out a required field on live content
-            // without unpublishing first.
-            const current = await this.findLive(type, id, workspaceId);
-            if (!current) throw this.notFound(type, id);
-            if (current['status'] === ENTRY_STATUS.Published) {
-                this.assertValid(type, coerced);
-                enforceRequired = true;
-            }
         }
         // One transaction: replace the row's columns, re-sync a whole-set
         // many-relation submitted in `values`, and apply the staged relation
@@ -329,6 +443,20 @@ export class EntryWriterService {
                 .update(type.table)
                 .set({
                     ...toColumns(type, coerced),
+                    // Editing a publishable entry produces a draft working copy —
+                    // a published entry moves back to draft (its live version
+                    // stays published in history until the next publish).
+                    //
+                    // `published_at` is deliberately **kept**: it records that
+                    // this entry has a live published version, which an edit
+                    // does not retract (only `unpublish` does, and `markDraft`
+                    // clears it there). `draft` + a `published_at` is what the
+                    // admin reads as **Modified** — unsaved-to-live changes on
+                    // top of published content — versus a never-published
+                    // `draft`.
+                    ...(type.publishable
+                        ? { status: ENTRY_STATUS.Draft }
+                        : {}),
                     updatedAt: new Date()
                 } as never)
                 .where(this.liveWhere(type, id, workspaceId))
@@ -355,12 +483,32 @@ export class EntryWriterService {
             // Extension side-effects of a save (e.g. syncing shared fields to
             // locale siblings) run inside the same transaction — a failure
             // rolls the whole save back.
-            await this.extension?.afterUpdate(
+            const touched = await this.extension?.afterUpdate(
                 tx,
                 type,
                 updated as Row,
                 coerced,
                 workspaceId
+            );
+            // Snapshot the updated document as a new draft revision, inside this
+            // same transaction — unless the caller is re-applying a version that
+            // already exists in the timeline (publish-a-version).
+            if (options?.appendRevision ?? true) {
+                await this.appendRevision(
+                    tx,
+                    type,
+                    updated as Row,
+                    workspaceId,
+                    actorId ?? null
+                );
+            }
+            // …and one for every sibling the extension rewrote.
+            await this.appendRevisionsFor(
+                tx,
+                type,
+                touched,
+                workspaceId,
+                actorId ?? null
             );
             return updated as Row;
         });
@@ -394,6 +542,43 @@ export class EntryWriterService {
             .where(this.liveWhere(type, id, workspaceId))
             .returning();
         return row as Row | undefined;
+    }
+
+    /**
+     * Transition the entry's **revision history** to reflect a publish: one
+     * revision becomes the live (`published`) version and any prior published
+     * one is `superseded`. Runs on the publish transaction's executor (the
+     * active unit of work) so the row's status and its history commit as one.
+     * Delegates to the revision store — every revision is minted a draft, so
+     * this is what makes a published entry read as "Live" in the timeline.
+     *
+     * `revisionNumber` targets a **specific** version (publishing an earlier one
+     * in place); omitted, it targets the latest — the row that was just saved.
+     */
+    async markRevisionPublished(
+        exec: Database | DbTransaction,
+        entryId: string,
+        workspaceId: string,
+        revisionNumber?: number
+    ): Promise<void> {
+        await this.revisionStore.markPublished(
+            exec,
+            entryId,
+            workspaceId,
+            revisionNumber
+        );
+    }
+
+    /**
+     * Revert the entry's published revision back to `draft` on `exec` — the
+     * unpublish counterpart to {@link markRevisionPublished}.
+     */
+    async markRevisionUnpublished(
+        exec: Database | DbTransaction,
+        entryId: string,
+        workspaceId: string
+    ): Promise<void> {
+        await this.revisionStore.markUnpublished(exec, entryId, workspaceId);
     }
 
     /** Revert one live row to `status='draft'` (clearing `published_at`) on `exec`. */
@@ -856,7 +1041,10 @@ export class EntryWriterService {
                 .select()
                 .from(target.table)
                 .where(
-                    and(inArray(t['id'], ids), eq(t['workspaceId'], workspaceId))
+                    and(
+                        inArray(t['id'], ids),
+                        eq(t['workspaceId'], workspaceId)
+                    )
                 )) as Row[];
             const present = new Set(rows.map((row) => row['id'] as string));
             for (const ref of refs) {
@@ -865,6 +1053,74 @@ export class EntryWriterService {
                         field: ref.field,
                         message: 'must reference an existing entry'
                     });
+            }
+        }
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
+        }
+    }
+
+    /**
+     * Validate every media field's asset ids: each must reference an asset that
+     * **exists in the same workspace** and whose kind/MIME satisfies the field's
+     * `accept` restriction. Mirrors {@link assertRelationTargets} — asset ids are
+     * plain uuids with no FK (the assets live in the media plugin's schema), so
+     * without this a caller could reference — or probe — an asset in another
+     * workspace, or attach a disallowed file type. Batched: one resolver lookup
+     * across every media id on the entry.
+     *
+     * A **missing** asset and a **cross-workspace** one both read as the same
+     * uniform 422 (the resolver simply omits them from its map — no
+     * not-found-vs-forbidden enumeration signal). When no resolver is bound (the
+     * media plugin isn't registered) this is a no-op: media fields shape-validate
+     * and store their ids, but existence/restriction aren't enforced.
+     */
+    private async assertMediaTargets(
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<void> {
+        if (!this.mediaResolver) return;
+        // Collect every referenced asset id, remembering which field each came
+        // from so a violation names the right field.
+        const refs: { field: string; id: string }[] = [];
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (spec.type !== CONTENT_FIELD_TYPE.Media) continue;
+            const value = values[name];
+            const ids = Array.isArray(value)
+                ? value
+                : typeof value === 'string' && value
+                  ? [value]
+                  : [];
+            for (const id of ids) {
+                if (typeof id === 'string' && id) refs.push({ field: name, id });
+            }
+        }
+        if (!refs.length) return;
+
+        const resolved = await this.mediaResolver.resolve(
+            [...new Set(refs.map((ref) => ref.id))],
+            workspaceId
+        );
+        const issues: ValidationIssue[] = [];
+        for (const ref of refs) {
+            const asset = resolved.get(ref.id);
+            if (!asset) {
+                issues.push({
+                    field: ref.field,
+                    message: 'must reference an existing asset'
+                });
+                continue;
+            }
+            const spec = type.fields[ref.field];
+            if (!acceptsAsset(spec.accept, asset)) {
+                issues.push({
+                    field: ref.field,
+                    message: `must be ${describeAccept(spec.accept)}`
+                });
             }
         }
         if (issues.length) {

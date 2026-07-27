@@ -18,10 +18,10 @@ import {
 import { ENTRY_STATUS, type AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import type { WireFilterField } from '../../types/filter-surface';
-// `scalarTypeFor` is the single scalar-coercion mapping, shared with the
-// flat `buildEntryFilterSchema` so the two builders can't disagree on
-// which field types are filterable.
-import { scalarTypeFor } from './entry-filter-schema';
+// `scalarTypeFor` is the single scalar-coercion mapping — shared with the
+// sort whitelist (`isScalarField`), so "filterable" and "sortable" can't
+// disagree on which field types are backed by a comparable column.
+import { scalarTypeFor } from './entry-scalar-fields';
 
 /**
  * Relation hops offered by default. 2 hops means `author.company.name` is

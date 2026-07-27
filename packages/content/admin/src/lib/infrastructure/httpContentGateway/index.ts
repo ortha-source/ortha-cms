@@ -6,10 +6,14 @@ import type {
     ContentType,
     ContentTypeDetail,
     ContentTypeSummaryResponse,
+    EntryMedia,
     EntryRecord,
     EntryRelations,
     FilterFieldsResponse,
+    MediaRef,
     RelationFieldView,
+    RevisionDetail,
+    RevisionListView,
     WireFilterField
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
@@ -144,6 +148,20 @@ export const httpContentGateway: ContentGateway = {
         }
     },
 
+    async getEntryMedia(
+        name: string,
+        id: string
+    ): Promise<Record<string, MediaRef[]>> {
+        try {
+            const { data } = await apiClient.get<EntryMedia>(
+                `/content/${name}/${id}/media`
+            );
+            return data.media;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
     async getRelationField(
         name: string,
         id: string,
@@ -212,6 +230,62 @@ export const httpContentGateway: ContentGateway = {
         }
     },
 
+    async listRevisions(name: string, id: string): Promise<RevisionListView> {
+        try {
+            const { data } = await apiClient.get<RevisionListView>(
+                `/content/${name}/${id}/revisions`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<RevisionDetail> {
+        try {
+            const { data } = await apiClient.get<RevisionDetail>(
+                `/content/${name}/${id}/revisions/${number}`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async restoreRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<EntryRecord> {
+        try {
+            const { data } = await apiClient.post<EntryRecord>(
+                `/content/${name}/${id}/revisions/${number}/restore`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async publishRevision(
+        name: string,
+        id: string,
+        number: number
+    ): Promise<EntryRecord> {
+        try {
+            const { data } = await apiClient.post<EntryRecord>(
+                `/content/${name}/${id}/revisions/${number}/publish`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
     async publish(name: string, id: string): Promise<EntryRecord> {
         try {
             const { data } = await apiClient.post<EntryRecord>(
@@ -261,7 +335,10 @@ export const httpContentGateway: ContentGateway = {
         }
     },
 
-    bulkPreviewPublish(name: string, ids: string[]): Promise<BulkPublishPreview> {
+    bulkPreviewPublish(
+        name: string,
+        ids: string[]
+    ): Promise<BulkPublishPreview> {
         return bulkPost<BulkPublishPreview>(name, 'publish/preview', ids);
     },
     bulkPublish(name: string, ids: string[]): Promise<BulkPublishResult> {

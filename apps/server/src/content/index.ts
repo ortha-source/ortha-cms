@@ -15,6 +15,7 @@
  */
 
 import {
+    contentEntryRevisions,
     joinTableOf,
     type AnyContentType
 } from '@ortha-cms/content-server/define';
@@ -81,3 +82,10 @@ export const masterCollectionRelatedJoinTable = joinTableOf(
 
 // master_single: `tags` (→ tag).
 export const masterSingleTagsJoinTable = joinTableOf(master_single, 'tags');
+
+/* -------------------------------------------------------------------------- */
+/* Revision store — one fixed table (not per-type), defined by content-server  */
+/* and re-exported here so drizzle-kit diffs it like any content table.        */
+/* -------------------------------------------------------------------------- */
+
+export const contentEntryRevisionsTable = contentEntryRevisions;

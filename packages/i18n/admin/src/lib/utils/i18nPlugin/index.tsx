@@ -1,7 +1,10 @@
 import { defineMessages } from 'react-intl';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import {
+    CONTENT_OVERLAY_SLOT,
     ENTRY_HEADER_SLOT,
+    ENTRY_MENU_GROUP,
+    ENTRY_MENU_SLOT,
     ENTRY_PARAMS_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
     RECORDS_COLUMN_SLOT,
@@ -10,7 +13,9 @@ import {
     type ContentTypeDetail,
     type EntryRecord,
     type EntrySlotContext,
+    type ContentOverlayItem,
     type EntryHeaderItem,
+    type EntryMenuItem,
     type RecordsColumnItem,
     type RecordsToolbarItem,
     type EntrySidebarWidgetItem,
@@ -24,10 +29,13 @@ import {
 } from '../../constants';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
 import { useLocaleFilterFields } from '../../hooks/useLocaleFilterFields';
+import { usePublishAllLocales } from '../../hooks/usePublishAllLocales';
+import { useUnpublishAllLocales } from '../../hooks/useUnpublishAllLocales';
 import { LocaleSwitcher } from '../../components/LocaleSwitcher';
 import { LocalesColumnCell } from '../../components/LocalesColumnCell';
 import { LocaleWidget } from '../../components/LocaleWidget';
 import { LocaleTitleChip } from '../../components/LocaleTitleChip';
+import { LocaleSwitchOverlay } from '../../components/LocaleSwitchOverlay';
 
 const messages = defineMessages({
     localesColumn: {
@@ -92,6 +100,13 @@ export function I18nPlugin(): I18nAdminPlugin {
         id: SLOT_ITEM_ID.TitleChip,
         Component: LocaleTitleChip
     };
+    // Page-level, not inside the editor: the cover has to stay mounted while
+    // the destination record loads — which is exactly when the editor (and any
+    // widget inside it) is unmounted for its loading state.
+    const switchOverlayItem: ContentOverlayItem = {
+        id: SLOT_ITEM_ID.SwitchOverlay,
+        Component: LocaleSwitchOverlay
+    };
     const filterFieldsItem: RecordsFilterFieldsItem = {
         id: SLOT_ITEM_ID.FilterFields,
         useFields: useLocaleFilterFields
@@ -119,13 +134,34 @@ export function I18nPlugin(): I18nAdminPlugin {
                 : {};
         }
     };
+    // The editor's ⋯ menu, in its own section: act on every locale of the open
+    // record at once. Each hook resolves the siblings itself and returns null
+    // when it doesn't apply (not localized, not publishable, unsaved, no
+    // permission), which is how a menu item hides without skipping its hook.
+    const publishAllItem: EntryMenuItem = {
+        id: SLOT_ITEM_ID.PublishAll,
+        group: ENTRY_MENU_GROUP.Extras,
+        order: 10,
+        useItem: usePublishAllLocales
+    };
+    const unpublishAllItem: EntryMenuItem = {
+        id: SLOT_ITEM_ID.UnpublishAll,
+        group: ENTRY_MENU_GROUP.Extras,
+        order: 20,
+        useItem: useUnpublishAllLocales
+    };
     return {
         name: 'i18n',
         slots: [
             { slot: RECORDS_TOOLBAR_SLOT, items: [switcherItem] },
             { slot: RECORDS_COLUMN_SLOT, items: [columnItem] },
             { slot: ENTRY_SIDEBAR_WIDGET_SLOT, items: [widgetItem] },
+            {
+                slot: ENTRY_MENU_SLOT,
+                items: [publishAllItem, unpublishAllItem]
+            },
             { slot: ENTRY_HEADER_SLOT, items: [titleChipItem] },
+            { slot: CONTENT_OVERLAY_SLOT, items: [switchOverlayItem] },
             { slot: RECORDS_FILTER_FIELDS_SLOT, items: [filterFieldsItem] },
             { slot: ENTRY_PARAMS_SLOT, items: [entryParamsItem] }
         ]

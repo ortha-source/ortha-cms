@@ -16,6 +16,14 @@ export type EntryFormState = {
      * computation rather than re-running validation over the same values.
      */
     errors: Record<string, string>;
+    /**
+     * The **relaxed** validation errors (required not enforced, format only) —
+     * what {@link submitDraft} gates on. Exposed beside {@link errors} so a
+     * caller can tell, in the same tick a submit was refused, which fields
+     * blocked it: both maps are derived from the current values, while
+     * {@link errorFor} only reflects the reveal state of the *previous* render.
+     */
+    draftErrors: Record<string, string>;
     /** The error to show for a field (only once touched or after a submit). */
     errorFor: (name: string) => string | undefined;
     /** Set one field's value. */
@@ -34,7 +42,9 @@ export type EntryFormState = {
      * saving a publishable **draft** — incomplete is fine, but a malformed value
      * is still gated before it reaches the server. Returns whether it submitted.
      */
-    submitDraft: (onValid: (values: Record<string, unknown>) => void) => boolean;
+    submitDraft: (
+        onValid: (values: Record<string, unknown>) => void
+    ) => boolean;
     /**
      * Apply server-side validation issues (a 422 from the write API) onto the
      * form so they show inline on the right fields, even when client validation
@@ -162,6 +172,7 @@ export function useEntryForm(
     return {
         values,
         errors,
+        draftErrors,
         errorFor,
         setValue,
         touch,

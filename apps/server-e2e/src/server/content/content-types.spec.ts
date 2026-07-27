@@ -16,13 +16,15 @@ const PASSWORD = 'SecurePass123!';
  * The e2e-owned content types registered with ContentPlugin (see
  * support/content/index.ts), sorted — the assertions compare a `.sort()`ed
  * list. `test_article` wires up the `test_author`/`test_seo`/`test_tag`/
- * `test_comment` reference collections, so the registry is all six.
+ * `test_comment` reference collections, `test_landing` is the single, and
+ * `test_page` is the self-referential tree.
  */
 const REGISTRY_NAMES = [
     'test_article',
     'test_author',
     'test_comment',
     'test_landing',
+    'test_page',
     'test_seo',
     'test_tag'
 ];

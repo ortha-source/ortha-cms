@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, ChevronDown, Globe } from 'lucide-react';
 import {
@@ -18,7 +18,6 @@ import {
 } from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
 import { beginLocaleSwitch } from '../../utils/localeTransition';
-import { LocaleSwitchOverlay } from '../LocaleSwitchOverlay';
 
 const messages = defineMessages({
     label: {
@@ -60,6 +59,12 @@ function matches(haystack: string, query: string): boolean {
  * than a cmdk `Command`, so the mouse wheel scrolls the list and the rounded
  * border stays clean. The trigger keeps its `Locale: {name}` label and each row
  * `role="option"`.
+ *
+ * Dropping cmdk means owning the keyboard contract it used to provide: focus
+ * stays in the search box, ↑/↓ move an `aria-activedescendant` highlight and
+ * Enter picks — rows are `tabIndex={-1}` so a long locale list isn't a Tab
+ * gauntlet, and a `listbox` whose options are only reachable by Tab would
+ * announce a position the keyboard can't act on.
  */
 export function LocaleSwitcher({
     schema,
@@ -69,6 +74,8 @@ export function LocaleSwitcher({
     const intl = useIntl();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+    const listId = useId();
     const { locales, defaultLocale } = useLocales();
 
     const activeSlug = resolveActiveLocale({
@@ -83,6 +90,10 @@ export function LocaleSwitcher({
             ),
         [locales, query]
     );
+
+    // Narrowing the search can leave the highlight past the end of the list,
+    // which would make Enter a no-op.
+    useEffect(() => setActiveIndex(0), [query, open]);
 
     if (!schema.i18n || locales.length === 0) return null;
 
@@ -103,6 +114,22 @@ export function LocaleSwitcher({
                 [LOCALE_PARAM]: toLocaleListParam(slug, defaultLocale?.slug)
             });
         });
+    };
+
+    const onListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (filtered.length === 0) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActiveIndex((i) => (i + 1) % filtered.length);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActiveIndex((i) => (i - 1 + filtered.length) % filtered.length);
+        } else if (event.key === 'Enter') {
+            const locale = filtered[activeIndex];
+            if (!locale) return;
+            event.preventDefault();
+            select(locale.slug);
+        }
     };
 
     return (
@@ -130,8 +157,13 @@ export function LocaleSwitcher({
                         />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-56 p-2">
+                <PopoverContent
+                    align="end"
+                    className="w-56 p-2"
+                    onKeyDown={onListKeyDown}
+                >
                     <Input
+                        autoFocus
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder={intl.formatMessage(
@@ -140,11 +172,18 @@ export function LocaleSwitcher({
                         aria-label={intl.formatMessage(
                             messages.searchPlaceholder
                         )}
+                        aria-controls={listId}
+                        aria-activedescendant={
+                            filtered[activeIndex]
+                                ? `${listId}-${filtered[activeIndex].slug}`
+                                : undefined
+                        }
                         className="mb-1 h-8 rounded-lg shadow-none"
                     />
                     {/* Only the list scrolls (plain container → mouse wheel
                         works), so the search box stays put. */}
                     <div
+                        id={listId}
                         role="listbox"
                         aria-label={intl.formatMessage(messages.list)}
                         className="max-h-72 overflow-y-auto"
@@ -154,20 +193,29 @@ export function LocaleSwitcher({
                                 {intl.formatMessage(messages.empty)}
                             </p>
                         ) : (
-                            filtered.map((locale) => {
+                            filtered.map((locale, index) => {
                                 const isActive = locale.slug === active?.slug;
+                                const isHighlighted = index === activeIndex;
                                 return (
                                     <button
                                         key={locale.slug}
+                                        id={`${listId}-${locale.slug}`}
                                         type="button"
+                                        tabIndex={-1}
                                         role="option"
                                         aria-selected={isActive}
+                                        onMouseEnter={() =>
+                                            setActiveIndex(index)
+                                        }
                                         onClick={() => select(locale.slug)}
                                         className={cn(
                                             'flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm',
                                             'hover:bg-accent hover:text-accent-foreground',
-                                            'focus-visible:bg-accent focus-visible:outline-none',
-                                            isActive && 'bg-accent/50'
+                                            isHighlighted &&
+                                                'bg-accent text-accent-foreground',
+                                            isActive &&
+                                                !isHighlighted &&
+                                                'bg-accent/50'
                                         )}
                                     >
                                         <Check
@@ -194,7 +242,6 @@ export function LocaleSwitcher({
                     </div>
                 </PopoverContent>
             </Popover>
-            <LocaleSwitchOverlay />
         </>
     );
 }

@@ -1,6 +1,11 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Alert, AlertTitle, AlertDescription, Container } from '@ortha-cms/design-system';
+import {
+    Alert,
+    AlertTitle,
+    AlertDescription,
+    Container
+} from '@ortha-cms/design-system';
 import { useSidebarContent } from '@ortha-cms/shell-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
 import { CurrentWorkspaceProvider } from '../../currentWorkspace';
@@ -103,13 +108,16 @@ export function WorkspaceShell() {
 
     return (
         <CurrentWorkspaceProvider workspace={current}>
-            {/* Fills the main inset beside the app sidebar. A flex column so a
-                viewport-bound page (the Content Library) can size itself with
-                `flex-1` off THIS element's height instead of measuring the
-                viewport again — two independent svh calculations can round a
-                pixel apart (visibly at browser zoom ≠ 100%) and hand the
-                document a phantom scrollbar beside the pane's own. */}
-            <div className="flex min-h-svh flex-col">
+            {/* Fills the main inset beside the app sidebar. `h-full`, not
+                `min-h-svh`: the inset is already bounded to the viewport, so a
+                page that wants an island (the Content Library, the Media
+                Library) sizes itself with `flex-1` off THIS element's height
+                instead of measuring the viewport a second time — two
+                independent svh calculations can round a pixel apart (visibly at
+                browser zoom ≠ 100%) and hand the inset a phantom scrollbar
+                beside the pane's own. A taller page simply overflows and the
+                inset scrolls. */}
+            <div className="flex h-full flex-col">
                 <Routes>
                     {defaultPath ? (
                         <Route

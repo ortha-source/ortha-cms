@@ -88,6 +88,15 @@
             "path": "./packages/content/domain"
         },
         {
+            "path": "./packages/media/provider-local"
+        },
+        {
+            "path": "./packages/media/provider-s3"
+        },
+        {
+            "path": "./packages/media/server"
+        },
+        {
             "path": "./packages/api-tokens/admin"
         }
     ]

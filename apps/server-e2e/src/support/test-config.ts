@@ -75,6 +75,18 @@ export function buildTestConfig(
                     { slug: 'de', name: 'Deutsch' },
                     { slug: 'fr', name: 'Français' }
                 ]
+            },
+            // The media plugin registers an in-memory `memory` provider in
+            // `buildTestPlugins`, so uploads never touch disk. `defaultProvider`
+            // names it; local/s3 settings are unused in tests.
+            media: {
+                defaultProvider: 'memory',
+                local: {
+                    rootDir: './.storage/test-media',
+                    publicBasePath: '/api/media/assets'
+                },
+                s3: { bucket: '', region: '' },
+                maxUploadBytes: 52_428_800
             }
         }
     };

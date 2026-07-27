@@ -20,6 +20,10 @@ export const PERMISSIONS = {
     CONTENT_UPDATE: 'content:update',
     CONTENT_PUBLISH: 'content:publish',
     CONTENT_DELETE: 'content:delete',
+    MEDIA_READ: 'media:read',
+    MEDIA_CREATE: 'media:create',
+    MEDIA_UPDATE: 'media:update',
+    MEDIA_DELETE: 'media:delete',
     TOKENS_READ: 'tokens:read',
     TOKENS_CREATE: 'tokens:create',
     TOKENS_DELETE: 'tokens:delete'
@@ -58,7 +62,10 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.CONTENT_READ,
             PERMISSIONS.CONTENT_CREATE,
             PERMISSIONS.CONTENT_UPDATE,
-            PERMISSIONS.CONTENT_PUBLISH
+            PERMISSIONS.CONTENT_PUBLISH,
+            PERMISSIONS.MEDIA_READ,
+            PERMISSIONS.MEDIA_CREATE,
+            PERMISSIONS.MEDIA_UPDATE
         ]
     },
     {
@@ -67,7 +74,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
         permissions: [
             PERMISSIONS.WORKSPACES_READ,
             PERMISSIONS.USERS_READ,
-            PERMISSIONS.CONTENT_READ
+            PERMISSIONS.CONTENT_READ,
+            PERMISSIONS.MEDIA_READ
         ]
     }
 ] as const;

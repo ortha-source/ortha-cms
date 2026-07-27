@@ -11,6 +11,12 @@
 export { collection, single, joinTableOf } from './lib/collection/define';
 export { field } from './lib/fields';
 
+// The one fixed (non per-type) content table: the generic revision store. It is
+// HOST-owned like every generated `content_<name>` table — surfaced here (the
+// decorator-free barrel) so the host's drizzle-kit schema entry can re-export it
+// into the migration diff without pulling in the NestJS main barrel.
+export { contentEntryRevisions } from './lib/revisions/infrastructure/persistence/revision-table';
+
 export { CONTENT_TYPE_KIND } from './lib/types/content-type';
 export type {
     AnyContentType,

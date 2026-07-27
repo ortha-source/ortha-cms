@@ -1,4 +1,15 @@
 export { cn } from './lib/utils';
+export {
+    AppearanceProvider,
+    useAppearance,
+    DEFAULT_THEME,
+    THEME_STORAGE_KEY
+} from './lib/appearance';
+export type {
+    AppearanceContextValue,
+    ThemePreference,
+    ResolvedTheme
+} from './lib/appearance';
 export { Button, buttonVariants } from './lib/components/ui/button';
 export type { ButtonProps } from './lib/components/ui/button';
 export {
@@ -95,7 +106,7 @@ export {
     BreadcrumbSeparator,
     BreadcrumbEllipsis
 } from './lib/components/ui/breadcrumb';
-export { TopBar, TopBarIcon } from './lib/components/ui/top-bar';
+export { TopBar, TopBarIcon, TopBarActions } from './lib/components/ui/top-bar';
 export {
     InputGroup,
     InputGroupAddon,
@@ -171,6 +182,7 @@ export {
     TableCaption
 } from './lib/components/ui/table';
 export { Checkbox } from './lib/components/ui/checkbox';
+export { Progress } from './lib/components/ui/progress';
 export { RadioGroup, RadioGroupItem } from './lib/components/ui/radio-group';
 export {
     DropdownMenu,
@@ -249,6 +261,10 @@ export {
     useSidebar,
     useOptionalSidebar
 } from './lib/components/ui/sidebar';
+// The one breakpoint the chrome branches on (768px), so a consumer that must lay
+// out differently on a phone reads the *same* boundary the sidebar does instead
+// of picking its own.
+export { useIsMobile } from './lib/hooks/use-mobile';
 export {
     Stepper,
     WizardStepCard,

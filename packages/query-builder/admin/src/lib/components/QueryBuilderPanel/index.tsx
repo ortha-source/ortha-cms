@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Button } from '@ortha-cms/design-system';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+    Button,
+    Spinner
+} from '@ortha-cms/design-system';
 import type {
     FilterField,
     RelationValueEditor
@@ -18,7 +24,21 @@ const messages = defineMessages({
             '{count, plural, =0 {No conditions} one {# condition} other {# conditions}}'
     },
     apply: { id: 'qb.panel.apply', defaultMessage: 'Apply' },
-    reset: { id: 'qb.panel.reset', defaultMessage: 'Reset' }
+    reset: { id: 'qb.panel.reset', defaultMessage: 'Reset' },
+    loading: {
+        id: 'qb.panel.loading',
+        defaultMessage: 'Loading filterable fields…'
+    },
+    errorTitle: {
+        id: 'qb.panel.errorTitle',
+        defaultMessage: "Couldn't load the filterable fields"
+    },
+    errorBody: {
+        id: 'qb.panel.errorBody',
+        defaultMessage:
+            'Filters are unavailable until this loads. Any filter already applied is still in effect.'
+    },
+    retry: { id: 'qb.panel.retry', defaultMessage: 'Try again' }
 });
 
 /** Props for {@link QueryBuilderPanel}. */
@@ -41,6 +61,20 @@ export type QueryBuilderPanelProps = {
     labelledBy?: string;
     /** `id` for the region element (the toggle's `aria-controls` target). */
     id?: string;
+    /**
+     * `fields` has not loaded yet. Renders a loading state instead of the
+     * builder — a rule whose field is missing can never pass the Apply gate,
+     * so showing an empty picker would just look broken.
+     */
+    fieldsPending?: boolean;
+    /**
+     * Loading `fields` failed. Renders an error state with {@link onRetryFields}
+     * instead of the builder. Distinct from "the type has no filterable
+     * fields", which is a legitimately empty picker.
+     */
+    fieldsError?: boolean;
+    /** Retry the `fields` request; renders a Try again action when set. */
+    onRetryFields?: () => void;
 };
 
 /**
@@ -65,7 +99,10 @@ export function QueryBuilderPanel({
     onApplied,
     renderRelationValue,
     labelledBy,
-    id
+    id,
+    fieldsPending = false,
+    fieldsError = false,
+    onRetryFields
 }: QueryBuilderPanelProps) {
     const intl = useIntl();
     const [draft, setDraft] = useState<FilterGroup | null>(value);
@@ -90,12 +127,19 @@ export function QueryBuilderPanel({
     }, [draft, fields, showErrors]);
 
     // Move focus into the first condition's field cell when the panel opens.
+    // Re-runs once the fields resolve, since until then the builder — and so
+    // the field cell — isn't rendered at all.
     useEffect(() => {
-        if (!open) return;
+        if (!open || fieldsPending || fieldsError) return;
         regionRef.current
             ?.querySelector<HTMLElement>('[role="combobox"]')
             ?.focus();
-    }, [open]);
+    }, [open, fieldsPending, fieldsError]);
+
+    // Without the field definitions every rule fails the Apply gate (a rule
+    // whose field can't be resolved is never valid), so committing is
+    // impossible — say so with a disabled button rather than a dead one.
+    const fieldsReady = !fieldsPending && !fieldsError;
 
     const apply = () => {
         if (treeHasInvalidRules(draft, fields)) {
@@ -138,16 +182,44 @@ export function QueryBuilderPanel({
                     onKeyDown={onKeyDown}
                     className="mb-6 flex flex-col gap-4 rounded-2xl border bg-muted/50 p-5"
                 >
-                    <div className="max-h-[22rem] overflow-y-auto pr-1">
-                        <QueryBuilder
-                            fields={fields}
-                            value={draft}
-                            onChange={setDraft}
-                            showErrors={showErrors}
-                            renderRelationValue={renderRelationValue}
-                        />
-                    </div>
-                    <JsonPreview tree={draft} />
+                    {fieldsError ? (
+                        <Alert variant="destructive" role="alert">
+                            <AlertTitle>
+                                {intl.formatMessage(messages.errorTitle)}
+                            </AlertTitle>
+                            <AlertDescription className="flex flex-col items-start gap-2">
+                                {intl.formatMessage(messages.errorBody)}
+                                {onRetryFields ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={onRetryFields}
+                                    >
+                                        {intl.formatMessage(messages.retry)}
+                                    </Button>
+                                ) : null}
+                            </AlertDescription>
+                        </Alert>
+                    ) : fieldsPending ? (
+                        <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                            <Spinner aria-hidden className="size-4" />
+                            {intl.formatMessage(messages.loading)}
+                        </p>
+                    ) : (
+                        <>
+                            <div className="max-h-[22rem] overflow-y-auto pr-1">
+                                <QueryBuilder
+                                    fields={fields}
+                                    value={draft}
+                                    onChange={setDraft}
+                                    showErrors={showErrors}
+                                    renderRelationValue={renderRelationValue}
+                                />
+                            </div>
+                            <JsonPreview tree={draft} />
+                        </>
+                    )}
                     <div className="flex items-center justify-between gap-2 border-t pt-4">
                         <span className="text-xs text-muted-foreground tabular-nums">
                             {intl.formatMessage(messages.conditions, {
@@ -162,7 +234,11 @@ export function QueryBuilderPanel({
                             >
                                 {intl.formatMessage(messages.reset)}
                             </Button>
-                            <Button type="button" onClick={apply}>
+                            <Button
+                                type="button"
+                                onClick={apply}
+                                disabled={!fieldsReady}
+                            >
                                 {intl.formatMessage(messages.apply)}
                             </Button>
                         </div>

@@ -115,9 +115,44 @@ const ROWS: LocalizedRow[] = [
     }
 ];
 
-/** Rows of one group, keyed by group id. */
-function groupRows(groupId: string): LocalizedRow[] {
-    return ROWS.filter((row) => row.localeGroupId === groupId);
+/** One recorded content write (create/update/publish) for spy assertions. */
+export interface EntryWrite {
+    method: string;
+    /** The request path (no origin/query), e.g. `/api/content/localized_post`. */
+    path: string;
+    /** Whether the path is a bare-collection create (`POST /api/content/:type`). */
+    isCreate: boolean;
+    body: { locale?: string; localeGroupId?: string; values?: unknown } | null;
+}
+
+/**
+ * Record every content write the editor issues, so a spec can assert **which**
+ * request a save produced — in particular that a create-after-locale-switch is a
+ * POST to the collection (a new sibling), never a PATCH re-using the previously
+ * created row's id. Registered on `page` before navigation; returns the growing
+ * list. Reads/relations/schema GETs are ignored.
+ */
+export function spyEntryWrites(page: Page): EntryWrite[] {
+    const writes: EntryWrite[] = [];
+    page.on('request', (request) => {
+        const method = request.method();
+        if (method !== 'POST' && method !== 'PATCH' && method !== 'PUT') return;
+        const path = new URL(request.url()).pathname;
+        if (!/^\/api\/content\/[^/]+/.test(path)) return;
+        let body: EntryWrite['body'] = null;
+        try {
+            body = request.postDataJSON();
+        } catch {
+            body = null;
+        }
+        writes.push({
+            method,
+            path,
+            isCreate: method === 'POST' && /^\/api\/content\/[^/]+$/.test(path),
+            body
+        });
+    });
+    return writes;
 }
 
 /**
@@ -125,6 +160,21 @@ function groupRows(groupId: string): LocalizedRow[] {
  * the locale-scoped records list, and the four `/api/i18n/**` endpoints.
  */
 export async function mockI18n(page: Page): Promise<void> {
+    // Rows created during the test (via POST). Kept in-memory so that after a
+    // create the editor's canonical read (`/:type/:id`) and the locale panel
+    // resolve the brand-new row — letting a spec exercise the full
+    // create → switch locale → create-sibling flow, not just URL round-trips.
+    const created: LocalizedRow[] = [];
+    // A **per-call copy** of the seed. Routes mutate `status` (publish,
+    // unpublish, publish-all), and `ROWS` is module-level — without the copy one
+    // test's publish would be the next test's starting state, which is exactly
+    // the cross-test bleed `page.route`'s per-page lifetime is supposed to
+    // prevent.
+    const seeded: LocalizedRow[] = ROWS.map((row) => ({ ...row }));
+    const allRows = (): LocalizedRow[] => [...seeded, ...created];
+    const liveGroupRows = (groupId: string): LocalizedRow[] =>
+        allRows().filter((row) => row.localeGroupId === groupId);
+
     // GET /api/content-schema — the type catalogue (anchored off the detail route).
     await page.route(/\/api\/content-schema(\?.*)?$/, async (route) => {
         await route.fulfill({
@@ -169,24 +219,29 @@ export async function mockI18n(page: Page): Promise<void> {
                 locale?: string;
                 localeGroupId?: string;
             };
+            const locale = body.locale ?? 'en';
+            const row: LocalizedRow = {
+                id: `lp-${locale}-new`,
+                status: 'draft',
+                locale,
+                // A create without a group id starts a fresh translation group;
+                // a sibling create carries the source row's group forward.
+                localeGroupId: body.localeGroupId ?? 'G-new',
+                createdAt: ISO,
+                updatedAt: ISO,
+                values: body.values
+            };
+            created.push(row);
             await route.fulfill({
                 status: 201,
                 contentType: 'application/json',
-                body: JSON.stringify({
-                    id: `lp-${body.locale ?? 'en'}-new`,
-                    status: 'draft',
-                    locale: body.locale ?? 'en',
-                    localeGroupId: body.localeGroupId ?? 'G-new',
-                    createdAt: ISO,
-                    updatedAt: ISO,
-                    values: body.values
-                })
+                body: JSON.stringify(row)
             });
             return;
         }
         const url = new URL(route.request().url());
         const locale = url.searchParams.get('locale') ?? 'en';
-        const items = ROWS.filter((row) => row.locale === locale);
+        const items = seeded.filter((row) => row.locale === locale);
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -205,19 +260,123 @@ export async function mockI18n(page: Page): Promise<void> {
     await page.route(
         /\/api\/content\/[^/]+\/([^/?]+)(\?.*)?$/,
         async (route) => {
-            if (route.request().method() !== 'GET') {
-                await route.fallback();
-                return;
-            }
+            const method = route.request().method();
             const segments = new URL(route.request().url()).pathname
                 .split('?')[0]
                 .split('/');
             const id = segments[segments.length - 1];
-            const row = ROWS.find((candidate) => candidate.id === id);
+            const row = allRows().find((candidate) => candidate.id === id);
+            if (method === 'GET') {
+                await route.fulfill({
+                    status: row ? 200 : 404,
+                    contentType: 'application/json',
+                    body: JSON.stringify(row ?? { message: 'Not found' })
+                });
+                return;
+            }
+            // PATCH updates an existing row **in its own locale** — it never
+            // re-homes the row to another locale (the server's update endpoint
+            // ignores locale/localeGroupId). Modelled so a regressed create (a
+            // stale id turning a sibling-create into a same-row PATCH) resolves
+            // instead of hitting the network, and the spec's method assertion is
+            // what fails.
+            if (method === 'PATCH') {
+                const body = route.request().postDataJSON() as {
+                    values?: Record<string, unknown>;
+                };
+                if (row) row.values = { ...row.values, ...(body.values ?? {}) };
+                await route.fulfill({
+                    status: row ? 200 : 404,
+                    contentType: 'application/json',
+                    body: JSON.stringify(row ?? { message: 'Not found' })
+                });
+                return;
+            }
+            await route.fallback();
+        }
+    );
+
+    // POST /api/content/:name/:id/publish — marks the row published (the
+    // publish step chained after a save when the intent is publish).
+    await page.route(
+        /\/api\/content\/[^/]+\/([^/?]+)\/publish$/,
+        async (route) => {
+            const segments = new URL(route.request().url()).pathname.split('/');
+            const id = segments[segments.length - 2];
+            const row = allRows().find((candidate) => candidate.id === id);
+            if (row) row.status = 'published';
             await route.fulfill({
                 status: row ? 200 : 404,
                 contentType: 'application/json',
                 body: JSON.stringify(row ?? { message: 'Not found' })
+            });
+        }
+    );
+
+    // POST /api/content/:name/bulk/... — the endpoints the editor's "all
+    // locales" actions drive. Verdicts are derived from the seeded rows, so a
+    // spec can assert that an already-live locale reads *already published*
+    // while its draft sibling reads *will publish*. Registered before the
+    // narrower two-segment routes below, which can't match a bulk path anyway.
+    await page.route(
+        /\/api\/content\/[^/]+\/bulk\/([^/]+)(\/preview)?$/,
+        async (route) => {
+            const parts = new URL(route.request().url()).pathname.split('/');
+            const preview = parts[parts.length - 1] === 'preview';
+            const action = preview
+                ? parts[parts.length - 2]
+                : parts[parts.length - 1];
+            const { ids = [] } = (route.request().postDataJSON() ?? {}) as {
+                ids?: string[];
+            };
+            const rows = ids
+                .map((id) => allRows().find((row) => row.id === id))
+                .filter((row): row is LocalizedRow => !!row);
+
+            if (action === 'publish' && preview) {
+                return route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        items: rows.map((row) => ({
+                            id: row.id,
+                            title: String(row.values.title ?? row.id),
+                            status: row.status,
+                            verdict:
+                                row.status === 'published'
+                                    ? 'already-published'
+                                    : 'publishable',
+                            issues: [],
+                            // The per-field publish-gate checklist each row
+                            // expands to. Required by the verdict contract —
+                            // omitting it is what the dialog reads `.length` of.
+                            checks: [
+                                { field: 'title', label: 'Title', ok: true }
+                            ]
+                        }))
+                    })
+                });
+            }
+            if (action === 'publish') {
+                const published = rows.filter(
+                    (row) => row.status !== 'published'
+                );
+                for (const row of published) row.status = 'published';
+                return route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        published: published.map((row) => row.id),
+                        skipped: []
+                    })
+                });
+            }
+            // unpublish
+            for (const row of rows) row.status = 'draft';
+            return route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ count: rows.length })
             });
         }
     );
@@ -256,7 +415,7 @@ export async function mockI18n(page: Page): Promise<void> {
                 { locale: string; entryId: string; status: string }[]
             > = {};
             for (const groupId of body.groupIds) {
-                groups[groupId] = groupRows(groupId).map((row) => ({
+                groups[groupId] = liveGroupRows(groupId).map((row) => ({
                     locale: row.locale,
                     entryId: row.id,
                     status: row.status
@@ -276,9 +435,9 @@ export async function mockI18n(page: Page): Promise<void> {
         async (route) => {
             const segments = new URL(route.request().url()).pathname.split('/');
             const id = segments[segments.length - 2];
-            const row = ROWS.find((candidate) => candidate.id === id);
+            const row = allRows().find((candidate) => candidate.id === id);
             const groupId = row?.localeGroupId ?? 'G1';
-            const members = groupRows(groupId);
+            const members = liveGroupRows(groupId);
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',

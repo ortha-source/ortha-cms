@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_184 test cases across 26 spec files._
+_246 test cases across 30 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -13,12 +13,12 @@ _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
 
 | Test case |
 | --- |
-| opens the filter drawer from the toolbar |
+| expands the inline filter panel from the toolbar |
 | filters the log by kind and deep-links the choice |
 | reflects the active condition count on the trigger |
 | restores the filter from a deep link on load |
 | blocks Apply when a UUID "is one of" rule has a non-UUID value |
-| the open drawer with a rule is accessible (axe) |
+| the open filter panel with a rule is accessible (axe) |
 | Reset clears the filter and restores the full log |
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
@@ -170,6 +170,44 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | selects rows, select-all, and clears the selection |
 | row actions menu offers Edit, Publish, and Copy ID |
 
+### required fields
+
+| Test case |
+| --- |
+| marks a required field and leaves optional ones alone |
+
+### datetime fields
+
+| Test case |
+| --- |
+| renders a UTC instant in the viewer’s local time |
+
+### entry editor tabs as routes
+
+| Test case |
+| --- |
+| opening a tab puts it in the URL; General stays canonical |
+| a tab URL can be opened directly |
+| a single page carries its tab on the type path |
+
+### entry form validation
+
+| Test case |
+| --- |
+| a numeric field accepts a number and sends it as one |
+| clearing a numeric field sends nothing rather than NaN |
+| a blocked publish explains itself instead of doing nothing |
+
+<!-- source: apps/admin-e2e/src/content/entry-revisions.spec.ts -->
+_<sub>apps/admin-e2e/src/content/entry-revisions.spec.ts</sub>_
+
+## Entry revision history
+
+| Test case |
+| --- |
+| saving a draft keeps the published version live |
+| publishing a version from history makes it live |
+
 <!-- source: apps/admin-e2e/src/content/i18n.spec.ts -->
 _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 
@@ -179,6 +217,12 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | --- |
 | shows the locale switcher on a localized collection |
 | switching locale updates the URL and re-scopes the table |
+| opening a row and going back keeps the active locale |
+| switching locale keeps the tab the user was working in |
+| the default locale keeps a clean URL through the editor |
+| the localized-field mark explains itself on hover and on focus |
+| splits the form into translated and shared field groups |
+| marks a relation whose target collection is localized |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |
 | the entry editor locale switcher shows current / existing / missing |
@@ -187,6 +231,44 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | a brand-new record can be re-targeted to another locale before saving |
 | a translation draft can jump to an existing sibling |
 | the relation picker on a translation-create form is scoped to that locale |
+
+### save after switching locale on a fresh record
+
+| Test case |
+| --- |
+| saving as draft creates a sibling, never a PATCH on the original |
+| publishing creates a sibling, never a PATCH on the original |
+
+### All-locales actions
+
+| Test case |
+| --- |
+| the ⋯ menu groups the built-ins and the locale actions |
+| publish all locales pre-flights every sibling, named by locale |
+| unpublish all locales confirms, naming the live locales |
+| neither action is offered on an unsaved record |
+
+<!-- source: apps/admin-e2e/src/content/media-fields.spec.ts -->
+_<sub>apps/admin-e2e/src/content/media-fields.spec.ts</sub>_
+
+## Entry editor — Media tab
+
+| Test case |
+| --- |
+| renders a card per media field, each with its empty state |
+| attaches an asset picked from the library and saves its id |
+| restricts the picker to the kinds the field accepts |
+| walks into a folder and back out through the breadcrumb |
+| stages an upload and sends it only when the record is saved |
+| drops a staged file without ever uploading it |
+| appends to a multiple field and reorders it |
+| shows a saved record’s assets by name, not by id |
+| waits for the ref instead of fetching the original |
+| falls back to the original once the read resolves nothing |
+| says the library failed to load, not that it is empty |
+| offers no upload without media:create |
+| disables library picking without media:read |
+| has no accessibility violations, picker included |
 
 <!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
@@ -197,6 +279,31 @@ _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
 | --- |
 | the field picker offers a related type field, grouped |
 | applying a relation-path rule deep-links the dotted path |
+| a "contains" rule wraps its value in escaped wildcards |
+| a relation id rule picks records, not raw uuids |
+| a relation id rule keeps a set for a multi-valued operator |
+
+### negative operators
+
+| Test case |
+| --- |
+| "does not contain" serialises to nilike |
+| "is not empty" serialises to null:false |
+
+### applied-filter summary
+
+| Test case |
+| --- |
+| reads the applied condition back as a chip |
+| removing a chip re-commits the narrowed filter |
+| "Clear all" drops every condition |
+
+### filter fields unavailable
+
+| Test case |
+| --- |
+| shows an error state instead of an empty picker |
+| the table itself still loads |
 
 <!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_
@@ -234,6 +341,7 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | saves staged links as a relations delta, omitting them from values |
 | shows a "Changed" badge on a relation with staged edits |
 | removes an assigned relation |
+| selects every match at once, then clears |
 
 ## Relation picker accessibility (axe, WCAG 2.1 A/AA)
 
@@ -252,6 +360,21 @@ _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 | --- |
 | shows the greeting, stat tiles, and both panels |
 | the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/media/media-library.spec.ts -->
+_<sub>apps/admin-e2e/src/media/media-library.spec.ts</sub>_
+
+## Media Library
+
+| Test case |
+| --- |
+| renders the workspace folders and assets |
+| uploads a file and shows it in the grid |
+| creates a folder |
+| warns that deleting a folder takes its contents with it |
+| says a folder is empty when it holds nothing |
+| shows a no-access state without media:read |
+| has no accessibility violations |
 
 <!-- source: apps/admin-e2e/src/shell/command-palette.spec.ts -->
 _<sub>apps/admin-e2e/src/shell/command-palette.spec.ts</sub>_
@@ -337,6 +460,22 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | renders the role as a read-only chip |
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
+
+<!-- source: apps/admin-e2e/src/users/preferences.spec.ts -->
+_<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_
+
+## User preferences (theme)
+
+| Test case |
+| --- |
+| shows the Preferences tab only on your own profile |
+| redirects a deep link to someone else’s preferences |
+| selecting a theme applies it and saves it (PUT /api/preferences) |
+| does not re-save the theme already in effect |
+| hydrates the saved theme app-wide on load |
+| the theme picker has no accessibility violations |
+| the dark theme has no accessibility violations |
+| applies the saved theme on a route that overrides the sidebar |
 
 <!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
 _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_

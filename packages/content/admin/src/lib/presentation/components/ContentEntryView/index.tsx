@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,21 +21,29 @@ import type {
 import {
     CONTENT_FIELD_TYPE,
     CONTENT_SEGMENT,
+    DEFAULT_ENTRY_TAB,
     ENTRY_MODE,
+    NEW_SEGMENT,
     type EntryMode
 } from '../../../domain/constants';
+import { entryTabFromPath } from '../../../domain/entryTab';
+import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
 import {
     useContentEntries,
     contentEntriesPrefix,
     type ContentEntriesResult
 } from '../../../application/useContentEntries';
-import { useContentEntry } from '../../../application/useContentEntry';
+import {
+    useContentEntry,
+    contentEntryKey
+} from '../../../application/useContentEntry';
 import { usePublishEntryFlow } from '../../../application/usePublishEntryFlow';
 import { useSlotListParams } from '../../hooks/useSlotListParams';
 import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
 import {
     ENTRY_PARAMS_SLOT,
+    ENTRY_PRESAVE_SLOT,
     type EntrySlotContext
 } from '../../slots/contentSlots';
 import {
@@ -43,6 +51,11 @@ import {
     mergeEntryValues
 } from '../../../domain/emptyEntryValues';
 import { EntryEditor } from './EntryEditor';
+import {
+    EntryBusyOverlay,
+    ENTRY_BUSY,
+    type EntryBusy
+} from './EntryBusyOverlay';
 
 const messages = defineMessages({
     newTitle: { id: 'content.entry.newTitle', defaultMessage: 'New {label}' },
@@ -191,6 +204,58 @@ export function ContentEntryView({
     );
     const bodySlotParams = useSlotListParams(bodyParamKeys);
 
+    // Slot-contributed **save steps** (the media plugin's staged uploads). Their
+    // hooks are mounted here — above the editor, so their staging outlives a tab
+    // switch — and called unconditionally in slot order, which is safe because
+    // slot items are boot-frozen. Each one's `commit` runs inside `onSave`,
+    // before the write and under the same busy cover.
+    const presaveItems = ENTRY_PRESAVE_SLOT.getItems();
+    const presaves = presaveItems.map((item) => item.usePresave());
+    const presaveHandles = Object.fromEntries(
+        presaveItems.map((item, index) => [item.id, presaves[index]?.handle])
+    );
+
+    // The slot-owned list params (e.g. `?locale=de`) this editor was opened
+    // under, as a query suffix. The records table puts them on every row link,
+    // and every route out of the editor carries them back — otherwise "Back to
+    // records" returns to a different locale than the one the user came from.
+    const entryQuerySuffix = listParamsQuery(listSlotParams);
+
+    // The open tab is a **route** segment, not editor state: switching locale
+    // remounts the editor at the sibling's id, and local state reset the user to
+    // General mid-task.
+    const tab = entryTabFromPath(location.pathname);
+
+    // The editor's own base path — a collection row carries its id, a single is
+    // mounted on the type itself. Tab links hang off it, and the query suffix
+    // rides along so a tab change never drops the active locale.
+    const editorPath =
+        mode === ENTRY_MODE.Single
+            ? typePath
+            : `${typePath}/${entryId ?? NEW_SEGMENT}`;
+
+    // The open tab as a path segment (`''` on the default tab, so the bare
+    // entry URL stays canonical) — used for the editor's own tab links and
+    // handed to slots that navigate to a sibling record.
+    const tabSegment = tab === DEFAULT_ENTRY_TAB ? '' : `/${tab}`;
+
+    const onTabChange = (next: string) => {
+        const segment = next === DEFAULT_ENTRY_TAB ? '' : `/${next}`;
+        // A tab change stays on the *same* form, so it carries the URL forward
+        // whole — `location.search`, not just the list params. The create route
+        // also carries create-only params (the i18n plugin's `localeGroupId`,
+        // which joins the new row to a translation group); dropping those here
+        // would quietly turn a translation into an orphan record on save.
+        //
+        // `location.state` rides along too: it holds the create-form prefill a
+        // slot handed us (`translateFrom`, the source record's shared fields),
+        // and this view re-reads it on every render — so navigating without it
+        // would reset a half-filled translation form to blank.
+        navigate(`${editorPath}${segment}${location.search}`, {
+            state: location.state
+        });
+    };
+
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
         schema,
@@ -202,30 +267,57 @@ export function ContentEntryView({
     );
 
     // Seed edit mode from the records-list cache (the common "opened from the
-    // table" path) so the form is instant, then refetch the canonical copy.
+    // table" path) so the form is instant. The seed carries the **age of the list
+    // read** it came from, not "now": the entry query has a `staleTime`, so
+    // claiming a ten-minute-old list row was just fetched would let the editor
+    // trust it for another window instead of re-reading.
     const cachedEntry = useMemo(() => {
         if (mode !== ENTRY_MODE.Edit || !entryId) return undefined;
         const cached = queryClient.getQueriesData<ContentEntriesResult>({
             queryKey: contentEntriesPrefix(workspace.id, type.name)
         });
-        for (const [, data] of cached) {
+        for (const [key, data] of cached) {
             const hit = data?.items.find((item) => item.id === entryId);
-            if (hit) return hit;
+            if (hit) {
+                return {
+                    entry: hit,
+                    updatedAt: queryClient.getQueryState(key)?.dataUpdatedAt
+                };
+            }
         }
         return undefined;
     }, [mode, entryId, queryClient, type.name, workspace.id]);
 
     const entryQuery = useContentEntry(type.name, entryId, {
-        initialData: cachedEntry,
+        initialData: cachedEntry?.entry,
+        initialDataUpdatedAt: cachedEntry?.updatedAt,
         enabled: mode === ENTRY_MODE.Edit
     });
 
     // The single page's existing row (if any).
     const singleEntry = oneEntryQuery.data?.items[0];
 
+    // Identifies the current edit target for the flow hook: mode + record id +
+    // the create-body params (the i18n plugin's target `locale`/`localeGroupId`).
+    // The editor is reused (not remounted) as the route flips between `/new`,
+    // `/:id`, and a fresh `/new?locale=…` translation create, so the flow keys its
+    // remembered create id on this to avoid PATCHing the prior record after a
+    // locale switch. Stable within one create session (only these inputs change).
+    const editorKey = useMemo(
+        () => `${mode}:${entryId ?? ''}:${JSON.stringify(bodySlotParams)}`,
+        [mode, entryId, bodySlotParams]
+    );
+
     // The save/publish use case: owns the save→publish/unpublish sequencing, the
     // create→update id continuity, and the shared-kernel publish gate.
-    const flow = usePublishEntryFlow(type.name);
+    const flow = usePublishEntryFlow(type.name, editorKey);
+
+    // Which write is covering the screen. Held by this view rather than derived
+    // from the mutations' `isPending`, because one submit is a **chain** (save →
+    // publish) whose two mutations are briefly both idle between steps — deriving
+    // it would blink the cover mid-flow. Set before the first request and cleared
+    // only once everything, refetches included, has settled.
+    const [busy, setBusy] = useState<EntryBusy | null>(null);
 
     const editEntry = entryQuery.data;
 
@@ -346,16 +438,51 @@ export function ContentEntryView({
                 (pair): pair is [string, string] => pair[1] !== undefined
             )
         );
-        const result = await flow.submit({
-            schema,
-            publishable,
-            values,
-            publish: options.publish,
-            relations: options.relations,
-            entry: resolved.entry,
-            bodyExtra,
-            ignoreFields: options.ignoreFields
-        });
+        // Cover the editor for the whole write — including the refetches the
+        // mutation awaits — so the form never sits half-updated under the user's
+        // cursor. `finally`, so a 422 uncovers the form it has to annotate.
+        setBusy(
+            options.publish && publishable
+                ? ENTRY_BUSY.Publishing
+                : ENTRY_BUSY.Saving
+        );
+        // Slot-contributed save steps run first, under the cover, and may rewrite
+        // the values — this is where the media plugin uploads the files staged on
+        // media fields and swaps in the real asset ids. A step that throws aborts
+        // the save (it has already surfaced its own failure); nothing is written,
+        // so the values keep their placeholders and a retry resumes where it got
+        // to rather than re-uploading.
+        let toSave = values;
+        try {
+            for (const step of presaves) {
+                toSave = await step.commit({
+                    values: toSave,
+                    publish: options.publish
+                });
+            }
+        } catch (error) {
+            setBusy(null);
+            throw error;
+        }
+        let result: Awaited<ReturnType<typeof flow.submit>>;
+        try {
+            result = await flow.submit({
+                schema,
+                publishable,
+                values: toSave,
+                publish: options.publish,
+                relations: options.relations,
+                entry: resolved.entry,
+                bodyExtra,
+                ignoreFields: options.ignoreFields
+            });
+        } finally {
+            setBusy(null);
+        }
+        // The write landed, so every presave step can drop what it consumed (the
+        // media plugin revokes its preview URLs and forgets the staged files —
+        // the saved record now carries the real ids).
+        for (const step of presaves) step.settle?.();
         toast.success(
             intl.formatMessage(
                 result.published
@@ -375,7 +502,19 @@ export function ContentEntryView({
         // and its invalidated query refreshes in place. A single stays put — its
         // `?locale=` re-resolves to the row just created.
         if (mode !== ENTRY_MODE.Single && result.wasCreate) {
-            navigate(`${typePath}/${result.saved.id}`);
+            // Prime the edit-mode read with the record the save just returned.
+            // Without it the navigation below lands on `/:type/:id` with a cold
+            // query, so the editor swaps the form the user is looking at for a
+            // full-page spinner and a header that flips "New {label}" → "{label}"
+            // — a jarring flash on every create. The response *is* the canonical
+            // record, so there is nothing to wait for.
+            queryClient.setQueryData(
+                contentEntryKey(workspace.id, type.name, result.saved.id),
+                result.saved
+            );
+            navigate(
+                `${typePath}/${result.saved.id}${tabSegment}${entryQuerySuffix}`
+            );
         }
     };
 
@@ -386,12 +525,17 @@ export function ContentEntryView({
     const onActionError = () =>
         toast.error(intl.formatMessage(messages.actionError));
 
+    // No explicit `refetch()` after this: the mutation primes the read-one cache
+    // with the record it returned and refreshes the rest. The old refetch raced
+    // its own invalidation — `cancelRefetch` aborted the in-flight read and
+    // issued a second one, so an unpublish cost two reads of the same record.
     const onUnpublish =
         editId && publishable
             ? () => {
+                  setBusy(ENTRY_BUSY.Saving);
                   flow.unpublish(editId)
-                      .then(() => entryQuery.refetch())
-                      .catch(onActionError);
+                      .catch(onActionError)
+                      .finally(() => setBusy(null));
               }
             : undefined;
 
@@ -404,7 +548,7 @@ export function ContentEntryView({
                               label: schema.label
                           })
                       );
-                      navigate(typePath);
+                      navigate(`${typePath}${entryQuerySuffix}`);
                   })
                   .catch(onActionError);
           }
@@ -423,7 +567,8 @@ export function ContentEntryView({
         // The entry-params URL values (opaque), so a slot can scope by its own
         // param even on a create form — e.g. i18n reads `?locale=` here to keep
         // the relation picker in-locale when there's no saved `entry` yet.
-        params: { ...listSlotParams, ...bodySlotParams }
+        params: { ...listSlotParams, ...bodySlotParams },
+        tabSegment
     };
 
     // `flex-auto` (not `min-h-full`): fills the pane's remaining height under
@@ -431,6 +576,7 @@ export function ContentEntryView({
     // forcing a permanent pane scroll.
     return (
         <div className="flex flex-auto flex-col">
+            <EntryBusyOverlay busy={busy} />
             <EntrySlotContextProvider value={slotContext}>
                 <EntryEditor
                     schema={schema}
@@ -445,8 +591,15 @@ export function ContentEntryView({
                     onSave={onSave}
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
-                    backTo={mode === ENTRY_MODE.Single ? undefined : typePath}
+                    backTo={
+                        mode === ENTRY_MODE.Single
+                            ? undefined
+                            : `${typePath}${entryQuerySuffix}`
+                    }
                     availableTypeNames={workspace.content}
+                    presave={presaveHandles}
+                    tab={tab}
+                    onTabChange={onTabChange}
                 />
             </EntrySlotContextProvider>
         </div>

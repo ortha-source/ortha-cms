@@ -82,6 +82,20 @@ function workspaceSubject(
     };
 }
 
+/**
+ * A `'content_entry'`-subject facet. The audit kind mirrors the event kind
+ * (`entry.published` / `entry.unpublished`), and the entry's content type rides
+ * in `meta` so the log can name *what* was published without joining anything.
+ */
+function entrySubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'content_entry',
+        subjectId: event.aggregateId,
+        meta: { contentType: nullableString(event.payload.contentType) }
+    };
+}
+
 /** A workspace membership facet — subject is the affected **user**, not the workspace. */
 function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
     const payload = event.payload;
@@ -120,6 +134,8 @@ function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
  * | `member.reactivated`       | `user.reactivated`        | user / `null`                                    |
  * | `auth.signed_in`           | `user.signed_in`          | user / `null`                                    |
  * | `auth.signed_out`          | `user.signed_out`         | user / `null`                                    |
+ * | `entry.published`          | `entry.published`         | content_entry / `{ contentType }`                |
+ * | `entry.unpublished`        | `entry.unpublished`       | content_entry / `{ contentType }`                |
  *
  * The actor (`actorId`/`actorEmail`) is not here — it rides on the event payload
  * (`attachActor`) and is read uniformly by {@link toAuditRow}.
@@ -172,15 +188,21 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
             from: nullableString(e.payload.from),
             to: nullableString(e.payload.to)
         }),
-    'member.disabled': (e) =>
-        userSubject(e, USER_AUDIT_KINDS.SUSPENDED, null),
+    'member.disabled': (e) => userSubject(e, USER_AUDIT_KINDS.SUSPENDED, null),
     'member.reactivated': (e) =>
         userSubject(e, USER_AUDIT_KINDS.REACTIVATED, null),
 
     'auth.signed_in': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, null),
     'auth.signed_out': (e) =>
-        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT, null)
+        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT, null),
+
+    // Content publish lifecycle. `content-server` has raised these on the outbox
+    // since the entry aggregate was introduced — its own comment anticipated
+    // this subscriber — but nothing consumed them, so the log carried no content
+    // activity at all.
+    'entry.published': entrySubject,
+    'entry.unpublished': entrySubject
 };
 
 /**

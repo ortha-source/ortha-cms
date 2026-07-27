@@ -4,6 +4,7 @@ export { rolePermissions } from './role-permissions';
 export { userStatus, users } from './users';
 export { sessions } from './sessions';
 export { tokenType, tokens } from './tokens';
+export { themePreference, userPreferences } from './user-preferences';
 export { apiTokenScope, apiTokens } from './api-tokens';
 export {
     rolesRelations,

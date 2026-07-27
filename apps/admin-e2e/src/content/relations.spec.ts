@@ -7,6 +7,7 @@ import {
     RELATIONS_SCHEMA_SEED,
     RELATIONS_DETAIL_SEED,
     RELATIONS_ENTRIES_SEED,
+    RELATION_AUTHOR_IDS,
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
@@ -144,7 +145,7 @@ test.describe('Relation picker', () => {
         await expect(candidateLink).toHaveAttribute('target', '_blank');
         await expect(candidateLink).toHaveAttribute(
             'href',
-            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/author-ada`
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/${RELATION_AUTHOR_IDS.ada}`
         );
 
         // The same link rides on the assigned preview row after picking.
@@ -154,7 +155,7 @@ test.describe('Relation picker', () => {
         await expect(previewLink).toHaveAttribute('target', '_blank');
         await expect(previewLink).toHaveAttribute(
             'href',
-            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/author-ada`
+            `/workspaces/${RELATIONS_WORKSPACE.id}/content/author/${RELATION_AUTHOR_IDS.ada}`
         );
     });
 
@@ -308,6 +309,31 @@ test.describe('Relation picker', () => {
         ).toHaveCount(0);
         // Back to the empty trigger.
         await expect(relationsEditorPage.selectButton('Authors')).toBeVisible();
+    });
+
+    test('selects every match at once, then clears', async ({
+        relationsEditorPage
+    }) => {
+        await relationsEditorPage.gotoNewArticle(RELATIONS_WORKSPACE.id);
+        await relationsEditorPage.openRelationsTab();
+        await relationsEditorPage.addRelatedButton.click();
+        await relationsEditorPage.candidate('engineering').waitFor();
+
+        const loaded = await relationsEditorPage.candidateOptions.count();
+        expect(loaded).toBeGreaterThan(1);
+
+        // The checkbox counts the **whole** match set, not the loaded window —
+        // checking it pages the rest in and selects everything.
+        await relationsEditorPage.selectAllCheckbox.check();
+        await expect
+            .poll(() => relationsEditorPage.checkedCandidateOptions.count())
+            .toBeGreaterThanOrEqual(loaded);
+
+        // Unchecking is the way back out of a bulk select.
+        await relationsEditorPage.selectAllCheckbox.uncheck();
+        await expect(relationsEditorPage.checkedCandidateOptions).toHaveCount(
+            0
+        );
     });
 });
 

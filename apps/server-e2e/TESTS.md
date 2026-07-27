@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_297 test cases across 28 spec files._
+_382 test cases across 33 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -218,7 +218,7 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | --- |
 | creates a draft, reads it back, and updates it |
 | saves an incomplete draft of a publishable type, but 422s on publish |
-| allows editing a draft to an incomplete state, but not a published row |
+| allows editing a draft to an incomplete state, and moves a published entry back to draft on edit |
 | 422s an invalid create of a non-publishable (always-live) type |
 | 404s reading an unknown id |
 
@@ -257,6 +257,7 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | --- |
 | publishes then unpublishes a draft |
 | 400s publishing a non-publishable type |
+| keeps publishedAt through an edit and clears it on unpublish |
 
 ### delete / restore / purge (paranoid)
 
@@ -278,6 +279,22 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 401s unauthenticated writes |
 | 403s a viewer on create and delete |
 | lets a contributor create but not delete |
+
+<!-- source: apps/server-e2e/src/server/content/content-media-fields.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-media-fields.spec.ts</sub>_
+
+## Content media fields (/api/content/:type)
+
+| Test case |
+| --- |
+| stores and reads back a single media asset id |
+| 422s a media id that does not exist |
+| 422s a media asset from another workspace (no cross-workspace leak) |
+| 422s an asset whose kind fails the field accept restriction |
+| preserves the order of a multiple media field across an update |
+| carries the thumb/preview derivative urls on a resolved ref |
+| resolves media ids to refs via GET /:id/media |
+| captures media ids in the revision snapshot |
 
 <!-- source: apps/server-e2e/src/server/content/content-schema.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-schema.spec.ts</sub>_
@@ -316,6 +333,33 @@ _<sub>apps/server-e2e/src/server/content/content-types.spec.ts</sub>_
 | serves the code-defined registry, not the mock catalogue |
 | grants a workspace the real registry slugs on content mode "all" |
 
+<!-- source: apps/server-e2e/src/server/content/entry-revisions.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/entry-revisions.spec.ts</sub>_
+
+## Content entry revisions (/api/content/:type/:id/revisions)
+
+| Test case |
+| --- |
+| records a revision on create, keyed to the acting user |
+| appends an incrementing revision on every save, newest first |
+| captures the whole document — scalars and a many-to-many link set |
+| resolves relation snapshot ids to titled records in the detail |
+| restores an earlier revision as a new revision (append-only) |
+| 404s an unknown revision number |
+
+### publish transitions
+
+| Test case |
+| --- |
+| promotes the latest revision to published on publish |
+| supersedes the previously-published revision when a newer one publishes |
+| reverts the published revision to draft on unpublish |
+| promotes the revision through a bulk publish too |
+| keeps the published version live when a newer draft is saved |
+| publishes a specific earlier version, making it live |
+| publishes the newest version in place |
+| 404s publishing an unknown version |
+
 <!-- source: apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</sub>_
 
@@ -336,6 +380,25 @@ _<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</s
 | filters by a tag field with EXISTS semantics (no row duplication) |
 | matches only entries linked to the given tag |
 
+### negation (NOT EXISTS semantics)
+
+| Test case |
+| --- |
+| excludes an entry that has ANY link matching the negated value |
+| keeps an entry with no links at all under a negated rule |
+| "is empty" on a relation id means "has no related row" |
+| "is not empty" on a relation id means "has a related row" |
+| a negated ROOT column still matches rows where it is NULL |
+
+### self-referential (test_page.parent)
+
+| Test case |
+| --- |
+| filters by the parent's own field |
+| filters through a relation UNDER the self-hop (parent.owner.name) |
+| filters two self-hops deep (parent.parent.title) |
+| does not match a page against its own row |
+
 ### composition + bounds
 
 | Test case |
@@ -350,6 +413,8 @@ _<sub>apps/server-e2e/src/server/content/list-entries-relation-filter.spec.ts</s
 | --- |
 | 401s an unauthenticated request |
 | 404s an unknown content type |
+| 404s a real type the workspace was not granted |
+| prunes a relation whose target is not granted |
 | returns the recursive filterable surface |
 
 <!-- source: apps/server-e2e/src/server/content/list-entries.spec.ts -->
@@ -469,9 +534,15 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | propagates a non-localized field to siblings but leaves localized fields alone |
+| syncs an array-valued shared field (jsonb) without tripping the change predicate |
+| leaves siblings alone when an array-valued shared field is resent unchanged |
+| appends a revision to each sibling the sync rewrote |
+| leaves sibling history alone when only a localized field changes |
 | does not sync a relation to a localizable target across locales |
 | syncs shared fields when a sibling is created into the group |
 | 422s and rolls back when the sync would invalidate a published sibling |
+| moves a rewritten published sibling back to draft, keeping publishedAt |
+| leaves a draft sibling — and its publishedAt — alone |
 
 ### locale aggregate filters
 
@@ -493,6 +564,120 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | ignores ?locale= on a non-localized type |
+
+<!-- source: apps/server-e2e/src/server/media/media-assets.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
+
+## media assets
+
+| Test case |
+| --- |
+| uploads a file and persists the asset |
+| falls back to the uploader’s email when they have no display name |
+| uploads into a folder when folderId is given |
+| streams the uploaded bytes back on download |
+| lists a folder page and the workspace root |
+| renames and moves an asset via PATCH |
+| duplicates an asset |
+| bulk-deletes assets |
+
+### image derivatives
+
+| Test case |
+| --- |
+| probes dimensions and generates thumb + preview for a large image |
+| skips preview for a small image but still makes a thumb |
+| serves the original when the requested variant does not exist |
+| falls back to the original for a bogus ?variant= |
+| produces no derivatives for a non-image upload |
+| carries the derivatives onto a duplicated image |
+
+### validation
+
+| Test case |
+| --- |
+| rejects an upload with no file (400) |
+| rejects an unknown body field (400) |
+
+### authorization
+
+| Test case |
+| --- |
+| rejects an unauthenticated upload with 401 |
+| forbids a viewer from uploading (403) |
+
+| Test case |
+| --- |
+| never returns an asset from another workspace (404) |
+
+### raw download scope
+
+| Test case |
+| --- |
+| streams to a member of the owning workspace, ignoring the header |
+| 404s for a user who is not a member of the owning workspace |
+
+<!-- source: apps/server-e2e/src/server/media/media-folders.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
+
+## media folders
+
+| Test case |
+| --- |
+| creates a folder and lists it with the root count |
+| renames a folder |
+| deletes an empty folder (204) |
+| deletes a non-empty folder together with everything inside it |
+| cascades only inside the caller’s workspace |
+
+### authorization
+
+| Test case |
+| --- |
+| rejects an unauthenticated request with 401 |
+| forbids a viewer from creating a folder (403) |
+| lets a viewer read folders (200) |
+| rejects a disallowed Origin on create (403) |
+| allows the configured Origin on create |
+
+<!-- source: apps/server-e2e/src/server/preferences/preferences.spec.ts -->
+_<sub>apps/server-e2e/src/server/preferences/preferences.spec.ts</sub>_
+
+## /api/preferences
+
+### GET (read)
+
+| Test case |
+| --- |
+| defaults to the system theme before anything is saved |
+| returns only the theme (no userId/timestamps leak) |
+| rejects an unauthenticated read with 401 |
+
+### PUT (upsert)
+
+| Test case |
+| --- |
+| creates the row on first save and returns the new theme |
+| updates the existing row on a second save (no duplicate) |
+| accepts each valid theme |
+| rejects an unauthenticated write with 401 |
+
+### PUT (upsert) › validation (400)
+
+| Test case |
+| --- |
+| rejects a theme outside the enum |
+| rejects a missing theme |
+| rejects a non-string theme |
+| rejects an unknown extra field (forbidNonWhitelisted) |
+
+### PUT (upsert) › OriginGuard (CSRF defense)
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured Origin |
+| allows a request with no Origin header |
 
 <!-- source: apps/server-e2e/src/server/server.spec.ts -->
 _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_

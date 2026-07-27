@@ -4,7 +4,7 @@ import {
     NotFoundException,
     UnprocessableEntityException
 } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import { type EntryStatus } from '@ortha-cms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryValidationService } from '../../../validation/services/entry-validation.service';
@@ -38,7 +38,20 @@ export class PublishEntryUseCase {
     async execute(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        /**
+         * The acting user, merged onto the outbox events so the audit log can
+         * name who did this. Without it every content row in the activity log
+         * read "System".
+         */
+        actor?: { id: string; email: string | null },
+        /**
+         * The version to mark live, when publishing a **specific** earlier one
+         * whose content the caller already re-applied to the live row. Omitted
+         * (the entry-level publish), the latest version is promoted — it is the
+         * row that was just published.
+         */
+        revisionNumber?: number
     ): Promise<EntryRecord> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -96,7 +109,20 @@ export class PublishEntryUseCase {
                 workspaceId
             );
             if (!updated) throw this.notFound(type, id);
-            await this.outbox.append(entry.pullEvents());
+            // Promote the published revision to the live version so the history
+            // timeline reflects the publish (revisions are born drafts) — the
+            // caller's chosen version, else the latest.
+            await this.writer.markRevisionPublished(
+                exec,
+                id,
+                workspaceId,
+                revisionNumber
+            );
+            await this.outbox.append(
+                actor
+                    ? attachActor(entry.pullEvents(), actor)
+                    : entry.pullEvents()
+            );
             return toRecord(type, updated);
         });
     }

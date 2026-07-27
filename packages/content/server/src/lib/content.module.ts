@@ -12,6 +12,7 @@ import { ListPublicEntriesController } from './public/controllers/list-public-en
 import { GetPublicEntryController } from './public/controllers/get-public-entry.controller';
 import { PublicSchemaController } from './public/controllers/public-schema.controller';
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
+import { WorkspaceGrantsQuery } from './content-types/queries/workspace-grants.query';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
 import { CreateEntryController } from './entries/http/controllers/create-entry.controller';
@@ -22,6 +23,7 @@ import { DeleteEntryController } from './entries/http/controllers/delete-entry.c
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
+import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
 import { EntryWriterService } from './entries/infrastructure/persistence/entry-writer.service';
 import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
 import { RelationLinkService } from './entries/infrastructure/persistence/relation-link.service';
@@ -30,6 +32,14 @@ import { PublishEntryUseCase } from './entries/application/use-cases/publish-ent
 import { UnpublishEntryUseCase } from './entries/application/use-cases/unpublish-entry.use-case';
 import { BulkPublishEntriesUseCase } from './entries/application/use-cases/bulk-publish-entries.use-case';
 import { BulkUnpublishEntriesUseCase } from './entries/application/use-cases/bulk-unpublish-entries.use-case';
+import { REVISION_STORE } from './revisions/application/ports/revision-store';
+import { DrizzleRevisionStore } from './revisions/infrastructure/persistence/drizzle-revision.store';
+import { RestoreRevisionUseCase } from './revisions/application/use-cases/restore-revision.use-case';
+import { PublishRevisionUseCase } from './revisions/application/use-cases/publish-revision.use-case';
+import { RevisionRefsQuery } from './revisions/infrastructure/queries/revision-refs.query';
+import { RevisionsController } from './revisions/http/controllers/revisions.controller';
+import { RestoreRevisionController } from './revisions/http/controllers/restore-revision.controller';
+import { PublishRevisionController } from './revisions/http/controllers/publish-revision.controller';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -77,7 +87,13 @@ export class ContentModule {
                 GetEntryController,
                 UpdateEntryController,
                 PublishEntryController,
-                DeleteEntryController
+                DeleteEntryController,
+                // Revisions feature — the version timeline read + restore. Their
+                // literal `revisions` segment can't collide with the single-item
+                // routes above.
+                RevisionsController,
+                RestoreRevisionController,
+                PublishRevisionController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },
@@ -85,9 +101,9 @@ export class ContentModule {
                     // Adapt the registry to identity's catalogue port. Summaries
                     // are shape-compatible with `ContentTypeDescriptor`.
                     provide: CONTENT_CATALOG,
-                    useFactory: (
-                        reg: ContentTypeRegistry
-                    ): ContentCatalog => ({ list: () => reg.summaries() }),
+                    useFactory: (reg: ContentTypeRegistry): ContentCatalog => ({
+                        list: () => reg.summaries()
+                    }),
                     inject: [CONTENT_REGISTRY]
                 },
                 // Bind identity's entry-counter port to the registry-backed
@@ -95,9 +111,28 @@ export class ContentModule {
                 // rule sees the real stored entries. Same inversion as the
                 // catalogue above.
                 EntryCounterService,
-                { provide: CONTENT_ENTRY_COUNTER, useExisting: EntryCounterService },
+                {
+                    provide: CONTENT_ENTRY_COUNTER,
+                    useExisting: EntryCounterService
+                },
                 EntryValidationService,
+                WorkspaceGrantsQuery,
                 EntriesService,
+                // Resolves media field ids → display refs (thumbnails); injected
+                // by the entry-media read endpoint and the revision refs query.
+                // No-ops when the media plugin binds no resolver.
+                MediaRefsQuery,
+                // The generic revision store, bound to its Drizzle adapter and
+                // injected by EntryWriterService (snapshot-on-save) + the
+                // revisions read/restore. Registered before EntryWriterService's
+                // provider is resolved — Nest orders by the dependency graph.
+                { provide: REVISION_STORE, useClass: DrizzleRevisionStore },
+                RestoreRevisionUseCase,
+                // Publish a specific version live (restore-if-needed + publish).
+                PublishRevisionUseCase,
+                // Resolves a previewed revision's relation ids to display refs
+                // (the "exact linked records" the diff shows).
+                RevisionRefsQuery,
                 EntryWriterService,
                 RelationLinkService,
                 // Entries feature, layered per ADR-0003: the publish-lifecycle

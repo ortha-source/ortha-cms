@@ -7,6 +7,7 @@ import type {
     StagedRelation
 } from '../../../../../domain/types/contentType';
 import { useContentSchema } from '../../../../../application/useContentSchema';
+import { LocalizedRelationMark } from './LocalizedRelationMark';
 import { fieldLabel } from '../../../../../domain/entryColumns';
 import { ChangedBadge } from '../../../ChangedBadge';
 import { RelationField } from '../RelationField';
@@ -119,11 +120,14 @@ export function RelationFieldSection({
                         <h3 className="text-sm font-medium">
                             {fieldLabel(field)}
                         </h3>
+                        {targetSchema?.i18n ? <LocalizedRelationMark /> : null}
                         {changed ? <ChangedBadge /> : null}
                         {error ? (
                             <AlertCircle
                                 className="size-4 shrink-0 text-destructive"
-                                aria-label={intl.formatMessage(messages.invalid)}
+                                aria-label={intl.formatMessage(
+                                    messages.invalid
+                                )}
                             />
                         ) : null}
                     </div>

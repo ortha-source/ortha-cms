@@ -79,6 +79,30 @@ export const contentEntryKey = (
 export const contentEntryPrefix = (workspaceId: string, name: string) =>
     ['content-entry', workspaceId, name] as const;
 
+/** One entry's revision timeline (paginated), workspace-scoped. */
+export const entryRevisionsKey = (
+    workspaceId: string,
+    name: string,
+    id: string
+) => ['content-entry-revisions', workspaceId, name, id] as const;
+
+/** Prefix over every revision query for a type in a workspace. */
+export const entryRevisionsPrefix = (workspaceId: string, name: string) =>
+    ['content-entry-revisions', workspaceId, name] as const;
+
+/**
+ * One revision's full snapshot body (`GET …/:id/revisions/:number`), keyed under
+ * the entry's revision timeline so an `entryRevisionsPrefix` invalidation (on
+ * save / restore / publish) drops it too. A given revision number is immutable,
+ * so the query itself can cache indefinitely.
+ */
+export const revisionDetailKey = (
+    workspaceId: string,
+    name: string,
+    id: string,
+    number: number
+) => [...entryRevisionsKey(workspaceId, name, id), 'detail', number] as const;
+
 /** One entry's relation links (all fields, first page + total), workspace-scoped. */
 export const entryRelationsKey = (
     workspaceId: string,
@@ -89,6 +113,17 @@ export const entryRelationsKey = (
 /** Prefix over every relations query for a type in a workspace. */
 export const entryRelationsPrefix = (workspaceId: string, name: string) =>
     ['content-entry-relations', workspaceId, name] as const;
+
+/** One entry's media fields resolved to refs (all media fields), workspace-scoped. */
+export const entryMediaKey = (
+    workspaceId: string,
+    name: string,
+    id: string
+) => ['content-entry-media', workspaceId, name, id] as const;
+
+/** Prefix over every entry-media query for a type in a workspace. */
+export const entryMediaPrefix = (workspaceId: string, name: string) =>
+    ['content-entry-media', workspaceId, name] as const;
 
 /** One relation field's paginated links, workspace-scoped. */
 export const relationFieldLinksKey = (

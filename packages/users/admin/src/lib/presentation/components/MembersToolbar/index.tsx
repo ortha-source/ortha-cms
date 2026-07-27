@@ -22,10 +22,13 @@ const messages = defineMessages({
 export function MembersToolbar({
     search,
     onSearchChange,
-    filterControl
+    filterControl,
+    busy = false
 }: {
     search: string;
     onSearchChange: (value: string) => void;
+    /** Whether a search/filter request driven from here is still settling. */
+    busy?: boolean;
     /** Optional advanced-filter control rendered on the right. */
     filterControl?: ReactNode;
 }) {
@@ -33,6 +36,7 @@ export function MembersToolbar({
 
     return (
         <SearchToolbar
+            busy={busy}
             value={search}
             onValueChange={onSearchChange}
             searchLabel={intl.formatMessage(messages.searchLabel)}

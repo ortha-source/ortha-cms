@@ -12,14 +12,22 @@ import {
 } from '@ortha-cms/design-system';
 import { initialsOf } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import type { ContentField, RelationRef } from '../../../../../domain/types/contentType';
+import type {
+    ContentField,
+    RelationRef
+} from '../../../../../domain/types/contentType';
 import { useContentSchema } from '../../../../../application/useContentSchema';
+import { useContentEntry } from '../../../../../application/useContentEntry';
 import type { RelationCandidate } from '../../../../../application/useRelationCandidates';
 import { fieldLabel } from '../../../../../domain/entryColumns';
+import { relationLabel } from '../../../../../domain/relationLabel';
 import { adminProps } from '../../../../../domain/adminProps';
 import { toRelationIds } from '../../../../../domain/relationIds';
 import { contentEntryPath } from '../../../../../domain/contentEntryPath';
-import { handleFor, slugFromValues } from '../../../../../domain/relationHandle';
+import {
+    handleFor,
+    slugFromValues
+} from '../../../../../domain/relationHandle';
 import { RelationItemRow } from './RelationItemRow';
 import { RelationPickerDialog } from './RelationPickerDialog';
 
@@ -91,10 +99,25 @@ export function RelationField({
     const ids = toRelationIds(value, false);
     const id = ids[0];
 
+    const refsById = new Map(initialRefs.map((ref) => [ref.id, ref]));
+
+    // A **seeded** id with nothing to title it: the form can hold an FK that
+    // never came from a load or a pick — a create form prefilled from another
+    // record (the i18n "create a translation" flow copies non-localized
+    // relations) has no `initialRefs`, because the aggregate relations read is
+    // keyed on a saved entry and there isn't one yet. Without this the row
+    // rendered the raw UUID as its own title. Resolve that one record directly;
+    // the query is disabled whenever the id is already titled, so the normal
+    // load/pick paths cost nothing.
+    const unresolvedId =
+        id && !picked.has(id) && !refsById.has(id) ? id : undefined;
+    const { data: resolved } = useContentEntry(targetName, unresolvedId, {
+        enabled: !!targetName && !!unresolvedId
+    });
+
     // Display detail for a linked id: the freshly-picked candidate wins (its slug
     // derived from the target schema), else the server-resolved ref from load,
-    // else the raw id as a last resort.
-    const refsById = new Map(initialRefs.map((ref) => [ref.id, ref]));
+    // else a record resolved on demand, else the raw id as a last resort.
     const detailFor = (linkedId: string): RelationRef => {
         const candidate = picked.get(linkedId);
         if (candidate) {
@@ -106,7 +129,18 @@ export function RelationField({
                 ...(candidate.status ? { status: candidate.status } : {})
             };
         }
-        return refsById.get(linkedId) ?? { id: linkedId, title: linkedId };
+        const ref = refsById.get(linkedId);
+        if (ref) return ref;
+        if (resolved && resolved.id === linkedId) {
+            const slug = slugFromValues(resolved.values, targetFields);
+            return {
+                id: linkedId,
+                title: relationLabel(resolved.values, targetFields, linkedId),
+                ...(slug ? { slug } : {}),
+                ...(resolved.status ? { status: resolved.status } : {})
+            };
+        }
+        return { id: linkedId, title: linkedId };
     };
 
     const commit = (next: string | undefined) => {

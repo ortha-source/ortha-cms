@@ -16,7 +16,11 @@ export const post = collection('post', {
     label: 'Blog posts',
     fields: {
         title: field.text({ required: true, minLength: 3 }),
-        author: field.relation({ to: () => author, required: true, onDelete: 'restrict' }),
+        author: field.relation({
+            to: () => author,
+            required: true,
+            onDelete: 'restrict'
+        }),
         tags: field.relation({ to: () => tag, many: true })
     }
 });
@@ -26,7 +30,7 @@ export const post = collection('post', {
   normalize options, run `assertName` + `assertFields`, build the tables, and
   return a typed `ContentType`.
 - `field.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
-  `datetime`/`select`/`multiselect`/`json`/`relation`) each return a JSON-serializable
+  `datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a JSON-serializable
   `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
 - `relation({ to })` takes a **lazy thunk** so mutually-referencing collection
   files can import each other. `onDelete` defaults to `'cascade'` when
@@ -46,7 +50,7 @@ export const post = collection('post', {
 can't drift. The registry validates the pairing at boot (the referenced field
 must be a storage-owning relation on `owner` that points back). Because it's
 virtual, adding one produces **no migration**. Defaults to to-many. Two files
-referencing each other create a TS *inference* cycle — annotate one thunk's
+referencing each other create a TS _inference_ cycle — annotate one thunk's
 return `: AnyContentType` to break it (see `apps/server/src/collections/tag.ts`).
 
 ### Relation cardinalities
@@ -58,6 +62,35 @@ which carries no storage of its own — model it as the single relation on the
 `unique: true`. **many-to-many** is `many: true` (the generated join table). See
 the reference collections in `apps/server/src/collections` (`article` wires up
 `author`, `seo_meta`, `tag`, and `comment`).
+
+### Media fields (`field.media`)
+
+`field.media({ multiple?, accept?, required?, localized? })` attaches **Media
+Library** assets to a record. Storage lives **in the values bag**, not a join
+table: a single field is a `uuid('<field>')` column, a `multiple: true` field a
+`jsonb('<field>')` array of ids (mirroring `multiselect`). Asset ids are **plain
+uuids, not a Postgres FK** — the assets live in the media plugin's own schema, so
+(exactly like `workspace_id`) there is no cross-plugin FK, and existence + the
+`accept` restriction are enforced in the app layer, not the DB. Because media
+values ride the values bag, they are captured by the **revision snapshot**,
+synced across locale siblings when **shared** (unmarked), and per-locale when
+`localized: true` — all for free, like any scalar. `accept` restricts the
+allowed assets by coarse `kinds` (image/video/audio/document/archive) and/or
+`mimeTypes` (exact or `type/*` glob); an unknown kind is rejected at define time.
+
+**The `MEDIA_ASSET_RESOLVER` port.** The pure kernel only shape-checks a media
+id (uuid / uuid[]). Verifying an asset **exists in the workspace** and **matches
+`accept`** needs the media table, so content-server *declares* a DI port
+(`extension/media-asset-resolver.ts`: `MEDIA_ASSET_RESOLVER` symbol +
+`MediaAssetResolver` interface) that the media plugin *binds* — the same
+inversion as `CONTENT_ENTRY_EXTENSION`. `EntryWriterService.assertMediaTargets`
+injects it `@Optional()` and runs alongside `assertRelationTargets`: a missing,
+cross-workspace, or disallowed asset is a uniform **422** (no
+not-found-vs-forbidden enumeration signal). Unbound (media plugin absent) it is a
+no-op — media fields shape-validate and store, but skip existence/restriction.
+`GET /content/:type/:id/media` (`MediaRefsQuery`) resolves an entry's media ids
+to display refs (name/thumbnail-url/kind), and the revision detail's `mediaRefs`
+reuses the same query; both no-op without a resolver.
 
 ### Metadata flags (`publishable` / `paranoid` / `i18n`)
 
@@ -81,7 +114,7 @@ columns:
   `localized: true` on such a field even without the flag: a shared FK would be a
   cross-locale link, so the i18n sibling-sync and the admin's translation prefill
   skip it and the relation picker offers only same-locale candidates. This
-  package owns the storage *shape* only — what a locale *means*
+  package owns the storage _shape_ only — what a locale _means_
   (allowed slugs, the default, scoping, sync) lives behind the
   `CONTENT_ENTRY_EXTENSION` port (see below), so content-server stays
   locale-agnostic.
@@ -137,21 +170,34 @@ or a reserved envelope column) are rejected by `assertFields`.
 
 **Required ⇒ NOT NULL only for non-publishable types.** A publishable type has a
 draft stage, so its required fields stay **nullable** columns — "required" means
-"required *to publish*", enforced by `EntryValidationService` at publish time, not
+"required _to publish_", enforced by `EntryValidationService` at publish time, not
 the DB (else an incomplete draft couldn't be saved). A non-publishable type is
 always live, so its required fields are `NOT NULL`. `EntryWriterService` mirrors
-this: create/update validate eagerly only for non-publishable types; publish
-re-validates the stored row for publishable ones.
+this: create/update on a publishable type always produce a **draft** working copy
+and are **not** eagerly validated (a draft may be incomplete); publish
+re-validates the stored row. A non-publishable type validates every write.
+**Editing a published entry moves it back to draft** (`status → draft`): the save
+is unpublished working changes, while the entry's previously-published _version_
+stays live in history until the next publish (see Revisions). To make content
+live again you publish — the entry's latest, or any specific version.
+
+`published_at` is **kept** across that edit — it records that the entry _has_ a
+live version, which editing doesn't retract; only `unpublish` clears it
+(`markDraft`). So the pair carries three states, not two: `published` = live and
+current, `draft` + a `published_at` = live content with unpublished changes on
+top (the admin's **Modified** badge), `draft` + no `published_at` = never
+published. Note this makes `?filter=` on `publishedAt` mean "last went live at",
+not "is currently live" — filter on `status` for the latter.
 
 A **required link-managed relation** (an owning many-to-many, or the inverse of
 one) can't be checked by `EntryValidationService` — its links never travel in the
 `values` bag. `EntryWriterService.assertRequiredRelations` enforces it separately
-by **counting the entry's links**: at the same gates (eagerly for non-publishable
-creates/updates and published-row updates, inside the write transaction so it
-sees the just-written rows; and at publish, against the stored links). A required
-such relation with zero links is the same `422 is required`. A required single
-relation is still an FK in `values`, validated there; an inverse-of-single owns
-no writable link from this side, so it isn't enforced.
+by **counting the entry's links**: eagerly for non-publishable creates/updates
+(inside the write transaction so it sees the just-written rows) and at publish
+against the stored links. A required such relation with zero links is the same
+`422 is required`. A required single relation is still an FK in `values`,
+validated there; an inverse-of-single owns no writable link from this side, so it
+isn't enforced.
 
 ## The `/define` vs main-barrel split — IMPORTANT
 
@@ -194,16 +240,24 @@ global).
   (`entries/infrastructure/queries/entry-filter-surface.ts`) in **one traversal**
   that produces BOTH this wire list AND the SQL `FilterSchema` the list endpoint
   enforces, so the picker can never offer a path the API rejects (an
-  `entry-filter-surface.spec` drift test pins it). Workspace-scoped
-  (`WorkspaceGuard`); the builder's `grantedTypes` pruning is wired but not yet
-  passed. Cardinalities map to the engine's `RelationKind` (owning single →
+  `entry-filter-surface.spec` drift test pins it). **Workspace-scoped**
+  (`WorkspaceGuard`) and **grant-pruned**: `WorkspaceGrantsQuery`
+  (`content-types/queries/`) reads the workspace's `workspace_content` slugs, an
+  ungranted `:name` 404s exactly like an unknown one (no enumeration signal),
+  and the slugs are passed as the builder's `grantedTypes` so the picker never
+  offers a traversal into a collection the caller cannot open. Cardinalities map
+  to the engine's `RelationKind` (owning single →
   `many-to-one`, owning many → `many-to-many`, inverse-of-single → `one-to-many`,
   inverse-of-many → `many-to-many` swapped, self single → `self-referential`;
   self many-to-many skipped in v1), and every emitted relation carries a `scope`
   (workspace + soft-delete) so a relation filter never matches a soft-deleted or
-  foreign target. The list endpoint (`EntriesService.listWhere`) now derives its
-  filter schema from the same builder, so **relation filtering works over the API**
-  regardless of the UI.
+  foreign target. The list endpoint (`EntriesService.listWhere`) derives its
+  filter schema from the same builder — **lazily**, only when `?filter=` is
+  present, since building it walks the whole relation graph — so **relation
+  filtering works over the API** regardless of the UI. The list's schema is
+  deliberately **not** grant-pruned: it is the SQL whitelist, not a visibility
+  boundary, and pruning it would make the same saved filter 400 or change
+  meaning depending on which workspace opened it.
 - `GET /content/:typeName` — one page of a collection's entries
   (`?search=&filter=&sort=&page=&pageSize=&deleted=` → `{ items, total, page, pageSize }`).
   Resolves `:typeName` via the registry (404 if unknown), then runs the **generic**
@@ -222,7 +276,7 @@ global).
   **visible** relation columns, so a hidden column costs nothing. Unknown names
   in `relationFields` are dropped (only keys on `type.fields` reach a query).
   Resolution is `RelationLinkService.previewForEntries` — **batched across the
-  whole page**: one windowed query per relation *field*
+  whole page**: one windowed query per relation _field_
   (`row_number()` for the cap, `count(*)` for the total, partitioned by the
   owning id) plus a batched `refsFor` for titles, covering owning single, owning
   many, and inverse alike. It is deliberately **not** built on the per-entry
@@ -232,44 +286,36 @@ global).
 - **Entry writes** (`EntryWriterService`, generic over the type like the reader;
   `entry-row.ts` holds the shared row↔record mappers). All validate via
   `EntryValidationService` — a failure is **422** with `{ message, issues:
-  [{ field, message }] }`. Each resolves `:typeName` (404), guards state-changing
-  requests with `OriginGuard` (CSRF), and is permission-gated:
-    - `POST /content/:typeName` — create a draft (`content:create`). The insert
-      runs in a transaction that first takes the workspace's **shared** advisory
-      lock (`lockWorkspaceShared` from identity), coordinating with the workspace
-      delete / content-revoke emptiness guards (which take it exclusively) so a
-      new entry can't be orphaned by a concurrent delete/revoke.
-    - `GET /content/:typeName/:id` — read one live entry (`content:read`).
-    - `GET /content/:typeName/:id/relations` — every relation field's **first
-      page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
-      `RelationRef = { id, title, slug?, status?, missing? }`), for owning single/many
-      **and** inverse back-references. A link whose target can't be resolved
-      (soft-deleted, or outside the workspace) still yields a ref — id-only and
-      flagged **`missing: true`**, so `items` never runs shorter than `total` —
-      and the admin renders it as an unavailable record rather than printing the
-      raw id. `slug` is the target's slug-field value —
-      the field flagged `admin.widget === 'slug'`, else one literally named
-      `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
-      one and the row's slug is non-empty; the admin renders it as a `/handle`.
-      `RelationLinkService.readAll` reads each field independently (paginated),
-      so a relation with many links contributes only its first page, never every
-      id. The editor titles single relations and seeds the section counts from it
-      (`content:read`).
-    - `GET /content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
-      a single relation field's links (`{ items, total }`), ordered by
-      `position`. Drives the editor's **infinite-scroll** of a many/inverse
-      relation. 400 if `field` isn't a relation (`content:read`).
-    - `PATCH /content/:typeName/:id` — replace values (`content:update`).
-    - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
-      `status`+`published_at`; publish **re-validates the stored row**; 400 on a
-      non-publishable type (`content:publish`).
-    - `DELETE /content/:typeName/:id` — soft delete (paranoid) or hard delete;
-      `POST .../restore` + `DELETE .../permanent` for paranoid types
-      (`content:delete`).
-    - `POST /content/:typeName/bulk/{publish/preview,publish,unpublish,delete,restore,purge}` —
-      `{ ids }` batch ops; `publish/preview` is a dry run returning a per-entry
-      verdict (will-publish / already-published / blocked+issues / not-found),
-      and `publish` re-validates and publishes only the valid drafts.
+[{ field, message }] }`. Each resolves `:typeName` (404), guards state-changing
+  requests with `OriginGuard` (CSRF), and is permission-gated: - `POST /content/:typeName` — create a draft (`content:create`). The insert
+  runs in a transaction that first takes the workspace's **shared** advisory
+  lock (`lockWorkspaceShared` from identity), coordinating with the workspace
+  delete / content-revoke emptiness guards (which take it exclusively) so a
+  new entry can't be orphaned by a concurrent delete/revoke. - `GET /content/:typeName/:id` — read one live entry (`content:read`). - `GET /content/:typeName/:id/relations` — every relation field's **first
+  page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
+  `RelationRef = { id, title, slug?, status?, missing? }`), for owning single/many
+  **and** inverse back-references. A link whose target can't be resolved
+  (soft-deleted, or outside the workspace) still yields a ref — id-only and
+  flagged **`missing: true`**, so `items` never runs shorter than `total` —
+  and the admin renders it as an unavailable record rather than printing the
+  raw id. `slug` is the target's slug-field value —
+  the field flagged `admin.widget === 'slug'`, else one literally named
+  `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
+  one and the row's slug is non-empty; the admin renders it as a `/handle`.
+  `RelationLinkService.readAll` reads each field independently (paginated),
+  so a relation with many links contributes only its first page, never every
+  id. The editor titles single relations and seeds the section counts from it
+  (`content:read`). - `GET /content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
+  a single relation field's links (`{ items, total }`), ordered by
+  `position`. Drives the editor's **infinite-scroll** of a many/inverse
+  relation. 400 if `field` isn't a relation (`content:read`). - `PATCH /content/:typeName/:id` — replace values (`content:update`). - `POST /content/:typeName/:id/publish` · `/unpublish` — stamp/clear
+  `status`+`published_at`; publish **re-validates the stored row**; 400 on a
+  non-publishable type (`content:publish`). - `DELETE /content/:typeName/:id` — soft delete (paranoid) or hard delete;
+  `POST .../restore` + `DELETE .../permanent` for paranoid types
+  (`content:delete`). - `POST /content/:typeName/bulk/{publish/preview,publish,unpublish,delete,restore,purge}` —
+  `{ ids }` batch ops; `publish/preview` is a dry run returning a per-entry
+  verdict (will-publish / already-published / blocked+issues / not-found),
+  and `publish` re-validates and publishes only the valid drafts.
 - **Routing order matters:** `BulkEntriesController` is registered **before** the
   single-item controllers in `ContentModule.forRoot` so the literal `bulk`
   segment wins over `:id` (single-item `:id` also carries `ParseUUIDPipe` as a
@@ -280,7 +326,7 @@ global).
   side of a two-way relation (which reuses the owning join table, source/target
   swapped) — is **paginated** on read and edited by an **incremental delta**
   carried in the save body (`SaveEntryDto.relations = { <field>: { link?, unlink?,
-  order? } }`): inside the create/update transaction `applyDelta` unlinks the
+order? } }`): inside the create/update transaction `applyDelta` unlinks the
   removed pairs, appends the new ones at `max(position)+1` for their source
   (`ON CONFLICT DO NOTHING`), and renumbers to `order` (owning side only) — so a
   relation with thousands of links is never sent or held whole, and the row and
@@ -300,7 +346,7 @@ global).
   `assertTargets` validates every linked id exists in the same workspace (uniform
   422, no enumeration signal). Join rows carry a float `position` (the source's
   own ordering) so a reorder survives a reload; the inverse reads by it but can't
-  set it. An inverse of a *single* relation (one-to-many) owns no writable link
+  set it. An inverse of a _single_ relation (one-to-many) owns no writable link
   from its side. The whole-document write still supports a many-relation
   submitted in the entry body (`writeLinks`, replace-set, position = array
   index) — used on **create** and by any legacy/bulk caller; a field absent from
@@ -335,7 +381,7 @@ entries/
 
 **Why a focused domain model, not a full aggregate.** The entries engine is
 **generic and registry-driven** — one `EntryWriterService`/`EntriesService`
-backs *every* content type, with no per-aggregate table or fixed field set. A
+backs _every_ content type, with no per-aggregate table or fixed field set. A
 classic row⇄aggregate aggregate + mapper would fight that metamodel (ADR-0003:
 "DDD where it pays, CRUD where it doesn't"). So the part with real invariants —
 the **publish lifecycle** — is modelled by the `Entry` domain object
@@ -373,7 +419,7 @@ transaction today).
 
 **`CONTENT_ENTRY_EXTENSION` stays SYNCHRONOUS and unchanged.** It is an
 **in-transaction open-host port** (i18n binds it for per-locale scoping,
-column-stamping, and sibling sync). Its methods run *inside* the entry write
+column-stamping, and sibling sync). Its methods run _inside_ the entry write
 transaction — `createColumns` on the INSERT, `afterUpdate` after the row/relation
 writes — so their effects commit or roll back with the write. It is **not** a
 domain event and must not become one: an event fires post-commit, which would be
@@ -384,6 +430,73 @@ The DSL / registry / schema-builder / extension-port machinery is deliberately
 **not** turned into aggregates — that is the content framework/metamodel, and
 forcing it into a domain shape would violate ADR-0003, not honor it. It keeps its
 current layout and public API.
+
+## Revisions — version history (`src/lib/revisions/`)
+
+Every save keeps an immutable **snapshot** of the whole document, so an entry has
+a browsable version history and can be restored. Layered per ADR-0003
+(`domain / application / infrastructure / http`), sibling to `entries/`.
+
+- **Storage.** One generic **HOST-owned** table, `content_entry_revisions`
+  (defined in `revisions/infrastructure/persistence/revision-table.ts`, exported
+  from the decorator-free `/define` barrel and re-exported by the host's
+  `src/content/index.ts` for drizzle-kit — like every `content_<name>` table).
+  One mechanism for all types, matching the generic `EntryWriterService`. Keyed
+  **per-locale** (`entry_id` = the live row), so each translation has its own
+  timeline. `snapshot` (jsonb) is `{ values, relations }`: the field values bag
+  (scalars, localized + shared, single-relation FKs) plus the **full ordered
+  link sets** of every join-backed relation (`RelationLinkService.snapshotLinks`).
+- **Snapshot-on-save.** `EntryWriterService.create`/`update` append a **draft**
+  revision **inside their existing transaction** (via the `REVISION_STORE` port),
+  so the version commits atomically with the row + relation writes; the entry's
+  advisory lock serializes concurrent savers so version numbers can't collide.
+  The live row still edits in place. Because these writes are **not yet on the
+  `UnitOfWork`**, no `entry.revision.created` outbox event is emitted (same reason
+  `entry.created`/`entry.updated` are still unemitted); the `Revision` model stays
+  event-ready.
+- **Publish transition.** A revision is born a `draft`; publishing the entry
+  promotes its history too. The `publish` / `unpublish` use-cases (and their bulk
+  variants) call `RevisionStore.markPublished` / `markUnpublished` **on the same
+  unit-of-work transaction** as the entry-row status write, so the row and its
+  timeline commit together. `markPublished` promotes one revision to `published`
+  and demotes any prior published one to `superseded`, keeping at most one live
+  version per entry — the entry-level publish targets the **latest** (exactly the
+  just-published live row, since every save appends one), while publish-a-version
+  passes the chosen `revisionNumber`; `markUnpublished` reverts the published revision to
+  `draft`. Without this the timeline would always read `draft` even for a live
+  entry (`RevisionSummary.status` / `isPublished` back the admin's Live/Draft/
+  Superseded badge). Because a save moves the entry to draft **but leaves the
+  published revision published**, an editor can accumulate draft versions while
+  the previously-published one stays live — then publish any version.
+- **Publish a specific version** (`PublishRevisionUseCase`). Publishing marks
+  **that version itself** live — `markPublished` takes the target
+  `revisionNumber` and flips it in place, demoting the prior live one to
+  `superseded`. Publishing an **earlier** version first re-applies its content
+  onto the live row (`RestoreRevisionUseCase` with **`appendRevision: false`**)
+  so the live document matches what is published, but records **no** version for
+  it: publishing v2 leaves the timeline at its existing length with v2 marked
+  live, instead of minting a v6 copy of v2 on every publish. History is still
+  never rewritten or deleted — only version _statuses_ move, which is what
+  publishing is. One consequence to know: after publishing an earlier version the
+  **latest** version is no longer the live content (it is a newer draft that was
+  not published), so `isLatest` ≠ "equals the live row" in that window — the next
+  save appends a version equal to the live row again. Composes the existing
+  restore + entry-publish use-cases; publishing re-validates through the publish
+  gate (a `422` leaves the content re-applied as a draft, a recoverable state).
+- **HTTP** (workspace-scoped, same guards as the entry routes):
+  `GET :typeName/:id/revisions` (timeline, newest first), `.../revisions/:number`
+  (one snapshot), `POST .../revisions/:number/restore` (`content:update`). The
+  single-revision detail is **enriched with resolved relation refs**
+  (`RevisionRefsQuery` → `RelationLinkService.resolveRefs`): each relation field's
+  snapshot ids (owning-single FK from `values`, join-backed list from `relations`)
+  become titled `RelationRef`s (`relationRefs`/`relationTotals`, capped at
+  `PREVIEW_RELATION_REF_CAP`), so the admin preview lists the actual linked
+  records rather than raw uuids — a soft-deleted / cross-workspace target flagged
+  `missing`, no title leak. `POST .../revisions/:number/publish`
+  (`content:publish`) makes a specific version live (`PublishRevisionUseCase`).
+  `RestoreRevisionUseCase` re-applies a snapshot through `EntryWriterService.update`
+  — which appends a **new** revision — so history is append-only (a restore of v2
+  yields a fresh v6 equal to v2, never a rewrite).
 
 ## Architecture
 

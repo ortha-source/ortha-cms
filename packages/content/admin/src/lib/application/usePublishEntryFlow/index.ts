@@ -1,15 +1,17 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { canPublish, type EntryFieldSpecMap } from '@ortha-cms/content-domain';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type {
     ContentTypeDetail,
     EntryRecord,
     RelationDelta
 } from '../../domain/types/contentType';
-import { CONTENT_PUBLISH, ENTRY_STATUS } from '../../domain/constants';
+import { ENTRY_STATUS } from '../../domain/constants';
 import { toFieldSpec } from '../../infrastructure/entryFieldSpec';
 import { useSaveEntry } from '../useSaveEntry';
 import { useEntryStatusActions } from '../useEntryStatusActions';
+import { refreshEntryCaches } from '../refreshEntryCaches';
 
 /** One run of the save/publish use case. */
 export type SubmitEntryInput = {
@@ -52,11 +54,13 @@ export type SubmitEntryResult = {
 export type PublishEntryFlow = {
     /**
      * Runs the save use case: persist the values (+ staged relation deltas), then
-     * — for a publishable type — either publish (when the intent is publish and the
-     * kernel {@link canPublish} gate passes) or revert to draft (when saving a
-     * draft over an already-published entry, with permission). Resolves with the
-     * classified {@link SubmitEntryResult}; rejects on a server error (e.g. a 422)
-     * so the editor can surface field issues.
+     * — for a publishable type, when the intent is publish and the kernel
+     * {@link canPublish} gate passes — publish. A plain save needs no extra step:
+     * the server already moves a published entry to **draft** on save (its
+     * previously-published *version* stays live in history), so the flow never
+     * issues a separate unpublish (that would demote the published version too).
+     * Resolves with the classified {@link SubmitEntryResult}; rejects on a server
+     * error (e.g. a 422) so the editor can surface field issues.
      */
     submit: (input: SubmitEntryInput) => Promise<SubmitEntryResult>;
     /** Reverts a published entry to draft (the sidebar's Unpublish action). */
@@ -78,34 +82,49 @@ export type PublishEntryFlow = {
  * the same rule the editor's publish gate shows), and exposes the entry lifecycle
  * mutations. Cache invalidation lives in the underlying mutations.
  *
- * Takes only the stable `typeName` so it can be called unconditionally (before the
+ * Takes the stable `typeName` so it can be called unconditionally (before the
  * schema resolves); the schema and publishable flag are supplied per {@link submit}.
+ *
+ * `editorKey` identifies the current edit target (mode + record id + create-body
+ * params such as the target locale). The editor is **not** remounted when the
+ * route flips between `/new`, `/:id`, and `/new?locale=…` (the same component
+ * renders all three — see `ContentLibraryPage`), so this hook's state survives
+ * those transitions; the key lets it clear the remembered `createdId` when the
+ * target genuinely changes. Without it, after creating record A a subsequent
+ * "create a translation" (a fresh `/new` for another locale) would keep A's id
+ * and issue a **PATCH against A** instead of a POST — overwriting A and creating
+ * no sibling. The key must **not** change within a single create session (e.g. a
+ * create that succeeds then fails to publish), so a retry still targets the draft.
  */
-export function usePublishEntryFlow(typeName: string): PublishEntryFlow {
+export function usePublishEntryFlow(
+    typeName: string,
+    editorKey?: string
+): PublishEntryFlow {
     const save = useSaveEntry(typeName);
     const status = useEntryStatusActions(typeName);
-    const hasPublishPermission = useHasPermission(CONTENT_PUBLISH);
+    const queryClient = useQueryClient();
+    const workspace = useCurrentWorkspace();
     // In create mode, remember the id returned by a successful create so a retry
     // after a failed chained publish updates that draft instead of re-creating.
     const [createdId, setCreatedId] = useState<string | undefined>(undefined);
 
+    // Forget the remembered create id when the edit target changes (a different
+    // record, or a new-translation create for another locale). The editor isn't
+    // remounted across those navigations, so nothing else resets this state.
+    useEffect(() => {
+        setCreatedId(undefined);
+    }, [editorKey]);
+
     const submit = useCallback(
         async (input: SubmitEntryInput): Promise<SubmitEntryResult> => {
             const existingId = input.entry?.id ?? createdId;
-            const saved = await save.mutateAsync({
-                id: existingId,
-                values: input.values,
-                relations: input.relations,
-                ...(input.bodyExtra && Object.keys(input.bodyExtra).length
-                    ? { extra: input.bodyExtra }
-                    : {})
-            });
-            // Record the new id before chaining publish: if publish then fails, the
-            // draft persists and the user's retry must target it (not POST again).
-            if (!existingId) setCreatedId(saved.id);
 
             // The publish gate over the same value set the editor validated: build
             // the kernel field-spec map, skipping the caller's ignored fields.
+            // Decided **before** the save — it reads only the submitted values,
+            // and the save needs to know whether a publish will follow so the two
+            // writes share one cache-refresh pass instead of each running their
+            // own (which refetched the record and its timeline twice per click).
             const fields: EntryFieldSpecMap = {};
             for (const field of input.schema.fields) {
                 if (input.ignoreFields?.has(field.name)) continue;
@@ -115,29 +134,56 @@ export function usePublishEntryFlow(typeName: string): PublishEntryFlow {
                 input.publish &&
                 input.publishable &&
                 canPublish(fields, input.values);
-            // "Save as draft" on an already-published entry reverts it (unpublish),
-            // so the primary and draft actions are a clean toggle — only when the
-            // user may publish/unpublish.
-            const willUnpublish =
+
+            const saved = await save.mutateAsync({
+                id: existingId,
+                values: input.values,
+                relations: input.relations,
+                deferRefresh: willPublish,
+                ...(input.bodyExtra && Object.keys(input.bodyExtra).length
+                    ? { extra: input.bodyExtra }
+                    : {})
+            });
+            // Record the new id before chaining publish: if publish then fails, the
+            // draft persists and the user's retry must target it (not POST again).
+            if (!existingId) setCreatedId(saved.id);
+
+            // Saving a publishable entry as a draft moves it to draft **on the
+            // server** (the save itself), while its previously-published *version*
+            // stays live in history — so we must NOT issue a separate unpublish,
+            // which would demote that published version too. The flag stays, only
+            // to drive the "Saved as draft" toast.
+            const revertedToDraft =
                 !input.publish &&
                 input.publishable &&
-                hasPublishPermission &&
                 input.entry?.status === ENTRY_STATUS.Published;
 
             if (willPublish) {
-                await status.publish.mutateAsync(saved.id);
-            } else if (willUnpublish) {
-                await status.unpublish.mutateAsync(saved.id);
+                try {
+                    await status.publish.mutateAsync(saved.id);
+                } catch (error) {
+                    // The save landed even though the publish didn't (a 422 from
+                    // the server-side gate). Run the refresh the save deferred to
+                    // this publish, so the timeline and list reflect the stored
+                    // draft, then let the caller surface the field issues.
+                    await refreshEntryCaches(
+                        queryClient,
+                        workspace.id,
+                        typeName,
+                        { primedEntryId: saved.id }
+                    );
+                    throw error;
+                }
             }
 
             return {
                 saved,
                 wasCreate: !existingId,
                 published: willPublish,
-                unpublished: willUnpublish
+                unpublished: revertedToDraft
             };
         },
-        [save, status, hasPublishPermission, createdId]
+        [save, status, createdId, queryClient, workspace.id, typeName]
     );
 
     const unpublish = useCallback(

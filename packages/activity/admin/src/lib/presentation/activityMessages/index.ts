@@ -59,6 +59,14 @@ const actionMessages = defineMessages({
     workspaceMemberRemoved: {
         id: 'activity.action.workspace.member_removed',
         defaultMessage: 'Removed workspace member'
+    },
+    entryPublished: {
+        id: 'activity.action.entry.published',
+        defaultMessage: 'Published content'
+    },
+    entryUnpublished: {
+        id: 'activity.action.entry.unpublished',
+        defaultMessage: 'Unpublished content'
     }
 });
 
@@ -75,7 +83,9 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'user.signed_out': actionMessages.signedOut,
     'workspace.created': actionMessages.workspaceCreated,
     'workspace.member_added': actionMessages.workspaceMemberAdded,
-    'workspace.member_removed': actionMessages.workspaceMemberRemoved
+    'workspace.member_removed': actionMessages.workspaceMemberRemoved,
+    'entry.published': actionMessages.entryPublished,
+    'entry.unpublished': actionMessages.entryUnpublished
 };
 
 /** Detail-template descriptors for the kinds that render a "Details" string. */
@@ -97,10 +107,7 @@ function metaStr(meta: Record<string, unknown> | null, key: string): string {
 }
 
 /** The "Action" label for an event; unknown kinds fall back to the raw kind. */
-export function formatActivityAction(
-    intl: IntlShape,
-    kind: string
-): string {
+export function formatActivityAction(intl: IntlShape, kind: string): string {
     const descriptor = ACTION_MESSAGES[kind as ActivityKind];
     return descriptor ? intl.formatMessage(descriptor) : kind;
 }
@@ -134,6 +141,11 @@ export function formatActivityDetails(
         case 'workspace.member_added':
         case 'workspace.member_removed':
             return metaStr(meta, 'email') || metaStr(meta, 'userId');
+        case 'entry.published':
+        case 'entry.unpublished':
+            // The entry's content type — what was published, without the log
+            // having to join anything to say it.
+            return metaStr(meta, 'contentType');
         default:
             return '';
     }

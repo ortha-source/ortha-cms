@@ -58,4 +58,37 @@ export class UserDetailPage extends BasePage {
             .getByRole('dialog')
             .getByRole('button', { name: label });
     }
+
+    // --- Preferences tab (self-only): the colour-theme picker ---
+
+    /**
+     * A theme option in the Preferences tab's radio group, by name (Light /
+     * Dark / System). Each option is a `radio` whose accessible name comes from
+     * its card label, so a substring match is robust to the hint copy. Used for
+     * visibility/checked assertions; {@link selectTheme} does the clicking.
+     */
+    themeOption(name: 'Light' | 'Dark' | 'System'): Locator {
+        return this.page.getByRole('radio', { name: new RegExp(name) });
+    }
+
+    /**
+     * Select a theme by clicking its card. The radio itself is visually hidden
+     * (`sr-only`) behind a custom card, so — as a user does — we click the card
+     * label, which is wired to the radio via `htmlFor`.
+     */
+    async selectTheme(name: 'Light' | 'Dark' | 'System') {
+        await this.page.locator('label', { hasText: name }).click();
+    }
+
+    /** True when the app has applied the dark theme (the `.dark` class on <html>). */
+    async isDark(): Promise<boolean> {
+        const cls =
+            (await this.page.locator('html').getAttribute('class')) ?? '';
+        return cls.split(/\s+/).includes('dark');
+    }
+
+    /** The "Theme saved." success toast shown after a theme is persisted. */
+    savedToast(): Locator {
+        return this.page.getByText('Theme saved.');
+    }
 }

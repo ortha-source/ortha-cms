@@ -81,6 +81,8 @@ export function BulkPublishDialog({
     onOpenChange,
     typeName,
     ids,
+    labels,
+    labelFor,
     onPublished
 }: {
     open: boolean;
@@ -88,6 +90,19 @@ export function BulkPublishDialog({
     typeName: string;
     /** The selected entry ids to publish. */
     ids: string[];
+    /**
+     * Override the selection-flavoured heading and body. A caller publishing a
+     * *known* set — the i18n plugin's "all locales" action — says so in its own
+     * words; the default stays "Publish {n} records?".
+     */
+    labels?: { title?: string; body?: string };
+    /**
+     * Override a row's name by id. The verdict carries the record's title, which
+     * is right for a table selection and wrong for a set of locale siblings —
+     * there, every row is the *same* record and the locale is what tells them
+     * apart.
+     */
+    labelFor?: (id: string) => string | undefined;
     /** Called after a successful publish (e.g. to clear the selection). */
     onPublished: () => void;
 }) {
@@ -135,12 +150,13 @@ export function BulkPublishDialog({
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
-                        {intl.formatMessage(messages.title, {
-                            count: ids.length
-                        })}
+                        {labels?.title ??
+                            intl.formatMessage(messages.title, {
+                                count: ids.length
+                            })}
                     </DialogTitle>
                     <DialogDescription>
-                        {intl.formatMessage(messages.body)}
+                        {labels?.body ?? intl.formatMessage(messages.body)}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -181,6 +197,7 @@ export function BulkPublishDialog({
                                 <VerdictRow
                                     key={item.id}
                                     item={item}
+                                    name={labelFor?.(item.id)}
                                     recordHref={recordHref}
                                 />
                             ))}

@@ -20,6 +20,18 @@ export {
     useSidebarContent,
     SidebarContentProvider
 } from './lib/utils/sidebarContent';
+
+// The two page-fillable chrome regions: the top bar's trailing actions and the
+// right panel. A page fills them by portal from inside its own tree, so the
+// content keeps the page's context (workspace, slot contexts, form handlers).
+export {
+    PageActionsPortal,
+    RightPanelPortal,
+    useRightPanel
+} from './lib/utils/pageChrome';
+// The bar-side half of the actions region. `PageTopBar` renders it already; a
+// page that composes `TopBar` itself adds it as the bar's last child.
+export { PageActions } from './lib/components/PageActions';
 export { HOME_SECTION_SLOT } from './lib/slots/homeSlots';
 export type { HomeSectionItem, HomeRegion } from './lib/slots/homeSlots';
 export { COMMAND_SLOT } from './lib/slots/commandSlots';

@@ -15,6 +15,20 @@
       "when": 1784544932238,
       "tag": "0001_relation_fk_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784620622277,
+      "tag": "0002_content_entry_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784928836231,
+      "tag": "0003_media_fields",
+      "breakpoints": true
     }
   ]
 }

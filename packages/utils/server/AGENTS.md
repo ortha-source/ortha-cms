@@ -49,9 +49,32 @@ Key concepts:
   prebuilt `SQL`, because a self-join must scope the alias, not the physical
   table; when a `scope` is set the many-to-many junction-only fast path
   yields to the full target join.
+- **Parent-side columns are re-bound to the queried table.** A relation's
+  `fk` (on `many-to-one` / `self-referential`) and any `parentKey` are
+  prebuilt against the *physical* parent table, which is wrong whenever the
+  parent is an **alias** — i.e. for anything nested under a
+  `self-referential` hop. Postgres resolves the unaliased column from the
+  outermost `FROM` instead of erroring, so `parent.author.name` would filter
+  the ROOT row's author and `parent.parent.name` would collapse to
+  `parent.name`. `rebind()` (in `table-helpers.ts`) re-resolves those columns
+  against whatever table the translator is querying; it is a no-op on an
+  unaliased chain. Never rebind a target-side `fk` (`one-to-many`).
 - **Operators** — `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, `like`,
-  `ilike`, `null` — each mapped to a parameterized Drizzle helper. Values are
-  never string-interpolated into SQL.
+  `ilike`, `nilike`, `null` — each mapped to a parameterized Drizzle helper.
+  Values are never string-interpolated into SQL.
+- **Negation has two rules, both non-obvious** (`negation.ts`):
+    - **On a relation path**, a negating leaf (`ne` / `nin` / `nilike`, and
+      `null: true`) is rewritten into `NOT EXISTS(… positive …)` — the
+      negation wraps the **outermost** hop, so a multi-hop path negates the
+      whole chain. The naive `EXISTS(… negated …)` asserts the *opposite*
+      once a relation can hold >1 row: `tags.name nin ['x']` would mean "has
+      some tag that isn't x" and match an entry tagged `[x, y]`. It also
+      makes `relation.id null:true` ("is empty") a dead filter, since a
+      target's `id` is a NOT NULL primary key.
+    - **On a plain column**, negative operators are **NULL-inclusive**
+      (`col <> v OR col IS NULL`). SQL's three-valued logic would otherwise
+      drop NULL rows, and a publishable type keeps its required fields
+      nullable — "Title does not contain foo" must not hide untitled drafts.
 - **Scalar coercion** — `string` / `number` / `boolean` / `uuid` / `date` /
   `enum`; the parser coerces raw URL strings to the declared type before they
   hit Drizzle.
@@ -62,8 +85,8 @@ The schema is the security boundary: only whitelisted fields/ops/relations
 reach SQL, and depth/node caps bound payload blow-up.
 
 Internal files (not exported): `parse-filter-tree.ts`, `tree-to-drizzle.ts`,
-`relation-exists.ts`, `scalar-op.ts`, `resolve-leaf.ts`, `table-helpers.ts`,
-`filter-exceptions.ts`.
+`relation-exists.ts`, `scalar-op.ts`, `negation.ts`, `resolve-leaf.ts`,
+`table-helpers.ts`, `filter-exceptions.ts`.
 
 ## Commands
 

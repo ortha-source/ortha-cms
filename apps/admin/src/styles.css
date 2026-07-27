@@ -17,8 +17,14 @@
    admin-e2e axe scan enforces this. White text on the brand orange does NOT
    clear AA: never pair `text-*-foreground` white text with `bg-brand`; use
    ink text (`--color-brand-foreground`) or keep orange to icons/accents.
+   Dark mode: the `.dark` class on `<html>` (toggled by the design-system
+   `AppearanceProvider`) re-declares these `--color-*` tokens with a dark
+   palette below. `@theme` (not `@theme inline`) is used precisely so utilities
+   resolve to `var(--color-*)` and the dark override takes effect at runtime.
 --------------------------------------------------------------------------- */
-@theme inline {
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
     --radius: 0.625rem;
 
     /* Pure-white page canvas; cards/popovers separate via border + shadow. */
@@ -129,6 +135,95 @@
     --color-nav-teal: oklch(0.75 0.1 190);
 }
 
+/* ---------------------------------------------------------------------------
+   Dark theme. Re-declares the semantic color tokens for the `.dark` class the
+   `AppearanceProvider` toggles on `<html>`. Only the light-surface tokens flip;
+   the sidebar chrome (`--color-sidebar-*`) and nav-icon accents were already
+   authored dark, so they carry over unchanged and keep the chrome consistent.
+
+   Same contract as the light palette: every `*-foreground` is chosen to clear
+   WCAG AA on its surface, and the brand orange stays an accent (never white
+   text on `bg-brand`). Lightness is inverted relative to light mode — near-black
+   canvas, near-white ink — with cards a step lighter than the canvas so they
+   separate by surface as well as border.
+
+   Note the semantic solids (destructive/success/warning/info) invert their
+   *foreground* too. In light mode they are dark fills carrying white text; here
+   they must be lightened to read against the near-black canvas, and a lightened
+   fill can no longer carry white text at AA (white on `oklch(0.62 …)` is only
+   ~3.3-3.8:1). So they take the same ink foreground the light palette uses for
+   `brand` — every pair below clears 4.5:1 both as a solid fill and, for the
+   `text-*` utilities, as standalone text on the canvas and on cards.
+--------------------------------------------------------------------------- */
+.dark {
+    /* Near-black canvas; cards/popovers lift a step above it. */
+    --color-background: oklch(0.175 0.012 285);
+    --color-foreground: oklch(0.95 0.004 285);
+    --color-card: oklch(0.215 0.012 285);
+    --color-card-foreground: oklch(0.95 0.004 285);
+    --color-popover: oklch(0.215 0.012 285);
+    --color-popover-foreground: oklch(0.95 0.004 285);
+
+    /* Ink primary inverts to a light "contrast" button with dark text. */
+    --color-primary: oklch(0.92 0.004 285);
+    --color-primary-foreground: oklch(0.21 0.012 285);
+
+    /* Brand accent: a touch lighter so flame orange reads on the dark canvas.
+       `brand-text` is lighter still to clear AA as link-grade text. */
+    --color-brand: oklch(0.7 0.19 40);
+    --color-brand-foreground: oklch(0.21 0.012 285);
+    --color-brand-text: oklch(0.8 0.14 45);
+    --color-brand-soft: oklch(0.29 0.05 40);
+    --color-brand-soft-foreground: oklch(0.83 0.11 45);
+
+    --color-secondary: oklch(0.28 0.008 285);
+    --color-secondary-foreground: oklch(0.95 0.004 285);
+    --color-muted: oklch(0.25 0.006 285);
+    /* ~5.5:1 on the canvas and the muted surface — clears AA for small text. */
+    --color-muted-foreground: oklch(0.72 0.012 285);
+    --color-accent: oklch(0.27 0.008 285);
+    --color-accent-foreground: oklch(0.95 0.004 285);
+
+    /* 4.99:1 with ink; lifted a step over the other solids because red is the
+       darkest hue at a given L and needs the headroom to clear AA. */
+    --color-destructive: oklch(0.65 0.2 25);
+    --color-destructive-foreground: oklch(0.21 0.012 285);
+    --color-destructive-soft: oklch(0.3 0.08 20);
+    --color-destructive-soft-foreground: oklch(0.83 0.11 25);
+
+    /* 5.18:1 with ink. */
+    --color-success: oklch(0.62 0.14 150);
+    --color-success-foreground: oklch(0.21 0.012 285);
+    --color-success-soft: oklch(0.3 0.06 150);
+    --color-success-soft-foreground: oklch(0.83 0.12 150);
+
+    /* 6.48:1 with ink. */
+    --color-warning: oklch(0.7 0.13 70);
+    --color-warning-foreground: oklch(0.21 0.012 285);
+    --color-warning-soft: oklch(0.32 0.06 70);
+    --color-warning-soft-foreground: oklch(0.86 0.1 82);
+
+    /* 4.85:1 with ink. */
+    --color-info: oklch(0.62 0.15 255);
+    --color-info-foreground: oklch(0.21 0.012 285);
+    --color-info-soft: oklch(0.3 0.07 255);
+    --color-info-soft-foreground: oklch(0.83 0.1 258);
+
+    --color-teal-soft: oklch(0.3 0.05 190);
+    --color-teal-soft-foreground: oklch(0.83 0.08 190);
+    --color-violet-soft: oklch(0.31 0.06 300);
+    --color-violet-soft-foreground: oklch(0.85 0.1 300);
+
+    /* Structural border blends into the canvas; the input border is lighter so
+       form controls still read as editable against the dark surfaces. */
+    --color-border: oklch(0.3 0.008 285);
+    --color-input: oklch(0.4 0.01 285);
+    --color-ring: oklch(0.62 0.01 285);
+
+    --color-status-active: oklch(0.7 0.16 149);
+    --color-status-invited: oklch(0.74 0.13 70);
+}
+
 /* Avatar accent palette — richer chroma than the neutrals so avatars pop as
    identity anchors; white initials on every swatch clear WCAG AA (>= 5.7:1).
    Shared across workspaces, members, and (later) users.
@@ -151,24 +246,62 @@
     * {
         @apply border-border;
     }
-    html {
-        /* The document owns vertical scrolling: the sticky chrome is anchored
-           to the viewport scrollport, and ordinary pages grow past the fold
-           and scroll. Pages that opt into a fixed-height "island" (e.g. the
-           Content Library) are bounded to the viewport and run their own
-           inner scroll, so they never push the document. Clip the horizontal
-           axis with `clip` (not `hidden`) — it hides sideways overflow
-           without creating a scroll container, so it leaves
-           `position: sticky` intact. */
-        @apply overflow-x-clip;
-    }
+    /* **The document does not scroll.** The authenticated shell is bounded to
+       the viewport (`SidebarProvider`'s wrapper is `h-svh overflow-hidden`) and
+       `SidebarInset` is the scrollport, so the chrome — sidebar, top bar, right
+       panel — stays put and only the content under the bar moves. Public pages
+       (sign-in) still flow normally, which is why `#root` keeps `min-h-svh`
+       rather than being bounded here.
+
+       `html` deliberately carries **no** overflow of its own. Sideways overflow
+       is clipped on `#root` instead (below), because the CSS overflow rules say
+       a non-`visible` overflow on `html` — `overflow-x: clip` included — stops
+       `body`'s overflow from propagating to the viewport. Radix's overlays
+       (`DropdownMenu`, `Select`, `Dialog`, …) lock scrolling by setting
+       `body { overflow: hidden }` and compensating for the scrollbar they
+       expect that to remove with `body[data-scroll-locked] { margin-right:
+       <scrollbar> }`. With `html` clipping, the `hidden` never reached the
+       viewport: the scrollbar stayed, the compensation still applied, and the
+       whole layout jumped ~15px sideways every time any menu opened or closed.
+       (With the shell bounded there is no document scrollbar to compensate for
+       either, so the gap computes to zero — but leave this as it is; the rule
+       is about `html` never becoming a scroll container.) */
     body {
         @apply bg-background text-foreground;
     }
     #root {
         /* `overflow-x-clip`, not `-hidden`: `hidden` would make #root a scroll
-           container and break the sticky chrome once the document scrolls. */
+           container and break the sticky chrome. This is the *only* horizontal
+           clip — see the note above `body`. */
         @apply min-h-svh overflow-x-clip;
+    }
+
+    /* Scrollbars: thin and quiet. The admin is a stack of scrollports — the
+       inset, the work-area island, the right panel, the sidebar nav, the
+       records table — and the platform default paints a heavy grey column in
+       every one of them. Firefox takes `scrollbar-width`/`-color`; Chromium and
+       Safari need the pseudo-elements. The thumb is the border token, so it
+       tracks the theme (including dark) instead of being a hard-coded grey.
+       The track stays transparent so a scrollport doesn't draw a gutter when
+       it has nothing to scroll. */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+    }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        border-radius: 9999px;
+        background-color: var(--color-border);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-muted-foreground);
     }
     ::selection {
         @apply bg-foreground/15;

@@ -77,7 +77,17 @@ export class RelationsEditorPage extends BasePage {
      * many-relation; used to assert lazy-scroll growth and search narrowing).
      */
     get candidateOptions(): Locator {
-        return this.dialog.getByRole('checkbox');
+        return this.candidateList.getByRole('checkbox');
+    }
+
+    /**
+     * The candidate rows' container. Scoped so the toolbar's **select-all**
+     * checkbox — which sits outside it — is never counted as a candidate.
+     */
+    get candidateList(): Locator {
+        return this.dialog
+            .getByRole('group')
+            .or(this.dialog.getByRole('radiogroup'));
     }
 
     /** One candidate row by its (record title) text — checkbox (many) or radio (single). */
@@ -95,6 +105,22 @@ export class RelationsEditorPage extends BasePage {
     async scrollCandidatesToBottom() {
         await this.candidateOptions.last().hover();
         await this.page.mouse.wheel(0, 1200);
+    }
+
+    /** Only the candidate rows currently checked. */
+    get checkedCandidateOptions(): Locator {
+        return this.candidateList.getByRole('checkbox', { checked: true });
+    }
+
+    /**
+     * The picker's bulk **checkbox**. It covers every match, not just the
+     * loaded window: checking it pages the rest in (rendering them) and then
+     * selects the lot, so its label counts the full total.
+     */
+    get selectAllCheckbox(): Locator {
+        return this.dialog
+            .getByRole('checkbox', { name: /Select all \d+/ })
+            .first();
     }
 
     /** The picker's "Add {n}" commit button (many relations). */
@@ -172,11 +198,7 @@ export class RelationsEditorPage extends BasePage {
      * publish gate blocking on empty required fields.
      */
     async saveDraft() {
-        await this.page
-            .getByRole('button', { name: 'More actions' })
-            .click();
-        await this.page
-            .getByRole('menuitem', { name: 'Save draft' })
-            .click();
+        await this.page.getByRole('button', { name: 'More actions' }).click();
+        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
     }
 }

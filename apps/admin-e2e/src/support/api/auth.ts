@@ -50,7 +50,11 @@ const ALL_PERMISSIONS = [
     'content:create',
     'content:update',
     'content:publish',
-    'content:delete'
+    'content:delete',
+    'media:read',
+    'media:create',
+    'media:update',
+    'media:delete'
 ];
 
 /**

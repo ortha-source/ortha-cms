@@ -22,12 +22,23 @@ export type {
 } from './lib/extension/entry-extension';
 export { isPerLocaleRelation } from './lib/extension/per-locale-relation';
 
+export {
+    MEDIA_ASSET_RESOLVER,
+    InjectMediaAssetResolver
+} from './lib/extension/media-asset-resolver';
+export type {
+    MediaAssetResolver,
+    ResolvedMediaAsset
+} from './lib/extension/media-asset-resolver';
+
 // Row ↔ record mappers, exported for extension plugins (e.g. i18n's
 // translation copy) so their wire shapes can't drift from the pipeline's.
 export { toColumns, toRecord } from './lib/entries/infrastructure/persistence/entry-row';
 export type {
     EntryListView,
-    EntryRecord
+    EntryMediaView,
+    EntryRecord,
+    MediaRef
 } from './lib/entries/types/entry-list-view';
 
 export { ContentTypeRegistry } from './lib/registry/content-type-registry';
@@ -56,6 +67,7 @@ export type {
     SingleOptions
 } from './lib/types/content-type';
 export { CONTENT_FIELD_TYPE } from './lib/types/fields';
+export { MEDIA_KIND_VALUES } from './lib/types/fields';
 export type {
     AdminProps,
     AnyFieldSpec,
@@ -64,6 +76,9 @@ export type {
     FieldType,
     FieldValidation,
     FieldValue,
+    MediaAccept,
+    MediaFieldOptions,
+    MediaKindValue,
     RelationFieldOptions,
     RelationOnDelete,
     RelationSpec

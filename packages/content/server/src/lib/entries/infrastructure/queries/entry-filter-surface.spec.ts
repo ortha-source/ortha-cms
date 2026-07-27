@@ -1,4 +1,6 @@
-import { parseFilterTree } from '@ortha-cms/utils-server';
+import type { SQL } from 'drizzle-orm';
+import { PgDialect, QueryBuilder } from 'drizzle-orm/pg-core';
+import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import { collection } from '../../../collection/define';
 import { field } from '../../../fields';
 import type { AnyContentType } from '../../../types/content-type';
@@ -40,15 +42,54 @@ const article: AnyContentType = collection('article', {
     }
 });
 
+/**
+ * A self-referencing type (a page tree). Its `parent` hop is the one
+ * cardinality that has to alias the target, and the one under which every
+ * nested relation's correlation is at risk — see the engine's
+ * `relation-nesting.spec`.
+ */
+const page: AnyContentType = collection('page', {
+    fields: {
+        name: field.text(),
+        parent: field.relation({ to: () => page }),
+        owner: field.relation({ to: () => author })
+    }
+});
+
+// A client-less query builder emits the real SQL for a surface-derived
+// schema, so the builder and the translator are asserted TOGETHER — the
+// drift these two halves exist to prevent is only visible end to end.
+const qb = new QueryBuilder();
+const dialect = new PgDialect();
+
+/** Build the surface for `type`, translate one filter, return the SQL text. */
+async function sqlFor(
+    type: AnyContentType,
+    rule: Record<string, unknown>
+): Promise<string> {
+    const { schema } = buildEntryFilterSurface(type, { workspaceId: WS });
+    const tree = parseFilterTree(JSON.stringify({ and: [rule] }), schema);
+    const sql = await applyFilterTree(
+        tree,
+        schema,
+        type.table,
+        qb as never
+    );
+    return dialect
+        .sqlToQuery(sql as SQL)
+        .sql.replace(/\s+/g, ' ')
+        .trim();
+}
+
 /** Recursively assert every emitted relation carries a scope builder. */
 function assertAllScoped(
-    relations: Record<string, { scope?: unknown; relations?: unknown }> | undefined
+    relations:
+        | Record<string, { scope?: unknown; relations?: unknown }>
+        | undefined
 ): void {
     for (const rel of Object.values(relations ?? {})) {
         expect(typeof rel.scope).toBe('function');
-        assertAllScoped(
-            rel.relations as Parameters<typeof assertAllScoped>[0]
-        );
+        assertAllScoped(rel.relations as Parameters<typeof assertAllScoped>[0]);
     }
 }
 
@@ -96,7 +137,9 @@ describe('buildEntryFilterSurface', () => {
     });
 
     it('stops a cycle back to an ancestor type', () => {
-        const { schema } = buildEntryFilterSurface(article, { workspaceId: WS });
+        const { schema } = buildEntryFilterSurface(article, {
+            workspaceId: WS
+        });
         const authorRel = schema.relations?.author;
         // author.articles would loop article → author → article; pruned.
         expect(
@@ -112,9 +155,58 @@ describe('buildEntryFilterSurface', () => {
         ).toBe('many-to-one');
     });
 
+    it('maps a self-relation to self-referential with a per-occurrence alias', () => {
+        const { schema } = buildEntryFilterSurface(page, { workspaceId: WS });
+        const parent = schema.relations?.parent;
+        expect(parent?.kind).toBe('self-referential');
+        // The alias is keyed by PATH, not by relation name, so two rules on
+        // different depths of the same self-relation can't collide on one
+        // correlation name.
+        expect(parent && 'alias' in parent ? parent.alias : undefined).toBe(
+            'qb_parent'
+        );
+        const nested =
+            parent && 'relations' in parent
+                ? parent.relations?.parent
+                : undefined;
+        expect(nested?.kind).toBe('self-referential');
+        expect(nested && 'alias' in nested ? nested.alias : undefined).toBe(
+            'qb_parent__parent'
+        );
+    });
+
+    it('expands relations UNDER a self-relation (parent.owner.name)', () => {
+        const { schema, fields } = buildEntryFilterSurface(page, {
+            workspaceId: WS
+        });
+        expect(fields.map((f) => f.path)).toContain('parent.owner.name');
+
+        const parent = schema.relations?.parent;
+        const owner =
+            parent && 'relations' in parent
+                ? parent.relations?.owner
+                : undefined;
+        // The nested hop must carry its own scope, or a traversal through
+        // the parent could reach a soft-deleted / foreign owner.
+        expect(typeof owner?.scope).toBe('function');
+    });
+
+    it('bounds a self-relation by the hop budget, not the cycle guard', () => {
+        // `visited` would stop a self-relation immediately; hops are what
+        // terminate it, so a 1-hop budget offers `parent.name` and no deeper.
+        const { fields } = buildEntryFilterSurface(page, {
+            workspaceId: WS,
+            maxRelationHops: 1
+        });
+        const paths = fields.map((f) => f.path);
+        expect(paths).toContain('parent.name');
+        expect(paths).not.toContain('parent.parent.name');
+    });
+
     it('derives maxDepth from the hop budget (segments = hops + 1)', () => {
         expect(
-            buildEntryFilterSurface(article, { workspaceId: WS }).schema.maxDepth
+            buildEntryFilterSurface(article, { workspaceId: WS }).schema
+                .maxDepth
         ).toBe(3);
         expect(
             buildEntryFilterSurface(article, {
@@ -125,7 +217,9 @@ describe('buildEntryFilterSurface', () => {
     });
 
     it('scopes every emitted relation (workspace + soft-delete guard)', () => {
-        const { schema } = buildEntryFilterSurface(article, { workspaceId: WS });
+        const { schema } = buildEntryFilterSurface(article, {
+            workspaceId: WS
+        });
         assertAllScoped(
             schema.relations as Parameters<typeof assertAllScoped>[0]
         );
@@ -151,8 +245,80 @@ describe('buildEntryFilterSurface', () => {
         expect(schema.relations?.tags?.kind).toBe('many-to-many');
     });
 
-    it('every offered wire path parses against the sibling schema (no drift)', () => {
-        const { schema, fields } = buildEntryFilterSurface(article, {
+    it('correlates a relation under a self-relation to the ALIAS', async () => {
+        // The end-to-end shape of the aliasing hazard: `parent.owner.name`
+        // must read the PARENT page's owner. Bound to the physical table it
+        // would resolve from the outer `FROM`, silently filtering the ROOT
+        // page's owner instead — valid SQL, wrong rows, no error.
+        const out = await sqlFor(page, {
+            field: 'parent.owner.name',
+            op: 'ilike',
+            value: '%Ada%'
+        });
+        expect(out).toContain('"qb_parent"."owner_id"');
+        expect(out).not.toContain('"content_page"."owner_id"');
+    });
+
+    it('correlates a nested self-relation to its outer alias', async () => {
+        const out = await sqlFor(page, {
+            field: 'parent.parent.name',
+            op: 'ilike',
+            value: '%x%'
+        });
+        // The grandparent hangs off the parent alias, not off the root — the
+        // difference between "grandparent" and a second reading of "parent".
+        expect(out).toContain(
+            '"qb_parent__parent"."id" = "qb_parent"."parent_id"'
+        );
+        expect(out).toContain('"qb_parent"."id" = "content_page"."parent_id"');
+    });
+
+    it('scopes a relation nested under a self-relation to the workspace', async () => {
+        const out = await sqlFor(page, {
+            field: 'parent.owner.name',
+            op: 'ilike',
+            value: '%Ada%'
+        });
+        // Two workspace guards: one on the aliased parent, one on the owner.
+        expect(out.match(/"workspace_id" =/g)?.length).toBeGreaterThanOrEqual(
+            2
+        );
+    });
+
+    it('negates a to-many relation rule as NOT EXISTS', async () => {
+        // "no tag labelled x" — not "has some tag that isn't x", which would
+        // match an article tagged [x, y].
+        const out = await sqlFor(article, {
+            field: 'tags.label',
+            op: 'nin',
+            value: ['x']
+        });
+        expect(out.startsWith('not exists')).toBe(true);
+        expect(out).not.toContain('not in (');
+    });
+
+    it('turns "is empty" on a relation id into "has no related row"', async () => {
+        const out = await sqlFor(article, {
+            field: 'author.id',
+            op: 'null',
+            value: true
+        });
+        expect(out.startsWith('not exists')).toBe(true);
+        // The target's `id` is a NOT NULL primary key, so the naive reading
+        // (`EXISTS(author WHERE id IS NULL)`) could never match anything.
+        expect(out).not.toContain('"id" is null');
+    });
+
+    it.each([
+        ['article', article],
+        // The self-referencing shape produces the deepest paths, so it is the
+        // one most likely to outrun `maxDepth`.
+        ['page', page]
+    ])('every offered %s path parses against its schema (no drift)', (
+        _name,
+        type
+    ) => {
+        const { schema, fields } = buildEntryFilterSurface(type, {
             workspaceId: WS
         });
         for (const f of fields) {

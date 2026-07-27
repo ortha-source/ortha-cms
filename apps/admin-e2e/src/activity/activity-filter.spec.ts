@@ -16,14 +16,20 @@ test.describe('Activity filter (query builder)', () => {
         await mockActivity(page);
     });
 
-    test('opens the filter drawer from the toolbar', async ({
+    test('expands the inline filter panel from the toolbar', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
         await expect(activityLogPage.heading).toBeVisible();
 
+        // The builder is an inline accordion here, matching a collection's
+        // records list — press the toggle and it expands in place.
         await activityLogPage.openFilters();
-        await expect(activityLogPage.filterDrawer()).toBeVisible();
+        await expect(activityLogPage.filterSurface()).toBeVisible();
+        await expect(activityLogPage.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'true'
+        );
     });
 
     test('filters the log by kind and deep-links the choice', async ({
@@ -104,16 +110,16 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.fillValue('not-a-uuid');
         await activityLogPage.applyFilters();
 
-        // Drawer stays open, the rule shows its validation error, and nothing
-        // was committed to the URL.
-        await expect(activityLogPage.filterDrawer()).toBeVisible();
+        // The panel stays open, the rule shows its validation error, and
+        // nothing was committed to the URL.
+        await expect(activityLogPage.filterSurface()).toBeVisible();
         await expect(activityLogPage.ruleError()).toHaveText(
             'Must be a valid UUID'
         );
         await expect(page).not.toHaveURL(/filter=/);
     });
 
-    test('the open drawer with a rule is accessible (axe)', async ({
+    test('the open filter panel with a rule is accessible (axe)', async ({
         activityLogPage,
         makeAxe
     }) => {

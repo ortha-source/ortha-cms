@@ -88,6 +88,41 @@ export type ContentField = {
          */
         inverse?: { field: string };
     };
+    /** Holds an ordered list of assets — present only for `media`. */
+    multiple?: boolean;
+    /**
+     * Accepted-asset restriction (kinds / MIME patterns) — present only for
+     * `media` fields that set one. The picker filters candidates by it.
+     */
+    accept?: {
+        kinds?: readonly string[];
+        mimeTypes?: readonly string[];
+    };
+};
+
+/**
+ * One attached asset on a media field, resolved for display — the wire shape of
+ * `GET /api/content/:type/:id/media` (and a revision detail's `mediaRefs`).
+ * Mirrors the server's `MediaRef`. A `missing` ref is an id whose asset was
+ * deleted or lives in another workspace; the UI shows "Unavailable asset".
+ */
+export type MediaRef = {
+    id: string;
+    name: string;
+    /** Raw-stream route for the **original** bytes (empty when `missing`). */
+    url: string;
+    /**
+     * The small (~320px) derivative, when the media plugin generated one — what
+     * a tile should render, so a record's media costs a thumbnail rather than a
+     * full-size original. Absent for a non-image, an SVG, or a tiny image.
+     */
+    thumbUrl?: string;
+    /** The larger (~1280px) derivative, same caveats as {@link MediaRef.thumbUrl}. */
+    previewUrl?: string;
+    kind: string;
+    mimeType: string;
+    alt?: string | null;
+    missing?: boolean;
 };
 
 /**
@@ -104,11 +139,82 @@ export type ContentTypeDetail = ContentType & {
  * (`id`, `createdAt`, `updatedAt`, and `status` for publishable types) plus a
  * value per schema field, keyed by field name. Served by `GET /api/content/:name`.
  */
+/** A revision's lifecycle state — mirror of the server's `REVISION_STATUS`. */
+export type RevisionStatus = 'draft' | 'published' | 'superseded';
+
+/**
+ * One entry revision as served to the timeline (`GET …/:id/revisions`), without
+ * the snapshot body. Mirrors the server's `RevisionSummary`.
+ */
+export type RevisionSummary = {
+    /** Revision id. */
+    id: string;
+    /** Monotonic version number within the entry (1-based). */
+    number: number;
+    /** Lifecycle state. */
+    status: RevisionStatus;
+    /** Whether this is the entry's current live version. */
+    isPublished: boolean;
+    /** Whether this is the newest revision (the only one publishable). */
+    isLatest: boolean;
+    /** ISO capture timestamp. */
+    createdAt: string;
+    /** ISO publish timestamp, when published. */
+    publishedAt?: string;
+    /** The acting user's id, when known. */
+    authorId?: string;
+};
+
+/** The immutable document a revision captured — `{ values, relations }`. */
+export type RevisionSnapshot = {
+    /** Field values (scalars, localized + shared, single-relation FK ids). */
+    values: Record<string, unknown>;
+    /** Ordered target-id list per join-backed relation field. */
+    relations: Record<string, string[]>;
+};
+
+/** One revision with its full snapshot body (`GET …/:id/revisions/:number`). */
+export type RevisionDetail = RevisionSummary & {
+    /** The captured document. */
+    snapshot: RevisionSnapshot;
+    /**
+     * Each relation field's snapshot ids resolved to display refs (title / slug /
+     * status), keyed by field name — so the preview lists the actual linked
+     * records, not raw uuids. Capped per field; `relationTotals` carries the true
+     * count for a "+N more". Mirrors the server's `RevisionDetail.relationRefs`.
+     */
+    relationRefs?: Record<string, RelationRef[]>;
+    /** True link count per relation field (may exceed the capped `relationRefs`). */
+    relationTotals?: Record<string, number>;
+    /**
+     * Each media field's snapshot asset ids resolved to display refs (name /
+     * thumbnail url / kind), keyed by field name — so the preview shows the
+     * assets a version held, not raw uuids. A single field resolves the id in
+     * `snapshot.values`; a `multiple` field its ordered list (with a `missing`
+     * placeholder for an id that no longer resolves, so positions hold). Mirrors
+     * the server's `RevisionDetail.mediaRefs`.
+     */
+    mediaRefs?: Record<string, MediaRef[]>;
+};
+
+/** The paginated revision-timeline envelope. */
+export type RevisionListView = {
+    items: RevisionSummary[];
+    total: number;
+};
+
 export type EntryRecord = {
     /** Entry id (the `:entryId` route segment). */
     id: string;
     /** Publication status — present only on `publishable` types. */
     status?: EntryStatus;
+    /**
+     * ISO timestamp of when this record last went live, or `null` if it never
+     * has (or was unpublished) — present only on `publishable` types. Survives
+     * an edit, so `status: 'draft'` **with** a `publishedAt` is the *modified*
+     * state (live content plus unpublished changes) — see `entryStatusView`.
+     */
+    publishedAt?: string | null;
     /** Locale slug of this row — present only on `i18n` types. */
     locale?: string;
     /** Shared translation-group id — present only on `i18n` types. */
@@ -181,6 +287,15 @@ export type RelationFieldView = {
  */
 export type EntryRelations = {
     relations: Record<string, RelationFieldView>;
+};
+
+/**
+ * One entry's media fields resolved to display refs, keyed by field name —
+ * served by `GET /api/content/:name/:id/media`; mirrors the server's
+ * `EntryMediaView`. Empty when no media resolver is bound.
+ */
+export type EntryMedia = {
+    media: Record<string, MediaRef[]>;
 };
 
 /**

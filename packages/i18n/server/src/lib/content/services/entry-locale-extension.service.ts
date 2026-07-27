@@ -85,7 +85,9 @@ const LOCALE_FIELD_OPS: Record<string, ReadonlySet<string>> = {
  * - **Shared-field sync** — on update, non-`localized` field values propagate
  *   to every sibling row of the translation group, inside the same
  *   transaction; published siblings are re-validated so a draft edit can
- *   never silently invalidate live content.
+ *   never silently invalidate live content. The rewritten siblings are handed
+ *   back to the entries pipeline, which appends a **revision** for each — their
+ *   values changed, so their history has to say so.
  * - **Virtual filters** — `hasLocale` / `missingLocale` / `localeCount`,
  *   resolved to EXISTS / count subqueries over the group (ridden by the
  *   `(locale_group_id, locale)` unique index).
@@ -136,10 +138,7 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             );
         return or(
             strict,
-            and(
-                eq(table['locale'], fallback.slug),
-                notExists(requestedSibling)
-            )
+            and(eq(table['locale'], fallback.slug), notExists(requestedSibling))
         );
     }
 
@@ -209,31 +208,100 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         row: Record<string, unknown>,
         values: Record<string, unknown>,
         workspaceId: string
-    ): Promise<void> {
-        if (!type.i18n) return;
+    ): Promise<Record<string, unknown>[]> {
+        if (!type.i18n) return [];
         const sharedColumns = this.sharedColumns(type, values);
-        if (!sharedColumns) return;
+        if (!sharedColumns) return [];
 
         const table = type.table as unknown as ContentTable;
+        // Only the columns this save actually carries. A field the caller
+        // omitted is `undefined`, which `.set()` skips — so it must be left out
+        // of the change predicate too, or it would compare against a missing
+        // bind parameter.
+        const written = Object.entries(sharedColumns).filter(
+            ([, value]) => value !== undefined
+        );
+        if (!written.length) return [];
+
+        // Only touch siblings whose shared values actually differ. The save's
+        // values bag carries every field the caller sent, so an unconditional
+        // UPDATE rewrote — and, now that the pipeline appends a revision per
+        // touched row, re-versioned — every sibling on every save, even one
+        // that only changed a localized field. `IS DISTINCT FROM` rather than
+        // `<>` so a NULL on either side compares correctly.
+        //
+        // Each value is bound with **its column's own encoder** (`sql.param`),
+        // the same mapping `.set()` applies below. Interpolating it bare made an
+        // array-valued field (a `jsonb` multiselect, json, or a multiple media
+        // field) expand into a parameter *list* — `IS DISTINCT FROM ($1, $2, $3)`
+        // — which Postgres reads as a record and rejects with
+        // `operator does not exist: jsonb = record`, failing every save of an
+        // i18n type that carried one.
+        const differs = or(
+            ...written.map(
+                ([column, value]) =>
+                    sql`${table[column]} IS DISTINCT FROM ${sql.param(value, table[column])}`
+            )
+        );
         // Sync every sibling — including soft-deleted ones, so a later restore
         // comes back consistent with the group.
+        //
+        // A **published** sibling moves back to `draft`, exactly as the entry
+        // the user edited does. Its shared values just changed, so its published
+        // *version* is no longer what the row holds — leaving it `published`
+        // made the same shared edit live in the untouched locales while still
+        // pending in the edited one, and left its freshly-appended draft version
+        // describing a row that claimed to be live. `published_at` is kept, so
+        // the sibling reads as **Modified** (live content, unpublished changes)
+        // rather than as a never-published draft. Publishing any locale is still
+        // per-row; this only stops one from silently going live on another's save.
+        const wasPublished = new Set(
+            type.publishable
+                ? (
+                      (await tx
+                          .select({ id: sql<string>`${table['id']}` })
+                          .from(type.table)
+                          .where(
+                              and(
+                                  eq(
+                                      table['localeGroupId'],
+                                      row['localeGroupId'] as string
+                                  ),
+                                  ne(table['id'], row['id'] as string),
+                                  eq(table['workspaceId'], workspaceId),
+                                  eq(table['status'], ENTRY_STATUS.Published),
+                                  differs
+                              )
+                          )
+                          .for('update')) as { id: string }[]
+                  ).map((r) => r.id)
+                : []
+        );
         const siblings = (await tx
             .update(type.table)
-            .set({ ...sharedColumns, updatedAt: new Date() } as never)
+            .set({
+                ...sharedColumns,
+                ...(type.publishable ? { status: ENTRY_STATUS.Draft } : {}),
+                updatedAt: new Date()
+            } as never)
             .where(
                 and(
                     eq(table['localeGroupId'], row['localeGroupId'] as string),
                     ne(table['id'], row['id'] as string),
-                    eq(table['workspaceId'], workspaceId)
+                    eq(table['workspaceId'], workspaceId),
+                    differs
                 )
             )
             .returning()) as Record<string, unknown>[];
 
-        // A published sibling must stay valid after the shared values land —
-        // re-validate its merged row and abort the whole save otherwise. Drafts
-        // may be temporarily invalid (same rule as saving a draft directly).
+        // A sibling that **was** published must stay valid after the shared
+        // values land — re-validate its merged row and abort the whole save
+        // otherwise. Drafts may be temporarily invalid (same rule as saving a
+        // draft directly). The check reads the pre-write status captured above,
+        // not the row's current one: the UPDATE has just demoted these to
+        // `draft`, so testing the returned status would silently skip every one.
         for (const sibling of siblings) {
-            if (sibling['status'] !== ENTRY_STATUS.Published) continue;
+            if (!wasPublished.has(sibling['id'] as string)) continue;
             const result = this.validation.validate(
                 type,
                 toRecord(type, sibling).values
@@ -247,6 +315,12 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 });
             }
         }
+
+        // Hand the rewritten siblings back so the entries pipeline appends a
+        // revision for each. Their values moved in this transaction; without a
+        // revision their history would skip the change entirely, and a later
+        // "restore" of an older version would silently undo it.
+        return siblings;
     }
 
     /** @inheritdoc */

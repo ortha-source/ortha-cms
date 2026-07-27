@@ -55,9 +55,16 @@ const messages = defineMessages({
  */
 export function VerdictRow({
     item,
+    name,
     recordHref
 }: {
     item: BulkPublishVerdict;
+    /**
+     * Name this row by something other than the record's title. A set of locale
+     * siblings is all one record, so the title repeats down every row and the
+     * locale is the only thing that tells them apart.
+     */
+    name?: string;
     /** Builds the entry-editor URL for a record id. */
     recordHref: (id: string) => string;
 }) {
@@ -122,7 +129,7 @@ export function VerdictRow({
             )}
             <span className="shrink-0">{meta.icon}</span>
             <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{item.title}</p>
+                <p className="truncate text-sm">{name ?? item.title}</p>
                 <p className="truncate font-mono text-xs text-muted-foreground">
                     {item.id}
                 </p>

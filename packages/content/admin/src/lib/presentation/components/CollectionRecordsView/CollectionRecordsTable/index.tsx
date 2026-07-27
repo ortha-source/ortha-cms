@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import {
-    Badge,
     Checkbox,
     Table,
     TableBody,
@@ -16,9 +15,9 @@ import type { EntryRecord } from '../../../../domain/types/contentType';
 import type { EntryColumn } from '../../../../domain/entryColumns';
 import {
     COLUMN_KIND,
-    CONTENT_FIELD_TYPE,
-    ENTRY_STATUS
+    CONTENT_FIELD_TYPE
 } from '../../../../domain/constants';
+import { EntryStatusBadge } from '../../EntryStatusBadge';
 import { renderCell } from './renderCell';
 import { RelationCell } from './RelationCell';
 import { CollectionRecordsRowActions } from './CollectionRecordsRowActions';
@@ -126,17 +125,7 @@ function Cell({
     const intl = useIntl();
     switch (column.kind) {
         case COLUMN_KIND.Status:
-            return (
-                <Badge
-                    variant={
-                        record.status === ENTRY_STATUS.Published
-                            ? 'success'
-                            : 'secondary'
-                    }
-                >
-                    {record.status}
-                </Badge>
-            );
+            return <EntryStatusBadge entry={record} />;
         case COLUMN_KIND.Updated:
             return (
                 <span className="text-sm text-muted-foreground">
@@ -191,6 +180,7 @@ export function CollectionRecordsTable({
     columns,
     extensionData = {},
     typePath,
+    entryQuery = '',
     typeName,
     workspaceId,
     publishable,
@@ -213,6 +203,12 @@ export function CollectionRecordsTable({
     extensionData?: Record<string, unknown>;
     /** Absolute path to this type, e.g. `/workspaces/:id/content/:typeName`. */
     typePath: string;
+    /**
+     * The table's slot-owned list params as a query suffix (e.g. `"?locale=de"`),
+     * appended to every row's editor link so the record opens in — and returns
+     * to — the context the table was showing.
+     */
+    entryQuery?: string;
     /** The content type's machine name (for the row action mutations). */
     typeName: string;
     /** Open workspace id, for a relation cell's deep links to related records. */
@@ -368,7 +364,7 @@ export function CollectionRecordsTable({
                                         ? undefined
                                         : () =>
                                               navigate(
-                                                  `${typePath}/${record.id}`
+                                                  `${typePath}/${record.id}${entryQuery}`
                                               )
                                 }
                                 className={
@@ -395,7 +391,7 @@ export function CollectionRecordsTable({
                                         through the row-actions menu. */}
                                     {linkColumnIndex === -1 && !trashed ? (
                                         <Link
-                                            to={`${typePath}/${record.id}`}
+                                            to={`${typePath}/${record.id}${entryQuery}`}
                                             className="sr-only"
                                             onClick={(event) =>
                                                 event.stopPropagation()
@@ -447,7 +443,7 @@ export function CollectionRecordsTable({
                                             {index === linkColumnIndex &&
                                             !trashed ? (
                                                 <Link
-                                                    to={`${typePath}/${record.id}`}
+                                                    to={`${typePath}/${record.id}${entryQuery}`}
                                                     className="block hover:underline"
                                                     onClick={(event) =>
                                                         event.stopPropagation()
@@ -470,6 +466,7 @@ export function CollectionRecordsTable({
                                     <CollectionRecordsRowActions
                                         record={record}
                                         typePath={typePath}
+                                        entryQuery={entryQuery}
                                         typeName={typeName}
                                         publishable={publishable}
                                         paranoid={paranoid}

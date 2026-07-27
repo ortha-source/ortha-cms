@@ -14,6 +14,16 @@ export interface EntryRecord {
     id: string;
     /** Publication status — only on `publishable` types. */
     status?: EntryStatus;
+    /**
+     * ISO timestamp of when this entry last went live, or `null` if it never has
+     * (or was explicitly unpublished) — only on `publishable` types.
+     *
+     * It **survives an edit**: saving a published entry moves it back to `draft`
+     * while its published *version* stays live in history, so `status: 'draft'`
+     * with a `publishedAt` means "published content plus unpublished changes"
+     * (the admin's **Modified** state), which a plain draft has never had.
+     */
+    publishedAt?: string | null;
     /** Locale slug of this row — only on `i18n` types. */
     locale?: string;
     /** Shared translation-group id — only on `i18n` types. */
@@ -78,6 +88,39 @@ export interface RelationRef {
 }
 
 /**
+ * One attached asset on a media field, resolved for display: the asset id plus
+ * the facts the admin renders (name, thumbnail url, kind/MIME). Mirrors
+ * {@link RelationRef} — an asset that can't be resolved (deleted / cross-
+ * workspace) is an id-only ref flagged `missing`, so the UI shows "Unavailable
+ * asset" rather than a raw uuid.
+ */
+export interface MediaRef {
+    /** The asset id (what a save submits back). */
+    id: string;
+    /** Original file name / display label. */
+    name: string;
+    /** Raw-stream route for the **original** bytes (download, or the fallback). */
+    url: string;
+    /**
+     * Route for the small (~320px) derivative the media plugin generated, when
+     * there is one — what an editor tile or a version-preview chip renders, so a
+     * form full of media doesn't pull full-size originals. Absent for a
+     * non-image, an SVG, or an image too small to derive.
+     */
+    thumbUrl?: string;
+    /** Route for the larger (~1280px) derivative, same caveats as {@link thumbUrl}. */
+    previewUrl?: string;
+    /** Coarse kind — image/video/audio/document/archive. */
+    kind: string;
+    /** MIME type, e.g. `image/png`. */
+    mimeType: string;
+    /** Alt text, when set. */
+    alt?: string | null;
+    /** The asset could not be resolved (deleted or outside the workspace). */
+    missing?: true;
+}
+
+/**
  * One relation field's links: a **windowed** page of resolved refs plus the
  * `total` count across the whole set. A many/inverse relation can hold far more
  * links than fit in one payload, so the editor pages through them (infinite
@@ -97,6 +140,17 @@ export interface RelationFieldView {
  */
 export interface EntryRelationsView {
     relations: Record<string, RelationFieldView>;
+}
+
+/**
+ * The attached assets of one entry, keyed by media field name — each field's
+ * ordered {@link MediaRef}s (name / thumbnail url / kind), so the editor renders
+ * assigned media by thumbnail without a per-id round-trip. Empty when no media
+ * resolver is bound. A `multiple` field's list preserves the stored order, with
+ * a deleted/cross-workspace asset kept as a `missing` ref.
+ */
+export interface EntryMediaView {
+    media: Record<string, MediaRef[]>;
 }
 
 /**

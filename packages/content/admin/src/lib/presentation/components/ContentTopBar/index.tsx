@@ -12,10 +12,12 @@ import {
     TopBar,
     TopBarIcon
 } from '@ortha-cms/design-system';
+import { PageActions } from '@ortha-cms/shell-admin';
 import type { ContentType } from '../../../domain/types/contentType';
 import {
     CONTENT_SEGMENT,
     HISTORY_SEGMENT,
+    ENTRY_TAB_SLUGS,
     NEW_SEGMENT,
     TRASH_SEGMENT,
     TYPE_PARAM
@@ -124,7 +126,13 @@ export function ContentTopBar({
         });
 
         // The leaf under the type: create form, trash view, or an open record.
-        const leaf = splat.split('/')[0];
+        // A **single** page's editor is mounted on the type itself, so its tab
+        // slug is the whole splat (`/home/relations`) — that's the open tab, not
+        // a record id, and must not be resolved as one.
+        const first = splat.split('/')[0];
+        const leaf = ENTRY_TAB_SLUGS.some((slug) => slug === first)
+            ? ''
+            : first;
         if (leaf === NEW_SEGMENT) {
             crumbs.push({
                 key: NEW_SEGMENT,
@@ -150,18 +158,34 @@ export function ContentTopBar({
             <TopBarIcon className="bg-brand-soft text-brand-soft-foreground">
                 <Library />
             </TopBarIcon>
-            <Breadcrumb aria-label={intl.formatMessage(messages.nav)}>
+            {/* `min-w-0 overflow-hidden`: the trail gives way before the actions
+                region does, so a long breadcrumb on a narrow screen truncates
+                instead of pushing Publish + ⋯ off the end of the bar. */}
+            <Breadcrumb
+                aria-label={intl.formatMessage(messages.nav)}
+                className="min-w-0 overflow-hidden"
+            >
                 <BreadcrumbList className="flex-nowrap font-medium">
                     {crumbs.map((crumb, index) => [
                         index > 0 ? (
-                            <BreadcrumbSeparator key={`${crumb.key}-sep`} />
+                            <BreadcrumbSeparator
+                                key={`${crumb.key}-sep`}
+                                className="hidden sm:flex"
+                            />
                         ) : null,
+                        // Below `sm` only the open record survives: the trail
+                        // would otherwise shrink past its own text and the
+                        // crumbs would overlap each other.
                         <BreadcrumbItem
                             key={crumb.key}
-                            className="min-w-0 whitespace-nowrap"
+                            className={
+                                index === last
+                                    ? 'min-w-0 whitespace-nowrap'
+                                    : 'hidden min-w-0 whitespace-nowrap sm:inline-flex'
+                            }
                         >
                             {index === last ? (
-                                <BreadcrumbPage className="flex min-w-0 items-center font-medium">
+                                <BreadcrumbPage className="flex min-w-0 items-center truncate font-medium">
                                     {crumb.label}
                                 </BreadcrumbPage>
                             ) : crumb.to ? (
@@ -175,6 +199,11 @@ export function ContentTopBar({
                     ])}
                 </BreadcrumbList>
             </Breadcrumb>
+            {/* The shell's page-actions region — the open entry editor portals
+                its Publish + ⋯ in here, and the Properties panel's expand
+                button appears here while that panel is collapsed. Last child on
+                purpose: the region is `ml-auto`. */}
+            <PageActions />
         </TopBar>
     );
 }

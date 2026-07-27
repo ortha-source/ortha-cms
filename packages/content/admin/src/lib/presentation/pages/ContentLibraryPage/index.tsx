@@ -18,13 +18,16 @@ import { ContentComingSoon } from '../../components/ContentComingSoon';
 import { ContentEntryRoute } from '../../components/ContentEntryRoute';
 import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
+import { ContentOverlays } from '../../components/ContentOverlays';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
     ENTRY_MODE,
     ENTRY_PARAM,
+    ENTRY_TAB_SLUGS,
     HISTORY_SEGMENT,
     NEW_SEGMENT,
+    TAB_PARAM,
     TRASH_SEGMENT,
     TYPE_PARAM
 } from '../../../domain/constants';
@@ -121,6 +124,10 @@ export function ContentLibraryPage() {
 
     return (
         <ContentPane>
+            {/* Outside the routes on purpose: a viewport-level cover has to
+                outlive the view it covers (the editor unmounts itself while a
+                record loads). */}
+            <ContentOverlays />
             <ContentTopBar types={scopedTypes} basePath={basePath} />
             <Routes>
                 <Route
@@ -153,6 +160,19 @@ export function ContentLibraryPage() {
                     path={`:${TYPE_PARAM}`}
                     element={<ContentTypeView types={scopedTypes} />}
                 />
+                {/* A **single** page's editor is mounted on the type itself, so
+                    its tab hangs directly off `:typeName`. Each slug is spelled
+                    out as a static segment, which React Router ranks above the
+                    `:entryId` route below — the same trick `new` and `trash`
+                    already rely on. (On a collection these paths simply render
+                    the records table; nothing links to them.) */}
+                {ENTRY_TAB_SLUGS.map((slug) => (
+                    <Route
+                        key={slug}
+                        path={`:${TYPE_PARAM}/${slug}`}
+                        element={<ContentTypeView types={scopedTypes} />}
+                    />
+                ))}
                 {/* A collection's trash view. The static `trash` segment
                     outranks `:entryId`, so the order is safe. */}
                 <Route
@@ -171,7 +191,29 @@ export function ContentLibraryPage() {
                     }
                 />
                 <Route
+                    path={`:${TYPE_PARAM}/${NEW_SEGMENT}/:${TAB_PARAM}`}
+                    element={
+                        <ContentEntryRoute
+                            types={scopedTypes}
+                            mode={ENTRY_MODE.Create}
+                        />
+                    }
+                />
+                <Route
                     path={`:${TYPE_PARAM}/:${ENTRY_PARAM}`}
+                    element={
+                        <ContentEntryRoute
+                            types={scopedTypes}
+                            mode={ENTRY_MODE.Edit}
+                        />
+                    }
+                />
+                {/* The open tab as a route segment, so it survives a remount
+                    (e.g. switching locale re-targets the editor at the sibling's
+                    id). Omitted = the default tab, keeping the bare entry URL
+                    the canonical short link. */}
+                <Route
+                    path={`:${TYPE_PARAM}/:${ENTRY_PARAM}/:${TAB_PARAM}`}
                     element={
                         <ContentEntryRoute
                             types={scopedTypes}

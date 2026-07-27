@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
@@ -39,6 +39,64 @@ export class ContentLibraryPage extends BasePage {
         await this.page.goto(`/workspaces/${workspaceId}/content`);
     }
 
+    /** Navigate straight to one entry's editor (`/content/:type/:id`). */
+    async gotoEntry(workspaceId: string, typeName: string, id: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/${id}`
+        );
+    }
+
+    /** An entry-editor tab trigger by label ("General" / "History"). */
+    editorTab(name: string): Locator {
+        return this.page.getByRole('tab', { name });
+    }
+
+    /** Open one entry-editor tab. */
+    async openEditorTab(name: string) {
+        await this.editorTab(name).click();
+    }
+
+    /**
+     * The active editor tabpanel — the History tab renders the full revision
+     * timeline (the sidebar widget shows a compact copy, so scope revision
+     * assertions to this panel to avoid matching both).
+     */
+    get editorTabPanel(): Locator {
+        return this.page.getByRole('tabpanel');
+    }
+
+    /** The History timeline's `<li>` for version `n` (scoped to the tab panel). */
+    revisionItem(n: number): Locator {
+        return this.editorTabPanel
+            .getByRole('listitem')
+            .filter({ has: this.page.getByText(`v${n}`, { exact: true }) });
+    }
+
+    /** Every "Live" status badge in the History timeline. */
+    get liveRevisionBadges(): Locator {
+        return this.editorTabPanel.getByText('Live', { exact: true });
+    }
+
+    /** The History-row "Publish version {n}" action (scoped to the tab panel). */
+    revisionPublish(n: number): Locator {
+        return this.editorTabPanel.getByRole('button', {
+            name: `Publish version ${n}`
+        });
+    }
+
+    /** The confirm button inside the publish-version confirmation dialog. */
+    get confirmPublishButton(): Locator {
+        return this.page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Publish', exact: true });
+    }
+
+    /** Publish revision `n` from the History timeline (row action + confirm). */
+    async publishRevision(n: number) {
+        await this.revisionPublish(n).click();
+        await this.confirmPublishButton.click();
+    }
+
     /**
      * The records page mounts the query builder as an **inline accordion panel**
      * (a `region` labelled by the "Filters" toggle), not the modal drawer the
@@ -46,6 +104,61 @@ export class ContentLibraryPage extends BasePage {
      */
     override filterSurface(): Locator {
         return this.page.getByRole('region', { name: /Filters/ });
+    }
+
+    /**
+     * Collapse the inline filter panel. The panel stays open after Apply (so
+     * further edits don't need a re-open), and the applied-conditions summary
+     * only renders while it's collapsed — so a summary assertion has to close
+     * it first.
+     */
+    async closeFilters() {
+        await this.filterTrigger().click();
+        await expect(this.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+    }
+
+    /**
+     * One chip in the collapsed filter summary, matched on its readable text
+     * ("Author · Name contains Ada"). The chip is the resting read-out of an
+     * applied condition; removing it re-commits the narrowed tree at once.
+     */
+    filterChip(text: string | RegExp): Locator {
+        return this.page.getByTitle(text);
+    }
+
+    /**
+     * Remove one applied condition from the summary. `label` is the chip's
+     * "<path> <operator>" text — the remove button's accessible name is
+     * "Remove condition <path> <operator>".
+     */
+    async removeFilterChip(label: string) {
+        await this.page
+            .getByRole('button', { name: `Remove condition ${label}` })
+            .click();
+    }
+
+    /** Drop every applied condition from the summary in one action. */
+    async clearAllFilters() {
+        await this.page.getByRole('button', { name: 'Clear all' }).click();
+    }
+
+    /**
+     * The relation-id value editor — a record picker rather than a raw uuid
+     * input. It is the rule's **third** combobox (field, operator, value); like
+     * the other two its trigger is `role="combobox"`, not a plain button.
+     */
+    async openRelationValuePicker() {
+        await this.filterSurface().getByRole('combobox').nth(2).click();
+    }
+
+    /** Toggle one record in the open relation value picker, by its title. */
+    async pickRelationRecord(title: string) {
+        await this.page
+            .getByRole('option', { name: title, exact: true })
+            .click();
     }
 
     /** A collapsible group trigger by label ("Collections" / "Pages"). */
@@ -138,6 +251,16 @@ export class ContentLibraryPage extends BasePage {
         return this.recordRows(label).locator(`td:nth-child(${nthChild})`);
     }
 
+    /**
+     * A record's own editor link — the `<Link>` wrapping the first column's
+     * cell. Prefer this over clicking the row when the table has relation
+     * columns: those cells `stopPropagation`, so a centred row click can land on
+     * one and never navigate.
+     */
+    recordLink(title: string): Locator {
+        return this.page.getByRole('link', { name: title, exact: true });
+    }
+
     /** The records search box. */
     get recordsSearch(): Locator {
         return this.page.getByRole('searchbox', { name: 'Search records' });
@@ -165,12 +288,126 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('textbox', { name: label });
     }
 
+    /**
+     * A form field's **numeric** input by its label. A `number`/`money` field
+     * renders `<input type="number">`, which carries the `spinbutton` role — not
+     * `textbox` — so it needs its own handle.
+     */
+    fieldSpinbutton(label: string): Locator {
+        return this.page.getByRole('spinbutton', { name: label });
+    }
+
+    /**
+     * A `date`/`datetime` field's trigger button, by the field's machine name.
+     * Its text is the formatted value, so asserting on it checks what the user
+     * actually reads off the control.
+     */
+    dateFieldTrigger(fieldName: string): Locator {
+        return this.page.locator(`#entry-field-${fieldName}`);
+    }
+
+    /** A form field's `<label>` element, by the field's machine name. */
+    fieldLabel(fieldName: string): Locator {
+        return this.page.locator(`label[for="entry-field-${fieldName}"]`);
+    }
+
+    /** The "Localized field" tooltip trigger inside a field's label row. */
+    get localizedMark(): Locator {
+        return this.page.getByRole('button', { name: 'Localized field' });
+    }
+
+    /** A General-tab field-group heading ("Translated fields" / "Shared fields"). */
+    fieldGroupHeading(title: string): Locator {
+        return this.page.getByRole('heading', { name: title, exact: true });
+    }
+
+    /** The "Localized relation" mark on a relation section header. */
+    get localizedRelationMark(): Locator {
+        return this.page.getByRole('button', { name: 'Localized relation' });
+    }
+
+    /** The open tooltip bubble, wherever it is portalled. */
+    get tooltip(): Locator {
+        return this.page.getByRole('tooltip');
+    }
+
+    /** A field's inline validation message (design-system `FieldError`). */
+    fieldError(message: string | RegExp): Locator {
+        return this.page.getByRole('alert').filter({ hasText: message });
+    }
+
+    /** Navigate straight to a type's create form (`/content/:type/new`). */
+    async gotoNewEntry(workspaceId: string, typeName: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/new`
+        );
+    }
+
+    /** A toast message (sonner, portaled to the body). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
+    }
+
     /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
     async saveDraft(): Promise<void> {
+        await this.openEditorMenu();
+        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
+    }
+
+    /** Open the entry editor's ⋯ actions menu (in the page top bar). */
+    async openEditorMenu(): Promise<void> {
         await this.page.getByRole('button', { name: 'More actions' }).click();
+    }
+
+    /** The open ⋯ menu's items, in order — the menu must already be open. */
+    get editorMenuItems(): Locator {
+        return this.page.getByRole('menu').getByRole('menuitem');
+    }
+
+    /**
+     * How many rules the open ⋯ menu draws. The menu is laid out in groups
+     * (save / publish / extras / danger) with one separator between adjacent
+     * non-empty groups, so this is the group count minus one.
+     */
+    get editorMenuSeparators(): Locator {
+        return this.page.getByRole('menu').getByRole('separator');
+    }
+
+    /**
+     * Pick an item from the open ⋯ menu by label. A string match is **exact**:
+     * the menu holds both "Publish all locales" and "Unpublish all locales", and
+     * Playwright's default substring match resolves the former to both.
+     */
+    async chooseEditorAction(label: string | RegExp): Promise<void> {
         await this.page
-            .getByRole('menuitem', { name: 'Save draft' })
+            .getByRole('menuitem', {
+                name: label,
+                exact: typeof label === 'string'
+            })
             .click();
+    }
+
+    /** The publish pre-flight dialog (bulk publish, and "publish all locales"). */
+    get preflightDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /**
+     * One pre-flight row by the name it renders under — the record's title in
+     * the records table's bulk publish, the **locale** name when the dialog is
+     * listing a record's siblings.
+     */
+    preflightRow(name: string | RegExp): Locator {
+        return this.preflightDialog
+            .getByRole('listitem')
+            .filter({ hasText: name });
+    }
+
+    /** The pre-flight's confirm button ("Publish {n} valid"). */
+    get preflightConfirm(): Locator {
+        return this.preflightDialog.getByRole('button', {
+            name: /^Publish \d+ valid$/
+        });
     }
 
     /** The "Changes saved." success toast after an edit save. */

@@ -7,15 +7,14 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
+    type PublicUser,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
@@ -45,7 +44,8 @@ export class UpdateEntryController {
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
         @Body() body: SaveEntryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
         return this.writer.update(
@@ -53,7 +53,8 @@ export class UpdateEntryController {
             id,
             body.values,
             workspaceId,
-            body.relations
+            body.relations,
+            user?.id ?? null
         );
     }
 }

@@ -49,6 +49,14 @@ export interface EntryFieldSpec {
         many?: boolean;
         inverse?: unknown;
     };
+    /**
+     * Media fields only: `true` when the field holds an **ordered list** of
+     * asset ids (validated as a `uuid[]`) rather than a single id. The validator
+     * only shape-checks the ids here — an asset's existence and its kind/MIME
+     * against the field's `accept` restriction are enforced server-side, where
+     * the media table can be read.
+     */
+    multiple?: boolean;
 }
 
 /** A field map keyed by field name — the validator's schema input. */

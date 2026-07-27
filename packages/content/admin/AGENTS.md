@@ -82,7 +82,23 @@ outlet driven by nested routes.
 The routes are (`index` → `ContentWelcome`,
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 `ContentEntryRoute` (the create / edit editor); the static `new` segment
-outranks the `:entryId` param). `ContentTypeView` branches on `kind`: a
+outranks the `:entryId` param).
+
+**The editor's tabs are routes**, one segment deeper — `:typeName/:entryId/:tab`
+(and `:typeName/new/:tab`); for a **single**, whose editor is mounted on the type
+itself, each tab slug is spelled out as a **static** segment (`:typeName/general`
+…) so it outranks the `:entryId` route, the same trick `new` and `trash` use. The
+default tab (`general`) is **omitted**, so the bare entry URL stays the canonical
+short link. `domain/entryTab` resolves the open tab from the **last path
+segment** — the two editor shapes don't share one route param (a single's static
+tab segment yields none), and reading the path covers both. Tabs are routes and
+not component state because the editor is remounted by navigations it doesn't
+own: switching locale re-targets it at the sibling's id, which used to drop the
+user back on General mid-task. `EntrySlotContext.tabSegment` (`'/relations'`, or
+`''` on the default) is how a slot that navigates to a sibling record — the i18n
+locale switcher — lands the reader on the tab they were working in.
+
+`ContentTypeView` branches on `kind`: a
 collection renders `CollectionRecordsView` (the records table), a single renders
 `ContentEntryView` in `single` mode (its one-entry editor). The
 sidebar splits types via
@@ -118,7 +134,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   breadcrumb, `relationTarget`). This **replaced** the old client-side
   `filterFieldsFromSchema` mirror (deleted): with a relation graph to walk,
   hand-mirroring the server's whitelist would drift into user-visible 400s, so
-  the server owns the one traversal that builds both. A relation-`id` rule renders
+  the server owns the one traversal that builds both. Because it is **fetched**,
+  it has a failure mode a derived list didn't: `useFilterFields` returns
+  `{ fields, isPending, isError, refetch }` and the panel renders a **loading**
+  and an **error** state (with retry) instead of an empty picker. That is not
+  cosmetic — the Apply gate rejects any rule whose field it can't resolve, so
+  without the definitions Apply can never commit; an empty picker would be a
+  dead button with nothing on screen explaining why. A relation-`id` rule renders
   the **`RelationValuePicker`** (a searchable, lazily-paginated multi-select over
   the target type, reusing `useRelationCandidates`), injected into the query
   builder via `renderRelationValue` at both call sites (the records
@@ -135,7 +157,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   schema gates the columns query and supplies the type name.
   **`status` is publishable-only**: `entryColumns` offers a Status column and the
   server's filter surface includes a Status filter **only when publishable**
-  (a non-publishable type has no publish state). Sort is a URL param
+  (a non-publishable type has no publish state). The same rule holds **wherever
+  publish state is drawn** — the editor rail's Details **Status** row, the
+  **Revisions** rows' Live/Draft/Superseded badges (and the preview dialog's),
+  and the i18n **Locale** rows' badges are all gated on `publishable`. On an
+  always-live type those would label a state the type doesn't have; a version
+  there was simply saved, so a Revisions row keeps its number, its "Current"
+  marker and its time, and nothing else. Sort is a URL param
   (`?sort=<columnId>` asc, `?sort=-<columnId>`
   desc); a header click cycles asc → desc → off, sets `aria-sort` on the
   `<th>`, and resets the page. URL state (search/filter/sort/page) is owned by
@@ -143,7 +171,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   mirroring the Members page. `useEntryColumns` holds the **ordered** visible
   columns in component state (**not persisted** — the choice lasts the session
   and resets on reload) — the array is both the visibility set and the display
-  order, so it powers the column picker's toggles *and* its drag-to-reorder
+  order, so it powers the column picker's toggles _and_ its drag-to-reorder
   (`reorder` via `@dnd-kit/sortable`'s `arrayMove`); it is seeded from a smart
   default (`domain/entryColumns`, excluding richtext/json) narrowed to the live
   schema, and re-seeded when the open type changes. Row selection is local
@@ -193,17 +221,21 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
   tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
   `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
-  toggles/multi-choice; **Relations** = relation fields via the **`RelationField`**
-  picker (empty state otherwise); **Media** + **History** = placeholders; all four
-  tabs always present), and the
-  right rail (`EntrySidebar`): a top **action bar** — a primary button
+  toggles/multi-choice — **media fields are excluded from General**, rendering on
+  the Media tab instead; **Relations** = relation fields via the **`RelationField`**
+  picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
+  tabs (the media plugin's **Media** tab) render between Relations and History
+  when their `appliesTo` matches the open type; **History** = revisions), and the
+  right rail (`EntrySidebar`) — the **Properties panel** (see below): a top
+  **action bar** — a primary button
   (**Publish** for a publishable type the user may publish, else **Save** /
   **Save draft**) beside a compact **⋯ menu** (Save draft, Save & publish,
-  Unpublish, Delete; each permission-gated) — over stacked **card blocks**: a
+  Unpublish, Delete; each permission-gated) — over a
   live **Publish Gate** (`PublishGateItem[]`, computed by `EntryEditor` from the
   strict kernel-backed validation — each required/invalid field with its pass/fail,
   header `blocking`/`ready`; publishable types only) and a static **Details**
-  block (status, created/updated, id). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
+  block (status, created/updated, id). While a save/publish is running, the view
+  covers itself with the **`EntryBusyOverlay`** (see _Save/publish flow_ below). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
   control per field type — `date`/`datetime` use a shadcn `Calendar` popover
   (`EntryFieldInput/DateField`, with a time input for datetime), and
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
@@ -226,13 +258,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   the hidden ones to `useEntryForm` as `ignoreFields`, so a hidden (ungranted)
   relation is excluded from client validation **and** the publish gate — a required
   one can't become an un-satisfiable, invisible block. A **visible** required
-link-managed relation (many / inverse-of-many) *is* publish-gated, but by its
-**effective link count** (`relationRefs[field].total − staged.removed +
+  link-managed relation (many / inverse-of-many) _is_ publish-gated, but by its
+  **effective link count** (`relationRefs[field].total − staged.removed +
 staged.added`), not the values bag it doesn't live in — mirroring the server's
-`assertRequiredRelations`. To seed those counts the aggregate relations read
-(`useEntryRelations`) now fires on **entry open** (not only when the Relations
-tab is first shown), so a populated relation never briefly reads as 0.
-Each assigned record renders as a **`RelationItemRow`** — a generalized row with a
+  `assertRequiredRelations`. To seed those counts the aggregate relations read
+  (`useEntryRelations`) now fires on **entry open** (not only when the Relations
+  tab is first shown), so a populated relation never briefly reads as 0.
+  Each assigned record renders as a **`RelationItemRow`** — a generalized row with a
   **leading slot** (an initials `Avatar` for a single relation, a zero-padded
   `01`/`02` **index** for an ordered many-relation, via `RelationIndex`), the
   **title** + a muted `/handle` (the target's `slug`, else a slugified title — see
@@ -249,8 +281,8 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   new tab`, `Move {title} up` / `down`, `Replace` — are what the e2e drives.
   An Assign/Add button opens **`RelationPickerDialog`**: a
   search box and an **inline, collapsible** query-builder filter (the headless
-  **`QueryBuilder`**, *not* a drawer — a nested modal over the dialog is an a11y
-  hazard) over the *target type's* filterable surface (`useFilterFields(target)`,
+  **`QueryBuilder`**, _not_ a drawer — a nested modal over the dialog is an a11y
+  hazard) over the _target type's_ filterable surface (`useFilterFields(target)`,
   gated on the dialog being open), and a lazily-scrolled candidate list (accessible
   checkbox group for a many-relation, radio group for a single). Fully controlled —
   the form owns the value (single → one id string, many → string[]). Candidates
@@ -267,7 +299,7 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   `EntryEditor` calls `useEntryRelations` (`GET /content/:type/:id/relations` →
   `{ relations: { <field>: { items, total } } }`, each field's **first page** +
   total) **gated on the Relations tab being open** — it never fires on entry
-  load, and single-relation *values* come from the entry read's `values` (their
+  load, and single-relation _values_ come from the entry read's `values` (their
   FK id), so a save preserves them even if the tab was never opened. A relation
   is edited one of two ways, chosen by `RelationFieldSection`:
     - **Single** relations (and **any** relation while creating a not-yet-saved
@@ -290,10 +322,13 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
       the staging and `useSaveEntry` invalidates the field queries. Owning
       many-relations reorder (persisted via `position`); the inverse reads order
       but isn't sortable.
-  A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
-  fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
-  (dirty staging, or a dirty single value) in the section header — so the user
-  sees exactly what a Save will persist.
+      A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
+      fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
+      (dirty staging, or a dirty single value) in the section header — so the user
+      sees exactly what a Save will persist. It is **exported from the package
+      index** (like `EntryStatusBadge`) so a plugin contributing an `ENTRY_TAB_SLOT`
+      tab — the media plugin's Media tab — marks a changed field with the same
+      badge instead of a look-alike that drifts.
 - **Writes + permissions.** The sidebar's Save / Save&publish / Unpublish / Delete
   actions, the table row menu (Edit/Publish/Unpublish/Delete; Restore/Delete-
   permanently in trash), and the selection-bar bulk actions are all gated by
@@ -301,7 +336,16 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   publish" chains create/update then the dedicated publish endpoint (one validated
   path). Bulk publish opens **`BulkPublishDialog`** — a dry run
   (`bulk/publish/preview`) listing each row's verdict before publishing only the
-  valid drafts. Destructive actions confirm through the design-system
+  valid drafts. That dialog is **exported from the package index**: a plugin
+  acting on a _known_ set of this library's records reuses the whole dry-run →
+  verdicts → commit flow rather than building a second one (i18n's "publish all
+  locales" hands it the record's locale siblings). Two props make it read as
+  something other than a table selection — `labels` (heading/body) and
+  `labelFor(id)`, which renames a row when the verdict's own title is the wrong
+  handle (every locale sibling carries the _same_ record title, so the locale is
+  what tells them apart). `useBulkEntryActions` is exported for the same reason —
+  i18n's "unpublish all locales" is `bulk/unpublish` over the sibling ids, since
+  unpublish has no pre-flight to run. Destructive actions confirm through the design-system
   **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
   (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
   extracted by `infrastructure/entryIssues`.
@@ -309,15 +353,194 @@ Each assigned record renders as a **`RelationItemRow`** — a generalized row wi
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
 
+## The Properties panel + the editor's actions live in the app chrome
+
+The entry editor no longer draws its own rail or its own action bar. Both render
+into **shell-owned regions** (`@ortha-cms/shell-admin`), filled by portal from
+inside the editor:
+
+- **`RightPanelPortal title="Properties"`** ← `EntrySidebar`, the panel body.
+  The shell's `AppRightPanel` supplies the column, the heading, the collapse
+  toggle and the independent scroll; collapsed, the column disappears and the
+  reopen button shows up in the top bar.
+- **`PageActionsPortal`** ← **`EntryActions`**, the write actions (the primary
+  **Publish** / **Save** / **Save draft** button + the ⋯ menu holding Save draft,
+  Save & publish, Unpublish, Delete, each permission-gated, plus the delete
+  `ConfirmDialog`). They sit in the top bar because the panel can be collapsed
+  away entirely and a record you can't save is a trap.
+  `ContentTopBar` renders the shell's `<PageActions />` as its last child, which
+  is the region they land in.
+
+**Why portals and not "hand the shell a node".** React resolves context by where
+a node is _rendered_. Rendered by the shell, this content would be cut off from
+`useCurrentWorkspace` (every entry query needs it), from `EntrySlotContext` (the
+i18n **Locale** widget), and from the editor's own handlers and busy state.
+`createPortal` moves only the DOM. `ContentNavSection` is the counter-example —
+it renders above `CurrentWorkspaceProvider` and has to re-resolve the workspace
+by hand.
+
+The panel body itself is a **single flat surface**: a run of sections told apart
+by **dividers**, deliberately not a column of cards — every block used to draw
+its own border, tinted background, and heading, so five blocks read as five
+floating boxes stacked on a page rather than one surface with sections.
+
+- **`EntrySidebarSection`** (title + optional `action` adornment + optional
+  `description`) and **`EntrySidebarRow`** (a `<dt>`/`<dd>` label-left /
+  value-right pair, `stacked` for a long value like a UUID) are the panel's whole
+  chrome. Both are **exported from the package index** — a plugin filling
+  `ENTRY_SIDEBAR_WIDGET_SLOT` (the i18n **Locale** panel) renders _these_, for the
+  same reason `ChangedBadge` and `EntryStatusBadge` are shared: a widget with a
+  card of its own would be the one floating box left in the panel.
+- **The divider belongs to the rail, not the section.** The blocks sit in a
+  `divide-y` wrapper, so a contributed widget is separated exactly like a
+  built-in one without drawing a border itself (and a widget that renders `null`
+  — `LocaleWidget` on a non-i18n type — leaves no stray rule behind).
+- **Collapse is the shell's, not ours** — including its persistence, so it
+  survives the remounts this editor takes from navigations it doesn't own (a
+  locale switch re-targets it at a sibling record; a single's tab segments are
+  separate routes). `EntrySidebar` renders **chrome-less**: no column, no
+  heading, no toggle.
+- **The collapse is instant — leave it that way.** Two motion treatments were
+  built for it and both were rejected: a `transition-[width]` slide and then a
+  cross-fade. Don't try a third.
+- Headings run `h1` (the record title) in the page → `h2` ("Properties", the
+  shell panel's heading) → `h3` (each section).
+
+## Publish state — four labels over two stored values
+
+The server stores only `draft`/`published`, because a save moves a publishable
+entry back to `draft` while its published _version_ stays live in history. That
+conflates two situations a writer must tell apart, so the UI reads a **third**
+signal — `EntryRecord.publishedAt`, which is stamped on publish, cleared only by
+unpublish, and deliberately survives an edit:
+
+| stored                     | shown             | meaning                            |
+| -------------------------- | ----------------- | ---------------------------------- |
+| (create form)              | **Not saved yet** | nothing stored                     |
+| `draft`, no `publishedAt`  | **Draft**         | never published                    |
+| `draft`, has `publishedAt` | **Modified**      | live content + unpublished changes |
+| `published`                | **Published**     | live and current                   |
+
+`domain/entryStatusView` is the pure classifier; **`presentation/components/
+EntryStatusBadge`** is its one rendering, used by _both_ the records table's
+Status column and the editor's Details block so a record can't read two ways in
+the two places it's looked at. Modified is a `warning` badge, not `success` —
+what's live is not what's on screen. The table cell used to print the raw wire
+value (`draft`/`published`, lowercase, untranslated); it is now localized, which
+a third state with no column value spelling it made unavoidable.
+
+## Save/publish flow — one refresh pass, one cover
+
+- **`application/refreshEntryCaches`** is the single cache-refresh pass for any
+  entry write (list, revisions, relations, per-field links, and — unless
+  `skipEntry` — the read-one). Having one definition is what lets the
+  save→publish **chain** run it _once at the end_ (`useSaveEntry` takes
+  `deferRefresh`, set by `usePublishEntryFlow` from the same `canPublish` gate,
+  now decided **before** the save) instead of each mutation refetching on the way
+  past — one Publish click used to re-read the record and its whole timeline
+  twice. If the chained publish 422s, the flow runs the deferred pass itself so a
+  landed save isn't left with stale caches.
+- **Write responses seed the cache.** Every entry write returns the canonical
+  record, so each mutation `setQueryData`s the read-one instead of invalidating
+  it, and `useContentEntry` carries a `staleTime` so the create→`/:type/:id`
+  navigation stops discarding the record it was just handed. Only the **primed**
+  record is spared (`primedEntryId`) — every _other_ cached record of the type is
+  still invalidated, because one save can rewrite rows it didn't name: the i18n
+  shared-field sync writes a non-localized field to every locale sibling, and
+  sparing the whole prefix left a switch to that sibling showing the pre-save
+  copy until a reload. Cache-seeded opens
+  pass `initialDataUpdatedAt` (the age of the _list_ read), so a stale row still
+  refetches. Invalidation ignores `staleTime`, so nothing this app writes goes
+  unnoticed.
+- **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
+  spinner + "Saving…"/"Publishing…", mirroring i18n's locale-switch flourish. Two
+  differences from that one: **no delay** (nothing changes until the server
+  answers, so there's nothing to hide behind a cover — only lag to add), and **no
+  fixed timer** (it's held by `ContentEntryView` around the whole `flow.submit`,
+  refetches included, so it never lifts onto pre-save values). It's held in view
+  state rather than derived from `isPending` because the chain's two mutations
+  are briefly both idle between steps, which would blink the cover mid-flow.
+
+## Revisions (version history)
+
+Every save is versioned (server: `content_entry_revisions`). The editor surfaces
+this in two mount points that share one cached query and one action core:
+
+- **`useEntryRevisions`** (`application/`) reads the timeline
+  (`GET /content/:type/:id/revisions`), gated on a saved entry id.
+  **`useRevisionActions`** owns the **restore** (`POST …/revisions/:number/restore`)
+  and **publish-a-version** (`POST …/revisions/:number/publish`) mutations, both
+  invalidating the same caches a save does (records list, read-one, relations, and
+  the revisions prefix). Every mutation that changes the timeline invalidates the
+  **revisions prefix** so the widget + History tab refresh immediately:
+  `useSaveEntry` (each save appends a version; on a publishable type a save is a
+  **draft** — editing a published entry moves it back to draft while its published
+  version stays live in history) and `useEntryStatusActions` (publish/unpublish).
+- **Publishing a version.** Server-side, publishing a version marks **that
+  version** live in place (prior live → superseded); an earlier version's content
+  is re-applied to the record first, but **no new version is recorded** — the
+  timeline doesn't grow by one on every publish. So the editor can build up drafts
+  and then publish the current one **or switch back to any earlier version and
+  publish it**. After the latter, the "Live" badge and the "Current" (newest)
+  marker sit on different rows — that is the point, not a glitch.
+  A `RevisionRow` shows a **Publish** action on any version that isn't already live
+  (publishable type + `content:publish`), and the preview dialog carries a
+  **Publish this version** button; both route through a `ConfirmDialog` + toast in
+  `RevisionList`. A `422` (an incomplete version) surfaces as an error toast.
+- **`RevisionList`** (`EntryEditor/RevisionList/`) is the shared core — a
+  `RevisionRow` per version (number, status badge Live/Draft/Superseded, capture
+  time) plus the **Restore** flow (permission gate on `content:update`, a
+  `ConfirmDialog`, and the success/failure `toast`). Restore re-applies an older
+  snapshot as a **new** revision, so the timeline refreshes in place.
+- **Preview / compare** (`RevisionList/RevisionPreviewDialog/`): each earlier
+  version's row carries a **Preview** action opening a diff dialog. It fetches
+  that version's snapshot **and** the latest one (`useRevisionDetail` →
+  `getRevision`; the newest snapshot equals the live record, since every save
+  appends one) and runs the pure `domain/revisionDiff` — a field-by-field compare
+  in schema order (scalars/single-FKs via `values`, join-backed relations via the
+  ordered `relations` id lists). Changed fields render a **Current → Version {n}**
+  pair, unchanged ones collapse behind a toggle. Scalars format via
+  `formatRevisionValue` (a read-only sibling of the records table's `renderCell`);
+  **relation fields render the actual linked records** (`RelationRefList`), not a
+  count — the detail read resolves each field's snapshot ids to titled refs
+  server-side (`RevisionDetail.relationRefs`/`relationTotals`, capped with a "+N
+  more"; a soft-deleted / cross-workspace target reads as "Unavailable record").
+  **Media fields render the actual assets** the same way (`MediaRefList` —
+  thumbnail + file name, in stored order — the ref's `thumbUrl` derivative when
+  the asset has one, else the original), from `RevisionDetail.mediaRefs`, which
+  the server had always resolved and the admin used to drop: a media row printed
+  the bare asset uuid, which tells a reader nothing about what a version held. A
+  side with no resolved list falls back to `formatRevisionValue` — the server
+  omits an empty field (so the row reads "Empty") and omits media wholly when no
+  media plugin is bound, where the stored value beats claiming "No assets".
+  A **Restore this version** button hands the number back to the list's restore
+  flow (its own `ConfirmDialog`) — never a modal stacked on a modal. The Preview +
+  Restore actions are hidden on the newest row (nothing to compare/apply against),
+  and render **icon-only** in the compact right-rail widget (`compact` prop) vs.
+  labelled in the History tab.
+- Two mount points: the right-rail **`RevisionWidget`** (rendered by
+  `EntrySidebar` below Details, a compact first-N view) and the **History tab**
+  **`HistoryTimeline`** (the full list; prompts to save first on a create form).
+
+The gateway carries `listRevisions` / `getRevision` / `restoreRevision`; the wire
+types (`RevisionSummary` / `RevisionDetail` / `RevisionListView`) live in
+`domain/types/contentType`, mirroring the server. Previewing a version is a
+**read-only compare against the current record** (the `RevisionPreviewDialog`
+above), not an in-form staging preview; restore remains the switch-back path.
+
 ## Extension slots
 
-The library exposes six named slots (`presentation/slots/contentSlots`, via
+The library exposes ten named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills all six. **Slot items are boot-frozen**
+`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills the other two
+(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads).
+**Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
-makes the two **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
-`RECORDS_FILTER_FIELDS_SLOT.useFields`) rules-of-hooks-safe when the render
+makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
+`RECORDS_FILTER_FIELDS_SLOT.useFields`, `ENTRY_PRESAVE_SLOT.usePresave`,
+`ENTRY_MENU_SLOT.useItem`)
+rules-of-hooks-safe when the render
 sites call them in a loop — the call order never changes; an item gates its own
 fetching internally.
 
@@ -327,23 +550,86 @@ fetching internally.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional
   `useRowsData` batches per-page data once for all its cells.
-- **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a card in the entry editor's right rail,
+- **`ENTRY_SIDEBAR_WIDGET_SLOT`** — a **section** of the entry editor's
+  Properties rail (render the exported `EntrySidebarSection` /
+  `EntrySidebarRow`, not a card — see _The Properties rail_ above),
   rendered with an `EntrySlotContext` (schema, entry?, isCreate, mode,
-  workspaceId, typePath, **params**) assembled by `ContentEntryView` and shared
+  workspaceId, typePath, **params**, **tabSegment**) assembled by
+  `ContentEntryView` and shared
   via `EntrySlotContextProvider`. `params` is the current URL values of the
   `ENTRY_PARAMS_SLOT` keys (list + create-body), opaque — a slot reads only its
   own keys (e.g. i18n scopes the relation picker by its `locale` even on a create
-  form, where there's no saved `entry`).
+  form, where there's no saved `entry`). `tabSegment` is the open tab as a path
+  segment (`'/relations'`, or `''` on the default tab) — a slot that navigates
+  the user to **another record in this same editor** appends it so they land on
+  the tab they were working in.
 - **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
   rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.
+- **`CONTENT_OVERLAY_SLOT`** — viewport-level chrome, rendered once by
+  `ContentLibraryPage` (via `ContentOverlays`) **outside** its `<Routes>`, so a
+  contribution stays mounted across every navigation within the library —
+  including the window where the entry editor has replaced itself with a loading
+  state. That window is why the slot exists: the i18n plugin's locale-switch
+  cover used to be rendered by the editor's sidebar widget, i.e. inside the very
+  tree that unmounts while the destination record loads, so it vanished
+  mid-transition and came back after — two loaders blinking in sequence. A cover
+  has to outlive the thing it covers. Takes no props; anything view-specific
+  belongs in a narrower slot.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: params scoping the single-mode
   one-entry read (`listParamKeys`), URL values copied into the create body
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
   relation-candidate list params (`relationCandidateParams`, consumed by the
   picker dialog through the slot context).
+- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (id + `slug` + `label` + `order`
+    - `appliesTo` + `Component`). Rendered between Relations and History when
+      `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
+      so the tab router/`entryTabFromPath` accept it. The Component receives an
+      **`EntryTabContext`** — the `EntrySlotContext` plus a **form bridge**
+      (`values` / `errorFor` / `setValue` / `touch` / `isFieldDirty`) and the saved
+      entry's resolved `mediaRefs` — so a contributed tab renders controls bound to
+      the editor's shared form: a field edited there rides Save, the Changed badge,
+      the publish gate, and the 422→field mapping exactly like a General-tab field.
+      `@ortha-cms/media-admin` fills it with the **Media** tab (media fields live in
+      the values bag; the tab is only their rendering surface). `useSaveEntry` also
+      invalidates the entry-media cache so the tab reflects the saved set. The
+      context also carries **`presave`** — the handles below, so a tab reaches state
+      that has to outlive its own body.
+- **`ENTRY_MENU_SLOT`** — an action in the entry editor's **⋯ menu**
+  (id + `group` + `order` + optional `appliesTo` + **`useItem`**). The menu is laid
+  out in `ENTRY_MENU_GROUP` sections — `save` · `publish` · `extras` · `danger`,
+  a rule between non-empty ones — and the built-ins sit in them too (Save draft +
+  Save & publish, Unpublish, Delete), which is what makes a contribution land in a
+  run of related actions instead of after Delete. Contributions default to
+  `extras`.
+    - `useItem(context)` is a **hook**, not static data: a real item needs
+      queries, `useHasPermission` and its own dialog state. Return `null` to
+      hide — that is how an item disappears **without skipping its hook**.
+      `appliesTo` filters the _result_, never the call, so the hook count can't
+      change when the open type does.
+    - An item's `overlay` is rendered **outside** `DropdownMenuContent`, by
+      `EntryMenu`. That is the whole reason the menu is its own component: the
+      menu content unmounts the instant the menu closes — precisely when a
+      dialog opened from it is meant to appear — so an item's dialog cannot live
+      inside it.
+    - `@ortha-cms/i18n-admin` fills it with **Publish all locales** / **Unpublish
+      all locales**.
+- **`ENTRY_PRESAVE_SLOT`** — a plugin's participation in the **save itself**:
+  `usePresave()` is mounted once per `ContentEntryView` and returns
+  `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client
+  validation and **before** the write, under the busy cover, and returns the
+  values actually saved — throwing aborts the save (the step owns surfacing its
+  own failure). `settle()` runs once the write succeeded. `handle` is published
+  to contributed tabs as `EntryTabContext.presave[id]`, opaque, each tab reading
+  only its own key.
+  This is what lets `@ortha-cms/media-admin` **defer uploads to Save**: files
+  chosen on a media field are staged under a placeholder uuid (which the values
+  bag holds, so validation and the publish gate treat them like any asset id),
+  and `commit` uploads them and swaps in the real ids. The staging lives in the
+  hook because editor **tabs are routes** — the Media panel unmounts on every tab
+  switch, and a file staged there must not die with it.
 
 The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
 list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`
@@ -352,14 +638,35 @@ list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidate
 
 Two generic hooks surface the `localized` schema flag (same way the editor
 already surfaces `required`), so a locale plugin needs no field-level slot:
+
 - `EntryFieldInput` renders a small **localizable indicator**
-  (`LocalizedFieldMark` — a `Globe` icon + native `title` + sr-only name) when
-  `field.localized`. It shares a single right-aligned **end-adornment** with the
+  (`LocalizedFieldMark` — a `Globe` in a **`Tooltip`**, opening on hover _and_
+  focus; it was a bare span with a native `title`, which never surfaces for
+  keyboard or touch users) when `field.localized`. Its trigger suppresses the
+  surrounding `<label>`'s activation, so reading the hint never focuses — or, on
+  a toggle, flips — the control it describes. It shares a single right-aligned
+  **end-adornment** with the
   "Changed" badge (the `changed` prop) at the far right of the label row (a
   `w-full` `FieldLabel`, or `InputField`'s `labelAction` slot) — so the badge and
   the globe sit **side by side** instead of overlapping. The `changed` flag comes
   from `EntryFieldSections` (`isChanged`); the badge is no longer an absolute
   overlay. Self-scopes (only i18n types ever mark a field localized).
+- A **required** field's label carries a `RequiredMark` (`*`) and its control
+  carries `aria-required`. The mark is deliberately `aria-hidden`: the control
+  already announces "required", so marking the asterisk up too would say it
+  twice on every required field.
+- `EntryFieldSections` **groups the General tab by locale scope** when the type
+  has both kinds of field: a **Translated fields** run (`localized`) over a
+  **Shared fields** run, each a `FieldGroup` with a one-line explanation —
+  editing a shared field changes it in _every_ locale, which is not something to
+  discover after saving. A type with only one kind (every plain, non-i18n type)
+  keeps the flat, header-free stack, so this is inert outside i18n.
+- `RelationFieldSection` marks a relation whose **target collection** is
+  localized (`targetSchema.i18n`) with a `LocalizedRelationMark`. It labels the
+  _field_, not each linked row: the picker scopes candidates strictly to the
+  record's locale, so every link is necessarily in it — one identical locale
+  repeated down every row would be noise, while _why the picker hides other
+  locales' records_ is the part that isn't obvious.
 - `ContentEntryView` create mode reads `location.state.translateFrom` (a source
   record's values) and seeds the blank form with **only the non-localized**
   fields — the "create a translation" prefill; localized fields start empty.
@@ -414,7 +721,9 @@ namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
   truth for the `content` mount path, shared by `contentPlugin` (slot `to` +
   route `path`) and `ContentLibraryPage` (`basePath`); `HISTORY_SEGMENT` /
   `TRASH_SEGMENT` / `TYPE_PARAM` drive the nested routes and the sidebar links;
-  `SEARCH_SHORTCUT_KEY` is the ⌘K key; `CONTENT_READ` is the permission gate.
+  `TAB_PARAM` / `ENTRY_TAB` / `ENTRY_TAB_SLUGS` / `DEFAULT_ENTRY_TAB` are the
+  editor's tab routes; `SEARCH_SHORTCUT_KEY` is the ⌘K key; `CONTENT_READ` is
+  the permission gate.
 
 ## Commands
 

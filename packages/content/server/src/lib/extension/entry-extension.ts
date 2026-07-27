@@ -128,6 +128,15 @@ export interface ContentEntryExtension {
      * to sibling rows (so a newly-created sibling lands consistent with its
      * group, and an edit re-syncs). A throw rolls the whole save back. The
      * implementation must no-op when there are no siblings to affect.
+     *
+     * Returns the **other rows it changed**, if any. The entries pipeline
+     * appends a revision for each, in the same transaction — so a row whose
+     * values an extension rewrote gets the history entry it earned, instead of
+     * its timeline silently skipping the change.
+     *
+     * Revision writing deliberately stays here rather than in the extension:
+     * numbering is serialized per entry by an advisory lock, and a second
+     * writer allocating numbers out-of-band is how duplicate versions happen.
      */
     afterUpdate(
         tx: EntryTransaction,
@@ -135,5 +144,5 @@ export interface ContentEntryExtension {
         row: Record<string, unknown>,
         values: Record<string, unknown>,
         workspaceId: string
-    ): Promise<void>;
+    ): Promise<Record<string, unknown>[] | void>;
 }
