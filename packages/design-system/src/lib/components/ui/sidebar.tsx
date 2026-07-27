@@ -349,25 +349,60 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
 }
 
 /**
- * The main content region beside the sidebar — and the app's **scrollport**.
- * The wrapper is viewport-bounded, so this stretches to a definite height, which
- * means both page shapes work: an ordinary page (a sticky `TopBar` over a
- * `Container`) simply scrolls in here, its bar pinned to the top of *this*
- * scrollport rather than the document's; a page that wants an island (the
- * Content Library, the Media Library) still resolves `flex-1 min-h-0` against
- * that height and runs its own inner scroll.
+ * Where a page's {@link TopBar} is hoisted to — the fixed strip above the
+ * inset's scrollport. `undefined` means there is no {@link SidebarInset} above
+ * (a public page), so the bar renders in place; `null` means the host hasn't
+ * mounted yet, one commit away.
  */
-function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
+const InsetTopBarContext = React.createContext<HTMLElement | null | undefined>(
+    undefined
+);
+
+/** The inset's top-bar host. See {@link InsetTopBarContext}. */
+function useInsetTopBarHost() {
+    return React.useContext(InsetTopBarContext);
+}
+
+/**
+ * The main content region beside the sidebar, split into a **fixed bar strip**
+ * and a **scrollport** below it. The page's `TopBar` hoists itself into the
+ * strip (by portal, so it keeps the page's React context), which is what makes
+ * the scrollbar start *under* the bar instead of running the full height beside
+ * it — the bar is chrome and shouldn't sit in a scrolling region at all.
+ *
+ * The wrapper is viewport-bounded, so the scrollport has a definite height and
+ * both page shapes work: an ordinary page (a `Container` of content) simply
+ * scrolls in it, while a page that wants an island (the Content Library, the
+ * Media Library) resolves `flex-1 min-h-0` against that height and runs its own
+ * inner scroll.
+ */
+function SidebarInset({
+    className,
+    children,
+    ...props
+}: React.ComponentProps<'main'>) {
+    const [barHost, setBarHost] = React.useState<HTMLElement | null>(null);
+
     return (
         <main
             data-slot="sidebar-inset"
             className={cn(
-                'relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-background',
+                'relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-background',
                 'md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
                 className
             )}
             {...props}
-        />
+        >
+            <div data-slot="sidebar-inset-bar" ref={setBarHost} />
+            <InsetTopBarContext.Provider value={barHost}>
+                <div
+                    data-slot="sidebar-inset-scroll"
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+                >
+                    {children}
+                </div>
+            </InsetTopBarContext.Provider>
+        </main>
     );
 }
 
@@ -804,5 +839,6 @@ export {
     SidebarSeparator,
     SidebarTrigger,
     useSidebar,
-    useOptionalSidebar
+    useOptionalSidebar,
+    useInsetTopBarHost
 };
