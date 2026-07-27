@@ -19,6 +19,12 @@ export type RightPanel = {
     title: string;
     /** Collapse an open panel, or reopen a collapsed one. */
     toggle: () => void;
+    /**
+     * Whether the panel should **animate** its current change. True only for the
+     * window around a {@link toggle}; a panel that appears because a page
+     * registered one, or that is simply open on first paint, must not slide in.
+     */
+    animate: boolean;
 };
 
 type PageChromeValue = RightPanel & {
@@ -44,10 +50,23 @@ export const RIGHT_PANEL_ID = 'app-right-panel';
 /** localStorage key for the right panel's open/collapsed state. */
 const STORAGE_KEY = 'ortha:right-panel';
 
-/** Reads the persisted state, tolerating missing/blocked/corrupt storage. */
+/** How long the panel's slide runs — keep in step with its `duration-200`. */
+const PANEL_SLIDE_MS = 220;
+
+/** Below this the panel overlays the content instead of taking a column. */
+const MOBILE_QUERY = '(max-width: 767px)';
+
+/**
+ * Reads the persisted state, tolerating missing/blocked/corrupt storage.
+ * **Starts collapsed on a small screen** whatever was persisted: there the panel
+ * is an overlay, and one covering the page on arrival is not what anyone asked
+ * for. The desktop preference is left untouched, so it comes back on a wide
+ * screen.
+ */
 function readOpen(): boolean {
     if (typeof window === 'undefined') return true;
     try {
+        if (window.matchMedia(MOBILE_QUERY).matches) return false;
         return window.localStorage.getItem(STORAGE_KEY) !== 'collapsed';
     } catch {
         return true;
@@ -79,6 +98,16 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
     // Ref-counted, so the overlap while a page remounts can't read as "gone".
     const [panels, setPanels] = useState<string[]>([]);
     const [open, setOpen] = useState<boolean>(readOpen);
+    // Armed by `toggle`, disarmed once the slide is over. Gating the transition
+    // on this is what keeps the panel from sliding in on first paint, or every
+    // time a page registers one — motion should mean "you just did that".
+    const [animate, setAnimate] = useState(false);
+
+    useEffect(() => {
+        if (!animate) return;
+        const timer = setTimeout(() => setAnimate(false), PANEL_SLIDE_MS);
+        return () => clearTimeout(timer);
+    }, [animate]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -104,7 +133,10 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
             });
     }, []);
 
-    const toggle = useCallback(() => setOpen((current) => !current), []);
+    const toggle = useCallback(() => {
+        setAnimate(true);
+        setOpen((current) => !current);
+    }, []);
 
     const value = useMemo<PageChromeValue>(
         () => ({
@@ -114,13 +146,14 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
             title: panels[panels.length - 1] ?? '',
             open,
             toggle,
+            animate,
             actionsHost,
             setActionsHost,
             panelHost,
             setPanelHost,
             registerPanel
         }),
-        [panels, open, toggle, actionsHost, panelHost, registerPanel]
+        [panels, open, toggle, animate, actionsHost, panelHost, registerPanel]
     );
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
@@ -145,8 +178,8 @@ function usePageChrome(): PageChromeValue {
 export function useRightPanel(): RightPanel | null {
     const ctx = useContext(Context);
     if (!ctx) return null;
-    const { present, open, title, toggle } = ctx;
-    return { present, open, title, toggle };
+    const { present, open, title, toggle, animate } = ctx;
+    return { present, open, title, toggle, animate };
 }
 
 /**

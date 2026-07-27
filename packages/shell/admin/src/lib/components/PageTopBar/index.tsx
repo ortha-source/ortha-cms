@@ -57,18 +57,34 @@ export function PageTopBar({
             <TopBarIcon className={iconClassName}>
                 <Icon />
             </TopBarIcon>
-            <Breadcrumb aria-label={intl.formatMessage(messages.nav)}>
+            {/* `min-w-0 overflow-hidden`: the trail gives way before the actions
+                region does, so a long breadcrumb on a narrow screen truncates
+                instead of pushing Save/Publish off the end of the bar. */}
+            <Breadcrumb
+                aria-label={intl.formatMessage(messages.nav)}
+                className="min-w-0 overflow-hidden"
+            >
                 <BreadcrumbList className="flex-nowrap font-medium">
                     {crumbs.map((crumb, index) => [
                         index > 0 ? (
-                            <BreadcrumbSeparator key={`${crumb.key}-sep`} />
+                            <BreadcrumbSeparator
+                                key={`${crumb.key}-sep`}
+                                className="hidden sm:flex"
+                            />
                         ) : null,
+                        // Below `sm` only the current page survives: the trail
+                        // would otherwise shrink past its own text and the
+                        // crumbs would overlap each other.
                         <BreadcrumbItem
                             key={crumb.key}
-                            className="min-w-0 whitespace-nowrap"
+                            className={
+                                index === last
+                                    ? 'min-w-0 whitespace-nowrap'
+                                    : 'hidden min-w-0 whitespace-nowrap sm:inline-flex'
+                            }
                         >
                             {index === last ? (
-                                <BreadcrumbPage className="flex min-w-0 items-center font-medium">
+                                <BreadcrumbPage className="flex min-w-0 items-center truncate font-medium">
                                     {crumb.label}
                                 </BreadcrumbPage>
                             ) : crumb.to ? (

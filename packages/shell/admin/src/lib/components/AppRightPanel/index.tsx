@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { PanelRightClose } from 'lucide-react';
-import { Button, cn } from '@ortha-cms/design-system';
+import { Button, cn, useIsMobile } from '@ortha-cms/design-system';
 import {
     RIGHT_PANEL_ID,
     usePageChromeHosts,
@@ -29,59 +29,96 @@ const messages = defineMessages({
  * Collapsed, the control that brings it back lives in the top bar (`PageActions`)
  * — the panel can't offer it while it has no width to draw in.
  *
- * It **slides**, on the app sidebar's timing. The mechanism is the sidebar's
- * too: the column animates its width while the panel inside keeps its own, so
- * the panel slides out of the clip instead of re-wrapping its contents on every
- * frame. (The sidebar spells this as a `fixed` panel moved by `left` beside a
- * width-animated gap; a right-edge column can just narrow, because its right
- * edge is already pinned to the viewport.)
+ * It **slides**, on the app sidebar's timing and curve. The mechanism is the
+ * sidebar's too: the column animates its width while the panel inside keeps its
+ * own, so the panel slides out of the clip instead of re-wrapping its contents
+ * on every frame. (The sidebar spells this as a `fixed` panel moved by `left`
+ * beside a width-animated gap; a right-edge column can just narrow, because its
+ * right edge is already pinned to the viewport.)
+ *
+ * The transition is **gated on `panel.animate`**, which only the toggle arms —
+ * so the panel does not slide in on first paint, or each time a page registers
+ * one. Motion here means "you just did that", nothing else.
+ *
+ * **On a phone it overlays instead of taking a column**: a 22rem column would
+ * leave the content nothing. It slides in from the right edge over a scrim that
+ * dismisses it, and it starts collapsed there regardless of the desktop
+ * preference (see `readOpen`).
  */
 export function AppRightPanel() {
     const intl = useIntl();
     const { setPanelHost } = usePageChromeHosts();
     const panel = useRightPanel();
+    const isMobile = useIsMobile();
     const shown = !!panel?.present && panel.open;
+    const animate = !!panel?.animate;
 
     return (
-        <aside
-            id={RIGHT_PANEL_ID}
-            aria-label={shown ? panel?.title : undefined}
-            inert={!shown}
-            className={cn(
-                // Full height of the viewport-bounded shell row, so the panel
-                // scrolls on its own instead of riding the inset's scrollport.
-                'flex h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-linear motion-reduce:transition-none',
-                shown ? 'w-[22rem]' : 'w-0'
-            )}
-        >
-            {/* Fixed width, and never unmounted: this is what slides. The header
-                goes with it rather than being swapped out, so the panel leaves
-                as one piece. */}
-            <div className="flex h-full w-[22rem] shrink-0 flex-col border-l bg-background">
-                <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
-                    <h2 className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
-                        {panel?.title}
-                    </h2>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="-mr-1 size-7 shrink-0 text-muted-foreground"
-                        aria-controls={RIGHT_PANEL_ID}
-                        aria-expanded
-                        aria-label={intl.formatMessage(messages.hide, {
-                            title: panel?.title ?? ''
-                        })}
-                        onClick={panel?.toggle}
-                    >
-                        <PanelRightClose aria-hidden />
-                    </Button>
-                </div>
-                <div
-                    ref={setPanelHost}
-                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        <>
+            {isMobile && shown ? (
+                <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-hidden
+                    onClick={panel?.toggle}
+                    className="fixed inset-0 z-30 cursor-default bg-foreground/20"
                 />
-            </div>
-        </aside>
+            ) : null}
+            <aside
+                id={RIGHT_PANEL_ID}
+                aria-label={shown ? panel?.title : undefined}
+                inert={!shown}
+                className={cn(
+                    'flex shrink-0 overflow-hidden motion-reduce:transition-none',
+                    isMobile
+                        ? // Overlay: off the right edge and back, so the
+                          // content underneath keeps its full width.
+                          cn(
+                              'fixed inset-y-0 right-0 z-40 w-[min(22rem,88vw)]',
+                              animate &&
+                                  'transition-transform duration-200 ease-in-out',
+                              shown ? 'translate-x-0' : 'translate-x-full'
+                          )
+                        : // Column: full height of the viewport-bounded shell
+                          // row, so the panel scrolls on its own rather than
+                          // riding the inset's scrollport.
+                          cn(
+                              'h-full',
+                              animate &&
+                                  'transition-[width] duration-200 ease-in-out',
+                              shown ? 'w-[22rem]' : 'w-0'
+                          )
+                )}
+            >
+                {/* Fixed width, and never unmounted: this is what slides. The
+                    header goes with it rather than being swapped out, so the
+                    panel leaves as one piece. */}
+                <div className="flex h-full w-[22rem] max-w-full shrink-0 flex-col border-l bg-background">
+                    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
+                        <h2 className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
+                            {panel?.title}
+                        </h2>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="-mr-1 size-7 shrink-0 text-muted-foreground"
+                            aria-controls={RIGHT_PANEL_ID}
+                            aria-expanded
+                            aria-label={intl.formatMessage(messages.hide, {
+                                title: panel?.title ?? ''
+                            })}
+                            onClick={panel?.toggle}
+                        >
+                            <PanelRightClose aria-hidden />
+                        </Button>
+                    </div>
+                    <div
+                        ref={setPanelHost}
+                        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                    />
+                </div>
+            </aside>
+        </>
     );
 }

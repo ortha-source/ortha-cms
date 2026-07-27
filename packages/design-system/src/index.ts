@@ -261,6 +261,10 @@ export {
     useSidebar,
     useOptionalSidebar
 } from './lib/components/ui/sidebar';
+// The one breakpoint the chrome branches on (768px), so a consumer that must lay
+// out differently on a phone reads the *same* boundary the sidebar does instead
+// of picking its own.
+export { useIsMobile } from './lib/hooks/use-mobile';
 export {
     Stepper,
     WizardStepCard,
