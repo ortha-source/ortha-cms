@@ -1,12 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, X } from 'lucide-react';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    cn
-} from '@ortha-cms/design-system';
+import { cn } from '@ortha-cms/design-system';
+import { EntrySidebarSection } from '../../../../EntrySidebarSection';
 
 /** One row of the publish gate: a field check with its live pass/fail. */
 export type PublishGateItem = {
@@ -77,22 +72,18 @@ export function PublishGate({
     publishable
 }: {
     items: PublishGateItem[];
-    /** Whether the type has a publish workflow — decides the card's meaning. */
+    /** Whether the type has a publish workflow — decides the section's meaning. */
     publishable: boolean;
 }) {
     const intl = useIntl();
     const blocking = items.some((item) => !item.ok);
 
     return (
-        <Card className="border-border/60 bg-muted/20 shadow-none">
-            <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                    {intl.formatMessage(
-                        publishable
-                            ? messages.gateTitle
-                            : messages.saveGateTitle
-                    )}
-                </CardTitle>
+        <EntrySidebarSection
+            title={intl.formatMessage(
+                publishable ? messages.gateTitle : messages.saveGateTitle
+            )}
+            action={
                 <span
                     className={cn(
                         'text-xs font-medium',
@@ -103,8 +94,9 @@ export function PublishGate({
                         blocking ? messages.gateBlocking : messages.gateReady
                     )}
                 </span>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
+            }
+        >
+            <div className="flex flex-col gap-2">
                 {items.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         {intl.formatMessage(
@@ -153,7 +145,7 @@ export function PublishGate({
                             : messages.gateCaption
                     )}
                 </p>
-            </CardContent>
-        </Card>
+            </div>
+        </EntrySidebarSection>
     );
 }

@@ -1,13 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
     Tooltip,
     TooltipContent,
     TooltipTrigger
@@ -16,6 +11,7 @@ import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useUnsavedChangesApi } from '@ortha-cms/utils-admin';
 import {
     ENTRY_MODE,
+    EntrySidebarSection,
     type EntryStatus,
     type EntrySlotContext
 } from '@ortha-cms/content-admin';
@@ -76,7 +72,9 @@ type Sibling = {
 
 /**
  * The entry editor's **locale switcher**, contributed into the sidebar widget
- * slot and styled like the Details block. It lists every configured locale: the
+ * slot and rendered as an `EntrySidebarSection` — the rail is one flat panel of
+ * divider-separated sections, so this uses content-admin's own section chrome
+ * rather than a card that would float inside it. It lists every configured locale: the
  * current one is marked, a locale whose translation already exists switches to
  * that sibling's editor (with its publish status), and a missing one is dimmed
  * but selectable — selecting it re-targets the form to that locale (same group).
@@ -148,24 +146,6 @@ export function LocaleWidget({
             defaultSlug: defaultLocale?.slug
         }) ?? '';
     const groupId = entry?.localeGroupId ?? urlGroupId;
-
-    const card = (children: ReactNode) => (
-        <Card className="border-border/60 bg-muted/20 shadow-none">
-            <CardHeader>
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.title)}
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(
-                        isCreate
-                            ? messages.descriptionCreate
-                            : messages.descriptionEdit
-                    )}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>{children}</CardContent>
-        </Card>
-    );
 
     // The create route carries the target locale and — when translating into an
     // existing group — that group, so Save stamps the sibling. A fresh create
@@ -256,77 +236,70 @@ export function LocaleWidget({
     };
 
     return (
-        <>
-            {card(
-                <>
-                    <ul className="flex flex-col gap-0.5">
-                        {locales.map((locale) => {
-                            const sibling = siblingFor(locale.slug);
-                            const isCurrent = locale.slug === currentLocale;
-                            // Existing → switch (any role); missing → create (gated).
-                            const actionable =
-                                !isCurrent && (!!sibling || canCreate);
-                            return (
-                                <LocaleRow
-                                    key={locale.slug}
-                                    name={locale.name}
-                                    isCurrent={isCurrent}
-                                    exists={!!sibling}
-                                    status={sibling?.status}
-                                    publishedAt={sibling?.publishedAt}
-                                    onSelect={
-                                        actionable
-                                            ? () =>
-                                                  requestLocale(
-                                                      locale.slug,
-                                                      sibling
-                                                  )
-                                            : undefined
-                                    }
-                                />
-                            );
-                        })}
-                    </ul>
-                    {/* The translation-group id: shared by every locale of this
+        <EntrySidebarSection
+            title={intl.formatMessage(messages.title)}
+            description={intl.formatMessage(
+                isCreate ? messages.descriptionCreate : messages.descriptionEdit
+            )}
+        >
+            <ul className="flex flex-col gap-0.5">
+                {locales.map((locale) => {
+                    const sibling = siblingFor(locale.slug);
+                    const isCurrent = locale.slug === currentLocale;
+                    // Existing → switch (any role); missing → create (gated).
+                    const actionable = !isCurrent && (!!sibling || canCreate);
+                    return (
+                        <LocaleRow
+                            key={locale.slug}
+                            name={locale.name}
+                            isCurrent={isCurrent}
+                            exists={!!sibling}
+                            status={sibling?.status}
+                            publishedAt={sibling?.publishedAt}
+                            onSelect={
+                                actionable
+                                    ? () => requestLocale(locale.slug, sibling)
+                                    : undefined
+                            }
+                        />
+                    );
+                })}
+            </ul>
+            {/* The translation-group id: shared by every locale of this
                         record. Shown with an info tooltip explaining what it is;
                         a fresh create (no group yet) shows a pending note. */}
-                    <div className="mt-3 border-t border-border/60 pt-3">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-medium text-muted-foreground">
-                                {intl.formatMessage(messages.groupIdLabel)}
-                            </span>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        type="button"
-                                        aria-label={intl.formatMessage(
-                                            messages.groupIdHelpLabel
-                                        )}
-                                        className="inline-flex rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    >
-                                        <Info
-                                            aria-hidden
-                                            className="size-3.5"
-                                        />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-[16rem]">
-                                    {intl.formatMessage(messages.groupIdHelp)}
-                                </TooltipContent>
-                            </Tooltip>
-                        </div>
-                        {groupId ? (
-                            <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                                {groupId}
-                            </p>
-                        ) : (
-                            <p className="mt-1 text-xs italic text-muted-foreground">
-                                {intl.formatMessage(messages.groupIdPending)}
-                            </p>
-                        )}
-                    </div>
-                </>
-            )}
-        </>
+            <div className="mt-3 border-t border-border/60 pt-3">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                        {intl.formatMessage(messages.groupIdLabel)}
+                    </span>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                aria-label={intl.formatMessage(
+                                    messages.groupIdHelpLabel
+                                )}
+                                className="inline-flex rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                <Info aria-hidden className="size-3.5" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[16rem]">
+                            {intl.formatMessage(messages.groupIdHelp)}
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+                {groupId ? (
+                    <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                        {groupId}
+                    </p>
+                ) : (
+                    <p className="mt-1 text-xs italic text-muted-foreground">
+                        {intl.formatMessage(messages.groupIdPending)}
+                    </p>
+                )}
+            </div>
+        </EntrySidebarSection>
     );
 }

@@ -246,24 +246,62 @@
     * {
         @apply border-border;
     }
-    html {
-        /* The document owns vertical scrolling: the sticky chrome is anchored
-           to the viewport scrollport, and ordinary pages grow past the fold
-           and scroll. Pages that opt into a fixed-height "island" (e.g. the
-           Content Library) are bounded to the viewport and run their own
-           inner scroll, so they never push the document. Clip the horizontal
-           axis with `clip` (not `hidden`) — it hides sideways overflow
-           without creating a scroll container, so it leaves
-           `position: sticky` intact. */
-        @apply overflow-x-clip;
-    }
+    /* **The document does not scroll.** The authenticated shell is bounded to
+       the viewport (`SidebarProvider`'s wrapper is `h-svh overflow-hidden`) and
+       `SidebarInset` is the scrollport, so the chrome — sidebar, top bar, right
+       panel — stays put and only the content under the bar moves. Public pages
+       (sign-in) still flow normally, which is why `#root` keeps `min-h-svh`
+       rather than being bounded here.
+
+       `html` deliberately carries **no** overflow of its own. Sideways overflow
+       is clipped on `#root` instead (below), because the CSS overflow rules say
+       a non-`visible` overflow on `html` — `overflow-x: clip` included — stops
+       `body`'s overflow from propagating to the viewport. Radix's overlays
+       (`DropdownMenu`, `Select`, `Dialog`, …) lock scrolling by setting
+       `body { overflow: hidden }` and compensating for the scrollbar they
+       expect that to remove with `body[data-scroll-locked] { margin-right:
+       <scrollbar> }`. With `html` clipping, the `hidden` never reached the
+       viewport: the scrollbar stayed, the compensation still applied, and the
+       whole layout jumped ~15px sideways every time any menu opened or closed.
+       (With the shell bounded there is no document scrollbar to compensate for
+       either, so the gap computes to zero — but leave this as it is; the rule
+       is about `html` never becoming a scroll container.) */
     body {
         @apply bg-background text-foreground;
     }
     #root {
         /* `overflow-x-clip`, not `-hidden`: `hidden` would make #root a scroll
-           container and break the sticky chrome once the document scrolls. */
+           container and break the sticky chrome. This is the *only* horizontal
+           clip — see the note above `body`. */
         @apply min-h-svh overflow-x-clip;
+    }
+
+    /* Scrollbars: thin and quiet. The admin is a stack of scrollports — the
+       inset, the work-area island, the right panel, the sidebar nav, the
+       records table — and the platform default paints a heavy grey column in
+       every one of them. Firefox takes `scrollbar-width`/`-color`; Chromium and
+       Safari need the pseudo-elements. The thumb is the border token, so it
+       tracks the theme (including dark) instead of being a hard-coded grey.
+       The track stays transparent so a scrollport doesn't draw a gutter when
+       it has nothing to scroll. */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+    }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        border-radius: 9999px;
+        background-color: var(--color-border);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-muted-foreground);
     }
     ::selection {
         @apply bg-foreground/15;

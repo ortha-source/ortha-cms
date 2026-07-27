@@ -46,10 +46,13 @@ content plugin owns).
   page** by the item's `useRowsData` (`useLocaleSummaries` →
   `POST …/locale-summary`) — never a request per row. The tint comes from
   content-admin's shared `entryStatusView` / `ENTRY_STATUS_VIEW_VARIANT` (see
-  *Publish state* below), and the state rides the link's accessible name — the
+  _Publish state_ below), and the state rides the link's accessible name — the
   badge shows the locale slug, so colour alone would convey nothing.
 - **`ENTRY_SIDEBAR_WIDGET_SLOT` → `LocaleWidget`** — the entry editor's **locale
-  switcher**, styled like the Details block, live in **both** modes. It lists
+  switcher**, live in **both** modes. It renders content-admin's exported
+  **`EntrySidebarSection`** — the editor's rail is one flat Properties panel of
+  divider-separated sections, so a card of our own would be the single floating
+  box in it (content-admin's _The Properties rail_ section is the contract). It lists
   every configured locale: the current one is marked, a locale whose translation
   already exists is a switch target (with its publish status → navigates to that
   sibling's editor, or `?locale=` for singles), and a missing locale is dimmed
@@ -70,7 +73,7 @@ content plugin owns).
       the group's members are read by `useLocaleSummaries` (batched by that group
       id) so an already-existing sibling is a live switch target; a fresh create
       (no group) simply re-scopes to the picked locale.
-    - The card carries a **contextual `CardDescription`** under its title — a
+    - The section carries a **contextual `description`** under its title — a
       saved-record line vs a create-mode line (keyed on `isCreate`).
     - A footer surfaces the record's **`localeGroupId`** (the id every locale of
       the record shares) with an `Info` tooltip explaining what it is; a fresh
@@ -87,7 +90,7 @@ content plugin owns).
   i18n plugin's virtual-field subqueries. Empty for a non-i18n type.
 - **`CONTENT_OVERLAY_SLOT` → `LocaleSwitchOverlay`** — the switch cover, mounted
   at the library's page level so it outlives the editor's loading state (see
-  *Switch flourish* below).
+  _Switch flourish_ below).
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: the single-mode one-entry read
   carries the active locale (`listParamKeys = ['locale']`), the **create body**
   carries the locale **and** the target group (`createBodyKeys = ['locale',
@@ -116,7 +119,7 @@ the new locale flash through the blur. The backdrop is near-opaque
 **The host is page-level, not in-view.** It is contributed to content-admin's
 `CONTENT_OVERLAY_SLOT`, which `ContentLibraryPage` renders outside its routes.
 It used to be rendered by the locale widget and the toolbar switcher — i.e.
-*inside* the editor, which unmounts itself for its loading state while the
+_inside_ the editor, which unmounts itself for its loading state while the
 destination record loads. So the cover vanished mid-transition, exposing the
 editor's full-page spinner, and reappeared when the editor re-rendered: two
 loaders blinking in sequence. A cover has to outlive the thing it covers.
@@ -137,7 +140,7 @@ Both surfaces that show a locale's publish state (the widget's `LocaleRow`, the
 records column's `LocaleBadge`) render **content-admin's** `entryStatusView` /
 `ENTRY_STATUS_VIEW_VARIANT` / `EntryStatusBadge`, not their own
 `published ? … : …`. The server stores two values but there are **four** states
-(see content-admin's *Publish state* section) — a locale that has live content
+(see content-admin's _Publish state_ section) — a locale that has live content
 plus unpublished edits reads **Modified**, which a two-way branch silently
 flattened to "Draft". That is the common case here: editing a **shared**
 (non-`localized`) field rewrites every sibling locale, so a one-locale edit moves
@@ -151,7 +154,7 @@ it renders.
 `LocaleWidget` re-reads its panel off the slot context's **`entry.updatedAt`**,
 not `entry.status`: content's write mutations don't know about this plugin's
 queries, and a write that leaves the status where it was still changes the panel
-(a second save keeps it `draft`; a shared-field edit rewrites the *siblings*'
+(a second save keeps it `draft`; a shared-field edit rewrites the _siblings_'
 rows without touching this one's status at all).
 
 ## Data layer

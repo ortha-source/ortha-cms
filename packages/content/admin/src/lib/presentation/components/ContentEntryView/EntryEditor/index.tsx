@@ -18,6 +18,7 @@ import type {
     StagedRelation
 } from '../../../../domain/types/contentType';
 import { useUnsavedChanges } from '@ortha-cms/utils-admin';
+import { PageActionsPortal, RightPanelPortal } from '@ortha-cms/shell-admin';
 import { CONTENT_FIELD_TYPE, ENTRY_TAB } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
@@ -31,6 +32,7 @@ import { useEntryMedia } from '../../../../application/useEntryMedia';
 import { entryIssuesFrom } from '../../../../infrastructure/entryIssues';
 import { fieldLabel } from '../../../../domain/entryColumns';
 import { toRelationIds } from '../../../../domain/relationIds';
+import { EntryActions } from './EntryActions';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 import { HistoryTimeline } from './HistoryTimeline';
@@ -80,6 +82,10 @@ const messages = defineMessages({
         defaultMessage: 'Save anyway'
     },
     cancel: { id: 'content.editor.cancel', defaultMessage: 'Cancel' },
+    propertiesPanel: {
+        id: 'content.sidebar.panelTitle',
+        defaultMessage: 'Properties'
+    },
     publishBlocked: {
         id: 'content.editor.publishBlocked',
         defaultMessage:
@@ -519,7 +525,7 @@ export function EntryEditor({
     return (
         <form
             noValidate
-            className="flex min-h-0 flex-1 flex-col lg:flex-row"
+            className="flex min-h-0 flex-1 flex-col"
             onSubmit={(event) => {
                 event.preventDefault();
                 // Submitting (e.g. Enter) runs the primary action — publish for
@@ -528,6 +534,39 @@ export function EntryEditor({
                 save(publishable)();
             }}
         >
+            {/* The write actions and the Properties panel render in the **app
+                chrome** — the top bar's actions region and the shell's right
+                panel — not in this form. Both go through a portal rather than
+                being handed to the shell as nodes, which is what keeps them in
+                this React tree: they read the editor's handlers and busy state,
+                the entry slot context, and the open workspace, none of which
+                exist at the shell's position. */}
+            <PageActionsPortal>
+                <EntryActions
+                    entry={entry}
+                    publishable={publishable}
+                    paranoid={schema.paranoid ?? false}
+                    isCreate={isCreate}
+                    saving={saving}
+                    mutating={mutating}
+                    onSaveDraft={save(false)}
+                    onPublish={save(true)}
+                    onUnpublish={onUnpublish}
+                    onDelete={onDelete}
+                />
+            </PageActionsPortal>
+
+            <RightPanelPortal
+                title={intl.formatMessage(messages.propertiesPanel)}
+            >
+                <EntrySidebar
+                    entry={entry}
+                    publishable={publishable}
+                    isCreate={isCreate}
+                    gate={gate}
+                />
+            </RightPanelPortal>
+
             {/* Main column: title + tabs. The card itself is flush (no padding);
                 padding lives here, inside the pane. `min-w-0` keeps wide field
                 content from widening the page (the card scrolls as a whole). */}
@@ -710,20 +749,6 @@ export function EntryEditor({
                     </div>
                 </div>
             </div>
-
-            <EntrySidebar
-                entry={entry}
-                publishable={publishable}
-                paranoid={schema.paranoid ?? false}
-                isCreate={isCreate}
-                saving={saving}
-                mutating={mutating}
-                gate={gate}
-                onSaveDraft={save(false)}
-                onPublish={save(true)}
-                onUnpublish={onUnpublish}
-                onDelete={onDelete}
-            />
 
             <ConfirmDialog
                 open={pendingPublish !== null}

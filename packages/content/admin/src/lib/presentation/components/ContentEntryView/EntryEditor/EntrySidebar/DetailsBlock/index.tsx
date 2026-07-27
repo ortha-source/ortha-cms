@@ -1,13 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle
-} from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../../../../domain/types/contentType';
 import { EntryStatusBadge } from '../../../../EntryStatusBadge';
-import { MetaRow } from './MetaRow';
+import { EntrySidebarRow } from '../../../../EntrySidebarRow';
+import { EntrySidebarSection } from '../../../../EntrySidebarSection';
 
 const messages = defineMessages({
     detailsTitle: {
@@ -22,9 +17,9 @@ const messages = defineMessages({
 });
 
 /**
- * The static **Details** card in the entry editor's right rail: the entry's id,
- * publish status (the shared {@link EntryStatusBadge}), and created /
- * last-updated timestamps.
+ * The static **Details** section of the entry editor's right rail: the entry's
+ * publish status (the shared {@link EntryStatusBadge}), created / last-updated
+ * timestamps, and its id.
  */
 export function DetailsBlock({
     entry,
@@ -42,30 +37,26 @@ export function DetailsBlock({
             : dash;
 
     return (
-        <Card className="border-border/60 bg-muted/20 shadow-none">
-            <CardHeader>
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.detailsTitle)}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <dl className="flex flex-col gap-3">
-                    <MetaRow label={intl.formatMessage(messages.entryId)} stacked>
-                        <span className="break-all font-mono text-xs text-muted-foreground">
-                            {entry?.id ?? dash}
-                        </span>
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.status)}>
-                        <EntryStatusBadge entry={entry} isCreate={isCreate} />
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.created)}>
-                        {fmt(entry?.createdAt)}
-                    </MetaRow>
-                    <MetaRow label={intl.formatMessage(messages.updated)}>
-                        {fmt(entry?.updatedAt)}
-                    </MetaRow>
-                </dl>
-            </CardContent>
-        </Card>
+        <EntrySidebarSection title={intl.formatMessage(messages.detailsTitle)}>
+            <dl className="flex flex-col gap-3">
+                <EntrySidebarRow label={intl.formatMessage(messages.status)}>
+                    <EntryStatusBadge entry={entry} isCreate={isCreate} />
+                </EntrySidebarRow>
+                <EntrySidebarRow label={intl.formatMessage(messages.created)}>
+                    {fmt(entry?.createdAt)}
+                </EntrySidebarRow>
+                <EntrySidebarRow label={intl.formatMessage(messages.updated)}>
+                    {fmt(entry?.updatedAt)}
+                </EntrySidebarRow>
+                <EntrySidebarRow
+                    label={intl.formatMessage(messages.entryId)}
+                    stacked
+                >
+                    <span className="break-all font-mono text-xs text-muted-foreground">
+                        {entry?.id ?? dash}
+                    </span>
+                </EntrySidebarRow>
+            </dl>
+        </EntrySidebarSection>
     );
 }

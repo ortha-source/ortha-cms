@@ -24,6 +24,21 @@ hand-written):
   `WizardStepCard`, `WizardFooter`) lives in `ui/wizard.tsx` — copy-free and
   i18n-free, configured by the consumer.
 
+## Notes
+
+- `TopBar` composes with `TopBarIcon` (leading tile) and **`TopBarActions`** (the
+  trailing, `ml-auto` region for page actions — place it as the bar's _last_
+  child). `TopBarActions` is presentational only; who fills it is the consumer's
+  business, because the design system can't reach the shell's context.
+- **`SidebarInset` is split into a fixed bar strip and a scrollport**, and
+  `TopBar` **hoists itself into that strip by portal** when there's an inset
+  above it (it renders in place otherwise, e.g. on public pages). That is what
+  keeps the bar out of the scrolling region, so the scrollbar starts under the
+  bar instead of running its full height beside it. A page still just writes
+  `<TopBar>` first in its tree and knows nothing about this. Because it's a
+  portal, the bar keeps its page's React context — which is what lets the
+  shell's page-actions region work from inside it.
+
 ## TS conventions
 
 - `type` over `interface`

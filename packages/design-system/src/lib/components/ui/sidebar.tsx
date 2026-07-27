@@ -138,7 +138,15 @@ function SidebarProvider({
             setOpenMobile,
             toggleSidebar
         }),
-        [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+        [
+            state,
+            open,
+            setOpen,
+            isMobile,
+            openMobile,
+            setOpenMobile,
+            toggleSidebar
+        ]
     );
 
     return (
@@ -154,7 +162,11 @@ function SidebarProvider({
                         } as React.CSSProperties
                     }
                     className={cn(
-                        'group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar',
+                        // Bounded to the viewport, not `min-h-svh`: the document
+                        // itself never scrolls, so the page chrome (the sidebar,
+                        // the top bar, the right panel) stays put and only the
+                        // inset's content moves. `SidebarInset` is the scrollport.
+                        'group/sidebar-wrapper flex h-svh w-full overflow-hidden has-data-[variant=inset]:bg-sidebar',
                         className
                     )}
                     {...props}
@@ -225,7 +237,9 @@ function Sidebar({
                             Displays the mobile sidebar.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="flex h-full w-full flex-col">{children}</div>
+                    <div className="flex h-full w-full flex-col">
+                        {children}
+                    </div>
                 </SheetContent>
             </Sheet>
         );
@@ -244,7 +258,7 @@ function Sidebar({
             <div
                 data-slot="sidebar-gap"
                 className={cn(
-                    'relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear',
+                    'relative w-(--sidebar-width) bg-transparent transition-[width] duration-300 ease-in-out',
                     'group-data-[collapsible=offcanvas]:w-0',
                     'group-data-[side=right]:rotate-180',
                     variant === 'floating' || variant === 'inset'
@@ -255,7 +269,7 @@ function Sidebar({
             <div
                 data-slot="sidebar-container"
                 className={cn(
-                    'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex',
+                    'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-300 ease-in-out md:flex',
                     side === 'left'
                         ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
                         : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -334,18 +348,61 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
     );
 }
 
-/** The main content region beside the sidebar. */
-function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
+/**
+ * Where a page's {@link TopBar} is hoisted to — the fixed strip above the
+ * inset's scrollport. `undefined` means there is no {@link SidebarInset} above
+ * (a public page), so the bar renders in place; `null` means the host hasn't
+ * mounted yet, one commit away.
+ */
+const InsetTopBarContext = React.createContext<HTMLElement | null | undefined>(
+    undefined
+);
+
+/** The inset's top-bar host. See {@link InsetTopBarContext}. */
+function useInsetTopBarHost() {
+    return React.useContext(InsetTopBarContext);
+}
+
+/**
+ * The main content region beside the sidebar, split into a **fixed bar strip**
+ * and a **scrollport** below it. The page's `TopBar` hoists itself into the
+ * strip (by portal, so it keeps the page's React context), which is what makes
+ * the scrollbar start *under* the bar instead of running the full height beside
+ * it — the bar is chrome and shouldn't sit in a scrolling region at all.
+ *
+ * The wrapper is viewport-bounded, so the scrollport has a definite height and
+ * both page shapes work: an ordinary page (a `Container` of content) simply
+ * scrolls in it, while a page that wants an island (the Content Library, the
+ * Media Library) resolves `flex-1 min-h-0` against that height and runs its own
+ * inner scroll.
+ */
+function SidebarInset({
+    className,
+    children,
+    ...props
+}: React.ComponentProps<'main'>) {
+    const [barHost, setBarHost] = React.useState<HTMLElement | null>(null);
+
     return (
         <main
             data-slot="sidebar-inset"
             className={cn(
-                'relative flex w-full flex-1 flex-col bg-background',
+                'relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-background',
                 'md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
                 className
             )}
             {...props}
-        />
+        >
+            <div data-slot="sidebar-inset-bar" ref={setBarHost} />
+            <InsetTopBarContext.Provider value={barHost}>
+                <div
+                    data-slot="sidebar-inset-scroll"
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+                >
+                    {children}
+                </div>
+            </InsetTopBarContext.Provider>
+        </main>
     );
 }
 
@@ -424,7 +481,10 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
         <div
             data-slot="sidebar-group"
             data-sidebar="group"
-            className={cn('relative flex w-full min-w-0 flex-col p-2', className)}
+            className={cn(
+                'relative flex w-full min-w-0 flex-col p-2',
+                className
+            )}
             {...props}
         />
     );
@@ -561,7 +621,10 @@ function SidebarMenuButton({
             data-sidebar="menu-button"
             data-size={size}
             data-active={isActive}
-            className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+            className={cn(
+                sidebarMenuButtonVariants({ variant, size }),
+                className
+            )}
             {...props}
         />
     );
@@ -662,7 +725,10 @@ function SidebarMenuSkeleton({
         <div
             data-slot="sidebar-menu-skeleton"
             data-sidebar="menu-skeleton"
-            className={cn('flex h-8 items-center gap-2 rounded-md px-2', className)}
+            className={cn(
+                'flex h-8 items-center gap-2 rounded-md px-2',
+                className
+            )}
             {...props}
         >
             {showIcon && (
@@ -773,5 +839,6 @@ export {
     SidebarSeparator,
     SidebarTrigger,
     useSidebar,
-    useOptionalSidebar
+    useOptionalSidebar,
+    useInsetTopBarHost
 };

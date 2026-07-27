@@ -1,7 +1,9 @@
 import { Outlet } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { SidebarInset, SidebarProvider } from '@ortha-cms/design-system';
+import { PageChromeProvider } from '../../utils/pageChrome';
 import { SidebarContentProvider } from '../../utils/sidebarContent';
+import { AppRightPanel } from '../AppRightPanel';
 import { AppSidebar } from '../AppSidebar';
 import { SidebarToggle } from './SidebarToggle';
 
@@ -28,6 +30,11 @@ const MAIN_CONTENT_ID = 'main-content';
  * route take over the sidebar's contextual region (the workspace shell injects
  * its per-workspace nav there).
  *
+ * `PageChromeProvider` owns the other two page-fillable regions: the top bar's
+ * trailing **actions** and the **right panel** ({@link AppRightPanel}) — both
+ * filled by portal from the page that owns them, so their content keeps that
+ * page's context.
+ *
  * A "Skip to main content" link is the first focusable element (WCAG 2.4.1
  * Bypass Blocks) — visually hidden until focused, it jumps keyboard users past
  * the sidebar to the `<main id="main-content">` landmark.
@@ -37,19 +44,24 @@ export function AppShell() {
 
     return (
         <SidebarContentProvider>
-            <SidebarProvider>
-                <a
-                    href={`#${MAIN_CONTENT_ID}`}
-                    className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-md focus:ring-2 focus:ring-ring"
-                >
-                    {intl.formatMessage(messages.skipToContent)}
-                </a>
-                <AppSidebar />
-                <SidebarInset id={MAIN_CONTENT_ID} tabIndex={-1}>
-                    <Outlet />
-                </SidebarInset>
-                <SidebarToggle />
-            </SidebarProvider>
+            <PageChromeProvider>
+                <SidebarProvider>
+                    <a
+                        href={`#${MAIN_CONTENT_ID}`}
+                        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-md focus:ring-2 focus:ring-ring"
+                    >
+                        {intl.formatMessage(messages.skipToContent)}
+                    </a>
+                    <AppSidebar />
+                    <SidebarInset id={MAIN_CONTENT_ID} tabIndex={-1}>
+                        <Outlet />
+                    </SidebarInset>
+                    {/* The third column: empty (zero-width) until a page
+                        registers a panel — see `AppRightPanel`. */}
+                    <AppRightPanel />
+                    <SidebarToggle />
+                </SidebarProvider>
+            </PageChromeProvider>
         </SidebarContentProvider>
     );
 }

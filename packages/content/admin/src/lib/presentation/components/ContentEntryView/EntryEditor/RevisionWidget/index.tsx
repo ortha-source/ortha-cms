@@ -1,13 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    Spinner
-} from '@ortha-cms/design-system';
+import { Spinner } from '@ortha-cms/design-system';
 import type { ContentTypeDetail } from '../../../../../domain/types/contentType';
 import { useEntryRevisions } from '../../../../../application/useEntryRevisions';
+import { EntrySidebarSection } from '../../../EntrySidebarSection';
 import { RevisionList } from '../RevisionList';
 
 /** How many revisions the compact sidebar card shows; the rest live in History. */
@@ -30,7 +25,7 @@ const messages = defineMessages({
 });
 
 /**
- * The right-rail **Revisions** card: a compact view of the entry's most recent
+ * The right-rail **Revisions** section: a compact view of the entry's most recent
  * versions, each with its status and capture time, and a Restore action for
  * older ones. Full history (and the same actions) lives in the editor's History
  * tab. Rendered only for a saved entry — a create form has no history yet.
@@ -52,44 +47,35 @@ export function RevisionWidget({
     const overflow = (data?.total ?? 0) - Math.min(items.length, WIDGET_LIMIT);
 
     return (
-        <Card className="border-border/60 bg-muted/20 shadow-none">
-            <CardHeader>
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.title)}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {isLoading ? (
-                    <div className="flex justify-center py-2">
-                        <Spinner />
-                    </div>
-                ) : isError ? (
-                    <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.error)}
-                    </p>
-                ) : items.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.empty)}
-                    </p>
-                ) : (
-                    <>
-                        <RevisionList
-                            typeName={typeName}
-                            entryId={entryId}
-                            schema={schema}
-                            revisions={items.slice(0, WIDGET_LIMIT)}
-                            compact
-                        />
-                        {overflow > 0 && (
-                            <p className="pt-2 text-xs text-muted-foreground">
-                                {intl.formatMessage(messages.more, {
-                                    n: overflow
-                                })}
-                            </p>
-                        )}
-                    </>
-                )}
-            </CardContent>
-        </Card>
+        <EntrySidebarSection title={intl.formatMessage(messages.title)}>
+            {isLoading ? (
+                <div className="flex justify-center py-2">
+                    <Spinner />
+                </div>
+            ) : isError ? (
+                <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.error)}
+                </p>
+            ) : items.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.empty)}
+                </p>
+            ) : (
+                <>
+                    <RevisionList
+                        typeName={typeName}
+                        entryId={entryId}
+                        schema={schema}
+                        revisions={items.slice(0, WIDGET_LIMIT)}
+                        compact
+                    />
+                    {overflow > 0 && (
+                        <p className="pt-2 text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.more, { n: overflow })}
+                        </p>
+                    )}
+                </>
+            )}
+        </EntrySidebarSection>
     );
 }
