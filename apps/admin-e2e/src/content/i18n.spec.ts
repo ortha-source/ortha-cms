@@ -489,4 +489,101 @@ test.describe('Content i18n', () => {
             ).toBe(true);
         });
     });
+
+    /**
+     * The two `ENTRY_MENU_SLOT` contributions — acting on **every locale of the
+     * open record at once**. Both reuse the content library's own bulk
+     * endpoints (the siblings are entries of the same type), so what's asserted
+     * here is the wiring: which locales are gathered, how they're named, and
+     * that the actions only appear where they mean something.
+     */
+    test.describe('All-locales actions', () => {
+        /** Open the `en` row of group G1 — it has a published `de` sibling. */
+        async function openGroupedRow(
+            contentLibraryPage: ContentLibraryPage
+        ): Promise<void> {
+            await openCollection(contentLibraryPage);
+            await contentLibraryPage.recordLink('Winter boots').click();
+            await expect(contentLibraryPage.editorSave).toBeVisible();
+        }
+
+        test('the ⋯ menu groups the built-ins and the locale actions', async ({
+            contentLibraryPage
+        }) => {
+            await openGroupedRow(contentLibraryPage);
+            await contentLibraryPage.openEditorMenu();
+
+            // save · publish · extras · danger, in that order.
+            await expect(contentLibraryPage.editorMenuItems).toHaveText([
+                'Save draft',
+                'Save & publish',
+                'Unpublish',
+                'Publish all locales',
+                'Unpublish all locales',
+                'Delete'
+            ]);
+            // One rule between each pair of adjacent groups.
+            await expect(contentLibraryPage.editorMenuSeparators).toHaveCount(
+                3
+            );
+        });
+
+        test('publish all locales pre-flights every sibling, named by locale', async ({
+            contentLibraryPage
+        }) => {
+            await openGroupedRow(contentLibraryPage);
+            await contentLibraryPage.openEditorMenu();
+            await contentLibraryPage.chooseEditorAction('Publish all locales');
+
+            // Rows are named by **locale**, not by the record title — every
+            // sibling carries the same title, so titles couldn't tell them apart.
+            await expect(
+                contentLibraryPage.preflightRow('English')
+            ).toContainText('Already published');
+            await expect(
+                contentLibraryPage.preflightRow('Deutsch')
+            ).toContainText('Will publish');
+
+            // Only the draft sibling is publishable, and confirming says so.
+            await expect(contentLibraryPage.preflightConfirm).toHaveText(
+                'Publish 1 valid'
+            );
+            await contentLibraryPage.preflightConfirm.click();
+            await expect(
+                contentLibraryPage.toast('1 record published.')
+            ).toBeVisible();
+        });
+
+        test('unpublish all locales confirms, naming the live locales', async ({
+            contentLibraryPage
+        }) => {
+            await openGroupedRow(contentLibraryPage);
+            await contentLibraryPage.openEditorMenu();
+            await contentLibraryPage.chooseEditorAction(
+                'Unpublish all locales'
+            );
+
+            // Only `en` is live in the seed, so only it is named.
+            const dialog = contentLibraryPage.preflightDialog;
+            await expect(dialog).toContainText('Unpublish 1 live locale?');
+            await expect(dialog).toContainText('This takes English offline.');
+        });
+
+        test('neither action is offered on an unsaved record', async ({
+            contentLibraryPage
+        }) => {
+            await contentLibraryPage.gotoNewEntry(
+                I18N_WORKSPACE.id,
+                'localized_post'
+            );
+            await expect(contentLibraryPage.editorSave).toBeVisible();
+            await contentLibraryPage.openEditorMenu();
+
+            // A create form has no siblings to act on — and nothing to delete.
+            await expect(contentLibraryPage.editorMenuItems).toHaveText([
+                'Save draft',
+                'Save & publish'
+            ]);
+        });
+    });
 });

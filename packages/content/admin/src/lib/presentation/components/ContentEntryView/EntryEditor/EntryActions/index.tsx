@@ -1,16 +1,6 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { MoreHorizontal, Save, Send, Trash2, Undo2 } from 'lucide-react';
-import {
-    Button,
-    ConfirmDialog,
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-    Spinner
-} from '@ortha-cms/design-system';
+import { Save, Send } from 'lucide-react';
+import { Button, Spinner } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import type { EntryRecord } from '../../../../../domain/types/contentType';
 import {
@@ -20,39 +10,13 @@ import {
     CONTENT_UPDATE,
     ENTRY_STATUS
 } from '../../../../../domain/constants';
+import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
+import { EntryMenu } from './EntryMenu';
 
 const messages = defineMessages({
-    actions: {
-        id: 'content.sidebar.actions',
-        defaultMessage: 'More actions'
-    },
     save: { id: 'content.editor.save', defaultMessage: 'Save' },
     saveDraft: { id: 'content.editor.saveDraft', defaultMessage: 'Save draft' },
-    publish: { id: 'content.editor.publish', defaultMessage: 'Publish' },
-    publishAndSave: {
-        id: 'content.editor.publishAndSave',
-        defaultMessage: 'Save & publish'
-    },
-    unpublish: { id: 'content.editor.unpublish', defaultMessage: 'Unpublish' },
-    deleteEntry: { id: 'content.editor.delete', defaultMessage: 'Delete' },
-    deleteTitle: {
-        id: 'content.sidebar.deleteTitle',
-        defaultMessage: 'Delete this entry?'
-    },
-    deleteBody: {
-        id: 'content.sidebar.deleteBody',
-        defaultMessage:
-            'It will be moved to the trash, where it can be restored.'
-    },
-    deleteBodyHard: {
-        id: 'content.sidebar.deleteBodyHard',
-        defaultMessage:
-            'This permanently removes the entry and can’t be undone.'
-    },
-    deleteConfirm: {
-        id: 'content.sidebar.deleteConfirm',
-        defaultMessage: 'Delete'
-    }
+    publish: { id: 'content.editor.publish', defaultMessage: 'Publish' }
 });
 
 /** Icon + label per primary kind. */
@@ -65,16 +29,16 @@ const PRIMARY_META = {
 /**
  * The entry editor's **write actions**, rendered into the page top bar's actions
  * region (`PageActionsPortal`): a primary button — **Publish** for a publishable
- * type the user may publish, else **Save** / **Save draft** — beside a compact
- * **⋯ menu** holding the rest (Save draft, Save & publish, Unpublish, Delete).
+ * type the user may publish, else **Save** / **Save draft** — beside the
+ * {@link EntryMenu} holding the rest.
  *
  * They live in the bar rather than in the Properties panel because the panel can
  * be collapsed away entirely, and a record you can't save is a trap. Rendered
  * through a portal from inside the editor, so the handlers, the busy state and
  * `useHasPermission` all resolve against the editor's own tree.
  *
- * Owns the permission gating, the primary/menu derivation, and the delete
- * confirmation; the caller supplies the handlers.
+ * Owns the permission gating and the primary/menu derivation; the menu owns its
+ * own contents (including the delete confirmation and any contributed overlay).
  */
 export function EntryActions({
     entry,
@@ -106,7 +70,10 @@ export function EntryActions({
     onDelete?: () => void;
 }) {
     const intl = useIntl();
-    const [confirmDelete, setConfirmDelete] = useState(false);
+    // Always present in practice — `ContentEntryView` wraps the editor in the
+    // provider. The menu needs it (contributed items are resolved against it),
+    // so it renders only alongside a context rather than with a stand-in.
+    const slotContext = useEntrySlotContext();
 
     const canCreate = useHasPermission(CONTENT_CREATE);
     const canUpdate = useHasPermission(CONTENT_UPDATE);
@@ -136,9 +103,6 @@ export function EntryActions({
     const showUnpublish =
         !isCreate && publishable && published && canPublish && !!onUnpublish;
     const showDelete = !isCreate && canDelete && !!onDelete;
-    const hasMenu = showSaveDraft || showPublish || showUnpublish || showDelete;
-
-    if (!primary && !hasMenu) return null;
 
     const primaryMeta = primary ? PRIMARY_META[primary.kind] : null;
     const PrimaryIcon = primaryMeta?.icon;
@@ -160,72 +124,19 @@ export function EntryActions({
                     {intl.formatMessage(primaryMeta.label)}
                 </Button>
             )}
-            {hasMenu && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="size-8 shrink-0 shadow-none"
-                            disabled={busy}
-                            aria-label={intl.formatMessage(messages.actions)}
-                        >
-                            <MoreHorizontal aria-hidden />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        {showSaveDraft && (
-                            <DropdownMenuItem onSelect={onSaveDraft}>
-                                <Save aria-hidden />
-                                {intl.formatMessage(messages.saveDraft)}
-                            </DropdownMenuItem>
-                        )}
-                        {showPublish && (
-                            <DropdownMenuItem onSelect={onPublish}>
-                                <Send aria-hidden />
-                                {intl.formatMessage(messages.publishAndSave)}
-                            </DropdownMenuItem>
-                        )}
-                        {showUnpublish && onUnpublish && (
-                            <DropdownMenuItem onSelect={onUnpublish}>
-                                <Undo2 aria-hidden />
-                                {intl.formatMessage(messages.unpublish)}
-                            </DropdownMenuItem>
-                        )}
-                        {showDelete && (
-                            <>
-                                {(showSaveDraft ||
-                                    showPublish ||
-                                    showUnpublish) && <DropdownMenuSeparator />}
-                                <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onSelect={() => setConfirmDelete(true)}
-                                >
-                                    <Trash2 aria-hidden />
-                                    {intl.formatMessage(messages.deleteEntry)}
-                                </DropdownMenuItem>
-                            </>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
-
-            {showDelete && (
-                <ConfirmDialog
-                    open={confirmDelete}
-                    onOpenChange={setConfirmDelete}
-                    title={intl.formatMessage(messages.deleteTitle)}
-                    description={intl.formatMessage(
-                        paranoid ? messages.deleteBody : messages.deleteBodyHard
-                    )}
-                    confirmLabel={intl.formatMessage(messages.deleteConfirm)}
-                    confirmVariant="destructive"
+            {slotContext && (
+                <EntryMenu
+                    context={slotContext}
+                    paranoid={paranoid}
                     busy={busy}
-                    onConfirm={() => {
-                        onDelete?.();
-                        setConfirmDelete(false);
-                    }}
+                    showSaveDraft={showSaveDraft}
+                    showPublish={showPublish}
+                    showUnpublish={showUnpublish}
+                    showDelete={showDelete}
+                    onSaveDraft={onSaveDraft}
+                    onPublish={onPublish}
+                    onUnpublish={onUnpublish}
+                    onDelete={onDelete}
                 />
             )}
         </>

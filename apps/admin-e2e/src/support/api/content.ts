@@ -1249,7 +1249,11 @@ export async function mockContentEntryWrites(
                         title: entryId,
                         status: 'draft',
                         verdict: 'publishable',
-                        issues: []
+                        issues: [],
+                        // The per-field checklist a verdict row expands to. Part
+                        // of the contract, so it must be here even when empty —
+                        // the row reads its `.length` unconditionally.
+                        checks: []
                     }))
                 });
             }

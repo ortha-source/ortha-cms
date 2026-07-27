@@ -81,6 +81,33 @@ export const ENTRY_TAB_SLUGS = Object.values(ENTRY_TAB);
 export const DEFAULT_ENTRY_TAB = ENTRY_TAB.General;
 
 /**
+ * Sections of the entry editor's **⋯ menu**, in the order they render. A rule is
+ * drawn between non-empty sections, so a contributed item lands in a run of
+ * related actions instead of being appended after Delete.
+ *
+ * `Extras` is where `ENTRY_MENU_SLOT` contributions go by default (the i18n
+ * plugin's "all locales" actions); `Danger` is last and stays destructive-only.
+ */
+export const ENTRY_MENU_GROUP = {
+    Save: 'save',
+    Publish: 'publish',
+    Extras: 'extras',
+    Danger: 'danger'
+} as const;
+
+/** One `ENTRY_MENU_GROUP` value. */
+export type EntryMenuGroup =
+    (typeof ENTRY_MENU_GROUP)[keyof typeof ENTRY_MENU_GROUP];
+
+/** The menu's sections in render order — the one place that order is decided. */
+export const ENTRY_MENU_GROUP_ORDER: readonly EntryMenuGroup[] = [
+    ENTRY_MENU_GROUP.Save,
+    ENTRY_MENU_GROUP.Publish,
+    ENTRY_MENU_GROUP.Extras,
+    ENTRY_MENU_GROUP.Danger
+];
+
+/**
  * Query-param name holding a collection table's text search. The records view's
  * URL source of truth (via `useTableUrlState`), alongside `filter`/`page`/
  * `pageSize`.

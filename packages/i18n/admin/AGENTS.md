@@ -30,7 +30,7 @@ extension slots: **no routes, no layout, no nav item**. Register it in
 `createAdmin({ plugins })` **after** `ContentPlugin()` (it fills slots the
 content plugin owns).
 
-## What it contributes (the seven slots)
+## What it contributes (the eight slots)
 
 - **`RECORDS_TOOLBAR_SLOT` → `LocaleSwitcher`** — a searchable dropdown
   (design-system `Popover` + `Command`) of the configured locales, shown **only
@@ -93,6 +93,23 @@ content plugin owns).
 - **`CONTENT_OVERLAY_SLOT` → `LocaleSwitchOverlay`** — the switch cover, mounted
   at the library's page level so it outlives the editor's loading state (see
   _Switch flourish_ below).
+- **`ENTRY_MENU_SLOT` → `usePublishAllLocales` / `useUnpublishAllLocales`** — two
+  items in the entry editor's ⋯ menu (the `extras` group) that act on **every
+  locale of the open record at once**. Both are hooks (the slot's contract) that
+  resolve the record's siblings with `useEntryLocales` and return `null` unless
+  the type is localized **and** publishable, the record is saved, and the user
+  holds `content:publish` — returning null is how a menu item hides without
+  skipping its hook.
+    - **Publish all locales** needs no endpoint of its own: the siblings are
+      entries of the _same_ content type, so it hands their ids to content's
+      exported **`BulkPublishDialog`**, whose dry run already answers "which of
+      these can actually publish". Rows are named by locale via `labelFor` —
+      every sibling carries the same record title, so the title alone would make
+      them indistinguishable. Shown only with **2+** locales present.
+    - **Unpublish all locales** has no pre-flight to reuse (the server accepts an
+      unpublish unconditionally), so it is a `ConfirmDialog` naming the locales
+      that are currently **live**, then content's exported `useBulkEntryActions`
+      → `bulk/unpublish` over their ids. Shown only when something is live.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: the single-mode one-entry read
   carries the active locale (`listParamKeys = ['locale']`), the **create body**
   carries the locale **and** the target group (`createBodyKeys = ['locale',

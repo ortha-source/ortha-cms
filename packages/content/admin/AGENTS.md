@@ -336,7 +336,16 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   publish" chains create/update then the dedicated publish endpoint (one validated
   path). Bulk publish opens **`BulkPublishDialog`** — a dry run
   (`bulk/publish/preview`) listing each row's verdict before publishing only the
-  valid drafts. Destructive actions confirm through the design-system
+  valid drafts. That dialog is **exported from the package index**: a plugin
+  acting on a _known_ set of this library's records reuses the whole dry-run →
+  verdicts → commit flow rather than building a second one (i18n's "publish all
+  locales" hands it the record's locale siblings). Two props make it read as
+  something other than a table selection — `labels` (heading/body) and
+  `labelFor(id)`, which renames a row when the verdict's own title is the wrong
+  handle (every locale sibling carries the _same_ record title, so the locale is
+  what tells them apart). `useBulkEntryActions` is exported for the same reason —
+  i18n's "unpublish all locales" is `bulk/unpublish` over the sibling ids, since
+  unpublish has no pre-flight to run. Destructive actions confirm through the design-system
   **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
   (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
   extracted by `infrastructure/entryIssues`.
@@ -521,15 +530,16 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes nine named slots (`presentation/slots/contentSlots`, via
+The library exposes ten named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills seven; `@ortha-cms/media-admin` fills the other two
+`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills the other two
 (`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
-`RECORDS_FILTER_FIELDS_SLOT.useFields`, `ENTRY_PRESAVE_SLOT.usePresave`)
+`RECORDS_FILTER_FIELDS_SLOT.useFields`, `ENTRY_PRESAVE_SLOT.usePresave`,
+`ENTRY_MENU_SLOT.useItem`)
 rules-of-hooks-safe when the render
 sites call them in a loop — the call order never changes; an item gates its own
 fetching internally.
@@ -587,6 +597,25 @@ fetching internally.
       invalidates the entry-media cache so the tab reflects the saved set. The
       context also carries **`presave`** — the handles below, so a tab reaches state
       that has to outlive its own body.
+- **`ENTRY_MENU_SLOT`** — an action in the entry editor's **⋯ menu**
+  (id + `group` + `order` + optional `appliesTo` + **`useItem`**). The menu is laid
+  out in `ENTRY_MENU_GROUP` sections — `save` · `publish` · `extras` · `danger`,
+  a rule between non-empty ones — and the built-ins sit in them too (Save draft +
+  Save & publish, Unpublish, Delete), which is what makes a contribution land in a
+  run of related actions instead of after Delete. Contributions default to
+  `extras`.
+    - `useItem(context)` is a **hook**, not static data: a real item needs
+      queries, `useHasPermission` and its own dialog state. Return `null` to
+      hide — that is how an item disappears **without skipping its hook**.
+      `appliesTo` filters the _result_, never the call, so the hook count can't
+      change when the open type does.
+    - An item's `overlay` is rendered **outside** `DropdownMenuContent`, by
+      `EntryMenu`. That is the whole reason the menu is its own component: the
+      menu content unmounts the instant the menu closes — precisely when a
+      dialog opened from it is meant to appear — so an item's dialog cannot live
+      inside it.
+    - `@ortha-cms/i18n-admin` fills it with **Publish all locales** / **Unpublish
+      all locales**.
 - **`ENTRY_PRESAVE_SLOT`** — a plugin's participation in the **save itself**:
   `usePresave()` is mounted once per `ContentEntryView` and returns
   `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client

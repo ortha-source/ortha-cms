@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_242 test cases across 30 spec files._
+_246 test cases across 30 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -238,6 +238,15 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | --- |
 | saving as draft creates a sibling, never a PATCH on the original |
 | publishing creates a sibling, never a PATCH on the original |
+
+### All-locales actions
+
+| Test case |
+| --- |
+| the ⋯ menu groups the built-ins and the locale actions |
+| publish all locales pre-flights every sibling, named by locale |
+| unpublish all locales confirms, naming the live locales |
+| neither action is offered on an unsaved record |
 
 <!-- source: apps/admin-e2e/src/content/media-fields.spec.ts -->
 _<sub>apps/admin-e2e/src/content/media-fields.spec.ts</sub>_

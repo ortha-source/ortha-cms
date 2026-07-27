@@ -350,8 +350,64 @@ export class ContentLibraryPage extends BasePage {
 
     /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
     async saveDraft(): Promise<void> {
-        await this.page.getByRole('button', { name: 'More actions' }).click();
+        await this.openEditorMenu();
         await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
+    }
+
+    /** Open the entry editor's ⋯ actions menu (in the page top bar). */
+    async openEditorMenu(): Promise<void> {
+        await this.page.getByRole('button', { name: 'More actions' }).click();
+    }
+
+    /** The open ⋯ menu's items, in order — the menu must already be open. */
+    get editorMenuItems(): Locator {
+        return this.page.getByRole('menu').getByRole('menuitem');
+    }
+
+    /**
+     * How many rules the open ⋯ menu draws. The menu is laid out in groups
+     * (save / publish / extras / danger) with one separator between adjacent
+     * non-empty groups, so this is the group count minus one.
+     */
+    get editorMenuSeparators(): Locator {
+        return this.page.getByRole('menu').getByRole('separator');
+    }
+
+    /**
+     * Pick an item from the open ⋯ menu by label. A string match is **exact**:
+     * the menu holds both "Publish all locales" and "Unpublish all locales", and
+     * Playwright's default substring match resolves the former to both.
+     */
+    async chooseEditorAction(label: string | RegExp): Promise<void> {
+        await this.page
+            .getByRole('menuitem', {
+                name: label,
+                exact: typeof label === 'string'
+            })
+            .click();
+    }
+
+    /** The publish pre-flight dialog (bulk publish, and "publish all locales"). */
+    get preflightDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /**
+     * One pre-flight row by the name it renders under — the record's title in
+     * the records table's bulk publish, the **locale** name when the dialog is
+     * listing a record's siblings.
+     */
+    preflightRow(name: string | RegExp): Locator {
+        return this.preflightDialog
+            .getByRole('listitem')
+            .filter({ hasText: name });
+    }
+
+    /** The pre-flight's confirm button ("Publish {n} valid"). */
+    get preflightConfirm(): Locator {
+        return this.preflightDialog.getByRole('button', {
+            name: /^Publish \d+ valid$/
+        });
     }
 
     /** The "Changes saved." success toast after an edit save. */

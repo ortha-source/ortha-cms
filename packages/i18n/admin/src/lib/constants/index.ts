@@ -28,6 +28,9 @@ export const I18N_CONTENT_PATH = '/i18n/content';
 /** Permission required to create an entry (and thus a translation). */
 export const CONTENT_CREATE = 'content:create';
 
+/** Permission required to publish or unpublish an entry (and so every locale). */
+export const CONTENT_PUBLISH = 'content:publish';
+
 /** Slot item ids (also React keys) for this plugin's contributions. */
 export const SLOT_ITEM_ID = {
     Switcher: 'i18n.localeSwitcher',
@@ -36,7 +39,9 @@ export const SLOT_ITEM_ID = {
     TitleChip: 'i18n.localeTitleChip',
     FilterFields: 'i18n.filterFields',
     SwitchOverlay: 'i18n.localeSwitchOverlay',
-    EntryParams: 'i18n.entryParams'
+    EntryParams: 'i18n.entryParams',
+    PublishAll: 'i18n.publishAllLocales',
+    UnpublishAll: 'i18n.unpublishAllLocales'
 } as const;
 
 /** Virtual filter field ids — must match the server extension's names. */

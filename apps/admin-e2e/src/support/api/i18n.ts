@@ -165,7 +165,13 @@ export async function mockI18n(page: Page): Promise<void> {
     // resolve the brand-new row — letting a spec exercise the full
     // create → switch locale → create-sibling flow, not just URL round-trips.
     const created: LocalizedRow[] = [];
-    const allRows = (): LocalizedRow[] => [...ROWS, ...created];
+    // A **per-call copy** of the seed. Routes mutate `status` (publish,
+    // unpublish, publish-all), and `ROWS` is module-level — without the copy one
+    // test's publish would be the next test's starting state, which is exactly
+    // the cross-test bleed `page.route`'s per-page lifetime is supposed to
+    // prevent.
+    const seeded: LocalizedRow[] = ROWS.map((row) => ({ ...row }));
+    const allRows = (): LocalizedRow[] => [...seeded, ...created];
     const liveGroupRows = (groupId: string): LocalizedRow[] =>
         allRows().filter((row) => row.localeGroupId === groupId);
 
@@ -235,7 +241,7 @@ export async function mockI18n(page: Page): Promise<void> {
         }
         const url = new URL(route.request().url());
         const locale = url.searchParams.get('locale') ?? 'en';
-        const items = ROWS.filter((row) => row.locale === locale);
+        const items = seeded.filter((row) => row.locale === locale);
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -303,6 +309,74 @@ export async function mockI18n(page: Page): Promise<void> {
                 status: row ? 200 : 404,
                 contentType: 'application/json',
                 body: JSON.stringify(row ?? { message: 'Not found' })
+            });
+        }
+    );
+
+    // POST /api/content/:name/bulk/... — the endpoints the editor's "all
+    // locales" actions drive. Verdicts are derived from the seeded rows, so a
+    // spec can assert that an already-live locale reads *already published*
+    // while its draft sibling reads *will publish*. Registered before the
+    // narrower two-segment routes below, which can't match a bulk path anyway.
+    await page.route(
+        /\/api\/content\/[^/]+\/bulk\/([^/]+)(\/preview)?$/,
+        async (route) => {
+            const parts = new URL(route.request().url()).pathname.split('/');
+            const preview = parts[parts.length - 1] === 'preview';
+            const action = preview
+                ? parts[parts.length - 2]
+                : parts[parts.length - 1];
+            const { ids = [] } = (route.request().postDataJSON() ?? {}) as {
+                ids?: string[];
+            };
+            const rows = ids
+                .map((id) => allRows().find((row) => row.id === id))
+                .filter((row): row is LocalizedRow => !!row);
+
+            if (action === 'publish' && preview) {
+                return route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        items: rows.map((row) => ({
+                            id: row.id,
+                            title: String(row.values.title ?? row.id),
+                            status: row.status,
+                            verdict:
+                                row.status === 'published'
+                                    ? 'already-published'
+                                    : 'publishable',
+                            issues: [],
+                            // The per-field publish-gate checklist each row
+                            // expands to. Required by the verdict contract —
+                            // omitting it is what the dialog reads `.length` of.
+                            checks: [
+                                { field: 'title', label: 'Title', ok: true }
+                            ]
+                        }))
+                    })
+                });
+            }
+            if (action === 'publish') {
+                const published = rows.filter(
+                    (row) => row.status !== 'published'
+                );
+                for (const row of published) row.status = 'published';
+                return route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        published: published.map((row) => row.id),
+                        skipped: []
+                    })
+                });
+            }
+            // unpublish
+            for (const row of rows) row.status = 'draft';
+            return route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ count: rows.length })
             });
         }
     );

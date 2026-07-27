@@ -15,7 +15,7 @@
  * Query `enabled`) rather than expect to be skipped.
  */
 
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { MessageDescriptor } from 'react-intl';
 import { createSlot } from '@ortha-cms/utils-admin';
 import type { FilterField } from '@ortha-cms/query-builder-admin';
@@ -24,7 +24,7 @@ import type {
     EntryRecord,
     MediaRef
 } from '../../../domain/types/contentType';
-import type { EntryMode } from '../../../domain/constants';
+import type { EntryMenuGroup, EntryMode } from '../../../domain/constants';
 
 /** Context handed to a {@link RecordsToolbarItem}'s component. */
 export type RecordsToolbarContext = {
@@ -335,6 +335,56 @@ export type EntryTabItem = {
  * across renders.
  */
 export const ENTRY_TAB_SLOT = createSlot<EntryTabItem>('content.entry.tabs');
+
+/** What an {@link EntryMenuItem} renders as, once its hook has run. */
+export type EntryMenuEntry = {
+    /** The item's label. */
+    label: ReactNode;
+    /** Leading icon, as any other menu item carries. */
+    icon?: ComponentType;
+    /** Render it disabled (e.g. while its own request is in flight). */
+    disabled?: boolean;
+    /** Style it as destructive — reserve for the `danger` group. */
+    destructive?: boolean;
+    /** Run the action. Selecting an item always closes the menu. */
+    onSelect: () => void;
+    /**
+     * A dialog or other overlay this item owns. Rendered **outside** the menu,
+     * so it survives the menu closing — which is precisely when it needs to
+     * appear. Keep it mounted and drive it from your own state.
+     */
+    overlay?: ReactNode;
+};
+
+/** One contributed item in the entry editor's ⋯ menu. */
+export type EntryMenuItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /** Which section it renders in; sections are separated by a rule. */
+    group: EntryMenuGroup;
+    /** Sort within the group. */
+    order: number;
+    /** Limit the item to certain types; omitted = every type. */
+    appliesTo?: (schema: ContentTypeDetail) => boolean;
+    /**
+     * Resolves the item for the open editor — **a hook**, called once per item
+     * per render (boot-frozen slots, so the order is stable; see this module's
+     * header). It is a hook and not static data because a real item needs
+     * queries, `useHasPermission`, and its own dialog state. Return `null` to
+     * render nothing — that is how an item hides itself without skipping the
+     * hook.
+     */
+    useItem: (context: EntrySlotContext) => EntryMenuEntry | null;
+};
+
+/**
+ * Extra actions in the entry editor's **⋯ menu**, beside the built-in Save /
+ * Publish / Delete. Grouped by {@link ENTRY_MENU_GROUP} and rendered by
+ * `EntryActions`, which also renders each item's `overlay` outside the menu.
+ * `@ortha-cms/i18n-admin` fills it with **Publish all locales** / **Unpublish
+ * all locales**.
+ */
+export const ENTRY_MENU_SLOT = createSlot<EntryMenuItem>('content.entry.menu');
 
 /**
  * One plugin's participation in the **save itself** — work that must happen

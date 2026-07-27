@@ -4,6 +4,7 @@ export type { ContentAdminPlugin } from './lib/presentation/contentPlugin';
 export {
     CONTENT_OVERLAY_SLOT,
     ENTRY_HEADER_SLOT,
+    ENTRY_MENU_SLOT,
     ENTRY_PARAMS_SLOT,
     ENTRY_PRESAVE_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
@@ -15,6 +16,8 @@ export {
 export type {
     ContentOverlayItem,
     EntryHeaderItem,
+    EntryMenuEntry,
+    EntryMenuItem,
     EntryParamsItem,
     EntryPresave,
     EntryPresaveItem,
@@ -40,6 +43,22 @@ export type {
 } from './lib/domain/types/contentType';
 export { ENTRY_MODE, type EntryMode } from './lib/domain/constants';
 export { CONTENT_FIELD_TYPE, ENTRY_TAB } from './lib/domain/constants';
+// Where an `ENTRY_MENU_SLOT` item sits in the editor's ⋯ menu.
+export { ENTRY_MENU_GROUP, type EntryMenuGroup } from './lib/domain/constants';
+// The stored publish values, so a contributor testing "is this live?" compares
+// against the same constants the library does rather than a bare string.
+export { ENTRY_STATUS } from './lib/domain/constants';
+
+// The bulk write mutations, exported for a plugin acting on a set of this
+// library's records — the i18n plugin unpublishes a record's locale siblings
+// with them. They invalidate the same caches the library's own writes do.
+export { useBulkEntryActions } from './lib/application/useBulkEntryActions';
+
+// The publish pre-flight, exported so a plugin acting on a *known* set of
+// records reuses the dry-run → verdicts → commit dialog instead of building a
+// second one (the i18n plugin's "publish all locales"). `labels` + `labelFor`
+// are what let it read as something other than a table selection.
+export { BulkPublishDialog } from './lib/presentation/components/CollectionRecordsView/BulkPublishDialog';
 
 // The publish-state classification + its one rendering, exported so a plugin
 // contributing its own view of an entry (the i18n locale rows and the records
