@@ -50,8 +50,8 @@ export const RIGHT_PANEL_ID = 'app-right-panel';
 /** localStorage key for the right panel's open/collapsed state. */
 const STORAGE_KEY = 'ortha:right-panel';
 
-/** How long the panel's slide runs — keep in step with its `duration-200`. */
-const PANEL_SLIDE_MS = 220;
+/** How long the panel's slide runs — keep in step with its `duration-300`. */
+const PANEL_SLIDE_MS = 330;
 
 /** Below this the panel overlays the content instead of taking a column. */
 const MOBILE_QUERY = '(max-width: 767px)';

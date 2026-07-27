@@ -29,7 +29,7 @@ const messages = defineMessages({
  * Collapsed, the control that brings it back lives in the top bar (`PageActions`)
  * — the panel can't offer it while it has no width to draw in.
  *
- * It **slides**, on the app sidebar's timing and curve. The mechanism is the
+ * It **slides**, on the app sidebar's timing and curve (300ms, ease-in-out). The mechanism is the
  * sidebar's too: the column animates its width while the panel inside keeps its
  * own, so the panel slides out of the clip instead of re-wrapping its contents
  * on every frame. (The sidebar spells this as a `fixed` panel moved by `left`
@@ -76,7 +76,7 @@ export function AppRightPanel() {
                           cn(
                               'fixed inset-y-0 right-0 z-40 w-[min(22rem,88vw)]',
                               animate &&
-                                  'transition-transform duration-200 ease-in-out',
+                                  'transition-transform duration-300 ease-in-out',
                               shown ? 'translate-x-0' : 'translate-x-full'
                           )
                         : // Column: full height of the viewport-bounded shell
@@ -85,15 +85,23 @@ export function AppRightPanel() {
                           cn(
                               'h-full',
                               animate &&
-                                  'transition-[width] duration-200 ease-in-out',
+                                  'transition-[width] duration-300 ease-in-out',
                               shown ? 'w-[22rem]' : 'w-0'
                           )
                 )}
             >
-                {/* Fixed width, and never unmounted: this is what slides. The
-                    header goes with it rather than being swapped out, so the
-                    panel leaves as one piece. */}
-                <div className="flex h-full w-[22rem] max-w-full shrink-0 flex-col border-l bg-background">
+                {/* Never unmounted, and — in the column layout — a **fixed**
+                    width: this is what slides. It must not be `max-w-full`
+                    there, or it would shrink with the animating column and
+                    re-wrap its contents line by line instead of sliding out of
+                    the clip. On mobile the column doesn't animate its width (it
+                    translates), so the panel simply fills it. */}
+                <div
+                    className={cn(
+                        'flex h-full shrink-0 flex-col border-l bg-background',
+                        isMobile ? 'w-full' : 'w-[22rem]'
+                    )}
+                >
                     <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
                         <h2 className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
                             {panel?.title}
