@@ -275,7 +275,9 @@ export function WysiwygEditor({
                     className
                 )}
             >
-                <div className="px-3 py-2">
+                {/* The left padding is the gutter's lane — the add and drag
+                    controls sit in it, outside the text's own column. */}
+                <div className="py-3 pr-4 pl-14">
                     <BlockList blocks={doc.blocks} />
                     {!readOnly && (
                         // Not a button: it is a click target, and announcing

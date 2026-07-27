@@ -201,20 +201,34 @@ export function useBlockCommands(
             );
         };
 
+        const outdent: BlockCommands['outdent'] = (path) => {
+            const parent = parentPath(path);
+            if (!parent) return;
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            const target = pathAfter(parent);
+            commit(insertAt(removeAt(blocks, path), target, [block]));
+            requestFocus(target, CARET.End);
+        };
+
         const split: BlockCommands['split'] = (path, before, after) => {
             const block = blockAt(blocks, path);
             if (!block) return;
             const definition = schema.get(block.type);
 
             // Enter on an empty continuing block (an empty bullet) leaves the
-            // list rather than adding another empty one — the universal way out.
+            // list rather than adding another empty one — the universal way
+            // out. A **nested** one lifts a level at a time first, exactly as
+            // Backspace does: converting it in place would leave the author's
+            // next paragraph parked inside the bullet they were escaping.
             if (
                 definition?.continueOnEnter &&
                 before === '' &&
                 after === '' &&
                 block.children.length === 0
             ) {
-                setType(path, PARAGRAPH_TYPE);
+                if (path.length > 1) outdent(path);
+                else setType(path, PARAGRAPH_TYPE);
                 return;
             }
 
@@ -251,16 +265,6 @@ export function useBlockCommands(
             });
             commit(replaceAt(blocks, path, [{ ...block, html: before }, tail]));
             requestFocus(pathAfter(path), CARET.Start);
-        };
-
-        const outdent: BlockCommands['outdent'] = (path) => {
-            const parent = parentPath(path);
-            if (!parent) return;
-            const block = blockAt(blocks, path);
-            if (!block) return;
-            const target = pathAfter(parent);
-            commit(insertAt(removeAt(blocks, path), target, [block]));
-            requestFocus(target, CARET.End);
         };
 
         const mergeBackward: BlockCommands['mergeBackward'] = (path) => {

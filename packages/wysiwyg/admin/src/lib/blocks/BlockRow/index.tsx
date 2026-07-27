@@ -80,7 +80,7 @@ export function BlockRow({
 
     return (
         <div
-            className={cn('group/block relative flex items-start gap-1', className)}
+            className={cn('group/block relative', className)}
             data-block-path={pathKey(path)}
             onDragOver={handleDragOver}
             onDragLeave={() => setDropEdge(null)}
@@ -99,10 +99,16 @@ export function BlockRow({
             {!readOnly && (
                 <div
                     className={cn(
-                        'flex w-12 shrink-0 justify-end gap-0.5 pt-1 pr-1',
-                        // The gutter is present but invisible until the row is
-                        // hovered or something inside it has focus — so it never
-                        // shifts the text, and never disappears mid-keyboard-use.
+                        // Positioned **outside** the row rather than beside the
+                        // text. In the flow it took a fixed 3rem from every row
+                        // at every depth, so a bullet nested two levels down
+                        // started 6rem further right than its parent — the
+                        // indentation of the *content* has to come from nesting
+                        // alone, not from the affordances next to it.
+                        'absolute top-0.5 right-full mr-1 flex gap-0.5',
+                        // Present but invisible until the row is hovered or
+                        // something in it has focus, so it never shifts the
+                        // text and never disappears mid-keyboard-use.
                         'opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100'
                     )}
                 >
@@ -124,7 +130,7 @@ export function BlockRow({
                 </div>
             )}
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0">
                 <Component
                     block={block}
                     path={path}
@@ -136,7 +142,7 @@ export function BlockRow({
                     <BlockList
                         blocks={block.children}
                         basePath={path}
-                        className="border-border ml-2 border-l pl-2"
+                        className="border-border ml-1 border-l pl-4"
                     />
                 )}
             </div>

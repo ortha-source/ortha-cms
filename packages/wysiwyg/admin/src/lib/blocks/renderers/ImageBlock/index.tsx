@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ImageIcon } from 'lucide-react';
-import { Button, Input } from '@ortha-cms/design-system';
+import { Button, Input, cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 import { InlineEditable } from '../../InlineEditable';
 import type { BlockViewProps } from '../../blockRegistry';
@@ -95,15 +95,33 @@ export function ImageBlock({ block, path }: BlockViewProps) {
                 className="border-border max-h-[28rem] w-auto max-w-full rounded-md border object-contain"
             />
             {!readOnly && (
-                <Input
-                    value={alt}
-                    aria-label={intl.formatMessage(messages.altLabel)}
-                    placeholder={intl.formatMessage(messages.altPlaceholder)}
-                    className="h-8 text-xs shadow-none"
-                    onChange={(event) =>
-                        commands.setAttrs(path, { alt: event.target.value })
-                    }
-                />
+                // Deliberately still always visible — an image published with
+                // no alt text is a defect, and hiding the field behind a menu
+                // is how that happens. It is styled as editor chrome (muted,
+                // compact, prefixed) so it doesn't read as part of the
+                // document, and it warns while it is empty.
+                <div className="flex items-center gap-2">
+                    <span
+                        aria-hidden
+                        className="text-muted-foreground shrink-0 text-[11px] font-medium tracking-wide uppercase"
+                    >
+                        {intl.formatMessage(messages.altLabel)}
+                    </span>
+                    <Input
+                        value={alt}
+                        aria-label={intl.formatMessage(messages.altLabel)}
+                        placeholder={intl.formatMessage(
+                            messages.altPlaceholder
+                        )}
+                        className={cn(
+                            'h-7 border-dashed bg-transparent text-xs shadow-none',
+                            alt.trim() === '' && 'border-warning/60'
+                        )}
+                        onChange={(event) =>
+                            commands.setAttrs(path, { alt: event.target.value })
+                        }
+                    />
+                </div>
             )}
             <figcaption>
                 <InlineEditable
