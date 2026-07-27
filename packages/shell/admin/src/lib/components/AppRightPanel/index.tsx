@@ -28,6 +28,13 @@ const messages = defineMessages({
  *
  * Collapsed, the control that brings it back lives in the top bar (`PageActions`)
  * — the panel can't offer it while it has no width to draw in.
+ *
+ * It **slides**, on the app sidebar's timing. The mechanism is the sidebar's
+ * too: the column animates its width while the panel inside keeps its own, so
+ * the panel slides out of the clip instead of re-wrapping its contents on every
+ * frame. (The sidebar spells this as a `fixed` panel moved by `left` beside a
+ * width-animated gap; a right-edge column can just narrow, because its right
+ * edge is already pinned to the viewport.)
  */
 export function AppRightPanel() {
     const intl = useIntl();
@@ -43,14 +50,17 @@ export function AppRightPanel() {
             className={cn(
                 // Full height of the viewport-bounded shell row, so the panel
                 // scrolls on its own instead of riding the inset's scrollport.
-                'flex h-full shrink-0 flex-col bg-background',
-                shown ? 'w-[22rem] border-l' : 'w-0 overflow-hidden'
+                'flex h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-linear motion-reduce:transition-none',
+                shown ? 'w-[22rem]' : 'w-0'
             )}
         >
-            {shown ? (
+            {/* Fixed width, and never unmounted: this is what slides. The header
+                goes with it rather than being swapped out, so the panel leaves
+                as one piece. */}
+            <div className="flex h-full w-[22rem] shrink-0 flex-col border-l bg-background">
                 <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
                     <h2 className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
-                        {panel.title}
+                        {panel?.title}
                     </h2>
                     <Button
                         type="button"
@@ -60,18 +70,18 @@ export function AppRightPanel() {
                         aria-controls={RIGHT_PANEL_ID}
                         aria-expanded
                         aria-label={intl.formatMessage(messages.hide, {
-                            title: panel.title
+                            title: panel?.title ?? ''
                         })}
-                        onClick={panel.toggle}
+                        onClick={panel?.toggle}
                     >
                         <PanelRightClose aria-hidden />
                     </Button>
                 </div>
-            ) : null}
-            <div
-                ref={setPanelHost}
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-            />
+                <div
+                    ref={setPanelHost}
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                />
+            </div>
         </aside>
     );
 }
