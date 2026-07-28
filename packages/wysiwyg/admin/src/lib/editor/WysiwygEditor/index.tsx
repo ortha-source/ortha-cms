@@ -89,6 +89,20 @@ export function WysiwygEditor({
     const intl = useIntl();
     const rootRef = useRef<HTMLDivElement>(null);
     const editables = useRef(new Map<string, HTMLElement>());
+    /**
+     * The editor root, as state, because the floating overlays portal **into
+     * it** rather than into `document.body`. Two reasons: a modal (the
+     * full-page editor) makes everything outside its content inert, so a menu
+     * parked on the body would render but refuse to be clicked; and the root
+     * sets no `transform`, so the overlays' viewport coordinates still resolve
+     * against the viewport.
+     */
+    const [overlayContainer, setOverlayContainer] =
+        useState<HTMLDivElement | null>(null);
+    const attachRoot = useCallback((node: HTMLDivElement | null) => {
+        rootRef.current = node;
+        setOverlayContainer(node);
+    }, []);
 
     const schema: BlockSchema = useMemo(
         () =>
@@ -260,7 +274,7 @@ export function WysiwygEditor({
     return (
         <EditorProvider value={context}>
             <div
-                ref={rootRef}
+                ref={attachRoot}
                 id={id}
                 role="group"
                 aria-label={intl.formatMessage(messages.label)}
@@ -298,12 +312,14 @@ export function WysiwygEditor({
                     state={slash}
                     groups={slashGroups}
                     activeId={activeItem?.id ?? null}
+                    container={overlayContainer}
                     onSelect={applySlash}
                 />
             )}
             {!readOnly && (
                 <InlineToolbar
                     containerRef={rootRef}
+                    container={overlayContainer}
                     version={toolbarVersion}
                     linkRequest={linkRequest}
                 />

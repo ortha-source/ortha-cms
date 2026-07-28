@@ -15,7 +15,7 @@ import {
     SelectValue,
     Textarea
 } from '@ortha-cms/design-system';
-import { WysiwygEditor } from '@ortha-cms/wysiwyg-admin';
+import { WysiwygField } from '@ortha-cms/wysiwyg-admin';
 import type { ContentField } from '../../../domain/types/contentType';
 import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
@@ -299,15 +299,19 @@ export function EntryFieldInput({
                         {endAdornment}
                     </FieldLabel>
                     {/*
-                      The editor is a controlled HTML-in/HTML-out control, so it
-                      drops into the form exactly like an input: the same
-                      `value`/`onChange`, the same 422→field mapping, the same
-                      publish gate. It carries no label of its own — the field
-                      row owns that — and reports `''` when empty so a `required`
-                      rule sees an empty document as empty.
+                      A controlled HTML-in/HTML-out control, so it drops into
+                      the form exactly like an input: the same `value`/`onChange`,
+                      the same 422→field mapping, the same publish gate. It
+                      reports `''` when empty so a `required` rule sees an empty
+                      document as empty.
+
+                      `WysiwygField` — not the bare editor: in a form it renders
+                      a preview of the document and opens the full-page editor
+                      when pressed, so a long body doesn't swallow the form.
                     */}
-                    <WysiwygEditor
+                    <WysiwygField
                         id={id}
+                        label={label}
                         value={asText(value)}
                         invalid={!!error}
                         aria-describedby={describedBy}

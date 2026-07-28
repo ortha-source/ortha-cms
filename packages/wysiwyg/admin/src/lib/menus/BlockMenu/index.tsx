@@ -1,6 +1,16 @@
 import { useState, type DragEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronDown, ChevronUp, Copy, GripVertical, Trash2 } from 'lucide-react';
+import {
+    ArrowDownToLine,
+    ArrowUpToLine,
+    ChevronDown,
+    ChevronUp,
+    ClipboardPaste,
+    Copy,
+    GripVertical,
+    Scissors,
+    Trash2
+} from 'lucide-react';
 import {
     BLOCK_TYPE,
     CALLOUT_TONES,
@@ -12,16 +22,21 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuSub,
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
+import { useBlockClipboard } from '../../blocks/blockClipboard';
 import { useEditor } from '../../editor/editorContext';
-import { BLOCK_DRAG_TYPE, pathKey } from '../../utils/constants';
+import {
+    BLOCK_DRAG_TYPE,
+    INSERT_POSITION,
+    pathKey
+} from '../../utils/constants';
 import { useBlockTypeItems } from '../useBlockTypeItems';
+import { BlockTypeSubmenu } from './BlockTypeSubmenu';
 
 const messages = defineMessages({
     open: {
@@ -32,26 +47,38 @@ const messages = defineMessages({
         id: 'wysiwyg.blockMenu.turnInto',
         defaultMessage: 'Turn into'
     },
+    insertAbove: {
+        id: 'wysiwyg.blockMenu.insertAbove',
+        defaultMessage: 'Insert above'
+    },
+    insertBelow: {
+        id: 'wysiwyg.blockMenu.insertBelow',
+        defaultMessage: 'Insert below'
+    },
     tone: {
         id: 'wysiwyg.blockMenu.tone',
         defaultMessage: 'Colour'
+    },
+    copy: { id: 'wysiwyg.blockMenu.copy', defaultMessage: 'Copy' },
+    cut: { id: 'wysiwyg.blockMenu.cut', defaultMessage: 'Cut' },
+    pasteAbove: {
+        id: 'wysiwyg.blockMenu.pasteAbove',
+        defaultMessage: 'Paste above'
+    },
+    pasteBelow: {
+        id: 'wysiwyg.blockMenu.pasteBelow',
+        defaultMessage: 'Paste below'
     },
     duplicate: {
         id: 'wysiwyg.blockMenu.duplicate',
         defaultMessage: 'Duplicate'
     },
-    moveUp: {
-        id: 'wysiwyg.blockMenu.moveUp',
-        defaultMessage: 'Move up'
-    },
+    moveUp: { id: 'wysiwyg.blockMenu.moveUp', defaultMessage: 'Move up' },
     moveDown: {
         id: 'wysiwyg.blockMenu.moveDown',
         defaultMessage: 'Move down'
     },
-    remove: {
-        id: 'wysiwyg.blockMenu.remove',
-        defaultMessage: 'Delete'
-    },
+    remove: { id: 'wysiwyg.blockMenu.remove', defaultMessage: 'Delete' },
     toneInfo: { id: 'wysiwyg.tone.info', defaultMessage: 'Info' },
     toneSuccess: { id: 'wysiwyg.tone.success', defaultMessage: 'Success' },
     toneWarning: { id: 'wysiwyg.tone.warning', defaultMessage: 'Warning' },
@@ -69,11 +96,13 @@ const TONE_MESSAGE: Record<string, keyof typeof messages> = {
 };
 
 /**
- * The per-block handle: **drag** it to move the block, **click** it for the
- * block's actions (turn into, duplicate, move, delete).
+ * The per-block handle that sits **on the block's own line**: **drag** it to
+ * move the block, **click** it for everything you can do to that block —
+ * change its type, insert a new one either side of it, copy/cut/paste it,
+ * duplicate, move, delete.
  *
  * One control with two gestures is what Notion-shaped editors trained everyone
- * to expect, and it keeps the gutter to two buttons instead of five. The drag
+ * to expect, and it keeps the gutter to two buttons instead of eight. The drag
  * payload is the block's path, which is all `commands.move` needs.
  */
 export function BlockMenu({
@@ -86,6 +115,7 @@ export function BlockMenu({
     const intl = useIntl();
     const { commands, schema, views } = useEditor();
     const groups = useBlockTypeItems(schema, views);
+    const clipboard = useBlockClipboard();
     const [open, setOpen] = useState(false);
 
     const handleDragStart = (event: DragEvent<HTMLButtonElement>) => {
@@ -109,36 +139,14 @@ export function BlockMenu({
                     <GripVertical aria-hidden className="size-4" />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                        {intl.formatMessage(messages.turnInto)}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-52">
-                        {groups.map((group) => (
-                            <div key={group.id}>
-                                <DropdownMenuLabel className="text-muted-foreground text-xs">
-                                    {group.label}
-                                </DropdownMenuLabel>
-                                {group.items.map((item) => (
-                                    <DropdownMenuItem
-                                        key={item.id}
-                                        onSelect={() =>
-                                            commands.setType(
-                                                path,
-                                                item.type,
-                                                item.attrs
-                                            )
-                                        }
-                                    >
-                                        <item.Icon aria-hidden className="size-4" />
-                                        {item.label}
-                                    </DropdownMenuItem>
-                                ))}
-                            </div>
-                        ))}
-                    </DropdownMenuSubContent>
-                </DropdownMenuSub>
+            <DropdownMenuContent align="start" className="w-56">
+                <BlockTypeSubmenu
+                    label={intl.formatMessage(messages.turnInto)}
+                    groups={groups}
+                    onSelect={(type, attrs) =>
+                        commands.setType(path, type, attrs)
+                    }
+                />
 
                 {block.type === BLOCK_TYPE.Callout && (
                     <DropdownMenuSub>
@@ -163,8 +171,72 @@ export function BlockMenu({
                 )}
 
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => commands.duplicate(path)}>
+                <BlockTypeSubmenu
+                    label={intl.formatMessage(messages.insertAbove)}
+                    groups={groups}
+                    onSelect={(type, attrs) =>
+                        commands.insertTypeAt(
+                            path,
+                            type,
+                            attrs,
+                            INSERT_POSITION.Before
+                        )
+                    }
+                />
+                <BlockTypeSubmenu
+                    label={intl.formatMessage(messages.insertBelow)}
+                    groups={groups}
+                    onSelect={(type, attrs) =>
+                        commands.insertTypeAt(
+                            path,
+                            type,
+                            attrs,
+                            INSERT_POSITION.After
+                        )
+                    }
+                />
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => commands.copyBlock(path)}>
                     <Copy aria-hidden className="size-4" />
+                    {intl.formatMessage(messages.copy)}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => commands.cutBlock(path)}>
+                    <Scissors aria-hidden className="size-4" />
+                    {intl.formatMessage(messages.cut)}
+                </DropdownMenuItem>
+                {/* Paste is offered only when there is something to paste —
+                    a permanently-disabled row teaches nothing. */}
+                {clipboard && (
+                    <>
+                        <DropdownMenuItem
+                            onSelect={() =>
+                                commands.pasteBlocks(
+                                    path,
+                                    INSERT_POSITION.Before
+                                )
+                            }
+                        >
+                            <ArrowUpToLine aria-hidden className="size-4" />
+                            {intl.formatMessage(messages.pasteAbove)}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() =>
+                                commands.pasteBlocks(
+                                    path,
+                                    INSERT_POSITION.After
+                                )
+                            }
+                        >
+                            <ArrowDownToLine aria-hidden className="size-4" />
+                            {intl.formatMessage(messages.pasteBelow)}
+                        </DropdownMenuItem>
+                    </>
+                )}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => commands.duplicate(path)}>
+                    <ClipboardPaste aria-hidden className="size-4" />
                     {intl.formatMessage(messages.duplicate)}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => commands.moveBy(path, -1)}>
@@ -175,6 +247,7 @@ export function BlockMenu({
                     <ChevronDown aria-hidden className="size-4" />
                     {intl.formatMessage(messages.moveDown)}
                 </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     className="text-destructive focus:text-destructive"

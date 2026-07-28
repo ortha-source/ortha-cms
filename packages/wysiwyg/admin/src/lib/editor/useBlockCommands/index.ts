@@ -15,13 +15,18 @@ import {
     previousPath,
     removeAt,
     replaceAt,
+    serializeBlocks,
     updateAt,
     type BlockAttrs,
     type BlockPath,
     type BlockSchema,
     type WysiwygBlock
 } from '@ortha-cms/wysiwyg-core';
-import { CARET } from '../../utils/constants';
+import {
+    getBlockClipboard,
+    setBlockClipboard
+} from '../../blocks/blockClipboard';
+import { CARET, INSERT_POSITION, type InsertPosition } from '../../utils/constants';
 import { HISTORY, type EditorDocument } from '../useEditorDocument';
 
 /**
@@ -67,6 +72,21 @@ export interface BlockCommands {
     mergeForward(path: BlockPath): void;
     /** Inserts blocks directly after `path` and focuses the first. */
     insertAfter(path: BlockPath, blocks: readonly WysiwygBlock[]): void;
+    /** Inserts blocks directly before `path` and focuses the first. */
+    insertBefore(path: BlockPath, blocks: readonly WysiwygBlock[]): void;
+    /** Creates a new block of `type` above or below `path`. */
+    insertTypeAt(
+        path: BlockPath,
+        type: string,
+        attrs: BlockAttrs | undefined,
+        position: InsertPosition
+    ): void;
+    /** Puts a block on the block clipboard (and its HTML on the system one). */
+    copyBlock(path: BlockPath): void;
+    /** Copies a block, then removes it. */
+    cutBlock(path: BlockPath): void;
+    /** Inserts the clipboard's blocks above or below `path`. */
+    pasteBlocks(path: BlockPath, position: InsertPosition): void;
     /** Removes a block (and its subtree). */
     remove(path: BlockPath): void;
     /** Inserts a copy of a block directly below it. */
@@ -336,6 +356,56 @@ export function useBlockCommands(
             requestFocus(target, CARET.End);
         };
 
+        const insertBefore: BlockCommands['insertBefore'] = (
+            path,
+            inserted
+        ) => {
+            if (inserted.length === 0) return;
+            commit(insertAt(blocks, path, inserted));
+            requestFocus(path, CARET.End);
+        };
+
+        const insertTypeAt: BlockCommands['insertTypeAt'] = (
+            path,
+            type,
+            attrs,
+            position
+        ) => {
+            const created = blockOfType(type, attrs);
+            if (position === INSERT_POSITION.Before) {
+                insertBefore(path, [created]);
+                return;
+            }
+            insertAfter(path, [created]);
+        };
+
+        const copyBlock: BlockCommands['copyBlock'] = (path) => {
+            const block = blockAt(blocks, path);
+            if (!block) return;
+            setBlockClipboard([block]);
+            // Also put the HTML on the system clipboard so the block can leave
+            // the app. Writing needs no permission; failing is not an error
+            // worth surfacing — the in-app paste still works.
+            void navigator.clipboard
+                ?.writeText(serializeBlocks([block], { schema }))
+                .catch(() => undefined);
+        };
+
+        const cutBlock: BlockCommands['cutBlock'] = (path) => {
+            copyBlock(path);
+            remove(path);
+        };
+
+        const pasteBlocks: BlockCommands['pasteBlocks'] = (path, position) => {
+            const copied = getBlockClipboard();
+            if (!copied || copied.length === 0) return;
+            // Fresh ids: the same block pasted twice must be two blocks, not
+            // one block rendered in two places.
+            const fresh = copied.map(cloneBlock);
+            if (position === INSERT_POSITION.Before) insertBefore(path, fresh);
+            else insertAfter(path, fresh);
+        };
+
         const remove: BlockCommands['remove'] = (path) => {
             const target = previousPath(blocks, path);
             const next = removeAt(blocks, path);
@@ -435,6 +505,11 @@ export function useBlockCommands(
             mergeBackward,
             mergeForward,
             insertAfter,
+            insertBefore,
+            insertTypeAt,
+            copyBlock,
+            cutBlock,
+            pasteBlocks,
             remove,
             duplicate,
             move,

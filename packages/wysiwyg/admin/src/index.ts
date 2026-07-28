@@ -9,8 +9,15 @@
  * {@link BlockView} registered here under the same `type`.
  */
 
+export { WysiwygField } from './lib/field/WysiwygField';
+export type { WysiwygFieldProps } from './lib/field/WysiwygField';
 export { WysiwygEditor } from './lib/editor/WysiwygEditor';
 export type { WysiwygEditorProps } from './lib/editor/WysiwygEditor';
+export { WysiwygPreviewCard } from './lib/field/WysiwygPreviewCard';
+
+// ── Rendering a stored value ──────────────────────────────────────────────
+export { WysiwygContent } from './lib/render/WysiwygContent';
+export { WYSIWYG_PROSE } from './lib/render/wysiwygProse';
 
 // ── Extending the editor ──────────────────────────────────────────────────
 export type {

@@ -73,11 +73,14 @@ interface ToolbarState {
  */
 export function InlineToolbar({
     containerRef,
+    container,
     version,
     linkRequest
 }: {
     /** The editor root — selections outside it are none of our business. */
     containerRef: RefObject<HTMLElement | null>;
+    /** Where to portal to. The editor root, so a modal can't make it inert. */
+    container: HTMLElement | null;
     /** Bumped by the editor to force a re-read (after a mark shortcut). */
     version: number;
     /** Bumped by ⌘K to open the link field. */
@@ -261,6 +264,6 @@ export function InlineToolbar({
                 />
             )}
         </div>,
-        document.body
+        container ?? document.body
     );
 }

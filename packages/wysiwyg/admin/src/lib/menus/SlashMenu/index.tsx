@@ -34,12 +34,15 @@ export function SlashMenu({
     state,
     groups,
     activeId,
+    container,
     onSelect
 }: {
     state: SlashState;
     groups: readonly BlockTypeGroup[];
     /** The highlighted item's id — owned by the editor, moved by the arrows. */
     activeId: string | null;
+    /** Where to portal to. The editor root, so a modal can't make it inert. */
+    container: HTMLElement | null;
     onSelect(item: BlockTypeItem): void;
 }) {
     const intl = useIntl();
@@ -111,6 +114,6 @@ export function SlashMenu({
                 </div>
             ))}
         </div>,
-        document.body
+        container ?? document.body
     );
 }

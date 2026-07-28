@@ -5,13 +5,41 @@ plain HTML, in and out. The rendering half of `@ortha-cms/wysiwyg-core` (which
 owns the model, the block schema, and the HTML pipeline).
 
 ```tsx
+// In a form — a preview that opens the full-page editor.
+<WysiwygField label="Body" value={html} onChange={setHtml} onBlur={touch} />
+
+// The raw writing surface, when you want it inline.
 <WysiwygEditor value={html} onChange={setHtml} onBlur={touch} invalid={!!error} />
 ```
 
-That is the whole required API. It is a **controlled form control**: the same
-`value`/`onChange` contract as an `<input>`, so it drops into an existing form
-without any editor concepts leaking into it. An empty document reports `''`, so a
-`required` rule sees an untouched field as empty.
+Both are **controlled form controls**: the same `value`/`onChange` contract as an
+`<input>`, so they drop into an existing form without any editor concepts leaking
+into it. An empty document reports `''`, so a `required` rule sees an untouched
+field as empty.
+
+## Two surfaces, one value
+
+`WysiwygField` is what a form should render: a **miniature of the document** plus
+its title and word count, opening the editor **full-page** when pressed.
+
+A long document inside a form field is a bad trade — it either dominates the form
+or grows a scrollbar of its own, and neither leaves room to actually write. Split
+in two, each surface does one job: the form shows what is in there, the page
+gives the writing a comfortable measure and room for the gutter and the menus.
+
+- Edits commit **live** to the same `onChange`. Closing the dialog is not a save;
+  the form's own Save remains the only commit point, exactly as for every other
+  field. Closing *does* call `onBlur` — that is what a form means by "touched".
+- The document's **first heading** is its title, falling back to the field label.
+  A post-mortem is known by its heading, not by the name of the field it lives in.
+- The dialog is **`transform-none`** on purpose. The stock `DialogContent` centres
+  itself with a translate, and a transformed ancestor becomes the containing block
+  for `position: fixed` — which would leave the slash menu and the format toolbar
+  positioning against the dialog box instead of the viewport they measured
+  against.
+- The floating overlays portal into the **editor root**, not `document.body`. A
+  modal makes everything outside its content inert, so a menu parked on the body
+  would render and then refuse to be clicked.
 
 ## What it does
 
@@ -23,8 +51,9 @@ without any editor concepts leaking into it. An empty document reports `''`, so 
   ` ``` `, `---`.
 - **Selection toolbar** — bold · italic · underline · strikethrough · inline
   code · link, with ⌘B/I/U/D/E/K shortcuts.
-- **Drag to reorder**, plus Move up / Move down / Duplicate / Turn into / Delete
-  in the block menu.
+- **A menu on every block's own line** — the gutter handle opens Turn into,
+  Insert above/below, Copy, Cut, Paste above/below, Duplicate, Move up/down and
+  Delete; dragging the same handle reorders the block.
 - **Nesting** — Tab / Shift+Tab indent and outdent; toggles, quotes, callouts and
   columns hold child blocks.
 - **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
@@ -45,6 +74,8 @@ lib/
     InlineEditable/      # THE contenteditable primitive (see below)
     renderers/<Name>/    # one component per block type
     defaultBlockViews/   # type → renderer + icon
+  field/                 # WysiwygField (preview + full-page) · WysiwygPreviewCard
+  render/                # WysiwygContent + WYSIWYG_PROSE — reading, not editing
   menus/                 # SlashMenu · BlockMenu · InlineToolbar (+ LinkForm)
   utils/                 # dom-selection · marks · input-rules · constants
 ```
@@ -70,6 +101,26 @@ keystrokes — rewriting `innerHTML` under a live caret sends the caret to the e
 of the block. The model holds whatever markup the browser produced; sanitization
 happens on the way **out** (serialization), which is why typing never fights the
 sanitizer.
+
+## The block clipboard
+
+Copy/Cut put blocks on a **module-scoped** clipboard (`blocks/blockClipboard`),
+not the system one: reading the system clipboard needs a permission the browser
+may refuse, and it would hand back a string to re-parse, where holding the blocks
+restores attributes and nested children exactly. Copy still *writes* HTML to the
+system clipboard so content can leave the app — that direction needs no
+permission. Module scope is deliberate: copying in one field and pasting in
+another is what a writer expects. Paste actions appear only when something has
+been copied, so the menu never shows a row that does nothing.
+
+## Rendering a stored value
+
+`WysiwygContent` renders stored HTML read-only, styled by `WYSIWYG_PROSE` — the
+one CSS definition of what the blocks look like when no React renderer is
+involved. It sanitizes on every render. That is redundant on the happy path,
+which is the point: `dangerouslySetInnerHTML` is defensible only when the string
+reaching it cannot be anything else, and "the server already sanitized it" is an
+assumption about a different process.
 
 ## Things that look wrong and aren't
 

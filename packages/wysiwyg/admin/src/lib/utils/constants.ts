@@ -56,3 +56,10 @@ export type CaretPosition =
 export function pathKey(path: readonly number[]): string {
     return path.join('.');
 }
+
+/** Which side of a block an insert or paste lands on. */
+export const INSERT_POSITION = { Before: 'before', After: 'after' } as const;
+
+/** Which side of a block an insert or paste lands on. */
+export type InsertPosition =
+    (typeof INSERT_POSITION)[keyof typeof INSERT_POSITION];
