@@ -12,8 +12,16 @@ export default defineConfig(() => ({
         // Proxy the API under the same origin as the admin app so the
         // session cookie (httpOnly, SameSite=lax) is first-party in dev —
         // the same-origin assumption identity's #8 settled on, avoiding CORS.
+        //
+        // The key is a **regex ending in a slash**, not the bare `/api`
+        // prefix: a plain string key prefix-matches, so `/api` would also
+        // swallow sibling SPA routes whose path merely starts with those
+        // characters (`/api-tokens`) and forward them to Nest, which 404s
+        // `Cannot GET /api-tokens` on a hard refresh. Every real request is
+        // `apiClient`'s `baseURL: '/api'` + a rooted path, so it always has
+        // the trailing slash and still proxies.
         proxy: {
-            '/api': {
+            '^/api/': {
                 target: 'http://localhost:3000',
                 changeOrigin: true
             }

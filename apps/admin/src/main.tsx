@@ -8,6 +8,7 @@ import { MediaPlugin } from '@ortha-cms/media-admin';
 import { InsightsPlugin } from '@ortha-cms/insights-admin';
 import { UsersPlugin } from '@ortha-cms/users-admin';
 import { ActivityPlugin } from '@ortha-cms/activity-admin';
+import { ApiTokensPlugin } from '@ortha-cms/api-tokens-admin';
 import './styles.css';
 
 createAdmin({
@@ -24,6 +25,9 @@ createAdmin({
         MediaPlugin(),
         InsightsPlugin(),
         UsersPlugin(),
-        ActivityPlugin()
+        ActivityPlugin(),
+        // Global token-management page in the main sidebar (no workspace
+        // context); backs the external content API.
+        ApiTokensPlugin()
     ]
 });

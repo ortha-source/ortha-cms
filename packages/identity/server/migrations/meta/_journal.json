@@ -15,6 +15,13 @@
       "when": 1784569145911,
       "tag": "0001_user_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785146870306,
+      "tag": "0002_api_tokens",
+      "breakpoints": true
     }
   ]
 }
