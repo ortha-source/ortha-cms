@@ -5,7 +5,7 @@ plain HTML, in and out. The rendering half of `@ortha-cms/wysiwyg-core` (which
 owns the model, the block schema, and the HTML pipeline).
 
 ```tsx
-// In a form — a preview that opens the full-page editor.
+// In a form — a preview that expands into the editor in place.
 <WysiwygField label="Body" value={html} onChange={setHtml} onBlur={touch} />
 
 // The raw writing surface, when you want it inline.
@@ -20,26 +20,38 @@ field as empty.
 ## Two surfaces, one value
 
 `WysiwygField` is what a form should render: a **miniature of the document** plus
-its title and word count, opening the editor **full-page** when pressed.
+its title and word count, expanding into the editor when pressed.
 
 A long document inside a form field is a bad trade — it either dominates the form
 or grows a scrollbar of its own, and neither leaves room to actually write. Split
-in two, each surface does one job: the form shows what is in there, the page
-gives the writing a comfortable measure and room for the gutter and the menus.
+in two, each surface does one job: the field shows what is in there, the expanded
+surface gives the writing a comfortable measure and room for the gutter and the
+menus.
 
-- Edits commit **live** to the same `onChange`. Closing the dialog is not a save;
-  the form's own Save remains the only commit point, exactly as for every other
-  field. Closing *does* call `onBlur` — that is what a form means by "touched".
+**It expands in place — it is not a modal.** The editor takes over the page's
+work area while the app chrome (sidebar, top bar, the record's own tabs) stays
+visible and usable, because writing a body is part of editing the record, not a
+detour away from it. An earlier version was a full-screen dialog; it was
+replaced, and the two problems it had are worth remembering if anyone proposes
+one again:
+
+- A modal makes everything outside its content **inert**, so the slash menu and
+  the format toolbar rendered and then silently refused to be clicked.
+- `DialogContent` centres itself with a **transform**, and a transformed ancestor
+  becomes the containing block for `position: fixed` — re-basing both overlays'
+  viewport coordinates onto the dialog box.
+
+The overlays now portal into the **editor root**: never clipped by a scroll
+container, and always in whatever tree the editor is mounted in.
+
+- Edits commit **live** to the same `onChange`. Collapsing is not a save; the
+  form's own Save remains the only commit point, exactly as for every other
+  field. Collapsing *does* call `onBlur` — what a form means by "touched" — and
+  returns focus to the preview card.
+- **Escape collapses**, unless something inside claimed it first (the slash menu
+  and the link field both do).
 - The document's **first heading** is its title, falling back to the field label.
   A post-mortem is known by its heading, not by the name of the field it lives in.
-- The dialog is **`transform-none`** on purpose. The stock `DialogContent` centres
-  itself with a translate, and a transformed ancestor becomes the containing block
-  for `position: fixed` — which would leave the slash menu and the format toolbar
-  positioning against the dialog box instead of the viewport they measured
-  against.
-- The floating overlays portal into the **editor root**, not `document.body`. A
-  modal makes everything outside its content inert, so a menu parked on the body
-  would render and then refuse to be clicked.
 
 ## What it does
 

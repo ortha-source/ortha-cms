@@ -91,11 +91,10 @@ export function WysiwygEditor({
     const editables = useRef(new Map<string, HTMLElement>());
     /**
      * The editor root, as state, because the floating overlays portal **into
-     * it** rather than into `document.body`. Two reasons: a modal (the
-     * full-page editor) makes everything outside its content inert, so a menu
-     * parked on the body would render but refuse to be clicked; and the root
-     * sets no `transform`, so the overlays' viewport coordinates still resolve
-     * against the viewport.
+     * it** rather than into `document.body`. It sets no `transform`, so their
+     * viewport coordinates still resolve against the viewport, and living
+     * inside the editor keeps them in whatever tree the editor is mounted in —
+     * including one that has been made inert around it.
      */
     const [overlayContainer, setOverlayContainer] =
         useState<HTMLDivElement | null>(null);
