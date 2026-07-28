@@ -125,6 +125,7 @@ export function ImageBlock({ block, path }: BlockViewProps) {
             )}
             <figcaption>
                 <InlineEditable
+                    caption
                     path={path}
                     html={block.html}
                     placeholder={intl.formatMessage(

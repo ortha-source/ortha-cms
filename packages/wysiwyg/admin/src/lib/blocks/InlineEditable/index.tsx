@@ -56,7 +56,8 @@ export function InlineEditable({
     placeholder,
     className,
     as: Tag = 'div',
-    ariaLabel
+    ariaLabel,
+    caption = false
 }: {
     path: BlockPath;
     html: string;
@@ -65,6 +66,13 @@ export function InlineEditable({
     as?: EditableTag;
     /** Accessible name — every editable region needs one. */
     ariaLabel: string;
+    /**
+     * This editable is a **caption**, not the block's opening line. A caption
+     * shares its block's path but is rendered *below* the media it describes,
+     * so it is the one editable the row's gutter must not align itself to
+     * (see `utils/first-line.ts`).
+     */
+    caption?: boolean;
 }) {
     const {
         commands,
@@ -259,6 +267,8 @@ export function InlineEditable({
             aria-multiline="true"
             aria-label={ariaLabel}
             data-editable={key}
+            // The line the block's gutter centres itself on.
+            data-line-anchor={caption ? undefined : ''}
             data-empty={html === ''}
             data-placeholder={placeholder}
             contentEditable={!readOnly}

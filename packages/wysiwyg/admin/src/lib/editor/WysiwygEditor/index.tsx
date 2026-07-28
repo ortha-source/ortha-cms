@@ -18,6 +18,7 @@ import {
     type BlockSchema
 } from '@ortha-cms/wysiwyg-core';
 import { cn } from '@ortha-cms/design-system';
+import { BlockGutter } from '../../blocks/BlockGutter';
 import { BlockList } from '../../blocks/BlockList';
 import { DEFAULT_BLOCK_VIEWS } from '../../blocks/defaultBlockViews';
 import type { BlockViewRegistry } from '../../blocks/blockRegistry';
@@ -99,6 +100,8 @@ export function WysiwygEditor({
 }: WysiwygEditorProps) {
     const intl = useIntl();
     const rootRef = useRef<HTMLDivElement>(null);
+    /** What the travelling gutter measures and positions itself against. */
+    const surfaceRef = useRef<HTMLDivElement>(null);
     const editables = useRef(new Map<string, HTMLElement>());
     /**
      * The editor root, as state, because the floating overlays portal **into
@@ -329,13 +332,22 @@ export function WysiwygEditor({
                     )}
                 >
                     {/* The left padding is the gutter's lane — the add and drag
-                        controls sit in it, outside the text's own column. */}
+                        controls sit in it, outside the text's own column. It is
+                        also what the gutter positions itself against, so it
+                        scrolls with the document rather than under it. */}
                     <div
+                        ref={surfaceRef}
                         className={cn(
-                            'py-3 pr-4 pl-14',
+                            'relative py-3 pr-4 pl-14',
                             toolbar && 'mx-auto max-w-3xl px-6 py-10 pl-16'
                         )}
                     >
+                        {!readOnly && (
+                            <BlockGutter
+                                blocks={doc.blocks}
+                                surfaceRef={surfaceRef}
+                            />
+                        )}
                         <BlockList blocks={doc.blocks} />
                         {!readOnly && (
                             // Not a button: it is a click target, and announcing

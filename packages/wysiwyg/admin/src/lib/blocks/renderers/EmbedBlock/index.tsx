@@ -106,6 +106,7 @@ export function EmbedBlock({ block, path }: BlockViewProps) {
             </p>
             <figcaption>
                 <InlineEditable
+                    caption
                     path={path}
                     html={block.html}
                     placeholder={intl.formatMessage(

@@ -1,14 +1,10 @@
 import { useState, type DragEvent } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
-import { Plus } from 'lucide-react';
 import {
-    PARAGRAPH_TYPE,
-    createBlock,
     pathAfter,
     type BlockPath,
     type WysiwygBlock
 } from '@ortha-cms/wysiwyg-core';
-import { Button, cn } from '@ortha-cms/design-system';
+import { cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../editor/editorContext';
 import {
     BLOCK_DRAG_TYPE,
@@ -16,21 +12,14 @@ import {
     pathKey,
     type DropEdge
 } from '../../utils/constants';
-import { BlockMenu } from '../../menus/BlockMenu';
 import { BlockList } from '../BlockList';
 import { UnknownBlock } from '../renderers/UnknownBlock';
 
-const messages = defineMessages({
-    insert: {
-        id: 'wysiwyg.row.insert',
-        defaultMessage: 'Add a block below'
-    }
-});
-
 /**
- * One block's row: the hover gutter (add + drag handle + block menu), the
- * block's own rendering, and — unless the renderer places them itself — its
- * nested children.
+ * One block's row: the block's own rendering and — unless the renderer places
+ * them itself — its nested children. The add and drag controls are **not**
+ * here; one `BlockGutter` for the whole document parks itself on the row the
+ * author is on, and finds it by the `data-block-path` this sets.
  *
  * Drag-and-drop lives here rather than in a library because the drop target is
  * a **slot between blocks at a given depth**, which is a concept only the block
@@ -48,8 +37,7 @@ export function BlockRow({
     placeholder?: string;
     className?: string;
 }) {
-    const intl = useIntl();
-    const { views, schema, commands, readOnly } = useEditor();
+    const { views, schema, commands } = useEditor();
     const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
 
     const view = views[block.type];
@@ -75,12 +63,15 @@ export function BlockRow({
         event.preventDefault();
         const from = raw.split('.').map(Number);
         if (from.some(Number.isNaN)) return;
-        commands.move(from, dropEdge === DROP_EDGE.Before ? path : pathAfter(path));
+        commands.move(
+            from,
+            dropEdge === DROP_EDGE.Before ? path : pathAfter(path)
+        );
     };
 
     return (
         <div
-            className={cn('group/block relative', className)}
+            className={cn('relative', className)}
             data-block-path={pathKey(path)}
             onDragOver={handleDragOver}
             onDragLeave={() => setDropEdge(null)}
@@ -96,46 +87,14 @@ export function BlockRow({
                 />
             )}
 
-            {!readOnly && (
-                <div
-                    className={cn(
-                        // Positioned **outside** the row rather than beside the
-                        // text. In the flow it took a fixed 3rem from every row
-                        // at every depth, so a bullet nested two levels down
-                        // started 6rem further right than its parent — the
-                        // indentation of the *content* has to come from nesting
-                        // alone, not from the affordances next to it.
-                        'absolute top-0.5 right-full mr-1 flex gap-0.5',
-                        // Present but invisible until the row is hovered or
-                        // something in it has focus, so it never shifts the
-                        // text and never disappears mid-keyboard-use.
-                        'opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100'
-                    )}
-                >
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={intl.formatMessage(messages.insert)}
-                        className="text-muted-foreground size-6"
-                        onClick={() =>
-                            commands.insertAfter(path, [
-                                createBlock(PARAGRAPH_TYPE)
-                            ])
-                        }
-                    >
-                        <Plus aria-hidden className="size-4" />
-                    </Button>
-                    <BlockMenu block={block} path={path} />
-                </div>
-            )}
-
             <div className="min-w-0">
                 <Component
                     block={block}
                     path={path}
                     placeholder={
-                        definition?.content === 'inline' ? placeholder : undefined
+                        definition?.content === 'inline'
+                            ? placeholder
+                            : undefined
                     }
                 />
                 {!showsOwnChildren && block.children.length > 0 && (

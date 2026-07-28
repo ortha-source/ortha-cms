@@ -97,7 +97,8 @@ lib/
     useBlockCommands/    # every structural edit, over paths
     editorContext/       # schema · views · commands, shared down the tree
   blocks/
-    BlockList / BlockRow # the recursive rendering + gutter + drag-and-drop
+    BlockList / BlockRow # the recursive rendering + drag-and-drop
+    BlockGutter/         # ONE add/drag control, travelling between blocks
     InlineEditable/      # THE contenteditable primitive (see below)
     renderers/<Name>/    # one component per block type
     defaultBlockViews/   # type → renderer + icon
@@ -184,6 +185,24 @@ assumption about a different process.
   text; a contenteditable would let a browser insert markup into it (a `<div>`
   per line, a smart quote, a pasted `<b>`) which the author would then see as
   code they did not write.
+- **There is one gutter, and it moves.** Not one hidden pair of controls per
+  row: `BlockGutter` is a single element for the whole document that parks
+  itself on the block under the pointer or the caret, positioned by a
+  `transform` so crossing to the next block is a move the compositor animates.
+  Per-row controls blinked out of one line and back into the next on every
+  crossing, which reads as flicker down a page rather than as one thing
+  following the cursor. It finds its row by the `data-block-path` `BlockRow`
+  sets, and it lives inside the scrolling surface so it travels with the text.
+- **The gutter's vertical position is measured, not styled.** It has to sit on
+  the block's first line, and every renderer picks its own type scale and
+  spacing — an `h1` is `text-3xl mt-6`, a paragraph `py-1 leading-7` — so the
+  centring offset differs by ~30px across block types. A constant offset centred
+  it on paragraphs and floated it above the words of every heading.
+  `utils/first-line.ts` reads the laid-out line instead, which keeps each
+  block's metrics in the one place that already has them (its own classes)
+  rather than restated beside the affordance that must match them. Captions are
+  excluded from the lookup — an image's caption shares its block's path but
+  renders *under* the picture.
 - **The slash menu never takes focus.** The caret stays in the block so the query
   can keep narrowing; the editable forwards ↑/↓/Enter/Escape to it
   (`handleOverlayKey`) and announces the active option via
@@ -219,8 +238,14 @@ mismatch.
 
 Every editable region is a labelled `role="textbox"`; the toolbar is a
 `role="toolbar"` whose toggles carry `aria-pressed`; the slash menu is a
-`role="listbox"` driven by `aria-activedescendant`; the gutter appears on hover
-**and** on `focus-within`, so it never disappears mid-keyboard-use. The image
+`role="listbox"` driven by `aria-activedescendant`; the gutter follows the caret
+as well as the pointer, so it never disappears mid-keyboard-use.
+
+One known cost of the single travelling gutter: because the controls no longer
+render *inside* the row they act on, they are no longer the next thing Tab
+reaches from a block. Keyboard users get to the same operations through the
+slash menu and the shortcuts, but a way back to Tab-adjacency (without losing
+the animation, which a portal between rows would) is still open. The image
 block shows its **alt text** field inline rather than behind a menu — an image
 published with no alt text is a defect, and the moment to fix it is while the
 author is looking at the picture.
