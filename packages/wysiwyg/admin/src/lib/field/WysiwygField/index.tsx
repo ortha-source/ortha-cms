@@ -164,24 +164,23 @@ export function WysiwygField({
             </div>
             <div
                 className={cn(
-                    takesOver
-                        ? 'min-h-0 flex-1 overflow-y-auto'
-                        : 'min-h-[60vh]'
+                    takesOver ? 'min-h-0 flex-1' : 'min-h-[60vh] p-4'
                 )}
             >
-                <div className="mx-auto max-w-3xl px-6 py-10">
-                    <WysiwygEditor
-                        {...editorProps}
-                        value={value}
-                        onChange={onChange}
-                        readOnly={readOnly}
-                        invalid={invalid}
-                        aria-describedby={describedBy}
-                        // The region already frames the surface; a border round
-                        // the writing area just boxes it in twice.
-                        className="border-none bg-transparent"
-                    />
-                </div>
+                <WysiwygEditor
+                    {...editorProps}
+                    value={value}
+                    onChange={onChange}
+                    readOnly={readOnly}
+                    invalid={invalid}
+                    aria-describedby={describedBy}
+                    // Filling the region, the editor owns the toolbar and the
+                    // scrolling: the bar has to stay put while the document
+                    // moves under it, which only works if the same component
+                    // holds both.
+                    toolbar={takesOver}
+                    className={takesOver ? undefined : 'border-none bg-transparent'}
+                />
             </div>
         </section>
     );

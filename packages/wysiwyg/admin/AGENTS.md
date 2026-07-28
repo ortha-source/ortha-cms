@@ -72,8 +72,12 @@ The host side of the contract is two props — `expandTo` (where to render) and
   type, grouped Basic · Media · Advanced.
 - **Markdown input rules** — `# `, `## `, `- `, `1. `, `[] `, `[x] `, `> `,
   ` ``` `, `---`.
-- **Selection toolbar** — bold · italic · underline · strikethrough · inline
-  code · link, with ⌘B/I/U/D/E/K shortcuts.
+- **Two toolbars.** A **floating** one over a selection (bold · italic ·
+  underline · strikethrough · inline code · link, ⌘B/I/U/D/E/K), and a
+  **persistent** one at the top of the expanded editor: undo/redo, a block-type
+  picker naming the block the caret is in, the same marks, and Insert. They read
+  the same state (`readMarkState`), so they can never disagree about whether the
+  selection is bold.
 - **A menu on every block's own line** — the gutter handle opens Turn into,
   Insert above/below, Copy, Cut, Paste above/below, Duplicate, Move up/down and
   Delete; dragging the same handle reorders the block.
@@ -99,7 +103,7 @@ lib/
     defaultBlockViews/   # type → renderer + icon
   field/                 # WysiwygField (preview + full-page) · WysiwygPreviewCard
   render/                # WysiwygContent + WYSIWYG_PROSE — reading, not editing
-  menus/                 # SlashMenu · BlockMenu · InlineToolbar (+ LinkForm)
+  menus/                 # SlashMenu · BlockMenu · EditorToolbar · InlineToolbar
   utils/                 # dom-selection · marks · input-rules · constants
 ```
 
@@ -124,6 +128,29 @@ keystrokes — rewriting `innerHTML` under a live caret sends the caret to the e
 of the block. The model holds whatever markup the browser produced; sanitization
 happens on the way **out** (serialization), which is why typing never fights the
 sanitizer.
+
+## Two toolbars, on purpose
+
+The floating toolbar is faster once you know the editor; the persistent one
+(`EditorToolbar`, shown when `WysiwygEditor` is given `toolbar`) is how you find
+out it can do any of this. Duplication between them is the feature — but only of
+the *controls*, never of the state: both call `readMarkState()`, one definition
+of "is the selection bold".
+
+Two things it needs that a floating toolbar doesn't:
+
+- **The last focused block**, not the caret's current one. Pressing a toolbar
+  button is itself a focus event and the dropdowns take focus outright, so
+  `InlineEditable` publishes its path on focus (`setActivePath`) and the toolbar
+  acts on that.
+- **The block's attributes**, not just its type, to name what the caret is in.
+  Three heading levels share `type: 'heading'`; matching on type alone labelled
+  every heading "Heading 1". A block whose exact attrs aren't on the menu (an
+  `h4`) still falls back to its type's first entry rather than to nothing.
+
+With `toolbar` on, the editor also **owns its scrolling**: it fills its parent as
+a flex column with the bar pinned and the document moving under it. The bar
+staying put while the document scrolls only works if one component holds both.
 
 ## The block clipboard
 

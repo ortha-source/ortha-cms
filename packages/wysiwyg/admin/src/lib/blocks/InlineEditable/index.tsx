@@ -75,6 +75,7 @@ export function InlineEditable({
         refreshToolbar,
         openLinkEditor,
         registerEditable,
+        setActivePath,
         undo,
         redo
     } = useEditor();
@@ -274,6 +275,7 @@ export function InlineEditable({
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            onFocus={() => setActivePath(path)}
             onMouseUp={refreshToolbar}
             onKeyUp={refreshToolbar}
         />

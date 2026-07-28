@@ -1,5 +1,9 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { BlockPath, BlockSchema } from '@ortha-cms/wysiwyg-core';
+import type {
+    BlockAttrs,
+    BlockPath,
+    BlockSchema
+} from '@ortha-cms/wysiwyg-core';
 import type { BlockViewRegistry } from '../../blocks/blockRegistry';
 import type { BlockCommands } from '../useBlockCommands';
 import type { FocusRequest } from '../useEditorDocument';
@@ -31,6 +35,24 @@ export interface EditorContextValue {
      * is open, and the editable must not also act on them.
      */
     handleOverlayKey(event: React.KeyboardEvent<HTMLElement>): boolean;
+    /**
+     * The block the caret was last in. The persistent toolbar acts on it —
+     * "turn into" and "insert below" need a block, and by the time a toolbar
+     * button is pressed the caret may no longer report one.
+     */
+    readonly activePath: BlockPath | null;
+    /** The active block's type, for the toolbar's "turn into" trigger. */
+    readonly activeBlockType: string | null;
+    /**
+     * The active block's attributes. The toolbar needs them to name the block
+     * it is sitting in: "heading" is three menu entries, told apart by `level`.
+     */
+    readonly activeBlockAttrs: BlockAttrs | null;
+    /** Records which block the caret is in — called by every editable on focus. */
+    setActivePath(path: BlockPath): void;
+    /** Whether there is anything to undo / redo (drives the toolbar). */
+    readonly canUndo: boolean;
+    readonly canRedo: boolean;
     /** Re-reads the selection so the floating toolbar can follow it. */
     refreshToolbar(): void;
     /** Opens the link editor over the current selection (⌘K). */

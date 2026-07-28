@@ -132,3 +132,32 @@ function unwrap(element: HTMLElement): void {
 export function insertInlineHtml(html: string): void {
     document.execCommand('insertHTML', false, html);
 }
+
+/** Which marks are active at the caret, plus the link under it. */
+export interface MarkState {
+    readonly bold: boolean;
+    readonly italic: boolean;
+    readonly underline: boolean;
+    readonly strike: boolean;
+    readonly code: boolean;
+    /** The `href` under the caret, or `null`. */
+    readonly link: string | null;
+}
+
+/**
+ * Reads every mark at the caret in one pass. The single definition, because
+ * **two** toolbars ask the same question — the floating one over a selection
+ * and the persistent one at the top of the expanded editor — and two of them
+ * disagreeing about whether the selection is bold would be worse than either
+ * being wrong.
+ */
+export function readMarkState(): MarkState {
+    return {
+        bold: isMarkActive(MARK.Bold),
+        italic: isMarkActive(MARK.Italic),
+        underline: isMarkActive(MARK.Underline),
+        strike: isMarkActive(MARK.Strike),
+        code: isCodeMarkActive(),
+        link: linkAtCaret()
+    };
+}
