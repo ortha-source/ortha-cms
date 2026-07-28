@@ -32,6 +32,9 @@ import { LoginUseCase } from './application/use-cases/login.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
+import { ApiTokenService } from './api-tokens/application/api-token.service';
+import { DrizzleApiTokenRepository } from './api-tokens/infrastructure/persistence/drizzle-api-token.repository';
+import { ApiTokensController } from './api-tokens/http/controllers/api-tokens.controller';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -79,7 +82,8 @@ export class IdentityModule {
                 MeController,
                 LogoutController,
                 UserSessionsController,
-                PreferencesController
+                PreferencesController,
+                ApiTokensController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
@@ -122,6 +126,10 @@ export class IdentityModule {
                 },
                 UserAccountMapper,
                 UserLookupQuery,
+                // External-API bearer tokens: the store and the
+                // mint/verify/list/revoke service behind `/api/api-tokens`.
+                DrizzleApiTokenRepository,
+                ApiTokenService,
                 // App-wide guard: every route requires a valid session unless
                 // marked `@Public()`. Resolves the user and attaches it for
                 // `@CurrentUser()`. APP_GUARD providers are collected globally,
@@ -136,7 +144,10 @@ export class IdentityModule {
                 // Exported so a consuming module's `@UseGuards(PermissionsGuard)`
                 // (instantiated in that module's injector) can resolve the
                 // guard's `AccessPolicy` dependency, like `PermissionsService`.
-                AccessPolicy
+                AccessPolicy,
+                // Exported so a consuming plugin can resolve the token store —
+                // the public content API's bearer guard depends on it.
+                ApiTokenService
             ]
         };
     }

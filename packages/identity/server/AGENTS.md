@@ -188,6 +188,21 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       is provided in the global module (like `PermissionsGuard`), so a feature
       plugin (e.g. content) guards its workspace-owned routes with
       `@UseGuards(WorkspaceGuard)` + `@CurrentWorkspace()`.
+    - `api-tokens/` — the **external-API bearer tokens** (layered, not
+      feature-then-kind): `domain/` (the `read`/`full` scope → permission-set
+      map), `application/` (`ApiTokenService` — mint/verify/list/revoke),
+      `infrastructure/persistence/` (`DrizzleApiTokenRepository` over
+      `api_tokens`), `http/` (`ApiTokensController` + `dto/`). Only the
+      **SHA-256 hash** of a token is stored (same `HashingService.hashToken`
+      primitive as sessions) plus a non-secret `lookupPrefix` for display; the
+      plaintext is returned by `mint` **once** and never again. The management
+      routes `POST`/`GET`/`DELETE /api/api-tokens` are **session**-authenticated
+      and gated on `tokens:create|read|delete`, which only `admin` holds — they
+      are not reachable with a bearer token. `verify` rejects unknown, revoked,
+      and expired tokens identically (no enumeration signal) and refreshes
+      `last_used_at` fire-and-forget on a 60s throttle. The guard that
+      authenticates `Authorization: Bearer` on the public content API is not
+      here yet; it ships with that API.
     - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
       (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
     - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and
