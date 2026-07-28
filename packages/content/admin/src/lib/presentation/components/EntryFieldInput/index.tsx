@@ -15,7 +15,6 @@ import {
     SelectValue,
     Textarea
 } from '@ortha-cms/design-system';
-import { WysiwygField } from '@ortha-cms/wysiwyg-admin';
 import type { ContentField } from '../../../domain/types/contentType';
 import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
@@ -24,6 +23,7 @@ import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
 import { RequiredMark } from './RequiredMark';
+import { WysiwygFieldControl } from './WysiwygFieldControl';
 
 const messages = defineMessages({
     selectPlaceholder: {
@@ -303,18 +303,15 @@ export function EntryFieldInput({
                       the form exactly like an input: the same `value`/`onChange`,
                       the same 422→field mapping, the same publish gate. It
                       reports `''` when empty so a `required` rule sees an empty
-                      document as empty.
-
-                      `WysiwygField` — not the bare editor: in a form it renders
-                      a preview of the document and opens the full-page editor
-                      when pressed, so a long body doesn't swallow the form.
+                      document as empty. Expanding it hands the editor the whole
+                      work area — see {@link WysiwygFieldControl}.
                     */}
-                    <WysiwygField
+                    <WysiwygFieldControl
                         id={id}
                         label={label}
                         value={asText(value)}
                         invalid={!!error}
-                        aria-describedby={describedBy}
+                        describedBy={describedBy}
                         onChange={onChange}
                         onBlur={onBlur}
                     />

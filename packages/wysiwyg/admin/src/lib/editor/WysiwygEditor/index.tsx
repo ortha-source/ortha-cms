@@ -10,15 +10,18 @@ import { defineMessages, useIntl } from 'react-intl';
 import {
     DEFAULT_BLOCK_SCHEMA,
     PARAGRAPH_TYPE,
+    blockAt,
     createBlock,
     extendBlockSchema,
     type BlockDefinition,
+    type BlockPath,
     type BlockSchema
 } from '@ortha-cms/wysiwyg-core';
 import { cn } from '@ortha-cms/design-system';
 import { BlockList } from '../../blocks/BlockList';
 import { DEFAULT_BLOCK_VIEWS } from '../../blocks/defaultBlockViews';
 import type { BlockViewRegistry } from '../../blocks/blockRegistry';
+import { EditorToolbar } from '../../menus/EditorToolbar';
 import { InlineToolbar } from '../../menus/InlineToolbar';
 import { SlashMenu } from '../../menus/SlashMenu';
 import {
@@ -59,6 +62,13 @@ export interface WysiwygEditorProps {
     blocks?: readonly BlockDefinition[];
     /** Extra (or replacement) block **renderers**, keyed by the same `type`. */
     blockViews?: BlockViewRegistry;
+    /**
+     * Show the persistent toolbar (undo/redo, block type, marks, insert) and
+     * fill the parent's height, scrolling the writing surface under it. For a
+     * surface with room for one — the expanded field. Inline in a form, the
+     * floating selection toolbar is the whole formatting UI.
+     */
+    toolbar?: boolean;
     id?: string;
     className?: string;
     'aria-describedby'?: string;
@@ -82,6 +92,7 @@ export function WysiwygEditor({
     invalid = false,
     blocks,
     blockViews,
+    toolbar = false,
     id,
     className,
     'aria-describedby': describedBy
@@ -118,6 +129,7 @@ export function WysiwygEditor({
     const doc = useEditorDocument({ value, onChange, schema });
     const commands = useBlockCommands(doc, schema);
 
+    const [activePath, setActivePath] = useState<BlockPath | null>(null);
     const [slash, setSlash] = useState<SlashState | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [toolbarVersion, setToolbarVersion] = useState(0);
@@ -218,6 +230,19 @@ export function WysiwygEditor({
             commands,
             readOnly,
             focusRequest: doc.focusRequest,
+            activePath,
+            // Resolved here rather than stored: the block at a path changes
+            // type as the author works, and a cached copy would leave the
+            // toolbar naming what the block used to be.
+            activeBlockType: activePath
+                ? (blockAt(doc.blocks, activePath)?.type ?? null)
+                : null,
+            activeBlockAttrs: activePath
+                ? (blockAt(doc.blocks, activePath)?.attrs ?? null)
+                : null,
+            setActivePath,
+            canUndo: doc.canUndo,
+            canRedo: doc.canRedo,
             setSlash: openSlash,
             handleOverlayKey,
             refreshToolbar: () => setToolbarVersion((version) => version + 1),
@@ -228,7 +253,11 @@ export function WysiwygEditor({
             redo: doc.redo
         }),
         [
+            activePath,
             commands,
+            doc.blocks,
+            doc.canRedo,
+            doc.canUndo,
             doc.focusRequest,
             doc.redo,
             doc.undo,
@@ -282,27 +311,47 @@ export function WysiwygEditor({
                 aria-readonly={readOnly || undefined}
                 onBlur={handleBlur}
                 className={cn(
-                    'bg-background rounded-md border',
-                    invalid && 'border-destructive',
+                    'bg-background',
+                    // With a toolbar the editor is the whole surface: it fills
+                    // its parent and scrolls under the bar, so the bar stays.
+                    toolbar
+                        ? 'flex h-full min-h-0 flex-col'
+                        : 'rounded-md border',
+                    invalid && !toolbar && 'border-destructive',
                     readOnly && 'bg-muted/30',
                     className
                 )}
             >
-                {/* The left padding is the gutter's lane — the add and drag
-                    controls sit in it, outside the text's own column. */}
-                <div className="py-3 pr-4 pl-14">
-                    <BlockList blocks={doc.blocks} />
-                    {!readOnly && (
-                        // Not a button: it is a click target, and announcing
-                        // "append paragraph" between every document and its
-                        // end would be noise. Keyboard users reach the same
-                        // thing with Enter on the last block.
-                        <div
-                            aria-hidden
-                            className="h-8 cursor-text"
-                            onClick={handleSurfaceClick}
-                        />
+                {toolbar && <EditorToolbar />}
+                <div
+                    className={cn(
+                        toolbar && 'min-h-0 flex-1 overflow-y-auto'
                     )}
+                >
+                    {/* The left padding is the gutter's lane — the add and drag
+                        controls sit in it, outside the text's own column. */}
+                    <div
+                        className={cn(
+                            'py-3 pr-4 pl-14',
+                            toolbar && 'mx-auto max-w-3xl px-6 py-10 pl-16'
+                        )}
+                    >
+                        <BlockList blocks={doc.blocks} />
+                        {!readOnly && (
+                            // Not a button: it is a click target, and announcing
+                            // "append paragraph" between every document and its
+                            // end would be noise. Keyboard users reach the same
+                            // thing with Enter on the last block.
+                            <div
+                                aria-hidden
+                                className={cn(
+                                    'cursor-text',
+                                    toolbar ? 'h-32' : 'h-8'
+                                )}
+                                onClick={handleSurfaceClick}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
 

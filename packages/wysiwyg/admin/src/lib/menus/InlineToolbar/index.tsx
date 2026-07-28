@@ -13,13 +13,12 @@ import {
 import {
     MARK,
     applyLink,
-    isCodeMarkActive,
-    isMarkActive,
-    linkAtCaret,
+    readMarkState,
     removeLink,
     toggleCodeMark,
     toggleMark,
-    type Mark
+    type Mark,
+    type MarkState
 } from '../../utils/marks';
 import {
     currentSelection,
@@ -27,7 +26,7 @@ import {
     selectionRect
 } from '../../utils/dom-selection';
 import { LinkForm } from './LinkForm';
-import { ToolbarButton } from './ToolbarButton';
+import { ToolbarButton } from '../ToolbarButton';
 
 const messages = defineMessages({
     label: {
@@ -57,9 +56,7 @@ const TOOLBAR_CLEARANCE = 48;
 /** What the toolbar is showing about the current selection. */
 interface ToolbarState {
     readonly rect: DOMRect;
-    readonly marks: Readonly<Record<string, boolean>>;
-    readonly code: boolean;
-    readonly link: string | null;
+    readonly marks: MarkState;
 }
 
 /**
@@ -116,17 +113,7 @@ export function InlineToolbar({
             setState(null);
             return;
         }
-        setState({
-            rect,
-            marks: {
-                [MARK.Bold]: isMarkActive(MARK.Bold),
-                [MARK.Italic]: isMarkActive(MARK.Italic),
-                [MARK.Underline]: isMarkActive(MARK.Underline),
-                [MARK.Strike]: isMarkActive(MARK.Strike)
-            },
-            code: isCodeMarkActive(),
-            link: linkAtCaret()
-        });
+        setState({ rect, marks: readMarkState() });
     }, [containerRef]);
 
     useEffect(() => {
@@ -141,7 +128,7 @@ export function InlineToolbar({
     const startLink = useCallback(() => {
         const selection = currentSelection();
         savedRange.current = selection?.getRangeAt(0).cloneRange() ?? null;
-        setLinkDraft(linkAtCaret() ?? '');
+        setLinkDraft(state?.marks.link ?? '');
     }, []);
 
     useEffect(() => {
@@ -196,35 +183,35 @@ export function InlineToolbar({
                 <div className="flex items-center gap-0.5 p-1">
                     <ToolbarButton
                         label={intl.formatMessage(messages.bold)}
-                        active={state.marks[MARK.Bold]}
+                        active={state.marks.bold}
                         onClick={() => runMark(MARK.Bold)}
                     >
                         <Bold aria-hidden className="size-4" />
                     </ToolbarButton>
                     <ToolbarButton
                         label={intl.formatMessage(messages.italic)}
-                        active={state.marks[MARK.Italic]}
+                        active={state.marks.italic}
                         onClick={() => runMark(MARK.Italic)}
                     >
                         <Italic aria-hidden className="size-4" />
                     </ToolbarButton>
                     <ToolbarButton
                         label={intl.formatMessage(messages.underline)}
-                        active={state.marks[MARK.Underline]}
+                        active={state.marks.underline}
                         onClick={() => runMark(MARK.Underline)}
                     >
                         <Underline aria-hidden className="size-4" />
                     </ToolbarButton>
                     <ToolbarButton
                         label={intl.formatMessage(messages.strike)}
-                        active={state.marks[MARK.Strike]}
+                        active={state.marks.strike}
                         onClick={() => runMark(MARK.Strike)}
                     >
                         <Strikethrough aria-hidden className="size-4" />
                     </ToolbarButton>
                     <ToolbarButton
                         label={intl.formatMessage(messages.code)}
-                        active={state.code}
+                        active={state.marks.code}
                         onClick={() => {
                             toggleCodeMark();
                             read();
@@ -234,7 +221,7 @@ export function InlineToolbar({
                     </ToolbarButton>
                     <ToolbarButton
                         label={intl.formatMessage(messages.link)}
-                        active={state.link !== null}
+                        active={state.marks.link !== null}
                         onClick={startLink}
                     >
                         <LinkIcon aria-hidden className="size-4" />
@@ -243,7 +230,7 @@ export function InlineToolbar({
             ) : (
                 <LinkForm
                     value={linkDraft}
-                    hasLink={state.link !== null}
+                    hasLink={state.marks.link !== null}
                     onChange={setLinkDraft}
                     onSubmit={() => {
                         restoreSelection();

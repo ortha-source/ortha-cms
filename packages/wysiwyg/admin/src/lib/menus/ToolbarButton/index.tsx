@@ -9,11 +9,13 @@ import { Button, cn } from '@ortha-cms/design-system';
 export function ToolbarButton({
     label,
     active,
+    disabled = false,
     onClick,
     children
 }: {
     label: string;
     active: boolean;
+    disabled?: boolean;
     onClick(): void;
     children: ReactNode;
 }) {
@@ -24,6 +26,7 @@ export function ToolbarButton({
             variant="ghost"
             aria-label={label}
             aria-pressed={active}
+            disabled={disabled}
             className={cn(
                 'size-7',
                 active && 'bg-accent text-accent-foreground'

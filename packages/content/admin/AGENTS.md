@@ -236,15 +236,14 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   header `blocking`/`ready`; publishable types only) and a static **Details**
   block (status, created/updated, id). While a save/publish is running, the view
   covers itself with the **`EntryBusyOverlay`** (see _Save/publish flow_ below). `EntryFieldInput` (top-level, shared) renders one **flat** (no-shadow)
-  control per field type — a **`wysiwyg`** field renders **`WysiwygField`**
-  (`@ortha-cms/wysiwyg-admin`): a **preview** of the document (its miniature,
-  title and word count) that **expands in place** into the block editor when
-  pressed, taking over the work area while the sidebar, top bar and the record's
-  own tabs stay visible — so a long body doesn't swallow the form. It is a
-  controlled HTML-in/HTML-out control that rides Save, the Changed badge, the
-  publish gate and the 422→field mapping exactly like an `<input>`, and edits in
-  the expanded editor commit live to the same form state — collapsing is not a
-  save; its **records cell** and its **revision
+  control per field type — a **`wysiwyg`** field renders **`WysiwygFieldControl`**
+  (wrapping `WysiwygField` from `@ortha-cms/wysiwyg-admin`): a **preview** of the
+  document (its miniature, title and word count) that, when pressed, hands the
+  block editor the **whole work area** — every other field goes away while the
+  sidebar, top bar and the record's tabs stay (see _The work-area region_ below).
+  It is a controlled HTML-in/HTML-out control that rides Save, the Changed badge,
+  the publish gate and the 422→field mapping exactly like an `<input>`, and edits
+  commit live to the same form state — collapsing is not a save; its **records cell** and its **revision
   diff** render `htmlExcerpt` / `htmlToPlainText` rather than the markup (a
   document is compared by its words, and a list view is the one place rendering
   author-supplied HTML buys nothing); `date`/`datetime` use a shadcn `Calendar` popover
@@ -363,6 +362,27 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).
+
+## The work-area region
+
+`WorkAreaRegion` (wrapping the page's `<Routes>`) offers a **fillable region**
+spanning the content pane below the top bar, published through
+`useWorkAreaRegion`. A control that needs the whole area fills it by portal; the
+region then hides the routed content.
+
+Why a region and not the control hiding things itself: a form control has no
+reach outside itself, so it cannot make its siblings disappear. And why the
+routed content is hidden (`display: none`) rather than unmounted: the control
+doing the filling *lives* in that form, and its value is the form's state —
+unmounting would take the control, its portal and the edit with it. `display:
+none` also drops the form out of the tab order and the accessibility tree, so
+there is nothing behind the region to reach by accident. Unfilled, the wrapper is
+`display: contents` and disappears from layout, so every route lays out exactly
+as it did before the region existed.
+
+It is the same idiom as the shell's `PageActionsPortal` / `RightPanelPortal`, one
+level down — the region belongs to this page because the top bar it sits under is
+this page's, not the shell's.
 
 ## The Properties panel + the editor's actions live in the app chrome
 
