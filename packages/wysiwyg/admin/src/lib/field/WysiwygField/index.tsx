@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Minimize2 } from 'lucide-react';
 import { htmlToPlainText } from '@ortha-cms/wysiwyg-core';
-import { Button } from '@ortha-cms/design-system';
+import { Button, cn } from '@ortha-cms/design-system';
 import {
     WysiwygEditor,
     type WysiwygEditorProps
@@ -17,7 +18,7 @@ const messages = defineMessages({
     },
     collapseHint: {
         id: 'wysiwyg.field.collapseHint',
-        defaultMessage: 'Close the editor and go back to the preview'
+        defaultMessage: 'Close the editor and go back to the form'
     },
     region: {
         id: 'wysiwyg.field.region',
@@ -34,24 +35,34 @@ export interface WysiwygFieldProps
     extends Omit<WysiwygEditorProps, 'className'> {
     /** The field's label — the preview's fallback title and the editor's heading. */
     label: string;
+    /**
+     * Where to render the editor when it is expanded. Given a node, the editor
+     * **takes over that region** — the host is expected to hide whatever else
+     * was there. Without one it expands in place instead, so the control stays
+     * usable in a form that offers no such region.
+     */
+    expandTo?: HTMLElement | null;
+    /** Told whenever the editor expands or collapses, so a host can react. */
+    onExpandedChange?(expanded: boolean): void;
 }
 
 /**
  * The wysiwyg **form control**: a preview of the document that expands into the
  * editor when pressed.
  *
- * It expands **in place**, taking over the page's work area — it is not an
- * overlay and not a modal. The app chrome (sidebar, top bar, the record's own
- * tabs) stays visible and usable throughout, because writing a body is part of
- * editing the record, not a detour away from it. That also removes a whole
- * class of modal problems the overlay version had: inert backgrounds swallowing
- * clicks on the floating menus, and a transformed dialog re-basing their
- * viewport coordinates.
+ * Given an `expandTo` region, the editor **becomes the work area** — the other
+ * fields go away and the app chrome (sidebar, top bar, the record's tabs) stays.
+ * Writing a body is a mode, not a detour: everything else on the form is noise
+ * while it is happening, and none of the chrome you navigate with is.
  *
- * Collapsed, the field shows what is written and how much of it; expanded, the
- * writing gets a page-sized surface with room for the block gutter and a
- * comfortable measure. Edits commit **live** to the same `onChange` — collapsing
- * is not a save, the form's own Save still is.
+ * It is a **portal**, not a modal. A modal would make the page inert (the
+ * floating menus rendered and then refused clicks) and, being transformed,
+ * would re-base their `position: fixed` coordinates. A portal moves only the
+ * DOM: the control stays inside the form's React tree, so the value it edits is
+ * still the form's state, and collapsing puts the form back untouched.
+ *
+ * Edits commit **live** to the same `onChange` — collapsing is not a save, the
+ * form's own Save still is.
  */
 export function WysiwygField({
     label,
@@ -61,58 +72,65 @@ export function WysiwygField({
     readOnly = false,
     invalid = false,
     id,
+    expandTo,
+    onExpandedChange,
     'aria-describedby': describedBy,
     ...editorProps
 }: WysiwygFieldProps) {
     const intl = useIntl();
     const [expanded, setExpanded] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
-    const regionRef = useRef<HTMLDivElement>(null);
+    const notify = useRef(onExpandedChange);
+    notify.current = onExpandedChange;
 
-    // Expanding brings the surface into view — `nearest`, not `start`: the work
-    // area has a **sticky top bar**, and scrolling the editor's top edge to the
-    // container's top tucks its first line underneath it. The caret is left
-    // alone, so the author lands looking at the whole document rather than
-    // inside one block.
-    useEffect(() => {
-        if (expanded) {
-            regionRef.current?.scrollIntoView({ block: 'nearest' });
-        }
-    }, [expanded]);
+    // Releasing the region on unmount matters: navigating away mid-edit would
+    // otherwise leave the page showing an empty region over a hidden form.
+    useEffect(() => () => notify.current?.(false), []);
+
+    const expand = useCallback(() => {
+        setExpanded(true);
+        onExpandedChange?.(true);
+    }, [onExpandedChange]);
 
     const collapse = useCallback(() => {
         setExpanded(false);
+        onExpandedChange?.(false);
         onBlur?.();
         // Focus returns to the control that opened the editor — the reader's
-        // place in the form, not the top of the document.
+        // place in the form, not the top of the page. A frame later, because
+        // the form is `display: none` until this render lands and a hidden
+        // element cannot take focus.
         window.requestAnimationFrame(() => {
             cardRef.current?.querySelector('button')?.focus();
         });
-    }, [onBlur]);
+    }, [onBlur, onExpandedChange]);
 
-    if (!expanded) {
-        return (
-            <div ref={cardRef}>
-                <WysiwygPreviewCard
-                    id={id}
-                    html={value}
-                    label={label}
-                    readOnly={readOnly}
-                    invalid={invalid}
-                    describedBy={describedBy}
-                    onOpen={() => setExpanded(true)}
-                />
-            </div>
-        );
-    }
+    const card = (
+        <div ref={cardRef}>
+            <WysiwygPreviewCard
+                id={id}
+                html={value}
+                label={label}
+                readOnly={readOnly}
+                invalid={invalid}
+                describedBy={describedBy}
+                onOpen={expand}
+            />
+        </div>
+    );
 
-    const words = wordCount(value);
+    if (!expanded) return card;
 
-    return (
+    const takesOver = !!expandTo;
+    const panel = (
         <section
-            ref={regionRef}
             aria-label={intl.formatMessage(messages.region, { label })}
-            className="bg-background overflow-hidden rounded-md border"
+            className={cn(
+                'bg-background flex min-h-0 flex-col',
+                // Filling a region: own its whole height, and let the body
+                // scroll rather than the page behind it.
+                takesOver ? 'h-full flex-1' : 'overflow-hidden rounded-md border'
+            )}
             onKeyDown={(event) => {
                 // Escape leaves the editor — but only when nothing inside has
                 // claimed it first (the slash menu and the link field both do).
@@ -121,10 +139,17 @@ export function WysiwygField({
                 collapse();
             }}
         >
-            <div className="bg-muted/30 flex items-center gap-3 border-b px-4 py-2">
+            <div
+                className={cn(
+                    'flex shrink-0 items-center gap-3 border-b px-6 py-2.5',
+                    !takesOver && 'bg-muted/30 px-4 py-2'
+                )}
+            >
                 <span className="text-sm font-medium">{label}</span>
                 <span className="text-muted-foreground ml-auto text-xs">
-                    {intl.formatMessage(messages.words, { count: words })}
+                    {intl.formatMessage(messages.words, {
+                        count: wordCount(value)
+                    })}
                 </span>
                 <Button
                     type="button"
@@ -137,10 +162,14 @@ export function WysiwygField({
                     {intl.formatMessage(messages.collapse)}
                 </Button>
             </div>
-            {/* Tall enough to read as a writing surface rather than a form
-                field, but bounded — the page still scrolls as one document. */}
-            <div className="min-h-[60vh] px-4 py-8">
-                <div className="mx-auto max-w-3xl">
+            <div
+                className={cn(
+                    takesOver
+                        ? 'min-h-0 flex-1 overflow-y-auto'
+                        : 'min-h-[60vh]'
+                )}
+            >
+                <div className="mx-auto max-w-3xl px-6 py-10">
                     <WysiwygEditor
                         {...editorProps}
                         value={value}
@@ -148,13 +177,24 @@ export function WysiwygField({
                         readOnly={readOnly}
                         invalid={invalid}
                         aria-describedby={describedBy}
-                        // The section already draws the frame; a second border
-                        // around the writing surface just boxes it in twice.
+                        // The region already frames the surface; a border round
+                        // the writing area just boxes it in twice.
                         className="border-none bg-transparent"
                     />
                 </div>
             </div>
         </section>
+    );
+
+    // The card stays rendered (hidden with the rest of the form) so collapsing
+    // has somewhere to put focus back.
+    return takesOver ? (
+        <>
+            {card}
+            {createPortal(panel, expandTo)}
+        </>
+    ) : (
+        panel
     );
 }
 

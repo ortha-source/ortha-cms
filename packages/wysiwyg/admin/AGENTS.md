@@ -28,12 +28,19 @@ in two, each surface does one job: the field shows what is in there, the expande
 surface gives the writing a comfortable measure and room for the gutter and the
 menus.
 
-**It expands in place — it is not a modal.** The editor takes over the page's
-work area while the app chrome (sidebar, top bar, the record's own tabs) stays
-visible and usable, because writing a body is part of editing the record, not a
-detour away from it. An earlier version was a full-screen dialog; it was
-replaced, and the two problems it had are worth remembering if anyone proposes
-one again:
+**The editor becomes the work area — it is not a modal.** Given an `expandTo`
+region, the editor fills it and the host hides everything else in it: the other
+fields go away, and the app chrome (sidebar, top bar, the record's own tabs)
+stays. Writing a body is a mode, not a detour — every other field is noise while
+it is happening, and none of the chrome you navigate with is. Without a region
+(any form that offers none) it expands in place instead, so the control is never
+tied to one page's layout.
+
+It gets there by **portal**, which is what keeps it honest: the control stays
+inside the form's React tree, so the value it edits is still the form's state
+and collapsing puts the form back untouched — only the DOM moved. An earlier
+version was a full-screen dialog; it was replaced, and the two problems it had
+are worth remembering if anyone proposes one again:
 
 - A modal makes everything outside its content **inert**, so the slash menu and
   the format toolbar rendered and then silently refused to be clicked.
@@ -43,6 +50,10 @@ one again:
 
 The overlays now portal into the **editor root**: never clipped by a scroll
 container, and always in whatever tree the editor is mounted in.
+
+The host side of the contract is two props — `expandTo` (where to render) and
+`onExpandedChange` (when to hide/restore what was there). See content-admin's
+`WorkAreaRegion` for the reference implementation.
 
 - Edits commit **live** to the same `onChange`. Collapsing is not a save; the
   form's own Save remains the only commit point, exactly as for every other
