@@ -80,10 +80,17 @@ export {
     dividerBlock,
     embedBlock,
     headingBlock,
+    createTable,
+    createTableCell,
+    createTableRow,
     imageBlock,
+    isHeaderRow,
     numberedListBlock,
     paragraphBlock,
     quoteBlock,
+    tableBlock,
+    tableCellBlock,
+    tableRowBlock,
     todoBlock,
     toggleBlock
 } from './lib/schema/built-in';

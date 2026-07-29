@@ -19,7 +19,10 @@ export const BLOCK_TYPE = {
     Embed: 'embed',
     Toggle: 'toggle',
     Columns: 'columns',
-    Column: 'column'
+    Column: 'column',
+    Table: 'table',
+    TableRow: 'tableRow',
+    TableCell: 'tableCell'
 } as const;
 
 /** A built-in block type. */

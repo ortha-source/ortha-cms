@@ -27,6 +27,7 @@ import {
 import {
     MARK,
     insertInlineHtml,
+    insertSoftBreak,
     toggleCodeMark,
     toggleMark
 } from '../../utils/marks';
@@ -34,6 +35,24 @@ import { matchInputRule, matchSlashQuery } from '../../utils/input-rules';
 
 /** The element an editable renders as — headings keep their semantic tag. */
 type EditableTag = 'div' | 'h1' | 'h2' | 'h3' | 'h4' | 'span';
+
+/**
+ * Per-key overrides, keyed by `KeyboardEvent.key`. Returning `true` claims the
+ * key and the editable's own handling is skipped.
+ *
+ * A **table cell** is what forced this: in a cell, Enter must not split the
+ * block (that would leave a paragraph sitting among the cells of a row) and Tab
+ * must move along the row rather than indent. Rather than teach the primitive
+ * about tables, the block type that needs different keys supplies them. The
+ * live element comes with the event because an override usually needs to read
+ * or write the DOM it is running over.
+ */
+export type EditableKeyHandlers = Readonly<
+    Record<
+        string,
+        (event: KeyboardEvent<HTMLElement>, element: HTMLElement) => boolean
+    >
+>;
 
 /**
  * One block's editable text. **The** interactive primitive of the editor: every
@@ -56,7 +75,8 @@ export function InlineEditable({
     placeholder,
     className,
     as: Tag = 'div',
-    ariaLabel
+    ariaLabel,
+    keys
 }: {
     path: BlockPath;
     html: string;
@@ -65,6 +85,8 @@ export function InlineEditable({
     as?: EditableTag;
     /** Accessible name — every editable region needs one. */
     ariaLabel: string;
+    /** Keys this block type handles itself — see {@link EditableKeyHandlers}. */
+    keys?: EditableKeyHandlers;
 }) {
     const {
         commands,
@@ -168,12 +190,15 @@ export function InlineEditable({
                 return;
             }
 
+            // The block type's own keys come before the document-flow ones.
+            if (keys?.[event.key]?.(event, element)) return;
+
             switch (event.key) {
                 case KEY.Enter: {
                     event.preventDefault();
                     if (event.shiftKey) {
                         // A soft break inside the same block, not a new one.
-                        insertInlineHtml('<br>');
+                        insertSoftBreak();
                         commands.setHtml(path, element.innerHTML);
                         return;
                     }
@@ -222,6 +247,7 @@ export function InlineEditable({
         [
             commands,
             handleOverlayKey,
+            keys,
             openLinkEditor,
             path,
             redo,

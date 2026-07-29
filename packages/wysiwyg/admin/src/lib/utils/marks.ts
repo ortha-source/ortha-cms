@@ -133,6 +133,23 @@ export function insertInlineHtml(html: string): void {
     document.execCommand('insertHTML', false, html);
 }
 
+/**
+ * Inserts a soft line break at the caret — Shift+Enter, and Enter inside a
+ * table cell.
+ *
+ * `insertLineBreak` rather than `insertHTML('<br>')`, which looks equivalent
+ * and isn't: at the **end** of a block a browser needs a second, trailing
+ * `<br>` for the new line to have any height, and inserting one by hand leaves
+ * the caret *before* the break — so the next thing typed lands on the line the
+ * author just left. `insertLineBreak` is the command that knows that dance.
+ */
+export function insertSoftBreak(): void {
+    if (document.execCommand('insertLineBreak')) return;
+    // Older Safari has no `insertLineBreak`. The trailing break is what makes
+    // the new line visible; the caret sits between the two.
+    document.execCommand('insertHTML', false, '<br><br>');
+}
+
 /** Which marks are active at the caret, plus the link under it. */
 export interface MarkState {
     readonly bold: boolean;

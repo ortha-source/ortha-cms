@@ -44,6 +44,12 @@ export const WYSIWYG_PROSE = [
     '[&_aside[data-tone=warning]]:border-amber-500/30 [&_aside[data-tone=warning]]:bg-amber-500/5',
     '[&_aside[data-tone=danger]]:border-destructive/30 [&_aside[data-tone=danger]]:bg-destructive/5',
     '[&_aside[data-tone=neutral]]:border-border [&_aside[data-tone=neutral]]:bg-muted/40',
+    // Tables. `block` on the table plus `overflow-x-auto` is what keeps a wide
+    // table from widening the whole page — a table is the one block whose
+    // natural width has nothing to do with its container's.
+    '[&_table]:my-2 [&_table]:block [&_table]:w-fit [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-sm',
+    '[&_:is(th,td)]:border-border [&_:is(th,td)]:min-w-24 [&_:is(th,td)]:border [&_:is(th,td)]:px-2 [&_:is(th,td)]:py-1 [&_:is(th,td)]:align-top',
+    '[&_th]:bg-muted/50 [&_th]:text-left [&_th]:font-semibold',
     // Media and layout.
     '[&_figure]:my-2',
     '[&_img]:border-border [&_img]:max-h-96 [&_img]:rounded-md [&_img]:border',

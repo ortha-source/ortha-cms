@@ -27,6 +27,7 @@ export type {
 } from './lib/blocks/blockRegistry';
 export { DEFAULT_BLOCK_VIEWS } from './lib/blocks/defaultBlockViews';
 export { InlineEditable } from './lib/blocks/InlineEditable';
+export type { EditableKeyHandlers } from './lib/blocks/InlineEditable';
 export { BlockList } from './lib/blocks/BlockList';
 export { useEditor } from './lib/editor/editorContext';
 export type {

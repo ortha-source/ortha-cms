@@ -81,7 +81,21 @@ expands them again.
 
 paragraph · heading (1–4) · bulleted / numbered / to-do list · quote · callout
 (tone + emoji) · code (language) · divider · image (+ caption, alt) · embed ·
-toggle (`<details>`) · columns / column.
+toggle (`<details>`) · columns / column · table / tableRow / tableCell.
+
+**Tables are three nested types, not one block with a grid attribute.** `attrs`
+holds JSON scalars, so a 2-D array of cells could not live there — but the real
+reason is that a cell is a place a caret goes, and every editable region in this
+editor is a block. Rows and cells therefore get paths, ids, and the tree
+operations for free.
+
+Header-ness lives on the **cell** (`<th>` versus `<td>` is a cell property in the
+HTML, so that is the only shape that round-trips an import faithfully); the
+`<thead>` wrapper is *derived* on the way out — "the first row, when all of its
+cells are headers" — and never stored. Rows and cells declare no `tags`, so a
+stray `<tr>` outside a table cannot parse into an orphan row block. Ragged
+imports are squared up to the widest row at parse time, because every table
+operation in the editor assumes a rectangle.
 
 ## Sanitization — the security boundary
 

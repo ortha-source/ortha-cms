@@ -6,6 +6,10 @@ import {
     type InlineMarkTag,
     blockAt,
     createBlock,
+    createTable,
+    createTableCell,
+    createTableRow,
+    isHeaderRow,
     escapeHtmlText,
     htmlToPlainText,
     insertAt,
@@ -131,6 +135,28 @@ export interface BlockCommands {
     ): void;
     /** Toggles an inline mark across every block in the selection. */
     toggleMarkMany(paths: readonly BlockPath[], tag: InlineMarkTag): void;
+
+    // ── Tables ───────────────────────────────────────────────────────────
+    // A table is rows of cells, and every one of these has to keep it a
+    // **rectangle** — a column insert touches every row at once, which is one
+    // commit, not one per row (see the note above).
+
+    /** Inserts an empty row into a table at `index` (0 … row count). */
+    insertTableRow(tablePath: BlockPath, index: number): void;
+    /** Removes a table's row. The last remaining row is kept. */
+    removeTableRow(tablePath: BlockPath, index: number): void;
+    /** Inserts an empty column into a table at `index` (0 … column count). */
+    insertTableColumn(tablePath: BlockPath, index: number): void;
+    /** Removes a table's column. The last remaining column is kept. */
+    removeTableColumn(tablePath: BlockPath, index: number): void;
+    /** Turns the table's first row into a header row, or back into a body one. */
+    toggleTableHeaderRow(tablePath: BlockPath): void;
+    /**
+     * Moves the caret one cell along the table — the Tab key. Tabbing off the
+     * last cell adds a row, which is how every editor with tables behaves and
+     * the only way to type one in without reaching for the mouse.
+     */
+    focusTableCell(cellPath: BlockPath, delta: -1 | 1): void;
 }
 
 /** Builds the command set for a document. */
@@ -595,9 +621,164 @@ export function useBlockCommands(
             commit(next);
         };
 
+        /** The table at `path`, when there is one. */
+        const tableAt = (path: BlockPath): WysiwygBlock | null => {
+            const table = blockAt(blocks, path);
+            return table?.type === BLOCK_TYPE.Table ? table : null;
+        };
+
+        /** A table's column count — every row is the same width by construction. */
+        const widthOf = (table: WysiwygBlock): number =>
+            table.children[0]?.children.length ?? 0;
+
+        const insertTableRow: BlockCommands['insertTableRow'] = (
+            tablePath,
+            index
+        ) => {
+            const table = tableAt(tablePath);
+            if (!table) return;
+            // Never above the header row: a header that isn't first stops being
+            // a `<thead>` on the way out, which is a silent loss of meaning.
+            const floor = isHeaderRow(table.children[0]) ? 1 : 0;
+            const at = clamp(index, floor, table.children.length);
+            const row = createTableRow(widthOf(table));
+            commit(
+                updateAt(blocks, tablePath, (block) => ({
+                    ...block,
+                    children: [
+                        ...block.children.slice(0, at),
+                        row,
+                        ...block.children.slice(at)
+                    ]
+                }))
+            );
+            requestFocus([...tablePath, at, 0], CARET.End);
+        };
+
+        const removeTableRow: BlockCommands['removeTableRow'] = (
+            tablePath,
+            index
+        ) => {
+            const table = tableAt(tablePath);
+            // A table with no rows has nothing to type in and serializes to
+            // nothing — deleting the last row is deleting the table, and that
+            // is the block menu's job, not this button's.
+            if (!table || table.children.length <= 1) return;
+            commit(
+                updateAt(blocks, tablePath, (block) => ({
+                    ...block,
+                    children: block.children.filter((_, at) => at !== index)
+                }))
+            );
+        };
+
+        const insertTableColumn: BlockCommands['insertTableColumn'] = (
+            tablePath,
+            index
+        ) => {
+            const table = tableAt(tablePath);
+            if (!table) return;
+            const at = clamp(index, 0, widthOf(table));
+            commit(
+                updateAt(blocks, tablePath, (block) => ({
+                    ...block,
+                    children: block.children.map((row) => ({
+                        ...row,
+                        children: [
+                            ...row.children.slice(0, at),
+                            createTableCell(isHeaderRow(row)),
+                            ...row.children.slice(at)
+                        ]
+                    }))
+                }))
+            );
+            requestFocus([...tablePath, 0, at], CARET.End);
+        };
+
+        const removeTableColumn: BlockCommands['removeTableColumn'] = (
+            tablePath,
+            index
+        ) => {
+            const table = tableAt(tablePath);
+            if (!table || widthOf(table) <= 1) return;
+            commit(
+                updateAt(blocks, tablePath, (block) => ({
+                    ...block,
+                    children: block.children.map((row) => ({
+                        ...row,
+                        children: row.children.filter((_, at) => at !== index)
+                    }))
+                }))
+            );
+        };
+
+        const toggleTableHeaderRow: BlockCommands['toggleTableHeaderRow'] = (
+            tablePath
+        ) => {
+            const table = tableAt(tablePath);
+            if (!table || table.children.length === 0) return;
+            const header = !isHeaderRow(table.children[0]);
+            commit(
+                updateAt(blocks, tablePath, (block) => ({
+                    ...block,
+                    children: block.children.map((row, at) =>
+                        at === 0
+                            ? {
+                                  ...row,
+                                  children: row.children.map((cell) => ({
+                                      ...cell,
+                                      attrs: { ...cell.attrs, header }
+                                  }))
+                              }
+                            : row
+                    )
+                }))
+            );
+        };
+
+        const focusTableCell: BlockCommands['focusTableCell'] = (
+            cellPath,
+            delta
+        ) => {
+            const tablePath = cellPath.slice(0, -2);
+            const table = tableAt(tablePath);
+            if (!table) return;
+            const width = widthOf(table);
+            if (width === 0) return;
+
+            let row = cellPath[cellPath.length - 2];
+            let column = cellPath[cellPath.length - 1] + delta;
+            if (column >= width) {
+                row += 1;
+                column = 0;
+            } else if (column < 0) {
+                row -= 1;
+                column = width - 1;
+            }
+            // Shift+Tab out of the first cell has nowhere to go; leaving the
+            // caret put beats sending it somewhere the author didn't ask for.
+            if (row < 0) return;
+
+            if (row >= table.children.length) {
+                commit(
+                    updateAt(blocks, tablePath, (block) => ({
+                        ...block,
+                        children: [...block.children, createTableRow(width)]
+                    }))
+                );
+            }
+            requestFocus([...tablePath, row, column], CARET.End);
+        };
+
         return {
             setHtml,
             setAttrs,
+            insertTableRow,
+            removeTableRow,
+            insertTableColumn,
+            removeTableColumn,
+            toggleTableHeaderRow,
+            focusTableCell,
             removeMany,
             copyMany,
             cutMany,
@@ -646,7 +827,16 @@ function seedChildren(type: string): WysiwygBlock[] {
     if (type === BLOCK_TYPE.Column || type === BLOCK_TYPE.Toggle) {
         return [createBlock(PARAGRAPH_TYPE)];
     }
+    // A table starts as a header row and two body rows — small enough to be a
+    // starting point and large enough to be recognizably a table.
+    if (type === BLOCK_TYPE.Table) return [...createTable().children];
+    if (type === BLOCK_TYPE.TableRow) return [createTableCell()];
     return [];
+}
+
+/** `value`, held between `min` and `max`. */
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
 }
 
 /** One seeded column, holding an empty paragraph to type into. */

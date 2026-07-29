@@ -18,7 +18,8 @@ import {
     Minus,
     MessageSquareQuote,
     PanelTopOpen,
-    StickyNote
+    StickyNote,
+    Table as TableIcon
 } from 'lucide-react';
 import { BLOCK_TYPE } from '@ortha-cms/wysiwyg-core';
 import type { BlockViewRegistry } from '../blockRegistry';
@@ -36,6 +37,7 @@ import { EmbedBlock } from '../renderers/EmbedBlock';
 import { ToggleBlock } from '../renderers/ToggleBlock';
 import { ColumnsBlock } from '../renderers/ColumnsBlock';
 import { ColumnBlock } from '../renderers/ColumnBlock';
+import { TableBlock } from '../renderers/TableBlock';
 
 /** The stock renderers. */
 export const DEFAULT_BLOCK_VIEWS: BlockViewRegistry = {
@@ -67,6 +69,13 @@ export const DEFAULT_BLOCK_VIEWS: BlockViewRegistry = {
     [BLOCK_TYPE.Column]: {
         Component: ColumnBlock,
         Icon: Columns2,
+        rendersChildren: true
+    },
+    // Rows and cells have to be real `<tr>`/`<td>` elements, so the table
+    // renders them itself rather than letting `BlockRow` wrap each in a `<div>`.
+    [BLOCK_TYPE.Table]: {
+        Component: TableBlock,
+        Icon: TableIcon,
         rendersChildren: true
     }
 };

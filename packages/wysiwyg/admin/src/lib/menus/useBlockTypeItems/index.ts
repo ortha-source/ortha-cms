@@ -40,6 +40,7 @@ const messages = defineMessages({
     embed: { id: 'wysiwyg.type.embed', defaultMessage: 'Embed' },
     toggle: { id: 'wysiwyg.type.toggle', defaultMessage: 'Toggle' },
     columns: { id: 'wysiwyg.type.columns', defaultMessage: 'Columns' },
+    table: { id: 'wysiwyg.type.table', defaultMessage: 'Table' },
     groupBasic: { id: 'wysiwyg.group.basic', defaultMessage: 'Basic' },
     groupMedia: { id: 'wysiwyg.group.media', defaultMessage: 'Media' },
     groupAdvanced: {
@@ -194,6 +195,13 @@ const SEEDS: readonly Seed[] = [
         type: BLOCK_TYPE.Columns,
         message: 'columns',
         keywords: 'columns layout grid split side by side',
+        group: BLOCK_GROUP.Advanced
+    },
+    {
+        id: BLOCK_TYPE.Table,
+        type: BLOCK_TYPE.Table,
+        message: 'table',
+        keywords: 'table grid rows columns spreadsheet',
         group: BLOCK_GROUP.Advanced
     }
 ];

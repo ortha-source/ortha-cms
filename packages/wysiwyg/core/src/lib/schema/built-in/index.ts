@@ -23,6 +23,11 @@ import {
     columnsBlock,
     toggleBlock
 } from './structure-blocks';
+import {
+    tableBlock,
+    tableCellBlock,
+    tableRowBlock
+} from './table-blocks';
 
 /** Every built-in definition, in match-priority order. */
 export const DEFAULT_BLOCK_DEFINITIONS = [
@@ -39,7 +44,10 @@ export const DEFAULT_BLOCK_DEFINITIONS = [
     imageBlock,
     toggleBlock,
     columnsBlock,
-    columnBlock
+    columnBlock,
+    tableBlock,
+    tableRowBlock,
+    tableCellBlock
 ] as const;
 
 /** The schema an editor uses unless it is given one. */
@@ -61,5 +69,14 @@ export {
     codeBlock,
     toggleBlock,
     columnsBlock,
-    columnBlock
+    columnBlock,
+    tableBlock,
+    tableRowBlock,
+    tableCellBlock
 };
+export {
+    createTable,
+    createTableCell,
+    createTableRow,
+    isHeaderRow
+} from './table-blocks';

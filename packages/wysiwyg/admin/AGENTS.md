@@ -83,6 +83,12 @@ The host side of the contract is two props — `expandTo` (where to render) and
   Delete; dragging the same handle reorders the block.
 - **Nesting** — Tab / Shift+Tab indent and outdent; toggles, quotes, callouts and
   columns hold child blocks.
+- **Tables** — a handle above every column and beside every row (insert either
+  side, delete), a header-row toggle, and Tab/Shift+Tab along the cells; tabbing
+  off the last cell adds a row.
+- **Multi-block selection** — drag across blocks, or ⌘A from inside the editor;
+  the toolbar's marks and "turn into" then act on the whole run, and
+  Backspace/⌘C/⌘X apply to it.
 - **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
 - **Structured paste** — multi-block HTML from another app becomes real blocks,
   sanitized; plain text is inserted as text.
@@ -119,6 +125,15 @@ hook closed over, so calling two in the same event handler computes the second
 from a tree the first already replaced — the second silently wins and the first
 edit vanishes. Anything that looks like two steps (convert *and* keep the
 leftover text) is therefore one command (`applyBlockType`).
+
+**A block type that needs different keys supplies them.** `InlineEditable` takes
+an optional `keys` map (`EditableKeyHandlers`) that runs before its own handling
+and can claim a key. The table cell is what forced it: Enter must not split the
+block (a paragraph among the cells of a row is not a table), Tab moves along the
+row rather than indenting, and Backspace/Delete at the edges must not merge one
+cell into the next — every table operation assumes the grid is a rectangle.
+Teaching the primitive about tables would have been the other option; this way
+the table's specifics stay in the table's files.
 
 **`InlineEditable` is the only contenteditable.** Every block that holds words
 renders one, so Enter/Backspace/Tab/arrows/markdown/slash/paste are implemented
@@ -180,6 +195,17 @@ assumption about a different process.
   existing marks. The alternative is hundreds of lines of range surgery with
   worse edge cases. Every mark passes through that one file, so replacing the
   mechanism later is a change there and nowhere else.
+- **Table rows and cells don't go through `BlockRow`.** They must be real `<tr>`
+  and `<td>` elements, and `BlockRow`'s gutter and drop targets are `<div>`s, so
+  the table renders its own children (`rendersChildren`). Its row and column
+  handles live in an extra, borderless row and column **of the table itself** —
+  that keeps them aligned with what they act on for free, where an absolutely
+  positioned strip would have to re-measure every column on every edit and be
+  wrong for the frame in between.
+- **A soft break is `execCommand('insertLineBreak')`**, not `insertHTML('<br>')`.
+  At the end of a block a browser needs a second, trailing `<br>` for the new
+  line to have any height; inserting one by hand leaves the caret *before* the
+  break, so the next thing typed lands on the line the author just left.
 - **The code block is a `<textarea>`**, not a contenteditable. Code is plain
   text; a contenteditable would let a browser insert markup into it (a `<div>`
   per line, a smart quote, a pasted `<b>`) which the author would then see as
