@@ -561,11 +561,12 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes ten named slots (`presentation/slots/contentSlots`, via
+The library exposes eleven named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills the other two
-(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads).
+`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills the other
+three (`ENTRY_TAB_SLOT`, the Media tab; `ENTRY_PRESAVE_SLOT`, its staged uploads;
+and `ASSET_PICKER_SLOT`, the library behind a rich-text image block).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -647,6 +648,15 @@ fetching internally.
       inside it.
     - `@ortha-cms/i18n-admin` fills it with **Publish all locales** / **Unpublish
       all locales**.
+- **`ASSET_PICKER_SLOT`** — the asset picker a **rich-text** field offers on its
+  image block. `usePicker()` returns `{ port, overlay }`: the port is the promise
+  the editor calls (`pick()` → an asset or `null`), and the overlay is the
+  picker's own dialog, returned rather than mounted because a hook has nowhere to
+  render one — only the control that asked knows where it goes.
+  **Only the first item is used**; two dialogs answering "which image?" is not a
+  configuration anyone wants. With nothing registered the block simply shows no
+  library button and a pasted URL still works, which is why this is a slot and
+  not a required wire.
 - **`ENTRY_PRESAVE_SLOT`** — a plugin's participation in the **save itself**:
   `usePresave()` is mounted once per `ContentEntryView` and returns
   `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client

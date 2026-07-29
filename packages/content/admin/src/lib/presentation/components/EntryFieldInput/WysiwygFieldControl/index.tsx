@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { WysiwygField } from '@ortha-cms/wysiwyg-admin';
 import { useWorkAreaRegion } from '../../../hooks/useWorkAreaRegion';
+import { ASSET_PICKER_SLOT } from '../../../slots/contentSlots';
 
 /**
  * The `wysiwyg` field's control, wired to the page's **work-area region**: the
@@ -12,6 +13,10 @@ import { useWorkAreaRegion } from '../../../hooks/useWorkAreaRegion';
  * it needs hooks, and that component is a `switch` that returns early — a hook
  * there would run conditionally. Outside this page there is no region, and
  * `WysiwygField` falls back to expanding in place.
+ *
+ * It also resolves the **asset picker** the editor's image block offers, from
+ * `ASSET_PICKER_SLOT` — filled by the media plugin. With nothing registered the
+ * block just doesn't show a library button.
  */
 export function WysiwygFieldControl({
     id,
@@ -31,6 +36,10 @@ export function WysiwygFieldControl({
     onBlur?(): void;
 }) {
     const { host, setFilled } = useWorkAreaRegion();
+    // Only the first contribution is used — two dialogs answering "which
+    // image?" is not a configuration anyone wants. The hook is called
+    // unconditionally (slot items are boot-frozen, so the list never changes).
+    const picker = ASSET_PICKER_SLOT.getItems()[0]?.usePicker();
 
     // A record that navigates away mid-edit (the i18n locale switch remounts
     // the whole editor) must not leave the page showing an empty region over a
@@ -38,16 +47,20 @@ export function WysiwygFieldControl({
     useEffect(() => () => setFilled(false), [setFilled]);
 
     return (
-        <WysiwygField
-            id={id}
-            label={label}
-            value={value}
-            invalid={invalid}
-            aria-describedby={describedBy}
-            expandTo={host}
-            onExpandedChange={setFilled}
-            onChange={onChange}
-            onBlur={onBlur}
-        />
+        <>
+            {picker?.overlay}
+            <WysiwygField
+                id={id}
+                label={label}
+                value={value}
+                invalid={invalid}
+                aria-describedby={describedBy}
+                expandTo={host}
+                onExpandedChange={setFilled}
+                media={picker?.port ?? null}
+                onChange={onChange}
+                onBlur={onBlur}
+            />
+        </>
     );
 }

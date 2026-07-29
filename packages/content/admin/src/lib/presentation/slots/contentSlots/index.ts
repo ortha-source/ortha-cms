@@ -18,6 +18,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import type { MessageDescriptor } from 'react-intl';
 import { createSlot } from '@ortha-cms/utils-admin';
+import type { WysiwygMediaPort } from '@ortha-cms/wysiwyg-admin';
 import type { FilterField } from '@ortha-cms/query-builder-admin';
 import type {
     ContentTypeDetail,
@@ -439,3 +440,45 @@ export type EntryPresaveItem = {
 export const ENTRY_PRESAVE_SLOT = createSlot<EntryPresaveItem>(
     'content.entry.presave'
 );
+
+/** What an {@link AssetPickerItem}'s hook hands back to the control using it. */
+export type AssetPicker = {
+    /** The port the rich-text editor's image block calls. */
+    port: WysiwygMediaPort;
+    /**
+     * The picker's own UI (a dialog), rendered by the control **beside** the
+     * field. It has to be returned rather than mounted by the contributor
+     * because the contributor is a hook: a dialog needs somewhere in the tree
+     * to render, and the only component that knows where is the one that asked
+     * for the picker.
+     */
+    overlay?: ReactNode;
+};
+
+/**
+ * One asset-picker contribution — how a field that needs *an image from
+ * somewhere* reaches the media library without content-admin depending on it.
+ *
+ * The rich-text field is what needs it: its image block wants a URL, and the
+ * library is another plugin's. Only the first registered item is used; a second
+ * would mean two dialogs answering the same question.
+ */
+export type AssetPickerItem = {
+    /** Stable id. */
+    id: string;
+    /**
+     * Hook mounted by the control that offers the picker, once per field. Like
+     * every slot hook it is called unconditionally in slot order, which is
+     * rules-of-hooks-safe because slot items are boot-frozen (see the module
+     * header).
+     */
+    usePicker: () => AssetPicker;
+};
+
+/**
+ * The asset picker a rich-text field offers on its image block. Filled by
+ * `@ortha-cms/media-admin`; with nothing registered the field simply doesn't
+ * show a "choose from library" button, and a pasted URL still works.
+ */
+export const ASSET_PICKER_SLOT =
+    createSlot<AssetPickerItem>('content.assetPicker');

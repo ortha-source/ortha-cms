@@ -35,3 +35,7 @@ export type {
     SlashState
 } from './lib/editor/editorContext';
 export type { BlockCommands } from './lib/editor/useBlockCommands';
+export type {
+    WysiwygMediaAsset,
+    WysiwygMediaPort
+} from './lib/media/wysiwygMedia';

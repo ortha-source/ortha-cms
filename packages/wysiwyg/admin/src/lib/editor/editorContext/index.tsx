@@ -5,6 +5,7 @@ import type {
     BlockSchema
 } from '@ortha-cms/wysiwyg-core';
 import type { BlockViewRegistry } from '../../blocks/blockRegistry';
+import type { WysiwygMediaPort } from '../../media/wysiwygMedia';
 import type { BlockCommands } from '../useBlockCommands';
 import type { FocusRequest } from '../useEditorDocument';
 
@@ -26,6 +27,12 @@ export interface EditorContextValue {
     readonly commands: BlockCommands;
     /** No editing chrome, no contenteditable — the read-only rendering. */
     readonly readOnly: boolean;
+    /**
+     * The host's media library, when it offered one. `null` is a real answer,
+     * not a missing wire: the image block hides "choose from library" rather
+     * than showing a button that can't do anything.
+     */
+    readonly media: WysiwygMediaPort | null;
     readonly focusRequest: FocusRequest | null;
     /** Opens/moves the slash menu, or closes it when `state` is `null`. */
     setSlash(state: SlashState | null): void;

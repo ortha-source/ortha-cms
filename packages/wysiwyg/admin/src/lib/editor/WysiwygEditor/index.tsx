@@ -24,6 +24,7 @@ import { cn } from '@ortha-cms/design-system';
 import { BlockList } from '../../blocks/BlockList';
 import { DEFAULT_BLOCK_VIEWS } from '../../blocks/defaultBlockViews';
 import type { BlockViewRegistry } from '../../blocks/blockRegistry';
+import type { WysiwygMediaPort } from '../../media/wysiwygMedia';
 import { EditorToolbar } from '../../menus/EditorToolbar';
 import { InlineToolbar } from '../../menus/InlineToolbar';
 import { SlashMenu } from '../../menus/SlashMenu';
@@ -81,6 +82,11 @@ export interface WysiwygEditorProps {
      * floating selection toolbar is the whole formatting UI.
      */
     toolbar?: boolean;
+    /**
+     * The host's media library. Given one, the image block offers "choose from
+     * library" alongside pasting a URL. See {@link WysiwygMediaPort}.
+     */
+    media?: WysiwygMediaPort | null;
     id?: string;
     className?: string;
     'aria-describedby'?: string;
@@ -105,6 +111,7 @@ export function WysiwygEditor({
     blocks,
     blockViews,
     toolbar = false,
+    media = null,
     id,
     className,
     'aria-describedby': describedBy
@@ -281,6 +288,7 @@ export function WysiwygEditor({
             views,
             commands,
             readOnly,
+            media,
             focusRequest: doc.focusRequest,
             activePath,
             // Resolved here rather than stored: the block at a path changes
@@ -319,6 +327,7 @@ export function WysiwygEditor({
             doc.redo,
             doc.undo,
             handleOverlayKey,
+            media,
             openSlash,
             readOnly,
             registerEditable,

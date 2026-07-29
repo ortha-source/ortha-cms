@@ -92,6 +92,7 @@ The host side of the contract is two props — `expandTo` (where to render) and
 - **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
 - **Structured paste** — multi-block HTML from another app becomes real blocks,
   sanitized; plain text is inserted as text.
+- **The host's media library**, when it offered one (see below).
 
 ## Layout
 
@@ -166,6 +167,32 @@ Two things it needs that a floating toolbar doesn't:
 With `toolbar` on, the editor also **owns its scrolling**: it fills its parent as
 a flex column with the bar pinned and the document moving under it. The bar
 staying put while the document scrolls only works if one component holds both.
+
+## The media port
+
+The editor's value is HTML, so an image block ultimately needs one thing: a URL.
+Everything else about media — where assets live, who may upload, what counts as
+an image, whether an abandoned edit should leave a file behind — belongs to
+whoever mounted the editor. So the seam is one method:
+
+```tsx
+<WysiwygField media={{ pick: () => Promise<WysiwygMediaAsset | null> }} … />
+```
+
+Given a port, the image block offers **Choose from library** beside the URL box
+and **Replace from library** on a placed image; without one it shows neither, and
+a pasted URL keeps working either way. A pick that carries alt text sets it; one
+that doesn't leaves whatever the author already wrote, because an asset with no
+alt must not wipe out a caption someone bothered to write.
+
+What comes back is stored as the image's **`src`**, not as an asset id. That is
+the field's whole contract — the value is HTML any consumer can render, with
+nothing to resolve — and the honest cost is that an asset deleted from the
+library leaves a dead image in a document. The alternative (an id the delivery
+layer resolves) would make the stored value unusable outside this CMS.
+
+content-admin fills the port from its `ASSET_PICKER_SLOT`, which the media plugin
+registers into; see `WysiwygFieldControl`.
 
 ## The block clipboard
 

@@ -5,6 +5,7 @@ import {
     WORKSPACE_NAV_SLOT
 } from '@ortha-cms/workspaces-admin';
 import {
+    ASSET_PICKER_SLOT,
     CONTENT_FIELD_TYPE,
     ENTRY_PRESAVE_SLOT,
     ENTRY_TAB,
@@ -17,6 +18,10 @@ import {
     MEDIA_PRESAVE_ID,
     usePendingMediaUploads
 } from '../../hooks/usePendingMediaUploads';
+import {
+    WYSIWYG_ASSET_PICKER_ID,
+    useWysiwygAssetPicker
+} from '../../hooks/useWysiwygAssetPicker';
 
 const MediaLibraryPage = lazy(() =>
     import('../../pages/MediaLibraryPage').then((module) => ({
@@ -105,6 +110,21 @@ export function MediaPlugin(): MediaAdminPlugin {
                     {
                         id: MEDIA_PRESAVE_ID,
                         usePresave: usePendingMediaUploads
+                    }
+                ]
+            },
+            // The library, offered to a rich-text field's image block. Unlike a
+            // media *field*, an image in a document is a URL in the stored
+            // HTML — so this only browses what is already in the library and
+            // never uploads: an upload from inside a draft would be a file in
+            // the library whether or not the record is ever saved, which is
+            // exactly what the staged-upload presave above exists to avoid.
+            {
+                slot: ASSET_PICKER_SLOT,
+                items: [
+                    {
+                        id: WYSIWYG_ASSET_PICKER_ID,
+                        usePicker: useWysiwygAssetPicker
                     }
                 ]
             }

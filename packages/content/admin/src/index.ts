@@ -2,6 +2,7 @@ export { ContentPlugin } from './lib/presentation/contentPlugin';
 export type { ContentAdminPlugin } from './lib/presentation/contentPlugin';
 
 export {
+    ASSET_PICKER_SLOT,
     CONTENT_OVERLAY_SLOT,
     ENTRY_HEADER_SLOT,
     ENTRY_MENU_SLOT,
@@ -14,6 +15,8 @@ export {
     RECORDS_TOOLBAR_SLOT
 } from './lib/presentation/slots/contentSlots';
 export type {
+    AssetPicker,
+    AssetPickerItem,
     ContentOverlayItem,
     EntryHeaderItem,
     EntryMenuEntry,
@@ -32,6 +35,12 @@ export type {
     RecordsToolbarContext,
     RecordsToolbarItem
 } from './lib/presentation/slots/contentSlots';
+// Re-exported so an asset-picker contributor (the media plugin) can describe
+// what it hands back without taking a dependency on the editor package.
+export type {
+    WysiwygMediaAsset,
+    WysiwygMediaPort
+} from '@ortha-cms/wysiwyg-admin';
 
 export type {
     ContentField,

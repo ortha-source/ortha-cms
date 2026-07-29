@@ -221,6 +221,30 @@ picked fills the Media Library with assets for a record the user then abandons.
 - **Picking an existing library asset is not deferred** — it is already uploaded;
   attaching its id is an ordinary form edit that rides Save like any other.
 
+## The library behind a rich-text image block
+
+**`hooks/useWysiwygAssetPicker`** fills content-admin's **`ASSET_PICKER_SLOT`**,
+which is how an image block in a `wysiwyg` field gets a URL from the library
+rather than only from a pasted link. The editor's port is a **promise** and the
+library's picker is a **dialog**, so the hook adapts one to the other: `pick()`
+opens `MediaPickerDialog` (narrowed to `MEDIA_KIND.Image`) and parks the resolver
+until the author confirms or dismisses. A second `pick()` while one is open
+answers the first with a dismissal rather than stranding it.
+
+**It browses; it does not upload** — and that is the same reasoning as the
+deferred-upload presave above, from the other end. A media *field* can stage a
+file because the record's save is the commit point that turns it into an asset.
+An image in a document is a **URL in the stored HTML**: it needs a real,
+resolvable address the moment it is inserted, so an upload from inside a draft
+would put a file in the library whether or not the record is ever saved —
+precisely the orphan the presave exists to prevent. Picking an asset that already
+exists has no such problem.
+
+The picked asset's URL is stored as the image's `src`, not as an asset id: a
+`wysiwyg` value is HTML any consumer can render with nothing to resolve. The cost
+is real and worth naming — deleting that asset leaves a dead image in whatever
+documents used it.
+
 ## Lives strictly inside a workspace
 
 This plugin contributes **no top-level route and no top-toolbar nav item**. It

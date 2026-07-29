@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, LibraryBig } from 'lucide-react';
 import { Button, Input, cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 import { InlineEditable } from '../../InlineEditable';
@@ -38,6 +38,14 @@ const messages = defineMessages({
     altPlaceholder: {
         id: 'wysiwyg.block.image.altPlaceholder',
         defaultMessage: 'Describe the image for screen readers'
+    },
+    browse: {
+        id: 'wysiwyg.block.image.browse',
+        defaultMessage: 'Choose from library'
+    },
+    replace: {
+        id: 'wysiwyg.block.image.replace',
+        defaultMessage: 'Replace from library'
     }
 });
 
@@ -47,13 +55,33 @@ const messages = defineMessages({
  * The alt field is shown inline rather than hidden behind a settings menu on
  * purpose: an image published with no alt text is an accessibility defect, and
  * the moment to fix it is while the author is looking at the picture.
+ *
+ * When the host supplied a media port, the block also offers its library. A
+ * pasted URL keeps working either way — the editor's value is HTML, so an
+ * image is a URL, and where that URL came from is nobody's business here.
  */
 export function ImageBlock({ block, path }: BlockViewProps) {
     const intl = useIntl();
-    const { commands, readOnly } = useEditor();
+    const { commands, readOnly, media } = useEditor();
     const src = String(block.attrs['src'] ?? '');
     const alt = String(block.attrs['alt'] ?? '');
     const [draftUrl, setDraftUrl] = useState('');
+
+    /**
+     * Asks the host for an asset and takes what it gives. One `setAttrs`, so
+     * the source and its alt text land together — the alt is the asset's own,
+     * and re-typing it on every use is how images end up without any.
+     */
+    const browse = async () => {
+        const asset = await media?.pick().catch(() => null);
+        if (!asset) return;
+        commands.setAttrs(path, {
+            src: asset.url,
+            // Only overwrite the alt when the asset actually carries one; an
+            // asset with none must not wipe out what the author already wrote.
+            ...(asset.alt ? { alt: asset.alt } : {})
+        });
+    };
 
     if (!src) {
         // An unfinished image block — a picker, and nothing in the output.
@@ -82,6 +110,18 @@ export function ImageBlock({ block, path }: BlockViewProps) {
                 >
                     {intl.formatMessage(messages.add)}
                 </Button>
+                {media && !readOnly && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={browse}
+                    >
+                        <LibraryBig aria-hidden className="size-4" />
+                        {intl.formatMessage(messages.browse)}
+                    </Button>
+                )}
             </div>
         );
     }
@@ -121,6 +161,18 @@ export function ImageBlock({ block, path }: BlockViewProps) {
                             commands.setAttrs(path, { alt: event.target.value })
                         }
                     />
+                    {media && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-muted-foreground h-7 shrink-0 px-2 text-xs"
+                            onClick={browse}
+                        >
+                            <LibraryBig aria-hidden className="size-3.5" />
+                            {intl.formatMessage(messages.replace)}
+                        </Button>
+                    )}
                 </div>
             )}
             <figcaption>
