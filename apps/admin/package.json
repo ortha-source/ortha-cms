@@ -4,6 +4,7 @@
     "private": true,
     "dependencies": {
         "@ortha-cms/activity-admin": "*",
+        "@ortha-cms/api-tokens-admin": "*",
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/content-admin": "*",
         "@ortha-cms/identity-admin": "*",

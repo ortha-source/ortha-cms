@@ -45,7 +45,7 @@ export function TableBlock({ block, path }: BlockViewProps) {
         <div
             role="group"
             aria-label={intl.formatMessage(messages.label)}
-            className="my-2"
+            className="group/table my-2"
         >
             <div className="w-full overflow-x-auto">
                 <table className="border-collapse text-sm">

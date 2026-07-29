@@ -101,6 +101,9 @@
         },
         {
             "path": "./packages/wysiwyg/admin"
+        },
+        {
+            "path": "./packages/api-tokens/admin"
         }
     ]
 }

@@ -23,7 +23,10 @@ export const PERMISSIONS = {
     MEDIA_READ: 'media:read',
     MEDIA_CREATE: 'media:create',
     MEDIA_UPDATE: 'media:update',
-    MEDIA_DELETE: 'media:delete'
+    MEDIA_DELETE: 'media:delete',
+    TOKENS_READ: 'tokens:read',
+    TOKENS_CREATE: 'tokens:create',
+    TOKENS_DELETE: 'tokens:delete'
 } as const;
 
 /** A `resource:action` permission key drawn from {@link PERMISSIONS}. */

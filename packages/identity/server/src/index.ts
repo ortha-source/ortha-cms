@@ -32,9 +32,7 @@ export type {
     RootAdminBootstrapResult
 } from './lib/root-admin/services/root-admin.service';
 export { MissingRootAdminPasswordError } from './lib/root-admin/errors';
-export {
-    ACTIVITY_RECORDER
-} from './lib/activity/activity-recorder';
+export { ACTIVITY_RECORDER } from './lib/activity/activity-recorder';
 export type {
     ActivityRecorder,
     ActivityRecordInput,
@@ -45,3 +43,18 @@ export {
 } from './lib/activity/activity-kinds';
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export * from './lib/schema';
+// External-API bearer tokens. The service mints, lists, and revokes them; the
+// scope helper is the contract for turning a token's scope into a permission
+// set. The guard that authenticates `Authorization: Bearer` on the public
+// content API ships with that API.
+export { ApiTokenService } from './lib/api-tokens/application/api-token.service';
+export type {
+    ApiTokenView,
+    MintApiTokenInput,
+    MintedApiToken
+} from './lib/api-tokens/application/api-token.service';
+export {
+    API_TOKEN_SCOPES,
+    scopePermissions
+} from './lib/api-tokens/domain/api-token-scope';
+export type { ApiTokenScope } from './lib/api-tokens/domain/api-token-scope';

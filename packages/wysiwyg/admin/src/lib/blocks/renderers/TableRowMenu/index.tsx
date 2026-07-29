@@ -69,10 +69,10 @@ export function TableRowMenu({
                     className={cn(
                         'text-muted-foreground hover:bg-muted h-full w-4 rounded-sm',
                         // Present but invisible until the table is hovered
-                        // or something in it has focus — the same rule the
+                        // or the handle itself has focus — the same rule the
                         // block gutter follows, so the handles never shift
                         // the grid and never vanish mid-keyboard-use.
-                        'opacity-0 transition-opacity group-hover/block:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100'
+                        'opacity-0 transition-opacity group-hover/table:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100'
                     )}
                 >
                     <GripVertical aria-hidden className="size-3.5" />
