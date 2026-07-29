@@ -22,6 +22,7 @@ import {
     DropdownMenuTrigger,
     Separator
 } from '@ortha-cms/design-system';
+import { INLINE_MARK_TAG, type InlineMarkTag } from '@ortha-cms/wysiwyg-core';
 import { useEditor } from '../../editor/editorContext';
 import { INSERT_POSITION } from '../../utils/constants';
 import {
@@ -96,6 +97,7 @@ export function EditorToolbar() {
         undo,
         redo,
         openLinkEditor,
+        selectedKeys,
         readOnly
     } = useEditor();
     const groups = useBlockTypeItems(schema, views);
@@ -111,9 +113,29 @@ export function EditorToolbar() {
 
     if (readOnly) return null;
 
-    const runMark = (mark: Mark) => {
+    // With whole blocks selected the toolbar acts on **them**, not on the
+    // caret — there isn't one. `execCommand` can't reach across editables, so
+    // a block selection goes through the string-level mark instead.
+    const selection = [...selectedKeys].map((key) =>
+        key.split('.').map(Number)
+    );
+    const hasSelection = selection.length > 0;
+
+    const runMark = (mark: Mark, tag: InlineMarkTag) => {
+        if (hasSelection) {
+            commands.toggleMarkMany(selection, tag);
+            return;
+        }
         toggleMark(mark);
         refresh();
+    };
+
+    const runTurnInto = (type: string, attrs: BlockAttrs | undefined) => {
+        if (hasSelection) {
+            commands.setTypeMany(selection, type, attrs);
+            return;
+        }
+        if (activePath) commands.setType(activePath, type, attrs);
     };
 
     // The label on the block picker — what the caret is currently sitting in.
@@ -165,7 +187,7 @@ export function EditorToolbar() {
                         type="button"
                         size="sm"
                         variant="ghost"
-                        disabled={!activePath}
+                        disabled={!activePath && !hasSelection}
                         aria-label={intl.formatMessage(messages.turnInto)}
                         className="h-7 gap-1 px-2 text-xs font-normal"
                     >
@@ -189,12 +211,7 @@ export function EditorToolbar() {
                                 <DropdownMenuItem
                                     key={item.id}
                                     onSelect={() =>
-                                        activePath &&
-                                        commands.setType(
-                                            activePath,
-                                            item.type,
-                                            item.attrs
-                                        )
+                                        runTurnInto(item.type, item.attrs)
                                     }
                                 >
                                     <item.Icon aria-hidden className="size-4" />
@@ -211,28 +228,28 @@ export function EditorToolbar() {
             <ToolbarButton
                 label={intl.formatMessage(messages.bold)}
                 active={marks.bold}
-                onClick={() => runMark(MARK.Bold)}
+                onClick={() => runMark(MARK.Bold, INLINE_MARK_TAG.Bold)}
             >
                 <Bold aria-hidden className="size-4" />
             </ToolbarButton>
             <ToolbarButton
                 label={intl.formatMessage(messages.italic)}
                 active={marks.italic}
-                onClick={() => runMark(MARK.Italic)}
+                onClick={() => runMark(MARK.Italic, INLINE_MARK_TAG.Italic)}
             >
                 <Italic aria-hidden className="size-4" />
             </ToolbarButton>
             <ToolbarButton
                 label={intl.formatMessage(messages.underline)}
                 active={marks.underline}
-                onClick={() => runMark(MARK.Underline)}
+                onClick={() => runMark(MARK.Underline, INLINE_MARK_TAG.Underline)}
             >
                 <Underline aria-hidden className="size-4" />
             </ToolbarButton>
             <ToolbarButton
                 label={intl.formatMessage(messages.strike)}
                 active={marks.strike}
-                onClick={() => runMark(MARK.Strike)}
+                onClick={() => runMark(MARK.Strike, INLINE_MARK_TAG.Strike)}
             >
                 <Strikethrough aria-hidden className="size-4" />
             </ToolbarButton>
@@ -240,6 +257,13 @@ export function EditorToolbar() {
                 label={intl.formatMessage(messages.code)}
                 active={marks.code}
                 onClick={() => {
+                    if (hasSelection) {
+                        commands.toggleMarkMany(
+                            selection,
+                            INLINE_MARK_TAG.Code
+                        );
+                        return;
+                    }
                     toggleCodeMark();
                     refresh();
                 }}

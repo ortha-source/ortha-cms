@@ -49,8 +49,9 @@ export function BlockRow({
     className?: string;
 }) {
     const intl = useIntl();
-    const { views, schema, commands, readOnly } = useEditor();
+    const { views, schema, commands, readOnly, selectedKeys } = useEditor();
     const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
+    const selected = selectedKeys.has(pathKey(path));
 
     const view = views[block.type];
     const Component = view?.Component ?? UnknownBlock;
@@ -80,8 +81,16 @@ export function BlockRow({
 
     return (
         <div
-            className={cn('group/block relative', className)}
+            className={cn(
+                'group/block relative rounded-sm',
+                // A selected block is tinted rather than outlined: a run of
+                // selected blocks should read as one region, and per-block
+                // borders would draw seams through the middle of it.
+                selected && 'bg-primary/15',
+                className
+            )}
             data-block-path={pathKey(path)}
+            data-selected={selected || undefined}
             onDragOver={handleDragOver}
             onDragLeave={() => setDropEdge(null)}
             onDrop={handleDrop}

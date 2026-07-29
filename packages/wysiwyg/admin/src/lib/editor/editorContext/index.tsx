@@ -53,6 +53,19 @@ export interface EditorContextValue {
     /** Whether there is anything to undo / redo (drives the toolbar). */
     readonly canUndo: boolean;
     readonly canRedo: boolean;
+    /**
+     * The **block selection** — path keys of whole blocks selected as units,
+     * empty when the caret is doing the selecting instead. Each block is its
+     * own `contenteditable`, so a browser selection stops at the first block
+     * boundary; selecting across blocks has to be modelled, not read.
+     */
+    readonly selectedKeys: ReadonlySet<string>;
+    /** Selects every block between two paths (see `blockRangeBetween`). */
+    selectBlocks(anchor: BlockPath, focus: BlockPath): void;
+    /** Selects every top-level block — ⌘A once the caret is in the editor. */
+    selectAllBlocks(): void;
+    /** Drops the block selection. */
+    clearBlockSelection(): void;
     /** Re-reads the selection so the floating toolbar can follow it. */
     refreshToolbar(): void;
     /** Opens the link editor over the current selection (⌘K). */

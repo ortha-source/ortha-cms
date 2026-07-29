@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import {
     BLOCK_TYPE,
     PARAGRAPH_TYPE,
+    toggleBlockMark,
+    type InlineMarkTag,
     blockAt,
     createBlock,
     escapeHtmlText,
@@ -105,6 +107,30 @@ export interface BlockCommands {
     canIndent(path: BlockPath): boolean;
     /** Moves the caret to the nearest editable block above (-1) or below (+1). */
     focusNeighbour(path: BlockPath, direction: -1 | 1): void;
+
+    // ── Whole-block selections ───────────────────────────────────────────
+    // Each takes every selected path and commits **once**. Looping a
+    // single-block command over a selection would compute every step after the
+    // first from a tree that no longer exists (see the note above), and paths
+    // shift as soon as one block is removed — so these delete bottom-up and
+    // build their result in one pass.
+
+    /** Removes every block in the selection. */
+    removeMany(paths: readonly BlockPath[]): void;
+    /** Copies the selection to the block clipboard (and its HTML to the system one). */
+    copyMany(paths: readonly BlockPath[]): void;
+    /** Copies the selection, then removes it. */
+    cutMany(paths: readonly BlockPath[]): void;
+    /** Inserts a copy of the selection after it. */
+    duplicateMany(paths: readonly BlockPath[]): void;
+    /** Converts every block in the selection to `type`. */
+    setTypeMany(
+        paths: readonly BlockPath[],
+        type: string,
+        attrs?: BlockAttrs
+    ): void;
+    /** Toggles an inline mark across every block in the selection. */
+    toggleMarkMany(paths: readonly BlockPath[], tag: InlineMarkTag): void;
 }
 
 /** Builds the command set for a document. */
@@ -496,9 +522,88 @@ export function useBlockCommands(
             }
         };
 
+        /** Paths deepest/last first, so removing one can't shift the next. */
+        const bottomUp = (paths: readonly BlockPath[]): BlockPath[] =>
+            [...paths].sort((a, b) => {
+                const depth = Math.max(a.length, b.length);
+                for (let index = 0; index < depth; index += 1) {
+                    const left = a[index] ?? -1;
+                    const right = b[index] ?? -1;
+                    if (left !== right) return right - left;
+                }
+                return 0;
+            });
+
+        const removeMany: BlockCommands['removeMany'] = (paths) => {
+            if (paths.length === 0) return;
+            let next = blocks;
+            for (const path of bottomUp(paths)) next = removeAt(next, path);
+            commit(next.length === 0 ? [createBlock(PARAGRAPH_TYPE)] : next);
+        };
+
+        const copyMany: BlockCommands['copyMany'] = (paths) => {
+            const copied = paths
+                .map((path) => blockAt(blocks, path))
+                .filter((block): block is WysiwygBlock => !!block);
+            if (copied.length === 0) return;
+            setBlockClipboard(copied);
+            void navigator.clipboard
+                ?.writeText(serializeBlocks(copied, { schema }))
+                .catch(() => undefined);
+        };
+
+        const cutMany: BlockCommands['cutMany'] = (paths) => {
+            copyMany(paths);
+            removeMany(paths);
+        };
+
+        const duplicateMany: BlockCommands['duplicateMany'] = (paths) => {
+            const copied = paths
+                .map((path) => blockAt(blocks, path))
+                .filter((block): block is WysiwygBlock => !!block)
+                .map(cloneBlock);
+            const last = paths[paths.length - 1];
+            if (copied.length === 0 || !last) return;
+            commit(insertAt(blocks, pathAfter(last), copied));
+        };
+
+        const setTypeMany: BlockCommands['setTypeMany'] = (
+            paths,
+            type,
+            attrs
+        ) => {
+            let next = blocks;
+            for (const path of paths) {
+                next = updateAt(next, path, (block) =>
+                    converted(block, type, attrs)
+                );
+            }
+            commit(next);
+        };
+
+        const toggleMarkMany: BlockCommands['toggleMarkMany'] = (
+            paths,
+            tag
+        ) => {
+            let next = blocks;
+            for (const path of paths) {
+                next = updateAt(next, path, (block) => ({
+                    ...block,
+                    html: toggleBlockMark(block.html, tag)
+                }));
+            }
+            commit(next);
+        };
+
         return {
             setHtml,
             setAttrs,
+            removeMany,
+            copyMany,
+            cutMany,
+            duplicateMany,
+            setTypeMany,
+            toggleMarkMany,
             setType,
             applyBlockType,
             split,

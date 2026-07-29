@@ -81,6 +81,15 @@ export function InlineEditable({
     } = useEditor();
     const ref = useRef<HTMLElement>(null);
     const key = pathKey(path);
+    /**
+     * Whether an **IME composition** is in flight. While it is, the browser is
+     * still assembling the character — a Japanese author typing `nihon` sees
+     * `にほん` being built from keystrokes that are not yet text. Reading the
+     * caret, running the markdown rules, or committing on each of those
+     * keystrokes corrupts the composition, so everything waits for
+     * `compositionend`.
+     */
+    const composing = useRef(false);
 
     useLayoutEffect(() => {
         registerEditable(key, ref.current);
@@ -114,7 +123,7 @@ export function InlineEditable({
 
     const handleInput = useCallback(() => {
         const element = ref.current;
-        if (!element) return;
+        if (!element || composing.current) return;
         const before = textBeforeCaret(element);
 
         // A markdown shortcut just completed: drop the trigger characters and
@@ -142,6 +151,9 @@ export function InlineEditable({
         (event: KeyboardEvent<HTMLElement>) => {
             const element = ref.current;
             if (!element) return;
+            // Mid-composition every key belongs to the IME — Enter and the
+            // arrows are how a candidate is chosen, not how a block is split.
+            if (composing.current || event.nativeEvent.isComposing) return;
             // An open overlay owns the navigation keys while it is showing.
             if (handleOverlayKey(event)) return;
 
@@ -273,6 +285,18 @@ export function InlineEditable({
                 className
             )}
             onInput={handleInput}
+            onCompositionStart={() => {
+                composing.current = true;
+                // A half-typed composition must not leave the slash menu open
+                // filtering on characters that are about to be replaced.
+                setSlash(null);
+            }}
+            onCompositionEnd={() => {
+                composing.current = false;
+                // The composed text only exists now, so this is the first
+                // moment there is anything to commit or to match a rule on.
+                handleInput();
+            }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             onFocus={() => setActivePath(path)}

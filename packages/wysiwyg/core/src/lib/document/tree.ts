@@ -219,3 +219,32 @@ export function pathAfter(path: BlockPath): BlockPath {
     next[next.length - 1] += 1;
     return next;
 }
+
+/**
+ * The contiguous run of blocks a **selection** between two paths covers.
+ *
+ * Selections are expressed as whole siblings under one parent. Two paths at
+ * different depths (a top-level paragraph and a list item nested three levels
+ * down) resolve at their **common ancestor**, so the selection covers whole
+ * subtrees rather than a ragged edge cutting across nesting — there is no
+ * sensible "half a list" to delete or duplicate. A path that is an ancestor of
+ * the other already contains it, so the range is just that one block.
+ */
+export function blockRangeBetween(a: BlockPath, b: BlockPath): BlockPath[] {
+    let depth = 0;
+    while (depth < a.length && depth < b.length && a[depth] === b[depth]) {
+        depth += 1;
+    }
+    // One path contains the other: selecting the ancestor selects the lot.
+    if (depth === a.length) return [[...a]];
+    if (depth === b.length) return [[...b]];
+
+    const prefix = a.slice(0, depth);
+    const from = Math.min(a[depth], b[depth]);
+    const to = Math.max(a[depth], b[depth]);
+    const range: BlockPath[] = [];
+    for (let index = from; index <= to; index += 1) {
+        range.push([...prefix, index]);
+    }
+    return range;
+}

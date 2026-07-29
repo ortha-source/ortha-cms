@@ -30,6 +30,7 @@ export {
 export type { CreateBlockInit } from './lib/document/factory';
 export {
     blockAt,
+    blockRangeBetween,
     flattenBlocks,
     insertAt,
     isDescendantPath,
@@ -105,6 +106,12 @@ export {
     escapeHtmlText,
     decodeBasicEntities
 } from './lib/html/escape';
+export {
+    INLINE_MARK_TAG,
+    isBlockMarked,
+    toggleBlockMark
+} from './lib/html/inline-marks';
+export type { InlineMarkTag } from './lib/html/inline-marks';
 export { serializeBlocks, serializeDocument } from './lib/html/serialize';
 export type { SerializeOptions } from './lib/html/serialize';
 export { parseBlocks, parseDocument } from './lib/html/parse-document';

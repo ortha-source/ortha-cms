@@ -9,13 +9,16 @@ import {
 import { defineMessages, useIntl } from 'react-intl';
 import {
     DEFAULT_BLOCK_SCHEMA,
+    INLINE_MARK_TAG,
     PARAGRAPH_TYPE,
     blockAt,
+    blockRangeBetween,
     createBlock,
     extendBlockSchema,
     type BlockDefinition,
     type BlockPath,
-    type BlockSchema
+    type BlockSchema,
+    type InlineMarkTag
 } from '@ortha-cms/wysiwyg-core';
 import { cn } from '@ortha-cms/design-system';
 import { BlockList } from '../../blocks/BlockList';
@@ -30,7 +33,7 @@ import {
     useBlockTypeItems,
     type BlockTypeItem
 } from '../../menus/useBlockTypeItems';
-import { CARET, KEY } from '../../utils/constants';
+import { CARET, KEY, SHORTCUT_KEY, pathKey } from '../../utils/constants';
 import { deleteBeforeCaret } from '../../utils/dom-selection';
 import { EditorProvider, type SlashState } from '../editorContext';
 import { useBlockCommands } from '../useBlockCommands';
@@ -42,6 +45,15 @@ const messages = defineMessages({
         defaultMessage: 'Rich text editor'
     }
 });
+
+/** ⌘-shortcuts that toggle a mark across a whole block selection. */
+const SELECTION_MARKS: Record<string, InlineMarkTag> = {
+    [SHORTCUT_KEY.Bold]: INLINE_MARK_TAG.Bold,
+    [SHORTCUT_KEY.Italic]: INLINE_MARK_TAG.Italic,
+    [SHORTCUT_KEY.Underline]: INLINE_MARK_TAG.Underline,
+    [SHORTCUT_KEY.Strike]: INLINE_MARK_TAG.Strike,
+    [SHORTCUT_KEY.Code]: INLINE_MARK_TAG.Code
+};
 
 /** Props of the block editor. */
 export interface WysiwygEditorProps {
@@ -130,6 +142,10 @@ export function WysiwygEditor({
     const commands = useBlockCommands(doc, schema);
 
     const [activePath, setActivePath] = useState<BlockPath | null>(null);
+    /** Whole blocks selected as units, by path key. */
+    const [selected, setSelected] = useState<readonly BlockPath[]>([]);
+    /** The block a pointer-drag started in, while the button is down. */
+    const dragAnchor = useRef<BlockPath | null>(null);
     const [slash, setSlash] = useState<SlashState | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [toolbarVersion, setToolbarVersion] = useState(0);
@@ -223,6 +239,42 @@ export function WysiwygEditor({
         []
     );
 
+    const selectedKeys = useMemo(
+        () => new Set(selected.map(pathKey)),
+        [selected]
+    );
+
+    const clearBlockSelection = useCallback(() => setSelected([]), []);
+
+    /**
+     * Selects the run between two blocks and takes the caret out of the
+     * document: a caret blinking inside one block while five look selected
+     * would leave the next keystroke going somewhere the author isn't looking.
+     * Focus moves to the editor root, which is where the selection's own
+     * keyboard handling lives.
+     */
+    const selectBlocks = useCallback(
+        (anchorPath: BlockPath, focusPath: BlockPath) => {
+            setSelected(blockRangeBetween(anchorPath, focusPath));
+            window.getSelection()?.removeAllRanges();
+            rootRef.current?.focus({ preventScroll: true });
+        },
+        []
+    );
+
+    const selectAllBlocks = useCallback(() => {
+        if (doc.blocks.length === 0) return;
+        selectBlocks([0], [doc.blocks.length - 1]);
+    }, [doc.blocks.length, selectBlocks]);
+
+    /** The block path under an event's target, if it is inside one. */
+    const pathUnder = (target: EventTarget | null): BlockPath | null => {
+        const key = (target as HTMLElement | null)
+            ?.closest?.('[data-block-path]')
+            ?.getAttribute('data-block-path');
+        return key ? key.split('.').map(Number) : null;
+    };
+
     const context = useMemo(
         () => ({
             schema,
@@ -243,6 +295,10 @@ export function WysiwygEditor({
             setActivePath,
             canUndo: doc.canUndo,
             canRedo: doc.canRedo,
+            selectedKeys,
+            selectBlocks,
+            selectAllBlocks,
+            clearBlockSelection,
             setSlash: openSlash,
             handleOverlayKey,
             refreshToolbar: () => setToolbarVersion((version) => version + 1),
@@ -254,6 +310,7 @@ export function WysiwygEditor({
         }),
         [
             activePath,
+            clearBlockSelection,
             commands,
             doc.blocks,
             doc.canRedo,
@@ -266,9 +323,83 @@ export function WysiwygEditor({
             readOnly,
             registerEditable,
             schema,
+            selectAllBlocks,
+            selectBlocks,
+            selectedKeys,
             views
         ]
     );
+
+    /**
+     * Pointer-driven block selection. The browser cannot help here — dragging
+     * from one block into the next stops at the first block's boundary, because
+     * they are separate editables — so the drag is tracked and the range
+     * derived from which block the pointer is over.
+     */
+    const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (readOnly) return;
+        dragAnchor.current = pathUnder(event.target);
+        if (selected.length > 0) clearBlockSelection();
+    };
+
+    const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+        // `buttons === 1` rather than a "dragging" flag: a mouseup outside the
+        // editor never reaches us, and a stale flag would make plain hovering
+        // select blocks.
+        if (readOnly || event.buttons !== 1 || !dragAnchor.current) return;
+        const over = pathUnder(event.target);
+        if (!over || pathKey(over) === pathKey(dragAnchor.current)) return;
+        selectBlocks(dragAnchor.current, over);
+    };
+
+    /**
+     * The selection's own keyboard handling, in **capture** so it runs before
+     * the editable's — while blocks are selected, Backspace means "delete these
+     * five", not "delete a character".
+     */
+    const handleRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        const modifier = event.metaKey || event.ctrlKey;
+
+        // ⌘A promotes the caret's block to a whole-document selection. The
+        // browser's own select-all stops at one editable, which reads as broken.
+        if (modifier && event.key.toLowerCase() === 'a' && !readOnly) {
+            event.preventDefault();
+            selectAllBlocks();
+            return;
+        }
+        if (selected.length === 0) return;
+
+        if (event.key === KEY.Escape) {
+            event.preventDefault();
+            clearBlockSelection();
+            return;
+        }
+        if (event.key === KEY.Backspace || event.key === KEY.Delete) {
+            event.preventDefault();
+            commands.removeMany(selected);
+            clearBlockSelection();
+            return;
+        }
+        if (!modifier) return;
+
+        const key = event.key.toLowerCase();
+        const mark = SELECTION_MARKS[key];
+        if (mark) {
+            event.preventDefault();
+            commands.toggleMarkMany(selected, mark);
+            return;
+        }
+        if (key === 'c') {
+            event.preventDefault();
+            commands.copyMany(selected);
+            return;
+        }
+        if (key === 'x') {
+            event.preventDefault();
+            commands.cutMany(selected);
+            clearBlockSelection();
+        }
+    };
 
     /** Blur only counts when focus left the editor entirely, not between blocks. */
     const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
@@ -304,6 +435,12 @@ export function WysiwygEditor({
             <div
                 ref={attachRoot}
                 id={id}
+                // Focusable so the block selection has somewhere to put focus
+                // and something to receive its keys — never a tab stop.
+                tabIndex={-1}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onKeyDownCapture={handleRootKeyDown}
                 role="group"
                 aria-label={intl.formatMessage(messages.label)}
                 aria-describedby={describedBy}
@@ -319,6 +456,11 @@ export function WysiwygEditor({
                         : 'rounded-md border',
                     invalid && !toolbar && 'border-destructive',
                     readOnly && 'bg-muted/30',
+                    // While blocks are selected the pointer is choosing blocks,
+                    // not text; letting it also paint a text selection would
+                    // show two competing highlights.
+                    selected.length > 0 && 'select-none',
+                    'focus:outline-none',
                     className
                 )}
             >
