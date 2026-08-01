@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 /**
@@ -7,10 +8,24 @@ import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
  */
 export class LoginDto {
     /** Login email; matched case-insensitively against stored users. */
+    @ApiProperty({
+        type: String,
+        format: 'email',
+        example: 'ada@example.com',
+        description:
+            'Login email, matched case-insensitively against stored users.'
+    })
     @IsEmail()
     email!: string;
 
     /** Plaintext password, verified against the stored bcrypt hash. */
+    @ApiProperty({
+        type: String,
+        format: 'password',
+        minLength: 1,
+        description:
+            'Plaintext password, verified against the stored bcrypt hash. Wrong email and wrong password fail identically (no enumeration signal).'
+    })
     @IsString()
     @IsNotEmpty()
     password!: string;

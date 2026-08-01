@@ -174,7 +174,11 @@ export class ContentTypeRegistry {
                           // An inverse owns no column/table, so onDelete/unique
                           // are inert — report the back-reference instead.
                           ...(spec.relation.inverse
-                              ? { inverse: { field: spec.relation.inverse.field } }
+                              ? {
+                                    inverse: {
+                                        field: spec.relation.inverse.field
+                                    }
+                                }
                               : spec.relation.many
                                 ? {}
                                 : {
@@ -196,6 +200,20 @@ export class ContentTypeRegistry {
     serialize(name: string): SerializedContentType | undefined {
         const type = this.get(name);
         if (!type) return undefined;
+        return this.serializeType(type);
+    }
+
+    /**
+     * Full serialized schema for **every** registered type, in registration
+     * order — the whole model in one read, for a consumer describing the model
+     * itself rather than answering a request (e.g. the OpenAPI pass).
+     */
+    serializeAll(): SerializedContentType[] {
+        return this.all().map((type) => this.serializeType(type));
+    }
+
+    /** Summary + fields of an already-resolved type. */
+    private serializeType(type: AnyContentType): SerializedContentType {
         return {
             ...this.summaryOf(type),
             fields: Object.entries(type.fields).map(([fieldName, spec]) =>

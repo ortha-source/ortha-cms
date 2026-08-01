@@ -47,6 +47,10 @@ export function buildTestConfig(
         port: 0,
         globalPrefix: 'api',
         database: { url: connectionString },
+        // `createTestApp` builds the app itself and never calls `setupApiDocs`,
+        // so this is only here to satisfy the config contract — stated
+        // explicitly so a reader doesn't wonder whether the suites serve docs.
+        docs: { enabled: false },
         plugins: {
             identity: {
                 sessionSecret: 'test-session-secret',

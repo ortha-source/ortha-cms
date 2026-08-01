@@ -355,6 +355,46 @@ order? } }`): inside the create/update transaction `applyDelta` unlinks the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).
 
+## OpenAPI — the types describe themselves (`src/lib/docs/`)
+
+The host generates an OpenAPI document at boot and serves it as a Scalar
+reference. `@nestjs/swagger` reflects **static** TypeScript, and this plugin's
+contract is runtime data: one generic controller set serves every code-defined
+type, so the scanner sees `/content/{typeName}` with an opaque string param and
+no response shape at all. The registry is what knows `article` from `home_page`.
+
+So the plugin describes itself, through `ServerPlugin.docs.decorate` (see
+[`bootstrap-server`](../../bootstrap/server/AGENTS.md)) — `ContentPlugin` closes
+over its registry and hands `registry.serializeAll()` to `describeContentApi`,
+which runs **after** the document is built and amends only the paths this plugin
+owns:
+
+- **A schema trio per registered type**, from the same `SerializedContentType`
+  the admin renders forms from: `<Type>Values` (one property per column-backed
+  field), `<Type>Entry` (the storage envelope around it), `<Type>ListPage`.
+  `article` → `ArticleValues` / `ArticleEntry` / `ArticleListPage`.
+- **`typeName` becomes an enum** of the registered names, so the reference
+  offers a picker instead of a free-text box.
+- **Response schemas** on every content route — `oneOf` the per-type schemas for
+  the entry/list reads (the shape depends on `typeName`, which OpenAPI can't
+  express as a dependency), the fixed shared shapes elsewhere
+  (`EntryRelations`, `RevisionDetail`, `BulkPublishPreview`, `ContentTypeSchema`,
+  …), plus the documented `404` and, on the validated writes, `422`.
+
+Three rules the mapping follows, each mirroring real behavior:
+
+- **Join-backed relations are absent from `Values`** — a many-relation and an
+  inverse own no column, exactly as `toRecord` builds a record. The schema
+  description names them and points at `/relations`.
+- **A publishable type lists no `required`** — required means "required *to
+  publish*", so a draft may legitimately omit a field; a non-publishable type
+  (always live) does list them.
+- **Every property is `nullable`** — an unset field reads back as `null`.
+
+`field-schema.ts` (field spec → JSON Schema) and `describe-content-api.ts` are
+pure and unit-tested; neither touches Nest, the registry, or a live document.
+Adding a field type means extending `valueSchema` there.
+
 ## The `entries` feature — layered (ADR-0003)
 
 The **entries** feature is migrated to the tactical-DDD layering under

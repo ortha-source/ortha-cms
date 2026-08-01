@@ -1,4 +1,11 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import {
+    IsIn,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    MaxLength
+} from 'class-validator';
 import { WORKSPACE_COLORS } from '../../domain/value-objects/workspace-color';
 
 /**
@@ -9,6 +16,12 @@ import { WORKSPACE_COLORS } from '../../domain/value-objects/workspace-color';
  */
 export class UpdateWorkspaceDto {
     /** New display name. */
+    @ApiPropertyOptional({
+        type: String,
+        minLength: 1,
+        maxLength: 120,
+        description: 'New display name.'
+    })
     @IsOptional()
     @IsString()
     @IsNotEmpty()
@@ -16,12 +29,21 @@ export class UpdateWorkspaceDto {
     name?: string;
 
     /** New long description; an empty string clears it. */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 2000,
+        description: 'New long description; an empty string clears it.'
+    })
     @IsOptional()
     @IsString()
     @MaxLength(2000)
     description?: string;
 
     /** New accent color key from the design-system palette. */
+    @ApiPropertyOptional({
+        enum: [...WORKSPACE_COLORS],
+        description: 'New accent color key from the design-system palette.'
+    })
     @IsOptional()
     @IsIn(WORKSPACE_COLORS)
     color?: string;

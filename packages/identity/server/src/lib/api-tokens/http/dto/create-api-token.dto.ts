@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
     IsIn,
     IsISO8601,
@@ -21,16 +22,35 @@ const NAME_MAX_LENGTH = 120;
  */
 export class CreateApiTokenDto {
     /** Human label shown in the admin list. */
+    @ApiProperty({
+        type: String,
+        minLength: 1,
+        maxLength: NAME_MAX_LENGTH,
+        example: 'Marketing site build',
+        description: 'Human label shown in the admin token list.'
+    })
     @IsString()
     @MinLength(1)
     @MaxLength(NAME_MAX_LENGTH)
     name!: string;
 
     /** The single workspace the token may read. */
+    @ApiProperty({
+        type: String,
+        format: 'uuid',
+        description:
+            'The single workspace this token may act in. A token is never cross-workspace.'
+    })
     @IsUUID()
     workspaceId!: string;
 
     /** `read` (read-only) or `full` (content CRUD). */
+    @ApiProperty({
+        enum: [...API_TOKEN_SCOPES],
+        example: 'read',
+        description:
+            'Access level: `read` grants `content:read`; `full` grants the complete content CRUD set.'
+    })
     @IsIn([...API_TOKEN_SCOPES])
     scope!: ApiTokenScope;
 
@@ -38,6 +58,13 @@ export class CreateApiTokenDto {
      * Absolute expiry as an ISO-8601 timestamp. Omit for a token that never
      * expires. The controller rejects a value in the past.
      */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'date-time',
+        example: '2027-01-01T00:00:00.000Z',
+        description:
+            'Absolute expiry (ISO 8601). Omit for a token that never expires; a value in the past is rejected with 400.'
+    })
     @IsOptional()
     @IsISO8601()
     expiresAt?: string;
