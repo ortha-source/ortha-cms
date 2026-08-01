@@ -51,6 +51,23 @@ export interface MemberView {
     workspaces: MemberWorkspaceView[];
 }
 
+/**
+ * A member plus the one-time invite token just issued for them — the response
+ * of `POST /api/users/invites` and `POST /api/users/:id/invites/resend`, and
+ * **only** those two. The list and detail reads return a plain
+ * {@link MemberView}, so a token never leaks into a route that merely displays
+ * members.
+ *
+ * The token is the secret half of the invite link. Only its hash is stored, so
+ * this response is the single moment it exists in readable form — the admin
+ * copies the link from here and delivers it themselves. Once a mailer lands
+ * (identity epic #11) the link is emailed and this field can go.
+ */
+export interface InvitedMemberView extends MemberView {
+    /** The raw invite token, shown to the inviting admin exactly once. */
+    inviteToken: string;
+}
+
 /** One page of members, as returned by `GET /api/users`. */
 export interface MemberListView {
     /** The members on this page. */

@@ -2,11 +2,11 @@ import { type AnyFieldApi } from '@tanstack/react-form';
 import { InputField } from '@ortha-cms/design-system';
 
 /**
- * Props for {@link LoginField}. Adapts a TanStack field to the design-system
+ * Props for {@link AuthField}. Adapts a TanStack field to the design-system
  * {@link InputField}: the parent supplies already-localized `label`/
  * `placeholder` and wires the `field` via its `form.Field` render prop.
  */
-type LoginFieldProps = {
+type AuthFieldProps = {
     /** The TanStack field API from the parent's `form.Field` render prop. */
     field: AnyFieldApi;
     /** Input element id, also used for the label's `htmlFor`. */
@@ -17,26 +17,30 @@ type LoginFieldProps = {
     placeholder: string;
     /** Input type; defaults to `text`. */
     type?: React.HTMLInputTypeAttribute;
-    /** HTML `autocomplete` token (e.g. `email`, `current-password`). */
+    /** HTML `autocomplete` token (e.g. `email`, `new-password`). */
     autoComplete?: React.HTMLInputAutoCompleteAttribute;
     /** Optional label-row content rendered after the label (e.g. a link). */
     labelAction?: React.ReactNode;
+    /** Optional helper text rendered under the input (e.g. a password rule). */
+    description?: React.ReactNode;
 };
 
 /**
  * Form-bound text field: maps TanStack field state onto the design-system
- * {@link InputField} (label, input, validation error). Owns no copy of its
- * own so it can back any login input.
+ * {@link InputField} (label, input, validation error). Owns no copy of its own,
+ * so it backs every field on the auth screens — sign-in and invite accept
+ * alike.
  */
-export function LoginField({
+export function AuthField({
     field,
     id,
     label,
     placeholder,
     type = 'text',
     autoComplete,
-    labelAction
-}: LoginFieldProps) {
+    labelAction,
+    description
+}: AuthFieldProps) {
     const invalid =
         field.state.meta.isTouched && field.state.meta.errors.length > 0;
 
@@ -49,6 +53,7 @@ export function LoginField({
             placeholder={placeholder}
             autoComplete={autoComplete}
             labelAction={labelAction}
+            description={description}
             invalid={invalid}
             errors={invalid ? field.state.meta.errors : undefined}
             value={field.state.value}

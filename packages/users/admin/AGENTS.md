@@ -86,6 +86,23 @@ the route redirects to General. **Preferences is self-only** — it carries the
 current user's own app settings, so it is gated on `useAuth().user.id ===
 member.id` (hidden and route-redirected on anyone else's profile).
 
+## The invite link hand-off
+
+Nothing emails an invite yet (identity epic #11), so the **admin is the delivery
+channel** and the raw token comes back exactly once. Two surfaces exist for that
+one moment, both built on `InviteLinkPanel` (read-only link + copy button +
+a plain warning that whoever opens it becomes that person):
+
+- the invite wizard ends on `InviteSent` instead of redirecting — navigating
+  away before copying would mean resending;
+- **Resend invite** opens `InviteLinkDialog` with the rotated link, because the
+  resend already invalidated whatever link the invitee had.
+
+`inviteLinkFor(token)` builds the URL from `window.location.origin` — the admin
+is already looking at the app on the origin the invitee should use, so there is
+no `publicBaseUrl` to misconfigure and no host header to poison. A server-side
+base URL becomes necessary only when the mailer lands.
+
 ## Conventions
 
 - Every module is a `<name>/index.ts(x)` folder, grouped by layer (ADR-0003):

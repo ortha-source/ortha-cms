@@ -10,6 +10,7 @@ import { SystemRolesSeeder } from './rbac/seeders/system-roles.seeder';
 import { RootAdminService } from './root-admin/services/root-admin.service';
 import { RootAdminSeeder } from './root-admin/seeders/root-admin.seeder';
 import { LoginController } from './auth/controllers/login.controller';
+import { InviteController } from './auth/controllers/invite.controller';
 import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
 import { UserSessionsController } from './auth/controllers/user-sessions.controller';
@@ -24,11 +25,15 @@ import { AccessPolicy } from './domain/access-policy';
 import { SessionPolicy } from './domain/session-policy';
 import { SESSION_REPOSITORY } from './domain/session.repository';
 import { USER_ACCOUNT_REPOSITORY } from './domain/user-account.repository';
+import { INVITE_REPOSITORY } from './domain/invite.repository';
 import { DrizzleSessionRepository } from './infrastructure/persistence/drizzle-session.repository';
 import { DrizzleUserAccountRepository } from './infrastructure/persistence/drizzle-user-account.repository';
+import { DrizzleInviteRepository } from './infrastructure/persistence/drizzle-invite.repository';
 import { UserAccountMapper } from './infrastructure/persistence/user-account.mapper';
 import { UserLookupQuery } from './infrastructure/queries/user-lookup.query';
 import { LoginUseCase } from './application/use-cases/login.use-case';
+import { AcceptInviteUseCase } from './application/use-cases/accept-invite.use-case';
+import { DescribeInviteUseCase } from './application/use-cases/describe-invite.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
@@ -79,6 +84,7 @@ export class IdentityModule {
             ],
             controllers: [
                 LoginController,
+                InviteController,
                 MeController,
                 LogoutController,
                 UserSessionsController,
@@ -110,6 +116,8 @@ export class IdentityModule {
                 LogoutUseCase,
                 RefreshSessionUseCase,
                 ChangePasswordUseCase,
+                DescribeInviteUseCase,
+                AcceptInviteUseCase,
                 AuthService,
                 PreferencesService,
                 HashingService,
@@ -123,6 +131,10 @@ export class IdentityModule {
                 {
                     provide: USER_ACCOUNT_REPOSITORY,
                     useClass: DrizzleUserAccountRepository
+                },
+                {
+                    provide: INVITE_REPOSITORY,
+                    useClass: DrizzleInviteRepository
                 },
                 UserAccountMapper,
                 UserLookupQuery,

@@ -19,13 +19,14 @@ import {
     MemberNotFoundError
 } from '../../domain/errors';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
-import type { MemberView } from '../../application/queries/member.view';
+import type { InvitedMemberView } from '../../application/queries/member.view';
 
 /**
  * `POST /api/users/:id/invites/resend` — rotates a pending member's invite
  * token, invalidating the previously sent link; requires `users:create` (the
  * same permission that issued the invite). 409s when the member is no longer
- * pending.
+ * pending. Returns the member row plus the fresh raw `inviteToken`, so the
+ * admin can hand over the new link (the old one is already dead).
  */
 @UseGuards(PermissionsGuard)
 @RequirePermissions('users:create')
@@ -40,14 +41,14 @@ export class ResendInviteController {
     async resend(
         @CurrentUser() actor: PublicUser,
         @Param('id', ParseUUIDPipe) id: string
-    ): Promise<MemberView> {
+    ): Promise<InvitedMemberView> {
         try {
-            await this.resendInvite.execute(actor, id);
+            const inviteToken = await this.resendInvite.execute(actor, id);
             const view = await this.views.byId(id);
             if (!view) {
                 throw new NotFoundException();
             }
-            return view;
+            return { ...view, inviteToken };
         } catch (error) {
             if (error instanceof MemberNotFoundError) {
                 throw new NotFoundException();

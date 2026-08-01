@@ -1,0 +1,82 @@
+import { useMemo } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
+import { z } from 'zod';
+import {
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH
+} from '../../../domain/value-objects/password';
+
+/**
+ * Intl descriptors for the accept-invite validation copy, co-located with the
+ * schema. Each message says what to do, not just what is wrong.
+ */
+const messages = defineMessages({
+    passwordRequired: {
+        id: 'identity.acceptInvite.passwordRequired',
+        defaultMessage: 'Choose a password to finish setting up your account'
+    },
+    passwordTooShort: {
+        id: 'identity.acceptInvite.passwordTooShort',
+        defaultMessage:
+            'Use at least {min} characters — length is what keeps a password hard to guess'
+    },
+    passwordTooLong: {
+        id: 'identity.acceptInvite.passwordTooLong',
+        defaultMessage: 'Keep it under {max} characters'
+    },
+    confirmRequired: {
+        id: 'identity.acceptInvite.confirmRequired',
+        defaultMessage: 'Type your password once more to confirm it'
+    },
+    confirmMismatch: {
+        id: 'identity.acceptInvite.confirmMismatch',
+        defaultMessage: 'These two passwords don’t match'
+    }
+});
+
+/**
+ * Builds the accept-invite form's Zod schema with localized validation copy.
+ * Rebuilt when the active locale changes so messages stay in sync with the UI.
+ *
+ * Only the password is validated here — the email, name, and role came from the
+ * invite and are not editable, so there is nothing else the invitee could get
+ * wrong. The mismatch error is attached to the confirm field, which is the one
+ * the user should go back and fix.
+ */
+export function useAcceptInviteSchema() {
+    const intl = useIntl();
+
+    return useMemo(
+        () =>
+            z
+                .object({
+                    password: z
+                        .string()
+                        .min(1, {
+                            message: intl.formatMessage(
+                                messages.passwordRequired
+                            )
+                        })
+                        .min(PASSWORD_MIN_LENGTH, {
+                            message: intl.formatMessage(
+                                messages.passwordTooShort,
+                                { min: PASSWORD_MIN_LENGTH }
+                            )
+                        })
+                        .max(PASSWORD_MAX_LENGTH, {
+                            message: intl.formatMessage(
+                                messages.passwordTooLong,
+                                { max: PASSWORD_MAX_LENGTH }
+                            )
+                        }),
+                    confirmPassword: z.string().min(1, {
+                        message: intl.formatMessage(messages.confirmRequired)
+                    })
+                })
+                .refine((values) => values.password === values.confirmPassword, {
+                    message: intl.formatMessage(messages.confirmMismatch),
+                    path: ['confirmPassword']
+                }),
+        [intl]
+    );
+}

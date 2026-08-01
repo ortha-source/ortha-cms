@@ -3,7 +3,8 @@
 The identity **plugin** for the Ortha CMS server. It is the foundational
 package: it answers _"who is this person?"_ (authentication) and _"what are they
 allowed to do?"_ (roles & access control). Invite-only by design — there is no
-public registration.
+public registration; the only route into an account is an admin's invite,
+redeemed through the accept pair below.
 
 It currently defines its **persistence model** — the Drizzle schema in
 `src/lib/schema` (workspaces, workspace_content, users, roles, permissions, memberships, sessions,
@@ -15,7 +16,20 @@ login & logout**: the `auth/` feature (`LoginController`, `MeController`,
 `LogoutController`, plus `AuthService` / `SessionService` / `CookieService`)
 verifies credentials with bcrypt and opens a DB-backed, revocable session
 delivered as an `httpOnly` cookie (#8); logout revokes the presented session
-(per-device, idempotent) and clears the cookie. It also **provisions the root
+(per-device, idempotent) and clears the cookie. It also handles **invite acceptance** — the pair that turns a `pending` row into
+an account that can sign in: `GET /auth/invite/:token` describes who a link is
+for (read-only, so opening it twice is fine) and `POST /auth/invite/accept` sets
+the first credential, activates the account, and returns a session cookie. Both
+are `@Public()` + throttled; accept also passes `OriginGuard`. **Only a password
+is collected** — the email, name, and role were fixed by the inviting admin, and
+the DTO's `forbidNonWhitelisted` rejects any attempt to smuggle a different one.
+Every failure mode (unknown / expired / already-accepted / revoked) raises the
+same `InvalidInviteTokenError` and renders as one bare 404, so the endpoints
+cannot be used to probe for live invites. The one-time guarantee is a
+**conditional** `consumedAt` write in `DrizzleInviteRepository.consume` — of two
+concurrent accepts exactly one gets a row back, so a link can never activate an
+account twice. Issuing invites stays with the users context; identity owns the
+`tokens` table and the redemption. It also **provisions the root
 admin** on boot from host config (`root-admin/`, FR-10): when `rootAdmin` is
 set, `RootAdminService` (driven by `RootAdminSeeder`) idempotently ensures one
 `active` user holding the `admin` role (non-destructive — an existing email is
@@ -47,6 +61,7 @@ New tactical-DDD layers under `src/lib/`, alongside the retained feature folders
 domain/          # framework-free core — the one hard rule below
   user-account.ts                  # UserAccount aggregate (status lifecycle + credential)
   user-account.repository.ts       # UserAccountRepository PORT + USER_ACCOUNT_REPOSITORY
+  invite.repository.ts             # InviteRepository PORT + INVITE_REPOSITORY (find + burn)
   session.ts                       # Session entity (validity, framework-free)
   session-policy.ts                # SessionPolicy (expiry + lastUsedAt throttle rules)
   session.repository.ts            # SessionRepository PORT + SESSION_REPOSITORY
@@ -56,8 +71,10 @@ domain/          # framework-free core — the one hard rule below
   errors/                          # transport-agnostic domain errors
 application/     # orchestration — one use case per state change
   use-cases/                       # login / logout / refresh-session / change-password
+                                   # + describe-invite / accept-invite
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
-  persistence/  # DrizzleUserAccountRepository, UserAccountMapper, DrizzleSessionRepository
+  persistence/  # DrizzleUserAccountRepository, UserAccountMapper, DrizzleSessionRepository,
+                # DrizzleInviteRepository
   queries/      # UserLookupQuery (thin auth/credentials read side)
 ```
 
@@ -98,6 +115,12 @@ lint isn't wired yet — self-enforce it.
 - `SessionRepository` (`SESSION_REPOSITORY`) → `DrizzleSessionRepository` over the
   `sessions` table — the SHA-256-hashed-token store the old `SessionService`
   was, now behind a port and using `SessionPolicy` for expiry.
+- `InviteRepository` (`INVITE_REPOSITORY`) → `DrizzleInviteRepository` over the
+  `invite` rows of `tokens`. Two operations, both on the accept path:
+  `findPendingByTokenHash` (unconsumed **and** unexpired, joined to the user) and
+  `consume` — a single conditional `UPDATE … WHERE consumed_at IS NULL
+RETURNING`, never a read-then-write. The raw token never reaches the port;
+  callers hash it first, like sessions and API tokens.
 
 ### Unit of work + outbox + the audit transition
 
@@ -216,11 +239,11 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       only when empty" rule (a missing binding means zero entries, so the type
       reads as empty). Same inversion as `ACTIVITY_RECORDER`: identity owns the
       ports, the plugin binds them, so the package graph stays acyclic.
-  Non-class feature **data** (e.g. the role matrix) stays at the feature root,
-  not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
-  only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;
-  shared types in `src/lib/types/`. Full rationale lives in the `server-plugin`
-  skill.
+      Non-class feature **data** (e.g. the role matrix) stays at the feature root,
+      not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
+      only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;
+      shared types in `src/lib/types/`. Full rationale lives in the `server-plugin`
+      skill.
 - Always import types with the `type` keyword
 - `experimentalDecorators` and `emitDecoratorMetadata` are enabled
 
@@ -230,6 +253,12 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   **after** `DatabasePlugin` (identity injects the db from that plugin's global
   module)
 - `IdentityPluginConfig` — secrets + session/token settings (public contract)
+- `IDENTITY_CONFIG` / `InjectIdentityConfig()` — the config token, exported
+  because `users-server`'s invite issuer reads `token.inviteTtlSeconds` from it
+  (it previously hard-coded 7 days, silently ignoring the host's setting)
+- `MIN_PASSWORD_LENGTH` / `MAX_PASSWORD_LENGTH` — the credential-length rule
+  (12 … 72). The upper bound is bcrypt's 72-**byte** truncation point: we reject
+  rather than silently truncate, so what the user typed is what protects them
 - `IdentityServerPlugin` — the plugin shape, with `identityConfig` attached
 - `IdentityModule` — global NestJS module; provides config and the RBAC services
   (`RolesService`, `SystemRolesSeeder`)
@@ -321,7 +350,8 @@ proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
-  (#11).
+  (#11). Until then nothing sends an invite link: `users-server` returns the raw
+  token from the mint endpoints and the admin hands the link over.
 - **CLI** — root-admin bootstrap is env/config-driven (`RootAdminService.ensure`
   takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
   interactive CLI / break-glass command is not provided here.

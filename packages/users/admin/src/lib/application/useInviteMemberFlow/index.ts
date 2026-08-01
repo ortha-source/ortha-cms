@@ -1,19 +1,9 @@
-import { useCallback } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useState } from 'react';
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
-import { toast } from '@ortha-cms/design-system';
 import { Email } from '../../domain/value-objects/email';
 import type { MemberRole } from '../../domain/types/member';
+import { inviteLinkFor } from '../../infrastructure/inviteLink';
 import { useInviteMember } from '../useInviteMember';
-
-/** Success-toast copy for the invite use case (co-located with the flow). */
-const messages = defineMessages({
-    sent: {
-        id: 'users.invitePage.sent',
-        defaultMessage: 'Invite sent to {email}'
-    }
-});
 
 /** The fields the invite wizard collects, before the final guard + submit. */
 export type InviteMemberDraft = {
@@ -34,12 +24,20 @@ export type InviteMemberDraft = {
  */
 export type InviteErrorReason = 'taken' | 'failed';
 
+/** A completed invite, and the link the admin now has to deliver. */
+export type SentInvite = {
+    /** The invitee's email, as accepted by the server. */
+    email: string;
+    /** The full invite link, built from the one-time token. */
+    link: string;
+};
+
 /** What {@link useInviteMemberFlow} returns. */
 export type InviteMemberFlow = {
     /**
      * Runs the invite use case: guards the email through the {@link Email} value
-     * object, POSTs via the invite mutation (cache invalidation), then toasts
-     * and navigates to the members list. Rejections are swallowed — the caller
+     * object, POSTs via the invite mutation (cache invalidation), then records
+     * the resulting link in {@link sent}. Rejections are swallowed — the caller
      * reads {@link errorReason} to render the inline alert and let the user
      * retry.
      */
@@ -48,19 +46,28 @@ export type InviteMemberFlow = {
     submitting: boolean;
     /** Why the last submission failed, or `null` when it hasn't. */
     errorReason: InviteErrorReason | null;
+    /**
+     * The invite that was just sent, or `null` while the wizard is still
+     * collecting. Set once, and never re-fetchable — the server returns the raw
+     * token exactly once, so this state is the only copy.
+     */
+    sent: SentInvite | null;
 };
 
 /**
  * The invite-member use-case hook. Orchestrates the wizard's submission — Email
- * VO validation → invite → toast + navigate — so the invite page stays layout +
- * fields and owns none of the flow. The step's continue gate already blocks a
+ * VO validation → invite → the shareable link — so the invite page stays layout
+ * + fields and owns none of the flow. The step's continue gate already blocks a
  * malformed email; the {@link Email} guard here is the last check before the
  * request.
+ *
+ * It deliberately does **not** navigate away on success: nothing emails the
+ * invite yet, so leaving the page would throw away the only copy of the link.
+ * The page shows it instead, and the admin leaves when they are done with it.
  */
 export function useInviteMemberFlow(): InviteMemberFlow {
-    const intl = useIntl();
-    const navigate = useNavigate();
     const invite = useInviteMember();
+    const [sent, setSent] = useState<SentInvite | null>(null);
 
     const submit = useCallback(
         async (draft: InviteMemberDraft): Promise<void> => {
@@ -75,16 +82,16 @@ export function useInviteMemberFlow(): InviteMemberFlow {
                     name: draft.name?.trim() || undefined,
                     workspaceIds: draft.workspaceIds
                 });
-                toast.success(
-                    intl.formatMessage(messages.sent, { email: created.email })
-                );
-                navigate('/users');
+                setSent({
+                    email: created.email,
+                    link: inviteLinkFor(created.inviteToken)
+                });
             } catch {
                 // The page's inline alert (via `errorReason`) explains; the user
                 // can go back, fix the email, and retry.
             }
         },
-        [invite, intl, navigate]
+        [invite]
     );
 
     const errorReason: InviteErrorReason | null = invite.isError
@@ -93,5 +100,5 @@ export function useInviteMemberFlow(): InviteMemberFlow {
             : 'failed'
         : null;
 
-    return { submit, submitting: invite.isPending, errorReason };
+    return { submit, submitting: invite.isPending, errorReason, sent };
 }

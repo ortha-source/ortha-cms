@@ -1,6 +1,7 @@
 import { test as base } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/LoginPage';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { HomePage } from './pages/HomePage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
 import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
@@ -15,6 +16,7 @@ import { MediaFieldPage } from './pages/MediaFieldPage';
 
 interface Fixtures {
     loginPage: LoginPage;
+    acceptInvitePage: AcceptInvitePage;
     homePage: HomePage;
     workspacesPage: WorkspacesPage;
     workspaceSettingsPage: WorkspaceSettingsPage;
@@ -41,6 +43,9 @@ interface Fixtures {
 export const test = base.extend<Fixtures>({
     loginPage: async ({ page }, use) => {
         await use(new LoginPage(page));
+    },
+    acceptInvitePage: async ({ page }, use) => {
+        await use(new AcceptInvitePage(page));
     },
     homePage: async ({ page }, use) => {
         await use(new HomePage(page));

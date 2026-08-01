@@ -4,6 +4,7 @@ import {
     initialsOf
 } from '@ortha-cms/utils-admin';
 import type {
+    InvitedMember,
     Member,
     MemberRole,
     MemberStatus,
@@ -48,6 +49,15 @@ export type MemberResponse = {
     workspaces: MemberWorkspaceResponse[];
 };
 
+/**
+ * A member as returned by the two endpoints that mint an invite token
+ * (`POST /users/invites` and `POST /users/:id/invites/resend`). Identical to
+ * {@link MemberResponse} plus the raw token — the only responses that carry one.
+ */
+export type InvitedMemberResponse = MemberResponse & {
+    inviteToken: string;
+};
+
 /** Maps a workspace from the wire to the admin's presentational shape. */
 function toMemberWorkspace(dto: MemberWorkspaceResponse): MemberWorkspace {
     return {
@@ -77,6 +87,14 @@ export function toMember(dto: MemberResponse): Member {
         isLastAdmin: dto.isLastAdmin,
         workspaces: dto.workspaces.map(toMemberWorkspace)
     };
+}
+
+/**
+ * Maps an invite/resend response to the admin's {@link InvitedMember} — the
+ * mapped member plus the one-time token, carried through verbatim.
+ */
+export function toInvitedMember(dto: InvitedMemberResponse): InvitedMember {
+    return { ...toMember(dto), inviteToken: dto.inviteToken };
 }
 
 /** Whether a wire role key is one of the admin's assignable roles. */

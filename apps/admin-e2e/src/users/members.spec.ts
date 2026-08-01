@@ -1,7 +1,20 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { manyMembers, mockMembers, spyInvite } from '../support/api/members';
+import {
+    DEFAULT_MEMBERS,
+    INVITE_TOKEN,
+    ROTATED_INVITE_TOKEN,
+    manyMembers,
+    mockMembers,
+    spyInvite,
+    spyResendInvite
+} from '../support/api/members';
 import { mockWorkspaces } from '../support/api/workspaces';
+
+/** Alan — the roster's one pending invite, the only member Resend applies to. */
+const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
+    (member) => member.status === 'pending'
+)[0];
 
 /**
  * The Members page (`/users`, `@ortha-cms/users-admin`): rendering the roster,
@@ -79,8 +92,13 @@ test.describe('Members page', () => {
         await membersPage.inviteWorkspace('Marketing site').check();
         await membersPage.sendInvite().click();
 
-        // Back on the list; the invite was sent once.
-        await expect(page).toHaveURL(/\/users$/);
+        // No redirect: the raw token comes back once, so the wizard hands the
+        // link over instead of dropping the admin back on the list.
+        await expect(membersPage.inviteSentHeading()).toBeVisible();
+        await expect(page).toHaveURL(/\/users\/invite$/);
+        await expect(membersPage.inviteLinkField('new@ortha.dev')).toHaveValue(
+            new RegExp(`/identity/accept-invite\\?token=${INVITE_TOKEN}$`)
+        );
         expect(invite.count).toBe(1);
     });
 
@@ -230,5 +248,28 @@ test.describe('Members page', () => {
 
         await expect(membersPage.noAccessText()).toBeVisible();
         await expect(membersPage.search).toHaveCount(0);
+    });
+
+    test('hands over the rotated link when an invite is resent', async ({
+        membersPage,
+        page
+    }) => {
+        const resend = await spyResendInvite(page, PENDING_MEMBER);
+        await membersPage.goto();
+
+        await membersPage.openActions(PENDING_MEMBER.email);
+        await membersPage.menuItem('Resend invite').click();
+
+        // Resending rotates the token, so the old link is already dead — the
+        // dialog exists so the admin leaves with the one that works.
+        await expect(membersPage.inviteLinkDialog()).toBeVisible();
+        await expect(
+            membersPage.inviteLinkField(PENDING_MEMBER.email)
+        ).toHaveValue(
+            new RegExp(
+                `/identity/accept-invite\\?token=${ROTATED_INVITE_TOKEN}$`
+            )
+        );
+        expect(resend.count).toBe(1);
     });
 });

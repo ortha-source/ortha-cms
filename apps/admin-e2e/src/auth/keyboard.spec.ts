@@ -1,5 +1,6 @@
 import { test, expect } from '../support/fixtures';
 import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
+import { mockInvite, spyAcceptInvite } from '../support/api/invites';
 
 /**
  * Keyboard operability of the login flow — the part axe can't check. Avoids
@@ -39,5 +40,49 @@ test.describe('keyboard accessibility', () => {
 
         await expect(page).toHaveURL('/');
         await expect(homePage.heading).toBeVisible();
+    });
+
+    test('an invite can be accepted by keyboard alone', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page);
+        const accept = await spyAcceptInvite(page);
+        await acceptInvitePage.goto('tok_keyboard');
+        // Lazy-loaded behind Suspense — wait for the form before typing.
+        await expect(acceptInvitePage.heading).toBeVisible();
+
+        await acceptInvitePage.password.focus();
+        await acceptInvitePage.password.pressSequentially('a-long-enough-pass');
+        await acceptInvitePage.confirmPassword.focus();
+        await acceptInvitePage.confirmPassword.pressSequentially(
+            'a-long-enough-pass'
+        );
+        await acceptInvitePage.confirmPassword.press('Enter');
+
+        await expect.poll(() => accept.count).toBe(1);
+    });
+
+    test('every accept-invite field is reachable in source order', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+        await expect(acceptInvitePage.heading).toBeVisible();
+
+        // The prefilled name and email are `readOnly`, not `disabled`, so they
+        // stay in the tab order — a screen-reader user has to be able to reach
+        // and read what they are about to sign up as.
+        await page.keyboard.press('Tab');
+        await expect(acceptInvitePage.nameField()).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(acceptInvitePage.emailField()).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(acceptInvitePage.password).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(acceptInvitePage.confirmPassword).toBeFocused();
     });
 });

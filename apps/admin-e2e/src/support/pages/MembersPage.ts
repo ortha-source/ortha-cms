@@ -125,6 +125,42 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Send invite' });
     }
 
+    // --- the invite link hand-off (wizard success step + resend dialog) ---
+
+    /**
+     * The wizard's success heading, shown in place of the form once the invite
+     * exists. The wizard deliberately does **not** redirect: the raw token comes
+     * back once, so leaving the page before copying it means resending.
+     */
+    inviteSentHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: /^Invite created for/
+        });
+    }
+
+    /**
+     * The read-only field holding the shareable invite link. Scoped by its
+     * accessible name so it works in both places the panel appears — the
+     * wizard's success step and the resend dialog.
+     */
+    inviteLinkField(email: string): Locator {
+        return this.page.getByRole('textbox', {
+            name: `Invite link for ${email}`
+        });
+    }
+
+    /** The panel's copy-to-clipboard control. */
+    copyInviteLink(): Locator {
+        return this.page.getByRole('button', { name: 'Copy link' });
+    }
+
+    /** The dialog a resend opens, carrying the rotated link. */
+    inviteLinkDialog(): Locator {
+        return this.page.getByRole('dialog').filter({
+            hasText: /Send this link to/
+        });
+    }
+
     // --- detail navigation ---
 
     /** A member's name rendered as a link to their detail page. */

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_246 test cases across 30 spec files._
+_265 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -64,8 +64,32 @@ _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
 | login page — initial |
 | login page — required-field errors visible |
 | login page — credential-error banner visible |
+| accept-invite page — form ready |
+| accept-invite page — validation errors visible |
+| accept-invite page — submission-error banner visible |
+| accept-invite page — dead link |
 | home page |
 | root loader — auth probe pending |
+
+<!-- source: apps/admin-e2e/src/auth/accept-invite.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/accept-invite.spec.ts</sub>_
+
+## accept an invite
+
+| Test case |
+| --- |
+| shows who the invite is for and asks only for a password |
+| omits the name field when the invite carries none |
+| posts the token with the password and lands in the app |
+| blocks a too-short password client-side, sending no request |
+| blocks a mismatched confirmation, sending no request |
+| flags both empty fields on submit |
+| explains a link that died while the form was open |
+| explains a password the server rejected |
+| shows the dead-link state for a rejected token |
+| tells a truncated link apart from a dead one |
+| announces the lookup while it is in flight |
+| disables the submit button while the request is in flight |
 
 <!-- source: apps/admin-e2e/src/auth/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
@@ -76,6 +100,8 @@ _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
 | --- |
 | the email field is the first focus stop |
 | login can be completed and submitted by keyboard alone |
+| an invite can be accepted by keyboard alone |
+| every accept-invite field is reachable in source order |
 
 <!-- source: apps/admin-e2e/src/auth/login.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/login.spec.ts</sub>_
@@ -460,6 +486,7 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | renders the role as a read-only chip |
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
+| hands over the rotated link when an invite is resent |
 
 <!-- source: apps/admin-e2e/src/users/preferences.spec.ts -->
 _<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_

@@ -1,4 +1,5 @@
 import type {
+    InvitedMember,
     Member,
     MemberList,
     MemberRole
@@ -75,10 +76,18 @@ export type MemberGateway = {
     list(params: MembersListParams): Promise<MemberList>;
     /** Fetches one member's full record via `GET /api/users/:id`. */
     get(id: string): Promise<Member>;
-    /** Invites a person via `POST /api/users/invites` (`409` = email taken). */
-    invite(input: InviteMemberInput): Promise<Member>;
-    /** Rotates a pending invite via `POST /api/users/:id/invites/resend`. */
-    resendInvite(id: string): Promise<Member>;
+    /**
+     * Invites a person via `POST /api/users/invites` (`409` = email taken).
+     * Resolves with the new member **and** their one-time invite token — the
+     * only moment it is readable, since no mailer sends the link yet.
+     */
+    invite(input: InviteMemberInput): Promise<InvitedMember>;
+    /**
+     * Rotates a pending invite via `POST /api/users/:id/invites/resend`,
+     * resolving with the member and the fresh token. Rotating kills the
+     * previous link, so the new one has to reach the invitee.
+     */
+    resendInvite(id: string): Promise<InvitedMember>;
     /** Revokes a pending invite via `DELETE /api/users/:id/invites`. */
     revokeInvite(id: string): Promise<void>;
     /** Edits name/role via `PATCH /api/users/:id` (`409` = last admin). */

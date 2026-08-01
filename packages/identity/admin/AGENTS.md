@@ -3,7 +3,8 @@
 The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpart
 to [`@ortha-cms/identity-server`](../server/AGENTS.md). It contributes the
 identity screens into the admin host. It ships the **login UI** at
-`/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`) and
+`/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`), the
+**accept-invite UI** at `/identity/accept-invite?token=…`, and
 **owns the entire admin auth kit**: the auth context (`AuthState`, `useAuth`,
 `AuthProviderContext`), the `AuthProvider` that fetches `GET /api/auth/me`
 (`useCurrentUser`) and publishes the current user, and the `RequireAuth` route
@@ -11,7 +12,7 @@ gate. None of these are contributed to the host via a slot — the host is
 auth-agnostic; the **shell** (`@ortha-cms/shell-admin`) imports `AuthProvider` +
 `RequireAuth` and composes them into its `layout`. A successful sign-in refreshes
 that state and returns the user to where `RequireAuth` sent them (or `/`). The
-plugin's only `bootstrap-admin` reference is the `AdminPlugin` *type*.
+plugin's only `bootstrap-admin` reference is the `AdminPlugin` _type_.
 User/role/access screens and logout land in later tickets (epic #3).
 
 ## Layout — layered (ADR-0003)
@@ -20,8 +21,9 @@ This plugin is **layered (tactical DDD)** — a light application of the shape,
 proportionate to its small surface (it has no client domain rules; the server
 owns auth). `src/lib` is organized into:
 
-- **`domain/`** — an `Email` value object for instant login-field validation
-  (the only client-side rule). Pure TS, no React.
+- **`domain/`** — an `Email` value object for instant login-field validation and
+  a `Password` one carrying the length rule the accept form mirrors from the
+  server. Pure TS, no React.
 - **`infrastructure/`** — the `authGateway` port + `httpAuthGateway`
   implementation (the sole `apiClient` user: login, logout, current-user).
 - **`application/`** — the data hooks (`useLoginMutation` / `useLogoutMutation` /
@@ -76,9 +78,12 @@ owns auth). `src/lib` is organized into:
 - `IdentityRouter` — the plugin's nested router (auth sub-routes); lazy-loads
   `LoginPage` behind a `Suspense` boundary so its chunk loads only at
   `/identity/signin`
-- `LoginForm` / `AuthLayout` — the login UI pieces. `LoginPage` is **not**
-  re-exported: it is consumed only via the router's dynamic `import()`, and a
-  static re-export would defeat the code split
+- `LoginForm` / `AcceptInviteForm` / `AuthLayout` — the auth UI pieces.
+  `LoginPage` and `AcceptInvitePage` are **not** re-exported: they are consumed
+  only via the router's dynamic `import()`, and a static re-export would defeat
+  the code split
+- `PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH` — the client-side mirror of the
+  server's credential rule
 - `AuthProvider` — fetches `/api/auth/me` and publishes auth state; the shell
   wraps it around `RequireAuth` in its `layout`
 - `RequireAuth` — the route gate; redirects to `/identity/signin` while
@@ -103,8 +108,11 @@ owns auth). `src/lib` is organized into:
   assembled by the host in `apps/admin/src/main.tsx`.
 - **Nested routing.** The plugin contributes one wildcard route `/identity/*`
   whose element is `IdentityRouter`, a `react-router-dom` `<Routes>` that owns
-  the sub-paths (`signin`, with `/identity` → `/identity/signin`). New auth
-  pages (signup, invite) are added inside that router, not the host.
+  the sub-paths (`signin` and `accept-invite`, with `/identity` →
+  `/identity/signin`). New auth pages (signup, password reset) are added inside
+  that router, not the host. `accept-invite` takes its token from the **query
+  string** (`?token=…`), never a path segment, so the secret is not part of a
+  route pattern.
 - **Presentation vs. container.** `LoginForm` is presentation only: it manages
   field state with TanStack Form and delegates submission to an
   `onSubmit(credentials)` prop, with `isPending`/`error` props driving the button
@@ -121,6 +129,16 @@ owns auth). `src/lib` is organized into:
   the invalid-credentials message. `apiClient`/`queryClient` live in the shared
   library (the host mounts the query provider). The cookie is reached same-origin
   via the admin dev proxy (`/api` → the API).
+- **Accept-invite.** `AcceptInvitePage` resolves the token via `useInvite`
+  (`GET /api/auth/invite/:token`) and renders one of three states: a skeleton, a
+  dead-link card (`InviteUnavailable` — the server returns one generic 404 for
+  unknown/expired/used, so the UI has exactly one failure shape, plus a distinct
+  message when the URL carried no token at all), or `AcceptInviteForm`. The form
+  collects **only a password, twice**: the invite's email and name render as
+  `readOnly` fields — not `disabled`, so they stay focusable and announced —
+  because letting someone edit the email on the way in would let them claim an
+  identity that was never invited. On success the server has already set the
+  session cookie, so the page invalidates `currentUserKey` and navigates to `/`.
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
 

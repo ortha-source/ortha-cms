@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_387 test cases across 34 spec files._
+_407 test cases across 35 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -79,6 +79,46 @@ _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
 | revokes a token |
 | gates management on the tokens permissions |
 | requires authentication |
+
+<!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_
+
+## accept an invite
+
+### the invite response
+
+| Test case |
+| --- |
+| hands the raw token back exactly once, on invite |
+
+### GET /api/auth/invite/:token
+
+| Test case |
+| --- |
+| describes who the invite is for, with no session |
+| leaks nothing beyond the email and name |
+| does not consume the token — the link survives a page refresh |
+| 404s an unknown token |
+| 404s an expired token |
+| 404s a token whose invite was revoked |
+
+### POST /api/auth/invite/accept
+
+| Test case |
+| --- |
+| activates the account, sets the credential, and signs the invitee in |
+| keeps the role the admin chose — the invitee cannot pick their own |
+| lets the invitee log in with the password they chose |
+| burns the token — the same link cannot be used twice |
+| rejects only one of two concurrent accepts of the same link |
+| 404s an expired token |
+| 404s an unknown token, without hinting that it is unknown |
+| stops working once the invite is resent (the link rotated) |
+| 400s a password under the minimum length |
+| 400s a password past bcrypt’s 72-byte ceiling rather than truncating it |
+| 400s when the confirmation does not match |
+| rejects a request from a disallowed origin (CSRF defense) |
+| 404s an invite for an account that is already active |
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_

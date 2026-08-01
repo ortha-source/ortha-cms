@@ -1,6 +1,3 @@
-/** How long an invite token stays valid. */
-export const INVITE_TOKEN_TTL_DAYS = 7;
-
 /** Default page size for `GET /api/users`. */
 export const DEFAULT_PAGE_SIZE = 10;
 

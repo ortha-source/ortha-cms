@@ -16,10 +16,23 @@ const LoginPage = lazy(() =>
 );
 
 /**
+ * Accept-invite page, split for the same reason and then some: hardly anyone
+ * loads it, and those who do load it exactly once.
+ */
+const AcceptInvitePage = lazy(() =>
+    import('../pages/AcceptInvitePage').then((module) => ({
+        default: module.AcceptInvitePage
+    }))
+);
+
+/**
  * Identity plugin router. Renders the auth sub-routes; mounted by the plugin
- * under the `/identity` base path (see {@link IdentityPlugin}). The lazy login
- * page is wrapped in a `Suspense` boundary that shows the {@link LoginSkeleton}
- * while its chunk loads.
+ * under the `/identity` base path (see {@link IdentityPlugin}). The lazy pages
+ * are wrapped in a `Suspense` boundary that shows the {@link LoginSkeleton}
+ * while their chunk loads.
+ *
+ * `accept-invite` takes its token from the query string (`?token=…`) rather
+ * than a path segment, so the secret never becomes part of a route pattern.
  */
 export function IdentityRouter() {
     return (
@@ -27,6 +40,7 @@ export function IdentityRouter() {
             <Routes>
                 <Route index element={<Navigate to="signin" replace />} />
                 <Route path="signin" element={<LoginPage />} />
+                <Route path="accept-invite" element={<AcceptInvitePage />} />
             </Routes>
         </Suspense>
     );

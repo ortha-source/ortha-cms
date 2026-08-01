@@ -12,11 +12,16 @@ admin's Members page drives. Exposes, under `/api/users`:
 - `POST /users/invites` — invite by email: creates a `pending` user + invite
   token, and optionally links the new member to `workspaceIds` (memberships;
   unknown ids are ignored). **No email is sent yet** (`TODO(users-email)`,
-  identity epic #11).
+  identity epic #11), so the response is an `InvitedMemberView` — the member row
+  plus the raw `inviteToken`, returned **once** for the admin to turn into a
+  link. Only its hash is stored; the list and detail reads never carry it.
 - `PATCH /users/:id` — edit display name and/or role.
 - `POST /users/:id/disable` / `POST /users/:id/enable` — flip account status;
   disabling also revokes the member's live sessions.
-- `POST /users/:id/invites/resend` — rotate a pending member's invite token.
+- `POST /users/:id/invites/resend` — rotate a pending member's invite token,
+  returning the fresh one the same reveal-once way. Rotation kills the link the
+  invitee may already hold, so handing the new one over is the rest of the
+  operation, not a nicety.
 - `DELETE /users/:id/invites` — revoke a pending invite by deleting the
   placeholder row (cascades drop token + memberships). Real accounts are
   **never deleted** through this API.
@@ -48,7 +53,7 @@ infrastructure/  # adapters — the only layer that knows Drizzle/pg
                 # DrizzleSessionRevoker, DrizzleWorkspaceLinker
   queries/      # MemberViewQuery (the paginated list + byId read model)
 http/            # thin controllers (routes/permissions/error-mapping unchanged)
-member.constants.ts                # page sizes, invite TTL, filter length cap
+member.constants.ts                # page sizes, filter length cap
 ```
 
 ## The one hard rule
@@ -67,7 +72,7 @@ application layer via ports, not owned here. Every state change goes through a
 method that enforces the invariants and (for the primary transitions) raises a
 domain event. Invariants guarded here:
 
-- **last-admin protection** — the last remaining *active admin* can be neither
+- **last-admin protection** — the last remaining _active admin_ can be neither
   demoted (`changeRole`) nor disabled (`disable`); the current admin count is
   supplied by the application under a lock and the aggregate decides;
 - **lifecycle validity** — only `active` disables, only `disabled` enables, only
@@ -127,10 +132,20 @@ same strings.
   (and, for `workspaces`/`memberships`, `@ortha-cms/workspaces-server`).
 - Authorization: identity's `PermissionsGuard` bound per controller with
   `@RequirePermissions('users:read' | 'users:create' | 'users:update' |
-  'users:delete')`. Authentication is identity's global `AuthGuard`.
+'users:delete')`. Authentication is identity's global `AuthGuard`.
 - Module is **not** global and exports nothing; every provider is private.
 - `InviteTokenService` mirrors identity's hashing convention: only the SHA-256
   of an invite token is stored; rotation keeps at most one live invite per user.
+  Two properties are load-bearing:
+    - **Lifetime comes from config** — identity's `token.inviteTtlSeconds`, via
+      the exported `InjectIdentityConfig()`. It used to hard-code 7 days, so a
+      deployment setting `INVITE_TTL_SECONDS` silently got nothing.
+    - **Rotation takes a per-user advisory lock** (`pg_advisory_xact_lock`,
+      namespaced + `hashtext(userId)`). Without it two concurrent resends can
+      each take their `DELETE` snapshot before the other's `INSERT` commits,
+      leaving two live links where the contract promises one.
+      Redeeming a token is **not** here — identity owns the `tokens` table and the
+      accept endpoints; this context only decides who gets invited.
 
 ## Commands
 
