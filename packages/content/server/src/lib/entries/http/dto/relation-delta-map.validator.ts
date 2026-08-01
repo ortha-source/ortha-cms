@@ -20,10 +20,10 @@ const DELTA_KEYS = ['link', 'unlink', 'order'] as const;
  * for a realistic drag-reorder of a scrolled-open relation, finite enough to
  * reject a pathological payload.
  */
-const MAX_DELTA_IDS = 1000;
+export const MAX_DELTA_IDS = 1000;
 
 /** Max relation fields one save may touch (a bound on the map's key count). */
-const MAX_DELTA_FIELDS = 100;
+export const MAX_DELTA_FIELDS = 100;
 
 /**
  * A key is valid when absent or an array of at most {@link MAX_DELTA_IDS} uuid
@@ -64,8 +64,7 @@ export class RelationDeltaMapConstraint
             // reached by the global whitelist pipe, so enforce it here.
             if (
                 Object.keys(record).some(
-                    (key) =>
-                        !(DELTA_KEYS as readonly string[]).includes(key)
+                    (key) => !(DELTA_KEYS as readonly string[]).includes(key)
                 )
             )
                 return false;

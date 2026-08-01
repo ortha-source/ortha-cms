@@ -62,6 +62,10 @@ package; the admin app's Vite transpiles the design-system source directly.
 ## Commands
 
 - `npx nx <typecheck|build|lint|test|serve> <project>`
+- **API reference** — a running server serves the generated OpenAPI document as
+  a Scalar reference on `http://localhost:3000/reference` (raw JSON at
+  `/reference/json`). On outside production; `API_DOCS=true|false` overrides.
+  See [`packages/bootstrap/server/AGENTS.md`](packages/bootstrap/server/AGENTS.md)
 - `npx nx sync` — run after changing cross-project dependencies (updates TS project references)
 - **Database / migrations** (provided by `@ortha-cms/nx`; needs a `.env` with
   `DATABASE_URL`, and Postgres via `docker compose up -d`):

@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 /**
@@ -8,6 +9,14 @@ import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
  */
 export class AddWorkspaceContentDto {
     /** The code-defined content-type slug to grant. */
+    @ApiProperty({
+        type: String,
+        minLength: 1,
+        maxLength: 120,
+        example: 'article',
+        description:
+            'The code-defined content-type slug to grant. Its kind (collection/single) is resolved from the catalogue server-side; an unknown slug is rejected.'
+    })
     @IsString()
     @IsNotEmpty()
     @MaxLength(120)

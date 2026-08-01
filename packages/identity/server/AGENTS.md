@@ -251,7 +251,10 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
 
 - `IdentityPlugin(config)` — factory returning a `ServerPlugin`; register it
   **after** `DatabasePlugin` (identity injects the db from that plugin's global
-  module)
+  module). Its `docs` contribution declares the API's two security schemes —
+  `session` (the `ortha_session` cookie) and `apiToken` (bearer) — which the
+  host merges into the OpenAPI document; identity owns authentication, so it
+  owns their description too
 - `IdentityPluginConfig` — secrets + session/token settings (public contract)
 - `IDENTITY_CONFIG` / `InjectIdentityConfig()` — the config token, exported
   because `users-server`'s invite issuer reads `token.inviteTtlSeconds` from it

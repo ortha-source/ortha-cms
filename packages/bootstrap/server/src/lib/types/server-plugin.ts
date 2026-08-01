@@ -1,4 +1,6 @@
 import type { DynamicModule, Type } from '@nestjs/common';
+import type { ApiDocsOptions } from './api-docs';
+import type { PluginApiDocs } from './plugin-api-docs';
 
 /**
  * Contract every server-side plugin must implement. A plugin is just a
@@ -28,6 +30,12 @@ export interface ServerPlugin {
         /** Tracking table isolating this plugin's migration history. */
         table: string;
     };
+    /**
+     * Optional contribution to the host's OpenAPI document — the security
+     * schemes this plugin's guards accept. The host merges every plugin's
+     * contribution before generating the document.
+     */
+    docs?: PluginApiDocs;
 }
 
 /** Options for {@link createServer}. */
@@ -38,4 +46,9 @@ export interface CreateServerOptions {
     port?: number;
     /** Global API prefix. Defaults to "api". */
     globalPrefix?: string;
+    /**
+     * OpenAPI document + Scalar API reference settings. Omitted, the reference
+     * is served on `/reference` outside production.
+     */
+    docs?: ApiDocsOptions;
 }
