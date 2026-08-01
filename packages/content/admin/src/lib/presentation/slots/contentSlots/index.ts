@@ -480,5 +480,6 @@ export type AssetPickerItem = {
  * `@ortha-cms/media-admin`; with nothing registered the field simply doesn't
  * show a "choose from library" button, and a pasted URL still works.
  */
-export const ASSET_PICKER_SLOT =
-    createSlot<AssetPickerItem>('content.assetPicker');
+export const ASSET_PICKER_SLOT = createSlot<AssetPickerItem>(
+    'content.assetPicker'
+);

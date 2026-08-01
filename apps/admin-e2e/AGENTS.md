@@ -71,6 +71,16 @@ the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
 - **The submit button's name changes.** Idle it reads "Login"; while submitting
   the label is the `sr-only` "Signing in…". `LoginPage.submit` matches either
   (`name: /Login|Signing in/`) so one handle works across both states.
+- **An open Radix menu hides the rest of the page from role locators.** While a
+  `DropdownMenu` is open, Radix marks everything outside it `aria-hidden`, so
+  every `getByRole` locator — including the one for the surface the menu acts on
+  — resolves to nothing. Reading the page straight after clicking a menu item
+  races the close animation and sees an empty document. Click **and wait for the
+  menu to go**, as `WysiwygFieldPage.chooseMenuItem` does.
+- **A field's validation message appears twice** on the entry editor: once as the
+  field's own error, and once in the Properties rail's publish gate. An
+  unqualified `getByText` is a strict-mode violation — scope it (the wysiwyg page
+  object's `fieldError` narrows to the General panel).
 
 ## Commands
 

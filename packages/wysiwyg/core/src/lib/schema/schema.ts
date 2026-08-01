@@ -32,7 +32,8 @@ export function createBlockSchema(
     definitions: readonly BlockDefinition[]
 ): BlockSchema {
     const byType = new Map<string, BlockDefinition>();
-    for (const definition of definitions) byType.set(definition.type, definition);
+    for (const definition of definitions)
+        byType.set(definition.type, definition);
     const resolved = [...byType.values()];
 
     return {

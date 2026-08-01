@@ -128,10 +128,7 @@ export function useEditorDocument({
     );
 
     const commit = useCallback(
-        (
-            next: readonly WysiwygBlock[],
-            mode: HistoryMode = HISTORY.Push
-        ) => {
+        (next: readonly WysiwygBlock[], mode: HistoryMode = HISTORY.Push) => {
             if (mode !== HISTORY.Skip) {
                 const now = Date.now();
                 const previous = current.current;

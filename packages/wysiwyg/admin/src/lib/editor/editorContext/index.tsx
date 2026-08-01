@@ -105,7 +105,9 @@ export function EditorProvider({
     children: ReactNode;
 }) {
     return (
-        <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+        <EditorContext.Provider value={value}>
+            {children}
+        </EditorContext.Provider>
     );
 }
 

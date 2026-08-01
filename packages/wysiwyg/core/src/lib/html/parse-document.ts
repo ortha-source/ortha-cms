@@ -148,12 +148,17 @@ function elementToBlocks(
     }
 
     const definition = schema.matchElement(element);
-    if (definition) return toBlockList(buildBlock(definition, element, context));
+    if (definition)
+        return toBlockList(buildBlock(definition, element, context));
 
     // An unrecognized container (a stray `<div>` from a paste) contributes its
     // *contents*, not itself — otherwise a wrapper nobody asked for would eat
     // the blocks inside it.
-    if (element.children.some((child) => isElement(child) && !INLINE_TAGS.has(child.tag))) {
+    if (
+        element.children.some(
+            (child) => isElement(child) && !INLINE_TAGS.has(child.tag)
+        )
+    ) {
         return nodesToBlocks(element.children, schema);
     }
     const html = inlineOf(element.children);

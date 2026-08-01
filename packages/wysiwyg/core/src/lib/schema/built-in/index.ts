@@ -11,11 +11,7 @@ import {
     paragraphBlock,
     quoteBlock
 } from './text-blocks';
-import {
-    bulletedListBlock,
-    numberedListBlock,
-    todoBlock
-} from './list-blocks';
+import { bulletedListBlock, numberedListBlock, todoBlock } from './list-blocks';
 import { dividerBlock, embedBlock, imageBlock } from './media-blocks';
 import {
     codeBlock,
@@ -23,11 +19,7 @@ import {
     columnsBlock,
     toggleBlock
 } from './structure-blocks';
-import {
-    tableBlock,
-    tableCellBlock,
-    tableRowBlock
-} from './table-blocks';
+import { tableBlock, tableCellBlock, tableRowBlock } from './table-blocks';
 
 /** Every built-in definition, in match-priority order. */
 export const DEFAULT_BLOCK_DEFINITIONS = [

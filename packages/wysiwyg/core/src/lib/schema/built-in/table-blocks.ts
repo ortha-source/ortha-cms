@@ -21,10 +21,7 @@
 import { isElement, type HtmlElement, type HtmlNode } from '../../html/node';
 import { createBlock } from '../../document/factory';
 import type { WysiwygBlock } from '../../document/types';
-import type {
-    BlockDefinition,
-    BlockParseContext
-} from '../block-definition';
+import type { BlockDefinition, BlockParseContext } from '../block-definition';
 import { BLOCK_GROUP, BLOCK_TYPE } from '../block-types';
 
 /** Whether a row is a header row — every cell in it is a `<th>`. */
@@ -79,7 +76,8 @@ export const tableBlock: BlockDefinition = {
         const head = isHeaderRow(rows[0]) ? rows[0] : null;
         const body = head ? rows.slice(1) : rows;
         const thead = head ? `<thead>${ctx.children([head])}</thead>` : '';
-        const tbody = body.length > 0 ? `<tbody>${ctx.children(body)}</tbody>` : '';
+        const tbody =
+            body.length > 0 ? `<tbody>${ctx.children(body)}</tbody>` : '';
         return `<table>${thead}${tbody}</table>`;
     },
     fromHtml: (element, ctx) => {
@@ -171,8 +169,9 @@ function squared(
     return rows.map((row) => {
         if (row.children.length === width) return row;
         const header = isHeaderRow(row);
-        const padding = Array.from({ length: width - row.children.length }, () =>
-            ctx.block(BLOCK_TYPE.TableCell, { attrs: { header } })
+        const padding = Array.from(
+            { length: width - row.children.length },
+            () => ctx.block(BLOCK_TYPE.TableCell, { attrs: { header } })
         );
         return { ...row, children: [...row.children, ...padding] };
     });

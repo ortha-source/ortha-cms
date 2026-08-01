@@ -10,10 +10,7 @@
  */
 
 import { htmlTextLength } from '@ortha-cms/wysiwyg-core';
-import {
-    CONTENT_FIELD_TYPE,
-    isEmptyFieldValue
-} from '../fields/field-type';
+import { CONTENT_FIELD_TYPE, isEmptyFieldValue } from '../fields/field-type';
 import type { EntryFieldSpec, EntryFieldSpecMap } from '../fields/field-spec';
 import type { ValidationIssue, ValidationResult } from './validation-result';
 

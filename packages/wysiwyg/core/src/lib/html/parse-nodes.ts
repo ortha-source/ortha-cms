@@ -86,7 +86,11 @@ export function parseHtmlNodes(html: string): HtmlNode[] {
             // Consume the raw body so its content can never look like markup.
             const close = html.toLowerCase().indexOf(`</${tag}`, index);
             const body = html.slice(index, close === -1 ? html.length : close);
-            const element: OpenElement = { tag, attrs: parsed.attrs, children: [] };
+            const element: OpenElement = {
+                tag,
+                attrs: parsed.attrs,
+                children: []
+            };
             if (body) element.children.push({ kind: 'text', text: body });
             top().children.push(finalize(element));
             if (close === -1) {

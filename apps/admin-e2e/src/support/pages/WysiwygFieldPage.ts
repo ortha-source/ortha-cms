@@ -1,0 +1,317 @@
+import { type Locator, type Page } from '@playwright/test';
+import { BasePage } from './BasePage';
+
+/**
+ * Page object for the entry editor's **`wysiwyg` field** — the block editor from
+ * `@ortha-cms/wysiwyg-admin`: a preview card in the form that expands to take
+ * over the whole work area, the persistent toolbar, the slash menu, per-block
+ * menus, tables, and the image block's media-library trigger.
+ *
+ * Seed with `mockSignedIn`, `mockWorkspaces`, the `WYSIWYG_*` content mocks
+ * (their schema is what puts the field on the General tab), and — for the image
+ * block's library trigger — `mockMediaApi`.
+ *
+ * Two things worth knowing before adding a case here:
+ *
+ * - **The expanded editor is a portal, not a modal.** The form is still in the
+ *   DOM (hidden), so a locator for a form field resolves either way — assert
+ *   visibility, never presence.
+ * - **Every block is its own `role="textbox"`**, named after its type ("Text
+ *   block", "Heading 1", "Row 2, column 1"). There is no single editable to
+ *   fill, which is why {@link block} takes an index.
+ */
+export class WysiwygFieldPage extends BasePage {
+    /** The expanded editor's region — `<label> — editing`. */
+    readonly region: Locator;
+    /** The block editor itself, inside the region. */
+    readonly editor: Locator;
+    /** The persistent toolbar, shown only when the editor owns the work area. */
+    readonly toolbar: Locator;
+    /** The slash command palette. */
+    readonly slashMenu: Locator;
+
+    constructor(page: Page) {
+        super(page);
+        this.region = page.getByRole('region', { name: 'Body — editing' });
+        this.editor = page.getByRole('group', { name: 'Rich text editor' });
+        this.toolbar = page.getByRole('toolbar', { name: 'Editor toolbar' });
+        this.slashMenu = page.getByRole('listbox');
+    }
+
+    /** Open the create editor for the seeded `article` collection. */
+    async gotoNewArticle(workspaceId: string) {
+        await this.page.goto(`/workspaces/${workspaceId}/content/article/new`);
+    }
+
+    /** Open an existing record's editor. */
+    async gotoArticle(workspaceId: string, entryId: string) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/article/${entryId}`
+        );
+    }
+
+    // --- the form side -------------------------------------------------------
+
+    /**
+     * The field's preview card — a button naming the document's own title, or
+     * the field label until the document has a heading.
+     */
+    previewCard(title = 'Body'): Locator {
+        return this.page.getByRole('button', {
+            name: `Open ${title} in the full editor`
+        });
+    }
+
+    /** The preview's empty state, before anything is written. */
+    get previewEmpty(): Locator {
+        return this.page.getByText('Nothing written yet');
+    }
+
+    /** The word count beside the label, in the form and in the editor header. */
+    wordCount(text: string): Locator {
+        return this.page.getByText(text, { exact: true });
+    }
+
+    /**
+     * The field's validation message **in the form**. Scoped, because the same
+     * sentence also appears in the Properties rail's publish gate — a strict
+     * locator would match both.
+     */
+    fieldError(message: string | RegExp): Locator {
+        return this.page.getByLabel('General').getByText(message);
+    }
+
+    /** The record title input — required, so a save needs it filled. */
+    get title(): Locator {
+        return this.page.getByRole('textbox', { name: 'Title' });
+    }
+
+    /** The editor's primary action (label varies by type/state). */
+    get save(): Locator {
+        return this.page.getByRole('button', {
+            name: /^(Save|Save draft|Save & publish|Publish)$/
+        });
+    }
+
+    /** Expand the field into the work area. */
+    async expand() {
+        await this.previewCard().click();
+        await this.editor.waitFor();
+    }
+
+    /** Collapse back to the form via the header's Done button. */
+    async collapse() {
+        await this.page.getByRole('button', { name: 'Done' }).click();
+        await this.editor.waitFor({ state: 'hidden' });
+    }
+
+    // --- blocks --------------------------------------------------------------
+
+    /**
+     * One block's editable, by position among blocks of that type. Blocks are
+     * named after what they are, so `block('Text block', 1)` is the second
+     * paragraph.
+     */
+    block(name: string, index = 0): Locator {
+        return this.editor.getByRole('textbox', { name }).nth(index);
+    }
+
+    /** Every block row's rendered text, in document order. */
+    async blockTexts(): Promise<string[]> {
+        return this.editor.locator('[data-block-path]').allInnerTexts();
+    }
+
+    /** Type into a block, placing the caret at its end first. */
+    async typeInto(block: Locator, text: string) {
+        await block.click();
+        await this.page.keyboard.press('End');
+        await this.page.keyboard.type(text);
+    }
+
+    /** Type at the caret, wherever it currently is. */
+    async type(text: string) {
+        await this.page.keyboard.type(text);
+    }
+
+    /** Press a key at the caret (`Enter`, `Tab`, `Escape`, `ControlOrMeta+b`). */
+    async press(key: string) {
+        await this.page.keyboard.press(key);
+    }
+
+    /**
+     * Write a run of paragraphs from the first block down, one Enter apart —
+     * the setup every block-selection case needs.
+     */
+    async writeParagraphs(...texts: readonly string[]) {
+        await this.block('Text block').click();
+        for (const [index, text] of texts.entries()) {
+            if (index > 0) await this.press('Enter');
+            await this.type(text);
+        }
+    }
+
+    /** ⌘A from inside the editor — promotes the caret to every block. */
+    async selectAllBlocks() {
+        await this.press('ControlOrMeta+a');
+    }
+
+    /** The blocks currently selected as whole units (the block selection). */
+    get selectedBlocks(): Locator {
+        return this.editor.locator('[data-selected]');
+    }
+
+    /**
+     * Drag from one block row to another — the gesture that selects a run. The
+     * browser's own selection stops at the first block, so this is the only way
+     * to select across them.
+     */
+    async dragSelect(from: number, to: number) {
+        const rows = this.editor.locator('[data-block-path]');
+        const start = await rows.nth(from).boundingBox();
+        const end = await rows.nth(to).boundingBox();
+        if (!start || !end) throw new Error('block row is not laid out');
+        await this.page.mouse.move(start.x + 60, start.y + start.height / 2);
+        await this.page.mouse.down();
+        await this.page.mouse.move(end.x + 60, end.y + end.height / 2, {
+            steps: 10
+        });
+        await this.page.mouse.up();
+    }
+
+    // --- the menus -----------------------------------------------------------
+
+    /** Open the slash menu in `block` and filter it to `query`. */
+    async runSlash(block: Locator, query: string) {
+        await block.click();
+        await this.page.keyboard.press('End');
+        await this.page.keyboard.type(`/${query}`);
+        await this.slashMenu.waitFor();
+    }
+
+    /** Insert a block type through the slash menu, from the first block. */
+    async insertViaSlash(query: string, option: string) {
+        await this.runSlash(this.block('Text block'), query);
+        await this.slashOption(option).click();
+    }
+
+    /** A slash-menu option, by its label. */
+    slashOption(label: string): Locator {
+        return this.slashMenu.getByRole('option', { name: label });
+    }
+
+    /** A toolbar control, by its accessible name. */
+    toolbarButton(name: string): Locator {
+        return this.toolbar.getByRole('button', { name });
+    }
+
+    /** The toolbar's block-type trigger ("turn the current block into…"). */
+    get turnInto(): Locator {
+        return this.toolbar.getByRole('button', {
+            name: 'Turn the current block into…'
+        });
+    }
+
+    /** An open dropdown's item, by label. */
+    menuItem(name: string): Locator {
+        return this.page.getByRole('menuitem', { name });
+    }
+
+    /**
+     * Choose a dropdown item **and wait for the menu to go away**. Radix marks
+     * the rest of the page `aria-hidden` while a menu is open, which makes every
+     * role-based locator here (the editor itself included) resolve to nothing —
+     * so reading the document straight after a click races the close.
+     */
+    async chooseMenuItem(name: string) {
+        await this.menuItem(name).click();
+        await this.page.getByRole('menu').waitFor({ state: 'hidden' });
+    }
+
+    // --- tables --------------------------------------------------------------
+
+    /** A table cell's editable, by its 1-based row and column. */
+    cell(row: number, column: number): Locator {
+        return this.editor.getByRole('textbox', {
+            name: `Row ${row}, column ${column}`
+        });
+    }
+
+    /** The handle above one column (1-based), opening its insert/delete menu. */
+    columnMenu(index: number): Locator {
+        return this.editor.getByRole('button', {
+            name: `Column ${index} options`
+        });
+    }
+
+    /** The handle beside one row (1-based). */
+    rowMenu(index: number): Locator {
+        return this.editor.getByRole('button', {
+            name: `Row ${index} options`
+        });
+    }
+
+    /** The table's header-row toggle. */
+    get headerRowToggle(): Locator {
+        return this.editor.getByRole('button', { name: 'Header row' });
+    }
+
+    /**
+     * Every cell's text, row by row — the grid as the author sees it. Only
+     * cells holding an editable count: the table also renders a control row and
+     * a control column for the handles, and a test asserting a table's shape
+     * means the shape of its **content**.
+     */
+    async grid(): Promise<string[][]> {
+        const rows = this.editor.locator('table tr');
+        const grid: string[][] = [];
+        for (let row = 0; row < (await rows.count()); row += 1) {
+            const texts = await rows
+                .nth(row)
+                .locator('th, td')
+                .filter({ has: this.page.locator('[role="textbox"]') })
+                .allInnerTexts();
+            if (texts.length > 0) grid.push(texts.map((text) => text.trim()));
+        }
+        return grid;
+    }
+
+    /** Insert a table from the slash menu and wait for its first cell. */
+    async insertTable() {
+        await this.insertViaSlash('table', 'Table');
+        await this.cell(1, 1).waitFor();
+    }
+
+    /** The image block's media-library trigger (empty state). */
+    get chooseFromLibrary(): Locator {
+        return this.editor.getByRole('button', { name: 'Choose from library' });
+    }
+
+    /** The same trigger once an image is placed. */
+    get replaceFromLibrary(): Locator {
+        return this.editor.getByRole('button', {
+            name: 'Replace from library'
+        });
+    }
+
+    /** The image block's alt-text field — deliberately always visible. */
+    get altText(): Locator {
+        return this.editor.getByRole('textbox', { name: 'Alt text' });
+    }
+
+    /** The media library picker the image block opens. */
+    get pickerDialog(): Locator {
+        return this.page.getByRole('dialog', { name: /^Select an? asset/ });
+    }
+
+    /** Pick one asset by file name and confirm. */
+    async pickAsset(name: string) {
+        await this.pickerDialog
+            .getByRole('button', {
+                name: new RegExp(name.replace('.', '\\.'))
+            })
+            .click();
+        await this.pickerDialog
+            .getByRole('button', { name: 'Select asset' })
+            .click();
+    }
+}

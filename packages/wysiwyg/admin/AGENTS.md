@@ -57,7 +57,7 @@ The host side of the contract is two props — `expandTo` (where to render) and
 
 - Edits commit **live** to the same `onChange`. Collapsing is not a save; the
   form's own Save remains the only commit point, exactly as for every other
-  field. Collapsing *does* call `onBlur` — what a form means by "touched" — and
+  field. Collapsing _does_ call `onBlur` — what a form means by "touched" — and
   returns focus to the preview card.
 - **Escape collapses**, unless something inside claimed it first (the slash menu
   and the link field both do).
@@ -125,7 +125,7 @@ focus request as the only side effect. The renderers stay presentational.
 **One command per user action.** Each command is built from the block list the
 hook closed over, so calling two in the same event handler computes the second
 from a tree the first already replaced — the second silently wins and the first
-edit vanishes. Anything that looks like two steps (convert *and* keep the
+edit vanishes. Anything that looks like two steps (convert _and_ keep the
 leftover text) is therefore one command (`applyBlockType`).
 
 **A block type that needs different keys supplies them.** `InlineEditable` takes
@@ -139,7 +139,7 @@ the table's specifics stay in the table's files.
 
 **`InlineEditable` is the only contenteditable.** Every block that holds words
 renders one, so Enter/Backspace/Tab/arrows/markdown/slash/paste are implemented
-once. It is *uncontrolled* with a controlled model behind it: the DOM is written
+once. It is _uncontrolled_ with a controlled model behind it: the DOM is written
 to only when it genuinely differs from the model, never on the author's own
 keystrokes — rewriting `innerHTML` under a live caret sends the caret to the end
 of the block. The model holds whatever markup the browser produced; sanitization
@@ -151,7 +151,7 @@ sanitizer.
 The floating toolbar is faster once you know the editor; the persistent one
 (`EditorToolbar`, shown when `WysiwygEditor` is given `toolbar`) is how you find
 out it can do any of this. Duplication between them is the feature — but only of
-the *controls*, never of the state: both call `readMarkState()`, one definition
+the _controls_, never of the state: both call `readMarkState()`, one definition
 of "is the selection bold".
 
 Two things it needs that a floating toolbar doesn't:
@@ -200,7 +200,7 @@ registers into; see `WysiwygFieldControl`.
 Copy/Cut put blocks on a **module-scoped** clipboard (`blocks/blockClipboard`),
 not the system one: reading the system clipboard needs a permission the browser
 may refuse, and it would hand back a string to re-parse, where holding the blocks
-restores attributes and nested children exactly. Copy still *writes* HTML to the
+restores attributes and nested children exactly. Copy still _writes_ HTML to the
 system clipboard so content can leave the app — that direction needs no
 permission. Module scope is deliberate: copying in one field and pasting in
 another is what a writer expects. Paste actions appear only when something has
@@ -232,7 +232,7 @@ assumption about a different process.
   wrong for the frame in between.
 - **A soft break is `execCommand('insertLineBreak')`**, not `insertHTML('<br>')`.
   At the end of a block a browser needs a second, trailing `<br>` for the new
-  line to have any height; inserting one by hand leaves the caret *before* the
+  line to have any height; inserting one by hand leaves the caret _before_ the
   break, so the next thing typed lands on the line the author just left.
 - **The code block is a `<textarea>`**, not a contenteditable. Code is plain
   text; a contenteditable would let a browser insert markup into it (a `<div>`
@@ -255,7 +255,18 @@ assumption about a different process.
   block's metrics in the one place that already has them (its own classes)
   rather than restated beside the affordance that must match them. Captions are
   excluded from the lookup — an image's caption shares its block's path but
-  renders *under* the picture.
+  renders _under_ the picture.
+- **The pointer selects blocks on the _document_, not on the root.** The root
+  also holds the persistent toolbar, and its `mousedown` handler clears the
+  block selection — so with the listener up there, pressing a toolbar button
+  destroyed the very selection the button was about to format, and the toolbar's
+  whole selection-aware half (`toggleMarkMany`, `setTypeMany`) was unreachable by
+  mouse. The e2e suite is what caught it; an earlier hand-check had "passed"
+  because turning one block into a list produces the same `<ul><li>` a run does.
+- **Undo/redo are also handled on the root.** Selecting blocks takes the caret
+  out of every editable, so `InlineEditable`'s shortcut handler is not listening
+  — without a copy on the root, one ⌘B across a selection could not be taken
+  back from the keyboard at all.
 - **The slash menu never takes focus.** The caret stays in the block so the query
   can keep narrowing; the editable forwards ↑/↓/Enter/Escape to it
   (`handleOverlayKey`) and announces the active option via
@@ -275,13 +286,13 @@ Two halves, keyed by the same `type` string:
 <WysiwygEditor
     value={html}
     onChange={setHtml}
-    blocks={[alertBlock]}                       // the model (wysiwyg-core)
+    blocks={[alertBlock]} // the model (wysiwyg-core)
     blockViews={{ alert: { Component: AlertBlock, Icon: TriangleAlert } }}
 />
 ```
 
 The slash menu picks the new type up automatically (from the definition's
-`descriptor`), and a type the consumer *removed* from the schema disappears from
+`descriptor`), and a type the consumer _removed_ from the schema disappears from
 the menu rather than producing a command that does nothing. A block whose type
 has no renderer falls back to `UnknownBlock` — editable text with a notice,
 because the author's words are the one thing that must survive a schema
@@ -295,13 +306,26 @@ Every editable region is a labelled `role="textbox"`; the toolbar is a
 as well as the pointer, so it never disappears mid-keyboard-use.
 
 One known cost of the single travelling gutter: because the controls no longer
-render *inside* the row they act on, they are no longer the next thing Tab
+render _inside_ the row they act on, they are no longer the next thing Tab
 reaches from a block. Keyboard users get to the same operations through the
 slash menu and the shortcuts, but a way back to Tab-adjacency (without losing
 the animation, which a portal between rows would) is still open. The image
 block shows its **alt text** field inline rather than behind a menu — an image
 published with no alt text is a defect, and the moment to fix it is while the
 author is looking at the picture.
+
+## End-to-end cover
+
+`apps/admin-e2e/src/content/wysiwyg-field.spec.ts` (page object:
+`WysiwygFieldPage`) drives the field in a real browser — the work-area takeover,
+typing and the markdown rules, the slash menu, multi-block selection, tables,
+the media picker, the text-length limit, keyboard operability, and axe scans of
+the expanded editor / open slash menu / a table.
+
+Wherever it can, it asserts the **saved HTML** rather than the DOM: that string
+is the field's contract, and a serializer regression behind a green-looking
+editor is exactly the failure a DOM assertion misses. Its seeds are `WYSIWYG_*`
+in `support/api/content.ts`.
 
 ## Conventions
 

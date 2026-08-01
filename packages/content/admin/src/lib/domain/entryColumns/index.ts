@@ -1,10 +1,6 @@
 import type { ContentField, ContentTypeDetail } from '../types/contentType';
 import type { RecordsColumnItem } from '../../presentation/slots/contentSlots';
-import {
-    COLUMN_KIND,
-    CONTENT_FIELD_TYPE,
-    ENVELOPE_COLUMN
-} from '../constants';
+import { COLUMN_KIND, CONTENT_FIELD_TYPE, ENVELOPE_COLUMN } from '../constants';
 
 /** One selectable table column: a schema field, an envelope column, or a slot-contributed extension column. */
 export type EntryColumn =

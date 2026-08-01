@@ -20,7 +20,7 @@ shape is unchanged from the original mock so no component had to change:
   maps responses through the ACL and normalizes failures to `ApiError`. Translates
   the admin's `ROOT_FOLDER_ID` sentinel to/from the wire's `null` folder.
 - **`infrastructure/mediaMapper`** — wire types (`AssetResponse` / `FolderResponse`)
-  + `toMediaAsset` / `toMediaFolder`.
+    - `toMediaAsset` / `toMediaFolder`.
 - **`infrastructure/mediaKeys`** — the per-workspace query-key factory; mutations
   invalidate `mediaKeys.all(workspaceId)`.
 
@@ -87,7 +87,7 @@ of the server's RBAC, which is the real enforcer).
   trigger is named after its folder ("Actions for Images"), so a grid of folders
   isn't a row of identical "Folder actions" buttons.
 - **Upload — stage, preview, then watch it go.** `UploadDialog` takes multiple
-  files (drag-and-drop *and* a `multiple` picker, accumulating across drops) and
+  files (drag-and-drop _and_ a `multiple` picker, accumulating across drops) and
   stages them as **`StagedFileRow`**s: images get a real thumbnail from a local
   `URL.createObjectURL` (revoked on unmount — a staged 200 MB video would
   otherwise leak for the tab's life), other kinds a MIME-derived glyph. Confirm
@@ -125,7 +125,7 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   — not a look-alike that would drift — and an error alert icon) over a one-line
   description of what the field holds, then the control; an error tints the card
   border. The field is named as a **group** (`aria-labelledby` → its `<h3>`), not
-  by a `<label for>` pointing at a button: a media field is a *composite* control
+  by a `<label for>` pointing at a button: a media field is a _composite_ control
   (pick / upload / remove / reorder), and a label would **replace** the trigger's
   own accessible name — the a11y tree read "Cover image, button" instead of
   "Select from library". As a group it reads "Cover image, group" and then each
@@ -155,10 +155,11 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   admin-e2e.
 
 **Uploading is gated on `media:create`, picking on `media:read`** — not decoration:
-uploads are deferred into the save, so an ungranted upload 403s *inside the write*
+uploads are deferred into the save, so an ungranted upload 403s _inside the write_
 and takes the user's unrelated edits down with it. Without `media:create` the
 Upload button and the drop zone are gone; without `media:read` the picker trigger
 is disabled and the card says why.
+
 - **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`, **permission-
   aware** (the trigger is disabled without `media:read`, and the field says why)
   and with its own **error** state: a failed library read offers a retry instead
@@ -174,14 +175,14 @@ is disabled and the card says why.
   filters, so a stale search can't hide the library on the next open.
 - **Upload — the library's dialog, but nothing moves until Save.** Picking a file
   opens the same **`UploadDialog`** the library toolbar opens (stage → preview →
-  confirm; dropping files on the field panel opens it *pre-staged*, so a drop is
+  confirm; dropping files on the field panel opens it _pre-staged_, so a drop is
   reviewed rather than sent blind), narrowed by new optional props: `multiple` /
   `accept` / `description` / `hint` / `confirmLabel` / `initialFiles`. (A single
   field stages exactly one file; `initialFiles` defaults to a module-level
   constant — an inline `[]` would re-seed the staging on every render.)
   Confirming **stages** the files; the bytes go up when the record is saved or
-  published. See *Deferred uploads* below.
-    `acceptsFile` (`utils/mediaAccept`, over the local `kindFromMime`) checks a
+  published. See _Deferred uploads_ below.
+  `acceptsFile` (`utils/mediaAccept`, over the local `kindFromMime`) checks a
   staged file against the field's `accept` at the moment it's chosen, so a
   rejected file never reaches the value; the server re-checks the real asset on
   save, which is the enforcing pass.
@@ -209,7 +210,7 @@ picked fills the Media Library with assets for a record the user then abandons.
   at a time, one request each) and returns the values with the placeholders
   swapped for real asset ids. A failed file **aborts the save** with a toast
   naming it — nothing is written, so the form keeps its placeholders. The files
-  that *did* upload remember their asset id (`PendingUpload.uploadedId`), so a
+  that _did_ upload remember their asset id (`PendingUpload.uploadedId`), so a
   retry attaches them instead of uploading twice.
 - **`settle`** runs after the write succeeded: object URLs revoked, staging
   dropped (the re-seeded form now holds the saved record's real ids).
@@ -232,7 +233,7 @@ until the author confirms or dismisses. A second `pick()` while one is open
 answers the first with a dismissal rather than stranding it.
 
 **It browses; it does not upload** — and that is the same reasoning as the
-deferred-upload presave above, from the other end. A media *field* can stage a
+deferred-upload presave above, from the other end. A media _field_ can stage a
 file because the record's save is the commit point that turns it into an asset.
 An image in a document is a **URL in the stored HTML**: it needs a real,
 resolvable address the moment it is inserted, so an upload from inside a draft

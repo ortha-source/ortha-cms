@@ -49,7 +49,10 @@ export function updateAt(
     const next =
         rest.length === 0
             ? updater(current)
-            : { ...current, children: updateAt(current.children, rest, updater) };
+            : {
+                  ...current,
+                  children: updateAt(current.children, rest, updater)
+              };
 
     const copy = blocks.slice();
     if (next === null) copy.splice(index, 1);
@@ -80,7 +83,11 @@ export function insertAt(
 
     if (rest.length === 0) {
         const copy = blocks.slice();
-        copy.splice(Math.max(0, Math.min(index, blocks.length)), 0, ...inserted);
+        copy.splice(
+            Math.max(0, Math.min(index, blocks.length)),
+            0,
+            ...inserted
+        );
         return copy;
     }
 
@@ -177,7 +184,10 @@ export function pathOfBlock(
     blocks: readonly WysiwygBlock[],
     id: string
 ): BlockPath | null {
-    return flattenBlocks(blocks).find((entry) => entry.block.id === id)?.path ?? null;
+    return (
+        flattenBlocks(blocks).find((entry) => entry.block.id === id)?.path ??
+        null
+    );
 }
 
 /** The path of the block sitting after `path` in document order. */

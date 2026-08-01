@@ -379,6 +379,16 @@ export function WysiwygEditor({
             selectAllBlocks();
             return;
         }
+        // Undo/redo, while the **root** holds focus. Selecting blocks takes the
+        // caret out of every editable, so `InlineEditable`'s own shortcut
+        // handler is not listening — without this, one ⌘B across a selection
+        // could not be taken back from the keyboard at all.
+        if (modifier && event.key.toLowerCase() === SHORTCUT_KEY.Undo) {
+            event.preventDefault();
+            if (event.shiftKey) doc.redo();
+            else doc.undo();
+            return;
+        }
         if (selected.length === 0) return;
 
         if (event.key === KEY.Escape) {
@@ -450,8 +460,6 @@ export function WysiwygEditor({
                 // Focusable so the block selection has somewhere to put focus
                 // and something to receive its keys — never a tab stop.
                 tabIndex={-1}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
                 onKeyDownCapture={handleRootKeyDown}
                 role="group"
                 aria-label={intl.formatMessage(messages.label)}
@@ -478,9 +486,14 @@ export function WysiwygEditor({
             >
                 {toolbar && <EditorToolbar />}
                 <div
-                    className={cn(
-                        toolbar && 'min-h-0 flex-1 overflow-y-auto'
-                    )}
+                    // The pointer selects **blocks**, so it listens on the
+                    // document and not on the root — the root also holds the
+                    // toolbar, and a mousedown there was clearing the very
+                    // selection the button was about to act on. The toolbar's
+                    // whole selection-aware half was unreachable by mouse.
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    className={cn(toolbar && 'min-h-0 flex-1 overflow-y-auto')}
                 >
                     {/* The left padding is the gutter's lane — the add and drag
                         controls sit in it, outside the text's own column. It is

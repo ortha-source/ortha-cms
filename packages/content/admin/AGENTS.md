@@ -373,7 +373,7 @@ region then hides the routed content.
 Why a region and not the control hiding things itself: a form control has no
 reach outside itself, so it cannot make its siblings disappear. And why the
 routed content is hidden (`display: none`) rather than unmounted: the control
-doing the filling *lives* in that form, and its value is the form's state —
+doing the filling _lives_ in that form, and its value is the form's state —
 unmounting would take the control, its portal and the edit with it. `display:
 none` also drops the form out of the tab order and the accessibility tree, so
 there is nothing behind the region to reach by accident. Unfilled, the wrapper is

@@ -108,7 +108,9 @@ export function TableBlock({ block, path }: BlockViewProps) {
                         size="sm"
                         variant="ghost"
                         className="text-muted-foreground h-7 px-2 text-xs"
-                        onClick={() => commands.insertTableColumn(path, columns)}
+                        onClick={() =>
+                            commands.insertTableColumn(path, columns)
+                        }
                     >
                         <Plus aria-hidden className="size-3.5" />
                         {intl.formatMessage(messages.addColumn)}

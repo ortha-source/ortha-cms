@@ -1,4 +1,8 @@
-import { INLINE_MARK_TAG, isBlockMarked, toggleBlockMark } from './inline-marks';
+import {
+    INLINE_MARK_TAG,
+    isBlockMarked,
+    toggleBlockMark
+} from './inline-marks';
 import { blockRangeBetween } from '../document/tree';
 
 describe('toggleBlockMark', () => {
@@ -26,7 +30,9 @@ describe('toggleBlockMark', () => {
     });
 
     it('ignores whitespace around the mark when deciding', () => {
-        expect(isBlockMarked(' <em>x</em> ', INLINE_MARK_TAG.Italic)).toBe(true);
+        expect(isBlockMarked(' <em>x</em> ', INLINE_MARK_TAG.Italic)).toBe(
+            true
+        );
     });
 });
 

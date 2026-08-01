@@ -129,7 +129,9 @@ export function WysiwygField({
                 'bg-background flex min-h-0 flex-col',
                 // Filling a region: own its whole height, and let the body
                 // scroll rather than the page behind it.
-                takesOver ? 'h-full flex-1' : 'overflow-hidden rounded-md border'
+                takesOver
+                    ? 'h-full flex-1'
+                    : 'overflow-hidden rounded-md border'
             )}
             onKeyDown={(event) => {
                 // Escape leaves the editor — but only when nothing inside has
@@ -179,7 +181,9 @@ export function WysiwygField({
                     // moves under it, which only works if the same component
                     // holds both.
                     toolbar={takesOver}
-                    className={takesOver ? undefined : 'border-none bg-transparent'}
+                    className={
+                        takesOver ? undefined : 'border-none bg-transparent'
+                    }
                 />
             </div>
         </section>

@@ -6,10 +6,7 @@ import { useEditor } from '../../../editor/editorContext';
 import { KEY } from '../../../utils/constants';
 import { caretAtEnd, caretAtStart } from '../../../utils/dom-selection';
 import { insertSoftBreak } from '../../../utils/marks';
-import {
-    InlineEditable,
-    type EditableKeyHandlers
-} from '../../InlineEditable';
+import { InlineEditable, type EditableKeyHandlers } from '../../InlineEditable';
 
 const messages = defineMessages({
     cell: {

@@ -17,7 +17,7 @@ Its **one** dependency is `@ortha-cms/wysiwyg-core`, itself a zero-dependency
 pure-TS kernel, for `htmlTextLength`. A `wysiwyg` field's `minLength`/`maxLength`
 are measured on the **text**, not the markup — counting the markup would make a
 limit depend on how the text happened to be formatted — and that measurement has
-to be the *same* one the editor and the server's canonicalization use. A
+to be the _same_ one the editor and the server's canonicalization use. A
 hand-rolled tag-stripper here would be a second definition of "how long is this
 document", i.e. exactly the drift this package exists to prevent.
 
@@ -27,7 +27,7 @@ document", i.e. exactly the drift this package exists to prevent.
   (`draft`/`published`, mirroring the server's column enum), the legal
   transitions, and `canTransition` / `assertTransition` (+
   `EntryStatusTransitionError`). `draft → published` is publish; `published →
-  draft` is unpublish. There is **no** separate `unpublished`/`archived` status
+draft` is unpublish. There is **no** separate `unpublished`/`archived` status
   — unpublish is the reverse transition, and archival is the paranoid
   soft-delete tombstone, not a status.
 - **Field-value validation** (`lib/validation/validate-entry-values.ts`) — the
@@ -45,7 +45,7 @@ document", i.e. exactly the drift this package exists to prevent.
 
 - **`content-server`** — `EntryValidationService` delegates its `validate(...)`
   to `validateEntryValues(type.fields, values, { rejectUnknownKeys: true,
-  typeName })`; the entries `Entry` domain model uses `assertTransition` +
+typeName })`; the entries `Entry` domain model uses `assertTransition` +
   `EntryStatus` for its publish lifecycle. `AnyFieldSpec` is structurally
   assignable to `EntryFieldSpec`, so no adapter is needed.
 - **`content-admin`** (a later wave) — will replace its hand-mirrored

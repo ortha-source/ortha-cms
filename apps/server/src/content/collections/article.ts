@@ -105,7 +105,10 @@ export const article = collection('article', {
         // Single image, shared across locales. Restricted to image assets.
         coverImage: field.media({
             accept: { kinds: ['image'] },
-            admin: { label: 'Cover image', description: 'Shown on cards + hero.' }
+            admin: {
+                label: 'Cover image',
+                description: 'Shown on cards + hero.'
+            }
         }),
         // Single image, per-locale (a localized hero for each translation).
         localizedHero: field.media({

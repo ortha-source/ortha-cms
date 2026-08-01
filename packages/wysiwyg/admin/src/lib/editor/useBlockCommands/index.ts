@@ -32,7 +32,11 @@ import {
     getBlockClipboard,
     setBlockClipboard
 } from '../../blocks/blockClipboard';
-import { CARET, INSERT_POSITION, type InsertPosition } from '../../utils/constants';
+import {
+    CARET,
+    INSERT_POSITION,
+    type InsertPosition
+} from '../../utils/constants';
 import { HISTORY, type EditorDocument } from '../useEditorDocument';
 
 /**
@@ -210,7 +214,10 @@ export function useBlockCommands(
                     ...(definition?.defaultAttrs ?? {}),
                     ...(attrs ?? {})
                 },
-                html: definition?.content === 'void' ? '' : contentFor(type, html),
+                html:
+                    definition?.content === 'void'
+                        ? ''
+                        : contentFor(type, html),
                 children:
                     block.children.length > 0
                         ? block.children
@@ -268,7 +275,11 @@ export function useBlockCommands(
             );
             const target = pathAfter(path);
             requestFocus(
-                isVoid ? pathAfter(target) : isContainer ? [...target, 0, 0] : target,
+                isVoid
+                    ? pathAfter(target)
+                    : isContainer
+                      ? [...target, 0, 0]
+                      : target,
                 CARET.Start
             );
         };

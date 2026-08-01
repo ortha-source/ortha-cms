@@ -35,7 +35,9 @@ describe('the table block', () => {
         const html = serializeBlocks(
             parseBlocks('<table><tr><td>a</td><td>b</td></tr></table>')
         );
-        expect(html).toBe('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+        expect(html).toBe(
+            '<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>'
+        );
     });
 
     it('finds rows wherever they sit — tbody, tfoot, or bare', () => {
@@ -48,16 +50,24 @@ describe('the table block', () => {
 
     it('squares up a ragged table so every row is the same width', () => {
         expect(
-            shape('<table><tr><td>a</td><td>b</td><td>c</td></tr><tr><td>d</td></tr></table>')
+            shape(
+                '<table><tr><td>a</td><td>b</td><td>c</td></tr><tr><td>d</td></tr></table>'
+            )
         ).toEqual([
-            { type: BLOCK_TYPE.Table, rows: [['a', 'b', 'c'], ['d', '', '']] }
+            {
+                type: BLOCK_TYPE.Table,
+                rows: [
+                    ['a', 'b', 'c'],
+                    ['d', '', '']
+                ]
+            }
         ]);
     });
 
     it('flattens block content inside a cell to inline', () => {
-        expect(shape('<table><tr><td><p>a</p><p>b</p></td></tr></table>')).toEqual([
-            { type: BLOCK_TYPE.Table, rows: [['ab']] }
-        ]);
+        expect(
+            shape('<table><tr><td><p>a</p><p>b</p></td></tr></table>')
+        ).toEqual([{ type: BLOCK_TYPE.Table, rows: [['ab']] }]);
     });
 
     it('keeps colspan and rowspan from an import, and emits neither at 1', () => {

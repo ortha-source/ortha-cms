@@ -74,7 +74,9 @@ export function TableColumnMenu({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem
-                    onSelect={() => commands.insertTableColumn(tablePath, index)}
+                    onSelect={() =>
+                        commands.insertTableColumn(tablePath, index)
+                    }
                 >
                     <ArrowLeftToLine aria-hidden className="size-4" />
                     {intl.formatMessage(messages.insertBefore)}
@@ -91,7 +93,9 @@ export function TableColumnMenu({
                 <DropdownMenuItem
                     disabled={count <= 1}
                     className="text-destructive focus:text-destructive"
-                    onSelect={() => commands.removeTableColumn(tablePath, index)}
+                    onSelect={() =>
+                        commands.removeTableColumn(tablePath, index)
+                    }
                 >
                     <Trash2 aria-hidden className="size-4" />
                     {intl.formatMessage(messages.remove)}

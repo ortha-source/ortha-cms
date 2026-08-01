@@ -104,7 +104,14 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
     },
     urlAttributes: new Set(['href', 'src']),
     allowedSchemes: new Set(['http', 'https', 'mailto', 'tel']),
-    strippedTags: new Set(['script', 'style', 'iframe', 'object', 'embed', 'form'])
+    strippedTags: new Set([
+        'script',
+        'style',
+        'iframe',
+        'object',
+        'embed',
+        'form'
+    ])
 };
 
 /**

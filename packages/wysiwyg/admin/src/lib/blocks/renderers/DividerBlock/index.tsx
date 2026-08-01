@@ -15,7 +15,11 @@ const messages = defineMessages({
 export function DividerBlock() {
     const intl = useIntl();
     return (
-        <div className="py-3" role="separator" aria-label={intl.formatMessage(messages.label)}>
+        <div
+            className="py-3"
+            role="separator"
+            aria-label={intl.formatMessage(messages.label)}
+        >
             <hr className="border-border" />
         </div>
     );

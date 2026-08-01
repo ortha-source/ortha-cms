@@ -28,9 +28,7 @@ export type InlineMarkTag =
 
 /** Nodes with insignificant whitespace-only text runs dropped. */
 function meaningful(nodes: readonly HtmlNode[]): HtmlNode[] {
-    return nodes.filter(
-        (node) => isElement(node) || node.text.trim() !== ''
-    );
+    return nodes.filter((node) => isElement(node) || node.text.trim() !== '');
 }
 
 /**

@@ -236,6 +236,48 @@ export const MEDIA_FIELDS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
     }
 };
 
+/**
+ * Full field schema for the wysiwyg suite: a required title and one `wysiwyg`
+ * field (`Body`) with a text-length ceiling, so the suite can exercise the
+ * "length is measured on the words, not the markup" rule the shared kernel
+ * enforces. Kept separate from the other seeds so the block editor only appears
+ * where a suite asked for it.
+ */
+export const WYSIWYG_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    article: {
+        name: 'article',
+        kind: 'collection',
+        label: 'Articles',
+        publishable: true,
+        fields: [
+            {
+                name: 'text',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Title' }
+            },
+            {
+                name: 'body',
+                type: 'wysiwyg',
+                required: false,
+                validation: { maxLength: 40 },
+                admin: { label: 'Body' }
+            }
+        ]
+    }
+};
+
+/** Type list for the wysiwyg suite — one collection carrying the field. */
+export const WYSIWYG_SCHEMA_SEED: ContentTypeSummary[] = [
+    {
+        name: 'article',
+        kind: 'collection',
+        label: 'Articles',
+        publishable: true
+    }
+];
+
 /** Full field schemas for the relations suite (article + its three targets). */
 export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
     article: {
@@ -516,6 +558,15 @@ export const MEDIA_FIELDS_WORKSPACE: WorkspaceView = {
     id: 'ws_media',
     name: 'Media fields demo',
     slug: 'media-fields-demo',
+    content: ['article']
+};
+
+/** The workspace the wysiwyg-field suite runs in. */
+export const WYSIWYG_WORKSPACE: WorkspaceView = {
+    ...LIBRARY_WORKSPACE,
+    id: 'ws_wysiwyg',
+    name: 'Wysiwyg demo',
+    slug: 'wysiwyg-demo',
     content: ['article']
 };
 

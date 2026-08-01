@@ -96,9 +96,9 @@ describe('validateEntryValues', () => {
 
     it('enforces text length and pattern', () => {
         expect(fieldsWithIssues({ title: 'no' })).toContain('title');
-        expect(fieldsWithIssues({ title: 'hello', slug: 'Bad Slug' })).toContain(
-            'slug'
-        );
+        expect(
+            fieldsWithIssues({ title: 'hello', slug: 'Bad Slug' })
+        ).toContain('slug');
     });
 
     it('enforces integer and number bounds', () => {
@@ -195,9 +195,10 @@ describe('validateEntryValues — media fields', () => {
     // Validate the shared `fields` map with a valid title plus the media values
     // under test, keeping only the media-field issues.
     const only = (values: Record<string, unknown>) =>
-        validateEntryValues(fields, { title: 'hello', ...values }).issues.filter(
-            (i) => i.field === 'cover' || i.field === 'photos'
-        );
+        validateEntryValues(fields, {
+            title: 'hello',
+            ...values
+        }).issues.filter((i) => i.field === 'cover' || i.field === 'photos');
 
     it('accepts a uuid for a single media field', () => {
         expect(only({ cover: UUID })).toEqual([]);
@@ -248,7 +249,10 @@ describe('validateEntryValues — media fields', () => {
             hero: null,
             shots: []
         }).issues;
-        expect(issues).toContainEqual({ field: 'hero', message: 'is required' });
+        expect(issues).toContainEqual({
+            field: 'hero',
+            message: 'is required'
+        });
         expect(issues).toContainEqual({
             field: 'shots',
             message: 'is required'
@@ -277,9 +281,7 @@ describe('validateEntryValues — wysiwyg fields', () => {
     it('measures length on the text, not on the markup', () => {
         // 10 characters of text wrapped in markup far longer than `maxLength`.
         expect(
-            issuesFor(
-                '<p><strong><em>Hello</em> <u>you</u>!</strong></p>'
-            )
+            issuesFor('<p><strong><em>Hello</em> <u>you</u>!</strong></p>')
         ).toEqual([]);
     });
 

@@ -1,8 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import type {
-    AssetPicker,
-    WysiwygMediaAsset
-} from '@ortha-cms/content-admin';
+import type { AssetPicker, WysiwygMediaAsset } from '@ortha-cms/content-admin';
 import { MediaPickerDialog } from '../../components/MediaPickerDialog';
 import { MEDIA_KIND } from '../../constants';
 import type { MediaAsset } from '../../types/mediaAsset';
@@ -78,9 +75,7 @@ export function useWysiwygAssetPicker(): AssetPicker {
 }
 
 /** A library asset as the editor's port describes one. */
-function toMediaAsset(
-    asset: MediaAsset | undefined
-): WysiwygMediaAsset | null {
+function toMediaAsset(asset: MediaAsset | undefined): WysiwygMediaAsset | null {
     if (!asset) return null;
     return { url: asset.url, alt: asset.alt, name: asset.name };
 }

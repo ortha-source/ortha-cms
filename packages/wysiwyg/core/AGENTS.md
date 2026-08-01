@@ -31,7 +31,7 @@ WysiwygBlock = { id, type, html, attrs, children }
 
 A block is an id (editor-local, never serialized), a `type` string, its own
 **inline** HTML, a JSON-serializable `attrs` bag, and `children`. Everything a
-type *means* lives in its {@link BlockDefinition}, never in this shape — which is
+type _means_ lives in its {@link BlockDefinition}, never in this shape — which is
 what makes a new block type an addition rather than an edit.
 
 Blocks are addressed by **path** (`[2, 0]` = the third block's first child), and
@@ -48,7 +48,11 @@ const alertBlock: BlockDefinition = {
     type: 'alert',
     content: 'inline',
     defaultAttrs: { severity: 'warning' },
-    descriptor: { defaultLabel: 'Alert', keywords: ['warning'], group: 'basic' },
+    descriptor: {
+        defaultLabel: 'Alert',
+        keywords: ['warning'],
+        group: 'basic'
+    },
     tags: ['div'],
     match: (element) => element.attrs['data-block'] === 'alert',
     toHtml: (block, ctx) =>
@@ -91,7 +95,7 @@ operations for free.
 
 Header-ness lives on the **cell** (`<th>` versus `<td>` is a cell property in the
 HTML, so that is the only shape that round-trips an import faithfully); the
-`<thead>` wrapper is *derived* on the way out — "the first row, when all of its
+`<thead>` wrapper is _derived_ on the way out — "the first row, when all of its
 cells are headers" — and never stored. Rows and cells declare no `tags`, so a
 stray `<tr>` outside a table cannot parse into an orphan row block. Ragged
 imports are squared up to the widest row at parse time, because every table
@@ -134,7 +138,7 @@ every untouched field would read as filled in and `required` would pass.
 **Zero.** Including the HTML parser: `lib/html/parse-nodes.ts` is a small,
 deliberately forgiving tokenizer + tree builder, because the input may be a value
 an earlier editor wrote, an import, or a paste out of Word — unclosed tags and
-stray `</div>`s must produce *something* rather than throw, and `DOMParser` is
+stray `</div>`s must produce _something_ rather than throw, and `DOMParser` is
 not available on the server.
 
 ## Commands

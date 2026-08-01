@@ -19,8 +19,7 @@ const messages = defineMessages({
     },
     words: {
         id: 'wysiwyg.preview.words',
-        defaultMessage:
-            '{count, plural, one {# word} other {# words}}'
+        defaultMessage: '{count, plural, one {# word} other {# words}}'
     },
     readOnly: {
         id: 'wysiwyg.preview.readOnly',
@@ -100,7 +99,10 @@ export function WysiwygPreviewCard({
             ) : (
                 <div
                     aria-hidden
-                    className={cn('bg-muted/20 relative overflow-hidden', PREVIEW_HEIGHT)}
+                    className={cn(
+                        'bg-muted/20 relative overflow-hidden',
+                        PREVIEW_HEIGHT
+                    )}
                 >
                     {/* Scaled down rather than truncated, so the shape of the
                         document — its headings, lists, callouts — is what the

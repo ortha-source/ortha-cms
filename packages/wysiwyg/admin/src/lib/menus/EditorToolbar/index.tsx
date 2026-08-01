@@ -242,7 +242,9 @@ export function EditorToolbar() {
             <ToolbarButton
                 label={intl.formatMessage(messages.underline)}
                 active={marks.underline}
-                onClick={() => runMark(MARK.Underline, INLINE_MARK_TAG.Underline)}
+                onClick={() =>
+                    runMark(MARK.Underline, INLINE_MARK_TAG.Underline)
+                }
             >
                 <Underline aria-hidden className="size-4" />
             </ToolbarButton>

@@ -19,19 +19,14 @@ export function WorkAreaRegion({ children }: { children: ReactNode }) {
     const [host, setHost] = useState<HTMLElement | null>(null);
     const [filled, setFilled] = useState(false);
 
-    const value = useMemo(
-        () => ({ host, filled, setFilled }),
-        [host, filled]
-    );
+    const value = useMemo(() => ({ host, filled, setFilled }), [host, filled]);
 
     return (
         <WorkAreaRegionContext.Provider value={value}>
             <div className={filled ? 'hidden' : 'contents'}>{children}</div>
             <div
                 ref={setHost}
-                className={
-                    filled ? 'flex min-h-0 flex-1 flex-col' : 'hidden'
-                }
+                className={filled ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
             />
         </WorkAreaRegionContext.Provider>
     );

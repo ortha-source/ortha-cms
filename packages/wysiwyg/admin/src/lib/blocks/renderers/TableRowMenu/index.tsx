@@ -87,7 +87,9 @@ export function TableRowMenu({
                     {intl.formatMessage(messages.insertBefore)}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                    onSelect={() => commands.insertTableRow(tablePath, index + 1)}
+                    onSelect={() =>
+                        commands.insertTableRow(tablePath, index + 1)
+                    }
                 >
                     <ArrowDownToLine aria-hidden className="size-4" />
                     {intl.formatMessage(messages.insertAfter)}

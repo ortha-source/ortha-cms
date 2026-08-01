@@ -48,9 +48,7 @@ export const CARET = { Start: 'start', End: 'end' } as const;
  * merge: joining two blocks has to leave the caret exactly where the seam is,
  * which is neither end of the resulting text.
  */
-export type CaretPosition =
-    | (typeof CARET)[keyof typeof CARET]
-    | number;
+export type CaretPosition = (typeof CARET)[keyof typeof CARET] | number;
 
 /** A path rendered as a stable string — React keys and equality checks. */
 export function pathKey(path: readonly number[]): string {

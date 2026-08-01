@@ -141,7 +141,8 @@ export function toColumns(
             continue;
         }
         if (spec.type === CONTENT_FIELD_TYPE.Datetime) {
-            const date = value instanceof Date ? value : new Date(String(value));
+            const date =
+                value instanceof Date ? value : new Date(String(value));
             value = Number.isNaN(date.getTime()) ? null : date;
         } else if (
             spec.type === CONTENT_FIELD_TYPE.Number ||

@@ -20,7 +20,8 @@ function splitItem(element: HtmlElement) {
     const inline: HtmlNode[] = [];
     const nested: HtmlNode[] = [];
     for (const node of element.children) {
-        const isNested = node.kind === 'element' && NESTED_LIST_TAGS.has(node.tag);
+        const isNested =
+            node.kind === 'element' && NESTED_LIST_TAGS.has(node.tag);
         (isNested || nested.length > 0 ? nested : inline).push(node);
     }
     return { inline, nested };
@@ -34,16 +35,18 @@ function itemFromHtml(type: string) {
             html: ctx.inline(inline),
             children: ctx.children(nested),
             ...(type === BLOCK_TYPE.Todo
-                ? { attrs: { checked: element.attrs['data-checked'] === 'true' } }
+                ? {
+                      attrs: {
+                          checked: element.attrs['data-checked'] === 'true'
+                      }
+                  }
                 : {})
         });
     };
 }
 
 /** Serializes one `<li>`: its text, then any nested list under it. */
-function itemToHtml(
-    openTag: string
-): BlockDefinition['toHtml'] {
+function itemToHtml(openTag: string): BlockDefinition['toHtml'] {
     return (block, ctx) =>
         `${openTag}${ctx.inline(block.html)}${ctx.children(block.children)}</li>`;
 }

@@ -110,9 +110,9 @@ allowed assets by coarse `kinds` (image/video/audio/document/archive) and/or
 
 **The `MEDIA_ASSET_RESOLVER` port.** The pure kernel only shape-checks a media
 id (uuid / uuid[]). Verifying an asset **exists in the workspace** and **matches
-`accept`** needs the media table, so content-server *declares* a DI port
+`accept`** needs the media table, so content-server _declares_ a DI port
 (`extension/media-asset-resolver.ts`: `MEDIA_ASSET_RESOLVER` symbol +
-`MediaAssetResolver` interface) that the media plugin *binds* — the same
+`MediaAssetResolver` interface) that the media plugin _binds_ — the same
 inversion as `CONTENT_ENTRY_EXTENSION`. `EntryWriterService.assertMediaTargets`
 injects it `@Optional()` and runs alongside `assertRelationTargets`: a missing,
 cross-workspace, or disallowed asset is a uniform **422** (no

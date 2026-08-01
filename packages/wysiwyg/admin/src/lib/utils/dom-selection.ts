@@ -176,7 +176,10 @@ export function placeCaretAtOffset(element: HTMLElement, offset: number): void {
     }
     const range = document.createRange();
     if (node) {
-        range.setStart(node, Math.min(remaining, node.textContent?.length ?? 0));
+        range.setStart(
+            node,
+            Math.min(remaining, node.textContent?.length ?? 0)
+        );
     } else {
         range.selectNodeContents(element);
     }

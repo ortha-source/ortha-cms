@@ -33,7 +33,8 @@ export const imageBlock: BlockDefinition = {
     defaultAttrs: { src: '', alt: '' },
     tags: ['figure', 'img'],
     match: (element) =>
-        element.tag === 'img' || element.attrs['data-block'] !== BLOCK_TYPE.Embed,
+        element.tag === 'img' ||
+        element.attrs['data-block'] !== BLOCK_TYPE.Embed,
     descriptor: {
         defaultLabel: 'Image',
         keywords: ['picture', 'photo', 'img', 'media'],

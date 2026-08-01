@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_246 test cases across 30 spec files._
+_268 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -350,6 +350,59 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | relations tab — field sections |
 | relation picker — open |
 | relation picker — inline filter open |
+
+<!-- source: apps/admin-e2e/src/content/wysiwyg-field.spec.ts -->
+_<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
+
+## Entry editor — wysiwyg field
+
+| Test case |
+| --- |
+| shows a preview in the form until it is opened |
+| takes over the work area, hiding the other fields but not the chrome |
+| commits what is typed and saves it as HTML |
+| turns a markdown shortcut into a real block |
+| names the preview after the document’s own first heading |
+| inserts a block from the slash menu |
+| Escape closes the slash menu before it closes the editor |
+
+### multi-block selection
+
+| Test case |
+| --- |
+| drag-selects a run and marks every block in it |
+| deletes the whole selection with one Backspace |
+| ⌘A selects every block, Escape drops the selection |
+| turns a whole selection into another block type |
+
+### tables
+
+| Test case |
+| --- |
+| inserts a table and types across it with Tab |
+| Enter inside a cell breaks the line instead of splitting the block |
+| adds a column and removes a row from the handles |
+| the header row is a thead, and the toggle takes it away |
+
+### the image block
+
+| Test case |
+| --- |
+| fills an image from the media library |
+| keeps alt text the author wrote over an asset that carries none |
+
+| Test case |
+| --- |
+| rejects a document whose text is over the field’s limit |
+| is reachable and operable from the keyboard alone |
+
+### accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| the expanded editor |
+| with the slash menu open |
+| with a table in the document |
 
 <!-- source: apps/admin-e2e/src/home/dashboard.spec.ts -->
 _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
