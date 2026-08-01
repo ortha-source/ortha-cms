@@ -1,5 +1,6 @@
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ContentModule } from '../content.module';
+import { describeContentApi } from '../docs/describe-content-api';
 import { ContentTypeRegistry } from '../registry/content-type-registry';
 import type { AnyContentType } from '../types/content-type';
 
@@ -43,6 +44,13 @@ export function ContentPlugin(
         name: 'content',
         module: ContentModule.forRoot(registry),
         registry,
-        ...(options.migrations ? { migrations: options.migrations } : {})
+        ...(options.migrations ? { migrations: options.migrations } : {}),
+        // The generic `/content/:typeName` controllers are all `@nestjs/swagger`
+        // can see; the registry is what knows `article` from `home_page`. This
+        // hook is where the code-defined types become OpenAPI schemas.
+        docs: {
+            decorate: (document) =>
+                describeContentApi(document, registry.serializeAll())
+        }
     };
 }

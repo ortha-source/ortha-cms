@@ -19,6 +19,22 @@ export interface ApiSecurityScheme {
 }
 
 /**
+ * The generated OpenAPI document, as far as a plugin's `decorate` pass needs to
+ * see it. Structural rather than `@nestjs/swagger`'s `OpenAPIObject` so a plugin
+ * amending the document doesn't take on that dependency's type surface.
+ */
+export interface OpenApiDocument {
+    /** Reusable schemas, keyed by name. */
+    components?: {
+        schemas?: Record<string, unknown>;
+        [key: string]: unknown;
+    };
+    /** Operations keyed by route, then by method. */
+    paths: Record<string, Record<string, unknown>>;
+    [key: string]: unknown;
+}
+
+/**
  * A plugin's contribution to the host's OpenAPI document. Authentication is
  * plugin-owned (the host has no guards of its own), so the plugin that ships
  * a guard is also the one that describes how to satisfy it.
@@ -34,4 +50,17 @@ export interface PluginApiDocs {
      * which credentials to offer when trying a request.
      */
     defaultSecurity?: string[];
+    /**
+     * Optional final pass over the generated document, run after every
+     * operation has been tagged, in plugin-registration order.
+     *
+     * `@nestjs/swagger` reflects **static** TypeScript — decorated classes and
+     * their metadata. A plugin whose contract is *runtime data* (content types
+     * defined in code and held in a registry, not classes) has nothing for the
+     * scanner to see, so it describes itself here instead: add schemas under
+     * `components.schemas`, then reference them from its own operations.
+     *
+     * Amend only what the plugin owns — every plugin shares this document.
+     */
+    decorate?(document: OpenApiDocument): void;
 }

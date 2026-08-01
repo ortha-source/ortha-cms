@@ -6,6 +6,7 @@ import {
 } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import type { ApiDocsOptions } from '../types/api-docs';
+import type { OpenApiDocument } from '../types/plugin-api-docs';
 import type { ServerPlugin } from '../types/server-plugin';
 
 /** The `addSecurity` payload type, without deep-importing `@nestjs/swagger`. */
@@ -96,9 +97,7 @@ export function setupApiDocs(
         return null;
     }
 
-    const builder = new DocumentBuilder()
-        .setTitle(title)
-        .setVersion(version);
+    const builder = new DocumentBuilder().setTitle(title).setVersion(version);
 
     if (description) {
         builder.setDescription(description);
@@ -121,6 +120,13 @@ export function setupApiDocs(
         autoTagControllers: false
     });
     tagByResource(document, globalPrefix);
+
+    // Last: each plugin's own pass, so a plugin that describes itself (content
+    // types are runtime data, invisible to the scanner) sees a finished,
+    // already-tagged document.
+    for (const plugin of plugins) {
+        plugin.docs?.decorate?.(document as unknown as OpenApiDocument);
+    }
 
     const uiPath = normalizePath(path);
     const documentPath = normalizePath(jsonPath);

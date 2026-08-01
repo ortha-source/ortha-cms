@@ -84,6 +84,13 @@ registered **first**, so it still wins when it lives under the UI mount.
   (`securitySchemes` + `defaultSecurity`), and `setupApiDocs` merges every
   plugin's contribution. `@ortha-cms/identity-server` contributes the
   `ortha_session` cookie and the bearer API token.
+- **A plugin with a dynamic contract describes itself.** `ServerPlugin.docs`
+  also takes a `decorate(document)` hook, run last (after tagging), in
+  registration order. It exists because the scanner only sees static
+  TypeScript: `@ortha-cms/content-server` serves every code-defined content type
+  through one generic controller set, so it uses this hook to add a schema per
+  registered type and attach them to its own routes — see that package's
+  `AGENTS.md`. A plugin amends only what it owns; the document is shared.
 
 ## Configuration
 

@@ -8,5 +8,6 @@ export type {
 export type { ApiDocsOptions } from './lib/types/api-docs';
 export type {
     ApiSecurityScheme,
+    OpenApiDocument,
     PluginApiDocs
 } from './lib/types/plugin-api-docs';
