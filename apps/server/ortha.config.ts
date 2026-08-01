@@ -7,6 +7,7 @@
  * values come from the environment; stable tuning lives here as literals.
  */
 
+import type { ApiDocsOptions } from '@ortha-cms/bootstrap-server';
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
 import type { MediaPluginConfig } from '@ortha-cms/media-server';
@@ -25,6 +26,8 @@ export interface OrthaConfig {
     globalPrefix: string;
     /** Database connection settings. */
     database: OrthaDatabaseConfig;
+    /** OpenAPI document + Scalar API reference settings. */
+    docs: ApiDocsOptions;
     /** Per-plugin runtime config, keyed by plugin name. */
     plugins: {
         /** Identity plugin settings. */
@@ -41,6 +44,27 @@ const config: OrthaConfig = {
     globalPrefix: 'api',
     database: {
         url: process.env['DATABASE_URL'] ?? ''
+    },
+    docs: {
+        // On outside production, where the reference is a development tool.
+        // `API_DOCS` overrides either way — set it to `true` to publish the
+        // reference from a deployed instance.
+        enabled: process.env['API_DOCS']
+            ? process.env['API_DOCS'] === 'true'
+            : process.env['NODE_ENV'] !== 'production',
+        title: 'Ortha CMS API',
+        version: '1.0.0',
+        description: [
+            'The Ortha CMS HTTP API, assembled from the plugins registered in',
+            '`apps/server/src/plugins.ts`. Every route lives under the `/api`',
+            'prefix and is authenticated by default — a browser session cookie',
+            'from `POST /api/auth/login`, or a bearer API token for the',
+            'external content API.',
+            '',
+            'Workspace-scoped routes (content, media, workspace members) also',
+            'require an `X-Workspace-Id` header naming a workspace the caller',
+            'is a member of.'
+        ].join('\n')
     },
     plugins: {
         identity: {

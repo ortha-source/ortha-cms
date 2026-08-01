@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
     IsArray,
@@ -12,6 +13,7 @@ import {
     Min
 } from 'class-validator';
 import {
+    DEFAULT_PAGE_SIZE,
     FILTER_MAX_LENGTH,
     MAX_PAGE_SIZE,
     SORTABLE_FIELDS,
@@ -29,18 +31,35 @@ import {
  */
 export class ListActivityQueryDto {
     /** Restrict to one subject kind (e.g. `'user'`). */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 255,
+        example: 'user',
+        description: "Restrict to one subject kind (e.g. `'user'`)."
+    })
     @IsOptional()
     @IsString()
     @MaxLength(255)
     subjectType?: string;
 
     /** Restrict to one subject id (a specific entity's history). */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 255,
+        description:
+            "Restrict to one subject id (a specific entity's history). Text, not always a uuid — the audit outlives its subjects."
+    })
     @IsOptional()
     @IsString()
     @MaxLength(255)
     subjectId?: string;
 
     /** Restrict to one actor. */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'uuid',
+        description: 'Restrict to the events recorded for one actor.'
+    })
     @IsOptional()
     @IsUUID()
     actorId?: string;
@@ -51,6 +70,12 @@ export class ListActivityQueryDto {
      * owned by the emitting plugins, so this is validated as free text, not
      * against a central catalogue.
      */
+    @ApiPropertyOptional({
+        type: String,
+        example: 'user.invited,user.suspended',
+        description:
+            'Comma-separated event kinds, matched with `IN`. Kinds are owned by the emitting plugins, so this is free text rather than a central catalogue.'
+    })
     @IsOptional()
     @Transform(({ value }) =>
         typeof value === 'string'
@@ -66,6 +91,12 @@ export class ListActivityQueryDto {
     kind?: string[];
 
     /** Case-insensitive substring search over the actor email snapshot. */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 255,
+        description:
+            'Case-insensitive substring search over the frozen actor-email snapshot.'
+    })
     @IsOptional()
     @IsString()
     @MaxLength(255)
@@ -78,22 +109,48 @@ export class ListActivityQueryDto {
      * engine's node/depth caps bound the parsed shape. AND-ed with the other
      * params.
      */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: FILTER_MAX_LENGTH,
+        example:
+            '{"op":"and","rules":[{"field":"kind","op":"eq","value":"user.invited"}]}',
+        description:
+            'Structured filter tree as a JSON string, produced by the admin query builder and validated against the activity filter schema. AND-ed with the other params.'
+    })
     @IsOptional()
     @IsString()
     @MaxLength(FILTER_MAX_LENGTH)
     filter?: string;
 
     /** Inclusive lower bound on the event time (ISO 8601). */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'date-time',
+        example: '2026-01-01T00:00:00.000Z',
+        description: 'Inclusive lower bound on the event time (ISO 8601).'
+    })
     @IsOptional()
     @IsISO8601()
     from?: string;
 
     /** Inclusive upper bound on the event time (ISO 8601). */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'date-time',
+        example: '2026-02-01T00:00:00.000Z',
+        description: 'Inclusive upper bound on the event time (ISO 8601).'
+    })
     @IsOptional()
     @IsISO8601()
     to?: string;
 
     /** 1-based page number. */
+    @ApiPropertyOptional({
+        type: 'integer',
+        minimum: 1,
+        default: 1,
+        description: '1-based page number.'
+    })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -101,6 +158,13 @@ export class ListActivityQueryDto {
     page?: number;
 
     /** Rows per page, capped at {@link MAX_PAGE_SIZE}. */
+    @ApiPropertyOptional({
+        type: 'integer',
+        minimum: 1,
+        maximum: MAX_PAGE_SIZE,
+        default: DEFAULT_PAGE_SIZE,
+        description: `Rows per page, capped at ${MAX_PAGE_SIZE}.`
+    })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -109,11 +173,21 @@ export class ListActivityQueryDto {
     pageSize?: number;
 
     /** Column to sort by (whitelisted). Defaults to `at`. */
+    @ApiPropertyOptional({
+        enum: [...SORTABLE_FIELDS],
+        default: 'at',
+        description: 'Column to sort by (whitelisted).'
+    })
     @IsOptional()
     @IsIn(SORTABLE_FIELDS)
     sort?: SortableField;
 
     /** Sort direction. Defaults to `desc`. */
+    @ApiPropertyOptional({
+        enum: [...SORT_ORDERS],
+        default: 'desc',
+        description: 'Sort direction.'
+    })
     @IsOptional()
     @IsIn(SORT_ORDERS)
     order?: SortOrder;

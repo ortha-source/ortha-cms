@@ -41,6 +41,11 @@ npx nx serve server
 npx nx serve admin
 ```
 
+The running server documents itself: the interactive API reference is at
+<http://localhost:3000/reference> (raw OpenAPI at `/reference/json`). It is on
+outside production — set `API_DOCS=true` to publish it from a deployment, or
+`API_DOCS=false` to turn it off locally.
+
 ## Common tasks
 
 ```sh

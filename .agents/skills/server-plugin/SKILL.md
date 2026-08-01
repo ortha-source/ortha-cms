@@ -426,6 +426,18 @@ npx nx run server:db:migrate                                       # applies all
   host already applies a strict global `ValidationPipe`
   (`whitelist` + `forbidNonWhitelisted` + `transform`) in `create-server.ts` —
   **do not** re-register a pipe; just decorate the DTO.
+- **Every DTO property also carries `@ApiProperty` / `@ApiPropertyOptional`**
+  (`@nestjs/swagger`). The host generates an OpenAPI document at boot and serves
+  it as a Scalar API reference on `/reference`, and the project builds with
+  webpack + `tsc` — the swagger **CLI plugin is not wired**, so nothing is
+  inferred: a property with no decorator is missing from the docs entirely.
+  Restate the validator's constraints in the schema (`type`, `format: 'uuid' |
+'date-time' | 'email'`, `enum: [...CONSTANT]`, `minimum`/`maximum`,
+  `maxLength`, `maxItems`, `default`) plus a one-line `description` and, where
+  the shape isn't obvious, an `example`. Use `type: 'integer'` for `@IsInt()`
+  fields and `type: () => NestedDto` for `@ValidateNested()` ones. Derive
+  numbers/enums from the same constant the validator uses so the two can't
+  drift.
 - Domain errors are **transport-agnostic classes**, one per file under
   `<feature>/errors/` (e.g. a `WidgetNotFoundError`); the controller maps them
   to HTTP (`NotFoundException`, etc.). Keep security-sensitive responses generic

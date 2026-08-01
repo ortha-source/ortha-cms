@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import type { IdentityPluginConfig } from '../types';
 import { IdentityModule } from '../identity.module';
+import { SESSION_COOKIE } from '../auth/services/cookie.service';
 
 /**
  * Server plugin for identity, carrying its config alongside the standard
@@ -47,6 +48,29 @@ export function IdentityPlugin(
             // anchor (dirname(require.resolve('@ortha-cms/identity-server/package.json'))).
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_identity'
+        },
+        // Identity owns the app's authentication, so it is also the plugin that
+        // tells the OpenAPI document how a caller proves who they are. Both
+        // schemes are offered document-wide: `@Public()` routes (login) simply
+        // ignore them.
+        docs: {
+            securitySchemes: {
+                session: {
+                    type: 'apiKey',
+                    in: 'cookie',
+                    name: SESSION_COOKIE,
+                    description:
+                        'Opaque session cookie issued by `POST /api/auth/login`. Sent automatically by the browser; the global `AuthGuard` resolves it to the current user.'
+                },
+                apiToken: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'orthacms_<random>',
+                    description:
+                        'External API token minted by `POST /api/api-tokens`. Scoped to one workspace and shown once, at mint time.'
+                }
+            },
+            defaultSecurity: ['session', 'apiToken']
         }
     };
 }

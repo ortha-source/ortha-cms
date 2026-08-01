@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsUUID } from 'class-validator';
 import { BULK_MAX_IDS } from '../../entries.constants';
 
@@ -9,6 +10,14 @@ import { BULK_MAX_IDS } from '../../entries.constants';
  */
 export class BulkIdsDto {
     /** Entry ids to act on. */
+    @ApiProperty({
+        type: [String],
+        format: 'uuid',
+        minItems: 1,
+        maxItems: BULK_MAX_IDS,
+        example: ['3f1a7c1e-9d2b-4a6f-8c11-5b8e2f0d7a91'],
+        description: `Entry ids to act on — v4 uuids, non-empty and capped at ${BULK_MAX_IDS} so one request can't fan out unbounded work.`
+    })
     @IsArray()
     @ArrayNotEmpty()
     @ArrayMaxSize(BULK_MAX_IDS)

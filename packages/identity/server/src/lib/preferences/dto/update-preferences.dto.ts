@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsIn } from 'class-validator';
 
 /** The colour themes a user may pick. Mirrors the `theme_preference` enum. */
@@ -12,6 +13,12 @@ export type ThemeValue = (typeof THEME_VALUES)[number];
  */
 export class UpdatePreferencesDto {
     /** Colour theme (`light` / `dark` / `system`). */
+    @ApiProperty({
+        enum: [...THEME_VALUES],
+        example: 'system',
+        description:
+            'Colour theme. `system` follows the OS setting. Mirrors the `theme_preference` enum.'
+    })
     @IsIn(THEME_VALUES)
     theme!: ThemeValue;
 }

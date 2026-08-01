@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
     IsArray,
@@ -15,20 +16,42 @@ import { WORKSPACE_COLORS } from '../../domain/value-objects/workspace-color';
 /** A member being granted access. The owner is derived from the session. */
 export class CreateWorkspaceMemberDto {
     /** Directory user id, or the typed email for an invited member. */
+    @ApiProperty({
+        type: String,
+        minLength: 1,
+        description:
+            'Directory user id (uuid) for an existing account, or the typed email when `invited` is true.'
+    })
     @IsString()
     @IsNotEmpty()
     id!: string;
 
     /** Display name (the email for invited members). */
+    @ApiProperty({
+        type: String,
+        description:
+            'Display name. For an invited member this is typically the email itself.'
+    })
     @IsString()
     name!: string;
 
     /** Contact email. */
+    @ApiProperty({
+        type: String,
+        minLength: 1,
+        example: 'grace@example.com',
+        description: 'Contact email.'
+    })
     @IsString()
     @IsNotEmpty()
     email!: string;
 
     /** Whether this is an invite-by-email rather than an existing account. */
+    @ApiProperty({
+        type: Boolean,
+        description:
+            'True when this is an invite-by-email: a pending user is provisioned for the address instead of linking an existing account.'
+    })
     @IsBoolean()
     invited!: boolean;
 }
@@ -40,16 +63,30 @@ export class CreateWorkspaceMemberDto {
  */
 export class ResourceSelectionDto {
     /** Selection strategy. */
+    @ApiProperty({
+        enum: ['specific', 'all'],
+        description:
+            'Selection strategy: `specific` grants the slugs in `ids`; `all` grants everything of that kind minus `excludedIds`.'
+    })
     @IsIn(['specific', 'all'])
     mode!: 'specific' | 'all';
 
     /** Explicit slugs — `specific` mode. */
+    @ApiPropertyOptional({
+        type: [String],
+        example: ['article', 'author'],
+        description: 'Explicit content-type slugs — `specific` mode only.'
+    })
     @IsOptional()
     @IsArray()
     @IsString({ each: true })
     ids?: string[];
 
     /** Blacklisted slugs — `all` mode. */
+    @ApiPropertyOptional({
+        type: [String],
+        description: 'Content-type slugs to exclude — `all` mode only.'
+    })
     @IsOptional()
     @IsArray()
     @IsString({ each: true })
@@ -62,16 +99,31 @@ export class ResourceSelectionDto {
  */
 export class ContentDto {
     /** Page-level decision. */
+    @ApiProperty({
+        enum: ['all', 'specific'],
+        description:
+            'Top-level decision: `all` grants every content type; `specific` carries the per-kind selections below.'
+    })
     @IsIn(['all', 'specific'])
     mode!: 'all' | 'specific';
 
     /** Collection selection — only meaningful when `mode === 'specific'`. */
+    @ApiPropertyOptional({
+        type: () => ResourceSelectionDto,
+        description:
+            'Collection selection. Only meaningful when `mode` is `specific`.'
+    })
     @IsOptional()
     @ValidateNested()
     @Type(() => ResourceSelectionDto)
     collections?: ResourceSelectionDto;
 
     /** Page selection — only meaningful when `mode === 'specific'`. */
+    @ApiPropertyOptional({
+        type: () => ResourceSelectionDto,
+        description:
+            'Page selection. Only meaningful when `mode` is `specific`.'
+    })
     @IsOptional()
     @ValidateNested()
     @Type(() => ResourceSelectionDto)
@@ -81,6 +133,13 @@ export class ContentDto {
 /** Body of `POST /api/workspaces`. */
 export class CreateWorkspaceDto {
     /** Workspace display name. */
+    @ApiProperty({
+        type: String,
+        minLength: 1,
+        maxLength: 120,
+        example: 'Marketing site',
+        description: 'Workspace display name.'
+    })
     @IsString()
     @IsNotEmpty()
     @MaxLength(120)
@@ -92,26 +151,56 @@ export class CreateWorkspaceDto {
      * (`Slug.create`), which the create use-case applies — an invalid slug is
      * still rejected with HTTP 400.
      */
+    @ApiProperty({
+        type: String,
+        maxLength: 120,
+        pattern: '^[a-z0-9-]+$',
+        example: 'marketing-site',
+        description:
+            'URL slug. Length/type are checked here; the lowercase-letters/digits/hyphens format rule is enforced by the `Slug` value object — an invalid slug is still a 400. Must be unique.'
+    })
     @IsString()
     @MaxLength(120)
     slug!: string;
 
     /** Optional long description. */
+    @ApiProperty({
+        type: String,
+        maxLength: 2000,
+        example: '',
+        description:
+            'Long description. Required as a field — send an empty string for none.'
+    })
     @IsString()
     @MaxLength(2000)
     description!: string;
 
     /** Accent color key from the design-system palette. */
+    @ApiProperty({
+        enum: [...WORKSPACE_COLORS],
+        example: 'slate',
+        description: 'Accent color key from the design-system avatar palette.'
+    })
     @IsIn(WORKSPACE_COLORS)
     color!: string;
 
     /** Members to add. The owner (current user) is implied, not listed here. */
+    @ApiProperty({
+        type: () => [CreateWorkspaceMemberDto],
+        description:
+            'Members to add. The creator is implied — do not list them here.'
+    })
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => CreateWorkspaceMemberDto)
     members!: CreateWorkspaceMemberDto[];
 
     /** Content access grant. */
+    @ApiProperty({
+        type: () => ContentDto,
+        description:
+            'Content access grant, flattened server-side into explicit `workspace_content` rows.'
+    })
     @IsDefined()
     @ValidateNested()
     @Type(() => ContentDto)
