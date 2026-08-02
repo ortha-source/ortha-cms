@@ -101,6 +101,45 @@ stray `<tr>` outside a table cannot parse into an orphan row block. Ragged
 imports are squared up to the widest row at parse time, because every table
 operation in the editor assumes a rectangle.
 
+## Presentation — alignment, size, colour
+
+Three things a writer expects that are *styling* rather than meaning, and they
+are handled the same way: a **named value on a `data-` attribute**, pinned to an
+enumeration by the sanitizer.
+
+| what | where it lives | vocabulary |
+| ---- | -------------- | ---------- |
+| block alignment | `data-align` on the block's own tag | `left` (never written) · `center` · `right` · `justify` |
+| image width | `data-size` on the `<figure>` | `small` · `medium` · `large` · `full` (never written) |
+| text colour | `data-color` on a `<span>` | ten palette names |
+| highlight | `data-highlight` on a `<mark>` | ten palette names |
+
+Three rules make this safe to store:
+
+- **Names, never hex or pixels.** A `#f43f5e` frozen into a document is a
+  decision about a design system this package cannot see, taken by whoever
+  happened to be writing that day. A *name* is something the delivery surface
+  maps onto its own palette, in light mode and dark; `medium` survives a column
+  whose width we will never know, where `480px` does not.
+- **The default is the absence of a value.** `left` and `full` are never
+  written, so a paragraph someone centred and then un-centred serializes
+  byte-identically to one nobody ever touched — which is what keeps revision
+  diffs honest.
+- **The vocabulary is enforced in the sanitizer**, not by convention
+  (`enumeratedAttributes`). It is the pass both runtimes share, so a value that
+  survives it is one every consumer can rely on — and an unconstrained
+  `data-color` invites exactly the open-ended styling this format exists to keep
+  out of stored content.
+
+A block type opts in with `aligns: true` and one `ctx.align(block)` call in its
+`toHtml`; the parser restores `attrs.align` for it generically, so the round trip
+costs a flag and a splice rather than a re-read in every `fromHtml`.
+
+**What is deliberately not offered:** fonts, sizes in pixels, line-height,
+letter-spacing, arbitrary colour. Each of them is a decision belonging to the
+surface the content is rendered on, and baking it into stored HTML is how a CMS
+ends up with documents that only look right in one theme.
+
 ## Sanitization — the security boundary
 
 `lib/html/sanitize.ts` is an **allow-list**, not a filter. Unknown tags are

@@ -11,6 +11,77 @@
  * inherits the design system's tokens (and therefore dark mode) for free.
  */
 
+
+/**
+ * The palette, as design-system classes. One map per mark, keyed by the stored
+ * colour name — the single place a name becomes a colour, so the swatch in the
+ * picker, the text in the editor and the rendered document cannot disagree.
+ *
+ * Tailwind's own scale rather than raw hex, so the palette follows the theme
+ * into dark mode instead of burning ten light-mode colours into the app.
+ */
+export const COLOR_SWATCH: Readonly<Record<string, string>> = {
+    default: 'text-foreground',
+    gray: 'text-gray-500 dark:text-gray-400',
+    brown: 'text-amber-800 dark:text-amber-600',
+    orange: 'text-orange-600 dark:text-orange-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    green: 'text-emerald-600 dark:text-emerald-400',
+    blue: 'text-blue-600 dark:text-blue-400',
+    purple: 'text-violet-600 dark:text-violet-400',
+    pink: 'text-pink-600 dark:text-pink-400',
+    red: 'text-red-600 dark:text-red-400'
+};
+
+/** The same palette as backgrounds, for the highlight mark. */
+export const HIGHLIGHT_SWATCH: Readonly<Record<string, string>> = {
+    default: 'bg-muted',
+    gray: 'bg-gray-500/20',
+    brown: 'bg-amber-800/20',
+    orange: 'bg-orange-500/25',
+    yellow: 'bg-yellow-400/35',
+    green: 'bg-emerald-500/25',
+    blue: 'bg-blue-500/25',
+    purple: 'bg-violet-500/25',
+    pink: 'bg-pink-500/25',
+    red: 'bg-red-500/25'
+};
+
+/**
+ * The **inline** half of the styling: the marks that live inside a block's own
+ * HTML rather than on the block.
+ *
+ * Split out because the editor needs it too. Block styling in the editor comes
+ * from each React renderer, so the editor does not want `WYSIWYG_PROSE` — but a
+ * colour lives in the markup `InlineEditable` renders verbatim, and without
+ * these rules an author picked a colour and watched nothing happen.
+ */
+export const WYSIWYG_INLINE_PROSE: readonly string[] = [
+    // Colour and highlight, keyed by the palette names the sanitizer pins
+    // `data-color` / `data-highlight` to.
+    '[&_[data-color=gray]]:text-gray-500 dark:[&_[data-color=gray]]:text-gray-400',
+    '[&_[data-color=brown]]:text-amber-800 dark:[&_[data-color=brown]]:text-amber-600',
+    '[&_[data-color=orange]]:text-orange-600 dark:[&_[data-color=orange]]:text-orange-400',
+    '[&_[data-color=yellow]]:text-yellow-600 dark:[&_[data-color=yellow]]:text-yellow-400',
+    '[&_[data-color=green]]:text-emerald-600 dark:[&_[data-color=green]]:text-emerald-400',
+    '[&_[data-color=blue]]:text-blue-600 dark:[&_[data-color=blue]]:text-blue-400',
+    '[&_[data-color=purple]]:text-violet-600 dark:[&_[data-color=purple]]:text-violet-400',
+    '[&_[data-color=pink]]:text-pink-600 dark:[&_[data-color=pink]]:text-pink-400',
+    '[&_[data-color=red]]:text-red-600 dark:[&_[data-color=red]]:text-red-400',
+    // `<mark>` carries a browser default of black-on-yellow; the palette
+    // replaces it outright so an unhighlighted theme never leaks through.
+    '[&_mark]:bg-transparent [&_mark]:text-inherit [&_mark]:rounded [&_mark]:px-0.5',
+    '[&_[data-highlight=gray]]:bg-gray-500/20',
+    '[&_[data-highlight=brown]]:bg-amber-800/20',
+    '[&_[data-highlight=orange]]:bg-orange-500/25',
+    '[&_[data-highlight=yellow]]:bg-yellow-400/35',
+    '[&_[data-highlight=green]]:bg-emerald-500/25',
+    '[&_[data-highlight=blue]]:bg-blue-500/25',
+    '[&_[data-highlight=purple]]:bg-violet-500/25',
+    '[&_[data-highlight=pink]]:bg-pink-500/25',
+    '[&_[data-highlight=red]]:bg-red-500/25'
+];
+
 /** Classes that style a subtree of stored wysiwyg HTML. */
 export const WYSIWYG_PROSE = [
     // Headings — the same scale the editor's HeadingBlock renders.
@@ -50,8 +121,21 @@ export const WYSIWYG_PROSE = [
     '[&_table]:my-2 [&_table]:block [&_table]:w-fit [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-sm',
     '[&_:is(th,td)]:border-border [&_:is(th,td)]:min-w-24 [&_:is(th,td)]:border [&_:is(th,td)]:px-2 [&_:is(th,td)]:py-1 [&_:is(th,td)]:align-top',
     '[&_th]:bg-muted/50 [&_th]:text-left [&_th]:font-semibold',
+    // Alignment. One rule for every alignable tag — the attribute is the
+    // contract, so a consumer styling the delivered HTML writes the same four
+    // selectors and gets the same result.
+    '[&_[data-align=center]]:text-center',
+    '[&_[data-align=right]]:text-right',
+    '[&_[data-align=justify]]:text-justify',
+    // A centred figure has to move the picture, not just its caption — an
+    // `<img>` is inline, so `text-align` on the figure does exactly that.
+    '[&_figure[data-align=center]]:mx-auto [&_figure[data-align=right]]:ml-auto',
+    ...WYSIWYG_INLINE_PROSE,
     // Media and layout.
     '[&_figure]:my-2',
+    // Image width presets. Percentages of the measure rather than pixels: the
+    // stored HTML renders on a surface whose width this editor never sees.
+    '[&_figure[data-size=small]]:w-1/3 [&_figure[data-size=medium]]:w-1/2 [&_figure[data-size=large]]:w-3/4',
     '[&_img]:border-border [&_img]:max-h-96 [&_img]:rounded-md [&_img]:border',
     '[&_figcaption]:text-muted-foreground [&_figcaption]:text-sm',
     '[&_details]:my-1 [&_summary]:cursor-pointer [&_summary]:font-medium',

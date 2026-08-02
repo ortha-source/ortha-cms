@@ -177,14 +177,45 @@ function buildBlock(
     element: HtmlElement,
     context: BlockParseContext
 ): WysiwygBlock | readonly WysiwygBlock[] | null {
-    if (definition.fromHtml) return definition.fromHtml(element, context);
-    return context.block(definition.type, {
-        html: definition.content === 'void' ? '' : inlineOf(element.children),
-        children:
-            definition.content === 'container'
-                ? context.children(element.children)
-                : []
+    const built = definition.fromHtml
+        ? definition.fromHtml(element, context)
+        : context.block(definition.type, {
+              html:
+                  definition.content === 'void'
+                      ? ''
+                      : inlineOf(element.children),
+              children:
+                  definition.content === 'container'
+                      ? context.children(element.children)
+                      : []
+          });
+    return withAlign(built, definition, element);
+}
+
+/**
+ * Restores `attrs.align` from the element's `data-align`, for the types that
+ * declare they align. Applied **here** rather than in each `fromHtml`, so a
+ * definition opts into the whole round trip with one flag and one `ctx.align`
+ * call instead of re-reading the same attribute six times.
+ *
+ * The value needs no validation: `data-align` is an enumerated attribute, so
+ * the sanitize pass this parser runs after has already dropped anything that
+ * isn't one of the four alignments.
+ */
+function withAlign(
+    built: WysiwygBlock | readonly WysiwygBlock[] | null,
+    definition: BlockDefinition,
+    element: HtmlElement
+): WysiwygBlock | readonly WysiwygBlock[] | null {
+    const align = element.attrs['data-align'];
+    if (!definition.aligns || !align || built === null) return built;
+    const apply = (block: WysiwygBlock): WysiwygBlock => ({
+        ...block,
+        attrs: { ...block.attrs, align }
     });
+    return Array.isArray(built)
+        ? built.map(apply)
+        : apply(built as WysiwygBlock);
 }
 
 /** Normalizes a `fromHtml` result to a list. */

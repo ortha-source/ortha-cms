@@ -17,6 +17,7 @@ import {
 export const paragraphBlock: BlockDefinition = {
     type: BLOCK_TYPE.Paragraph,
     content: 'inline',
+    aligns: true,
     tags: ['p'],
     descriptor: {
         defaultLabel: 'Text',
@@ -24,13 +25,15 @@ export const paragraphBlock: BlockDefinition = {
         group: BLOCK_GROUP.Basic,
         order: 0
     },
-    toHtml: (block, ctx) => `<p>${ctx.inline(block.html)}</p>`
+    toHtml: (block, ctx) =>
+        `<p${ctx.align(block)}>${ctx.inline(block.html)}</p>`
 };
 
 /** A section heading, `level` 1–4. */
 export const headingBlock: BlockDefinition = {
     type: BLOCK_TYPE.Heading,
     content: 'inline',
+    aligns: true,
     defaultAttrs: { level: 2 },
     tags: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
     descriptor: {
@@ -41,7 +44,9 @@ export const headingBlock: BlockDefinition = {
     },
     toHtml: (block, ctx) => {
         const level = headingLevel(block.attrs['level']);
-        return `<h${level}>${ctx.inline(block.html)}</h${level}>`;
+        return `<h${level}${ctx.align(block)}>${ctx.inline(
+            block.html
+        )}</h${level}>`;
     },
     fromHtml: (element, ctx) =>
         ctx.block(BLOCK_TYPE.Heading, {
@@ -63,6 +68,7 @@ function headingLevel(value: unknown): number {
 export const quoteBlock: BlockDefinition = {
     type: BLOCK_TYPE.Quote,
     content: 'inline',
+    aligns: true,
     tags: ['blockquote'],
     continueOnEnter: true,
     descriptor: {
@@ -72,7 +78,9 @@ export const quoteBlock: BlockDefinition = {
         order: 5
     },
     toHtml: (block, ctx) =>
-        `<blockquote><p>${ctx.inline(block.html)}</p>${ctx.children(block.children)}</blockquote>`,
+        `<blockquote${ctx.align(block)}><p>${ctx.inline(block.html)}</p>${ctx.children(
+            block.children
+        )}</blockquote>`,
     fromHtml: (element, ctx) => {
         const split = splitLeadingParagraph(element);
         return ctx.block(BLOCK_TYPE.Quote, {
@@ -91,6 +99,7 @@ export const quoteBlock: BlockDefinition = {
 export const calloutBlock: BlockDefinition = {
     type: BLOCK_TYPE.Callout,
     content: 'inline',
+    aligns: true,
     defaultAttrs: { tone: CALLOUT_TONE.Info, emoji: '💡' },
     tags: ['aside'],
     match: (element) => element.attrs['data-block'] === BLOCK_TYPE.Callout,
@@ -105,7 +114,9 @@ export const calloutBlock: BlockDefinition = {
         const emoji = ctx.text(block.attrs['emoji'], '');
         const emojiAttr = emoji ? ` data-emoji="${ctx.attr(emoji)}"` : '';
         return (
-            `<aside data-block="${BLOCK_TYPE.Callout}" data-tone="${tone}"${emojiAttr}>` +
+            `<aside data-block="${BLOCK_TYPE.Callout}" data-tone="${tone}"${emojiAttr}${ctx.align(
+                block
+            )}>` +
             `<p>${ctx.inline(block.html)}</p>${ctx.children(block.children)}` +
             `</aside>`
         );

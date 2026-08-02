@@ -1,5 +1,6 @@
 import { useState, type DragEvent } from 'react';
 import {
+    BLOCK_ALIGN,
     pathAfter,
     type BlockPath,
     type WysiwygBlock
@@ -40,6 +41,9 @@ export function BlockRow({
     const { views, schema, commands, selectedKeys } = useEditor();
     const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
     const selected = selectedKeys.has(pathKey(path));
+    // Applied here rather than in each renderer: alignment is a property every
+    // alignable type shares, and the renderers stay presentational.
+    const align = block.attrs['align'];
 
     const view = views[block.type];
     const Component = view?.Component ?? UnknownBlock;
@@ -74,6 +78,9 @@ export function BlockRow({
         <div
             className={cn(
                 'relative',
+                align === BLOCK_ALIGN.Center && 'text-center',
+                align === BLOCK_ALIGN.Right && 'text-right',
+                align === BLOCK_ALIGN.Justify && 'text-justify',
                 // A selected block is tinted rather than outlined: a run of
                 // selected blocks should read as one region, and per-block
                 // borders would draw seams through the middle of it.

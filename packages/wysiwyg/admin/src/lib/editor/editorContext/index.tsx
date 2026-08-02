@@ -75,6 +75,17 @@ export interface EditorContextValue {
     clearBlockSelection(): void;
     /** Re-reads the selection so the floating toolbar can follow it. */
     refreshToolbar(): void;
+    /**
+     * Commits the active block's live DOM into the model.
+     *
+     * Every mark that goes through `execCommand` fires an `input` event, and
+     * `InlineEditable` commits on that. The marks that **can't** use it — inline
+     * code, re-pointing an existing link, removing one, the colour marks — edit
+     * the DOM directly and fire nothing, so the change showed in the editor and
+     * was lost on save unless the author happened to type again afterwards.
+     * Anything that mutates a block's HTML by hand calls this.
+     */
+    commitActiveHtml(): void;
     /** Opens the link editor over the current selection (⌘K). */
     openLinkEditor(): void;
     /**

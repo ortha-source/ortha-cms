@@ -17,7 +17,7 @@ export { WysiwygPreviewCard } from './lib/field/WysiwygPreviewCard';
 
 // ── Rendering a stored value ──────────────────────────────────────────────
 export { WysiwygContent } from './lib/render/WysiwygContent';
-export { WYSIWYG_PROSE } from './lib/render/wysiwygProse';
+export { WYSIWYG_INLINE_PROSE, WYSIWYG_PROSE } from './lib/render/wysiwygProse';
 
 // ── Extending the editor ──────────────────────────────────────────────────
 export type {

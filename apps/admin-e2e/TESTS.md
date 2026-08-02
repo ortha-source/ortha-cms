@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_268 test cases across 31 spec files._
+_275 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -374,6 +374,18 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
 | deletes the whole selection with one Backspace |
 | ⌘A selects every block, Escape drops the selection |
 | turns a whole selection into another block type |
+
+### alignment, colour and size
+
+| Test case |
+| --- |
+| aligns a block, and clears it back to nothing |
+| aligns every block in a selection at once |
+| aligns from the keyboard |
+| colours a run of text, and takes the colour back off |
+| highlights a run as a <mark> |
+| inline code survives a save with no typing after it |
+| sizes an image and centres it |
 
 ### tables
 

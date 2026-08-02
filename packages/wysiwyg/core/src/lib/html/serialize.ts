@@ -10,7 +10,7 @@
 
 import type { WysiwygBlock, WysiwygDocument } from '../document/types';
 import { DEFAULT_BLOCK_SCHEMA } from '../schema/built-in';
-import { BLOCK_TYPE } from '../schema/block-types';
+import { BLOCK_ALIGN, BLOCK_TYPE } from '../schema/block-types';
 import type { BlockSchema } from '../schema/schema';
 import type {
     BlockDefinition,
@@ -53,7 +53,19 @@ export function serializeBlocks(
         inline: (html) => sanitizeInlineHtml(html ?? ''),
         attr: (value) => escapeHtmlAttribute(value),
         text: (value, fallbackText = '') =>
-            value === null || value === undefined ? fallbackText : String(value)
+            value === null || value === undefined
+                ? fallbackText
+                : String(value),
+        // Left is the absence of an alignment, so it is never written: an
+        // untouched document carries no alignment markup at all, and a
+        // paragraph someone centred and then un-centred goes back to being
+        // byte-identical to one that was never touched.
+        align: (block) => {
+            const align = block.attrs['align'];
+            if (typeof align !== 'string') return '';
+            if (align === '' || align === BLOCK_ALIGN.Left) return '';
+            return ` data-align="${escapeHtmlAttribute(align)}"`;
+        }
     };
 
     let out = '';

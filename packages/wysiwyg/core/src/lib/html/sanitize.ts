@@ -16,6 +16,11 @@
  * lets the delivery layer decide whether to frame it.
  */
 
+import {
+    BLOCK_ALIGNS,
+    INLINE_COLORS,
+    MEDIA_SIZES
+} from '../schema/block-types';
 import { escapeHtmlAttribute, escapeHtmlText } from './escape';
 import { VOID_TAGS, isElement, type HtmlNode } from './node';
 import { parseHtmlNodes } from './parse-nodes';
@@ -32,10 +37,38 @@ export interface SanitizePolicy {
     readonly allowedSchemes: ReadonlySet<string>;
     /** Tags dropped **with their content** (never merely unwrapped). */
     readonly strippedTags: ReadonlySet<string>;
+    /**
+     * `data-*` attributes whose value is an enumeration, and the values it may
+     * take. An attribute named here is dropped when its value isn't one of
+     * them; one not named here rides through as any other data attribute does.
+     */
+    readonly enumeratedAttributes?: Readonly<
+        Record<string, ReadonlySet<string>>
+    >;
 }
 
 /** Attributes allowed on every element regardless of tag. */
 const GLOBAL_ATTRIBUTES = ['class', 'id', 'dir', 'lang', 'title'];
+
+/**
+ * The presentational `data-*` attributes, pinned to their vocabularies.
+ *
+ * These are the one place a *styling* choice reaches the stored HTML, so unlike
+ * the block types' own round-tripping attributes they are constrained here
+ * rather than trusted. Two reasons it belongs in the sanitizer and not in a
+ * renderer: it is the pass both runtimes share, so a value that survives it is
+ * one every consumer can rely on; and an unconstrained `data-color` invites
+ * exactly the open-ended styling this format exists to avoid — the delivery
+ * surface has to be able to map a small, known set onto its own palette.
+ */
+const ENUMERATED_DATA_ATTRIBUTES: Readonly<
+    Record<string, ReadonlySet<string>>
+> = {
+    'data-align': new Set(BLOCK_ALIGNS),
+    'data-size': new Set(MEDIA_SIZES),
+    'data-color': new Set(INLINE_COLORS),
+    'data-highlight': new Set(INLINE_COLORS)
+};
 
 /**
  * The document policy — the tag vocabulary the built-in blocks serialize to,
@@ -111,7 +144,8 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
         'object',
         'embed',
         'form'
-    ])
+    ]),
+    enumeratedAttributes: ENUMERATED_DATA_ATTRIBUTES
 };
 
 /**
@@ -207,6 +241,10 @@ function sanitizeAttributes(
         if (!isData && !allowed.has(name)) continue;
         if (name.startsWith('on')) continue;
         if (name === 'style') continue;
+
+        // A presentational data attribute is an enumeration, not free text.
+        const vocabulary = policy.enumeratedAttributes?.[name];
+        if (vocabulary && !vocabulary.has(value)) continue;
 
         if (policy.urlAttributes.has(name)) {
             const url = safeUrl(value, policy);

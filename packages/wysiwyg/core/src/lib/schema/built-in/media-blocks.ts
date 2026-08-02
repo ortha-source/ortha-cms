@@ -10,7 +10,7 @@
 
 import { isElement, type HtmlElement, type HtmlNode } from '../../html/node';
 import type { BlockDefinition } from '../block-definition';
-import { BLOCK_GROUP, BLOCK_TYPE } from '../block-types';
+import { BLOCK_GROUP, BLOCK_TYPE, MEDIA_SIZE, MEDIA_SIZES } from '../block-types';
 
 /** A horizontal rule. The only block with nothing to edit at all. */
 export const dividerBlock: BlockDefinition = {
@@ -30,7 +30,8 @@ export const dividerBlock: BlockDefinition = {
 export const imageBlock: BlockDefinition = {
     type: BLOCK_TYPE.Image,
     content: 'inline',
-    defaultAttrs: { src: '', alt: '' },
+    aligns: true,
+    defaultAttrs: { src: '', alt: '', size: MEDIA_SIZE.Full },
     tags: ['figure', 'img'],
     match: (element) =>
         element.tag === 'img' ||
@@ -50,7 +51,16 @@ export const imageBlock: BlockDefinition = {
         // output, rather than as a broken-image icon on the live site.
         if (!src) return '';
         const img = `<img src="${ctx.attr(src)}" alt="${ctx.attr(alt)}" loading="lazy">`;
-        return `<figure>${img}${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`;
+        // The size rides on the figure, not the `<img>`: it is a statement
+        // about how much of the measure the picture takes, which is the
+        // figure's job — and a width baked onto the image would fight whatever
+        // the delivery surface does with its own container.
+        const size = mediaSize(block.attrs['size']);
+        const sizeAttr =
+            size === MEDIA_SIZE.Full ? '' : ` data-size="${ctx.attr(size)}"`;
+        return `<figure${sizeAttr}${ctx.align(block)}>${img}${
+            caption ? `<figcaption>${caption}</figcaption>` : ''
+        }</figure>`;
     },
     fromHtml: (element, ctx) => {
         const img = element.tag === 'img' ? element : findTag(element, 'img');
@@ -60,7 +70,8 @@ export const imageBlock: BlockDefinition = {
             html: caption ? ctx.inline(caption.children) : '',
             attrs: {
                 src: img.attrs['src'] ?? '',
-                alt: img.attrs['alt'] ?? ''
+                alt: img.attrs['alt'] ?? '',
+                size: mediaSize(element.attrs['data-size'])
             }
         });
     }
@@ -121,4 +132,11 @@ function findTag(node: HtmlElement, tag: string): HtmlElement | null {
         if (found) return found;
     }
     return null;
+}
+
+/** A known size preset, or full width when the stored one is unknown. */
+function mediaSize(value: unknown): string {
+    return typeof value === 'string' && MEDIA_SIZES.includes(value as never)
+        ? value
+        : MEDIA_SIZE.Full;
 }

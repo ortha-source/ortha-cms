@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+    BLOCK_ALIGN,
     BLOCK_TYPE,
     PARAGRAPH_TYPE,
     toggleBlockMark,
@@ -23,6 +24,7 @@ import {
     replaceAt,
     serializeBlocks,
     updateAt,
+    type BlockAlign,
     type BlockAttrs,
     type BlockPath,
     type BlockSchema,
@@ -58,6 +60,15 @@ import { HISTORY, type EditorDocument } from '../useEditorDocument';
 export interface BlockCommands {
     /** Replaces a block's inline HTML. Coalesced in history — this is typing. */
     setHtml(path: BlockPath, html: string): void;
+    /**
+     * Replaces a block's inline HTML as a **discrete** edit, not as typing.
+     *
+     * The counterpart to {@link setHtml}: that one coalesces into the last
+     * keystroke, which is right for keystrokes and wrong for a formatting
+     * command — applying a colour and then undoing should take back the colour,
+     * not the sentence it was applied to.
+     */
+    replaceHtml(path: BlockPath, html: string): void;
     /** Merges `attrs` into a block (a heading level, a callout tone). */
     setAttrs(path: BlockPath, attrs: BlockAttrs): void;
     /** Converts a block to another type, applying that type's defaults. */
@@ -140,6 +151,17 @@ export interface BlockCommands {
     /** Toggles an inline mark across every block in the selection. */
     toggleMarkMany(paths: readonly BlockPath[], tag: InlineMarkTag): void;
 
+    // ── Alignment ────────────────────────────────────────────────────────
+
+    /**
+     * Aligns a block. `left` clears the alignment rather than storing one, so a
+     * centred-then-uncentred paragraph serializes identically to one that was
+     * never touched.
+     */
+    setAlign(path: BlockPath, align: BlockAlign): void;
+    /** Aligns every block in the selection, in one commit. */
+    setAlignMany(paths: readonly BlockPath[], align: BlockAlign): void;
+
     // ── Tables ───────────────────────────────────────────────────────────
     // A table is rows of cells, and every one of these has to keep it a
     // **rectangle** — a column insert touches every row at once, which is one
@@ -186,6 +208,35 @@ export function useBlockCommands(
                 updateAt(blocks, path, (block) => ({ ...block, html })),
                 HISTORY.Coalesce
             );
+        };
+
+        const replaceHtml: BlockCommands['replaceHtml'] = (path, html) => {
+            commit(updateAt(blocks, path, (block) => ({ ...block, html })));
+        };
+
+        /** The `align` attribute value to store — `null` clears it. */
+        const alignValue = (align: BlockAlign) =>
+            align === BLOCK_ALIGN.Left ? null : align;
+
+        const setAlign: BlockCommands['setAlign'] = (path, align) => {
+            commit(
+                updateAt(blocks, path, (block) => ({
+                    ...block,
+                    attrs: { ...block.attrs, align: alignValue(align) }
+                }))
+            );
+        };
+
+        const setAlignMany: BlockCommands['setAlignMany'] = (paths, align) => {
+            if (paths.length === 0) return;
+            let next = blocks;
+            for (const path of paths) {
+                next = updateAt(next, path, (block) => ({
+                    ...block,
+                    attrs: { ...block.attrs, align: alignValue(align) }
+                }));
+            }
+            commit(next);
         };
 
         const setAttrs: BlockCommands['setAttrs'] = (path, attrs) => {
@@ -783,7 +834,10 @@ export function useBlockCommands(
 
         return {
             setHtml,
+            replaceHtml,
             setAttrs,
+            setAlign,
+            setAlignMany,
             insertTableRow,
             removeTableRow,
             insertTableColumn,

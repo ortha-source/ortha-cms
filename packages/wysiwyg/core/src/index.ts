@@ -58,16 +58,25 @@ export type {
 export { createBlockSchema, extendBlockSchema } from './lib/schema/schema';
 export type { BlockSchema } from './lib/schema/schema';
 export {
+    BLOCK_ALIGN,
+    BLOCK_ALIGNS,
     BLOCK_GROUP,
     BLOCK_TYPE,
     CALLOUT_TONE,
     CALLOUT_TONES,
-    HEADING_LEVELS
+    HEADING_LEVELS,
+    INLINE_COLOR,
+    INLINE_COLORS,
+    MEDIA_SIZE,
+    MEDIA_SIZES
 } from './lib/schema/block-types';
 export type {
+    BlockAlign,
     BuiltInBlockType,
     CalloutTone,
-    HeadingLevel
+    HeadingLevel,
+    InlineColor,
+    MediaSize
 } from './lib/schema/block-types';
 export {
     DEFAULT_BLOCK_DEFINITIONS,
@@ -119,6 +128,13 @@ export {
     toggleBlockMark
 } from './lib/html/inline-marks';
 export type { InlineMarkTag } from './lib/html/inline-marks';
+export {
+    COLOR_MARK,
+    COLOR_MARK_TAG,
+    colorOrNull,
+    isColorSet
+} from './lib/html/inline-colors';
+export type { ColorMark } from './lib/html/inline-colors';
 export { serializeBlocks, serializeDocument } from './lib/html/serialize';
 export type { SerializeOptions } from './lib/html/serialize';
 export { parseBlocks, parseDocument } from './lib/html/parse-document';

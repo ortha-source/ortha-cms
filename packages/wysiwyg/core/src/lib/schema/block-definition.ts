@@ -50,6 +50,13 @@ export interface BlockSerializeContext {
     attr(value: string): string;
     /** Reads an attribute as a string, with a fallback. */
     text(value: unknown, fallback?: string): string;
+    /**
+     * The block's alignment as a ready-to-splice attribute — ` data-align="…"`,
+     * or `''` when it is left-aligned. A *helper* rather than something the
+     * serializer splices in for you, because only the definition knows which of
+     * the tags it emits the alignment belongs on (a figure, not its `<img>`).
+     */
+    align(block: WysiwygBlock): string;
 }
 
 /** What a definition may call while parsing one element. */
@@ -98,6 +105,13 @@ export interface BlockDefinition {
      * type (a list item) rather than start a paragraph. Defaults to `false`.
      */
     readonly continueOnEnter?: boolean;
+    /**
+     * Whether this type can be aligned. Drives two things: the editor offers
+     * the control only for blocks that answer `true`, and the parser restores
+     * `attrs.align` from `data-align` for them — so a definition gets the whole
+     * round trip by emitting `ctx.align(block)` in `toHtml` and setting this.
+     */
+    readonly aligns?: boolean;
 
     /** Serializes one block to HTML. The one authority for this type's output. */
     toHtml(block: WysiwygBlock, context: BlockSerializeContext): string;

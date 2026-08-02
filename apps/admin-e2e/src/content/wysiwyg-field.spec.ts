@@ -261,6 +261,167 @@ test.describe('Entry editor — wysiwyg field', () => {
         });
     });
 
+    test.describe('alignment, colour and size', () => {
+        test('aligns a block, and clears it back to nothing', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'Centred'
+            );
+
+            await wysiwygFieldPage.alignButton('Align centre').click();
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toBe('<p data-align="center">Centred</p>');
+
+            // Left is the absence of an alignment, so going back leaves the
+            // paragraph byte-identical to one nobody ever aligned.
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.block('Text block').click();
+            await wysiwygFieldPage.alignButton('Align left').click();
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(1);
+            expect(savedBody(saves)).toBe('<p>Centred</p>');
+        });
+
+        test('aligns every block in a selection at once', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.writeParagraphs('One', 'Two', 'Three');
+
+            await wysiwygFieldPage.dragSelect(0, 2);
+            await wysiwygFieldPage.alignButton('Align right').click();
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toBe(
+                '<p data-align="right">One</p><p data-align="right">Two</p>' +
+                    '<p data-align="right">Three</p>'
+            );
+        });
+
+        test('aligns from the keyboard', async ({ wysiwygFieldPage }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'Keyed'
+            );
+
+            await wysiwygFieldPage.press('ControlOrMeta+Shift+e');
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toBe('<p data-align="center">Keyed</p>');
+        });
+
+        test('colours a run of text, and takes the colour back off', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'Coloured'
+            );
+
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.pickColor('text', 'Blue');
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // A palette name, never a hex — the delivery surface maps it.
+            expect(savedBody(saves)).toBe(
+                '<p><span data-color="blue">Coloured</span></p>'
+            );
+
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.pickColor('text', 'Default');
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(1);
+            // Removing a colour removes the markup, not just the attribute.
+            expect(savedBody(saves)).toBe('<p>Coloured</p>');
+        });
+
+        test('highlights a run as a <mark>', async ({ wysiwygFieldPage }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'Marked'
+            );
+
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.pickColor('highlight', 'Yellow');
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // `<mark>` already means "marked for reference", so the document
+            // keeps that meaning even where the palette doesn't reach.
+            expect(savedBody(saves)).toBe(
+                '<p><mark data-highlight="yellow">Marked</mark></p>'
+            );
+        });
+
+        test('inline code survives a save with no typing after it', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'code'
+            );
+
+            // A regression guard: the marks that can't go through
+            // `execCommand` edit the DOM directly and fire no `input` event, so
+            // they used to show in the editor and vanish on save.
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.toolbarButton('Inline code').click();
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toBe('<p><code>code</code></p>');
+        });
+
+        test('sizes an image and centres it', async ({ wysiwygFieldPage }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertViaSlash('image', 'Image');
+            await wysiwygFieldPage.imageUrl.fill('https://cdn.test/a.png');
+            await wysiwygFieldPage.addImage.click();
+
+            await wysiwygFieldPage.imageWidth('Medium').click();
+            await wysiwygFieldPage.alignButton('Align centre').click();
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // A preset, not a pixel width — the stored HTML renders on a
+            // surface whose measure this editor never sees.
+            expect(savedBody(saves)).toContain(
+                '<figure data-size="medium" data-align="center">'
+            );
+        });
+    });
+
     test.describe('tables', () => {
         test('inserts a table and types across it with Tab', async ({
             wysiwygFieldPage

@@ -27,6 +27,7 @@ import { useEditor } from '../../editor/editorContext';
 import { INSERT_POSITION } from '../../utils/constants';
 import {
     MARK,
+    applyColorMark,
     readMarkState,
     toggleCodeMark,
     toggleMark,
@@ -34,6 +35,8 @@ import {
     type MarkState
 } from '../../utils/marks';
 import { ToolbarButton } from '../ToolbarButton';
+import { AlignControl } from '../AlignControl';
+import { ColorControl } from '../ColorControl';
 import { useBlockTypeItems } from '../useBlockTypeItems';
 
 const messages = defineMessages({
@@ -98,6 +101,7 @@ export function EditorToolbar() {
         redo,
         openLinkEditor,
         selectedKeys,
+        commitActiveHtml,
         readOnly
     } = useEditor();
     const groups = useBlockTypeItems(schema, views);
@@ -267,6 +271,7 @@ export function EditorToolbar() {
                         return;
                     }
                     toggleCodeMark();
+                    commitActiveHtml();
                     refresh();
                 }}
             >
@@ -279,6 +284,21 @@ export function EditorToolbar() {
             >
                 <LinkIcon aria-hidden className="size-4" />
             </ToolbarButton>
+            <ColorControl
+                color={marks.color}
+                highlight={marks.highlight}
+                onPick={(mark, color) => {
+                    applyColorMark(mark, color);
+                    // The colour marks edit the DOM by hand, so nothing fires
+                    // the `input` event `InlineEditable` commits on.
+                    commitActiveHtml();
+                    refresh();
+                }}
+            />
+
+            <Separator orientation="vertical" className="mx-1 h-5" />
+
+            <AlignControl />
 
             <Separator orientation="vertical" className="mx-1 h-5" />
 

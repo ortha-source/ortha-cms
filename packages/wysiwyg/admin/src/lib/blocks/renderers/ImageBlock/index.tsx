@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ImageIcon, LibraryBig } from 'lucide-react';
+import { MEDIA_SIZE, MEDIA_SIZES } from '@ortha-cms/wysiwyg-core';
 import { Button, Input, cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 import { InlineEditable } from '../../InlineEditable';
@@ -46,8 +47,32 @@ const messages = defineMessages({
     replace: {
         id: 'wysiwyg.block.image.replace',
         defaultMessage: 'Replace from library'
-    }
+    },
+    sizeLabel: {
+        id: 'wysiwyg.block.image.sizeLabel',
+        defaultMessage: 'Width'
+    },
+    small: { id: 'wysiwyg.block.image.small', defaultMessage: 'Small' },
+    medium: { id: 'wysiwyg.block.image.medium', defaultMessage: 'Medium' },
+    large: { id: 'wysiwyg.block.image.large', defaultMessage: 'Large' },
+    full: { id: 'wysiwyg.block.image.full', defaultMessage: 'Full' }
 });
+
+/** The label each width preset reads as. */
+const SIZE_MESSAGE = {
+    [MEDIA_SIZE.Small]: 'small',
+    [MEDIA_SIZE.Medium]: 'medium',
+    [MEDIA_SIZE.Large]: 'large',
+    [MEDIA_SIZE.Full]: 'full'
+} as const;
+
+/** How wide the editor draws each preset — the mirror of `WYSIWYG_PROSE`. */
+const SIZE_CLASS = {
+    [MEDIA_SIZE.Small]: 'w-1/3',
+    [MEDIA_SIZE.Medium]: 'w-1/2',
+    [MEDIA_SIZE.Large]: 'w-3/4',
+    [MEDIA_SIZE.Full]: 'w-full'
+} as const;
 
 /**
  * An image with a caption and alt text.
@@ -65,6 +90,7 @@ export function ImageBlock({ block, path }: BlockViewProps) {
     const { commands, readOnly, media } = useEditor();
     const src = String(block.attrs['src'] ?? '');
     const alt = String(block.attrs['alt'] ?? '');
+    const size = String(block.attrs['size'] ?? MEDIA_SIZE.Full);
     const [draftUrl, setDraftUrl] = useState('');
 
     /**
@@ -127,7 +153,17 @@ export function ImageBlock({ block, path }: BlockViewProps) {
     }
 
     return (
-        <figure className="my-2 space-y-2">
+        <figure
+            className={cn(
+                'my-2 space-y-2',
+                SIZE_CLASS[size as keyof typeof SIZE_CLASS] ?? 'w-full',
+                // The figure is what the alignment moves, so it needs a width
+                // to be moved *within*; `BlockRow` sets the text alignment and
+                // these margins do the rest.
+                'data-[align=center]:mx-auto data-[align=right]:ml-auto'
+            )}
+            data-align={block.attrs['align'] ?? undefined}
+        >
             <img
                 src={src}
                 alt={alt}
@@ -173,6 +209,38 @@ export function ImageBlock({ block, path }: BlockViewProps) {
                             {intl.formatMessage(messages.replace)}
                         </Button>
                     )}
+                </div>
+            )}
+            {!readOnly && (
+                <div className="flex items-center gap-1">
+                    <span
+                        aria-hidden
+                        className="text-muted-foreground shrink-0 text-[11px] font-medium tracking-wide uppercase"
+                    >
+                        {intl.formatMessage(messages.sizeLabel)}
+                    </span>
+                    {MEDIA_SIZES.map((preset) => (
+                        <Button
+                            key={preset}
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            aria-pressed={size === preset}
+                            className={cn(
+                                'h-6 px-2 text-xs',
+                                size === preset
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'text-muted-foreground'
+                            )}
+                            onClick={() =>
+                                commands.setAttrs(path, { size: preset })
+                            }
+                        >
+                            {intl.formatMessage(
+                                messages[SIZE_MESSAGE[preset]]
+                            )}
+                        </Button>
+                    ))}
                 </div>
             )}
             <figcaption>

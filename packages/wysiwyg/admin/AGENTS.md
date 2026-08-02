@@ -89,6 +89,11 @@ The host side of the contract is two props — `expandTo` (where to render) and
 - **Multi-block selection** — drag across blocks, or ⌘A from inside the editor;
   the toolbar's marks and "turn into" then act on the whole run, and
   Backspace/⌘C/⌘X apply to it.
+- **Alignment** — left · centre · right · justify on paragraphs, headings, list
+  items, quotes, callouts and images, from the toolbar, the block menu, or
+  ⌘⇧L/E/R/J. Applies to a whole multi-block selection at once.
+- **Text colour and highlight** — a ten-name palette each, never a colour wheel.
+- **Image width** — small · medium · large · full, combining with alignment.
 - **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
 - **Structured paste** — multi-block HTML from another app becomes real blocks,
   sanitized; plain text is inserted as text.
@@ -267,6 +272,24 @@ assumption about a different process.
   out of every editable, so `InlineEditable`'s shortcut handler is not listening
   — without a copy on the root, one ⌘B across a selection could not be taken
   back from the keyboard at all.
+- **A mark that can't use `execCommand` must commit itself.** `execCommand`
+  fires an `input` event and `InlineEditable` commits on that; inline code,
+  re-pointing an existing link, removing one, and both colour marks edit the DOM
+  directly and fire nothing. They showed in the editor and were **lost on save**
+  unless the author happened to type again afterwards — a bug that predated the
+  colour work and applied to inline code and links. Anything that mutates a
+  block's HTML by hand now calls `commitActiveHtml()`, which commits through
+  `replaceHtml` (a discrete history entry, not coalesced into the last
+  keystroke — undoing a colour should take back the colour, not the sentence).
+- **The colour dropdown saves and restores the selection.** A toolbar *button*
+  can just suppress `mousedown`; a Radix *menu* moves focus into itself, and the
+  browser collapses the document selection when it goes — so by the time an item
+  is chosen there is nothing left to colour.
+- **The editor imports the inline half of the prose CSS.** Block styling in the
+  editor comes from each React renderer, so it does not want `WYSIWYG_PROSE` —
+  but a colour lives in the markup `InlineEditable` renders verbatim, and
+  without `WYSIWYG_INLINE_PROSE` an author picked a colour and watched nothing
+  happen while the *rendered* document showed it correctly.
 - **The slash menu never takes focus.** The caret stays in the block so the query
   can keep narrowing; the editable forwards ↑/↓/Enter/Escape to it
   (`handleOverlayKey`) and announces the active option via

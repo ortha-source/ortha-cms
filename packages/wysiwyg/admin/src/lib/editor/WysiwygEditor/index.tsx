@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    BLOCK_ALIGN,
     DEFAULT_BLOCK_SCHEMA,
     INLINE_MARK_TAG,
     PARAGRAPH_TYPE,
@@ -15,6 +16,7 @@ import {
     blockRangeBetween,
     createBlock,
     extendBlockSchema,
+    type BlockAlign,
     type BlockDefinition,
     type BlockPath,
     type BlockSchema,
@@ -26,6 +28,7 @@ import { BlockList } from '../../blocks/BlockList';
 import { DEFAULT_BLOCK_VIEWS } from '../../blocks/defaultBlockViews';
 import type { BlockViewRegistry } from '../../blocks/blockRegistry';
 import type { WysiwygMediaPort } from '../../media/wysiwygMedia';
+import { WYSIWYG_INLINE_PROSE } from '../../render/wysiwygProse';
 import { EditorToolbar } from '../../menus/EditorToolbar';
 import { InlineToolbar } from '../../menus/InlineToolbar';
 import { SlashMenu } from '../../menus/SlashMenu';
@@ -49,6 +52,14 @@ const messages = defineMessages({
 });
 
 /** ⌘-shortcuts that toggle a mark across a whole block selection. */
+/** The alignment each ⌘⇧ shortcut applies. */
+const ALIGN_SHORTCUTS: Record<string, BlockAlign> = {
+    [SHORTCUT_KEY.AlignLeft]: BLOCK_ALIGN.Left,
+    [SHORTCUT_KEY.AlignCenter]: BLOCK_ALIGN.Center,
+    [SHORTCUT_KEY.AlignRight]: BLOCK_ALIGN.Right,
+    [SHORTCUT_KEY.AlignJustify]: BLOCK_ALIGN.Justify
+};
+
 const SELECTION_MARKS: Record<string, InlineMarkTag> = {
     [SHORTCUT_KEY.Bold]: INLINE_MARK_TAG.Bold,
     [SHORTCUT_KEY.Italic]: INLINE_MARK_TAG.Italic,
@@ -313,6 +324,11 @@ export function WysiwygEditor({
             setSlash: openSlash,
             handleOverlayKey,
             refreshToolbar: () => setToolbarVersion((version) => version + 1),
+            commitActiveHtml: () => {
+                if (!activePath) return;
+                const element = editables.current.get(pathKey(activePath));
+                if (element) commands.replaceHtml(activePath, element.innerHTML);
+            },
             openLinkEditor: () => setLinkRequest((request) => request + 1),
             registerEditable,
             editableFor: (key: string) => editables.current.get(key) ?? null,
@@ -371,6 +387,19 @@ export function WysiwygEditor({
      */
     const handleRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         const modifier = event.metaKey || event.ctrlKey;
+
+        // Alignment, ⌘⇧L/E/R/J. Handled on the root so it works with a block
+        // selection (no caret, so no editable is listening) and with one
+        // block focused alike.
+        if (modifier && event.shiftKey && !readOnly) {
+            const align = ALIGN_SHORTCUTS[event.key.toLowerCase()];
+            if (align) {
+                event.preventDefault();
+                if (selected.length > 0) commands.setAlignMany(selected, align);
+                else if (activePath) commands.setAlign(activePath, align);
+                return;
+            }
+        }
 
         // ⌘A promotes the caret's block to a whole-document selection. The
         // browser's own select-all stops at one editable, which reads as broken.
@@ -503,7 +532,11 @@ export function WysiwygEditor({
                         ref={surfaceRef}
                         className={cn(
                             'relative py-3 pr-4 pl-14',
-                            toolbar && 'mx-auto max-w-3xl px-6 py-10 pl-16'
+                            toolbar && 'mx-auto max-w-3xl px-6 py-10 pl-16',
+                            // Inline marks live in the markup each editable
+                            // renders verbatim, so the editor needs the same
+                            // colour rules the rendered document uses.
+                            ...WYSIWYG_INLINE_PROSE
                         )}
                     >
                         {!readOnly && (

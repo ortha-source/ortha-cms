@@ -32,6 +32,7 @@ import {
     selectionRect
 } from '../../utils/dom-selection';
 import { LinkForm } from './LinkForm';
+import { useEditor } from '../../editor/editorContext';
 import { ToolbarButton } from '../ToolbarButton';
 
 const messages = defineMessages({
@@ -90,6 +91,7 @@ export function InlineToolbar({
     linkRequest: number;
 }) {
     const intl = useIntl();
+    const { commitActiveHtml } = useEditor();
     const [state, setState] = useState<ToolbarState | null>(null);
     const [linkDraft, setLinkDraft] = useState<string | null>(null);
     const savedRange = useRef<Range | null>(null);
@@ -220,6 +222,7 @@ export function InlineToolbar({
                         active={state.marks.code}
                         onClick={() => {
                             toggleCodeMark();
+                            commitActiveHtml();
                             read();
                         }}
                     >
@@ -241,12 +244,14 @@ export function InlineToolbar({
                     onSubmit={() => {
                         restoreSelection();
                         if (linkDraft.trim()) applyLink(linkDraft.trim());
+                        commitActiveHtml();
                         setLinkDraft(null);
                         read();
                     }}
                     onRemove={() => {
                         restoreSelection();
                         removeLink();
+                        commitActiveHtml();
                         setLinkDraft(null);
                         read();
                     }}

@@ -15,6 +15,13 @@
  * same allow-listed set.
  */
 
+import {
+    COLOR_MARK,
+    COLOR_MARK_TAG,
+    isColorSet,
+    type ColorMark
+} from '@ortha-cms/wysiwyg-core';
+
 /** The marks the toolbar and the keyboard shortcuts can toggle. */
 export const MARK = {
     Bold: 'bold',
@@ -55,22 +62,101 @@ export function toggleCodeMark(): void {
         unwrap(existing);
         return;
     }
-    if (selection.isCollapsed) return;
+    surroundSelection('code');
+}
+
+/**
+ * Wraps the current selection in a fresh `tag` carrying `attributes`, and
+ * leaves the selection over it.
+ *
+ * `execCommand` has no equivalent — `foreColor`/`hiliteColor` emit a `style`
+ * attribute the sanitizer drops on the way out, so the colour would vanish on
+ * save. This is the range surgery that file's header warns about, kept to the
+ * one shape that needs it.
+ */
+function surroundSelection(
+    tag: string,
+    attributes: Readonly<Record<string, string>> = {}
+): HTMLElement | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        return null;
+    }
     const range = selection.getRangeAt(0);
-    const code = document.createElement('code');
+    const wrapper = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) {
+        wrapper.setAttribute(name, value);
+    }
     try {
-        range.surroundContents(code);
+        range.surroundContents(wrapper);
     } catch {
         // `surroundContents` refuses a range that partially selects a node
         // (half a bold run). Falling back to extract-and-wrap always works,
         // at the cost of re-inserting the content.
-        code.appendChild(range.extractContents());
-        range.insertNode(code);
+        wrapper.appendChild(range.extractContents());
+        range.insertNode(wrapper);
     }
     selection.removeAllRanges();
     const after = document.createRange();
-    after.selectNodeContents(code);
+    after.selectNodeContents(wrapper);
     selection.addRange(after);
+    return wrapper;
+}
+
+/**
+ * Applies a palette colour to the selection, or removes the colour when
+ * `color` is `null`.
+ *
+ * Removal unwraps the run the caret is in rather than wrapping it in a
+ * "default" — a document should carry no colour markup at all where the author
+ * chose no colour, so that un-colouring is a true undo of colouring.
+ */
+export function applyColorMark(mark: ColorMark, color: string | null): void {
+    const { tag, attribute } = COLOR_MARK_TAG[mark];
+    const existing = closestColorMark(mark);
+
+    if (!isColorSet(color)) {
+        if (existing) unwrap(existing);
+        return;
+    }
+    // Re-colouring an already-coloured run is an attribute change, not another
+    // wrapper — otherwise five edits leave five nested spans.
+    if (existing && selectionFills(existing)) {
+        existing.setAttribute(attribute, color as string);
+        return;
+    }
+    surroundSelection(tag, { [attribute]: color as string });
+}
+
+/** The colour mark under the caret, if the caret is inside one. */
+function closestColorMark(mark: ColorMark): HTMLElement | null {
+    const { tag, attribute } = COLOR_MARK_TAG[mark];
+    const element = closestTag(window.getSelection()?.anchorNode, tag);
+    return element?.hasAttribute(attribute) ? element : null;
+}
+
+/** Whether the selection covers all of `element` (so recolouring it is safe). */
+function selectionFills(element: HTMLElement): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+    const range = selection.getRangeAt(0);
+    const whole = document.createRange();
+    whole.selectNodeContents(element);
+    return (
+        range.compareBoundaryPoints(Range.START_TO_START, whole) <= 0 &&
+        range.compareBoundaryPoints(Range.END_TO_END, whole) >= 0
+    );
+}
+
+/** The palette colour at the caret for each mark, or `null` for none. */
+export function readColorMarks(): Record<ColorMark, string | null> {
+    const read = (mark: ColorMark) =>
+        closestColorMark(mark)?.getAttribute(COLOR_MARK_TAG[mark].attribute) ??
+        null;
+    return {
+        [COLOR_MARK.Text]: read(COLOR_MARK.Text),
+        [COLOR_MARK.Highlight]: read(COLOR_MARK.Highlight)
+    };
 }
 
 /** Applies a link to the selection, replacing one already under the caret. */
@@ -159,6 +245,10 @@ export interface MarkState {
     readonly code: boolean;
     /** The `href` under the caret, or `null`. */
     readonly link: string | null;
+    /** The palette colour of the glyphs under the caret, or `null`. */
+    readonly color: string | null;
+    /** The palette colour behind them, or `null`. */
+    readonly highlight: string | null;
 }
 
 /**
@@ -169,12 +259,15 @@ export interface MarkState {
  * being wrong.
  */
 export function readMarkState(): MarkState {
+    const colors = readColorMarks();
     return {
         bold: isMarkActive(MARK.Bold),
         italic: isMarkActive(MARK.Italic),
         underline: isMarkActive(MARK.Underline),
         strike: isMarkActive(MARK.Strike),
         code: isCodeMarkActive(),
-        link: linkAtCaret()
+        link: linkAtCaret(),
+        color: colors[COLOR_MARK.Text],
+        highlight: colors[COLOR_MARK.Highlight]
     };
 }

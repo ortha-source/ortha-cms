@@ -199,6 +199,51 @@ export class WysiwygFieldPage extends BasePage {
         return this.slashMenu.getByRole('option', { name: label });
     }
 
+    // --- alignment, colour and size ------------------------------------------
+
+    /** An alignment toggle in the toolbar. */
+    alignButton(
+        name: 'Align left' | 'Align centre' | 'Align right' | 'Justify'
+    ): Locator {
+        return this.toolbar.getByRole('button', { name });
+    }
+
+    /** The colour/highlight dropdown trigger. */
+    get colorTrigger(): Locator {
+        return this.toolbar.getByRole('button', {
+            name: 'Text colour and highlight'
+        });
+    }
+
+    /**
+     * Pick a palette entry. The menu lists every colour twice — text first,
+     * highlight second — so `section` says which run is meant.
+     */
+    async pickColor(section: 'text' | 'highlight', name: string) {
+        await this.colorTrigger.click();
+        const option = this.page.getByRole('menuitem', { name });
+        await (section === 'text' ? option.first() : option.last()).click();
+        await this.page.getByRole('menu').waitFor({ state: 'hidden' });
+    }
+
+    /** An image block's width preset button. */
+    imageWidth(name: 'Small' | 'Medium' | 'Large' | 'Full'): Locator {
+        return this.editor.getByRole('button', { name, exact: true });
+    }
+
+    /**
+     * Select a whole block's text. `Home` first: a click lands the caret where
+     * the pointer is, which for a short line is already the end — so Shift+End
+     * on its own selects nothing.
+     */
+    async selectLine(blockName: string) {
+        await this.block(blockName).click();
+        await this.press('Home');
+        await this.page.keyboard.down('Shift');
+        await this.press('End');
+        await this.page.keyboard.up('Shift');
+    }
+
     /** A toolbar control, by its accessible name. */
     toolbarButton(name: string): Locator {
         return this.toolbar.getByRole('button', { name });
@@ -279,6 +324,16 @@ export class WysiwygFieldPage extends BasePage {
     async insertTable() {
         await this.insertViaSlash('table', 'Table');
         await this.cell(1, 1).waitFor();
+    }
+
+    /** The empty image block's URL box. */
+    get imageUrl(): Locator {
+        return this.editor.getByRole('textbox', { name: 'Image URL' });
+    }
+
+    /** The empty image block's confirm button. */
+    get addImage(): Locator {
+        return this.editor.getByRole('button', { name: 'Add image' });
     }
 
     /** The image block's media-library trigger (empty state). */

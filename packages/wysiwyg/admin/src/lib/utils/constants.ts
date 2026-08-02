@@ -27,7 +27,15 @@ export const SHORTCUT_KEY = {
     Strike: 'd',
     Code: 'e',
     Link: 'k',
-    Undo: 'z'
+    Undo: 'z',
+    /**
+     * Alignment — ⌘⇧L / E / R / J, the bindings every word processor has used
+     * for thirty years. Shifted, because ⌘L is the browser's address bar.
+     */
+    AlignLeft: 'l',
+    AlignCenter: 'e',
+    AlignRight: 'r',
+    AlignJustify: 'j'
 } as const;
 
 /** The drag payload type — narrow enough that a foreign drop is ignored. */

@@ -12,6 +12,8 @@ import {
     Trash2
 } from 'lucide-react';
 import {
+    BLOCK_ALIGN,
+    BLOCK_ALIGNS,
     BLOCK_TYPE,
     CALLOUT_TONES,
     type BlockPath,
@@ -43,6 +45,14 @@ const messages = defineMessages({
         id: 'wysiwyg.blockMenu.open',
         defaultMessage: 'Block options — drag to move'
     },
+    align: {
+        id: 'wysiwyg.blockMenu.align',
+        defaultMessage: 'Align'
+    },
+    alignLeft: { id: 'wysiwyg.align.left', defaultMessage: 'Align left' },
+    alignCenter: { id: 'wysiwyg.align.center', defaultMessage: 'Align centre' },
+    alignRight: { id: 'wysiwyg.align.right', defaultMessage: 'Align right' },
+    alignJustify: { id: 'wysiwyg.align.justify', defaultMessage: 'Justify' },
     turnInto: {
         id: 'wysiwyg.blockMenu.turnInto',
         defaultMessage: 'Turn into'
@@ -87,6 +97,14 @@ const messages = defineMessages({
 });
 
 /** Tone → its localized name. */
+/** The label each alignment reads as in the submenu. */
+const ALIGN_MESSAGE: Record<string, keyof typeof messages> = {
+    [BLOCK_ALIGN.Left]: 'alignLeft',
+    [BLOCK_ALIGN.Center]: 'alignCenter',
+    [BLOCK_ALIGN.Right]: 'alignRight',
+    [BLOCK_ALIGN.Justify]: 'alignJustify'
+};
+
 const TONE_MESSAGE: Record<string, keyof typeof messages> = {
     info: 'toneInfo',
     success: 'toneSuccess',
@@ -147,6 +165,30 @@ export function BlockMenu({
                         commands.setType(path, type, attrs)
                     }
                 />
+
+                {/* The only route to alignment when the editor has no
+                    persistent toolbar — an inline field never shows one. */}
+                {schema.get(block.type)?.aligns && (
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            {intl.formatMessage(messages.align)}
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {BLOCK_ALIGNS.map((align) => (
+                                <DropdownMenuItem
+                                    key={align}
+                                    onSelect={() =>
+                                        commands.setAlign(path, align)
+                                    }
+                                >
+                                    {intl.formatMessage(
+                                        messages[ALIGN_MESSAGE[align]]
+                                    )}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                )}
 
                 {block.type === BLOCK_TYPE.Callout && (
                     <DropdownMenuSub>

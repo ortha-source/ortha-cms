@@ -46,15 +46,18 @@ function itemFromHtml(type: string) {
 }
 
 /** Serializes one `<li>`: its text, then any nested list under it. */
-function itemToHtml(openTag: string): BlockDefinition['toHtml'] {
+function itemToHtml(tag: string): BlockDefinition['toHtml'] {
     return (block, ctx) =>
-        `${openTag}${ctx.inline(block.html)}${ctx.children(block.children)}</li>`;
+        `<${tag}${ctx.align(block)}>${ctx.inline(block.html)}${ctx.children(
+            block.children
+        )}</${tag}>`;
 }
 
 /** An unordered list item. Enter continues the list. */
 export const bulletedListBlock: BlockDefinition = {
     type: BLOCK_TYPE.BulletedList,
     content: 'inline',
+    aligns: true,
     continueOnEnter: true,
     wrapper: {
         tag: 'ul',
@@ -68,7 +71,7 @@ export const bulletedListBlock: BlockDefinition = {
         group: BLOCK_GROUP.Basic,
         order: 2
     },
-    toHtml: itemToHtml('<li>'),
+    toHtml: itemToHtml('li'),
     fromHtml: itemFromHtml(BLOCK_TYPE.BulletedList)
 };
 
@@ -76,6 +79,7 @@ export const bulletedListBlock: BlockDefinition = {
 export const numberedListBlock: BlockDefinition = {
     type: BLOCK_TYPE.NumberedList,
     content: 'inline',
+    aligns: true,
     continueOnEnter: true,
     wrapper: { tag: 'ol' },
     tags: ['li'],
@@ -85,7 +89,7 @@ export const numberedListBlock: BlockDefinition = {
         group: BLOCK_GROUP.Basic,
         order: 3
     },
-    toHtml: itemToHtml('<li>'),
+    toHtml: itemToHtml('li'),
     fromHtml: itemFromHtml(BLOCK_TYPE.NumberedList)
 };
 
@@ -97,6 +101,7 @@ export const numberedListBlock: BlockDefinition = {
 export const todoBlock: BlockDefinition = {
     type: BLOCK_TYPE.Todo,
     content: 'inline',
+    aligns: true,
     continueOnEnter: true,
     defaultAttrs: { checked: false },
     wrapper: {
@@ -114,7 +119,9 @@ export const todoBlock: BlockDefinition = {
     },
     toHtml: (block, ctx) => {
         const checked = block.attrs['checked'] === true;
-        return `<li data-checked="${checked}">${ctx.inline(block.html)}${ctx.children(block.children)}</li>`;
+        return `<li data-checked="${checked}"${ctx.align(block)}>${ctx.inline(
+            block.html
+        )}${ctx.children(block.children)}</li>`;
     },
     fromHtml: itemFromHtml(BLOCK_TYPE.Todo)
 };
