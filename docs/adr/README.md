@@ -27,5 +27,7 @@ routine, easily-reversed changes.
 - [0001 — Record architecture decisions](0001-record-architecture-decisions.md)
 - [0002 — Plugin-based architecture](0002-plugin-based-architecture.md)
 - [0003 — Tactical DDD inside plugins](0003-tactical-ddd-inside-plugins.md)
+- [0004 — Model-agnostic copilot provider](0004-model-agnostic-copilot-provider.md)
+- [0005 — The copilot acts as its user, never as itself](0005-copilot-authority-model.md)
 
 <!-- Add new ADRs to this index. -->
