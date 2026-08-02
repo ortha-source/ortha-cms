@@ -76,6 +76,44 @@
                     }
                 }
             },
+            "dev:prebuild": {
+                "executor": "nx:run-commands",
+                "options": {
+                    "command": "webpack-cli build",
+                    "args": [
+                        "--node-env=development"
+                    ],
+                    "cwd": "apps/server"
+                }
+            },
+            "dev:build": {
+                "continuous": true,
+                "executor": "nx:run-commands",
+                "dependsOn": [
+                    "dev:prebuild"
+                ],
+                "options": {
+                    "command": "webpack-cli build",
+                    "args": [
+                        "--node-env=development",
+                        "--watch"
+                    ],
+                    "cwd": "apps/server",
+                    "env": {
+                        "NX_WATCH_BUILD": "true"
+                    }
+                }
+            },
+            "dev:run": {
+                "continuous": true,
+                "executor": "nx:run-commands",
+                "dependsOn": [
+                    "dev:prebuild"
+                ],
+                "options": {
+                    "command": "node --watch --enable-source-maps apps/server/dist/main.js"
+                }
+            },
             "test": {
                 "options": {
                     "passWithNoTests": true

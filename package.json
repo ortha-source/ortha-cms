@@ -4,6 +4,7 @@
     "license": "MIT",
     "scripts": {
         "prepare": "lefthook install",
+        "dev": "nx run-many -t dev,dev:build,dev:run,dev:typecheck -p server admin",
         "start:server": "nx serve server",
         "start:admin": "nx serve admin"
     },
