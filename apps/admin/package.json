@@ -16,6 +16,16 @@
     },
     "nx": {
         "name": "admin",
-        "projectType": "application"
+        "projectType": "application",
+        "targets": {
+            "dev:typecheck": {
+                "continuous": true,
+                "executor": "nx:run-commands",
+                "options": {
+                    "command": "tsc --build --emitDeclarationOnly --watch --preserveWatchOutput",
+                    "cwd": "apps/admin"
+                }
+            }
+        }
     }
 }

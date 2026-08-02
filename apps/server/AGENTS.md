@@ -37,7 +37,9 @@ table not re-exported from `index.ts` is silently absent from migrations
 
 - The host (`createServer({ plugins })`) runs each plugin's `onPluginInit`,
   imports its NestJS module, and applies the global `/api` prefix + a
-  `ValidationPipe`.
+  `ValidationPipe`. It also generates the OpenAPI document from the assembled
+  controllers + DTOs and serves it as a Scalar reference on `/reference`
+  (JSON on `/reference/json`), configured by `ortha.config.ts`'s `docs`.
 - Cross-cutting guards are global: `AuthGuard` (session), `PermissionsGuard`
   (RBAC), `OriginGuard` (CSRF on state-changing POSTs).
 - Each plugin owns its Drizzle schema + migrations; the shared

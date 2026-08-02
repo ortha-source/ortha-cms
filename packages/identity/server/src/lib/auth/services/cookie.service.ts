@@ -4,7 +4,7 @@ import type { IdentityPluginConfig } from '../../types';
 import { InjectIdentityConfig } from '../../identity.tokens';
 
 /** Name of the opaque session cookie. */
-const SESSION_COOKIE = 'ortha_session';
+export const SESSION_COOKIE = 'ortha_session';
 
 /**
  * Owns the session cookie's transport concerns so domain services stay free of
