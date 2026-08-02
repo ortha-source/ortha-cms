@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
     ArrayUnique,
     IsArray,
@@ -16,14 +17,34 @@ import {
 /** Body for `POST /api/users/invites` — invites a person by email. */
 export class InviteMemberDto {
     /** Invite recipient. Must not collide with an existing account. */
+    @ApiProperty({
+        type: String,
+        format: 'email',
+        example: 'grace@example.com',
+        description:
+            'Invite recipient. Matched case-insensitively — an address already on an account is a 409.'
+    })
     @IsEmail()
     email!: string;
 
     /** Role key the new member starts with. */
+    @ApiProperty({
+        enum: [...ASSIGNABLE_ROLE_KEYS],
+        example: 'contributor',
+        description:
+            'Global role the new member starts with — one of the three seeded system roles.'
+    })
     @IsIn(ASSIGNABLE_ROLE_KEYS)
     role!: AssignableRoleKey;
 
     /** Optional display name to pre-fill; the invitee can change it. */
+    @ApiPropertyOptional({
+        type: String,
+        minLength: 1,
+        example: 'Grace Hopper',
+        description:
+            'Display name to pre-fill on the pending account; the invitee can change it.'
+    })
     @IsOptional()
     @IsString()
     @IsNotEmpty()
@@ -33,6 +54,13 @@ export class InviteMemberDto {
      * Workspaces to grant the new member access to (memberships). Optional —
      * access can be granted later. Unknown ids are ignored server-side.
      */
+    @ApiPropertyOptional({
+        type: [String],
+        format: 'uuid',
+        uniqueItems: true,
+        description:
+            'Workspaces to grant the new member access to (memberships). Optional — access can be granted later; unknown ids are ignored server-side.'
+    })
     @IsOptional()
     @IsArray()
     @ArrayUnique()

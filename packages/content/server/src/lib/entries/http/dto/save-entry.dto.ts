@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
     IsObject,
     IsOptional,
@@ -6,7 +7,21 @@ import {
     MaxLength
 } from 'class-validator';
 import type { RelationDelta } from '../../types/entry-list-view';
-import { IsRelationDeltaMap } from './relation-delta-map.validator';
+import {
+    IsRelationDeltaMap,
+    MAX_DELTA_FIELDS,
+    MAX_DELTA_IDS
+} from './relation-delta-map.validator';
+
+/** Longest accepted locale slug (BCP-47's practical bound). */
+const LOCALE_MAX_LENGTH = 35;
+
+/** OpenAPI schema of one uuid-array leg of a relation delta. */
+const UUID_ARRAY_SCHEMA = {
+    type: 'array',
+    maxItems: MAX_DELTA_IDS,
+    items: { type: 'string', format: 'uuid' }
+} as const;
 
 /**
  * Body for `POST /api/content/:typeName` (create) and
@@ -31,6 +46,13 @@ import { IsRelationDeltaMap } from './relation-delta-map.validator';
  */
 export class SaveEntryDto {
     /** Field values keyed by field name. */
+    @ApiProperty({
+        type: 'object',
+        additionalProperties: true,
+        example: { title: 'Hello world', author: null },
+        description:
+            "Field values keyed by field name — the per-type contract, so this is structurally just an object. Contents are validated against the content type's field specs (a failure is a 422 carrying per-field issues). Reserved envelope keys (`status`, `publishedAt`, `deletedAt`, `locale`, `localeGroupId`) are not settable here."
+    })
     @IsObject()
     values!: Record<string, unknown>;
 
@@ -38,6 +60,26 @@ export class SaveEntryDto {
      * Per-field relation deltas (`{ <field>: { link?, unlink?, order? } }`) —
      * many/inverse relations only; a single relation is set through `values`.
      */
+    @ApiPropertyOptional({
+        type: 'object',
+        maxProperties: MAX_DELTA_FIELDS,
+        additionalProperties: {
+            type: 'object',
+            properties: {
+                link: UUID_ARRAY_SCHEMA,
+                unlink: UUID_ARRAY_SCHEMA,
+                order: UUID_ARRAY_SCHEMA
+            },
+            additionalProperties: false
+        },
+        example: {
+            tags: {
+                link: ['9c4b1e77-2f0a-4d3b-8e6c-1a5f7b2d9e04'],
+                unlink: []
+            }
+        },
+        description: `Per-field relation deltas, keyed by relation field. Many-to-many and inverse relations only — a single relation is set through \`values\`, and naming one here is a 400. At most ${MAX_DELTA_FIELDS} fields per save and ${MAX_DELTA_IDS} ids per array; \`order\` is accepted on the owning side only.`
+    })
     @IsOptional()
     @IsObject()
     @IsRelationDeltaMap()
@@ -49,9 +91,16 @@ export class SaveEntryDto {
      * `CONTENT_ENTRY_EXTENSION`, which validates it and stamps the envelope
      * column). Read on create only; an update never re-homes a row's locale.
      */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: LOCALE_MAX_LENGTH,
+        example: 'de',
+        description:
+            'Locale slug the entry is created in. Extension-owned: forwarded to the bound `CONTENT_ENTRY_EXTENSION`, which validates it and stamps the envelope column. Read on create only — an update never re-homes a row’s locale.'
+    })
     @IsOptional()
     @IsString()
-    @MaxLength(35)
+    @MaxLength(LOCALE_MAX_LENGTH)
     locale?: string;
 
     /**
@@ -60,6 +109,12 @@ export class SaveEntryDto {
      * row starts its own fresh group. The bound extension validates it against
      * the workspace. Read on create only.
      */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'uuid',
+        description:
+            'The existing translation group a created row joins, making it a sibling. Absent → the row starts its own fresh group. Validated against the workspace by the bound extension (unknown group → 404; duplicate locale in the group → 409). Read on create only.'
+    })
     @IsOptional()
     @IsUUID()
     localeGroupId?: string;

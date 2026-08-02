@@ -4,7 +4,12 @@ const { join } = require('path');
 module.exports = {
     output: {
         path: join(__dirname, 'dist'),
-        clean: true,
+        // `dev:build` (watch) runs alongside `dev:run`, which holds
+        // `node --watch` on dist/main.js. Cleaning on the watcher's first
+        // compile would delete that file out from under the runner — and
+        // `node --watch` cannot recover from a missing entry point, it just
+        // hangs. `dev:prebuild` still cleans, so dist is never stale.
+        clean: process.env.NX_WATCH_BUILD !== 'true',
         ...(process.env.NODE_ENV !== 'production' && {
             devtoolModuleFilenameTemplate: '[absolute-resource-path]'
         })

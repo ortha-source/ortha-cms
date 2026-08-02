@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
     IsIn,
@@ -8,7 +9,11 @@ import {
     MaxLength,
     Min
 } from 'class-validator';
-import { FILTER_MAX_LENGTH, MAX_PAGE_SIZE } from '../../member.constants';
+import {
+    DEFAULT_PAGE_SIZE,
+    FILTER_MAX_LENGTH,
+    MAX_PAGE_SIZE
+} from '../../member.constants';
 
 /** Account statuses a caller may filter the list by. */
 const FILTERABLE_STATUSES = ['pending', 'active', 'disabled'] as const;
@@ -21,6 +26,11 @@ const FILTERABLE_STATUSES = ['pending', 'active', 'disabled'] as const;
  */
 export class ListMembersQueryDto {
     /** Case-insensitive name/email substring filter. */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 255,
+        description: 'Case-insensitive name/email substring filter (ILIKE).'
+    })
     @IsOptional()
     @IsString()
     @MaxLength(255)
@@ -31,6 +41,11 @@ export class ListMembersQueryDto {
      * every status); the workspace member typeahead passes `active` so
      * disabled/pending accounts aren't offered as assignable members.
      */
+    @ApiPropertyOptional({
+        enum: [...FILTERABLE_STATUSES],
+        description:
+            'Restrict to a single account status. Omitted shows every status.'
+    })
     @IsOptional()
     @IsIn(FILTERABLE_STATUSES)
     status?: (typeof FILTERABLE_STATUSES)[number];
@@ -42,12 +57,26 @@ export class ListMembersQueryDto {
      * engine's node/depth caps bound the parsed shape. AND-ed with
      * `search` / `status`.
      */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: FILTER_MAX_LENGTH,
+        example:
+            '{"op":"and","rules":[{"field":"role","op":"eq","value":"admin"}]}',
+        description:
+            'Structured filter tree as a JSON string, validated against the member filter schema. AND-ed with `search`/`status`.'
+    })
     @IsOptional()
     @IsString()
     @MaxLength(FILTER_MAX_LENGTH)
     filter?: string;
 
     /** 1-based page number. */
+    @ApiPropertyOptional({
+        type: 'integer',
+        minimum: 1,
+        default: 1,
+        description: '1-based page number.'
+    })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -55,6 +84,13 @@ export class ListMembersQueryDto {
     page?: number;
 
     /** Rows per page, capped at {@link MAX_PAGE_SIZE}. */
+    @ApiPropertyOptional({
+        type: 'integer',
+        minimum: 1,
+        maximum: MAX_PAGE_SIZE,
+        default: DEFAULT_PAGE_SIZE,
+        description: `Rows per page, capped at ${MAX_PAGE_SIZE}.`
+    })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
