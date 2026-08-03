@@ -92,11 +92,53 @@ describe('inline colour', () => {
         ).toBe('<p><mark>a</mark></p>');
     });
 
-    it('still refuses a style attribute alongside a colour', () => {
+    it('keeps a custom hex colour, on both marks', () => {
+        const html =
+            '<p><span style="color: #ff0055">a</span>' +
+            '<mark style="background-color: #ffee00">b</mark></p>';
+        expect(normalizeWysiwygHtml(html)).toBe(html);
+    });
+
+    it('drops every style property except the two colours', () => {
         expect(
             normalizeWysiwygHtml(
-                '<p><span data-color="blue" style="position:fixed">a</span></p>'
+                '<p><span style="color:#ff0055;position:fixed;top:0">a</span></p>'
             )
-        ).toBe('<p><span data-color="blue">a</span></p>');
+        ).toBe('<p><span style="color: #ff0055">a</span></p>');
+    });
+
+    it('canonicalizes the rgb() a browser rewrites a hex into', () => {
+        // Chromium turns `color: #ff0055` into `rgb(255, 0, 85)` on parse, so
+        // refusing that shape would refuse every colour the editor sets.
+        expect(
+            normalizeWysiwygHtml(
+                '<p><span style="color: rgb(255, 0, 85)">a</span></p>'
+            )
+        ).toBe('<p><span style="color: #ff0055">a</span></p>');
+    });
+
+    it('drops a colour that is neither hex nor rgb()', () => {
+        // Anything that could reference a resource or escape the declaration.
+        for (const value of [
+            'red',
+            'var(--x)',
+            'url(evil)',
+            '#12345',
+            'rgb(300,0,0)',
+            'expression(alert(1))'
+        ]) {
+            expect(
+                normalizeWysiwygHtml(`<p><span style="color:${value}">a</span></p>`)
+            ).toBe('<p><span>a</span></p>');
+        }
+    });
+
+    it('keeps no style at all on a tag that was not opened up', () => {
+        expect(
+            normalizeWysiwygHtml('<p style="color:#ff0055">a</p>')
+        ).toBe('<p>a</p>');
+        expect(
+            normalizeWysiwygHtml('<strong style="color:#ff0055">a</strong>')
+        ).toBe('<p><strong>a</strong></p>');
     });
 });

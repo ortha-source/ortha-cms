@@ -347,3 +347,25 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
         }
     };
 }
+
+/**
+ * A real 240x90 PNG, base64. Used by {@link mockTestImage} — a test that
+ * measures where a picture sits needs one with an intrinsic width, and a
+ * broken `src` silently stretches to fill its container instead.
+ */
+const TEST_IMAGE_PNG =
+    'iVBORw0KGgoAAAANSUhEUgAAAPAAAABaCAIAAAAJsExNAAABDklEQVR4nO3SQQkAIBAAwUvn1/4B7GEJQVgGJsA+dvY6kDHfC+AhQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJoUQ5NiaFIMTYqhSTE0KYYmxdCkGJqUC/yPnQUZs/BCAAAAAElFTkSuQmCC';
+
+/** The URL {@link mockTestImage} answers. */
+export const TEST_IMAGE_URL = '/__test__/picture.png';
+
+/** Serves a real image at {@link TEST_IMAGE_URL}, so layout can be measured. */
+export async function mockTestImage(page: Page): Promise<void> {
+    await page.route(`**${TEST_IMAGE_URL}`, async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'image/png',
+            body: Buffer.from(TEST_IMAGE_PNG, 'base64')
+        });
+    });
+}

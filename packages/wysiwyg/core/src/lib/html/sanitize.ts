@@ -45,10 +45,78 @@ export interface SanitizePolicy {
     readonly enumeratedAttributes?: Readonly<
         Record<string, ReadonlySet<string>>
     >;
+    /**
+     * CSS properties a `style` attribute may keep, per tag. **Everything else
+     * in `style` is dropped, and a tag not named here keeps no `style` at
+     * all** — the attribute is opened by the property, never wholesale.
+     */
+    readonly allowedStyles?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Attributes allowed on every element regardless of tag. */
 const GLOBAL_ATTRIBUTES = ['class', 'id', 'dir', 'lang', 'title'];
+
+/**
+ * A CSS colour this sanitizer will store: **hex only**.
+ *
+ * Deliberately narrower than CSS. `rgb()`, `hsl()` and named colours are all
+ * harmless in themselves, but every additional form is another thing to get
+ * right, and none of them lets an author express something hex can't. What this
+ * pattern is really keeping out is the rest of CSS value syntax — `url(...)`,
+ * custom properties, anything that can reference a resource or escape the
+ * declaration it is in.
+ */
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+/**
+ * The other form the same colour arrives in. Not an author's choice — a browser
+ * rewrites `style="color: #ff0055"` into `rgb(255, 0, 85)` the moment it parses
+ * it, so refusing this shape would mean refusing every colour the editor set.
+ * It is accepted and immediately {@link toHexColor}'d, so what gets **stored**
+ * is still only ever hex.
+ */
+const RGB_COLOR =
+    /^rgba?\(\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*(?:[,/]\s*[\d.]+%?\s*)?\)$/i;
+
+/** Whether a value is a colour this sanitizer will store. */
+export function isHexColor(value: string): boolean {
+    return HEX_COLOR.test(value.trim());
+}
+
+/**
+ * A colour as the `#rrggbb` that gets stored, or `null` when it is not one.
+ *
+ * Canonicalizing here rather than accepting both forms is what keeps the stored
+ * value stable: the same colour, set the same way, serializes identically
+ * whichever browser wrote it — so a revision diff shows edits and not the
+ * difference between two spellings of red.
+ */
+export function toHexColor(value: string): string | null {
+    const trimmed = value.trim();
+    if (HEX_COLOR.test(trimmed)) return trimmed.toLowerCase();
+
+    const rgb = RGB_COLOR.exec(trimmed);
+    if (!rgb) return null;
+    const channels = [rgb[1], rgb[2], rgb[3]].map(Number);
+    if (channels.some((channel) => channel > 255)) return null;
+    return `#${channels
+        .map((channel) => channel.toString(16).padStart(2, '0'))
+        .join('')}`;
+}
+
+/**
+ * The only inline styling that survives: a colour on the two inline marks that
+ * carry one.
+ *
+ * This is a real widening of the security boundary and it is kept as small as a
+ * widening can be — two properties, two tags, one value pattern. The reason it
+ * exists at all: a *named* palette entry adapts to the surface it renders on
+ * and is the better default, but an author who needs their brand's exact colour
+ * has nowhere to put it, and `data-color="#f43f5e"` is a value no stylesheet
+ * can turn into a colour. Everything else about `style` — on these tags and on
+ * every other — is still dropped unconditionally.
+ */
+const COLOR_STYLE_PROPERTIES = ['color', 'background-color'];
 
 /**
  * The presentational `data-*` attributes, pinned to their vocabularies.
@@ -145,7 +213,11 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
         'embed',
         'form'
     ]),
-    enumeratedAttributes: ENUMERATED_DATA_ATTRIBUTES
+    enumeratedAttributes: ENUMERATED_DATA_ATTRIBUTES,
+    allowedStyles: {
+        span: COLOR_STYLE_PROPERTIES,
+        mark: COLOR_STYLE_PROPERTIES
+    }
 };
 
 /**
@@ -234,13 +306,20 @@ function sanitizeAttributes(
     const out: Record<string, string> = {};
 
     for (const [name, value] of Object.entries(attrs)) {
+        if (name.startsWith('on')) continue;
+        // Checked **before** the allow-list, which `style` is deliberately not
+        // in: the attribute is opened up per property, per tag, and only ever
+        // to a value `safeStyle` could parse.
+        if (name === 'style') {
+            const style = safeStyle(tag, value, policy);
+            if (style) out[name] = style;
+            continue;
+        }
         // `data-*` rides through by design: block types round-trip their attrs
         // through it, and a data attribute is inert — it can't execute, and it
-        // can't restyle the page the way a surviving `style` could.
+        // can't restyle the page the way an unfiltered `style` could.
         const isData = name.startsWith('data-');
         if (!isData && !allowed.has(name)) continue;
-        if (name.startsWith('on')) continue;
-        if (name === 'style') continue;
 
         // A presentational data attribute is an enumeration, not free text.
         const vocabulary = policy.enumeratedAttributes?.[name];
@@ -261,6 +340,34 @@ function sanitizeAttributes(
         out['rel'] = 'noopener noreferrer';
     }
     return out;
+}
+
+/**
+ * The declarations of a `style` attribute that this policy keeps for `tag`, or
+ * `null` when none survive. Each is matched against the property list **and**
+ * the colour pattern — a permitted property with an unparseable value is
+ * dropped like any other, so nothing reaches the output unvalidated.
+ */
+function safeStyle(
+    tag: string,
+    value: string,
+    policy: SanitizePolicy
+): string | null {
+    const allowed = policy.allowedStyles?.[tag];
+    if (!allowed) return null;
+
+    const kept: string[] = [];
+    for (const declaration of value.split(';')) {
+        const separator = declaration.indexOf(':');
+        if (separator === -1) continue;
+        const property = declaration.slice(0, separator).trim().toLowerCase();
+        const declared = declaration.slice(separator + 1).trim();
+        if (!allowed.includes(property)) continue;
+        const color = toHexColor(declared);
+        if (!color) continue;
+        kept.push(`${property}: ${color}`);
+    }
+    return kept.length > 0 ? kept.join('; ') : null;
 }
 
 /**

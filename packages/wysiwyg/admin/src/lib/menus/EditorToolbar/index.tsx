@@ -6,7 +6,6 @@ import {
     ChevronDown,
     Code,
     Italic,
-    Link as LinkIcon,
     Plus,
     Redo2,
     Strikethrough,
@@ -20,7 +19,11 @@ import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuTrigger,
-    Separator
+    Separator,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger
 } from '@ortha-cms/design-system';
 import { INLINE_MARK_TAG, type InlineMarkTag } from '@ortha-cms/wysiwyg-core';
 import { useEditor } from '../../editor/editorContext';
@@ -28,7 +31,9 @@ import { INSERT_POSITION } from '../../utils/constants';
 import {
     MARK,
     applyColorMark,
+    applyLink,
     readMarkState,
+    removeLink,
     toggleCodeMark,
     toggleMark,
     type Mark,
@@ -37,6 +42,7 @@ import {
 import { ToolbarButton } from '../ToolbarButton';
 import { AlignControl } from '../AlignControl';
 import { ColorControl } from '../ColorControl';
+import { LinkControl } from '../LinkControl';
 import { useBlockTypeItems } from '../useBlockTypeItems';
 
 const messages = defineMessages({
@@ -99,7 +105,6 @@ export function EditorToolbar() {
         canRedo,
         undo,
         redo,
-        openLinkEditor,
         selectedKeys,
         commitActiveHtml,
         readOnly
@@ -157,6 +162,7 @@ export function EditorToolbar() {
         ) ?? items.find((item) => item.type === activeBlockType);
 
     return (
+        <TooltipProvider delayDuration={400}>
         <div
             role="toolbar"
             aria-label={intl.formatMessage(messages.label)}
@@ -186,22 +192,38 @@ export function EditorToolbar() {
             <Separator orientation="vertical" className="mx-1 h-5" />
 
             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={!activePath && !hasSelection}
-                        aria-label={intl.formatMessage(messages.turnInto)}
-                        className="h-7 gap-1 px-2 text-xs font-normal"
-                    >
-                        {current ? (
-                            <current.Icon aria-hidden className="size-4" />
-                        ) : null}
-                        {current?.label ?? intl.formatMessage(messages.noBlock)}
-                        <ChevronDown aria-hidden className="size-3.5" />
-                    </Button>
-                </DropdownMenuTrigger>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={!activePath && !hasSelection}
+                                aria-label={intl.formatMessage(
+                                    messages.turnInto
+                                )}
+                                className="h-7 gap-1 px-2 text-xs font-normal"
+                            >
+                                {current ? (
+                                    <current.Icon
+                                        aria-hidden
+                                        className="size-4"
+                                    />
+                                ) : null}
+                                {current?.label ??
+                                    intl.formatMessage(messages.noBlock)}
+                                <ChevronDown
+                                    aria-hidden
+                                    className="size-3.5"
+                                />
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {intl.formatMessage(messages.turnInto)}
+                    </TooltipContent>
+                </Tooltip>
                 <DropdownMenuContent
                     align="start"
                     className="max-h-80 w-52 overflow-y-auto"
@@ -277,13 +299,21 @@ export function EditorToolbar() {
             >
                 <Code aria-hidden className="size-4" />
             </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.link)}
-                active={marks.link !== null}
-                onClick={openLinkEditor}
-            >
-                <LinkIcon aria-hidden className="size-4" />
-            </ToolbarButton>
+            <LinkControl
+                href={marks.link}
+                onApply={(url, restore) => {
+                    restore();
+                    applyLink(url);
+                    commitActiveHtml();
+                    refresh();
+                }}
+                onRemove={(restore) => {
+                    restore();
+                    removeLink();
+                    commitActiveHtml();
+                    refresh();
+                }}
+            />
             <ColorControl
                 color={marks.color}
                 highlight={marks.highlight}
@@ -303,19 +333,25 @@ export function EditorToolbar() {
             <Separator orientation="vertical" className="mx-1 h-5" />
 
             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={!activePath}
-                        title={intl.formatMessage(messages.insertHint)}
-                        className="h-7 gap-1 px-2 text-xs font-normal"
-                    >
-                        <Plus aria-hidden className="size-4" />
-                        {intl.formatMessage(messages.insert)}
-                    </Button>
-                </DropdownMenuTrigger>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={!activePath}
+                                className="h-7 gap-1 px-2 text-xs font-normal"
+                            >
+                                <Plus aria-hidden className="size-4" />
+                                {intl.formatMessage(messages.insert)}
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {intl.formatMessage(messages.insertHint)}
+                    </TooltipContent>
+                </Tooltip>
                 <DropdownMenuContent
                     align="start"
                     className="max-h-80 w-52 overflow-y-auto"
@@ -347,6 +383,7 @@ export function EditorToolbar() {
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>
+        </TooltipProvider>
     );
 }
 

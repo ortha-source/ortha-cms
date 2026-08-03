@@ -32,6 +32,7 @@ import {
     selectionRect
 } from '../../utils/dom-selection';
 import { LinkForm } from './LinkForm';
+import { TooltipProvider } from '@ortha-cms/design-system';
 import { useEditor } from '../../editor/editorContext';
 import { ToolbarButton } from '../ToolbarButton';
 
@@ -178,6 +179,7 @@ export function InlineToolbar({
     };
 
     return createPortal(
+        <TooltipProvider delayDuration={400}>
         <div
             role="toolbar"
             aria-label={intl.formatMessage(messages.label)}
@@ -261,7 +263,8 @@ export function InlineToolbar({
                     }}
                 />
             )}
-        </div>,
+        </div>
+        </TooltipProvider>,
         container ?? document.body
     );
 }

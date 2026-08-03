@@ -111,16 +111,24 @@ enumeration by the sanitizer.
 | ---- | -------------- | ---------- |
 | block alignment | `data-align` on the block's own tag | `left` (never written) · `center` · `right` · `justify` |
 | image width | `data-size` on the `<figure>` | `small` · `medium` · `large` · `full` (never written) |
-| text colour | `data-color` on a `<span>` | ten palette names |
-| highlight | `data-highlight` on a `<mark>` | ten palette names |
+| text colour | `data-color` on a `<span>`, or an inline `color` | ten palette names, **or** a hex |
+| highlight | `data-highlight` on a `<mark>`, or an inline `background-color` | ten palette names, **or** a hex |
 
 Three rules make this safe to store:
 
-- **Names, never hex or pixels.** A `#f43f5e` frozen into a document is a
-  decision about a design system this package cannot see, taken by whoever
-  happened to be writing that day. A *name* is something the delivery surface
-  maps onto its own palette, in light mode and dark; `medium` survives a column
-  whose width we will never know, where `480px` does not.
+- **A name where there can be one.** A palette name is something the delivery
+  surface maps onto its own colours, in light mode and dark, and `medium`
+  survives a column whose width we will never know where `480px` does not. Names
+  are what the picker offers first and what the editor writes by default.
+- **A custom colour is a hex, and it is the one thing that reaches `style`.**
+  An author who needs their brand's exact colour has nowhere to put a name, and
+  `data-color="#f43f5e"` is a value no stylesheet can turn into a colour — so
+  the sanitizer opens `style` for exactly two properties (`color`,
+  `background-color`) on exactly two tags (`span`, `mark`), and only to a value
+  it could parse as a colour. Everything else in `style`, on those tags and on
+  every other, is still dropped. `rgb()` is accepted **only** because a browser
+  rewrites a hex into it on parse, and is canonicalized straight back to hex so
+  the stored value stays byte-stable.
 - **The default is the absence of a value.** `left` and `full` are never
   written, so a paragraph someone centred and then un-centred serializes
   byte-identically to one nobody ever touched — which is what keeps revision
@@ -136,9 +144,11 @@ A block type opts in with `aligns: true` and one `ctx.align(block)` call in its
 costs a flag and a splice rather than a re-read in every `fromHtml`.
 
 **What is deliberately not offered:** fonts, sizes in pixels, line-height,
-letter-spacing, arbitrary colour. Each of them is a decision belonging to the
-surface the content is rendered on, and baking it into stored HTML is how a CMS
-ends up with documents that only look right in one theme.
+letter-spacing. Each is a decision belonging to the surface the content is
+rendered on, and baking it into stored HTML is how a CMS ends up with documents
+that only look right in one theme. Custom colour is the exception, and it is
+narrow on purpose — the widening above is two properties, two tags, one value
+shape, all of it enforced in the pass both runtimes share.
 
 ## Sanitization — the security boundary
 

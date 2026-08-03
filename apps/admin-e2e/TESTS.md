@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_275 test cases across 31 spec files._
+_279 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -385,6 +385,10 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
 | colours a run of text, and takes the colour back off |
 | highlights a run as a <mark> |
 | inline code survives a save with no typing after it |
+| centres the picture itself, not just its caption |
+| links through the toolbar’s own popover, and unlinks again |
+| takes a custom colour, stored as hex |
+| names every toolbar control on hover |
 | sizes an image and centres it |
 
 ### tables

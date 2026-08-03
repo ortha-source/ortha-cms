@@ -2,6 +2,11 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "allowJs": true,
+        // This project's whole job is driving a browser, and `locator.evaluate`
+        // callbacks run *in* it — without the DOM lib every one of them is a
+        // type error. Scoped here rather than in the base config, which is
+        // deliberately DOM-free for the server packages.
+        "lib": ["es2022", "dom"],
         "outDir": "out-tsc/playwright",
         "sourceMap": false
     },

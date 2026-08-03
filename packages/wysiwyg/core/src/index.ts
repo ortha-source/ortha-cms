@@ -111,6 +111,8 @@ export type { HtmlElement, HtmlNode, HtmlText } from './lib/html/node';
 export {
     DOCUMENT_SANITIZE_POLICY,
     INLINE_SANITIZE_POLICY,
+    isHexColor,
+    toHexColor,
     sanitizeHtml,
     sanitizeInlineHtml,
     sanitizeNodes,

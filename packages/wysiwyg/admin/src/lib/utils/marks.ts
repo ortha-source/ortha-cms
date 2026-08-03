@@ -19,8 +19,15 @@ import {
     COLOR_MARK,
     COLOR_MARK_TAG,
     isColorSet,
+    isHexColor,
     type ColorMark
 } from '@ortha-cms/wysiwyg-core';
+
+/** The CSS property each colour mark sets when the colour is a custom hex. */
+const COLOR_STYLE_PROPERTY: Readonly<Record<ColorMark, string>> = {
+    [COLOR_MARK.Text]: 'color',
+    [COLOR_MARK.Highlight]: 'backgroundColor'
+};
 
 /** The marks the toolbar and the keyboard shortcuts can toggle. */
 export const MARK = {
@@ -112,27 +119,61 @@ function surroundSelection(
  * chose no colour, so that un-colouring is a true undo of colouring.
  */
 export function applyColorMark(mark: ColorMark, color: string | null): void {
-    const { tag, attribute } = COLOR_MARK_TAG[mark];
+    const { tag } = COLOR_MARK_TAG[mark];
     const existing = closestColorMark(mark);
 
     if (!isColorSet(color)) {
         if (existing) unwrap(existing);
         return;
     }
-    // Re-colouring an already-coloured run is an attribute change, not another
-    // wrapper — otherwise five edits leave five nested spans.
-    if (existing && selectionFills(existing)) {
-        existing.setAttribute(attribute, color as string);
+    // Re-colouring an already-coloured run is an edit to that run, not another
+    // wrapper — otherwise five changes of mind leave five nested spans.
+    const target =
+        existing && selectionFills(existing)
+            ? existing
+            : surroundSelection(tag);
+    if (target) paintColor(target, mark, color as string);
+}
+
+/**
+ * Writes a colour onto an element as whichever of the two forms it is.
+ *
+ * A **palette name** goes on the data attribute, where a stylesheet resolves it
+ * against the surface it is rendered on — the same document then reads
+ * correctly on a light site and a dark one. A **custom hex** has no such
+ * stylesheet to meet, so it goes inline, which is the one place the sanitizer
+ * lets a colour through. Setting either clears the other, so an element never
+ * carries two answers.
+ */
+function paintColor(element: HTMLElement, mark: ColorMark, color: string): void {
+    const { attribute } = COLOR_MARK_TAG[mark];
+    const property = COLOR_STYLE_PROPERTY[mark];
+    if (isHexColor(color)) {
+        element.removeAttribute(attribute);
+        element.style.setProperty(
+            property === 'color' ? 'color' : 'background-color',
+            color
+        );
         return;
     }
-    surroundSelection(tag, { [attribute]: color as string });
+    element.style.removeProperty(
+        property === 'color' ? 'color' : 'background-color'
+    );
+    element.setAttribute(attribute, color);
 }
 
 /** The colour mark under the caret, if the caret is inside one. */
 function closestColorMark(mark: ColorMark): HTMLElement | null {
     const { tag, attribute } = COLOR_MARK_TAG[mark];
+    const property = mark === COLOR_MARK.Text ? 'color' : 'background-color';
     const element = closestTag(window.getSelection()?.anchorNode, tag);
-    return element?.hasAttribute(attribute) ? element : null;
+    if (!element) return null;
+    // Either form counts — a palette name on the attribute, or a custom hex
+    // inline. Both are "this run is coloured".
+    return element.hasAttribute(attribute) ||
+        element.style.getPropertyValue(property) !== ''
+        ? element
+        : null;
 }
 
 /** Whether the selection covers all of `element` (so recolouring it is safe). */
@@ -148,15 +189,41 @@ function selectionFills(element: HTMLElement): boolean {
     );
 }
 
-/** The palette colour at the caret for each mark, or `null` for none. */
+/**
+ * The colour at the caret for each mark — a palette name, a `#hex`, or `null`.
+ * The two forms are reported the same way, so the picker shows the right thing
+ * ticked whichever way the author set it.
+ */
 export function readColorMarks(): Record<ColorMark, string | null> {
-    const read = (mark: ColorMark) =>
-        closestColorMark(mark)?.getAttribute(COLOR_MARK_TAG[mark].attribute) ??
-        null;
+    const read = (mark: ColorMark) => {
+        const element = closestColorMark(mark);
+        if (!element) return null;
+        const name = element.getAttribute(COLOR_MARK_TAG[mark].attribute);
+        if (name) return name;
+        const property =
+            mark === COLOR_MARK.Text ? 'color' : 'background-color';
+        return normalizeHex(element.style.getPropertyValue(property));
+    };
     return {
         [COLOR_MARK.Text]: read(COLOR_MARK.Text),
         [COLOR_MARK.Highlight]: read(COLOR_MARK.Highlight)
     };
+}
+
+/**
+ * A style value back as the `#rrggbb` the picker speaks. A browser hands back
+ * whatever form it stored — Chromium normalizes to `rgb(255, 0, 85)` — so the
+ * round trip through the DOM has to be undone before comparing.
+ */
+function normalizeHex(value: string): string | null {
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    if (isHexColor(trimmed)) return trimmed.toLowerCase();
+    const rgb = /^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(trimmed);
+    if (!rgb) return null;
+    const hex = (part: string) =>
+        Number(part).toString(16).padStart(2, '0');
+    return `#${hex(rgb[1])}${hex(rgb[2])}${hex(rgb[3])}`;
 }
 
 /** Applies a link to the selection, replacing one already under the caret. */

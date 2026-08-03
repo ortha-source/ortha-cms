@@ -127,9 +127,12 @@ export const WYSIWYG_PROSE = [
     '[&_[data-align=center]]:text-center',
     '[&_[data-align=right]]:text-right',
     '[&_[data-align=justify]]:text-justify',
-    // A centred figure has to move the picture, not just its caption — an
-    // `<img>` is inline, so `text-align` on the figure does exactly that.
+    // Centring a figure has to move the **picture**, and `text-align` cannot:
+    // the reset makes `<img>` a block, and a block box ignores it. So the
+    // margins do it — on the figure (which the size presets give a width) and
+    // on the image inside it (which is only as wide as it is).
     '[&_figure[data-align=center]]:mx-auto [&_figure[data-align=right]]:ml-auto',
+    '[&_figure[data-align=center]_img]:mx-auto [&_figure[data-align=right]_img]:ml-auto',
     ...WYSIWYG_INLINE_PROSE,
     // Media and layout.
     '[&_figure]:my-2',

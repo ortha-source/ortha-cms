@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ImageIcon, LibraryBig } from 'lucide-react';
-import { MEDIA_SIZE, MEDIA_SIZES } from '@ortha-cms/wysiwyg-core';
+import { BLOCK_ALIGN, MEDIA_SIZE, MEDIA_SIZES } from '@ortha-cms/wysiwyg-core';
 import { Button, Input, cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 import { InlineEditable } from '../../InlineEditable';
@@ -91,6 +91,15 @@ export function ImageBlock({ block, path }: BlockViewProps) {
     const src = String(block.attrs['src'] ?? '');
     const alt = String(block.attrs['alt'] ?? '');
     const size = String(block.attrs['size'] ?? MEDIA_SIZE.Full);
+    const align = block.attrs['align'];
+    // `text-align` can't move the picture: the CSS reset makes `<img>` a block,
+    // and a block box ignores it. Auto margins are what actually centre it.
+    const imageAlign =
+        align === BLOCK_ALIGN.Center
+            ? 'mx-auto'
+            : align === BLOCK_ALIGN.Right
+              ? 'ml-auto'
+              : '';
     const [draftUrl, setDraftUrl] = useState('');
 
     /**
@@ -157,10 +166,9 @@ export function ImageBlock({ block, path }: BlockViewProps) {
             className={cn(
                 'my-2 space-y-2',
                 SIZE_CLASS[size as keyof typeof SIZE_CLASS] ?? 'w-full',
-                // The figure is what the alignment moves, so it needs a width
-                // to be moved *within*; `BlockRow` sets the text alignment and
-                // these margins do the rest.
-                'data-[align=center]:mx-auto data-[align=right]:ml-auto'
+                // The figure moves too, for the sizes that give it a width
+                // narrower than the column.
+                imageAlign
             )}
             data-align={block.attrs['align'] ?? undefined}
         >
@@ -168,7 +176,10 @@ export function ImageBlock({ block, path }: BlockViewProps) {
                 src={src}
                 alt={alt}
                 loading="lazy"
-                className="border-border max-h-[28rem] w-auto max-w-full rounded-md border object-contain"
+                className={cn(
+                    'border-border max-h-[28rem] w-auto max-w-full rounded-md border object-contain',
+                    imageAlign
+                )}
             />
             {!readOnly && (
                 // Deliberately still always visible — an image published with

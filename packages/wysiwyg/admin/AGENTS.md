@@ -92,7 +92,8 @@ The host side of the contract is two props — `expandTo` (where to render) and
 - **Alignment** — left · centre · right · justify on paragraphs, headings, list
   items, quotes, callouts and images, from the toolbar, the block menu, or
   ⌘⇧L/E/R/J. Applies to a whole multi-block selection at once.
-- **Text colour and highlight** — a ten-name palette each, never a colour wheel.
+- **Text colour and highlight** — a ten-name palette each, plus a native colour
+  well for a custom hex when a brand colour has to be exact.
 - **Image width** — small · medium · large · full, combining with alignment.
 - **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
 - **Structured paste** — multi-block HTML from another app becomes real blocks,
@@ -281,10 +282,26 @@ assumption about a different process.
   block's HTML by hand now calls `commitActiveHtml()`, which commits through
   `replaceHtml` (a discrete history entry, not coalesced into the last
   keystroke — undoing a colour should take back the colour, not the sentence).
-- **The colour dropdown saves and restores the selection.** A toolbar *button*
-  can just suppress `mousedown`; a Radix *menu* moves focus into itself, and the
-  browser collapses the document selection when it goes — so by the time an item
-  is chosen there is nothing left to colour.
+- **The colour and link overlays save and restore the selection.** A toolbar
+  *button* can just suppress `mousedown`; a Radix *menu or popover* moves focus
+  into itself, and the browser collapses the document selection when it goes —
+  so by the time an item is chosen there is nothing left to colour or link.
+- **The link popover latches what it found when it opened.** Same cause, one
+  step further: focus moving into the popover ends the selection, so the
+  toolbar's next `selectionchange` read reports *no link* — and a Remove button
+  driven by that live value unmounted itself the instant it became reachable.
+- **The persistent toolbar has its own link popover**, rather than reaching for
+  the floating toolbar's field. Pressing a button in the top bar and having a
+  field appear over the text three inches below reads as something else
+  happening; every other control up there opens where it was pressed.
+- **Centring an image is auto margins, not `text-align`.** The CSS reset makes
+  `<img>` a block, and a block box ignores `text-align` — so the attribute was
+  on the figure, the rule was in the stylesheet, and the picture did not move.
+  Both the figure (which the size presets give a width) and the image inside it
+  get the margins.
+- **Every toolbar control carries a tooltip.** The icon is the entire label;
+  `ToolbarButton` shows the same string as its accessible name so the two
+  cannot drift, and the dropdown triggers wrap their own.
 - **The editor imports the inline half of the prose CSS.** Block styling in the
   editor comes from each React renderer, so it does not want `WYSIWYG_PROSE` —
   but a colour lives in the markup `InlineEditable` renders verbatim, and

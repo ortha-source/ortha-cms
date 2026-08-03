@@ -15,9 +15,13 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
     cn
 } from '@ortha-cms/design-system';
 import { COLOR_SWATCH, HIGHLIGHT_SWATCH } from '../../render/wysiwygProse';
+import { CustomSwatch } from './CustomSwatch';
 
 const messages = defineMessages({
     trigger: {
@@ -41,7 +45,16 @@ const messages = defineMessages({
     blue: { id: 'wysiwyg.color.blue', defaultMessage: 'Blue' },
     purple: { id: 'wysiwyg.color.purple', defaultMessage: 'Purple' },
     pink: { id: 'wysiwyg.color.pink', defaultMessage: 'Pink' },
-    red: { id: 'wysiwyg.color.red', defaultMessage: 'Red' }
+    red: { id: 'wysiwyg.color.red', defaultMessage: 'Red' },
+    customText: {
+        id: 'wysiwyg.color.customText',
+        defaultMessage: 'Custom text colour'
+    },
+    customHighlight: {
+        id: 'wysiwyg.color.customHighlight',
+        defaultMessage: 'Custom highlight colour'
+    },
+    custom: { id: 'wysiwyg.color.custom', defaultMessage: 'Custom…' }
 });
 
 /**
@@ -95,7 +108,9 @@ export function ColorControl({
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
                 <Button
                     type="button"
                     size="sm"
@@ -107,14 +122,22 @@ export function ColorControl({
                 >
                     <Baseline
                         aria-hidden
-                        className={cn(
-                            'size-4',
-                            active && COLOR_SWATCH[active]
-                        )}
+                        className={cn('size-4', active && COLOR_SWATCH[active])}
+                        // A custom colour has no class to carry it.
+                        style={
+                            active && !COLOR_SWATCH[active]
+                                ? { color: active }
+                                : undefined
+                        }
                     />
                     <ChevronDown aria-hidden className="size-3.5" />
                 </Button>
-            </DropdownMenuTrigger>
+                    </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                    {intl.formatMessage(messages.trigger)}
+                </TooltipContent>
+            </Tooltip>
             <DropdownMenuContent
                 align="start"
                 className="max-h-80 w-44 overflow-y-auto"
@@ -122,6 +145,13 @@ export function ColorControl({
                 <DropdownMenuLabel className="text-muted-foreground text-xs">
                     {intl.formatMessage(messages.textSection)}
                 </DropdownMenuLabel>
+                <CustomSwatch
+                    label={intl.formatMessage(messages.customText)}
+                    caption={intl.formatMessage(messages.custom)}
+                    value={color}
+                    onPick={(hex) => pick(COLOR_MARK.Text, hex)}
+                    onOpen={remember}
+                />
                 {INLINE_COLORS.map((name) => (
                     <DropdownMenuItem
                         key={`text-${name}`}
@@ -150,6 +180,13 @@ export function ColorControl({
                 <DropdownMenuLabel className="text-muted-foreground text-xs">
                     {intl.formatMessage(messages.highlightSection)}
                 </DropdownMenuLabel>
+                <CustomSwatch
+                    label={intl.formatMessage(messages.customHighlight)}
+                    caption={intl.formatMessage(messages.custom)}
+                    value={highlight}
+                    onPick={(hex) => pick(COLOR_MARK.Highlight, hex)}
+                    onOpen={remember}
+                />
                 {INLINE_COLORS.map((name) => (
                     <DropdownMenuItem
                         key={`highlight-${name}`}

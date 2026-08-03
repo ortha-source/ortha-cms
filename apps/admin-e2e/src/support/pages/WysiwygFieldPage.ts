@@ -226,6 +226,75 @@ export class WysiwygFieldPage extends BasePage {
         await this.page.getByRole('menu').waitFor({ state: 'hidden' });
     }
 
+    /** The link popover's URL field (the persistent toolbar's, not the floating one). */
+    get linkUrl(): Locator {
+        return this.page.getByRole('textbox', { name: 'Link URL' });
+    }
+
+    /** Apply a URL through the toolbar's link popover. */
+    async applyLink(url: string) {
+        await this.toolbar.getByRole('button', { name: 'Link' }).click();
+        await this.linkUrl.fill(url);
+        await this.linkUrl.press('Enter');
+    }
+
+    /** Open the link popover and remove the link under the caret. */
+    async removeLink() {
+        await this.toolbar.getByRole('button', { name: 'Link' }).click();
+        await this.page.getByRole('button', { name: 'Remove link' }).click();
+    }
+
+    /** Set a custom colour through the palette's colour well. */
+    async pickCustomColor(section: 'text' | 'highlight', hex: string) {
+        await this.colorTrigger.click();
+        const wells = this.page.locator('input[type=color]');
+        const well = section === 'text' ? wells.first() : wells.last();
+        // A colour well opens the OS picker, which a driver cannot enter — so
+        // the value is set and its `input` event fired, which is exactly what
+        // the picker itself dispatches.
+        await well.evaluate((element, value) => {
+            (element as HTMLInputElement).value = value;
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+        }, hex);
+        await this.page.keyboard.press('Escape');
+    }
+
+    /**
+     * The left and right margin of an element, in pixels. Centring an image is
+     * a *computed* outcome — the markup says `data-align="center"` either way —
+     * so the assertion has to read what the browser actually laid out.
+     */
+    async margins(selector: string): Promise<[number, number]> {
+        return this.editor.locator(selector).first().evaluate((element) => {
+            const style = getComputedStyle(element);
+            return [
+                parseFloat(style.marginLeft),
+                parseFloat(style.marginRight)
+            ] as [number, number];
+        });
+    }
+
+    /** Whether a toolbar control shows a tooltip naming it. */
+    async tooltipFor(name: string): Promise<string> {
+        await this.toolbar.getByRole('button', { name }).first().hover();
+        await this.page
+            .waitForFunction(
+                () =>
+                    (document.querySelector('[role=tooltip]')?.textContent ??
+                        '').length > 0,
+                null,
+                { timeout: 3000 }
+            )
+            .catch(() => undefined);
+        return (
+            (await this.page
+                .locator('[role=tooltip]')
+                .first()
+                .textContent()
+                .catch(() => '')) ?? ''
+        );
+    }
+
     /** An image block's width preset button. */
     imageWidth(name: 'Small' | 'Medium' | 'Large' | 'Full'): Locator {
         return this.editor.getByRole('button', { name, exact: true });

@@ -12,7 +12,11 @@ import {
     spyEntrySave,
     type EntrySaveSpy
 } from '../support/api/content';
-import { mockMediaApi } from '../support/api/media';
+import {
+    mockMediaApi,
+    mockTestImage,
+    TEST_IMAGE_URL
+} from '../support/api/media';
 import { expectNoA11yViolations } from '../support/a11y';
 
 const WS = WYSIWYG_WORKSPACE.id;
@@ -398,6 +402,103 @@ test.describe('Entry editor — wysiwyg field', () => {
             await wysiwygFieldPage.save.click();
             await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
             expect(savedBody(saves)).toBe('<p><code>code</code></p>');
+        });
+
+        test('centres the picture itself, not just its caption', async ({
+            wysiwygFieldPage,
+            page
+        }) => {
+            await mockTestImage(page);
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertViaSlash('image', 'Image');
+            await wysiwygFieldPage.imageUrl.fill(TEST_IMAGE_URL);
+            await wysiwygFieldPage.addImage.click();
+            // Wait for it to actually load — an image that 404s has no
+            // intrinsic width and stretches, which would pass a naive check.
+            await expect
+                .poll(() =>
+                    wysiwygFieldPage.editor
+                        .locator('figure img')
+                        .first()
+                        .evaluate((img) => (img as HTMLImageElement).naturalWidth)
+                )
+                .toBeGreaterThan(0);
+
+            await wysiwygFieldPage.alignButton('Align centre').click();
+
+            // The markup says `data-align="center"` either way, so this has to
+            // read what the browser laid out: the reset makes `<img>` a block,
+            // and a block box ignores `text-align` — only auto margins move it.
+            const [left, right] = await wysiwygFieldPage.margins('figure img');
+            expect(left).toBeGreaterThan(0);
+            expect(Math.abs(left - right)).toBeLessThan(2);
+        });
+
+        test('links through the toolbar’s own popover, and unlinks again', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'Linked'
+            );
+
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.applyLink('https://example.com');
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toBe(
+                '<p><a href="https://example.com">Linked</a></p>'
+            );
+
+            // Remove has to survive the popover opening: focus moves into it,
+            // the selection goes, and a live read would report no link at all.
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.removeLink();
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(1);
+            expect(savedBody(saves)).toBe('<p>Linked</p>');
+        });
+
+        test('takes a custom colour, stored as hex', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.typeInto(
+                wysiwygFieldPage.block('Text block'),
+                'Brand'
+            );
+
+            await wysiwygFieldPage.selectLine('Text block');
+            await wysiwygFieldPage.pickCustomColor('text', '#ff0055');
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // A browser rewrites the inline colour to `rgb(...)`; the sanitizer
+            // canonicalizes it back, so what is stored is always hex.
+            expect(savedBody(saves)).toBe(
+                '<p><span style="color: #ff0055">Brand</span></p>'
+            );
+        });
+
+        test('names every toolbar control on hover', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.block('Text block').click();
+
+            // The icons are the entire label; a row of them is unreadable
+            // until you can point at one and be told what it does.
+            expect(await wysiwygFieldPage.tooltipFor('Bold')).toContain('Bold');
         });
 
         test('sizes an image and centres it', async ({ wysiwygFieldPage }) => {
