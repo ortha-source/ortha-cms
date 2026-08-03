@@ -37,17 +37,20 @@ const messages = defineMessages({
 export function TableCellBlock({
     block,
     path,
-    resizable = false
+    resizable = false,
+    labelledResizer = false
 }: {
     block: WysiwygBlock;
     /** `[…tablePath, rowIndex, columnIndex]`. */
     path: BlockPath;
     /**
-     * Whether this cell carries its column's resize grip. Only the first row's
-     * cells do — one grip per column, parked where the author already looks for
-     * the column's handles.
+     * Whether this cell carries a segment of its column's resize edge. Every
+     * row does, so the line runs the whole depth of the table rather than
+     * reading as a tick on the header.
      */
     resizable?: boolean;
+    /** Whether this cell's segment is the column's one named control. */
+    labelledResizer?: boolean;
 }) {
     const intl = useIntl();
     const { commands, readOnly } = useEditor();
@@ -124,6 +127,7 @@ export function TableCellBlock({
                     tablePath={path.slice(0, -2)}
                     index={column}
                     width={width}
+                    labelled={labelledResizer}
                 />
             )}
         </Cell>

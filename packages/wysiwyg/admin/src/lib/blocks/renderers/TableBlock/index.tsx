@@ -146,9 +146,12 @@ export function TableBlock({ block, path }: BlockViewProps) {
                                         key={cell.id}
                                         block={cell}
                                         path={[...path, rowIndex, columnIndex]}
-                                        // One grip per column, on the row the
-                                        // author is already reaching across.
-                                        resizable={rowIndex === 0}
+                                        // Every row carries a segment of the
+                                        // column's edge, so the line runs the
+                                        // whole depth of the table; only the
+                                        // first is the named control.
+                                        resizable
+                                        labelledResizer={rowIndex === 0}
                                     />
                                 ))}
                             </tr>

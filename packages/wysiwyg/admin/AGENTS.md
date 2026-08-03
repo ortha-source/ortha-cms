@@ -314,6 +314,20 @@ assumption about a different process.
   dragged, and would have to invent until then. axe flags the missing attribute
   (it is what caught this); inventing a value to satisfy it would have been
   worse than not making the claim.
+- **A column's resize edge is one segment per row, not one tall grip.** The line
+  has to run the whole depth of the table or it reads as a tick on the header
+  rather than as the edge of a column — and doing that with a single over-tall
+  box is a trap: an element taller than the viewport drags the whole editor
+  whenever anything scrolls it into view, which the browser does on focus.
+  (`overflow-y: hidden` on the wrapper does not save you — `hidden` is still a
+  scroll container, it only hides the bars.) A box per row is as tall as its
+  row, so nothing ever needs scrolling, and the drag starts anywhere down the
+  boundary. Only the first row's segment is the named control; the rest are
+  inert spans, so a screen reader hears one per column and not one per cell.
+- **The grips show on table hover, not only under the pointer.** They were
+  hover-only at first, which meant nothing about a table said its columns could
+  be dragged — you had to already be touching a grip to find out it existed.
+  They now follow the same rule as the row and column handles.
 - **A drag previews on one cell and commits on release.** Writing the model on
   every `pointermove` puts a hundred entries on the undo stack for one drag, so
   the grip sets `style.width` on the cell it lives in and calls a command once,

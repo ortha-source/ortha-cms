@@ -1,7 +1,12 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+    useRef,
+    useState,
+    type KeyboardEvent as ReactKeyboardEvent,
+    type PointerEvent as ReactPointerEvent,
+    type Ref
+} from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import type { BlockPath } from '@ortha-cms/wysiwyg-core';
-import { MIN_WIDTH_PERCENT } from '@ortha-cms/wysiwyg-core';
+import { MIN_WIDTH_PERCENT, type BlockPath } from '@ortha-cms/wysiwyg-core';
 import { cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 
@@ -16,58 +21,102 @@ const messages = defineMessages({
 const KEY_STEP = 2;
 
 /**
- * The grip on a column's right edge. Dragging it sets that column's width, as a
- * **percentage of the table** — which is what gets stored, because the document
- * is rendered on a surface whose measure this editor never sees.
+ * One segment of a column's right-hand edge — the thing you drag to set that
+ * column's width, as a **percentage of the table**, which is what gets stored
+ * because the document is rendered on a surface whose measure this editor never
+ * sees.
  *
- * It lives inside the first row's cell rather than in an absolutely-positioned
- * strip over the table, for the same reason the row and column handles do: a
- * strip has to re-measure every column on every edit and is wrong for the frame
- * in between, where a grip parked in the cell is aligned with the thing it
- * resizes by construction.
+ * **One segment per row, not one grip for the column.** The line has to run the
+ * whole depth of the table or it reads as a tick on the header rather than as
+ * the edge of a column — and the first attempt did that with a single
+ * over-tall box, which was worse than it sounds: an element taller than the
+ * viewport drags the whole editor whenever anything scrolls it into view, and
+ * the browser does exactly that on focus. A box per row is only as tall as the
+ * row it is in, so nothing ever needs scrolling, and the drag can be started
+ * anywhere down the boundary rather than only from the row hosting the grip.
  *
- * The drag previews itself by writing the width straight onto **its own cell**
- * and commits once, on release. Two reasons that is not a shortcut: a commit
- * per pointer-move would put a hundred entries on the undo stack for one drag,
- * and a cell's width is exactly what a table's layout algorithm propagates down
- * the column — so writing it on the one cell shows the whole column moving.
+ * The first row's segment is the labelled `<button>`; the rest are inert spans
+ * with the same behavior, so a screen reader hears one control per column
+ * rather than one per cell.
+ *
+ * It lives inside the cell rather than in an absolutely-positioned strip over
+ * the table, for the same reason the row and column handles do: a strip has to
+ * re-measure every column on every edit and is wrong for the frame in between,
+ * where a segment parked in the cell is aligned with what it resizes by
+ * construction.
+ *
+ * The drag previews itself by writing the width straight onto the column's
+ * cells and commits once, on release — a commit per pointer-move would put a
+ * hundred entries on the undo stack for one drag.
  */
 export function TableColumnResizer({
     tablePath,
     index,
-    width
+    width,
+    labelled
 }: {
     tablePath: BlockPath;
-    /** Which column this grip sizes. */
+    /** Which column this segment sizes. */
     index: number;
     /** The column's stored width, or `null` when it has none. */
     width: number | null;
+    /** Whether this is the segment carrying the column's accessible name. */
+    labelled: boolean;
 }) {
     const intl = useIntl();
     const { commands } = useEditor();
-    const grip = useRef<HTMLButtonElement>(null);
+    const grip = useRef<HTMLElement>(null);
     /** The width the pointer has reached, live. Committed on release. */
     const dragged = useRef<number | null>(null);
+    /**
+     * Whether a drag is in flight. State rather than a ref because it is drawn:
+     * the grip has to stay lit while the pointer is away from it, which is most
+     * of a drag — a hover-only rule blinks it off the moment the drag starts.
+     */
+    const [dragging, setDragging] = useState(false);
 
-    /** The `<th>`/`<td>` this grip sits in, and the `<table>` it belongs to. */
+    /**
+     * Every cell of this column, and the table they are in. The preview is
+     * written to all of them: a width on one row is a *hint* to the table
+     * layout algorithm and which row wins is the browser's business, so setting
+     * the column is the only way the preview matches what the commit stores.
+     */
     const elements = () => {
         const cell = grip.current?.closest('th, td') ?? null;
         const table = cell?.closest('table') ?? null;
-        return cell && table ? { cell, table } : null;
+        const row = cell?.parentElement ?? null;
+        if (!cell || !table || !row) return null;
+        const at = [...row.children].indexOf(cell);
+        const column = [...table.rows]
+            .map((line) => line.children[at])
+            .filter(
+                (found): found is HTMLElement => found instanceof HTMLElement
+            );
+        return { cell, table, column };
+    };
+
+    const preview = (
+        column: readonly HTMLElement[],
+        percent: number | null
+    ) => {
+        for (const cell of column) {
+            if (percent === null) cell.style.removeProperty('width');
+            else cell.style.width = `${percent}%`;
+        }
     };
 
     const commitWidth = (percent: number | null) => {
-        const { cell } = elements() ?? {};
-        // Hand the cell back to React before the model changes it, so the
-        // preview and the committed value can't both be in the DOM at once.
-        if (cell instanceof HTMLElement) cell.style.removeProperty('width');
+        const found = elements();
+        // Hand the cells back to React before the model redraws them, so the
+        // preview and the committed value are never both in the DOM.
+        if (found) preview(found.column, null);
         commands.setTableColumnAttrs(tablePath, index, { width: percent });
     };
 
-    const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
         const found = elements();
         if (!found || event.button !== 0) return;
-        // The grip is inside a `contenteditable` region's table; without this
+        // The grip sits inside a `contenteditable` region's table; without this
         // the press also moves the caret, and the drag selects text.
         event.preventDefault();
         event.stopPropagation();
@@ -79,20 +128,20 @@ export function TableColumnResizer({
 
         const target = event.currentTarget;
         target.setPointerCapture(event.pointerId);
+        setDragging(true);
 
         const move = (moveEvent: PointerEvent) => {
             const next = startWidth + (moveEvent.clientX - startX);
             const percent = clampPercent((next / tableWidth) * 100);
             dragged.current = percent;
-            if (found.cell instanceof HTMLElement) {
-                found.cell.style.width = `${percent}%`;
-            }
+            preview(found.column, percent);
         };
 
         const end = () => {
             target.removeEventListener('pointermove', move);
             target.removeEventListener('pointerup', end);
             target.removeEventListener('pointercancel', end);
+            setDragging(false);
             if (dragged.current !== null) commitWidth(dragged.current);
             dragged.current = null;
         };
@@ -102,12 +151,8 @@ export function TableColumnResizer({
         target.addEventListener('pointercancel', end);
     };
 
-    /**
-     * The same edge, from the keyboard. A drag handle reachable only by pointer
-     * is a feature keyboard users simply don't have — and the arrow keys are
-     * what a `separator` with `aria-valuenow` already promises.
-     */
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    /** The same edge, from the keyboard, once the grip has been focused. */
+    const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
         const step =
             event.key === 'ArrowLeft'
                 ? -KEY_STEP
@@ -127,28 +172,49 @@ export function TableColumnResizer({
         commitWidth(clampPercent(current + step));
     };
 
+    const className = cn(
+        // Straddles the border rather than sitting beside it, so the pointer
+        // target is the line the author is aiming at.
+        'absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize touch-none',
+        'before:bg-primary before:absolute before:inset-y-0 before:left-1/2 before:w-[3px] before:-translate-x-1/2 before:transition-opacity',
+        // Shown, faintly, whenever the table is hovered — the same rule the row
+        // and column handles follow. It used to appear only under the pointer,
+        // and a grip you have to already be touching to discover is one nobody
+        // finds: nothing about the table said its columns could be dragged.
+        'before:opacity-0 group-hover/table:before:opacity-40',
+        'hover:before:opacity-100 focus-visible:before:opacity-100 focus-visible:outline-none',
+        'data-[dragging=true]:before:opacity-100'
+    );
+
+    if (!labelled) {
+        return (
+            <span
+                ref={grip as Ref<HTMLSpanElement>}
+                aria-hidden
+                data-dragging={dragging}
+                onPointerDown={handlePointerDown}
+                className={className}
+            />
+        );
+    }
+
     return (
         <button
-            ref={grip}
+            ref={grip as Ref<HTMLButtonElement>}
             type="button"
             // Deliberately **not** `role="separator"`. A focusable separator is
             // the ARIA window-splitter pattern, and that pattern requires an
             // `aria-valuenow` — a number this grip does not have until a column
-            // has been dragged, and would have to make up until then. A labelled
-            // button promises only what it delivers.
+            // has been dragged, and would have to make up until then. A
+            // labelled button promises only what it delivers.
             aria-label={intl.formatMessage(messages.label, {
                 index: index + 1
             })}
             tabIndex={-1}
+            data-dragging={dragging}
             onPointerDown={handlePointerDown}
             onKeyDown={handleKeyDown}
-            className={cn(
-                // Straddles the border rather than sitting beside it, so the
-                // pointer target is the line the author is aiming at.
-                'absolute top-0 -right-1 z-10 h-full w-2 cursor-col-resize touch-none',
-                'before:bg-primary before:absolute before:inset-y-0 before:left-1/2 before:w-0.5 before:-translate-x-1/2 before:opacity-0 before:transition-opacity',
-                'hover:before:opacity-100 focus-visible:before:opacity-100 focus-visible:outline-none'
-            )}
+            className={className}
         />
     );
 }
