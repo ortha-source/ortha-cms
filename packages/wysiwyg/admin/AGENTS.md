@@ -84,17 +84,23 @@ The host side of the contract is two props — `expandTo` (where to render) and
 - **Nesting** — Tab / Shift+Tab indent and outdent; toggles, quotes, callouts and
   columns hold child blocks.
 - **Tables** — a handle above every column and beside every row (insert either
-  side, delete), a header-row toggle, and Tab/Shift+Tab along the cells; tabbing
-  off the last cell adds a row.
+  side, delete, align the whole column or row horizontally and vertically), a
+  header-row toggle, buttons that align the **table itself**, a drag grip on
+  every column edge, and Tab/Shift+Tab along the cells; tabbing off the last
+  cell adds a row.
 - **Multi-block selection** — drag across blocks, or ⌘A from inside the editor;
   the toolbar's marks and "turn into" then act on the whole run, and
   Backspace/⌘C/⌘X apply to it.
 - **Alignment** — left · centre · right · justify on paragraphs, headings, list
-  items, quotes, callouts and images, from the toolbar, the block menu, or
-  ⌘⇧L/E/R/J. Applies to a whole multi-block selection at once.
+  items, quotes, callouts, images and table cells, from the toolbar, the block
+  menu, or ⌘⇧L/E/R/J. Applies to a whole multi-block selection at once. A table
+  has **three** separate alignments and they are deliberately kept apart: where
+  the table's box sits, where a cell's content sits across, and where it sits
+  down.
 - **Text colour and highlight** — a ten-name palette each, plus a native colour
   well for a custom hex when a brand colour has to be exact.
-- **Image width** — small · medium · large · full, combining with alignment.
+- **Image width** — small · medium · large · full, combining with alignment,
+  plus a grip on each edge for a width between the presets.
 - **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
 - **Structured paste** — multi-block HTML from another app becomes real blocks,
   sanitized; plain text is inserted as text.
@@ -283,12 +289,12 @@ assumption about a different process.
   `replaceHtml` (a discrete history entry, not coalesced into the last
   keystroke — undoing a colour should take back the colour, not the sentence).
 - **The colour and link overlays save and restore the selection.** A toolbar
-  *button* can just suppress `mousedown`; a Radix *menu or popover* moves focus
+  _button_ can just suppress `mousedown`; a Radix _menu or popover_ moves focus
   into itself, and the browser collapses the document selection when it goes —
   so by the time an item is chosen there is nothing left to colour or link.
 - **The link popover latches what it found when it opened.** Same cause, one
   step further: focus moving into the popover ends the selection, so the
-  toolbar's next `selectionchange` read reports *no link* — and a Remove button
+  toolbar's next `selectionchange` read reports _no link_ — and a Remove button
   driven by that live value unmounted itself the instant it became reachable.
 - **The persistent toolbar has its own link popover**, rather than reaching for
   the floating toolbar's field. Pressing a button in the top bar and having a
@@ -297,8 +303,27 @@ assumption about a different process.
 - **Centring an image is auto margins, not `text-align`.** The CSS reset makes
   `<img>` a block, and a block box ignores `text-align` — so the attribute was
   on the figure, the rule was in the stylesheet, and the picture did not move.
-  Both the figure (which the size presets give a width) and the image inside it
-  get the margins.
+  Both the figure (which the size presets give a width) and the wrapper around
+  the image get the margins. The same is true of a **table**, which is why its
+  `data-align` rules set margins and then put `text-align` back to `start`:
+  without that reset the table's own alignment inherits into every cell, and
+  "centre the table" silently becomes "centre everything in it".
+- **The resize grips are labelled buttons, not `role="separator"`.** A focusable
+  separator is the ARIA window-splitter pattern, and that pattern _requires_
+  `aria-valuenow` — a number a grip does not have until something has been
+  dragged, and would have to invent until then. axe flags the missing attribute
+  (it is what caught this); inventing a value to satisfy it would have been
+  worse than not making the claim.
+- **A drag previews on one cell and commits on release.** Writing the model on
+  every `pointermove` puts a hundred entries on the undo stack for one drag, so
+  the grip sets `style.width` on the cell it lives in and calls a command once,
+  at the end. One cell is enough because propagating a width down the column is
+  exactly what a table's layout algorithm already does.
+- **A resized table is pinned to `width: 100%`.** Column widths are percentages
+  of the table, and a table with no width of its own is as wide as its content —
+  so "40%" would be 40% of a number the author cannot see, and would move every
+  time they typed. The cost is honest and visible: a table whose columns were
+  resized has nowhere left to be aligned to.
 - **Every toolbar control carries a tooltip.** The icon is the entire label;
   `ToolbarButton` shows the same string as its accessible name so the two
   cannot drift, and the dropdown triggers wrap their own.
@@ -306,7 +331,7 @@ assumption about a different process.
   editor comes from each React renderer, so it does not want `WYSIWYG_PROSE` —
   but a colour lives in the markup `InlineEditable` renders verbatim, and
   without `WYSIWYG_INLINE_PROSE` an author picked a colour and watched nothing
-  happen while the *rendered* document showed it correctly.
+  happen while the _rendered_ document showed it correctly.
 - **The slash menu never takes focus.** The caret stays in the block so the query
   can keep narrowing; the editable forwards ↑/↓/Enter/Escape to it
   (`handleOverlayKey`) and announces the active option via
@@ -366,6 +391,12 @@ Wherever it can, it asserts the **saved HTML** rather than the DOM: that string
 is the field's contract, and a serializer regression behind a green-looking
 editor is exactly the failure a DOM assertion misses. Its seeds are `WYSIWYG_*`
 in `support/api/content.ts`.
+
+Where the result is _computed_ — centring, a dragged width — it asserts the
+**laid-out geometry** instead, and as an outcome rather than a mechanism: the
+picture's gap from each edge of its figure, not which element ended up carrying
+`margin: auto`. Which box carries it has already changed once, and a test
+written against the mechanism failed on a refactor that broke nothing.
 
 ## Conventions
 

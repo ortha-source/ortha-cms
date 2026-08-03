@@ -16,13 +16,25 @@
  * Rows and cells deliberately declare **no `tags`**: they are built by the
  * table's own `fromHtml`, so a stray `<tr>` outside a table can't parse into an
  * orphan row block that nothing knows how to render.
+ *
+ * **Presentation lives on the cell, and on every cell of the column.** A table
+ * carries three of it: its own `data-align` (where the table sits in the
+ * measure), each cell's `data-align` / `data-valign` (where the content sits in
+ * the cell), and each column's width. The width is written on every cell rather
+ * than once on a `<colgroup>` because the rendered table is a *block* box —
+ * that is what keeps a wide table from widening the page — and a column box
+ * inside a block box is at the mercy of anonymous-table generation, where a
+ * width on the cell is honoured by every layout there is. Repeating it down the
+ * column also costs nothing to maintain: no row operation has to remember to
+ * carry it, because there is no single row that owns it.
  */
 
 import { isElement, type HtmlElement, type HtmlNode } from '../../html/node';
+import { toPercentWidth, widthFromStyle } from '../../html/sanitize';
 import { createBlock } from '../../document/factory';
-import type { WysiwygBlock } from '../../document/types';
+import type { BlockAttrs, WysiwygBlock } from '../../document/types';
 import type { BlockDefinition, BlockParseContext } from '../block-definition';
-import { BLOCK_GROUP, BLOCK_TYPE } from '../block-types';
+import { BLOCK_GROUP, BLOCK_TYPE, CELL_VALIGN } from '../block-types';
 
 /** Whether a row is a header row — every cell in it is a `<th>`. */
 export function isHeaderRow(row: WysiwygBlock | undefined): boolean {
@@ -62,6 +74,7 @@ export function createTable(rows = 2, columns = 3): WysiwygBlock {
 export const tableBlock: BlockDefinition = {
     type: BLOCK_TYPE.Table,
     content: 'container',
+    aligns: true,
     tags: ['table'],
     descriptor: {
         defaultLabel: 'Table',
@@ -78,7 +91,13 @@ export const tableBlock: BlockDefinition = {
         const thead = head ? `<thead>${ctx.children([head])}</thead>` : '';
         const tbody =
             body.length > 0 ? `<tbody>${ctx.children(body)}</tbody>` : '';
-        return `<table>${thead}${tbody}</table>`;
+        // A resized table is a full-measure one. Percentage cell widths are
+        // resolved against the table, and a table with no width of its own is
+        // as wide as its content — so "40%" would mean 40% of a number the
+        // author cannot see, and would move every time they typed. Pinned to
+        // the measure, the percentages mean what the drag showed them.
+        const width = hasColumnWidths(block) ? ' style="width: 100%"' : '';
+        return `<table${width}${ctx.align(block)}>${thead}${tbody}</table>`;
     },
     fromHtml: (element, ctx) => {
         const rows = collectRows(element).map((row) => rowFrom(row, ctx));
@@ -99,6 +118,10 @@ export const tableRowBlock: BlockDefinition = {
 export const tableCellBlock: BlockDefinition = {
     type: BLOCK_TYPE.TableCell,
     content: 'inline',
+    // Not for the parser's sake — a cell is built by the table's `fromHtml`,
+    // never by `buildBlock` — but because it is what the editor reads to decide
+    // whether the alignment control is live for the block the caret is in.
+    aligns: true,
     defaultAttrs: { header: false, colspan: 1, rowspan: 1 },
     toHtml: (block, ctx) => {
         const tag = block.attrs['header'] === true ? 'th' : 'td';
@@ -108,11 +131,44 @@ export const tableCellBlock: BlockDefinition = {
             const value = spanOf(block.attrs[name]);
             return value > 1 ? ` ${name}="${ctx.attr(String(value))}"` : '';
         };
-        return `<${tag}${span('colspan')}${span('rowspan')}>${ctx.inline(
-            block.html
-        )}</${tag}>`;
+        const valign = cellValign(block.attrs['valign']);
+        const valignAttr = valign ? ` data-valign="${ctx.attr(valign)}"` : '';
+        const width = cellWidth(block.attrs['width']);
+        // The canonical spacing the sanitizer would rewrite it to, so a value
+        // this serializer wrote survives a round trip byte-identically.
+        const widthAttr = width === null ? '' : ` style="width: ${width}%"`;
+        return `<${tag}${widthAttr}${span('colspan')}${span(
+            'rowspan'
+        )}${valignAttr}${ctx.align(block)}>${ctx.inline(block.html)}</${tag}>`;
     }
 };
+
+/** A cell's stored vertical alignment, or `null` when it has none. */
+export function cellValign(value: unknown): string | null {
+    return value === CELL_VALIGN.Middle || value === CELL_VALIGN.Bottom
+        ? value
+        : null;
+}
+
+/**
+ * A cell's stored column width as a number of percent, or `null`.
+ *
+ * Run through the same parser the sanitizer uses, so the model can never hold a
+ * width the HTML would refuse — the editor and the stored document agree on
+ * what a width is because they ask the same function.
+ */
+export function cellWidth(value: unknown): number | null {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const percent = toPercentWidth(`${value}%`);
+    return percent === null ? null : Number.parseFloat(percent);
+}
+
+/** Whether any column of `table` has been given a width. */
+export function hasColumnWidths(table: WysiwygBlock): boolean {
+    return table.children.some((row) =>
+        row.children.some((cell) => cellWidth(cell.attrs['width']) !== null)
+    );
+}
 
 /**
  * Every `<tr>` under a table, in document order — walking through whatever
@@ -132,7 +188,15 @@ function collectRows(element: HtmlElement): HtmlElement[] {
     return rows;
 }
 
-/** One `<tr>` as a row block. */
+/**
+ * One `<tr>` as a row block.
+ *
+ * The presentational attributes are read here rather than by the parser's
+ * generic `withAlign`, because a cell never passes through it — it is built by
+ * the table, not matched from a tag. No validation beyond the shape: the
+ * sanitize pass has already run, so `data-align` and `data-valign` are known
+ * vocabulary and the width is a percentage or it is not there.
+ */
 function rowFrom(row: HtmlElement, ctx: BlockParseContext): WysiwygBlock {
     const cells = row.children
         .filter(
@@ -148,11 +212,24 @@ function rowFrom(row: HtmlElement, ctx: BlockParseContext): WysiwygBlock {
                 attrs: {
                     header: cell.tag === 'th',
                     colspan: spanOf(cell.attrs['colspan']),
-                    rowspan: spanOf(cell.attrs['rowspan'])
+                    rowspan: spanOf(cell.attrs['rowspan']),
+                    ...presentationOf(cell)
                 }
             })
         );
     return ctx.block(BLOCK_TYPE.TableRow, { children: cells });
+}
+
+/** The alignment, vertical alignment and width a `<th>`/`<td>` carries. */
+function presentationOf(cell: HtmlElement): BlockAttrs {
+    const align = cell.attrs['data-align'];
+    const valign = cellValign(cell.attrs['data-valign']);
+    const width = widthFromStyle(cell.attrs['style']);
+    return {
+        ...(align ? { align } : {}),
+        ...(valign ? { valign } : {}),
+        ...(width === null ? {} : { width })
+    };
 }
 
 /**

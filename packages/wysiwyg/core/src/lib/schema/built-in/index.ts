@@ -67,8 +67,12 @@ export {
     tableCellBlock
 };
 export {
+    cellValign,
+    cellWidth,
     createTable,
     createTableCell,
     createTableRow,
+    hasColumnWidths,
     isHeaderRow
 } from './table-blocks';
+export { mediaWidth } from './media-blocks';

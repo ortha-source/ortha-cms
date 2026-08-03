@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
@@ -259,29 +259,16 @@ export class WysiwygFieldPage extends BasePage {
         await this.page.keyboard.press('Escape');
     }
 
-    /**
-     * The left and right margin of an element, in pixels. Centring an image is
-     * a *computed* outcome — the markup says `data-align="center"` either way —
-     * so the assertion has to read what the browser actually laid out.
-     */
-    async margins(selector: string): Promise<[number, number]> {
-        return this.editor.locator(selector).first().evaluate((element) => {
-            const style = getComputedStyle(element);
-            return [
-                parseFloat(style.marginLeft),
-                parseFloat(style.marginRight)
-            ] as [number, number];
-        });
-    }
-
     /** Whether a toolbar control shows a tooltip naming it. */
     async tooltipFor(name: string): Promise<string> {
         await this.toolbar.getByRole('button', { name }).first().hover();
         await this.page
             .waitForFunction(
                 () =>
-                    (document.querySelector('[role=tooltip]')?.textContent ??
-                        '').length > 0,
+                    (
+                        document.querySelector('[role=tooltip]')?.textContent ??
+                        ''
+                    ).length > 0,
                 null,
                 { timeout: 3000 }
             )
@@ -298,6 +285,13 @@ export class WysiwygFieldPage extends BasePage {
     /** An image block's width preset button. */
     imageWidth(name: 'Small' | 'Medium' | 'Large' | 'Full'): Locator {
         return this.editor.getByRole('button', { name, exact: true });
+    }
+
+    /** An image's resize grip, on one edge or the other. */
+    imageResizer(side: 'left' | 'right'): Locator {
+        return this.editor.getByRole('button', {
+            name: `Resize image from the ${side}`
+        });
     }
 
     /**
@@ -338,7 +332,25 @@ export class WysiwygFieldPage extends BasePage {
      */
     async chooseMenuItem(name: string) {
         await this.menuItem(name).click();
-        await this.page.getByRole('menu').waitFor({ state: 'hidden' });
+        await this.menusClosed();
+    }
+
+    /**
+     * Open a submenu and choose an item from it.
+     *
+     * Not `chooseMenuItem` twice: hovering the trigger leaves **two** menus in
+     * the DOM, so waiting on `getByRole('menu')` between them resolves to more
+     * than one element and throws before anything is clicked.
+     */
+    async chooseSubMenuItem(trigger: string, name: string) {
+        await this.menuItem(trigger).hover();
+        await this.menuItem(name).click();
+        await this.menusClosed();
+    }
+
+    /** Wait until no dropdown is left open. */
+    async menusClosed() {
+        await expect(this.page.getByRole('menu')).toHaveCount(0);
     }
 
     // --- tables --------------------------------------------------------------
@@ -393,6 +405,77 @@ export class WysiwygFieldPage extends BasePage {
     async insertTable() {
         await this.insertViaSlash('table', 'Table');
         await this.cell(1, 1).waitFor();
+    }
+
+    /** The table block itself — the alignment controls share names with the
+     * toolbar's, and only the table's belong to the table. */
+    get table(): Locator {
+        return this.editor.getByRole('group', { name: 'Table' });
+    }
+
+    /** The table's own alignment button, beside the table. */
+    tableAlign(name: 'Align left' | 'Align centre' | 'Align right'): Locator {
+        return this.table.getByRole('button', { name, exact: true });
+    }
+
+    /** A column's resize grip (1-based). */
+    columnResizer(index: number): Locator {
+        return this.editor.getByRole('button', {
+            name: `Resize column ${index}`
+        });
+    }
+
+    /**
+     * Drag a grip by `dx` pixels. Three moves rather than one: a `pointermove`
+     * straight to the target can be dispatched before the handler that
+     * `setPointerCapture` installed is listening, and the drag then does
+     * nothing at all.
+     */
+    async dragBy(grip: Locator, dx: number) {
+        const box = await grip.boundingBox();
+        if (!box) throw new Error('the grip is not on screen');
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        await this.page.mouse.move(x, y);
+        await this.page.mouse.down();
+        for (const step of [0.3, 0.7, 1]) {
+            await this.page.mouse.move(x + dx * step, y);
+        }
+        await this.page.mouse.up();
+    }
+
+    /**
+     * The space left and right of `child` inside `parent`, in pixels.
+     *
+     * Centring is an *outcome*: the markup says `data-align="center"` however it
+     * was implemented, and which element ends up carrying the margins is an
+     * implementation detail that has already changed once. Measuring the gaps
+     * asks the only question that matters — is the picture in the middle.
+     */
+    async gapsWithin(child: string, parent: string): Promise<[number, number]> {
+        const inner = await this.editor.locator(child).first().boundingBox();
+        const outer = await this.editor.locator(parent).first().boundingBox();
+        if (!inner || !outer) throw new Error('not laid out');
+        return [
+            inner.x - outer.x,
+            outer.x + outer.width - (inner.x + inner.width)
+        ];
+    }
+
+    /** The computed width of an element, in pixels. */
+    async widthOf(selector: string): Promise<number> {
+        return this.editor
+            .locator(selector)
+            .first()
+            .evaluate((element) => element.getBoundingClientRect().width);
+    }
+
+    /** The computed `text-align` of an element. */
+    async textAlignOf(selector: string): Promise<string> {
+        return this.editor
+            .locator(selector)
+            .first()
+            .evaluate((element) => getComputedStyle(element).textAlign);
     }
 
     /** The empty image block's URL box. */

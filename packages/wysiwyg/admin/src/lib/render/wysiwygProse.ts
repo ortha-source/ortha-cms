@@ -11,7 +11,6 @@
  * inherits the design system's tokens (and therefore dark mode) for free.
  */
 
-
 /**
  * The palette, as design-system classes. One map per mark, keyed by the stored
  * colour name — the single place a name becomes a colour, so the swatch in the
@@ -149,7 +148,32 @@ export const WYSIWYG_PROSE = [
     // natural width has nothing to do with its container's.
     '[&_table]:my-2 [&_table]:block [&_table]:w-fit [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-sm',
     '[&_:is(th,td)]:border-border [&_:is(th,td)]:min-w-24 [&_:is(th,td)]:border [&_:is(th,td)]:px-2 [&_:is(th,td)]:py-1 [&_:is(th,td)]:align-top',
-    '[&_th]:bg-muted/50 [&_th]:text-left [&_th]:font-semibold',
+    // A column the author dragged to a width carries an inline one, and the
+    // floor above would quietly overrule it. `[style]` is enough of a test:
+    // width is the only property the sanitizer keeps on a cell.
+    '[&_:is(th,td)[style]]:min-w-0',
+    // `:not([data-align])` rather than plain `[&_th]`, because a header cell the
+    // author centred has to beat the header's own default — and Tailwind orders
+    // its output by utility, not by the order these are written in, so equal
+    // specificity would leave which one wins to the build.
+    '[&_th]:bg-muted/50 [&_th]:font-semibold [&_th:not([data-align])]:text-left',
+    // Vertical alignment. `top` is the default above and is never written.
+    '[&_:is(th,td)[data-valign=middle]]:align-middle',
+    '[&_:is(th,td)[data-valign=bottom]]:align-bottom',
+    // Aligning the **table** moves the box, so it is margins rather than
+    // `text-align` — same reason as the figure below, and it works here only
+    // because the table is `block w-fit` and so has a width to be pushed
+    // around. A table whose columns were resized is `width: 100%` inline and
+    // has nowhere left to move, which is the honest outcome of asking for both.
+    //
+    // The `text-start` is not redundant: `data-align` is one attribute with one
+    // generic rule, and without this the table's own alignment would inherit
+    // down and centre every cell's text — two choices the editor deliberately
+    // keeps apart. It wins on specificity rather than on order (a tag name
+    // outranks the bare attribute selector), so the build cannot reshuffle it.
+    '[&_table[data-align]]:text-start',
+    '[&_table[data-align=center]]:mx-auto',
+    '[&_table[data-align=right]]:mr-0 [&_table[data-align=right]]:ml-auto',
     // Alignment. One rule for every alignable tag — the attribute is the
     // contract, so a consumer styling the delivered HTML writes the same four
     // selectors and gets the same result.

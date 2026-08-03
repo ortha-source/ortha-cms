@@ -3,7 +3,8 @@ import {
     ArrowLeftToLine,
     ArrowRightToLine,
     GripHorizontal,
-    Trash2
+    Trash2,
+    Undo2
 } from 'lucide-react';
 import type { BlockPath } from '@ortha-cms/wysiwyg-core';
 import {
@@ -16,6 +17,7 @@ import {
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
+import { TableCellAlignItems } from '../TableCellAlignItems';
 
 const messages = defineMessages({
     label: {
@@ -33,10 +35,21 @@ const messages = defineMessages({
     remove: {
         id: 'wysiwyg.block.table.removeColumn',
         defaultMessage: 'Delete column'
+    },
+    resetWidth: {
+        id: 'wysiwyg.block.table.resetColumnWidth',
+        defaultMessage: 'Reset width'
     }
 });
 
-/** The handle above one column: insert either side of it, or delete it. */
+/**
+ * The handle above one column: insert either side of it, align its cells,
+ * reset a width it was dragged to, or delete it.
+ *
+ * The alignment lives here as well as on the toolbar because the toolbar's
+ * control follows the caret and so speaks for **one** cell — a column of
+ * figures wants aligning in one action, not once per row.
+ */
 export function TableColumnMenu({
     tablePath,
     index,
@@ -88,6 +101,22 @@ export function TableColumnMenu({
                 >
                     <ArrowRightToLine aria-hidden className="size-4" />
                     {intl.formatMessage(messages.insertAfter)}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <TableCellAlignItems
+                    onApply={(attrs) =>
+                        commands.setTableColumnAttrs(tablePath, index, attrs)
+                    }
+                />
+                <DropdownMenuItem
+                    onSelect={() =>
+                        commands.setTableColumnAttrs(tablePath, index, {
+                            width: null
+                        })
+                    }
+                >
+                    <Undo2 aria-hidden className="size-4" />
+                    {intl.formatMessage(messages.resetWidth)}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

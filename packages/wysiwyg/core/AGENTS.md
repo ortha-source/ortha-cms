@@ -83,7 +83,7 @@ expands them again.
 
 ### Built-in types
 
-paragraph · heading (1–4) · bulleted / numbered / to-do list · quote · callout
+paragraph · heading (1–6) · bulleted / numbered / to-do list · quote · callout
 (tone + emoji) · code (language) · divider · image (+ caption, alt) · embed ·
 toggle (`<details>`) · columns / column · table / tableRow / tableCell.
 
@@ -103,60 +103,80 @@ operation in the editor assumes a rectangle.
 
 ## Presentation — alignment, size, colour
 
-Three things a writer expects that are *styling* rather than meaning, and they
-are handled the same way: a **named value on a `data-` attribute**, pinned to an
-enumeration by the sanitizer.
+The things a writer expects that are _styling_ rather than meaning, all handled
+the same way: a **named value on a `data-` attribute**, pinned to an enumeration
+by the sanitizer. The two that cannot be a name — a custom colour and a dragged
+width — are the exception, and reach `style` under the rules below.
 
-| what | where it lives | vocabulary |
-| ---- | -------------- | ---------- |
-| block alignment | `data-align` on the block's own tag | `left` (never written) · `center` · `right` · `justify` |
-| image width | `data-size` on the `<figure>` | `small` · `medium` · `large` · `full` (never written) |
-| text colour | `data-color` on a `<span>`, or an inline `color` | ten palette names, **or** a hex |
-| highlight | `data-highlight` on a `<mark>`, or an inline `background-color` | ten palette names, **or** a hex |
+| what                    | where it lives                                                  | vocabulary                                              |
+| ----------------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
+| block alignment         | `data-align` on the block's own tag                             | `left` (never written) · `center` · `right` · `justify` |
+| table alignment         | `data-align` on the `<table>`                                   | the same four (the table's _box_, not its text)         |
+| cell alignment          | `data-align` on the `<th>`/`<td>`                               | the same four                                           |
+| cell vertical alignment | `data-valign` on the `<th>`/`<td>`                              | `top` (never written) · `middle` · `bottom`             |
+| image width             | `data-size` on the `<figure>`                                   | `small` · `medium` · `large` · `full` (never written)   |
+| dragged width           | inline `width` on a `<figure>`, `<th>`/`<td>`, `<table>`        | a percentage, 5–100                                     |
+| text colour             | `data-color` on a `<span>`, or an inline `color`                | ten palette names, **or** a hex                         |
+| highlight               | `data-highlight` on a `<mark>`, or an inline `background-color` | ten palette names, **or** a hex                         |
 
-Three rules make this safe to store:
+Four rules make this safe to store:
 
 - **A name where there can be one.** A palette name is something the delivery
   surface maps onto its own colours, in light mode and dark, and `medium`
   survives a column whose width we will never know where `480px` does not. Names
   are what the picker offers first and what the editor writes by default.
-- **A custom colour is a hex, and it is the one thing that reaches `style`.**
-  An author who needs their brand's exact colour has nowhere to put a name, and
-  `data-color="#f43f5e"` is a value no stylesheet can turn into a colour — so
-  the sanitizer opens `style` for exactly two properties (`color`,
-  `background-color`) on exactly two tags (`span`, `mark`), and only to a value
-  it could parse as a colour. Everything else in `style`, on those tags and on
-  every other, is still dropped. `rgb()` is accepted **only** because a browser
+- **`style` is opened per property, per tag, to a parsed value — never
+  wholesale.** Two things need it, and neither has an attribute that could carry
+  them. A **custom colour**: an author who needs their brand's exact colour has
+  nowhere to put a name, and `data-color="#f43f5e"` is a value no stylesheet can
+  turn into a colour. A **dragged width**: the number _is_ the choice, so there
+  is nothing for a consumer to map. So the sanitizer permits `color` /
+  `background-color` on `span` and `mark`, and `width` on `figure`, `table`,
+  `th` and `td` — each validated by its own parser and re-written in canonical
+  form (`STYLE_VALUE`). Everything else in `style`, on those tags and on every
+  other, is still dropped. `rgb()` is accepted **only** because a browser
   rewrites a hex into it on parse, and is canonicalized straight back to hex so
-  the stored value stays byte-stable.
-- **The default is the absence of a value.** `left` and `full` are never
+  the stored value stays byte-stable; a width is a percentage or it is dropped,
+  which is also what keeps `calc()`, custom properties and `url()` out.
+- **The default is the absence of a value.** `left`, `top` and `full` are never
   written, so a paragraph someone centred and then un-centred serializes
   byte-identically to one nobody ever touched — which is what keeps revision
-  diffs honest.
+  diffs honest. A dragged width **replaces** the size preset rather than joining
+  it: two statements of the same thing is two things to disagree.
 - **The vocabulary is enforced in the sanitizer**, not by convention
   (`enumeratedAttributes`). It is the pass both runtimes share, so a value that
   survives it is one every consumer can rely on — and an unconstrained
   `data-color` invites exactly the open-ended styling this format exists to keep
   out of stored content.
 
+**Column widths ride on the cells**, repeated down each column, and a table with
+any of them is pinned to `width: 100%`. Both follow from the rendered table being
+a _block_ box (which is what stops a wide table widening the page): a
+`<colgroup>` inside a block box is at the mercy of anonymous-table generation,
+where a width on the cell is honoured by every layout there is; and a percentage
+resolved against a shrink-to-fit table would be a percentage of a number the
+author cannot see. Repeating it down the column also means no row operation has
+to remember to carry it, because no single row owns it.
+
 A block type opts in with `aligns: true` and one `ctx.align(block)` call in its
 `toHtml`; the parser restores `attrs.align` for it generically, so the round trip
 costs a flag and a splice rather than a re-read in every `fromHtml`.
 
-**What is deliberately not offered:** fonts, sizes in pixels, line-height,
+**What is deliberately not offered:** sizes in pixels, line-height,
 letter-spacing. Each is a decision belonging to the surface the content is
 rendered on, and baking it into stored HTML is how a CMS ends up with documents
-that only look right in one theme. Custom colour is the exception, and it is
-narrow on purpose — the widening above is two properties, two tags, one value
-shape, all of it enforced in the pass both runtimes share.
+that only look right in one theme. Custom colour and a dragged width are the
+exceptions, and both are narrow on purpose — three properties, five tags, two
+value shapes, all of it enforced in the pass both runtimes share.
 
 ## Sanitization — the security boundary
 
 `lib/html/sanitize.ts` is an **allow-list**, not a filter. Unknown tags are
-unwrapped (text survives, tag doesn't), unknown attributes dropped, `style` and
-every `on*` handler dropped unconditionally, and `javascript:` / `data:` URLs
-rejected — including the control-character obfuscations a naive `startsWith`
-misses. A link with `target="_blank"` has `rel="noopener noreferrer"` forced on.
+unwrapped (text survives, tag doesn't), unknown attributes dropped, every `on*`
+handler dropped unconditionally, `style` dropped except for the few properties
+named above, and `javascript:` / `data:` URLs rejected — including the
+control-character obfuscations a naive `startsWith` misses. A link with
+`target="_blank"` has `rel="noopener noreferrer"` forced on.
 
 Two deliberate positions:
 

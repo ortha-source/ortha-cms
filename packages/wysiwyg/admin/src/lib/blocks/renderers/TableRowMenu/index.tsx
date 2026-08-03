@@ -16,6 +16,7 @@ import {
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
+import { TableCellAlignItems } from '../TableCellAlignItems';
 
 const messages = defineMessages({
     label: {
@@ -36,7 +37,11 @@ const messages = defineMessages({
     }
 });
 
-/** The handle beside one row: insert either side of it, or delete it. */
+/**
+ * The handle beside one row: insert either side of it, align its cells, or
+ * delete it. Alignment is offered per row as well as per column because a
+ * header row is routinely centred while its columns are not.
+ */
 export function TableRowMenu({
     tablePath,
     index,
@@ -94,6 +99,12 @@ export function TableRowMenu({
                     <ArrowDownToLine aria-hidden className="size-4" />
                     {intl.formatMessage(messages.insertAfter)}
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <TableCellAlignItems
+                    onApply={(attrs) =>
+                        commands.setTableRowAttrs(tablePath, index, attrs)
+                    }
+                />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     disabled={count <= 1}

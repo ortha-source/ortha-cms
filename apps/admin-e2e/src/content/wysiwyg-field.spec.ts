@@ -421,7 +421,9 @@ test.describe('Entry editor — wysiwyg field', () => {
                     wysiwygFieldPage.editor
                         .locator('figure img')
                         .first()
-                        .evaluate((img) => (img as HTMLImageElement).naturalWidth)
+                        .evaluate(
+                            (img) => (img as HTMLImageElement).naturalWidth
+                        )
                 )
                 .toBeGreaterThan(0);
 
@@ -430,7 +432,12 @@ test.describe('Entry editor — wysiwyg field', () => {
             // The markup says `data-align="center"` either way, so this has to
             // read what the browser laid out: the reset makes `<img>` a block,
             // and a block box ignores `text-align` — only auto margins move it.
-            const [left, right] = await wysiwygFieldPage.margins('figure img');
+            // Measured as a gap rather than as a margin, because *which* box
+            // carries the margin is an implementation detail and has changed.
+            const [left, right] = await wysiwygFieldPage.gapsWithin(
+                'figure img',
+                'figure'
+            );
             expect(left).toBeGreaterThan(0);
             expect(Math.abs(left - right)).toBeLessThan(2);
         });
@@ -521,6 +528,36 @@ test.describe('Entry editor — wysiwyg field', () => {
                 '<figure data-size="medium" data-align="center">'
             );
         });
+
+        test('resizes an image by dragging its grip, replacing the preset', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertViaSlash('image', 'Image');
+            await wysiwygFieldPage.imageUrl.fill('https://cdn.test/a.png');
+            await wysiwygFieldPage.addImage.click();
+            await wysiwygFieldPage.imageWidth('Medium').click();
+
+            const before = await wysiwygFieldPage.widthOf('figure');
+            await wysiwygFieldPage.dragBy(
+                wysiwygFieldPage.imageResizer('right'),
+                -120
+            );
+            expect(await wysiwygFieldPage.widthOf('figure')).toBeLessThan(
+                before - 60
+            );
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // The dragged width replaces the preset rather than joining it —
+            // two statements of the same thing is two things to disagree.
+            const saved = savedBody(saves);
+            expect(saved).toMatch(/<figure style="width: \d+(\.\d+)?%">/);
+            expect(saved).not.toContain('data-size');
+        });
     });
 
     test.describe('tables', () => {
@@ -607,6 +644,94 @@ test.describe('Entry editor — wysiwyg field', () => {
             // header-ness drops the wrapper with it.
             expect(savedBody(saves)).not.toContain('<thead>');
             expect(savedBody(saves)).toContain('<td>Name</td>');
+        });
+
+        test('centres the table without centring what is in it', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertTable();
+            await wysiwygFieldPage.cell(1, 1).click();
+            await wysiwygFieldPage.type('Name');
+
+            await wysiwygFieldPage.tableAlign('Align centre').click();
+            // Where the box sits and where the words sit are two choices; the
+            // table's own alignment must not inherit down into the cells.
+            expect(await wysiwygFieldPage.textAlignOf('th')).toBe('left');
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toContain('<table data-align="center">');
+        });
+
+        test('aligns a column, and stands it on the bottom of its cells', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertTable();
+            await wysiwygFieldPage.cell(1, 1).click();
+            await wysiwygFieldPage.type('Name');
+
+            await wysiwygFieldPage.columnMenu(1).click();
+            await wysiwygFieldPage.chooseSubMenuItem(
+                'Align content',
+                'Align centre'
+            );
+            expect(await wysiwygFieldPage.textAlignOf('th')).toBe('center');
+
+            await wysiwygFieldPage.columnMenu(1).click();
+            await wysiwygFieldPage.chooseSubMenuItem(
+                'Vertical align',
+                'Bottom'
+            );
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // Every cell of the column, not just the one the menu was opened
+            // over — a column is not a block, so the cells are all there is.
+            expect(savedBody(saves)).toContain(
+                '<th data-valign="bottom" data-align="center">Name</th>'
+            );
+            expect(savedBody(saves)).toContain(
+                '<td data-valign="bottom" data-align="center"></td>'
+            );
+        });
+
+        test('resizes a column by dragging its grip', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertTable();
+            await wysiwygFieldPage.cell(1, 1).click();
+            await wysiwygFieldPage.type('Name');
+
+            const before = await wysiwygFieldPage.widthOf('th');
+            await wysiwygFieldPage.dragBy(
+                wysiwygFieldPage.columnResizer(1),
+                160
+            );
+            // A width is a *computed* outcome — the model holding 40 proves
+            // nothing about whether the column actually moved.
+            expect(await wysiwygFieldPage.widthOf('th')).toBeGreaterThan(
+                before + 100
+            );
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            const saved = savedBody(saves);
+            // Percentages of the table, and the table pinned to the measure —
+            // otherwise the percentage is of a number the author cannot see.
+            expect(saved).toContain('<table style="width: 100%">');
+            expect(saved).toMatch(/<th style="width: \d+(\.\d+)?%">Name<\/th>/);
         });
     });
 

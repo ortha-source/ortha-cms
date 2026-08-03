@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ImageIcon, LibraryBig } from 'lucide-react';
-import { BLOCK_ALIGN, MEDIA_SIZE, MEDIA_SIZES } from '@ortha-cms/wysiwyg-core';
+import {
+    BLOCK_ALIGN,
+    MEDIA_SIZE,
+    MEDIA_SIZES,
+    mediaWidth
+} from '@ortha-cms/wysiwyg-core';
 import { Button, Input, cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 import { InlineEditable } from '../../InlineEditable';
 import type { BlockViewProps } from '../../blockRegistry';
+import { ImageResizeHandle } from '../ImageResizeHandle';
 
 const messages = defineMessages({
     label: {
@@ -55,7 +61,11 @@ const messages = defineMessages({
     small: { id: 'wysiwyg.block.image.small', defaultMessage: 'Small' },
     medium: { id: 'wysiwyg.block.image.medium', defaultMessage: 'Medium' },
     large: { id: 'wysiwyg.block.image.large', defaultMessage: 'Large' },
-    full: { id: 'wysiwyg.block.image.full', defaultMessage: 'Full' }
+    full: { id: 'wysiwyg.block.image.full', defaultMessage: 'Full' },
+    customWidth: {
+        id: 'wysiwyg.block.image.customWidth',
+        defaultMessage: '{percent}%'
+    }
 });
 
 /** The label each width preset reads as. */
@@ -91,6 +101,9 @@ export function ImageBlock({ block, path }: BlockViewProps) {
     const src = String(block.attrs['src'] ?? '');
     const alt = String(block.attrs['alt'] ?? '');
     const size = String(block.attrs['size'] ?? MEDIA_SIZE.Full);
+    // A dragged width overrides the preset — they say the same thing at
+    // different resolutions, and the one the author touched last wins.
+    const width = mediaWidth(block.attrs['width']);
     const align = block.attrs['align'];
     // `text-align` can't move the picture: the CSS reset makes `<img>` a block,
     // and a block box ignores it. Auto margins are what actually centre it.
@@ -164,23 +177,42 @@ export function ImageBlock({ block, path }: BlockViewProps) {
     return (
         <figure
             className={cn(
-                'my-2 space-y-2',
-                SIZE_CLASS[size as keyof typeof SIZE_CLASS] ?? 'w-full',
+                'group/image my-2 space-y-2',
+                width === null
+                    ? (SIZE_CLASS[size as keyof typeof SIZE_CLASS] ?? 'w-full')
+                    : undefined,
                 // The figure moves too, for the sizes that give it a width
                 // narrower than the column.
                 imageAlign
             )}
+            style={width === null ? undefined : { width: `${width}%` }}
             data-align={block.attrs['align'] ?? undefined}
         >
-            <img
-                src={src}
-                alt={alt}
-                loading="lazy"
-                className={cn(
-                    'border-border max-h-[28rem] w-auto max-w-full rounded-md border object-contain',
-                    imageAlign
+            {/* `w-fit` so the grips hug the **picture** rather than the figure:
+                an image narrower than its column would otherwise leave the
+                right-hand grip floating in empty space beside it. */}
+            <div className={cn('relative w-fit max-w-full', imageAlign)}>
+                <img
+                    src={src}
+                    alt={alt}
+                    loading="lazy"
+                    className="border-border max-h-[28rem] w-auto max-w-full rounded-md border object-contain"
+                />
+                {!readOnly && (
+                    <>
+                        <ImageResizeHandle
+                            path={path}
+                            side="left"
+                            width={width}
+                        />
+                        <ImageResizeHandle
+                            path={path}
+                            side="right"
+                            width={width}
+                        />
+                    </>
                 )}
-            />
+            </div>
             {!readOnly && (
                 // Deliberately still always visible — an image published with
                 // no alt text is a defect, and hiding the field behind a menu
@@ -236,22 +268,33 @@ export function ImageBlock({ block, path }: BlockViewProps) {
                             type="button"
                             size="sm"
                             variant="ghost"
-                            aria-pressed={size === preset}
+                            aria-pressed={width === null && size === preset}
                             className={cn(
                                 'h-6 px-2 text-xs',
-                                size === preset
+                                width === null && size === preset
                                     ? 'bg-accent text-accent-foreground'
                                     : 'text-muted-foreground'
                             )}
+                            // Picking a preset drops a dragged width: the two
+                            // are one choice, and leaving both would store a
+                            // document that says `medium` and `72%` at once.
                             onClick={() =>
-                                commands.setAttrs(path, { size: preset })
+                                commands.setAttrs(path, {
+                                    size: preset,
+                                    width: null
+                                })
                             }
                         >
-                            {intl.formatMessage(
-                                messages[SIZE_MESSAGE[preset]]
-                            )}
+                            {intl.formatMessage(messages[SIZE_MESSAGE[preset]])}
                         </Button>
                     ))}
+                    {width !== null && (
+                        <span className="bg-accent text-accent-foreground rounded px-2 py-0.5 text-xs">
+                            {intl.formatMessage(messages.customWidth, {
+                                percent: width
+                            })}
+                        </span>
+                    )}
                 </div>
             )}
             <figcaption>

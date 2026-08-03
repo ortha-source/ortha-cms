@@ -9,8 +9,14 @@
  */
 
 import { isElement, type HtmlElement, type HtmlNode } from '../../html/node';
+import { toPercentWidth, widthFromStyle } from '../../html/sanitize';
 import type { BlockDefinition } from '../block-definition';
-import { BLOCK_GROUP, BLOCK_TYPE, MEDIA_SIZE, MEDIA_SIZES } from '../block-types';
+import {
+    BLOCK_GROUP,
+    BLOCK_TYPE,
+    MEDIA_SIZE,
+    MEDIA_SIZES
+} from '../block-types';
 
 /** A horizontal rule. The only block with nothing to edit at all. */
 export const dividerBlock: BlockDefinition = {
@@ -55,10 +61,21 @@ export const imageBlock: BlockDefinition = {
         // about how much of the measure the picture takes, which is the
         // figure's job — and a width baked onto the image would fight whatever
         // the delivery surface does with its own container.
+        //
+        // A dragged width **replaces** the preset rather than joining it: they
+        // say the same thing at different resolutions, and emitting both leaves
+        // a document where `data-size="medium"` and `width: 72%` disagree and
+        // whichever the consumer honours is luck.
+        const width = mediaWidth(block.attrs['width']);
         const size = mediaSize(block.attrs['size']);
         const sizeAttr =
-            size === MEDIA_SIZE.Full ? '' : ` data-size="${ctx.attr(size)}"`;
-        return `<figure${sizeAttr}${ctx.align(block)}>${img}${
+            width !== null || size === MEDIA_SIZE.Full
+                ? ''
+                : ` data-size="${ctx.attr(size)}"`;
+        // The canonical spacing the sanitizer would rewrite it to, so a value
+        // this serializer wrote survives a round trip byte-identically.
+        const widthAttr = width === null ? '' : ` style="width: ${width}%"`;
+        return `<figure${widthAttr}${sizeAttr}${ctx.align(block)}>${img}${
             caption ? `<figcaption>${caption}</figcaption>` : ''
         }</figure>`;
     },
@@ -66,16 +83,25 @@ export const imageBlock: BlockDefinition = {
         const img = element.tag === 'img' ? element : findTag(element, 'img');
         if (!img) return null;
         const caption = findTag(element, 'figcaption');
+        const width = widthFromStyle(element.attrs['style']);
         return ctx.block(BLOCK_TYPE.Image, {
             html: caption ? ctx.inline(caption.children) : '',
             attrs: {
                 src: img.attrs['src'] ?? '',
                 alt: img.attrs['alt'] ?? '',
-                size: mediaSize(element.attrs['data-size'])
+                size: mediaSize(element.attrs['data-size']),
+                ...(width === null ? {} : { width })
             }
         });
     }
 };
+
+/** A stored custom width as a number of percent, or `null` when there is none. */
+export function mediaWidth(value: unknown): number | null {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const percent = toPercentWidth(`${value}%`);
+    return percent === null ? null : Number.parseFloat(percent);
+}
 
 /**
  * An external embed (a video, a design file, a dashboard). The URL rides in

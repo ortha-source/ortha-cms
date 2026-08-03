@@ -10,17 +10,22 @@
  *    write, not only in the browser, because the admin is a client and a client
  *    can be bypassed. That is the whole reason this package is runtime-agnostic.
  *
- * `style` and every `on*` handler are dropped unconditionally, `javascript:` /
- * `data:` URLs are dropped, and `<iframe>` is **not** in the allow-list even for
- * embeds — an embed block stores its provider URL in a `data-` attribute and
- * lets the delivery layer decide whether to frame it.
+ * Every `on*` handler is dropped unconditionally, `javascript:` / `data:` URLs
+ * are dropped, and `<iframe>` is **not** in the allow-list even for embeds — an
+ * embed block stores its provider URL in a `data-` attribute and lets the
+ * delivery layer decide whether to frame it. `style` is dropped too, except for
+ * the handful of properties {@link STYLE_VALUE} can parse on the handful of
+ * tags {@link SanitizePolicy.allowedStyles} names: a value that survives is one
+ * this file re-wrote itself, never one that was merely permitted.
  */
 
 import {
     BLOCK_ALIGNS,
+    CELL_VALIGNS,
     FONT_FAMILIES,
     INLINE_COLORS,
     MEDIA_SIZES,
+    MIN_WIDTH_PERCENT,
     TEXT_SIZES
 } from '../schema/block-types';
 import { escapeHtmlAttribute, escapeHtmlText } from './escape';
@@ -107,18 +112,86 @@ export function toHexColor(value: string): string | null {
 }
 
 /**
- * The only inline styling that survives: a colour on the two inline marks that
- * carry one.
+ * A width this sanitizer will store: **a percentage, and nothing else.**
  *
- * This is a real widening of the security boundary and it is kept as small as a
- * widening can be — two properties, two tags, one value pattern. The reason it
- * exists at all: a *named* palette entry adapts to the surface it renders on
- * and is the better default, but an author who needs their brand's exact colour
- * has nowhere to put it, and `data-color="#f43f5e"` is a value no stylesheet
- * can turn into a colour. Everything else about `style` — on these tags and on
- * every other — is still dropped unconditionally.
+ * The same reasoning as the media-size presets, applied to a value the author
+ * dragged out rather than picked: the stored HTML renders on a surface whose
+ * measure this editor never sees, so `width: 32%` survives a phone where
+ * `width: 480px` does not. Refusing every other CSS length is also what keeps
+ * this a *number*, with no room for `calc()`, a custom property, or a `url()`.
  */
+const PERCENT_WIDTH = /^(\d{1,3}(?:\.\d+)?)%$/;
+
+/**
+ * A width as the canonical percentage that gets stored, or `null` when it is
+ * not one. Out-of-range values are refused rather than clamped — a width
+ * outside the band is not a near-miss to be rescued, it is a value this editor
+ * did not write.
+ */
+export function toPercentWidth(value: string): string | null {
+    const match = PERCENT_WIDTH.exec(value.trim());
+    if (!match) return null;
+    const percent = Number(match[1]);
+    if (percent < MIN_WIDTH_PERCENT || percent > 100) return null;
+    // Two decimals is finer than any drag can be seen to be, and rounding here
+    // is what stops a pixel of jitter from writing a new value on every commit.
+    return `${Number(percent.toFixed(2))}%`;
+}
+
+/**
+ * The `width` a **sanitized** `style` attribute declares, as a number of
+ * percent, or `null` when it declares none.
+ *
+ * The read half of {@link toPercentWidth}, kept beside it so a block type
+ * parsing a width back out of stored HTML uses the same definition of one as
+ * the pass that let it through.
+ */
+export function widthFromStyle(style: string | undefined): number | null {
+    if (!style) return null;
+    for (const declaration of style.split(';')) {
+        const separator = declaration.indexOf(':');
+        if (separator === -1) continue;
+        if (declaration.slice(0, separator).trim().toLowerCase() !== 'width') {
+            continue;
+        }
+        const percent = toPercentWidth(declaration.slice(separator + 1));
+        if (percent !== null) return Number.parseFloat(percent);
+    }
+    return null;
+}
+
+/**
+ * The inline styling that survives, **property by property**, and the one
+ * function that says what each may hold.
+ *
+ * This is a real widening of the security boundary, kept as small as a widening
+ * can be: three properties, five tags, two value patterns, every one of them
+ * parsed rather than trusted. Each exists because the alternative was worse —
+ *
+ * - `color` / `background-color`: a *named* palette entry adapts to the surface
+ *   it renders on and is the better default, but an author who needs their
+ *   brand's exact colour has nowhere to put it, and `data-color="#f43f5e"` is a
+ *   value no stylesheet can turn into a colour.
+ * - `width`: a column the author dragged to size, and a picture sized between
+ *   the presets. There is no attribute a delivery surface could map onto a
+ *   width the way it maps `data-size="medium"` — the number *is* the choice, so
+ *   it has to reach CSS to mean anything.
+ *
+ * Everything else about `style` — on these tags and on every other — is still
+ * dropped unconditionally.
+ */
+const STYLE_VALUE: Readonly<Record<string, (value: string) => string | null>> =
+    {
+        color: toHexColor,
+        'background-color': toHexColor,
+        width: toPercentWidth
+    };
+
+/** The colour properties, for the two inline marks that carry one. */
 const COLOR_STYLE_PROPERTIES = ['color', 'background-color'];
+
+/** The width property, for the elements whose width an author can drag. */
+const WIDTH_STYLE_PROPERTIES = ['width'];
 
 /**
  * The presentational `data-*` attributes, pinned to their vocabularies.
@@ -135,6 +208,7 @@ const ENUMERATED_DATA_ATTRIBUTES: Readonly<
     Record<string, ReadonlySet<string>>
 > = {
     'data-align': new Set(BLOCK_ALIGNS),
+    'data-valign': new Set(CELL_VALIGNS),
     'data-size': new Set(MEDIA_SIZES),
     'data-color': new Set(INLINE_COLORS),
     'data-highlight': new Set(INLINE_COLORS),
@@ -230,7 +304,16 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
     enumeratedAttributes: ENUMERATED_DATA_ATTRIBUTES,
     allowedStyles: {
         span: COLOR_STYLE_PROPERTIES,
-        mark: COLOR_STYLE_PROPERTIES
+        mark: COLOR_STYLE_PROPERTIES,
+        // A resized column and a resized picture. The width rides on the cell
+        // rather than on a `<colgroup>` because the rendered table is a block
+        // box (that is what keeps a wide one from widening the page), and a
+        // column box inside a block box is at the mercy of anonymous-table
+        // generation — where a width on the cell is honoured by every layout.
+        table: WIDTH_STYLE_PROPERTIES,
+        th: WIDTH_STYLE_PROPERTIES,
+        td: WIDTH_STYLE_PROPERTIES,
+        figure: WIDTH_STYLE_PROPERTIES
     }
 };
 
@@ -358,9 +441,13 @@ function sanitizeAttributes(
 
 /**
  * The declarations of a `style` attribute that this policy keeps for `tag`, or
- * `null` when none survive. Each is matched against the property list **and**
- * the colour pattern — a permitted property with an unparseable value is
- * dropped like any other, so nothing reaches the output unvalidated.
+ * `null` when none survive.
+ *
+ * Each is matched against the tag's property list **and** that property's own
+ * parser ({@link STYLE_VALUE}) — a permitted property with an unparseable value
+ * is dropped like any other, so nothing reaches the output unvalidated. What is
+ * kept is the parser's *canonical* form rather than what was written, which is
+ * what makes the same choice serialize identically however it was made.
  */
 function safeStyle(
     tag: string,
@@ -377,9 +464,9 @@ function safeStyle(
         const property = declaration.slice(0, separator).trim().toLowerCase();
         const declared = declaration.slice(separator + 1).trim();
         if (!allowed.includes(property)) continue;
-        const color = toHexColor(declared);
-        if (!color) continue;
-        kept.push(`${property}: ${color}`);
+        const parsed = STYLE_VALUE[property]?.(declared);
+        if (!parsed) continue;
+        kept.push(`${property}: ${parsed}`);
     }
     return kept.length > 0 ? kept.join('; ') : null;
 }

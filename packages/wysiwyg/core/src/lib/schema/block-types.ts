@@ -71,6 +71,36 @@ export type BlockAlign = (typeof BLOCK_ALIGN)[keyof typeof BLOCK_ALIGN];
 export const BLOCK_ALIGNS: readonly BlockAlign[] = Object.values(BLOCK_ALIGN);
 
 /**
+ * How a table cell's content sits **vertically** in the cell.
+ *
+ * The one presentational choice that has no meaning outside a table, which is
+ * why it is its own vocabulary rather than a fifth `BLOCK_ALIGN`: `justify` is
+ * nonsense on a cell's cross axis, and `middle` is nonsense on a paragraph.
+ * `top` is the absence of a choice and is never written.
+ */
+export const CELL_VALIGN = {
+    Top: 'top',
+    Middle: 'middle',
+    Bottom: 'bottom'
+} as const;
+
+/** A cell's vertical alignment. */
+export type CellValign = (typeof CELL_VALIGN)[keyof typeof CELL_VALIGN];
+
+/** The vertical alignments on offer, in menu order. */
+export const CELL_VALIGNS: readonly CellValign[] = Object.values(CELL_VALIGN);
+
+/**
+ * The narrowest a dragged column or picture may be made, as a percentage.
+ *
+ * A width is a **percentage**, for the same reason a media size is a preset:
+ * the stored HTML renders on a surface whose measure this editor never sees.
+ * The floor exists so a slip of the mouse cannot resize a column down to a
+ * sliver the author then has nothing left to grab.
+ */
+export const MIN_WIDTH_PERCENT = 5;
+
+/**
  * How wide a media block draws. A **preset**, not a pixel value: the stored
  * HTML has to render on a surface whose measure this editor knows nothing
  * about, and "half the column" survives that where `width: 480px` does not.
@@ -112,7 +142,8 @@ export const INLINE_COLOR = {
 export type InlineColor = (typeof INLINE_COLOR)[keyof typeof INLINE_COLOR];
 
 /** The palette, in menu order. `default` means "no colour" and is never stored. */
-export const INLINE_COLORS: readonly InlineColor[] = Object.values(INLINE_COLOR);
+export const INLINE_COLORS: readonly InlineColor[] =
+    Object.values(INLINE_COLOR);
 
 /** Heading levels the editor offers — the full HTML range. */
 export const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;

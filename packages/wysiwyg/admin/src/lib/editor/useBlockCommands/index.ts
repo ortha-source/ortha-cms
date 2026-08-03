@@ -178,6 +178,28 @@ export interface BlockCommands {
     /** Turns the table's first row into a header row, or back into a body one. */
     toggleTableHeaderRow(tablePath: BlockPath): void;
     /**
+     * Sets attributes on every cell of one **column** — its alignment, its
+     * vertical alignment, its width.
+     *
+     * A column is not a block, so there is nothing to hang the attribute on but
+     * the cells; writing it on all of them is also what makes it survive a row
+     * being deleted, since no single row owns it. `null` clears an attribute,
+     * which is what makes "reset width" the same command as "set width".
+     */
+    setTableColumnAttrs(
+        tablePath: BlockPath,
+        index: number,
+        attrs: BlockAttrs
+    ): void;
+    /** The same, for every cell of one **row**. */
+    setTableRowAttrs(
+        tablePath: BlockPath,
+        index: number,
+        attrs: BlockAttrs
+    ): void;
+    /** Sets attributes on every cell of the whole table. */
+    setTableCellAttrs(tablePath: BlockPath, attrs: BlockAttrs): void;
+    /**
      * Moves the caret one cell along the table — the Tab key. Tabbing off the
      * last cell adds a row, which is how every editor with tables behaves and
      * the only way to type one in without reaching for the mouse.
@@ -798,6 +820,52 @@ export function useBlockCommands(
             );
         };
 
+        /**
+         * Rewrites every cell of a table that `pick` accepts. The one shape all
+         * three cell-attribute commands are — they differ only in which cells
+         * they answer yes for.
+         */
+        const mapCells = (
+            tablePath: BlockPath,
+            attrs: BlockAttrs,
+            pick: (row: number, column: number) => boolean
+        ) => {
+            if (!tableAt(tablePath)) return;
+            commit(
+                updateAt(blocks, tablePath, (table) => ({
+                    ...table,
+                    children: table.children.map((row, rowIndex) => ({
+                        ...row,
+                        children: row.children.map((cell, columnIndex) =>
+                            pick(rowIndex, columnIndex)
+                                ? {
+                                      ...cell,
+                                      attrs: { ...cell.attrs, ...attrs }
+                                  }
+                                : cell
+                        )
+                    }))
+                }))
+            );
+        };
+
+        const setTableColumnAttrs: BlockCommands['setTableColumnAttrs'] = (
+            tablePath,
+            index,
+            attrs
+        ) => mapCells(tablePath, attrs, (_, column) => column === index);
+
+        const setTableRowAttrs: BlockCommands['setTableRowAttrs'] = (
+            tablePath,
+            index,
+            attrs
+        ) => mapCells(tablePath, attrs, (row) => row === index);
+
+        const setTableCellAttrs: BlockCommands['setTableCellAttrs'] = (
+            tablePath,
+            attrs
+        ) => mapCells(tablePath, attrs, () => true);
+
         const focusTableCell: BlockCommands['focusTableCell'] = (
             cellPath,
             delta
@@ -843,6 +911,9 @@ export function useBlockCommands(
             insertTableColumn,
             removeTableColumn,
             toggleTableHeaderRow,
+            setTableColumnAttrs,
+            setTableRowAttrs,
+            setTableCellAttrs,
             focusTableCell,
             removeMany,
             copyMany,

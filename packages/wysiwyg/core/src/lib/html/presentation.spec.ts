@@ -34,7 +34,9 @@ describe('block alignment', () => {
         );
         // The enumeration is enforced in the sanitizer, so it holds for any
         // caller — not just for content this editor produced.
-        expect(sanitizeHtml('<p data-align="url(evil)">a</p>')).toBe('<p>a</p>');
+        expect(sanitizeHtml('<p data-align="url(evil)">a</p>')).toBe(
+            '<p>a</p>'
+        );
     });
 
     it('ignores an alignment on a type that does not align', () => {
@@ -66,6 +68,35 @@ describe('image sizing', () => {
         );
         expect(block.attrs['size']).toBe('full');
     });
+
+    it('round-trips a width the author dragged out', () => {
+        const html =
+            '<figure style="width: 42.5%"><img src="/a.png" alt="" loading="lazy"></figure>';
+        expect(normalizeWysiwygHtml(html)).toBe(html);
+    });
+
+    it('lets a dragged width replace the preset rather than join it', () => {
+        // Both say how wide the picture is. A document carrying the two of
+        // them disagreeing leaves which one a consumer honours to luck.
+        expect(
+            normalizeWysiwygHtml(
+                '<figure data-size="medium" style="width: 42%">' +
+                    '<img src="/a.png" alt="" loading="lazy"></figure>'
+            )
+        ).toBe(
+            '<figure style="width: 42%"><img src="/a.png" alt="" loading="lazy"></figure>'
+        );
+    });
+
+    it('refuses a width that is not a percentage in range', () => {
+        for (const width of ['480px', '0%', '101%', 'auto']) {
+            expect(
+                normalizeWysiwygHtml(
+                    `<figure style="width: ${width}"><img src="/a.png" alt="" loading="lazy"></figure>`
+                )
+            ).toBe('<figure><img src="/a.png" alt="" loading="lazy"></figure>');
+        }
+    });
 });
 
 describe('inline colour', () => {
@@ -88,7 +119,9 @@ describe('inline colour', () => {
             normalizeWysiwygHtml('<p><span data-color="#f43f5e">a</span></p>')
         ).toBe('<p><span>a</span></p>');
         expect(
-            normalizeWysiwygHtml('<p><mark data-highlight="chartreuse">a</mark></p>')
+            normalizeWysiwygHtml(
+                '<p><mark data-highlight="chartreuse">a</mark></p>'
+            )
         ).toBe('<p><mark>a</mark></p>');
     });
 
@@ -128,15 +161,17 @@ describe('inline colour', () => {
             'expression(alert(1))'
         ]) {
             expect(
-                normalizeWysiwygHtml(`<p><span style="color:${value}">a</span></p>`)
+                normalizeWysiwygHtml(
+                    `<p><span style="color:${value}">a</span></p>`
+                )
             ).toBe('<p><span>a</span></p>');
         }
     });
 
     it('keeps no style at all on a tag that was not opened up', () => {
-        expect(
-            normalizeWysiwygHtml('<p style="color:#ff0055">a</p>')
-        ).toBe('<p>a</p>');
+        expect(normalizeWysiwygHtml('<p style="color:#ff0055">a</p>')).toBe(
+            '<p>a</p>'
+        );
         expect(
             normalizeWysiwygHtml('<strong style="color:#ff0055">a</strong>')
         ).toBe('<p><strong>a</strong></p>');
