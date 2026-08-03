@@ -143,10 +143,18 @@ export function TableColumnResizer({
             onPointerDown={handlePointerDown}
             onKeyDown={handleKeyDown}
             className={cn(
-                // Straddles the border rather than sitting beside it, so the
-                // pointer target is the line the author is aiming at.
-                'absolute top-0 -right-1 z-10 h-full w-2 cursor-col-resize touch-none',
-                'before:bg-primary before:absolute before:inset-y-0 before:left-1/2 before:w-0.5 before:-translate-x-1/2 before:opacity-0 before:transition-opacity',
+                // **Entirely inside its own cell.** Straddling the border is
+                // the obvious choice — the pointer target should be the line
+                // being aimed at — and it is wrong: half the strip then lies
+                // over the *next* column, on top of it, and swallows every
+                // press near that column's left edge, including its handle,
+                // its menu, and the caret. A grip that hijacks its neighbour
+                // is worse than one that is slightly harder to hit.
+                //
+                // It fits in the cell's own right padding, so it is never over
+                // text either; only the line it draws reaches the border.
+                'absolute top-0 right-0 z-10 h-full w-2 cursor-col-resize touch-none',
+                'before:bg-primary before:absolute before:inset-y-0 before:right-0 before:w-0.5 before:opacity-0 before:transition-opacity',
                 'hover:before:opacity-100 focus-visible:before:opacity-100 focus-visible:outline-none'
             )}
         />

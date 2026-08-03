@@ -344,6 +344,14 @@ assumption about a different process.
   so "40%" would be 40% of a number the author cannot see, and would move every
   time they typed. The cost is honest and visible: a table whose columns were
   resized has nowhere left to be aligned to.
+- **A table's column grip sits entirely inside its own cell.** Straddling the
+  border is the obvious choice — the pointer target should be the line you are
+  aiming at — and it is wrong: half the strip then lies over the **next**
+  column, on top of it, and swallows every press near that column's left edge,
+  including its handle, its menu, and the caret. It fits in the cell's own
+  right padding instead, so it is never over text either. `topmostAt` in the
+  e2e page object guards this — what is laid out at a point and what a click
+  there would hit are different questions, and only the second one was broken.
 - **Every toolbar control carries a tooltip.** The icon is the entire label;
   `ToolbarButton` shows the same string as its accessible name so the two
   cannot drift, and the dropdown triggers wrap their own.

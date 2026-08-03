@@ -483,6 +483,28 @@ export class WysiwygFieldPage extends BasePage {
         });
     }
 
+    /** Click a raw viewport point, when the target is a region and not a role. */
+    async clickAt(x: number, y: number) {
+        await this.page.mouse.click(x, y);
+    }
+
+    /**
+     * A short description of whatever element is topmost at a point — the only
+     * way to ask "what would a click here actually hit", which is a different
+     * question from "what is laid out here".
+     */
+    async topmostAt(x: number, y: number): Promise<string> {
+        return this.page.evaluate(
+            ([atX, atY]) => {
+                const element = document.elementFromPoint(atX, atY);
+                if (!element) return 'nothing';
+                const label = element.getAttribute('aria-label');
+                return label ? `${element.tagName}[${label}]` : element.tagName;
+            },
+            [x, y]
+        );
+    }
+
     /**
      * Drag a grip by `dx` pixels. Three moves rather than one: a `pointermove`
      * straight to the target can be dispatched before the handler that
