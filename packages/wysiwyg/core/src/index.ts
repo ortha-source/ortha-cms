@@ -108,6 +108,7 @@ export {
     cellValign,
     cellWidth,
     hasColumnWidths,
+    tableWidth,
     imageBlock,
     isHeaderRow,
     mediaWidth,

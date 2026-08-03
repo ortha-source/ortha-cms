@@ -178,3 +178,40 @@ describe('table column widths', () => {
         );
     });
 });
+
+describe('table width', () => {
+    it('round-trips a width the author dragged the table to', () => {
+        const html =
+            '<table style="width: 60%"><tbody><tr><td>a</td></tr></tbody></table>';
+        expect(normalizeWysiwygHtml(html)).toBe(html);
+    });
+
+    it('pins a table whose columns are sized, even when it has no width', () => {
+        // A column width is a fraction *of the table*, and a shrink-to-fit
+        // table is as wide as its content — so the fraction would be of a
+        // number nobody can see, and would move on every keystroke.
+        expect(
+            normalizeWysiwygHtml(
+                '<table><tr><td style="width: 30%">a</td><td>b</td></tr></table>'
+            )
+        ).toContain('<table style="width: 100%">');
+    });
+
+    it("keeps the table's own width over the pin", () => {
+        const html =
+            '<table style="width: 60%"><tbody><tr>' +
+            '<td style="width: 30%">a</td><td>b</td>' +
+            '</tr></tbody></table>';
+        expect(normalizeWysiwygHtml(html)).toBe(html);
+    });
+
+    it('refuses a table width that is not a percentage in range', () => {
+        for (const width of ['600px', '0%', '140%']) {
+            expect(
+                normalizeWysiwygHtml(
+                    `<table style="width: ${width}"><tr><td>a</td></tr></table>`
+                )
+            ).toBe('<table><tbody><tr><td>a</td></tr></tbody></table>');
+        }
+    });
+});

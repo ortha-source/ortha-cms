@@ -356,11 +356,20 @@ assumption about a different process.
   the grip jumps ~90px out from under the cursor before the drag has begun. The
   e2e asserts the edge lands **where the cursor went**; "wider than before"
   passed throughout the broken version.
-- **The last column has no grip.** Its right edge _is_ the table's right edge,
-  and a sized table is pinned to the measure — so there is nothing there to
-  drag, and offering one meant the drag silently resized every other column
-  instead. The last column takes what the others leave, which is what a
-  full-width table already does.
+- **The last border resizes the _table_, not the last column.** That border is
+  the table's right edge, and a column width is a fraction of the table — so
+  sizing the last column could only take room from the others while the edge
+  under the cursor stayed put. It gets a `TableWidthResizer` instead, which
+  stores a width on the table itself; the last column goes on taking whatever
+  the others leave. A table can be dragged narrower only down to its content
+  minimum, because every cell keeps a floor.
+- **A drag leaves its preview _on_ the committed value — it never clears it.**
+  Both widths are React `style` props, and React only writes one when its own
+  previous value differs. Clearing them by hand after the commit deleted what
+  React had just written and left the table with no width at all, so every
+  column percentage became a fraction of a shrink-to-fit table: an +80px drag
+  came back 5px **narrower**. Landing on the same value means the next render
+  either agrees or corrects it.
 - **A table's column grip sits entirely inside its own cell.** Straddling the
   border is the obvious choice — the pointer target should be the line you are
   aiming at — and it is wrong: half the strip then lies over the **next**

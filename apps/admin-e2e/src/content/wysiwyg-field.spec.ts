@@ -829,19 +829,45 @@ test.describe('Entry editor — wysiwyg field', () => {
             ).toBeVisible();
         });
 
-        test('the last column has no grip — its edge is the table’s', async ({
+        test('the last border resizes the table, and follows the cursor', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
             await wysiwygFieldPage.expand();
             await wysiwygFieldPage.insertTable();
 
-            // A sized table is pinned to the measure, so the last column's
-            // right edge cannot move: offering a grip there meant dragging it
-            // silently resized everything *else* instead. It takes what the
-            // other columns leave.
-            await expect(wysiwygFieldPage.columnResizer(1)).toBeAttached();
+            // The last column's right edge *is* the table's right edge, and a
+            // column width is a fraction of the table — so sizing the column
+            // there could only take room from the others while the edge under
+            // the cursor stayed put. It resizes the table instead.
+            // A table of empty cells has no text, so the field reports the
+            // whole document empty and saves nothing at all.
+            await wysiwygFieldPage.cell(1, 1).click();
+            await wysiwygFieldPage.type('Name');
+
             await expect(wysiwygFieldPage.columnResizer(3)).toHaveCount(0);
+            const before = await wysiwygFieldPage.widthOf('table');
+            await wysiwygFieldPage.dragBy(wysiwygFieldPage.tableResizer, 140);
+            const wider = await wysiwygFieldPage.widthOf('table');
+            expect(wider).toBeCloseTo(before + 140, -1);
+
+            // And back in, which is the direction that has somewhere to stop:
+            // every cell keeps a minimum width, so a table cannot be dragged
+            // narrower than its own content. Staying above that floor, the
+            // edge tracks the cursor the same way.
+            await wysiwygFieldPage.dragBy(wysiwygFieldPage.tableResizer, -60);
+            expect(await wysiwygFieldPage.widthOf('table')).toBeCloseTo(
+                wider - 60,
+                -1
+            );
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toMatch(
+                /<table style="width: \d+(\.\d+)?%">/
+            );
         });
 
         test('resizes a column by dragging its grip', async ({

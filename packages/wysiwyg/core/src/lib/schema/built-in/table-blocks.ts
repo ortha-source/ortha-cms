@@ -91,19 +91,22 @@ export const tableBlock: BlockDefinition = {
         const thead = head ? `<thead>${ctx.children([head])}</thead>` : '';
         const tbody =
             body.length > 0 ? `<tbody>${ctx.children(body)}</tbody>` : '';
-        // A resized table is a full-measure one. Percentage cell widths are
-        // resolved against the table, and a table with no width of its own is
-        // as wide as its content — so "40%" would mean 40% of a number the
-        // author cannot see, and would move every time they typed. Pinned to
-        // the measure, the percentages mean what the drag showed them.
-        const width = hasColumnWidths(block) ? ' style="width: 100%"' : '';
+        // See {@link tableWidth}: a table whose columns carry widths has to be
+        // pinned to the measure for those percentages to mean anything, and a
+        // table the author dragged narrower carries its own.
+        const percent = tableWidth(block);
+        const width = percent === null ? '' : ` style="width: ${percent}%"`;
         return `<table${width}${ctx.align(block)}>${thead}${tbody}</table>`;
     },
     fromHtml: (element, ctx) => {
         const rows = collectRows(element).map((row) => rowFrom(row, ctx));
         const filled = rows.filter((row) => row.children.length > 0);
         if (filled.length === 0) return null;
-        return ctx.block(BLOCK_TYPE.Table, { children: squared(filled, ctx) });
+        const width = widthFromStyle(element.attrs['style']);
+        return ctx.block(BLOCK_TYPE.Table, {
+            children: squared(filled, ctx),
+            attrs: width === null ? {} : { width }
+        });
     }
 };
 
@@ -167,6 +170,22 @@ export function cellWidth(value: unknown): number | null {
 export function hasColumnWidths(table: WysiwygBlock): boolean {
     return table.children.some((row) =>
         row.children.some((cell) => cellWidth(cell.attrs['width']) !== null)
+    );
+}
+
+/**
+ * How wide the table itself draws, as a percentage of the measure — or `null`
+ * when it is as wide as its content.
+ *
+ * A table the author dragged narrower stores it; one whose *columns* were sized
+ * gets 100% whether it was dragged or not, because a column width is a fraction
+ * **of the table** and a shrink-to-fit table is as wide as its content — so the
+ * fraction would be of a number nobody can see, and would move on every
+ * keystroke. Pinning is what makes a stored column width mean anything.
+ */
+export function tableWidth(table: WysiwygBlock): number | null {
+    return (
+        cellWidth(table.attrs['width']) ?? (hasColumnWidths(table) ? 100 : null)
     );
 }
 

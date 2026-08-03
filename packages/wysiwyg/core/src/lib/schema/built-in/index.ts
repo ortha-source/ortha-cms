@@ -73,6 +73,7 @@ export {
     createTableCell,
     createTableRow,
     hasColumnWidths,
-    isHeaderRow
+    isHeaderRow,
+    tableWidth
 } from './table-blocks';
 export { mediaWidth } from './media-blocks';

@@ -15,6 +15,7 @@ import { caretAtEnd, caretAtStart } from '../../../utils/dom-selection';
 import { insertSoftBreak } from '../../../utils/marks';
 import { InlineEditable, type EditableKeyHandlers } from '../../InlineEditable';
 import { TableColumnResizer } from '../TableColumnResizer';
+import { TableWidthResizer } from '../TableWidthResizer';
 
 const messages = defineMessages({
     cell: {
@@ -38,7 +39,8 @@ export function TableCellBlock({
     block,
     path,
     resizable = false,
-    columnCount = 0
+    columnCount = 0,
+    tableWidth = null
 }: {
     block: WysiwygBlock;
     /** `[…tablePath, rowIndex, columnIndex]`. */
@@ -51,6 +53,8 @@ export function TableCellBlock({
     resizable?: boolean;
     /** How many columns the table has, for the grip's clamping. */
     columnCount?: number;
+    /** The table's own stored width, for the last border's grip. */
+    tableWidth?: number | null;
 }) {
     const intl = useIntl();
     const { commands, readOnly } = useEditor();
@@ -122,18 +126,27 @@ export function TableCellBlock({
                 })}
                 className="px-2 py-1 leading-6"
             />
-            {/* No grip on the last column: its right edge *is* the table's
-                right edge, and a sized table is pinned to the measure, so
-                there is nothing there to drag. It takes what the others
-                leave. */}
-            {resizable && !readOnly && column < columnCount - 1 && (
-                <TableColumnResizer
-                    tablePath={path.slice(0, -2)}
-                    index={column}
-                    width={width}
-                    count={columnCount}
-                />
-            )}
+            {/* Every border is draggable, but the last one means something
+                else: it *is* the table's right edge, and a column width is a
+                fraction of the table — so growing the last column could only
+                take room from the others and the edge under the cursor would
+                not move at all. That border resizes the table. */}
+            {resizable &&
+                !readOnly &&
+                (column < columnCount - 1 ? (
+                    <TableColumnResizer
+                        tablePath={path.slice(0, -2)}
+                        index={column}
+                        width={width}
+                        count={columnCount}
+                        tableWidth={tableWidth}
+                    />
+                ) : (
+                    <TableWidthResizer
+                        tablePath={path.slice(0, -2)}
+                        width={tableWidth}
+                    />
+                ))}
         </Cell>
     );
 }

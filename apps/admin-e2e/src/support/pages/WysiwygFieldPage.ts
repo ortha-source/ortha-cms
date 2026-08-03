@@ -483,6 +483,11 @@ export class WysiwygFieldPage extends BasePage {
         });
     }
 
+    /** The grip on the table's own right edge. */
+    get tableResizer(): Locator {
+        return this.editor.getByRole('button', { name: 'Resize table' });
+    }
+
     /** Click a raw viewport point, when the target is a region and not a role. */
     async clickAt(x: number, y: number) {
         await this.page.mouse.click(x, y);

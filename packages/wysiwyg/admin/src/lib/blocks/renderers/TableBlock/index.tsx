@@ -9,8 +9,8 @@ import {
 } from 'lucide-react';
 import {
     BLOCK_ALIGN,
-    hasColumnWidths,
     isHeaderRow,
+    tableWidth,
     type BlockAlign
 } from '@ortha-cms/wysiwyg-core';
 import { Button, cn } from '@ortha-cms/design-system';
@@ -81,10 +81,10 @@ export function TableBlock({ block, path }: BlockViewProps) {
     const columns = rows[0]?.children.length ?? 0;
     const header = isHeaderRow(rows[0]);
     const align = block.attrs['align'];
-    // A resized table takes the whole measure: percentage column widths are
-    // resolved against the table, and a shrink-to-fit table would re-resolve
-    // them on every keystroke. This is the same rule `toHtml` writes out.
-    const sized = hasColumnWidths(block);
+    // How wide the table draws — the same rule `toHtml` writes out. A table
+    // whose columns carry widths is pinned to the measure so those percentages
+    // mean something; one the author dragged narrower carries its own.
+    const width = tableWidth(block);
 
     return (
         <div
@@ -104,9 +104,9 @@ export function TableBlock({ block, path }: BlockViewProps) {
             >
                 <table
                     data-align={align ?? undefined}
+                    style={width === null ? undefined : { width: `${width}%` }}
                     className={cn(
                         'border-collapse text-sm',
-                        sized && 'w-full',
                         // The table's own alignment must not inherit down into
                         // the cells: where the box sits and where the words sit
                         // are two choices, and a cell that made neither should
@@ -150,6 +150,7 @@ export function TableBlock({ block, path }: BlockViewProps) {
                                         // author is already reaching across.
                                         resizable={rowIndex === 0}
                                         columnCount={columns}
+                                        tableWidth={width}
                                     />
                                 ))}
                             </tr>

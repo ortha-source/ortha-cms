@@ -116,6 +116,7 @@ width — are the exception, and reach `style` under the rules below.
 | cell vertical alignment | `data-valign` on the `<th>`/`<td>`                              | `top` (never written) · `middle` · `bottom`             |
 | image width             | `data-size` on the `<figure>`                                   | `small` · `medium` · `large` · `full` (never written)   |
 | dragged width           | inline `width` on a `<figure>`, `<th>`/`<td>`, `<table>`        | a percentage, 5–100                                     |
+| table width             | inline `width` on the `<table>`                                 | a percentage, 5–100 (100 whenever a column is sized)    |
 | text colour             | `data-color` on a `<span>`, or an inline `color`                | ten palette names, **or** a hex                         |
 | highlight               | `data-highlight` on a `<mark>`, or an inline `background-color` | ten palette names, **or** a hex                         |
 
