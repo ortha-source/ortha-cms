@@ -37,7 +37,8 @@ const messages = defineMessages({
 export function TableCellBlock({
     block,
     path,
-    resizable = false
+    resizable = false,
+    columnCount = 0
 }: {
     block: WysiwygBlock;
     /** `[…tablePath, rowIndex, columnIndex]`. */
@@ -48,6 +49,8 @@ export function TableCellBlock({
      * the column's handles.
      */
     resizable?: boolean;
+    /** How many columns the table has, for the grip's clamping. */
+    columnCount?: number;
 }) {
     const intl = useIntl();
     const { commands, readOnly } = useEditor();
@@ -119,11 +122,16 @@ export function TableCellBlock({
                 })}
                 className="px-2 py-1 leading-6"
             />
-            {resizable && !readOnly && (
+            {/* No grip on the last column: its right edge *is* the table's
+                right edge, and a sized table is pinned to the measure, so
+                there is nothing there to drag. It takes what the others
+                leave. */}
+            {resizable && !readOnly && column < columnCount - 1 && (
                 <TableColumnResizer
                     tablePath={path.slice(0, -2)}
                     index={column}
                     width={width}
+                    count={columnCount}
                 />
             )}
         </Cell>

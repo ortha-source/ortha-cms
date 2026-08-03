@@ -149,6 +149,7 @@ export function TableBlock({ block, path }: BlockViewProps) {
                                         // One grip per column, on the row the
                                         // author is already reaching across.
                                         resizable={rowIndex === 0}
+                                        columnCount={columns}
                                     />
                                 ))}
                             </tr>

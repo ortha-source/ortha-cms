@@ -829,6 +829,21 @@ test.describe('Entry editor — wysiwyg field', () => {
             ).toBeVisible();
         });
 
+        test('the last column has no grip — its edge is the table’s', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertTable();
+
+            // A sized table is pinned to the measure, so the last column's
+            // right edge cannot move: offering a grip there meant dragging it
+            // silently resized everything *else* instead. It takes what the
+            // other columns leave.
+            await expect(wysiwygFieldPage.columnResizer(1)).toBeAttached();
+            await expect(wysiwygFieldPage.columnResizer(3)).toHaveCount(0);
+        });
+
         test('resizes a column by dragging its grip', async ({
             wysiwygFieldPage
         }) => {
@@ -844,10 +859,26 @@ test.describe('Entry editor — wysiwyg field', () => {
                 wysiwygFieldPage.columnResizer(1),
                 160
             );
-            // A width is a *computed* outcome — the model holding 40 proves
-            // nothing about whether the column actually moved.
-            expect(await wysiwygFieldPage.widthOf('th')).toBeGreaterThan(
-                before + 100
+            // **The edge goes where the cursor went** — not merely somewhere
+            // to the right of where it started. A width is a percentage of the
+            // table, and the table only takes the full measure once a column
+            // has been sized: reading its width before that transition and
+            // applying the fraction after it turned a 100px drag into 277.
+            // "Bigger than before" passed all the way through that.
+            expect(await wysiwygFieldPage.widthOf('th')).toBeCloseTo(
+                before + 160,
+                -1
+            );
+
+            // And it keeps tracking on a second drag, from wherever it now is.
+            const moved = await wysiwygFieldPage.widthOf('th');
+            await wysiwygFieldPage.dragBy(
+                wysiwygFieldPage.columnResizer(1),
+                -60
+            );
+            expect(await wysiwygFieldPage.widthOf('th')).toBeCloseTo(
+                moved - 60,
+                -1
             );
 
             await wysiwygFieldPage.collapse();

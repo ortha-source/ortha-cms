@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_288 test cases across 31 spec files._
+_289 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -412,6 +412,7 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
 | centres the table without centring what is in it |
 | aligns a column, and stands it on the bottom of its cells |
 | a column grip never reaches into the column beside it |
+| the last column has no grip — its edge is the table’s |
 | resizes a column by dragging its grip |
 
 ### the image block

@@ -344,6 +344,23 @@ assumption about a different process.
   so "40%" would be 40% of a number the author cannot see, and would move every
   time they typed. The cost is honest and visible: a table whose columns were
   resized has nowhere left to be aligned to.
+- **A column drag pins the table _before_ it measures it.** A column width is a
+  percentage **of the table**, and an unsized table is only as wide as its
+  content — so writing a width onto a cell changes the very number that
+  percentage is resolved against. Measuring first and pinning at commit (the
+  obvious order) turned a 100px drag into 277: the fraction was taken against
+  the shrink-to-fit width and then applied to the full measure, nearly twice as
+  wide. Pinned first, the reference cannot move for the length of the drag.
+  Pinning then re-shares the space between the columns, which would shift the
+  edge being held, so the grabbed width is written straight back — otherwise
+  the grip jumps ~90px out from under the cursor before the drag has begun. The
+  e2e asserts the edge lands **where the cursor went**; "wider than before"
+  passed throughout the broken version.
+- **The last column has no grip.** Its right edge _is_ the table's right edge,
+  and a sized table is pinned to the measure — so there is nothing there to
+  drag, and offering one meant the drag silently resized every other column
+  instead. The last column takes what the others leave, which is what a
+  full-width table already does.
 - **A table's column grip sits entirely inside its own cell.** Straddling the
   border is the obvious choice — the pointer target should be the line you are
   aiming at — and it is wrong: half the strip then lies over the **next**

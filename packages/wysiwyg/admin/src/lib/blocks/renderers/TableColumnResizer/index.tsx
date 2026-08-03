@@ -1,7 +1,10 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+    useRef,
+    type KeyboardEvent as ReactKeyboardEvent,
+    type PointerEvent as ReactPointerEvent
+} from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import type { BlockPath } from '@ortha-cms/wysiwyg-core';
-import { MIN_WIDTH_PERCENT } from '@ortha-cms/wysiwyg-core';
+import { MIN_WIDTH_PERCENT, type BlockPath } from '@ortha-cms/wysiwyg-core';
 import { cn } from '@ortha-cms/design-system';
 import { useEditor } from '../../../editor/editorContext';
 
@@ -31,17 +34,25 @@ const KEY_STEP = 2;
  * per pointer-move would put a hundred entries on the undo stack for one drag,
  * and a cell's width is exactly what a table's layout algorithm propagates down
  * the column — so writing it on the one cell shows the whole column moving.
+ *
+ * **The last column has no grip.** Its right edge *is* the table's right edge,
+ * and a sized table is pinned to the measure — so there is nothing there to
+ * drag. The last column takes whatever the others leave, which is what a
+ * full-width table already does.
  */
 export function TableColumnResizer({
     tablePath,
     index,
-    width
+    width,
+    count
 }: {
     tablePath: BlockPath;
     /** Which column this grip sizes. */
     index: number;
     /** The column's stored width, or `null` when it has none. */
     width: number | null;
+    /** How many columns the table has — the room left to the right of this one. */
+    count: number;
 }) {
     const intl = useIntl();
     const { commands } = useEditor();
@@ -51,49 +62,96 @@ export function TableColumnResizer({
 
     /** The `<th>`/`<td>` this grip sits in, and the `<table>` it belongs to. */
     const elements = () => {
-        const cell = grip.current?.closest('th, td') ?? null;
-        const table = cell?.closest('table') ?? null;
+        const cell = grip.current?.closest<HTMLTableCellElement>('th, td');
+        const table = cell?.closest('table');
         return cell && table ? { cell, table } : null;
     };
 
+    /**
+     * The widest this column may be left, so every column after it keeps at
+     * least the floor. Without it, dragging the first column to 95% squashes
+     * everything to its right into its own border.
+     */
+    const ceiling = 100 - MIN_WIDTH_PERCENT * (count - 1 - index);
+
+    const clamp = (percent: number): number =>
+        Number(
+            Math.min(ceiling, Math.max(MIN_WIDTH_PERCENT, percent)).toFixed(2)
+        );
+
     const commitWidth = (percent: number | null) => {
-        const { cell } = elements() ?? {};
-        // Hand the cell back to React before the model changes it, so the
-        // preview and the committed value can't both be in the DOM at once.
-        if (cell instanceof HTMLElement) cell.style.removeProperty('width');
+        const found = elements();
+        // Hand the elements back to React before the model redraws them, so the
+        // preview and the committed value are never both in the DOM. The table
+        // keeps its pinned width until the next frame: the commit makes the
+        // model `sized`, which re-renders it as `w-full` — the same 100% — and
+        // clearing the inline style first would show one frame of shrink-to-fit
+        // on the way past.
+        if (found) {
+            found.cell.style.removeProperty('width');
+            const table = found.table;
+            requestAnimationFrame(() => table.style.removeProperty('width'));
+        }
         commands.setTableColumnAttrs(tablePath, index, { width: percent });
     };
 
     const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
         const found = elements();
         if (!found || event.button !== 0) return;
+        // Whether the table was already pinned by the model before this press,
+        // in which case a press that goes nowhere must leave it alone.
+        const hasStoredWidth = found.table.classList.contains('w-full');
         // The grip is inside a `contenteditable` region's table; without this
         // the press also moves the caret, and the drag selects text.
         event.preventDefault();
         event.stopPropagation();
 
         const startX = event.clientX;
+        // The column's width **as grabbed**, before anything below moves.
         const startWidth = found.cell.getBoundingClientRect().width;
+
+        // Pin the table to the measure, and do it *now* rather than at commit.
+        //
+        // A column width is a percentage *of the table*, and an unsized table
+        // is only as wide as its content — so writing a width onto a cell
+        // changes the very number that percentage is resolved against.
+        // Measured first and pinned afterwards, which is what the commit used
+        // to do, a 100px drag grew the column by 277: the fraction was taken
+        // against the shrink-to-fit width and then applied to the full
+        // measure, nearly twice as wide. Pinned first, the reference cannot
+        // move for the length of the drag and the edge tracks the cursor 1:1.
+        found.table.style.width = '100%';
         const tableWidth = found.table.getBoundingClientRect().width;
         if (tableWidth === 0) return;
+
+        // Pinning widens the table, which would otherwise re-share the space
+        // between the columns and shift the very edge being held — the grip
+        // jumped ~90px out from under the cursor before the drag had begun.
+        // Writing the grabbed width straight back holds that edge still and
+        // lets the columns to its right take up the new room instead.
+        found.cell.style.width = `${clamp((startWidth / tableWidth) * 100)}%`;
 
         const target = event.currentTarget;
         target.setPointerCapture(event.pointerId);
 
         const move = (moveEvent: PointerEvent) => {
             const next = startWidth + (moveEvent.clientX - startX);
-            const percent = clampPercent((next / tableWidth) * 100);
+            const percent = clamp((next / tableWidth) * 100);
             dragged.current = percent;
-            if (found.cell instanceof HTMLElement) {
-                found.cell.style.width = `${percent}%`;
-            }
+            found.cell.style.width = `${percent}%`;
         };
 
         const end = () => {
             target.removeEventListener('pointermove', move);
             target.removeEventListener('pointerup', end);
             target.removeEventListener('pointercancel', end);
-            if (dragged.current !== null) commitWidth(dragged.current);
+            if (dragged.current !== null) {
+                commitWidth(dragged.current);
+            } else if (!hasStoredWidth) {
+                // A press that never moved changes nothing — but the table was
+                // pinned on the way in, so it still has to be handed back.
+                found.table.style.removeProperty('width');
+            }
             dragged.current = null;
         };
 
@@ -104,10 +162,9 @@ export function TableColumnResizer({
 
     /**
      * The same edge, from the keyboard. A drag handle reachable only by pointer
-     * is a feature keyboard users simply don't have — and the arrow keys are
-     * what a `separator` with `aria-valuenow` already promises.
+     * is a feature keyboard users simply do not have.
      */
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
         const step =
             event.key === 'ArrowLeft'
                 ? -KEY_STEP
@@ -124,7 +181,7 @@ export function TableColumnResizer({
                       found.table.getBoundingClientRect().width) *
                   100
                 : MIN_WIDTH_PERCENT);
-        commitWidth(clampPercent(current + step));
+        commitWidth(clamp(current + step));
     };
 
     return (
@@ -158,12 +215,5 @@ export function TableColumnResizer({
                 'hover:before:opacity-100 focus-visible:before:opacity-100 focus-visible:outline-none'
             )}
         />
-    );
-}
-
-/** A width the sanitizer would keep — the drag can't leave the band. */
-function clampPercent(percent: number): number {
-    return Number(
-        Math.min(100, Math.max(MIN_WIDTH_PERCENT, percent)).toFixed(2)
     );
 }
