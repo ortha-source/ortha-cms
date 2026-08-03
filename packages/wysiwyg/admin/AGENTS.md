@@ -328,6 +328,14 @@ assumption about a different process.
   hover-only at first, which meant nothing about a table said its columns could
   be dragged — you had to already be touching a grip to find out it existed.
   They now follow the same rule as the row and column handles.
+- **A grip sits entirely inside its own cell.** Straddling the border is the
+  obvious choice — the pointer target should be the line you are aiming at —
+  and it is wrong: half the strip then lies over the **next** column, on top of
+  it, and swallows every press near that column's left edge, including its
+  handle, its menu, and the caret. It fits in the cell's own right padding
+  instead, so it is never over text either, and only the line it draws reaches
+  the border. `topmostAt` in the e2e page object guards this: what is laid out
+  at a point and what a click there would hit are different questions.
 - **A drag previews on one cell and commits on release.** Writing the model on
   every `pointermove` puts a hundred entries on the undo stack for one drag, so
   the grip sets `style.width` on the cell it lives in and calls a command once,

@@ -173,10 +173,18 @@ export function TableColumnResizer({
     };
 
     const className = cn(
-        // Straddles the border rather than sitting beside it, so the pointer
-        // target is the line the author is aiming at.
-        'absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize touch-none',
-        'before:bg-primary before:absolute before:inset-y-0 before:left-1/2 before:w-[3px] before:-translate-x-1/2 before:transition-opacity',
+        // **Entirely inside its own cell.** It used to straddle the border, on
+        // the theory that the pointer target should be the line being aimed
+        // at — but half of it then lay over the *next* column, on top, and
+        // stole every press near that column's left edge: its handle, its
+        // menu, and the caret. A grip that hijacks its neighbour is worse than
+        // one that is a little harder to hit.
+        //
+        // It fits in the cell's own right padding, so it is never over text
+        // either. The line it draws still sits on the border, which is the
+        // part the author actually aims at.
+        'absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none',
+        'before:bg-primary before:absolute before:inset-y-0 before:right-0 before:w-[3px] before:transition-opacity',
         // Shown, faintly, whenever the table is hovered — the same rule the row
         // and column handles follow. It used to appear only under the pointer,
         // and a grip you have to already be touching to discover is one nobody
