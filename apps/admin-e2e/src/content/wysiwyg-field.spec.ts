@@ -163,6 +163,31 @@ test.describe('Entry editor — wysiwyg field', () => {
         );
     });
 
+    test('Shift+Enter breaks the line inside the block, even with the slash menu up', async ({
+        wysiwygFieldPage,
+        page
+    }) => {
+        await wysiwygFieldPage.gotoNewArticle(WS);
+        await wysiwygFieldPage.title.fill('A record');
+        await wysiwygFieldPage.expand();
+        await wysiwygFieldPage.block('Text block').click();
+
+        // The menu opens on any `/` that follows a space, so a line as
+        // ordinary as this leaves it up — and it claimed Enter without
+        // looking at Shift, so a soft break inserted whatever happened to be
+        // highlighted and started a new block instead.
+        await wysiwygFieldPage.type('see /docs');
+        await expect(wysiwygFieldPage.slashMenu).toBeVisible();
+        await page.keyboard.press('Shift+Enter');
+        await wysiwygFieldPage.type('and more');
+
+        await wysiwygFieldPage.collapse();
+        await wysiwygFieldPage.save.click();
+        await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+        // One block, the break inside it, and the text left exactly as typed.
+        expect(savedBody(saves)).toBe('<p>see /docs<br>and more</p>');
+    });
+
     test('Escape closes the slash menu before it closes the editor', async ({
         wysiwygFieldPage
     }) => {
@@ -644,6 +669,28 @@ test.describe('Entry editor — wysiwyg field', () => {
             await wysiwygFieldPage.collapse();
             await wysiwygFieldPage.save.click();
             await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            expect(savedBody(saves)).toContain('<td>one<br>two</td>');
+        });
+
+        test('Shift+Enter breaks the line inside a cell', async ({
+            wysiwygFieldPage,
+            page
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertTable();
+
+            await wysiwygFieldPage.cell(2, 2).click();
+            await wysiwygFieldPage.type('one');
+            await page.keyboard.press('Shift+Enter');
+            await wysiwygFieldPage.type('two');
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            // Still one cell — a soft break must never leave the table, and a
+            // paragraph among the cells of a row is not a table.
             expect(savedBody(saves)).toContain('<td>one<br>two</td>');
         });
 

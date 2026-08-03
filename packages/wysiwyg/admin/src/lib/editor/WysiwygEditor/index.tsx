@@ -238,6 +238,17 @@ export function WysiwygEditor({
                 case KEY.Enter:
                 case KEY.Tab:
                     if (!activeItem) return false;
+                    // A **shifted** Enter is not a choice — it is a soft
+                    // break, and it has to reach the block. The menu opens on
+                    // any `/` that follows a space, so a line as ordinary as
+                    // "see /docs" leaves it up: pressing Shift+Enter there
+                    // inserted whatever the menu happened to be highlighting
+                    // and started a new block, where the author had asked for
+                    // a new line in the one they were writing.
+                    if (event.key === KEY.Enter && event.shiftKey) {
+                        setSlash(null);
+                        return false;
+                    }
                     event.preventDefault();
                     applySlash(activeItem);
                     return true;
@@ -327,7 +338,8 @@ export function WysiwygEditor({
             commitActiveHtml: () => {
                 if (!activePath) return;
                 const element = editables.current.get(pathKey(activePath));
-                if (element) commands.replaceHtml(activePath, element.innerHTML);
+                if (element)
+                    commands.replaceHtml(activePath, element.innerHTML);
             },
             openLinkEditor: () => setLinkRequest((request) => request + 1),
             registerEditable,

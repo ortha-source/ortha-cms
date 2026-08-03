@@ -352,6 +352,13 @@ assumption about a different process.
   but a colour lives in the markup `InlineEditable` renders verbatim, and
   without `WYSIWYG_INLINE_PROSE` an author picked a colour and watched nothing
   happen while the _rendered_ document showed it correctly.
+- **The slash menu does not claim a _shifted_ Enter.** It owns the navigation
+  keys while it is open, and it opens on any `/` that follows a space — so a
+  line as ordinary as "see /docs" leaves it up. Claiming Enter without looking
+  at Shift meant a soft break inserted whatever the menu happened to be
+  highlighting and started a new block, where the author had asked for a new
+  line in the one they were writing. Shift+Enter now closes the menu and falls
+  through to the block.
 - **The slash menu never takes focus.** The caret stays in the block so the query
   can keep narrowing; the editable forwards ↑/↓/Enter/Escape to it
   (`handleOverlayKey`) and announces the active option via

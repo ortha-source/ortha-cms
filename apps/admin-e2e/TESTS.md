@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_285 test cases across 31 spec files._
+_287 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -364,6 +364,7 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
 | turns a markdown shortcut into a real block |
 | names the preview after the document’s own first heading |
 | inserts a block from the slash menu |
+| Shift+Enter breaks the line inside the block, even with the slash menu up |
 | Escape closes the slash menu before it closes the editor |
 
 ### multi-block selection
@@ -405,6 +406,7 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
 | --- |
 | inserts a table and types across it with Tab |
 | Enter inside a cell breaks the line instead of splitting the block |
+| Shift+Enter breaks the line inside a cell |
 | adds a column and removes a row from the handles |
 | the header row is a thead, and the toggle takes it away |
 | centres the table without centring what is in it |
