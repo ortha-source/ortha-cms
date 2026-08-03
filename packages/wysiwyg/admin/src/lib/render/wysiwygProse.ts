@@ -48,6 +48,25 @@ export const HIGHLIGHT_SWATCH: Readonly<Record<string, string>> = {
 };
 
 /**
+ * The typefaces, as design-system classes — one place a role name becomes a
+ * font stack, shared by the picker, the editor and the rendered document.
+ */
+export const FONT_CLASS: Readonly<Record<string, string>> = {
+    default: '',
+    sans: 'font-sans',
+    serif: 'font-serif',
+    mono: 'font-mono'
+};
+
+/** The relative sizes, as classes. Steps against the surrounding text. */
+export const TEXT_SIZE_CLASS: Readonly<Record<string, string>> = {
+    normal: '',
+    small: 'text-[0.85em]',
+    large: 'text-[1.25em]',
+    huge: 'text-[1.6em]'
+};
+
+/**
  * The **inline** half of the styling: the marks that live inside a block's own
  * HTML rather than on the block.
  *
@@ -79,7 +98,15 @@ export const WYSIWYG_INLINE_PROSE: readonly string[] = [
     '[&_[data-highlight=blue]]:bg-blue-500/25',
     '[&_[data-highlight=purple]]:bg-violet-500/25',
     '[&_[data-highlight=pink]]:bg-pink-500/25',
-    '[&_[data-highlight=red]]:bg-red-500/25'
+    '[&_[data-highlight=red]]:bg-red-500/25',
+    // Typeface and relative size — roles and steps, resolved against whatever
+    // the surrounding surface uses rather than pinned to a stack or a point.
+    '[&_[data-font=sans]]:font-sans',
+    '[&_[data-font=serif]]:font-serif',
+    '[&_[data-font=mono]]:font-mono',
+    '[&_[data-text-size=small]]:text-[0.85em]',
+    '[&_[data-text-size=large]]:text-[1.25em]',
+    '[&_[data-text-size=huge]]:text-[1.6em]'
 ];
 
 /** Classes that style a subtree of stored wysiwyg HTML. */
@@ -89,7 +116,9 @@ export const WYSIWYG_PROSE = [
     '[&_h2]:mt-5 [&_h2]:mb-1 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight',
     '[&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:tracking-tight',
     '[&_h4]:mt-3 [&_h4]:mb-1 [&_h4]:text-base [&_h4]:font-semibold [&_h4]:tracking-tight',
-    '[&_:is(h1,h2,h3,h4):first-child]:mt-0',
+    '[&_h5]:mt-3 [&_h5]:mb-1 [&_h5]:text-sm [&_h5]:font-semibold [&_h5]:tracking-tight',
+    '[&_h6]:text-muted-foreground [&_h6]:mt-3 [&_h6]:mb-1 [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:tracking-wide [&_h6]:uppercase',
+    '[&_:is(h1,h2,h3,h4,h5,h6):first-child]:mt-0',
     // Body text and inline marks.
     '[&_p]:py-1 [&_p]:leading-7',
     '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4',

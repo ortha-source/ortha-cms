@@ -51,17 +51,15 @@ export const headingBlock: BlockDefinition = {
     fromHtml: (element, ctx) =>
         ctx.block(BLOCK_TYPE.Heading, {
             html: ctx.inline(element.children),
-            // h5/h6 clamp to h4: the editor offers four levels, and silently
-            // dropping a deeper heading to a paragraph would lose its meaning.
             attrs: { level: headingLevel(element.tag.slice(1)) }
         })
 };
 
-/** Clamps any incoming level to the 1–4 the editor offers. */
+/** Clamps any incoming level to the 1–6 HTML has. */
 function headingLevel(value: unknown): number {
     const level = Number(value);
     if (!Number.isFinite(level)) return 2;
-    return Math.min(4, Math.max(1, Math.round(level)));
+    return Math.min(6, Math.max(1, Math.round(level)));
 }
 
 /** A pull quote. Holds its own line plus, optionally, nested blocks. */

@@ -28,7 +28,7 @@ interface InputRule {
 
 const RULES: readonly InputRule[] = [
     {
-        pattern: /^(#{1,4})\s$/,
+        pattern: /^(#{1,6})\s$/,
         type: BLOCK_TYPE.Heading,
         attrs: (match) => ({ level: match[1].length })
     },

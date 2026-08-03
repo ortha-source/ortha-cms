@@ -34,7 +34,15 @@ import {
 import { matchInputRule, matchSlashQuery } from '../../utils/input-rules';
 
 /** The element an editable renders as — headings keep their semantic tag. */
-type EditableTag = 'div' | 'h1' | 'h2' | 'h3' | 'h4' | 'span';
+type EditableTag =
+    | 'div'
+    | 'h1'
+    | 'h2'
+    | 'h3'
+    | 'h4'
+    | 'h5'
+    | 'h6'
+    | 'span';
 
 /**
  * Per-key overrides, keyed by `KeyboardEvent.key`. Returning `true` claims the

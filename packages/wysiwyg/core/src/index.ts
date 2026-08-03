@@ -64,7 +64,13 @@ export {
     BLOCK_TYPE,
     CALLOUT_TONE,
     CALLOUT_TONES,
+    FONT_FAMILIES,
+    FONT_FAMILY,
     HEADING_LEVELS,
+    MEDIA_KIND,
+    MEDIA_KINDS,
+    TEXT_SIZE,
+    TEXT_SIZES,
     INLINE_COLOR,
     INLINE_COLORS,
     MEDIA_SIZE,
@@ -74,9 +80,12 @@ export type {
     BlockAlign,
     BuiltInBlockType,
     CalloutTone,
+    FontFamily,
     HeadingLevel,
     InlineColor,
-    MediaSize
+    MediaKind,
+    MediaSize,
+    TextSize
 } from './lib/schema/block-types';
 export {
     DEFAULT_BLOCK_DEFINITIONS,
@@ -136,7 +145,12 @@ export {
     colorOrNull,
     isColorSet
 } from './lib/html/inline-colors';
-export type { ColorMark } from './lib/html/inline-colors';
+export {
+    TYPOGRAPHY_MARK,
+    TYPOGRAPHY_MARK_ATTRIBUTE,
+    isTypographySet
+} from './lib/html/inline-colors';
+export type { ColorMark, TypographyMark } from './lib/html/inline-colors';
 export { serializeBlocks, serializeDocument } from './lib/html/serialize';
 export type { SerializeOptions } from './lib/html/serialize';
 export { parseBlocks, parseDocument } from './lib/html/parse-document';

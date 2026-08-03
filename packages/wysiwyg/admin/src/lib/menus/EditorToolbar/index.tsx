@@ -8,6 +8,7 @@ import {
     Italic,
     Plus,
     Redo2,
+    RemoveFormatting,
     Strikethrough,
     Underline,
     Undo2
@@ -32,6 +33,8 @@ import {
     MARK,
     applyColorMark,
     applyLink,
+    applyTypographyMark,
+    clearFormatting,
     readMarkState,
     removeLink,
     toggleCodeMark,
@@ -43,6 +46,7 @@ import { ToolbarButton } from '../ToolbarButton';
 import { AlignControl } from '../AlignControl';
 import { ColorControl } from '../ColorControl';
 import { LinkControl } from '../LinkControl';
+import { TypographyControl } from '../TypographyControl';
 import { useBlockTypeItems } from '../useBlockTypeItems';
 
 const messages = defineMessages({
@@ -61,6 +65,10 @@ const messages = defineMessages({
     strike: { id: 'wysiwyg.toolbar.strike', defaultMessage: 'Strikethrough' },
     code: { id: 'wysiwyg.toolbar.code', defaultMessage: 'Inline code' },
     link: { id: 'wysiwyg.toolbar.link', defaultMessage: 'Link' },
+    clear: {
+        id: 'wysiwyg.toolbar.clear',
+        defaultMessage: 'Clear formatting'
+    },
     turnInto: {
         id: 'wysiwyg.editorToolbar.turnInto',
         defaultMessage: 'Turn the current block into…'
@@ -314,6 +322,15 @@ export function EditorToolbar() {
                     refresh();
                 }}
             />
+            <TypographyControl
+                font={marks.font}
+                size={marks.size}
+                onPick={(mark, value) => {
+                    applyTypographyMark(mark, value);
+                    commitActiveHtml();
+                    refresh();
+                }}
+            />
             <ColorControl
                 color={marks.color}
                 highlight={marks.highlight}
@@ -325,6 +342,18 @@ export function EditorToolbar() {
                     refresh();
                 }}
             />
+
+            <ToolbarButton
+                label={intl.formatMessage(messages.clear)}
+                active={false}
+                onClick={() => {
+                    clearFormatting();
+                    commitActiveHtml();
+                    refresh();
+                }}
+            >
+                <RemoveFormatting aria-hidden className="size-4" />
+            </ToolbarButton>
 
             <Separator orientation="vertical" className="mx-1 h-5" />
 

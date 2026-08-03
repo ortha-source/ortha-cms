@@ -16,7 +16,12 @@
  * `data-highlight`).
  */
 
-import { INLINE_COLOR, type InlineColor } from '../schema/block-types';
+import {
+    FONT_FAMILY,
+    INLINE_COLOR,
+    TEXT_SIZE,
+    type InlineColor
+} from '../schema/block-types';
 
 /** Which of the two colour marks is meant. */
 export const COLOR_MARK = {
@@ -55,4 +60,51 @@ export function colorOrNull(
     color: string | null | undefined
 ): InlineColor | null {
     return isColorSet(color) ? (color as InlineColor) : null;
+}
+
+/**
+ * The two **typographic** span marks — typeface and relative size.
+ *
+ * Same shape as the colour marks and for the same reason: a named value on a
+ * `data-` attribute that the sanitizer pins to an enumeration. `sans`/`serif`/
+ * `mono` and `small`/`large`/`huge` are roles a delivery surface can honour with
+ * its own scale, where `Helvetica Neue, 14pt` is a guess about a machine this
+ * editor has never seen.
+ *
+ * Their defaults — `default` and `normal` — mean *no mark*, so a run the author
+ * set and then reset carries no markup at all.
+ */
+export const TYPOGRAPHY_MARK = {
+    Font: 'font',
+    Size: 'size'
+} as const;
+
+/** A typographic span mark. */
+export type TypographyMark =
+    (typeof TYPOGRAPHY_MARK)[keyof typeof TYPOGRAPHY_MARK];
+
+/** The attribute each typographic mark is stored on, and its "unset" value. */
+export const TYPOGRAPHY_MARK_ATTRIBUTE: Readonly<
+    Record<TypographyMark, { readonly attribute: string; readonly unset: string }>
+> = {
+    [TYPOGRAPHY_MARK.Font]: {
+        attribute: 'data-font',
+        unset: FONT_FAMILY.Default
+    },
+    [TYPOGRAPHY_MARK.Size]: {
+        attribute: 'data-text-size',
+        unset: TEXT_SIZE.Normal
+    }
+};
+
+/** Whether a value is a real choice rather than the mark's "unset". */
+export function isTypographySet(
+    mark: TypographyMark,
+    value: string | null | undefined
+): boolean {
+    return (
+        typeof value === 'string' &&
+        value !== '' &&
+        value !== TYPOGRAPHY_MARK_ATTRIBUTE[mark].unset
+    );
 }

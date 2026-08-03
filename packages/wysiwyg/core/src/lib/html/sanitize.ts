@@ -18,8 +18,10 @@
 
 import {
     BLOCK_ALIGNS,
+    FONT_FAMILIES,
     INLINE_COLORS,
-    MEDIA_SIZES
+    MEDIA_SIZES,
+    TEXT_SIZES
 } from '../schema/block-types';
 import { escapeHtmlAttribute, escapeHtmlText } from './escape';
 import { VOID_TAGS, isElement, type HtmlNode } from './node';
@@ -135,7 +137,9 @@ const ENUMERATED_DATA_ATTRIBUTES: Readonly<
     'data-align': new Set(BLOCK_ALIGNS),
     'data-size': new Set(MEDIA_SIZES),
     'data-color': new Set(INLINE_COLORS),
-    'data-highlight': new Set(INLINE_COLORS)
+    'data-highlight': new Set(INLINE_COLORS),
+    'data-font': new Set(FONT_FAMILIES),
+    'data-text-size': new Set(TEXT_SIZES)
 };
 
 /**
@@ -152,9 +156,6 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
         'h2',
         'h3',
         'h4',
-        // h5/h6 are storable but never *emitted*: an import carrying one keeps
-        // its heading meaning (the parser clamps it to h4) instead of being
-        // unwrapped into a bare paragraph on the way in.
         'h5',
         'h6',
         'ul',
@@ -171,6 +172,14 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
         'summary',
         'div',
         'section',
+        // Playable media. Not a script vector — no `srcdoc`, no same-origin
+        // document — and both `src` attributes go through the same URL check
+        // every other one does. `<iframe>` is still refused (see the header):
+        // framing a third party's *document* is a different decision from
+        // playing a file.
+        'video',
+        'audio',
+        'source',
         'table',
         'thead',
         'tbody',
@@ -195,8 +204,11 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
     ]),
     allowedAttributes: {
         '*': GLOBAL_ATTRIBUTES,
-        a: ['href', 'target', 'rel'],
+        a: ['href', 'target', 'rel', 'download'],
         img: ['src', 'alt', 'width', 'height', 'loading'],
+        video: ['src', 'controls', 'poster', 'preload', 'width', 'height'],
+        audio: ['src', 'controls', 'preload'],
+        source: ['src', 'type'],
         ol: ['start', 'type'],
         td: ['colspan', 'rowspan'],
         th: ['colspan', 'rowspan', 'scope'],
@@ -210,6 +222,8 @@ export const DOCUMENT_SANITIZE_POLICY: SanitizePolicy = {
         'style',
         'iframe',
         'object',
+        // The *element* — the media block's own type is `embed`, which
+        // serializes to a `<figure>`, so nothing here collides with it.
         'embed',
         'form'
     ]),

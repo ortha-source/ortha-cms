@@ -19,6 +19,9 @@ const messages = defineMessages({
     heading1: { id: 'wysiwyg.type.heading1', defaultMessage: 'Heading 1' },
     heading2: { id: 'wysiwyg.type.heading2', defaultMessage: 'Heading 2' },
     heading3: { id: 'wysiwyg.type.heading3', defaultMessage: 'Heading 3' },
+    heading4: { id: 'wysiwyg.type.heading4', defaultMessage: 'Heading 4' },
+    heading5: { id: 'wysiwyg.type.heading5', defaultMessage: 'Heading 5' },
+    heading6: { id: 'wysiwyg.type.heading6', defaultMessage: 'Heading 6' },
     headingHint: {
         id: 'wysiwyg.type.heading.hint',
         defaultMessage: 'Section title'
@@ -117,6 +120,33 @@ const SEEDS: readonly Seed[] = [
         attrs: { level: 3 },
         message: 'heading3',
         keywords: 'heading title h3',
+        group: BLOCK_GROUP.Basic,
+        Icon: Heading3
+    },
+    {
+        id: 'heading-4',
+        type: BLOCK_TYPE.Heading,
+        attrs: { level: 4 },
+        message: 'heading4',
+        keywords: 'heading title h4',
+        group: BLOCK_GROUP.Basic,
+        Icon: Heading3
+    },
+    {
+        id: 'heading-5',
+        type: BLOCK_TYPE.Heading,
+        attrs: { level: 5 },
+        message: 'heading5',
+        keywords: 'heading title h5',
+        group: BLOCK_GROUP.Basic,
+        Icon: Heading3
+    },
+    {
+        id: 'heading-6',
+        type: BLOCK_TYPE.Heading,
+        attrs: { level: 6 },
+        message: 'heading6',
+        keywords: 'heading title h6',
         group: BLOCK_GROUP.Basic,
         Icon: Heading3
     },

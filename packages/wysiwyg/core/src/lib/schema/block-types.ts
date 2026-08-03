@@ -22,7 +22,9 @@ export const BLOCK_TYPE = {
     Column: 'column',
     Table: 'table',
     TableRow: 'tableRow',
-    TableCell: 'tableCell'
+    TableCell: 'tableCell',
+    Media: 'media',
+    File: 'file'
 } as const;
 
 /** A built-in block type. */
@@ -112,8 +114,60 @@ export type InlineColor = (typeof INLINE_COLOR)[keyof typeof INLINE_COLOR];
 /** The palette, in menu order. `default` means "no colour" and is never stored. */
 export const INLINE_COLORS: readonly InlineColor[] = Object.values(INLINE_COLOR);
 
-/** Heading levels the editor offers (h1–h4). */
-export const HEADING_LEVELS = [1, 2, 3, 4] as const;
+/** Heading levels the editor offers — the full HTML range. */
+export const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
 /** A heading level. */
 export type HeadingLevel = (typeof HEADING_LEVELS)[number];
+
+/**
+ * The typefaces a document may name.
+ *
+ * A **short list of roles**, not a font menu. The stored value has to render on
+ * a surface whose fonts this editor never sees, so `serif` is something any
+ * consumer can honour where `Helvetica Neue, Arial, sans-serif` is a guess
+ * about a machine we have not met. `default` means "whatever the surface uses"
+ * and is never stored.
+ */
+export const FONT_FAMILY = {
+    Default: 'default',
+    Sans: 'sans',
+    Serif: 'serif',
+    Mono: 'mono'
+} as const;
+
+/** A named typeface. */
+export type FontFamily = (typeof FONT_FAMILY)[keyof typeof FONT_FAMILY];
+
+/** The typefaces on offer, in menu order. */
+export const FONT_FAMILIES: readonly FontFamily[] = Object.values(FONT_FAMILY);
+
+/**
+ * Relative text sizes. Steps, not points: a point size is a decision about a
+ * viewport, and the same `14pt` that reads well in a desktop column is unusable
+ * on a phone. `normal` is the absence of a size and is never stored.
+ */
+export const TEXT_SIZE = {
+    Normal: 'normal',
+    Small: 'small',
+    Large: 'large',
+    Huge: 'huge'
+} as const;
+
+/** A relative text size. */
+export type TextSize = (typeof TEXT_SIZE)[keyof typeof TEXT_SIZE];
+
+/** The sizes on offer, smallest first. */
+export const TEXT_SIZES: readonly TextSize[] = Object.values(TEXT_SIZE);
+
+/** What a {@link BLOCK_TYPE.Media} block plays. */
+export const MEDIA_KIND = {
+    Video: 'video',
+    Audio: 'audio'
+} as const;
+
+/** A playable media kind. */
+export type MediaKind = (typeof MEDIA_KIND)[keyof typeof MEDIA_KIND];
+
+/** The playable kinds, in menu order. */
+export const MEDIA_KINDS: readonly MediaKind[] = Object.values(MEDIA_KIND);

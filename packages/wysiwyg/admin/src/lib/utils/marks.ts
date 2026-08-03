@@ -18,9 +18,13 @@
 import {
     COLOR_MARK,
     COLOR_MARK_TAG,
+    TYPOGRAPHY_MARK,
+    TYPOGRAPHY_MARK_ATTRIBUTE,
     isColorSet,
     isHexColor,
-    type ColorMark
+    isTypographySet,
+    type ColorMark,
+    type TypographyMark
 } from '@ortha-cms/wysiwyg-core';
 
 /** The CSS property each colour mark sets when the colour is a custom hex. */
@@ -176,17 +180,58 @@ function closestColorMark(mark: ColorMark): HTMLElement | null {
         : null;
 }
 
-/** Whether the selection covers all of `element` (so recolouring it is safe). */
+/**
+ * The `<span>` the selection exactly covers, if there is one.
+ *
+ * Looks from the range's **start container**, not from `anchorNode`: a
+ * selection made with Home then Shift+End anchors on the block element rather
+ * than on the text inside it, so `closest('span')` from the anchor walks
+ * straight past the very span it should be reusing.
+ */
+function filledSpan(): HTMLElement | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0);
+    const start = range.startContainer;
+    const from =
+        start.nodeType === Node.ELEMENT_NODE
+            ? (start as HTMLElement)
+            : start.parentElement;
+    // A collapsed-to-the-block range starts *at* the block, so also look at the
+    // one child the range opens on.
+    const candidate =
+        from?.closest<HTMLElement>('span') ??
+        (from?.childNodes[range.startOffset] as HTMLElement | undefined);
+    const span =
+        candidate?.nodeType === Node.ELEMENT_NODE &&
+        candidate.tagName === 'SPAN'
+            ? candidate
+            : null;
+    return span && selectionFills(span) ? span : null;
+}
+
+/**
+ * Whether the selection covers all of `element` — so the mark can be edited in
+ * place instead of wrapping the run again.
+ *
+ * Compares **text**, not boundary points. `(#text, 0)` and `(span, 0)` are the
+ * same position on screen but compare as different, and a selection made with
+ * Home then Shift+End produces the first while `selectNodeContents` produces
+ * the second — so a boundary comparison reported "not filled" for a selection
+ * that plainly filled it, and every second colour or typeface left another
+ * nested span behind.
+ */
 function selectionFills(element: HTMLElement): boolean {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return false;
     const range = selection.getRangeAt(0);
-    const whole = document.createRange();
-    whole.selectNodeContents(element);
-    return (
-        range.compareBoundaryPoints(Range.START_TO_START, whole) <= 0 &&
-        range.compareBoundaryPoints(Range.END_TO_END, whole) >= 0
-    );
+    if (
+        !element.contains(range.startContainer) ||
+        !element.contains(range.endContainer)
+    ) {
+        return false;
+    }
+    return range.toString() === (element.textContent ?? '');
 }
 
 /**
@@ -224,6 +269,90 @@ function normalizeHex(value: string): string | null {
     const hex = (part: string) =>
         Number(part).toString(16).padStart(2, '0');
     return `#${hex(rgb[1])}${hex(rgb[2])}${hex(rgb[3])}`;
+}
+
+/**
+ * Sets a typeface or a relative size on the selection, or removes it when the
+ * value is the mark's "unset". Same shape as {@link applyColorMark}: a `<span>`
+ * carrying one enumerated `data-` attribute.
+ */
+export function applyTypographyMark(
+    mark: TypographyMark,
+    value: string | null
+): void {
+    const { attribute } = TYPOGRAPHY_MARK_ATTRIBUTE[mark];
+    // Any span the selection fills will do, not only one already carrying this
+    // attribute — setting a typeface and then a size should leave **one** span
+    // with both, not one wrapped inside the other.
+    const reusable = filledSpan();
+
+    if (!isTypographySet(mark, value)) {
+        if (reusable?.hasAttribute(attribute)) {
+            reusable.removeAttribute(attribute);
+            // A span with nothing left to say is markup nobody asked for.
+            if (reusable.attributes.length === 0) unwrap(reusable);
+        }
+        return;
+    }
+    const target = reusable ?? surroundSelection('span');
+    target?.setAttribute(attribute, value as string);
+}
+
+/** The value of each typographic mark at the caret, or `null`. */
+export function readTypographyMarks(): Record<TypographyMark, string | null> {
+    const read = (mark: TypographyMark) => {
+        const { attribute } = TYPOGRAPHY_MARK_ATTRIBUTE[mark];
+        const element =
+            closestTag(window.getSelection()?.anchorNode, 'span') ??
+            filledSpan();
+        return element?.getAttribute(attribute) ?? null;
+    };
+    return {
+        [TYPOGRAPHY_MARK.Font]: read(TYPOGRAPHY_MARK.Font),
+        [TYPOGRAPHY_MARK.Size]: read(TYPOGRAPHY_MARK.Size)
+    };
+}
+
+/**
+ * Strips every inline mark from the selection, leaving the words.
+ *
+ * `removeFormat` handles what a browser considers formatting — bold, italic,
+ * underline, strike, font, colour. It leaves behind the marks it has no concept
+ * of, which for this editor is most of them: `<code>`, `<mark>`, our own
+ * `data-` spans, and links. So the range's own subtree is walked and those are
+ * unwrapped by hand.
+ */
+export function clearFormatting(): void {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        return;
+    }
+    document.execCommand('styleWithCSS', false, 'false');
+    document.execCommand('removeFormat');
+    document.execCommand('unlink');
+
+    // Re-read: `removeFormat` rebuilt the range's nodes.
+    const range = window.getSelection()?.getRangeAt(0);
+    if (!range) return;
+
+    // Search from the **block**, not from the range's common ancestor. When a
+    // whole line is selected the common ancestor is usually the innermost mark
+    // itself, so the marks to strip are its *ancestors* and a search below it
+    // finds nothing — which is exactly how this silently did nothing at first.
+    const anchor =
+        range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+            ? (range.commonAncestorContainer as HTMLElement)
+            : range.commonAncestorContainer.parentElement;
+    const block = anchor?.closest<HTMLElement>('[data-editable]');
+    if (!block) return;
+
+    // Decide **before** unwrapping anything: the first unwrap moves nodes, and
+    // a range that has been invalidated reports no intersection for everything
+    // after it — which left the innermost mark in place every time.
+    const covered = [
+        ...block.querySelectorAll<HTMLElement>('code, mark, span, a')
+    ].filter((element) => range.intersectsNode(element));
+    for (const element of covered) unwrap(element);
 }
 
 /** Applies a link to the selection, replacing one already under the caret. */
@@ -316,6 +445,10 @@ export interface MarkState {
     readonly color: string | null;
     /** The palette colour behind them, or `null`. */
     readonly highlight: string | null;
+    /** The typeface at the caret, or `null`. */
+    readonly font: string | null;
+    /** The relative size at the caret, or `null`. */
+    readonly size: string | null;
 }
 
 /**
@@ -327,6 +460,7 @@ export interface MarkState {
  */
 export function readMarkState(): MarkState {
     const colors = readColorMarks();
+    const typography = readTypographyMarks();
     return {
         bold: isMarkActive(MARK.Bold),
         italic: isMarkActive(MARK.Italic),
@@ -335,6 +469,8 @@ export function readMarkState(): MarkState {
         code: isCodeMarkActive(),
         link: linkAtCaret(),
         color: colors[COLOR_MARK.Text],
-        highlight: colors[COLOR_MARK.Highlight]
+        highlight: colors[COLOR_MARK.Highlight],
+        font: typography[TYPOGRAPHY_MARK.Font],
+        size: typography[TYPOGRAPHY_MARK.Size]
     };
 }
