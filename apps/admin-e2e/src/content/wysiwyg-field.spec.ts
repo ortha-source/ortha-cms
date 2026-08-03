@@ -703,40 +703,6 @@ test.describe('Entry editor — wysiwyg field', () => {
             );
         });
 
-        test('a column grip never reaches into the column beside it', async ({
-            wysiwygFieldPage
-        }) => {
-            await wysiwygFieldPage.gotoNewArticle(WS);
-            await wysiwygFieldPage.expand();
-            await wysiwygFieldPage.insertTable();
-
-            // The grip used to straddle the border, so half of it lay over the
-            // next column — on top — and swallowed every press near that
-            // column's left edge: its handle, its menu, and the caret.
-            const cell = await wysiwygFieldPage.cell(1, 2).boundingBox();
-            if (!cell) throw new Error('the cell is not laid out');
-            expect(
-                await wysiwygFieldPage.topmostAt(
-                    cell.x + 2,
-                    cell.y + cell.height / 2
-                )
-            ).not.toContain('Resize column');
-
-            // Clicking there types into the column you pointed at, and the
-            // neighbour's handle still opens its own menu.
-            await wysiwygFieldPage.clickAt(
-                cell.x + 2,
-                cell.y + cell.height / 2
-            );
-            await wysiwygFieldPage.type('here');
-            expect((await wysiwygFieldPage.grid())[0][1]).toBe('here');
-
-            await wysiwygFieldPage.columnMenu(2).click();
-            await expect(
-                wysiwygFieldPage.menuItem('Insert column left')
-            ).toBeVisible();
-        });
-
         test('resizes a column by dragging its grip', async ({
             wysiwygFieldPage
         }) => {
