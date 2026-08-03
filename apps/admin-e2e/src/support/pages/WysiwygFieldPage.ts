@@ -407,6 +407,64 @@ export class WysiwygFieldPage extends BasePage {
         await this.cell(1, 1).waitFor();
     }
 
+    // --- column layouts ------------------------------------------------------
+
+    /** Insert a column layout from the slash menu. */
+    async insertColumns() {
+        await this.insertViaSlash('column', 'Columns');
+        await this.column(2).waitFor();
+    }
+
+    /** One column of a layout, 1-based. */
+    column(position: number): Locator {
+        return this.editor.getByRole('group', { name: `Column ${position}` });
+    }
+
+    /** A block inside one column, by position among that column's blocks. */
+    columnBlock(position: number, index = 0): Locator {
+        return this.column(position).getByRole('textbox').nth(index);
+    }
+
+    /** How many blocks a column holds. */
+    async columnBlockCount(position: number): Promise<number> {
+        return this.column(position).getByRole('textbox').count();
+    }
+
+    /** The travelling gutter's "add a block" control. */
+    get gutterAdd(): Locator {
+        return this.page.getByRole('button', { name: 'Add a block below' });
+    }
+
+    /**
+     * Park the gutter on `block`, then walk the pointer onto it the way a hand
+     * would — in steps, crossing whatever lies in between.
+     *
+     * A single jump straight to the controls proves nothing: the gutter hangs
+     * off the **left** of the block it acts on, so inside a column it sits over
+     * the column beside it, and the bug being guarded against is that every row
+     * crossed on the way there re-parks it somewhere else.
+     */
+    async reachForGutter(block: Locator) {
+        const box = await block.boundingBox();
+        if (!box) throw new Error('the block is not laid out');
+        const y = box.y + box.height / 2;
+        await this.page.mouse.move(box.x + 40, y);
+        const gutter = await this.gutterAdd.boundingBox();
+        if (!gutter) throw new Error('the gutter never appeared');
+        const target = gutter.x + gutter.width / 2;
+        for (let x = box.x + 40; x > target; x -= 6) {
+            await this.page.mouse.move(x, y);
+        }
+        await this.page.mouse.move(target, gutter.y + gutter.height / 2);
+    }
+
+    /** The computed left border of an element, in pixels. */
+    async borderLeftOf(locator: Locator): Promise<number> {
+        return locator.evaluate((element) =>
+            parseFloat(getComputedStyle(element).borderLeftWidth)
+        );
+    }
+
     /** The table block itself — the alignment controls share names with the
      * toolbar's, and only the table's belong to the table. */
     get table(): Locator {

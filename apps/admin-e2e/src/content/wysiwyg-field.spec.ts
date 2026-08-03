@@ -560,6 +560,51 @@ test.describe('Entry editor — wysiwyg field', () => {
         });
     });
 
+    test.describe('column layouts', () => {
+        test('rules the boundary between columns', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertColumns();
+
+            // Two paragraphs side by side with nothing between them read as one
+            // paragraph that has gone wrong — a gap does not say "columns".
+            expect(
+                await wysiwygFieldPage.borderLeftOf(wysiwygFieldPage.column(2))
+            ).toBeGreaterThan(0);
+            // …but only *between* them. The first column has no boundary to its
+            // left, and a rule there would be drawing the document's margin.
+            expect(
+                await wysiwygFieldPage.borderLeftOf(wysiwygFieldPage.column(1))
+            ).toBe(0);
+        });
+
+        test('the block controls can be reached and pressed inside a column', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertColumns();
+            await wysiwygFieldPage.columnBlock(2).click();
+            await wysiwygFieldPage.type('Right side');
+
+            const before = await wysiwygFieldPage.columnBlockCount(2);
+            await wysiwygFieldPage.reachForGutter(
+                wysiwygFieldPage.columnBlock(2)
+            );
+
+            // Two separate failures met here, and both are invisible at the top
+            // level — where the gutter hangs into the surface's own padding
+            // with no row beneath it. Reaching for the controls used to re-park
+            // them on the column beside, and even parked they sat *under* that
+            // column's text, so they could be seen and hovered but never
+            // clicked. A press that lands is the only proof of either.
+            await wysiwygFieldPage.gutterAdd.click({ timeout: 5000 });
+            expect(await wysiwygFieldPage.columnBlockCount(2)).toBe(before + 1);
+        });
+    });
+
     test.describe('tables', () => {
         test('inserts a table and types across it with Tab', async ({
             wysiwygFieldPage

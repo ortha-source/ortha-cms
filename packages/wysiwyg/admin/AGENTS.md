@@ -258,6 +258,26 @@ assumption about a different process.
   crossing, which reads as flicker down a page rather than as one thing
   following the cursor. It finds its row by the `data-block-path` `BlockRow`
   sets, and it lives inside the scrolling surface so it travels with the text.
+- **The gutter is `z-10`, and that is load-bearing.** Every `BlockRow` is
+  `relative` and renders _after_ the gutter, so on the default z-index the rows
+  paint over it. At the top level the gutter hangs into the surface's own
+  padding, where there is no row to paint over it, so the bug is invisible —
+  put a row under it, which is exactly what a **column layout** does, and the
+  controls are visible, hover correctly, and cannot be clicked, because the
+  text is on top of them.
+- **The gutter has a reach corridor** (`GUTTER_REACH`). It hangs off the _left_
+  of the block it acts on, and for a block in a column that is over the column
+  beside it — so moving the pointer towards the controls crossed rows belonging
+  to the previous column, each of which re-parked the gutter. The controls fled
+  leftwards the instant an author went for them, and no block in any column but
+  the first could be added to or opened at all. Within the corridor the gutter
+  stays put. Both of these are guarded by e2e cases that _press_ the control,
+  because seeing it and reaching it are different things.
+- **Columns are ruled, in the editor only.** Two paragraphs side by side with
+  nothing between them read as one paragraph that has gone wrong; a gap does
+  not say "columns", and an author who cannot see the boundary cannot tell
+  which column they are typing in. The rule is chrome and is never serialized —
+  whether columns are ruled on the delivery surface is that surface's decision.
 - **The gutter's vertical position is measured, not styled.** It has to sit on
   the block's first line, and every renderer picks its own type scale and
   spacing — an `h1` is `text-3xl mt-6`, a paragraph `py-1 leading-7` — so the

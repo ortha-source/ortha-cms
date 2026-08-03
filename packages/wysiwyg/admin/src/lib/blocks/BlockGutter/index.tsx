@@ -31,6 +31,18 @@ const messages = defineMessages({
 /** The gap between the gutter and the text it belongs to. */
 const GUTTER_GAP = 4;
 
+/**
+ * How far around the controls still counts as **reaching for them**, in pixels.
+ *
+ * The gutter hangs off the *left* of the block it acts on, and for a block in a
+ * column that is over the column beside it. Moving the pointer towards the
+ * controls therefore crosses rows belonging to the previous column, each of
+ * which would re-park the gutter — so the controls fled to the left the moment
+ * an author went for them, and no block in any column but the first could be
+ * added to or opened at all. Inside this corridor the gutter stays where it is.
+ */
+const GUTTER_REACH = 14;
+
 /** Where the gutter is, and which block it is therefore acting on. */
 interface GutterSpot {
     readonly path: BlockPath;
@@ -70,6 +82,14 @@ export function BlockGutter({
     const { commands } = useEditor();
     const gutterRef = useRef<HTMLDivElement>(null);
     const [spot, setSpot] = useState<GutterSpot | null>(null);
+    /**
+     * Whether the controls are currently on screen, readable from the pointer
+     * handlers. A ref rather than the state itself because those handlers are
+     * bound once, and re-binding them on every move of the gutter is exactly
+     * the churn this component exists to avoid.
+     */
+    const onScreen = useRef(false);
+    onScreen.current = spot?.visible === true;
 
     const moveTo = useCallback(
         (row: HTMLElement) => {
@@ -104,7 +124,27 @@ export function BlockGutter({
             return target.closest<HTMLElement>('[data-block-path]');
         };
 
+        /**
+         * Whether the pointer is close enough to the controls to be on its way
+         * to them — see {@link GUTTER_REACH}. Measured against the pointer's
+         * own coordinates rather than the element under it, because the whole
+         * problem is that the element under it belongs to the wrong block.
+         */
+        const reachingForGutter = (event: Event): boolean => {
+            const gutter = gutterRef.current;
+            if (!onScreen.current || !gutter) return false;
+            if (!(event instanceof PointerEvent)) return false;
+            const rect = gutter.getBoundingClientRect();
+            return (
+                event.clientX >= rect.left - GUTTER_REACH &&
+                event.clientX <= rect.right + GUTTER_REACH &&
+                event.clientY >= rect.top - GUTTER_REACH &&
+                event.clientY <= rect.bottom + GUTTER_REACH
+            );
+        };
+
         const handleMove = (event: Event) => {
+            if (reachingForGutter(event)) return;
             const row = rowFor(event.target);
             if (row) moveTo(row);
         };
@@ -162,7 +202,15 @@ export function BlockGutter({
                     : 'opacity'
             }}
             className={cn(
-                'absolute top-0 left-0 flex gap-0.5 duration-150 ease-out',
+                // `z-10` because every `BlockRow` is `relative` and renders
+                // *after* this one, so with both on the default z-index the
+                // rows paint over the controls. At the top level the gutter
+                // hangs into the surface's own padding, where there is no row
+                // to paint over it and the bug is invisible; put a row under
+                // it — which is exactly what a column layout does — and the
+                // controls are visible, hover correctly, and cannot be
+                // clicked, because the text is on top of them.
+                'absolute top-0 left-0 z-10 flex gap-0.5 duration-150 ease-out',
                 spot.visible ? 'opacity-100' : 'pointer-events-none opacity-0'
             )}
         >
