@@ -1,8 +1,8 @@
 # @ortha-cms/wysiwyg-admin
 
 The **React block editor** — a Notion/Coda-shaped writing surface whose value is
-plain HTML, in and out. The rendering half of `@ortha-cms/wysiwyg-core` (which
-owns the model, the block schema, and the HTML pipeline).
+plain HTML, in and out. Built on **TipTap 3** (ProseMirror); the rendering half
+of `@ortha-cms/wysiwyg-core`, which owns the HTML pipeline both runtimes share.
 
 ```tsx
 // In a form — a preview that expands into the editor in place.
@@ -17,6 +17,33 @@ Both are **controlled form controls**: the same `value`/`onChange` contract as a
 into it. An empty document reports `''`, so a `required` rule sees an untouched
 field as empty.
 
+## Where the document lives
+
+**TipTap owns it.** The schema, the commands, undo, selection, paste, and every
+contenteditable edge case are its job. What is left in this package is the wiring
+TipTap has no opinion about: the form-control contract, the chrome, the block
+catalogue, and the seam to the host's media library.
+
+That division is the whole reason for the rewrite. The behaviour this package
+used to own — what Enter does at the end of a list item, what Backspace does at
+the start of a heading, how a mark survives a selection spanning three others —
+is not product design, it is contenteditable, and every hour spent on it was an
+hour not spent on the editor itself. The block model, the per-block
+`contenteditable`, the command layer, the drag-and-drop and the clipboard that
+implemented it came to about 8,000 lines, and they are gone.
+
+**The value still leaves through `normalizeWysiwygHtml`** — the same parse →
+sanitize → serialize pass the server runs on every write. Two consequences worth
+stating:
+
+- The TipTap schema only has to be **parseable** by core, never byte-identical
+  with it. That is a much weaker thing to get right, and it is what made the
+  migration safe: no content migration, no dual-writing, and core stays the one
+  authority on what HTML is storable. `tiptap/roundTrip.spec.ts` holds 25 cases
+  proving stored HTML survives a trip through the editor's schema unchanged.
+- An editor bug cannot widen what a document may contain. The sanitizer is the
+  security boundary and it is not in this package.
+
 ## Two surfaces, one value
 
 `WysiwygField` is what a form should render: a **miniature of the document** plus
@@ -25,8 +52,7 @@ its title and word count, expanding into the editor when pressed.
 A long document inside a form field is a bad trade — it either dominates the form
 or grows a scrollbar of its own, and neither leaves room to actually write. Split
 in two, each surface does one job: the field shows what is in there, the expanded
-surface gives the writing a comfortable measure and room for the gutter and the
-menus.
+surface gives the writing a comfortable measure and room for the menus.
 
 **The editor becomes the work area — it is not a modal.** Given an `expandTo`
 region, the editor fills it and the host hides everything else in it: the other
@@ -37,10 +63,10 @@ it is happening, and none of the chrome you navigate with is. Without a region
 tied to one page's layout.
 
 It gets there by **portal**, which is what keeps it honest: the control stays
-inside the form's React tree, so the value it edits is still the form's state
-and collapsing puts the form back untouched — only the DOM moved. An earlier
-version was a full-screen dialog; it was replaced, and the two problems it had
-are worth remembering if anyone proposes one again:
+inside the form's React tree, so the value it edits is still the form's state and
+collapsing puts the form back untouched — only the DOM moved. An earlier version
+was a full-screen dialog; it was replaced, and the two problems it had are worth
+remembering if anyone proposes one again:
 
 - A modal makes everything outside its content **inert**, so the slash menu and
   the format toolbar rendered and then silently refused to be clicked.
@@ -66,120 +92,73 @@ The host side of the contract is two props — `expandTo` (where to render) and
 
 ## What it does
 
-- **Block-per-line editing** — every paragraph, heading and list item is its own
-  block with its own caret, drag handle and menu.
-- **Slash menu** (`/`) — a filtered command palette of every registered block
-  type, grouped Basic · Media · Advanced.
+- **Block editing** — paragraphs, six heading levels, bulleted / numbered /
+  to-do lists, quotes, callouts, code, dividers, images, embeds, toggles, columns
+  and tables.
+- **Slash menu** (`/`) — a filtered command palette of the block catalogue,
+  grouped Basic · Media · Advanced.
 - **Markdown input rules** — `# `, `## `, `- `, `1. `, `[] `, `[x] `, `> `,
-  ` ``` `, `---`.
-- **Two toolbars.** A **floating** one over a selection (bold · italic ·
-  underline · strikethrough · inline code · link, ⌘B/I/U/D/E/K), and a
-  **persistent** one at the top of the expanded editor: undo/redo, a block-type
-  picker naming the block the caret is in, the same marks, and Insert. They read
-  the same state (`readMarkState`), so they can never disagree about whether the
-  selection is bold.
-- **A menu on every block's own line** — the gutter handle opens Turn into,
-  Insert above/below, Copy, Cut, Paste above/below, Duplicate, Move up/down and
-  Delete; dragging the same handle reorders the block.
-- **Nesting** — Tab / Shift+Tab indent and outdent; toggles, quotes, callouts and
-  columns hold child blocks.
-- **Tables** — a handle above every column and beside every row (insert either
-  side, delete, align the whole column or row horizontally and vertically), a
-  header-row toggle, buttons that align the **table itself**, a drag grip on
-  every column edge, and Tab/Shift+Tab along the cells; tabbing off the last
-  cell adds a row.
-- **Multi-block selection** — drag across blocks, or ⌘A from inside the editor;
-  the toolbar's marks and "turn into" then act on the whole run, and
-  Backspace/⌘C/⌘X apply to it.
-- **Alignment** — left · centre · right · justify on paragraphs, headings, list
-  items, quotes, callouts, images and table cells, from the toolbar, the block
-  menu, or ⌘⇧L/E/R/J. Applies to a whole multi-block selection at once. A table
-  has **three** separate alignments and they are deliberately kept apart: where
-  the table's box sits, where a cell's content sits across, and where it sits
-  down.
-- **Text colour and highlight** — a ten-name palette each, plus a native colour
-  well for a custom hex when a brand colour has to be exact.
-- **Image width** — small · medium · large · full, combining with alignment,
-  plus a grip on each edge for a width between the presets.
-- **Undo/redo** (⌘Z / ⇧⌘Z) over the block model, with typing coalesced.
-- **Structured paste** — multi-block HTML from another app becomes real blocks,
-  sanitized; plain text is inserted as text.
+  ` ``` `, `---`, straight from StarterKit.
+- **Three toolbars.** A **persistent** one at the top of the expanded editor
+  (undo/redo, block-type picker, marks, link, colour, typography, alignment,
+  Insert); a **floating** one over a selection with the same marks and controls;
+  and a **table** one that appears while the caret is in a table.
+- **A handle on every block's line** — add below, and a menu with Turn into,
+  Align, Duplicate, Move and Delete. Dragging the same handle reorders the block.
+- **Tables** — insert/delete rows and columns, a header-row toggle, three
+  separate alignments (the table's box, a cell's content across, a cell's content
+  down), a drag grip on every column border, and Tab along the cells.
+- **Alignment** — left · centre · right · justify, stored as `data-align`.
+- **Text colour and highlight** — a ten-name palette each, plus a colour well for
+  a custom hex when a brand colour has to be exact.
+- **Image width** — small · medium · large · full, plus a grip on each edge for a
+  width between the presets.
 - **The host's media library**, when it offered one (see below).
 
 ## Layout
 
 ```
 lib/
-  editor/
-    WysiwygEditor/       # the shell: slash state, key routing, focus boundary
-    useEditorDocument/   # blocks + the HTML value contract + undo history
-    useBlockCommands/    # every structural edit, over paths
-    editorContext/       # schema · views · commands, shared down the tree
-  blocks/
-    BlockList / BlockRow # the recursive rendering + drag-and-drop
-    BlockGutter/         # ONE add/drag control, travelling between blocks
-    InlineEditable/      # THE contenteditable primitive (see below)
-    renderers/<Name>/    # one component per block type
-    defaultBlockViews/   # type → renderer + icon
-  field/                 # WysiwygField (preview + full-page) · WysiwygPreviewCard
+  tiptap/
+    extensions.ts        # THE schema — every node, mark and node view
+    useWysiwygEditor.ts  # the HTML-in/HTML-out form-control contract
+    blockNodes.ts        # callout · toggle · column(s) · image · embed
+    inlineMarks.ts       # colour · highlight · typeface · size
+    blockAlign.ts        # data-align as a global attribute
+    cellWidth.ts         # column/table widths + the commands that move them
+    slashCommand.ts      # the `/` trigger, hand-rolled
+    blockTypes.ts        # ONE catalogue, used by all three menus
+    roundTrip.spec.ts    # stored HTML → schema → stored HTML, 25 cases
+    Tiptap<Name>/        # the chrome: toolbars, menus, node views
+  field/                 # WysiwygField (preview + work area) · WysiwygPreviewCard
+  menus/                 # ToolbarButton · LinkControl · ColorControl · TypographyControl
   render/                # WysiwygContent + WYSIWYG_PROSE — reading, not editing
-  menus/                 # SlashMenu · BlockMenu · EditorToolbar · InlineToolbar
-  utils/                 # dom-selection · marks · input-rules · constants
+  media/                 # the media port
 ```
 
-Three ideas carry most of the design:
+Two ideas carry most of what is left:
 
-**The behavior is in `useBlockCommands`, not in the components.** What Enter does
-at the end of a list item, what Backspace does at the start of a heading, what
-Tab does to a bullet — all of it is pure functions over the block tree, with a
-focus request as the only side effect. The renderers stay presentational.
+**The schema is one description.** Each node states the HTML it is, once, and
+TipTap derives parsing and serializing from it. Before, a block type was a
+renderer on one side and a serializer on the other, agreeing by convention.
 
-**One command per user action.** Each command is built from the block list the
-hook closed over, so calling two in the same event handler computes the second
-from a tree the first already replaced — the second silently wins and the first
-edit vanishes. Anything that looks like two steps (convert _and_ keep the
-leftover text) is therefore one command (`applyBlockType`).
+**The editor and the reader share one stylesheet.** The writing surface is a
+single contenteditable holding the real tags, styled by the same `WYSIWYG_PROSE`
+the delivered document uses. The old editor styled each block through its React
+renderer and the delivered HTML through a stylesheet, so the two could drift and
+did.
 
-**A block type that needs different keys supplies them.** `InlineEditable` takes
-an optional `keys` map (`EditableKeyHandlers`) that runs before its own handling
-and can claim a key. The table cell is what forced it: Enter must not split the
-block (a paragraph among the cells of a row is not a table), Tab moves along the
-row rather than indenting, and Backspace/Delete at the edges must not merge one
-cell into the next — every table operation assumes the grid is a rectangle.
-Teaching the primitive about tables would have been the other option; this way
-the table's specifics stay in the table's files.
+## The block catalogue
 
-**`InlineEditable` is the only contenteditable.** Every block that holds words
-renders one, so Enter/Backspace/Tab/arrows/markdown/slash/paste are implemented
-once. It is _uncontrolled_ with a controlled model behind it: the DOM is written
-to only when it genuinely differs from the model, never on the author's own
-keystrokes — rewriting `innerHTML` under a live caret sends the caret to the end
-of the block. The model holds whatever markup the browser produced; sanitization
-happens on the way **out** (serialization), which is why typing never fights the
-sanitizer.
+`tiptap/blockTypes.ts` is **one list**, used by the toolbar's "turn into" picker,
+the slash palette and the block handle's menu. Each entry knows its label, icon,
+group, search keywords, whether it is active, and how to apply itself.
 
-## Two toolbars, on purpose
-
-The floating toolbar is faster once you know the editor; the persistent one
-(`EditorToolbar`, shown when `WysiwygEditor` is given `toolbar`) is how you find
-out it can do any of this. Duplication between them is the feature — but only of
-the _controls_, never of the state: both call `readMarkState()`, one definition
-of "is the selection bold".
-
-Two things it needs that a floating toolbar doesn't:
-
-- **The last focused block**, not the caret's current one. Pressing a toolbar
-  button is itself a focus event and the dropdowns take focus outright, so
-  `InlineEditable` publishes its path on focus (`setActivePath`) and the toolbar
-  acts on that.
-- **The block's attributes**, not just its type, to name what the caret is in.
-  Three heading levels share `type: 'heading'`; matching on type alone labelled
-  every heading "Heading 1". A block whose exact attrs aren't on the menu (an
-  `h4`) still falls back to its type's first entry rather than to nothing.
-
-With `toolbar` on, the editor also **owns its scrolling**: it fills its parent as
-a flex column with the bar pinned and the document moving under it. The bar
-staying put while the document scrolls only works if one component holds both.
+The old editor derived this from the block schema's `descriptor`, which was the
+right instinct in a package that owned the schema. TipTap owns it now, and a
+schema node has no opinion about what a menu should call it or which icon it
+wears — so the catalogue is its own thing, and the three menus that present it
+cannot drift apart.
 
 ## The media port
 
@@ -207,285 +186,211 @@ layer resolves) would make the stored value unusable outside this CMS.
 content-admin fills the port from its `ASSET_PICKER_SLOT`, which the media plugin
 registers into; see `WysiwygFieldControl`.
 
-## The block clipboard
-
-Copy/Cut put blocks on a **module-scoped** clipboard (`blocks/blockClipboard`),
-not the system one: reading the system clipboard needs a permission the browser
-may refuse, and it would hand back a string to re-parse, where holding the blocks
-restores attributes and nested children exactly. Copy still _writes_ HTML to the
-system clipboard so content can leave the app — that direction needs no
-permission. Module scope is deliberate: copying in one field and pasting in
-another is what a writer expects. Paste actions appear only when something has
-been copied, so the menu never shows a row that does nothing.
-
 ## Rendering a stored value
 
 `WysiwygContent` renders stored HTML read-only, styled by `WYSIWYG_PROSE` — the
-one CSS definition of what the blocks look like when no React renderer is
-involved. It sanitizes on every render. That is redundant on the happy path,
-which is the point: `dangerouslySetInnerHTML` is defensible only when the string
-reaching it cannot be anything else, and "the server already sanitized it" is an
-assumption about a different process.
+one CSS definition of what the blocks look like when no editor is involved. It
+sanitizes on every render. That is redundant on the happy path, which is the
+point: `dangerouslySetInnerHTML` is defensible only when the string reaching it
+cannot be anything else, and "the server already sanitized it" is an assumption
+about a different process.
 
 ## Things that look wrong and aren't
 
-- **`document.execCommand` for inline marks** (`utils/marks.ts`). Deprecated, and
-  chosen anyway: it is the only API every browser implements for "toggle this
-  mark across whatever the user selected", including a selection spanning three
-  existing marks. The alternative is hundreds of lines of range surgery with
-  worse edge cases. Every mark passes through that one file, so replacing the
-  mechanism later is a change there and nowhere else.
-- **Table rows and cells don't go through `BlockRow`.** They must be real `<tr>`
-  and `<td>` elements, and `BlockRow`'s gutter and drop targets are `<div>`s, so
-  the table renders its own children (`rendersChildren`). Its row and column
-  handles live in an extra, borderless row and column **of the table itself** —
-  that keeps them aligned with what they act on for free, where an absolutely
-  positioned strip would have to re-measure every column on every edit and be
-  wrong for the frame in between.
-- **A soft break is `execCommand('insertLineBreak')`**, not `insertHTML('<br>')`.
-  At the end of a block a browser needs a second, trailing `<br>` for the new
-  line to have any height; inserting one by hand leaves the caret _before_ the
-  break, so the next thing typed lands on the line the author just left.
-- **The code block is a `<textarea>`**, not a contenteditable. Code is plain
-  text; a contenteditable would let a browser insert markup into it (a `<div>`
-  per line, a smart quote, a pasted `<b>`) which the author would then see as
-  code they did not write.
-- **There is one gutter, and it moves.** Not one hidden pair of controls per
-  row: `BlockGutter` is a single element for the whole document that parks
-  itself on the block under the pointer or the caret, positioned by a
-  `transform` so crossing to the next block is a move the compositor animates.
-  Per-row controls blinked out of one line and back into the next on every
-  crossing, which reads as flicker down a page rather than as one thing
-  following the cursor. It finds its row by the `data-block-path` `BlockRow`
-  sets, and it lives inside the scrolling surface so it travels with the text.
-- **The gutter is `z-10`, and that is load-bearing.** Every `BlockRow` is
-  `relative` and renders _after_ the gutter, so on the default z-index the rows
-  paint over it. At the top level the gutter hangs into the surface's own
-  padding, where there is no row to paint over it, so the bug is invisible —
-  put a row under it, which is exactly what a **column layout** does, and the
-  controls are visible, hover correctly, and cannot be clicked, because the
-  text is on top of them.
-- **The gutter has a reach corridor** (`GUTTER_REACH`). It hangs off the _left_
-  of the block it acts on, and for a block in a column that is over the column
-  beside it — so moving the pointer towards the controls crossed rows belonging
-  to the previous column, each of which re-parked the gutter. The controls fled
-  leftwards the instant an author went for them, and no block in any column but
-  the first could be added to or opened at all. Within the corridor the gutter
-  stays put. Both of these are guarded by e2e cases that _press_ the control,
-  because seeing it and reaching it are different things.
-- **Columns are ruled, in the editor only.** Two paragraphs side by side with
-  nothing between them read as one paragraph that has gone wrong; a gap does
-  not say "columns", and an author who cannot see the boundary cannot tell
-  which column they are typing in. The rule is chrome and is never serialized —
-  whether columns are ruled on the delivery surface is that surface's decision.
-- **The gutter's vertical position is measured, not styled.** It has to sit on
-  the block's first line, and every renderer picks its own type scale and
-  spacing — an `h1` is `text-3xl mt-6`, a paragraph `py-1 leading-7` — so the
-  centring offset differs by ~30px across block types. A constant offset centred
-  it on paragraphs and floated it above the words of every heading.
-  `utils/first-line.ts` reads the laid-out line instead, which keeps each
-  block's metrics in the one place that already has them (its own classes)
-  rather than restated beside the affordance that must match them. Captions are
-  excluded from the lookup — an image's caption shares its block's path but
-  renders _under_ the picture.
-- **The pointer selects blocks on the _document_, not on the root.** The root
-  also holds the persistent toolbar, and its `mousedown` handler clears the
-  block selection — so with the listener up there, pressing a toolbar button
-  destroyed the very selection the button was about to format, and the toolbar's
-  whole selection-aware half (`toggleMarkMany`, `setTypeMany`) was unreachable by
-  mouse. The e2e suite is what caught it; an earlier hand-check had "passed"
-  because turning one block into a list produces the same `<ul><li>` a run does.
-- **Undo/redo are also handled on the root.** Selecting blocks takes the caret
-  out of every editable, so `InlineEditable`'s shortcut handler is not listening
-  — without a copy on the root, one ⌘B across a selection could not be taken
-  back from the keyboard at all.
-- **A mark that can't use `execCommand` must commit itself.** `execCommand`
-  fires an `input` event and `InlineEditable` commits on that; inline code,
-  re-pointing an existing link, removing one, and both colour marks edit the DOM
-  directly and fire nothing. They showed in the editor and were **lost on save**
-  unless the author happened to type again afterwards — a bug that predated the
-  colour work and applied to inline code and links. Anything that mutates a
-  block's HTML by hand now calls `commitActiveHtml()`, which commits through
-  `replaceHtml` (a discrete history entry, not coalesced into the last
-  keystroke — undoing a colour should take back the colour, not the sentence).
-- **The colour and link overlays save and restore the selection.** A toolbar
-  _button_ can just suppress `mousedown`; a Radix _menu or popover_ moves focus
-  into itself, and the browser collapses the document selection when it goes —
-  so by the time an item is chosen there is nothing left to colour or link.
-- **The link popover latches what it found when it opened.** Same cause, one
-  step further: focus moving into the popover ends the selection, so the
-  toolbar's next `selectionchange` read reports _no link_ — and a Remove button
-  driven by that live value unmounted itself the instant it became reachable.
-- **The persistent toolbar has its own link popover**, rather than reaching for
-  the floating toolbar's field. Pressing a button in the top bar and having a
-  field appear over the text three inches below reads as something else
-  happening; every other control up there opens where it was pressed.
-- **Centring an image is auto margins, not `text-align`.** The CSS reset makes
-  `<img>` a block, and a block box ignores `text-align` — so the attribute was
-  on the figure, the rule was in the stylesheet, and the picture did not move.
-  Both the figure (which the size presets give a width) and the wrapper around
-  the image get the margins. The same is true of a **table**, which is why its
-  `data-align` rules set margins and then put `text-align` back to `start`:
-  without that reset the table's own alignment inherits into every cell, and
-  "centre the table" silently becomes "centre everything in it".
-- **The resize grips are labelled buttons, not `role="separator"`.** A focusable
-  separator is the ARIA window-splitter pattern, and that pattern _requires_
-  `aria-valuenow` — a number a grip does not have until something has been
-  dragged, and would have to invent until then. axe flags the missing attribute
-  (it is what caught this); inventing a value to satisfy it would have been
-  worse than not making the claim.
-- **A drag previews on one cell and commits on release.** Writing the model on
-  every `pointermove` puts a hundred entries on the undo stack for one drag, so
-  the grip sets `style.width` on the cell it lives in and calls a command once,
-  at the end. One cell is enough because propagating a width down the column is
-  exactly what a table's layout algorithm already does.
-- **A resized table is pinned to `width: 100%`.** Column widths are percentages
-  of the table, and a table with no width of its own is as wide as its content —
-  so "40%" would be 40% of a number the author cannot see, and would move every
-  time they typed. The cost is honest and visible: a table whose columns were
-  resized has nowhere left to be aligned to.
-- **An inner border moves width between _two_ columns; the last one resizes the
-  table.** That is the whole model, and each half was got wrong first.
-  Sizing only the column on the left leaves the rest of the row to absorb the
-  difference, so a drag meant for one border quietly reshuffles every column to
-  its right — the pair has to be written together, in one command. And the last
-  border has no column to its right at all, so the room has to come from the
-  measure: it grows the table, pins every other column at its pixel width for
-  the length of the drag, and clears the last column's own width so the new room
-  goes there rather than being shared out.
-- **Pinning holds the table at the width it _already has_, not at 100%.** The
-  full measure is where a sized table ends up, so it looked like the safe
-  default — but on the first drag it grew the table from its content width to
-  the whole column and handed the difference to whichever column had no width
-  yet. Dragging one border is not supposed to resize the table at all.
-- **Held columns are clamped to the floor on the way out.** Holding a column at
-  a fixed pixel width while the table grows makes its _percentage_ fall, and one
-  that slips under the floor is a width the sanitizer refuses — so the column
-  came back with no stored width, snapped out to its minimum, and shoved
-  everything else along with it.
-- **A column drag pins the table _before_ it measures it.** A column width is a
-  percentage **of the table**, and an unsized table is only as wide as its
-  content — so writing a width onto a cell changes the very number that
-  percentage is resolved against. Measuring first and pinning at commit (the
-  obvious order) turned a 100px drag into 277: the fraction was taken against
-  the shrink-to-fit width and then applied to the full measure, nearly twice as
-  wide. Pinned first, the reference cannot move for the length of the drag.
-  Pinning then re-shares the space between the columns, which would shift the
-  edge being held, so the grabbed width is written straight back — otherwise
-  the grip jumps ~90px out from under the cursor before the drag has begun. The
-  e2e asserts the edge lands **where the cursor went**; "wider than before"
-  passed throughout the broken version.
-- **The last border resizes the _table_, not the last column.** That border is
-  the table's right edge, and a column width is a fraction of the table — so
-  sizing the last column could only take room from the others while the edge
-  under the cursor stayed put. It gets a `TableWidthResizer` instead, which
-  stores a width on the table itself; the last column goes on taking whatever
-  the others leave. A table can be dragged narrower only down to its content
-  minimum, because every cell keeps a floor.
+### The schema
+
+- **Not TipTap's `TextAlign`, `Color` or `Image`.** Each writes inline `style`,
+  and the sanitizer's allow-list would drop it — so the choice would simply not
+  survive a save. Alignment is `data-align`, a colour is `data-color` (with a hex
+  as the documented exception), and an image is a `<figure>` whose content is its
+  caption.
+- **A named palette, not a colour wheel; roles and steps, not a font menu.** The
+  value ends up in HTML some other surface renders. `serif` is something any
+  consumer can honour with its own stack where `Helvetica Neue` is a guess about
+  a machine we have never seen; `large` survives a phone where `18pt` does not.
+- **The image's caption is the node's content.** That is what gives it a caret,
+  the formatting toolbar and the Enter/Backspace behaviour every other line has —
+  for free, rather than as a second editable wired up by hand. The parser is
+  pointed at the `<figcaption>` (`contentElement`); left to take the whole figure
+  it swallowed the `<img>` as caption text, and a bare selector returns nothing
+  for an uncaptioned figure, which ProseMirror dereferences without checking — so
+  there is an empty stand-in.
+- **No `HTMLAttributes` on the link extension, and anchors are pinned `href`
+  first in core's sanitizer.** TipTap renders `target` and `rel` ahead of `href`,
+  and the serializer keeps the order it parsed — so without the pin, every link a
+  document merely *opened* in this editor would round-trip to a different string.
+- **The embed emits no iframe.** Whether to frame a third party is the delivery
+  surface's decision against its own CSP, and a sanitizer that permits iframes is
+  one `srcdoc` away from permitting anything.
+- **Column widths are percentages on every cell, not a `<colgroup>`.** The stored
+  HTML is rendered on a surface whose measure this editor never sees, so a pixel
+  count is a guess about someone else's layout; and a column box inside the
+  *block* box the rendered table is — which is what stops a wide table widening
+  the page — is at the mercy of anonymous-table generation, where a width on the
+  cell is honoured by every layout there is. Repeating it down the column costs
+  nothing to maintain: no row operation has to carry it, because no single row
+  owns it.
+
+### The chrome
+
+- **The `/` palette does not use `@tiptap/suggestion`.** Its render lifecycle
+  publishes props whose `items` are resolved *after* the fact, then exits while
+  the author is still typing — the palette opened onto an empty list and closed
+  again on the next keystroke. The detection it was there to provide is one regex.
+- **The palette publishes from `onTransaction`, not a ProseMirror plugin view.**
+  Plugin views are destroyed and rebuilt whenever *anything* reconfigures the
+  plugin set, so a view that closed the palette in `destroy` closed it on every
+  keystroke. Only the key handling stays in a plugin, where the plugin *object*
+  is stable even when its view is not.
+- **The palette's highlighted index lives in extension storage, not React
+  state.** The arrow keys have to move it *before* the next keystroke is handled;
+  a render behind is a palette that inserts the row above the one you were
+  reading.
+- **The palette does not claim a _shifted_ Enter.** It opens on any `/` that
+  follows a space — so a line as ordinary as "see /docs" leaves it up. Claiming
+  Enter without looking at Shift meant a soft break inserted whatever happened to
+  be highlighted.
+- **`DragHandle`'s `onNodeChange` must be `useCallback`-stable.** It is in the
+  deps of the effect that registers the handle's plugin, and registration hides
+  the handle — so an inline arrow makes the sequence "show the handle, tell React
+  which node it is on, re-register, hide the handle", and the controls never
+  appear at all. That same re-registration is what churned the plugin views under
+  the `/` palette.
+- **`BubbleMenu`'s `shouldShow` must be stable too.** It dispatches a transaction
+  when that identity changes, and every transaction renders.
+- **The table's controls are a floating bar, not handles above every column.**
+  Those handles had to *be* cells — an extra borderless row and column of the
+  table itself — because a strip over the table has to re-measure on every edit.
+  It worked, and it cost a control row and column in every table which every
+  operation, test and serializer had to know were not really there. Acting on the
+  row and column the **caret is in** needs neither.
+- **The table's resize grips *are* a measured overlay**, because there is no
+  alternative: a React node view always wraps its component in an element of its
+  own, and nothing may stand between a `<tr>` and its `<td>`. A layout effect and
+  a `ResizeObserver` read the borders after every layout the table takes part in,
+  and the measurement is compared before it is stored — a grip re-rendered
+  mid-drag loses the `pointermove` listener it is holding.
+- **The table node view sets `contentDOMElementTag: 'tbody'`.** A node view holds
+  its content in a `<div>` by default; legal to build with the DOM API, rendered
+  through CSS's anonymous-table fixup, and not a layout anything else here can
+  measure against — with the div in place the whole table came out as a single
+  38px column.
+- **The toggle gets a _plain DOM_ node view, not a React one.** `<summary>` only
+  works as a direct child of `<details>`, and a React node view puts an element
+  in between. It is held `open` because a closed `<details>` hides its children
+  from layout, and content with no layout has no caret. Open is an editing state
+  and is never serialized.
+- **Node views are registered in `extensions.ts`, not on the nodes.** A view is
+  how a block is *edited*; it has no say in what the document is or what it
+  serializes to, and `blockNodes.ts` stays what it claims to be.
+- **The image's alt field is inline, not behind a menu.** An image published with
+  no alt text is a defect, and the moment to fix it is while the author is
+  looking at the picture.
+
+### Resizing
+
+- **A drag previews on the element and commits once, on release.** Writing the
+  model on every `pointermove` puts a hundred entries on the undo stack for one
+  drag.
 - **A drag leaves its preview _on_ the committed value — it never clears it.**
-  Both widths are React `style` props, and React only writes one when its own
-  previous value differs. Clearing them by hand after the commit deleted what
-  React had just written and left the table with no width at all, so every
-  column percentage became a fraction of a shrink-to-fit table: an +80px drag
-  came back 5px **narrower**. Landing on the same value means the next render
-  either agrees or corrects it.
-- **A table's column grip sits entirely inside its own cell.** Straddling the
-  border is the obvious choice — the pointer target should be the line you are
-  aiming at — and it is wrong: half the strip then lies over the **next**
-  column, on top of it, and swallows every press near that column's left edge,
-  including its handle, its menu, and the caret. It fits in the cell's own
-  right padding instead, so it is never over text either. `topmostAt` in the
-  e2e page object guards this — what is laid out at a point and what a click
-  there would hit are different questions, and only the second one was broken.
-- **Every toolbar control carries a tooltip.** The icon is the entire label;
-  `ToolbarButton` shows the same string as its accessible name so the two
-  cannot drift, and the dropdown triggers wrap their own.
-- **The editor imports the inline half of the prose CSS.** Block styling in the
-  editor comes from each React renderer, so it does not want `WYSIWYG_PROSE` —
-  but a colour lives in the markup `InlineEditable` renders verbatim, and
-  without `WYSIWYG_INLINE_PROSE` an author picked a colour and watched nothing
-  happen while the _rendered_ document showed it correctly.
-- **The slash menu does not claim a _shifted_ Enter.** It owns the navigation
-  keys while it is open, and it opens on any `/` that follows a space — so a
-  line as ordinary as "see /docs" leaves it up. Claiming Enter without looking
-  at Shift meant a soft break inserted whatever the menu happened to be
-  highlighting and started a new block, where the author had asked for a new
-  line in the one they were writing. Shift+Enter now closes the menu and falls
-  through to the block.
-- **The slash menu never takes focus.** The caret stays in the block so the query
-  can keep narrowing; the editable forwards ↑/↓/Enter/Escape to it
-  (`handleOverlayKey`) and announces the active option via
-  `aria-activedescendant`. The menu and the toolbar render in **portals** at
-  viewport coordinates so they are never clipped by a scroll container.
-- **The value contract ignores its own echo.** `useEditorDocument` remembers the
-  last HTML it emitted; an incoming `value` equal to it is our own change coming
-  back and is ignored, while a genuinely different one re-parses (and clears the
-  undo stack — a replaced value is a different document, and Ctrl+Z must not
-  paste the previous record into this one).
+  The widths are React `style` props, and React only writes one when its own
+  previous value differs. Clearing them by hand deleted what React had just
+  written and left the table with no width at all, so every column percentage
+  became a fraction of a shrink-to-fit table: an +80px drag came back 5px
+  **narrower**.
+- **An inner border moves width between _two_ columns; the last one resizes the
+  table.** Sizing only the column on the left leaves the rest of the row to
+  absorb the difference, so a drag meant for one border quietly reshuffles every
+  column to its right. The last border has no column to its right at all, so the
+  room comes from the measure: it grows the table, pins every other column at its
+  pixel width for the length of the drag, and clears the last column's own width.
+- **A column drag pins the table _before_ it measures it, at the width the table
+  already has.** A column width is a percentage *of the table*, and an unsized
+  table is only as wide as its content — so writing a width onto a cell changes
+  the number that percentage resolves against. Measuring first and pinning at
+  commit turned a 100px drag into 277. Pinning to 100% instead of the current
+  width is the same bug wearing a different hat: it snaps an unsized table out to
+  the full measure and lands the column far from where the author let go, which
+  is why the pin travels with the command rather than being defaulted inside it.
+  Pinning re-shares the row's space, so the grabbed widths are written straight
+  back or the grip jumps out from under the cursor.
+- **Held columns are clamped to the floor on the way out.** Holding a column at a
+  fixed pixel width while the table grows makes its *percentage* fall, and one
+  that slips under the floor is a width the sanitizer refuses — so the column
+  came back with no stored width and snapped out to its minimum.
+- **The resize grips are labelled buttons, not `role="separator"`.** A focusable
+  separator is the ARIA window-splitter pattern, and that pattern *requires*
+  `aria-valuenow` — a number a grip does not have until something has been
+  dragged, and would have to invent until then. axe is what caught this.
+- **A column grip reaches back into its own column, never forward.** Centred on
+  the border is the obvious choice and it is wrong: half the strip then lies over
+  the *next* column, on top of it, and swallows every press near that column's
+  left edge, the caret included.
+- **Centring an image or a table is auto margins, not `text-align`.** The CSS
+  reset makes `<img>` a block, and a block box ignores `text-align`. For a table
+  the alignment rules also put `text-align` back to `start`, or the table's own
+  alignment inherits into every cell and "centre the table" silently becomes
+  "centre everything in it".
+- **A dragged width replaces the preset rather than joining it.** They say the
+  same thing at different resolutions, and a document carrying both leaves which
+  one wins to luck.
 
-## Adding a block type
+### The value contract
 
-Two halves, keyed by the same `type` string:
-
-```tsx
-<WysiwygEditor
-    value={html}
-    onChange={setHtml}
-    blocks={[alertBlock]} // the model (wysiwyg-core)
-    blockViews={{ alert: { Component: AlertBlock, Icon: TriangleAlert } }}
-/>
-```
-
-The slash menu picks the new type up automatically (from the definition's
-`descriptor`), and a type the consumer _removed_ from the schema disappears from
-the menu rather than producing a command that does nothing. A block whose type
-has no renderer falls back to `UnknownBlock` — editable text with a notice,
-because the author's words are the one thing that must survive a schema
-mismatch.
+- **The extensions are built inside the `useEditor` factory**, not in a `useMemo`
+  outside it. TipTap extensions are stateful and bind to the editor they are
+  given, so one set shared across two editors is one set with a dangling owner —
+  and StrictMode mounts twice on purpose.
+- **`immediatelyRender: false`.** React 19 + StrictMode: rendering on
+  construction paints against a DOM node React is about to replace.
+- **The contract ignores its own echo.** `useWysiwygEditor` remembers the last
+  HTML it emitted; an incoming `value` equal to it is our own change coming back,
+  and re-seeding on it would reset the caret on every keystroke. A genuinely
+  different one re-seeds and takes the undo history with it — a replaced value is
+  a different document, and Ctrl+Z must not paste the previous record into this
+  one.
+- **An empty document reports `''`, not `<p></p>`.** Otherwise every untouched
+  field reads as filled in and a `required` rule passes on nothing.
 
 ## Accessibility
 
-Every editable region is a labelled `role="textbox"`; the toolbar is a
-`role="toolbar"` whose toggles carry `aria-pressed`; the slash menu is a
-`role="listbox"` driven by `aria-activedescendant`; the gutter follows the caret
-as well as the pointer, so it never disappears mid-keyboard-use.
+The writing surface is one labelled `role="textbox"` (ProseMirror's own); each
+toolbar is a `role="toolbar"` whose toggles carry `aria-pressed`; the slash menu
+is a `role="listbox"` driven by `aria-activedescendant` and never takes focus, so
+the caret stays in the block and the query can keep narrowing.
 
-One known cost of the single travelling gutter: because the controls no longer
-render _inside_ the row they act on, they are no longer the next thing Tab
-reaches from a block. Keyboard users get to the same operations through the
-slash menu and the shortcuts, but a way back to Tab-adjacency (without losing
-the animation, which a portal between rows would) is still open. The image
-block shows its **alt text** field inline rather than behind a menu — an image
-published with no alt text is a defect, and the moment to fix it is while the
-author is looking at the picture.
+The image block shows its **alt text** field inline rather than behind a menu —
+an image published with no alt text is a defect, and the moment to fix it is
+while the author is looking at the picture.
 
 ## End-to-end cover
 
 `apps/admin-e2e/src/content/wysiwyg-field.spec.ts` (page object:
-`WysiwygFieldPage`) drives the field in a real browser — the work-area takeover,
-typing and the markdown rules, the slash menu, multi-block selection, tables,
-the media picker, the text-length limit, keyboard operability, and axe scans of
-the expanded editor / open slash menu / a table.
+`WysiwygFieldPage`) drives the field in a real browser. Its seeds are `WYSIWYG_*`
+in `support/api/content.ts`.
+
+> **The suite is mid-migration.** It was written against the block-model editor,
+> where every block was its own `role="textbox"` named after its type, and there
+> is now one contenteditable — so its locators need rewriting before it can be
+> green. Treat a failure there as "not yet ported", not as a regression, until
+> that lands.
 
 Wherever it can, it asserts the **saved HTML** rather than the DOM: that string
 is the field's contract, and a serializer regression behind a green-looking
-editor is exactly the failure a DOM assertion misses. Its seeds are `WYSIWYG_*`
-in `support/api/content.ts`.
-
-Where the result is _computed_ — centring, a dragged width — it asserts the
-**laid-out geometry** instead, and as an outcome rather than a mechanism: the
-picture's gap from each edge of its figure, not which element ended up carrying
-`margin: auto`. Which box carries it has already changed once, and a test
-written against the mechanism failed on a refactor that broke nothing.
+editor is exactly the failure a DOM assertion misses. Where the result is
+_computed_ — centring, a dragged width — it asserts the **laid-out geometry**
+instead, and as an outcome rather than a mechanism: the picture's gap from each
+edge of its figure, not which element ended up carrying `margin: auto`. Which box
+carries it has already changed twice, and a test written against the mechanism
+failed on a refactor that broke nothing.
 
 ## Conventions
 
-Follows the admin-plugin conventions: `<Name>/index.tsx` folders, **one
-component per file**, co-located `defineMessages` namespaced `wysiwyg.<area>.<key>`,
-UI from `@ortha-cms/design-system` only, no magic strings (keys, drag payload
-and caret positions are constants in `utils/constants.ts`).
+`<Name>/index.tsx` folders, one component per file, co-located `defineMessages`
+namespaced `wysiwyg.<area>.<key>`, UI from `@ortha-cms/design-system` only.
 
 ## Commands
 
 - `npx nx typecheck @ortha-cms/wysiwyg-admin`
 - `npx nx lint @ortha-cms/wysiwyg-admin`
+- `npx nx test @ortha-cms/wysiwyg-admin` — the round-trip suite

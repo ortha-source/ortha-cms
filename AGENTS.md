@@ -24,7 +24,9 @@
 - `packages/wysiwyg/{core,admin}` — the custom **block editor**.
   `@ortha-cms/wysiwyg-core` is a zero-dependency, DOM-free kernel (document
   model, extensible block schema, HTML parse/sanitize/serialize) used by **both**
-  runtimes; `@ortha-cms/wysiwyg-admin` is the React editor. Backs the `wysiwyg`
+  runtimes; `@ortha-cms/wysiwyg-admin` is the React editor, built on **TipTap 3**
+  (the schema, commands and every contenteditable edge case are TipTap's; the
+  value still leaves through core's sanitizer). Backs the `wysiwyg`
   content field type, whose stored value is plain sanitized HTML.
 - `packages/bootstrap/{admin,server}` — the application **hosts** that turn a
   list of plugins into a running app
