@@ -19,26 +19,32 @@ const messages = defineMessages({
 const KEY_STEP = 2;
 
 /**
- * The grip on the **table's own right edge** — which is also the last column's
- * right edge, and that is exactly why it cannot resize a column.
+ * The grip on the **table's own right edge**, which is also the last column's.
+ * Dragging it grows the table *and* the last column together — there is no
+ * column to the right to take width from, so the room has to come from the
+ * measure instead.
  *
- * A column width is a percentage *of the table*, so growing the last column can
- * only take room from the others: the edge under the cursor would not move at
- * all, and everything to its left would shuffle instead. Dragging the last
- * border therefore resizes **the table**, as a percentage of the measure, and
- * the last column keeps taking whatever the other columns leave.
+ * Only the last column moves. The other columns are **pinned in place for the
+ * length of the drag**, and that is not free: a column width is a percentage of
+ * the table, so holding one at a fixed number of pixels while the table grows
+ * means rewriting its percentage on every frame. Left alone they would each
+ * take a share of the new room, and dragging one border would silently widen
+ * every column in the table.
  *
- * Like the column grips, it previews by writing straight onto the table and
+ * Like the column grips, it previews by writing straight onto the elements and
  * commits once, on release — a commit per pointer-move would put a hundred
  * entries on the undo stack for one drag.
  */
 export function TableWidthResizer({
     tablePath,
-    width
+    width,
+    count
 }: {
     tablePath: BlockPath;
     /** The table's stored width, or `null` when it is as wide as it needs. */
     width: number | null;
+    /** How many columns the table has — every one but the last is held still. */
+    count: number;
 }) {
     const intl = useIntl();
     const { commands } = useEditor();
@@ -46,24 +52,67 @@ export function TableWidthResizer({
     /** The width the pointer has reached, live. Committed on release. */
     const dragged = useRef<number | null>(null);
 
-    /** The `<table>` this grip belongs to, and the measure it is drawn in. */
+    /**
+     * The table, the measure it is drawn in, and every cell of this row **to the
+     * left** of the grip — the ones that have to be held still.
+     */
     const elements = () => {
         const cell = grip.current?.closest<HTMLTableCellElement>('th, td');
         const table = cell?.closest('table');
         const measure = table?.parentElement;
-        return table && measure ? { table, measure } : null;
+        const row = cell?.parentElement;
+        if (!cell || !table || !measure || !row) return null;
+        const cells = [...row.children].filter(
+            (child): child is HTMLTableCellElement =>
+                child instanceof HTMLTableCellElement
+        );
+        // The row's first cell is the editor's own row-handle column, never a
+        // column of the table; `held` is indexed to match the *model*.
+        const columns = cells.slice(cells.length - count);
+        return {
+            table,
+            measure,
+            held: columns.slice(0, -1),
+            last: columns[columns.length - 1] ?? null
+        };
     };
 
     const clamp = (percent: number): number =>
         Number(Math.min(100, Math.max(MIN_WIDTH_PERCENT, percent)).toFixed(2));
+    const round = (percent: number): number => Number(percent.toFixed(2));
 
-    const commitWidth = (percent: number) => {
-        // **Leave the preview exactly on the committed value — never clear it.**
-        // The table's width is a React `style` prop, and React only writes one
-        // when its own previous value differs; clearing it by hand deleted what
-        // React had just written, and the drag appeared to do nothing at all.
-        elements()?.table.style.setProperty('width', `${percent}%`);
-        commands.setAttrs(tablePath, { width: percent });
+    /**
+     * Commits the table's width and the columns held still beneath it, in one
+     * edit.
+     *
+     * **Leave the preview exactly on the committed values — never clear them.**
+     * They are React `style` props, and React only writes one when its own
+     * previous value differs; clearing them by hand deleted what React had just
+     * written, and the drag appeared to do nothing at all.
+     */
+    const commitWidth = (percent: number, held: readonly number[]) => {
+        const found = elements();
+        if (found) {
+            found.table.style.width = `${percent}%`;
+            held.forEach((column, at) => {
+                const cell = found.held[at];
+                if (cell) cell.style.width = `${column}%`;
+            });
+            found.last?.style.removeProperty('width');
+        }
+        commands.resizeTableColumns(
+            tablePath,
+            {
+                ...Object.fromEntries(held.map((column, at) => [at, column])),
+                // The last column takes **whatever is left**, so it must not
+                // carry a width of its own: one left over from an earlier drag
+                // would scale with the table like every other column, and the
+                // room this drag just made would be shared out rather than
+                // going where the cursor put it.
+                [count - 1]: null
+            },
+            percent
+        );
     };
 
     const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -78,29 +127,64 @@ export function TableWidthResizer({
         const startWidth = found.table.getBoundingClientRect().width;
         const measure = found.measure.getBoundingClientRect().width;
         if (measure === 0) return;
+        // What every other column measures right now, in pixels. These are the
+        // widths that must not change, whatever the table does.
+        const heldPixels = found.held.map(
+            (cell) => cell.getBoundingClientRect().width
+        );
 
         // Hold the edge exactly where it was grabbed. A table with no width of
         // its own is as wide as its content, and the first thing the drag does
         // is give it one — without writing the grabbed width back first, that
         // alone would move the edge out from under the cursor.
         found.table.style.width = `${clamp((startWidth / measure) * 100)}%`;
+        // The last column is the one that grows, so it gives up any width it
+        // was holding and takes the remainder for the length of the drag.
+        found.last?.style.removeProperty('width');
 
         const target = event.currentTarget;
         target.setPointerCapture(event.pointerId);
+
+        /**
+         * The held columns as percentages of a table `pixels` wide.
+         *
+         * Clamped to the floor, because holding a column at a fixed pixel width
+         * while the table grows makes its *percentage* fall — and one that
+         * slips under the floor is a width the sanitizer refuses, so the column
+         * came back with no stored width at all and snapped out to its minimum,
+         * shoving everything else along with it.
+         */
+        const heldAt = (pixels: number) =>
+            heldPixels.map((held) =>
+                round(Math.max(MIN_WIDTH_PERCENT, (held / pixels) * 100))
+            );
 
         const move = (moveEvent: PointerEvent) => {
             const next = startWidth + (moveEvent.clientX - startX);
             const percent = clamp((next / measure) * 100);
             dragged.current = percent;
             found.table.style.width = `${percent}%`;
+            // A percentage of a table that just changed size is a different
+            // number of pixels, so every held column is re-stated each frame.
+            // Skipping this is what let one border widen the whole row.
+            const pixels = (percent / 100) * measure;
+            heldAt(pixels).forEach((column, at) => {
+                found.held[at].style.width = `${column}%`;
+            });
         };
 
         const end = () => {
             target.removeEventListener('pointermove', move);
             target.removeEventListener('pointerup', end);
             target.removeEventListener('pointercancel', end);
-            if (dragged.current !== null) commitWidth(dragged.current);
-            else if (width === null) found.table.style.removeProperty('width');
+            if (dragged.current !== null) {
+                commitWidth(
+                    dragged.current,
+                    heldAt((dragged.current / 100) * measure)
+                );
+            } else if (width === null) {
+                found.table.style.removeProperty('width');
+            }
             dragged.current = null;
         };
 
@@ -120,14 +204,25 @@ export function TableWidthResizer({
         if (step === 0) return;
         event.preventDefault();
         const found = elements();
+        if (!found) return;
+        const measure = found.measure.getBoundingClientRect().width;
+        if (measure === 0) return;
         const current =
             width ??
-            (found
-                ? (found.table.getBoundingClientRect().width /
-                      found.measure.getBoundingClientRect().width) *
-                  100
-                : 100);
-        commitWidth(clamp(current + step));
+            (found.table.getBoundingClientRect().width / measure) * 100;
+        const percent = clamp(current + step);
+        const pixels = (percent / 100) * measure;
+        commitWidth(
+            percent,
+            found.held.map((cell) =>
+                round(
+                    Math.max(
+                        MIN_WIDTH_PERCENT,
+                        (cell.getBoundingClientRect().width / pixels) * 100
+                    )
+                )
+            )
+        );
     };
 
     return (

@@ -19,9 +19,17 @@ const messages = defineMessages({
 const KEY_STEP = 2;
 
 /**
- * The grip on a column's right edge. Dragging it sets that column's width, as a
- * **percentage of the table** — which is what gets stored, because the document
- * is rendered on a surface whose measure this editor never sees.
+ * The grip on a border **between two columns**. Dragging it moves width from one
+ * to the other: the column on the left grows by exactly what the one on the
+ * right gives up, so every other column and the table itself are untouched.
+ *
+ * That pairing is the whole behaviour, and it is why the drag writes *two*
+ * widths rather than one. Sizing only the left column leaves the rest of the
+ * row to absorb the difference between them — so a drag meant for one border
+ * quietly reshuffled every column to its right, and the further ones moved most.
+ *
+ * Widths are stored as a **percentage of the table**, because the document is
+ * rendered on a surface whose measure this editor never sees.
  *
  * It lives inside the first row's cell rather than in an absolutely-positioned
  * strip over the table, for the same reason the row and column handles do: a
@@ -29,36 +37,32 @@ const KEY_STEP = 2;
  * in between, where a grip parked in the cell is aligned with the thing it
  * resizes by construction.
  *
- * The drag previews itself by writing the width straight onto **its own cell**
- * and commits once, on release. Two reasons that is not a shortcut: a commit
- * per pointer-move would put a hundred entries on the undo stack for one drag,
- * and a cell's width is exactly what a table's layout algorithm propagates down
- * the column — so writing it on the one cell shows the whole column moving.
+ * The drag previews by writing straight onto the two cells and commits once, on
+ * release — a commit per pointer-move would put a hundred entries on the undo
+ * stack for one drag.
  *
- * **Not the last column** — its right edge *is* the table's right edge, and a
- * column width is a fraction of the table, so growing it could only take room
- * from the others while the edge under the cursor stayed put. That border gets
- * a {@link TableWidthResizer} instead, which resizes the table.
+ * **Not the last border** — that one *is* the table's right edge, and there is
+ * no column to its right to take width from. It gets a
+ * {@link TableWidthResizer}, which grows the table and the last column together.
  */
 export function TableColumnResizer({
     tablePath,
     index,
-    width,
-    count,
     tableWidth
 }: {
     tablePath: BlockPath;
-    /** Which column this grip sizes. */
+    /** The column on the **left** of this border. */
     index: number;
-    /** The column's stored width, or `null` when it has none. */
-    width: number | null;
-    /** How many columns the table has — the room left to the right of this one. */
-    count: number;
     /**
      * How wide the table draws, as a percentage of the measure, or `null` when
      * it is still as wide as its content. The drag has to pin the table to this
      * exact width — see {@link handlePointerDown} — and `100` is only the right
      * answer when the table has no width of its own.
+     *
+     * The columns themselves are measured from the DOM rather than passed in:
+     * what the drag needs is the pair's width *right now*, which the layout
+     * knows and the model does not (an unsized column has no stored width at
+     * all).
      */
     tableWidth: number | null;
 }) {
@@ -68,40 +72,64 @@ export function TableColumnResizer({
     /** The width the pointer has reached, live. Committed on release. */
     const dragged = useRef<number | null>(null);
 
-    /** The `<th>`/`<td>` this grip sits in, and the `<table>` it belongs to. */
+    /**
+     * The two cells this border sits between, the table they are in, and the
+     * measure that table is drawn in.
+     */
     const elements = () => {
         const cell = grip.current?.closest<HTMLTableCellElement>('th, td');
+        const next = cell?.nextElementSibling;
         const table = cell?.closest('table');
-        return cell && table ? { cell, table } : null;
+        const measure = table?.parentElement;
+        return cell && table && measure && next instanceof HTMLTableCellElement
+            ? { cell, next, table, measure }
+            : null;
+    };
+
+    const round = (percent: number): number => Number(percent.toFixed(2));
+
+    /**
+     * Commits both sides of the border at once.
+     *
+     * **Leave the preview exactly on the committed values — never clear them.**
+     * The widths are React `style` props, and React only writes one when its own
+     * previous value differs. Clearing them by hand deleted what React had just
+     * written and left the table with no width at all, so every column
+     * percentage became a fraction of a shrink-to-fit table: an +80px drag came
+     * back 5px *narrower*.
+     */
+    const commitPair = (left: number, right: number, pin: number) => {
+        const found = elements();
+        if (found) {
+            found.cell.style.width = `${left}%`;
+            found.next.style.width = `${right}%`;
+            found.table.style.width = `${pin}%`;
+        }
+        commands.resizeTableColumns(
+            tablePath,
+            { [index]: left, [index + 1]: right },
+            pin
+        );
     };
 
     /**
-     * The widest this column may be left, so every column after it keeps at
-     * least the floor. Without it, dragging the first column to 95% squashes
-     * everything to its right into its own border.
+     * The width to hold the table at, as a percentage of the measure: **the one
+     * it already has**.
+     *
+     * Not 100%. Pinning to the full measure is what a *sized* table ends up at,
+     * so it looked like the safe default — but on the first drag it grew the
+     * table from its content width to the whole column and handed the 277px
+     * difference to whichever column had no width yet. Dragging one border is
+     * not supposed to resize the table at all, so the drag freezes it exactly
+     * where it stands and stores that.
      */
-    const ceiling = 100 - MIN_WIDTH_PERCENT * (count - 1 - index);
-
-    const clamp = (percent: number): number =>
-        Number(
-            Math.min(ceiling, Math.max(MIN_WIDTH_PERCENT, percent)).toFixed(2)
+    const pinnedWidth = (table: Element, measure: Element): number =>
+        tableWidth ??
+        round(
+            (table.getBoundingClientRect().width /
+                measure.getBoundingClientRect().width) *
+                100
         );
-
-    const commitWidth = (percent: number | null) => {
-        const found = elements();
-        // **Leave the preview exactly on the committed value — never clear it.**
-        // Both widths are React `style` props now, and React only writes one
-        // when its own previous value differs. Clearing them by hand deleted
-        // what React had just written and left the table with no width at all,
-        // so every column percentage was suddenly a fraction of a shrink-to-fit
-        // table: an +80px drag came back 5px *narrower*. Landing on the same
-        // value means the next render either agrees or corrects it.
-        if (found) {
-            if (percent === null) found.cell.style.removeProperty('width');
-            else found.cell.style.width = `${percent}%`;
-        }
-        commands.setTableColumnAttrs(tablePath, index, { width: percent });
-    };
 
     const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
         const found = elements();
@@ -115,8 +143,10 @@ export function TableColumnResizer({
         event.stopPropagation();
 
         const startX = event.clientX;
-        // The column's width **as grabbed**, before anything below moves.
-        const startWidth = found.cell.getBoundingClientRect().width;
+        // Both columns **as grabbed**, before anything below moves them.
+        const startLeft = found.cell.getBoundingClientRect().width;
+        const startRight = found.next.getBoundingClientRect().width;
+        const pair = startLeft + startRight;
 
         // Pin the table to the measure, and do it *now* rather than at commit.
         //
@@ -128,25 +158,35 @@ export function TableColumnResizer({
         // against the shrink-to-fit width and then applied to the full
         // measure, nearly twice as wide. Pinned first, the reference cannot
         // move for the length of the drag and the edge tracks the cursor 1:1.
-        found.table.style.width = `${tableWidth ?? 100}%`;
+        const pin = pinnedWidth(found.table, found.measure);
+        found.table.style.width = `${pin}%`;
         const reference = found.table.getBoundingClientRect().width;
         if (reference === 0) return;
 
-        // Pinning widens the table, which would otherwise re-share the space
-        // between the columns and shift the very edge being held — the grip
-        // jumped ~90px out from under the cursor before the drag had begun.
-        // Writing the grabbed width straight back holds that edge still and
-        // lets the columns to its right take up the new room instead.
-        found.cell.style.width = `${clamp((startWidth / reference) * 100)}%`;
+        // Pinning re-shares the row's space, which would shift the very border
+        // being held. Writing both grabbed widths straight back holds it still
+        // and lets the *other* columns take up the new room instead.
+        const asPercent = (pixels: number) => round((pixels / reference) * 100);
+        found.cell.style.width = `${asPercent(startLeft)}%`;
+        found.next.style.width = `${asPercent(startRight)}%`;
+
+        /** The narrowest either side of this border may be squeezed to. */
+        const floor = (MIN_WIDTH_PERCENT / 100) * reference;
 
         const target = event.currentTarget;
         target.setPointerCapture(event.pointerId);
 
         const move = (moveEvent: PointerEvent) => {
-            const next = startWidth + (moveEvent.clientX - startX);
-            const percent = clamp((next / reference) * 100);
+            // The border, not the column: what the left column gains, the
+            // right one gives up, so their total — and the table — hold still.
+            const left = Math.min(
+                Math.max(startLeft + (moveEvent.clientX - startX), floor),
+                pair - floor
+            );
+            const percent = asPercent(left);
             dragged.current = percent;
             found.cell.style.width = `${percent}%`;
+            found.next.style.width = `${asPercent(pair - left)}%`;
         };
 
         const end = () => {
@@ -154,11 +194,17 @@ export function TableColumnResizer({
             target.removeEventListener('pointerup', end);
             target.removeEventListener('pointercancel', end);
             if (dragged.current !== null) {
-                commitWidth(dragged.current);
+                commitPair(
+                    dragged.current,
+                    round(asPercent(pair) - dragged.current),
+                    pin
+                );
             } else if (!hasStoredWidth) {
                 // A press that never moved changes nothing — but the table was
                 // pinned on the way in, so it still has to be handed back.
                 found.table.style.removeProperty('width');
+                found.cell.style.removeProperty('width');
+                found.next.style.removeProperty('width');
             }
             dragged.current = null;
         };
@@ -169,8 +215,8 @@ export function TableColumnResizer({
     };
 
     /**
-     * The same edge, from the keyboard. A drag handle reachable only by pointer
-     * is a feature keyboard users simply do not have.
+     * The same border, from the keyboard, once the grip has been focused. It
+     * moves the same width between the same two columns.
      */
     const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
         const step =
@@ -182,14 +228,22 @@ export function TableColumnResizer({
         if (step === 0) return;
         event.preventDefault();
         const found = elements();
-        const current =
-            width ??
-            (found
-                ? (found.cell.getBoundingClientRect().width /
-                      found.table.getBoundingClientRect().width) *
-                  100
-                : MIN_WIDTH_PERCENT);
-        commitWidth(clamp(current + step));
+        if (!found) return;
+        const reference = found.table.getBoundingClientRect().width;
+        if (reference === 0) return;
+        const asPercent = (pixels: number) => (pixels / reference) * 100;
+        const left = asPercent(found.cell.getBoundingClientRect().width);
+        const right = asPercent(found.next.getBoundingClientRect().width);
+        const total = left + right;
+        const next = Math.min(
+            Math.max(left + step, MIN_WIDTH_PERCENT),
+            total - MIN_WIDTH_PERCENT
+        );
+        commitPair(
+            round(next),
+            round(total - next),
+            pinnedWidth(found.table, found.measure)
+        );
     };
 
     return (

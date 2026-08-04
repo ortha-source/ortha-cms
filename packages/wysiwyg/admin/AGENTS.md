@@ -344,6 +344,25 @@ assumption about a different process.
   so "40%" would be 40% of a number the author cannot see, and would move every
   time they typed. The cost is honest and visible: a table whose columns were
   resized has nowhere left to be aligned to.
+- **An inner border moves width between _two_ columns; the last one resizes the
+  table.** That is the whole model, and each half was got wrong first.
+  Sizing only the column on the left leaves the rest of the row to absorb the
+  difference, so a drag meant for one border quietly reshuffles every column to
+  its right — the pair has to be written together, in one command. And the last
+  border has no column to its right at all, so the room has to come from the
+  measure: it grows the table, pins every other column at its pixel width for
+  the length of the drag, and clears the last column's own width so the new room
+  goes there rather than being shared out.
+- **Pinning holds the table at the width it _already has_, not at 100%.** The
+  full measure is where a sized table ends up, so it looked like the safe
+  default — but on the first drag it grew the table from its content width to
+  the whole column and handed the difference to whichever column had no width
+  yet. Dragging one border is not supposed to resize the table at all.
+- **Held columns are clamped to the floor on the way out.** Holding a column at
+  a fixed pixel width while the table grows makes its _percentage_ fall, and one
+  that slips under the floor is a width the sanitizer refuses — so the column
+  came back with no stored width, snapped out to its minimum, and shoved
+  everything else along with it.
 - **A column drag pins the table _before_ it measures it.** A column width is a
   percentage **of the table**, and an unsized table is only as wide as its
   content — so writing a width onto a cell changes the very number that

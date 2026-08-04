@@ -200,6 +200,24 @@ export interface BlockCommands {
     /** Sets attributes on every cell of the whole table. */
     setTableCellAttrs(tablePath: BlockPath, attrs: BlockAttrs): void;
     /**
+     * Widths for several columns **and** the table, in one commit.
+     *
+     * A resize is never one number. Dragging a border between two columns moves
+     * width from one to the other, so both change and the table does not;
+     * dragging the last border grows the table and pins every other column so
+     * only the last one takes the room. Either way it is a single edit — two
+     * commands would compute the second from a tree the first already replaced,
+     * and the first would silently vanish.
+     *
+     * `undefined` for `tableWidth` leaves the table's own width alone; `null`
+     * clears it.
+     */
+    resizeTableColumns(
+        tablePath: BlockPath,
+        widths: Readonly<Record<number, number | null>>,
+        tableWidth?: number | null
+    ): void;
+    /**
      * Moves the caret one cell along the table — the Tab key. Tabbing off the
      * last cell adds a row, which is how every editor with tables behaves and
      * the only way to type one in without reaching for the mouse.
@@ -866,6 +884,39 @@ export function useBlockCommands(
             attrs
         ) => mapCells(tablePath, attrs, () => true);
 
+        const resizeTableColumns: BlockCommands['resizeTableColumns'] = (
+            tablePath,
+            widths,
+            tableWidth
+        ) => {
+            if (!tableAt(tablePath)) return;
+            const has = (column: number) =>
+                Object.prototype.hasOwnProperty.call(widths, column);
+            commit(
+                updateAt(blocks, tablePath, (table) => ({
+                    ...table,
+                    attrs:
+                        tableWidth === undefined
+                            ? table.attrs
+                            : { ...table.attrs, width: tableWidth },
+                    children: table.children.map((row) => ({
+                        ...row,
+                        children: row.children.map((cell, column) =>
+                            has(column)
+                                ? {
+                                      ...cell,
+                                      attrs: {
+                                          ...cell.attrs,
+                                          width: widths[column]
+                                      }
+                                  }
+                                : cell
+                        )
+                    }))
+                }))
+            );
+        };
+
         const focusTableCell: BlockCommands['focusTableCell'] = (
             cellPath,
             delta
@@ -914,6 +965,7 @@ export function useBlockCommands(
             setTableColumnAttrs,
             setTableRowAttrs,
             setTableCellAttrs,
+            resizeTableColumns,
             focusTableCell,
             removeMany,
             copyMany,

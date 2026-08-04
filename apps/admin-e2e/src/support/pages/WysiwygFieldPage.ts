@@ -483,6 +483,24 @@ export class WysiwygFieldPage extends BasePage {
         });
     }
 
+    /**
+     * Every column's rendered width, in pixels — the editor's own row-handle
+     * column dropped, so the indices line up with the model's columns.
+     */
+    async columnWidths(): Promise<number[]> {
+        return this.editor
+            .locator('table tr')
+            .nth(1)
+            .evaluate((row, columns: number) => {
+                const cells = Array.from(row.children).filter(
+                    (cell) => cell.tagName === 'TH' || cell.tagName === 'TD'
+                );
+                return cells
+                    .slice(cells.length - columns)
+                    .map((cell) => cell.getBoundingClientRect().width);
+            }, 3);
+    }
+
     /** The grip on the table's own right edge. */
     get tableResizer(): Locator {
         return this.editor.getByRole('button', { name: 'Resize table' });

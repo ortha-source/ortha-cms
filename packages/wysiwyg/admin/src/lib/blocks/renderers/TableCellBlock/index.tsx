@@ -126,25 +126,24 @@ export function TableCellBlock({
                 })}
                 className="px-2 py-1 leading-6"
             />
-            {/* Every border is draggable, but the last one means something
-                else: it *is* the table's right edge, and a column width is a
-                fraction of the table — so growing the last column could only
-                take room from the others and the edge under the cursor would
-                not move at all. That border resizes the table. */}
+            {/* Every border drags, and the last one means something else. An
+                inner border moves width from the column on its left to the one
+                on its right, so the table does not change; the last border has
+                no column to its right, so it grows the table and the last
+                column together. */}
             {resizable &&
                 !readOnly &&
                 (column < columnCount - 1 ? (
                     <TableColumnResizer
                         tablePath={path.slice(0, -2)}
                         index={column}
-                        width={width}
-                        count={columnCount}
                         tableWidth={tableWidth}
                     />
                 ) : (
                     <TableWidthResizer
                         tablePath={path.slice(0, -2)}
                         width={tableWidth}
+                        count={columnCount}
                     />
                 ))}
         </Cell>

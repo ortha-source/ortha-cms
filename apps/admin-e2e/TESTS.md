@@ -412,8 +412,8 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-field.spec.ts</sub>_
 | centres the table without centring what is in it |
 | aligns a column, and stands it on the bottom of its cells |
 | a column grip never reaches into the column beside it |
+| an inner border moves width between its two columns only |
 | the last border resizes the table, and follows the cursor |
-| resizes a column by dragging its grip |
 
 ### the image block
 

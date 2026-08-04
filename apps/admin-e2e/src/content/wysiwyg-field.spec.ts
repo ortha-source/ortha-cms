@@ -829,6 +829,49 @@ test.describe('Entry editor — wysiwyg field', () => {
             ).toBeVisible();
         });
 
+        test('an inner border moves width between its two columns only', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await wysiwygFieldPage.title.fill('A record');
+            await wysiwygFieldPage.expand();
+            await wysiwygFieldPage.insertTable();
+            await wysiwygFieldPage.cell(1, 1).click();
+            await wysiwygFieldPage.type('Name');
+
+            const table = await wysiwygFieldPage.widthOf('table');
+            const [first, second, third] =
+                await wysiwygFieldPage.columnWidths();
+
+            await wysiwygFieldPage.dragBy(
+                wysiwygFieldPage.columnResizer(1),
+                60
+            );
+
+            // A border, not a column: what the left column gains the right one
+            // gives up, so the table and every other column hold still. Sizing
+            // only the left column left the rest of the row to absorb the
+            // difference, and the columns furthest away moved most.
+            const after = await wysiwygFieldPage.columnWidths();
+            expect(after[0]).toBeCloseTo(first + 60, -1);
+            expect(after[1]).toBeCloseTo(second - 60, -1);
+            expect(after[2]).toBeCloseTo(third, -1);
+            expect(await wysiwygFieldPage.widthOf('table')).toBeCloseTo(
+                table,
+                -1
+            );
+
+            await wysiwygFieldPage.collapse();
+            await wysiwygFieldPage.save.click();
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            const saved = savedBody(saves);
+            // Percentages of the table, and the table pinned to the width it
+            // already had — otherwise the percentage is of a number the author
+            // cannot see, and the first drag would resize the whole table.
+            expect(saved).toMatch(/<table style="width: \d+(\.\d+)?%">/);
+            expect(saved).toMatch(/<th style="width: \d+(\.\d+)?%">Name<\/th>/);
+        });
+
         test('the last border resizes the table, and follows the cursor', async ({
             wysiwygFieldPage
         }) => {
@@ -848,9 +891,20 @@ test.describe('Entry editor — wysiwyg field', () => {
 
             await expect(wysiwygFieldPage.columnResizer(3)).toHaveCount(0);
             const before = await wysiwygFieldPage.widthOf('table');
+            const [first, , third] = await wysiwygFieldPage.columnWidths();
+
             await wysiwygFieldPage.dragBy(wysiwygFieldPage.tableResizer, 140);
+
+            // There is no column to the right to take width from, so the room
+            // comes from the measure: the table grows, the **last** column
+            // takes all of it, and the ones before it are held exactly where
+            // they were. Left alone they would each take a share, and one
+            // border would silently widen every column in the table.
             const wider = await wysiwygFieldPage.widthOf('table');
             expect(wider).toBeCloseTo(before + 140, -1);
+            const after = await wysiwygFieldPage.columnWidths();
+            expect(after[0]).toBeCloseTo(first, -1);
+            expect(after[2]).toBeCloseTo(third + 140, -1);
 
             // And back in, which is the direction that has somewhere to stop:
             // every cell keeps a minimum width, so a table cannot be dragged
@@ -868,53 +922,6 @@ test.describe('Entry editor — wysiwyg field', () => {
             expect(savedBody(saves)).toMatch(
                 /<table style="width: \d+(\.\d+)?%">/
             );
-        });
-
-        test('resizes a column by dragging its grip', async ({
-            wysiwygFieldPage
-        }) => {
-            await wysiwygFieldPage.gotoNewArticle(WS);
-            await wysiwygFieldPage.title.fill('A record');
-            await wysiwygFieldPage.expand();
-            await wysiwygFieldPage.insertTable();
-            await wysiwygFieldPage.cell(1, 1).click();
-            await wysiwygFieldPage.type('Name');
-
-            const before = await wysiwygFieldPage.widthOf('th');
-            await wysiwygFieldPage.dragBy(
-                wysiwygFieldPage.columnResizer(1),
-                160
-            );
-            // **The edge goes where the cursor went** — not merely somewhere
-            // to the right of where it started. A width is a percentage of the
-            // table, and the table only takes the full measure once a column
-            // has been sized: reading its width before that transition and
-            // applying the fraction after it turned a 100px drag into 277.
-            // "Bigger than before" passed all the way through that.
-            expect(await wysiwygFieldPage.widthOf('th')).toBeCloseTo(
-                before + 160,
-                -1
-            );
-
-            // And it keeps tracking on a second drag, from wherever it now is.
-            const moved = await wysiwygFieldPage.widthOf('th');
-            await wysiwygFieldPage.dragBy(
-                wysiwygFieldPage.columnResizer(1),
-                -60
-            );
-            expect(await wysiwygFieldPage.widthOf('th')).toBeCloseTo(
-                moved - 60,
-                -1
-            );
-
-            await wysiwygFieldPage.collapse();
-            await wysiwygFieldPage.save.click();
-            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
-            const saved = savedBody(saves);
-            // Percentages of the table, and the table pinned to the measure —
-            // otherwise the percentage is of a number the author cannot see.
-            expect(saved).toContain('<table style="width: 100%">');
-            expect(saved).toMatch(/<th style="width: \d+(\.\d+)?%">Name<\/th>/);
         });
     });
 
