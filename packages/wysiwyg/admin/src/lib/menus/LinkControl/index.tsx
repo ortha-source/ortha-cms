@@ -103,21 +103,22 @@ export function LinkControl({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <PopoverTrigger asChild>
-                <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    aria-label={intl.formatMessage(messages.trigger)}
-                    aria-pressed={href !== null}
-                    className={cn(
-                        'size-7',
-                        href !== null && 'bg-accent text-accent-foreground'
-                    )}
-                    onPointerDown={remember}
-                    onKeyDown={remember}
-                >
-                    <LinkIcon aria-hidden className="size-4" />
-                </Button>
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            aria-label={intl.formatMessage(messages.trigger)}
+                            aria-pressed={href !== null}
+                            className={cn(
+                                'size-7',
+                                href !== null &&
+                                    'bg-accent text-accent-foreground'
+                            )}
+                            onPointerDown={remember}
+                            onKeyDown={remember}
+                        >
+                            <LinkIcon aria-hidden className="size-4" />
+                        </Button>
                     </PopoverTrigger>
                 </TooltipTrigger>
                 <TooltipContent>

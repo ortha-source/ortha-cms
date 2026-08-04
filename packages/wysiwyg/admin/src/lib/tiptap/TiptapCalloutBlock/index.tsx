@@ -13,7 +13,10 @@ import { Input, cn } from '@ortha-cms/design-system';
 import { useWysiwyg } from '../tiptapContext';
 
 const messages = defineMessages({
-    emoji: { id: 'wysiwyg.block.callout.emoji', defaultMessage: 'Callout icon' },
+    emoji: {
+        id: 'wysiwyg.block.callout.emoji',
+        defaultMessage: 'Callout icon'
+    },
     tone: { id: 'wysiwyg.block.callout.tone', defaultMessage: 'Callout tone' },
     info: { id: 'wysiwyg.block.callout.info', defaultMessage: 'Info' },
     success: { id: 'wysiwyg.block.callout.success', defaultMessage: 'Success' },

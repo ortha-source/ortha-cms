@@ -111,27 +111,30 @@ export function ColorControl({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    aria-label={intl.formatMessage(messages.trigger)}
-                    className="h-7 gap-1 px-2"
-                    onPointerDown={remember}
-                    onKeyDown={remember}
-                >
-                    <Baseline
-                        aria-hidden
-                        className={cn('size-4', active && COLOR_SWATCH[active])}
-                        // A custom colour has no class to carry it.
-                        style={
-                            active && !COLOR_SWATCH[active]
-                                ? { color: active }
-                                : undefined
-                        }
-                    />
-                    <ChevronDown aria-hidden className="size-3.5" />
-                </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            aria-label={intl.formatMessage(messages.trigger)}
+                            className="h-7 gap-1 px-2"
+                            onPointerDown={remember}
+                            onKeyDown={remember}
+                        >
+                            <Baseline
+                                aria-hidden
+                                className={cn(
+                                    'size-4',
+                                    active && COLOR_SWATCH[active]
+                                )}
+                                // A custom colour has no class to carry it.
+                                style={
+                                    active && !COLOR_SWATCH[active]
+                                        ? { color: active }
+                                        : undefined
+                                }
+                            />
+                            <ChevronDown aria-hidden className="size-3.5" />
+                        </Button>
                     </DropdownMenuTrigger>
                 </TooltipTrigger>
                 <TooltipContent>

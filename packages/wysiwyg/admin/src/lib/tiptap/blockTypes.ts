@@ -158,8 +158,7 @@ export const BLOCK_TYPES: readonly BlockTypeItem[] = [
         group: BLOCK_GROUP.Basic,
         keywords: ['callout', 'note', 'aside', 'warning', 'info'],
         isActive: (editor) => editor.isActive('callout'),
-        apply: (editor) =>
-            editor.chain().focus().wrapIn('callout').run()
+        apply: (editor) => editor.chain().focus().wrapIn('callout').run()
     },
     {
         id: 'divider',
@@ -220,10 +219,7 @@ export const BLOCK_TYPES: readonly BlockTypeItem[] = [
                 .focus()
                 .insertContent({
                     type: 'toggle',
-                    content: [
-                        { type: 'toggleSummary' },
-                        { type: 'paragraph' }
-                    ]
+                    content: [{ type: 'toggleSummary' }, { type: 'paragraph' }]
                 })
                 .run()
     },

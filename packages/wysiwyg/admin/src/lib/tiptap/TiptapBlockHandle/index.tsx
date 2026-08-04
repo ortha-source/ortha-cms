@@ -10,7 +10,11 @@ import {
     Plus,
     Trash2
 } from 'lucide-react';
-import { BLOCK_ALIGN, BLOCK_ALIGNS, type BlockAlign } from '@ortha-cms/wysiwyg-core';
+import {
+    BLOCK_ALIGN,
+    BLOCK_ALIGNS,
+    type BlockAlign
+} from '@ortha-cms/wysiwyg-core';
 import {
     Button,
     DropdownMenu,
@@ -77,8 +81,13 @@ export function TiptapBlockHandle() {
      * which is what was closing the `/` palette one render after it opened.
      */
     const onNodeChange = useCallback(
-        ({ node: current, pos }: { node: ProseMirrorNode | null; pos: number }) =>
-            setNode({ node: current, pos }),
+        ({
+            node: current,
+            pos
+        }: {
+            node: ProseMirrorNode | null;
+            pos: number;
+        }) => setNode({ node: current, pos }),
         []
     );
 
@@ -158,9 +167,7 @@ export function TiptapBlockHandle() {
                                     <DropdownMenuItem
                                         key={align}
                                         onSelect={() =>
-                                            onBlock()
-                                                .setBlockAlign(align)
-                                                .run()
+                                            onBlock().setBlockAlign(align).run()
                                         }
                                     >
                                         {intl.formatMessage(
@@ -189,9 +196,7 @@ export function TiptapBlockHandle() {
                             {intl.formatMessage(messages.duplicate)}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            onSelect={() =>
-                                onBlock().lift('paragraph').run()
-                            }
+                            onSelect={() => onBlock().lift('paragraph').run()}
                         >
                             <ArrowUpToLine aria-hidden className="size-4" />
                             {intl.formatMessage(messages.moveUp)}
@@ -206,9 +211,7 @@ export function TiptapBlockHandle() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onSelect={() =>
-                                onBlock().deleteSelection().run()
-                            }
+                            onSelect={() => onBlock().deleteSelection().run()}
                         >
                             <Trash2 aria-hidden className="size-4" />
                             {intl.formatMessage(messages.remove)}

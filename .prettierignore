@@ -6,6 +6,8 @@
 
 # Generated / vendored — not hand-formatted
 /.agents
+# The Tiptap Simple Editor template, installed as source and kept verbatim.
+packages/wysiwyg/admin/src/tiptap-ui
 skills-lock.json
 **/migrations/meta
 # Generated test catalogs (owned by each e2e project's catalog generator)

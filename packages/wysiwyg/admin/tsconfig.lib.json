@@ -7,10 +7,11 @@
         "jsx": "react-jsx",
         "module": "esnext",
         "moduleResolution": "bundler",
+        "resolveJsonModule": true,
         "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
         "types": ["node"]
     },
-    "include": ["src/**/*.ts", "src/**/*.tsx"],
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
     "exclude": [
         "dist",
         "**/*.spec.ts",

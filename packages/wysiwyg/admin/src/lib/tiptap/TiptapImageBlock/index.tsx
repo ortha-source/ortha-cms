@@ -17,7 +17,10 @@ import { useWysiwyg } from '../tiptapContext';
 import { ImageGrip } from './ImageGrip';
 
 const messages = defineMessages({
-    caption: { id: 'wysiwyg.block.image.caption', defaultMessage: 'Image caption' },
+    caption: {
+        id: 'wysiwyg.block.image.caption',
+        defaultMessage: 'Image caption'
+    },
     urlPlaceholder: {
         id: 'wysiwyg.block.image.urlPlaceholder',
         defaultMessage: 'Paste an image URL'
@@ -222,7 +225,10 @@ export function TiptapImageBlock({ node, updateAttributes }: NodeViewProps) {
                 // text is a defect, and hiding the field behind a menu is how
                 // that happens. Styled as editor chrome so it doesn't read as
                 // part of the document, and it warns while it is empty.
-                <div contentEditable={false} className="flex items-center gap-2">
+                <div
+                    contentEditable={false}
+                    className="flex items-center gap-2"
+                >
                     <span
                         aria-hidden
                         className="text-muted-foreground shrink-0 text-[11px] font-medium tracking-wide uppercase"
@@ -232,7 +238,9 @@ export function TiptapImageBlock({ node, updateAttributes }: NodeViewProps) {
                     <Input
                         value={alt}
                         aria-label={intl.formatMessage(messages.altLabel)}
-                        placeholder={intl.formatMessage(messages.altPlaceholder)}
+                        placeholder={intl.formatMessage(
+                            messages.altPlaceholder
+                        )}
                         className={cn(
                             'h-7 border-dashed bg-transparent text-xs shadow-none',
                             alt.trim() === '' && 'border-warning/60'
@@ -257,7 +265,10 @@ export function TiptapImageBlock({ node, updateAttributes }: NodeViewProps) {
             )}
 
             {!readOnly && (
-                <div contentEditable={false} className="flex items-center gap-1">
+                <div
+                    contentEditable={false}
+                    className="flex items-center gap-1"
+                >
                     <span
                         aria-hidden
                         className="text-muted-foreground shrink-0 text-[11px] font-medium tracking-wide uppercase"

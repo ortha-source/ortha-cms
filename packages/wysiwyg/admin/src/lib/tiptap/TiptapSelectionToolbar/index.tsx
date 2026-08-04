@@ -56,7 +56,15 @@ export function TiptapSelectionToolbar() {
      * one on every render — and every transaction renders.
      */
     const shouldShow = useCallback(
-        ({ editor: instance, from, to }: { editor: Editor; from: number; to: number }) =>
+        ({
+            editor: instance,
+            from,
+            to
+        }: {
+            editor: Editor;
+            from: number;
+            to: number;
+        }) =>
             instance.isEditable &&
             from !== to &&
             // A code block is plain text by definition; offering to make some

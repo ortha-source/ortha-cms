@@ -191,7 +191,8 @@ export function TableGrip({
         const measure = found.measure.getBoundingClientRect().width;
         if (measure === 0) return;
         const current =
-            width ?? (found.table.getBoundingClientRect().width / measure) * 100;
+            width ??
+            (found.table.getBoundingClientRect().width / measure) * 100;
         const percent = clamp(current + step);
         const pixels = (percent / 100) * measure;
         commitWidth(

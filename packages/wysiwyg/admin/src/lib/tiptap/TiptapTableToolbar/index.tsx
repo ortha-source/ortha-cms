@@ -56,7 +56,10 @@ const messages = defineMessages({
         defaultMessage: 'Delete table'
     },
     headerRow: { id: 'wysiwyg.table.headerRow', defaultMessage: 'Header row' },
-    cellLeft: { id: 'wysiwyg.table.cellLeft', defaultMessage: 'Align cell left' },
+    cellLeft: {
+        id: 'wysiwyg.table.cellLeft',
+        defaultMessage: 'Align cell left'
+    },
     cellCenter: {
         id: 'wysiwyg.table.cellCenter',
         defaultMessage: 'Align cell centre'
@@ -74,7 +77,10 @@ const messages = defineMessages({
         id: 'wysiwyg.table.cellBottom',
         defaultMessage: 'Align cell bottom'
     },
-    tableLeft: { id: 'wysiwyg.table.tableLeft', defaultMessage: 'Align table left' },
+    tableLeft: {
+        id: 'wysiwyg.table.tableLeft',
+        defaultMessage: 'Align table left'
+    },
     tableCenter: {
         id: 'wysiwyg.table.tableCenter',
         defaultMessage: 'Align table centre'
@@ -108,7 +114,11 @@ const CELL_VALIGNS: readonly {
         Icon: AlignVerticalSpaceAround,
         message: 'cellMiddle'
     },
-    { valign: CELL_VALIGN.Bottom, Icon: AlignEndVertical, message: 'cellBottom' }
+    {
+        valign: CELL_VALIGN.Bottom,
+        Icon: AlignEndVertical,
+        message: 'cellBottom'
+    }
 ];
 
 /** Where the table's own box sits in the measure. */
@@ -170,8 +180,15 @@ export function TiptapTableToolbar() {
      * than either of them.
      */
     const shouldShow = useCallback(
-        ({ editor: instance, from, to }: { editor: Editor; from: number; to: number }) =>
-            instance.isEditable && instance.isActive('table') && from === to,
+        ({
+            editor: instance,
+            from,
+            to
+        }: {
+            editor: Editor;
+            from: number;
+            to: number;
+        }) => instance.isEditable && instance.isActive('table') && from === to,
         []
     );
 

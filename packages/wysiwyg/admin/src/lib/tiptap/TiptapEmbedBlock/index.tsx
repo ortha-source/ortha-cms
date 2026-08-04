@@ -10,7 +10,10 @@ import { Button, Input } from '@ortha-cms/design-system';
 import { useWysiwyg } from '../tiptapContext';
 
 const messages = defineMessages({
-    urlLabel: { id: 'wysiwyg.block.embed.urlLabel', defaultMessage: 'Embed URL' },
+    urlLabel: {
+        id: 'wysiwyg.block.embed.urlLabel',
+        defaultMessage: 'Embed URL'
+    },
     urlPlaceholder: {
         id: 'wysiwyg.block.embed.urlPlaceholder',
         defaultMessage: 'Paste a link to embed'

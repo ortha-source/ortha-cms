@@ -236,7 +236,9 @@ export function ColumnGrip({
             // the ARIA window-splitter pattern, and that pattern requires an
             // `aria-valuenow` — a number this grip does not have until a column
             // has been dragged, and would have to make up until then.
-            aria-label={intl.formatMessage(messages.label, { index: index + 1 })}
+            aria-label={intl.formatMessage(messages.label, {
+                index: index + 1
+            })}
             tabIndex={-1}
             style={{ left: left - GRIP_WIDTH, height }}
             onPointerDown={handlePointerDown}
