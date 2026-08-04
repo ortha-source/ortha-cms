@@ -436,6 +436,18 @@ function sanitizeAttributes(
     if (tag === 'a' && out['target'] === '_blank') {
         out['rel'] = 'noopener noreferrer';
     }
+    // And `href` is written first, whatever order it arrived in.
+    //
+    // Attribute order is not cosmetic here: this pass decides the **stored**
+    // string, and a client that renders `target` before `href` would rewrite
+    // every link it merely opened — putting a change nobody made into the
+    // record's next revision diff. Anchors are the only tag whose attributes
+    // are commonly assembled by something other than this package's own
+    // serializer, so they are the only ones that need pinning.
+    if (tag === 'a' && 'href' in out) {
+        const { href, ...rest } = out;
+        return { href, ...rest };
+    }
     return out;
 }
 
