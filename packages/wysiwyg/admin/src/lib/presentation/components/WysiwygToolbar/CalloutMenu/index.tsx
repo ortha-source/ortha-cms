@@ -1,13 +1,7 @@
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import type { ComponentType } from 'react';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
-import {
-    CircleCheck,
-    Info,
-    OctagonAlert,
-    TriangleAlert
-} from 'lucide-react';
+import { CircleCheck, Info, OctagonAlert, TriangleAlert } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -20,6 +14,7 @@ import {
     CALLOUT_TONES,
     type CalloutTone
 } from '../../../../domain/constants';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
@@ -55,17 +50,18 @@ const TONE_VIEW: Record<
  */
 export function CalloutMenu({ editor }: { editor: Editor }) {
     const intl = useIntl();
-    const active = useEditorState({
+    const active = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => {
+        (instance) => {
             if (!instance.isActive('callout')) return undefined;
             const tone = instance.getAttributes('callout')['tone'];
             return (
                 CALLOUT_TONES.find((candidate) => candidate === tone) ??
                 CALLOUT_TONE.Info
             );
-        }
-    });
+        },
+        undefined
+    );
 
     const label = intl.formatMessage(messages.label);
 

@@ -6,7 +6,7 @@
 
 import type { AnyExtension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { CharacterCount, Placeholder, TrailingNode } from '@tiptap/extensions';
+import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
@@ -57,10 +57,13 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
         // field's `maxLength` is validated against the **HTML** string (tags
         // included), so capping the editor at that number would cut authors off
         // well before the real limit and still not guarantee they clear it.
-        CharacterCount,
-        // Guarantees a paragraph after the last block, so a document ending in
-        // a table, a callout, or a column layout still has somewhere to type.
-        // Without it those nodes are a dead end the caret can't get past.
-        TrailingNode
+        CharacterCount
+        // No `TrailingNode` here on purpose — StarterKit already registers it,
+        // and adding a second copy makes TipTap warn about a duplicate name and
+        // resolve the extension set unpredictably. It is what guarantees a
+        // paragraph after the last block, so a document ending in a table, a
+        // callout, or a column layout is not a dead end the caret can't get
+        // past; if StarterKit ever drops it, add it back rather than living
+        // without it.
     ];
 }

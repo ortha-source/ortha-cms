@@ -86,7 +86,11 @@ export const Column = Node.create({
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['div', mergeAttributes(HTMLAttributes, { 'data-column': '' }), 0];
+        return [
+            'div',
+            mergeAttributes(HTMLAttributes, { 'data-column': '' }),
+            0
+        ];
     }
 });
 
@@ -148,7 +152,10 @@ export const ColumnBlock = Node.create({
 
                     const { node, pos } = found;
                     const columns = childrenOf(node);
-                    if (columns.length === count && node.attrs['count'] === count)
+                    if (
+                        columns.length === count &&
+                        node.attrs['count'] === count
+                    )
                         return true;
 
                     const columnType = state.schema.nodes[COLUMN];

@@ -20,6 +20,7 @@ import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../../domain/constants';
 import { ENTRY_FIELD_CONTROL_SLOT } from '../../slots/contentSlots';
+import { useExpandedField } from '../../hooks/useExpandedField';
 import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
@@ -123,6 +124,7 @@ export function EntryFieldInput({
     onBlur?: () => void;
 }) {
     const intl = useIntl();
+    const expandedField = useExpandedField();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
     // The label row's right-hand adornments, kept together so they never
@@ -176,6 +178,11 @@ export function EntryFieldInput({
     );
     if (contributed) {
         const { Component } = contributed;
+        // Expanding is only offered when the item has something to expand
+        // *into*; without a `FullView` the request would swap the tab strip for
+        // a blank pane. `EntryEditor` owns the state — it is what renders the
+        // expanded view — so this only reads and forwards it.
+        const canExpand = !!contributed.FullView;
         return (
             <Field data-invalid={!!error}>
                 <FieldLabel
@@ -194,6 +201,11 @@ export function EntryFieldInput({
                     describedBy={describedBy}
                     onChange={onChange}
                     onBlur={onBlur}
+                    expanded={canExpand && expandedField.name === field.name}
+                    setExpanded={(next) => {
+                        if (!canExpand) return;
+                        expandedField.setName(next ? field.name : null);
+                    }}
                 />
                 {description && (
                     <FieldDescription>{description}</FieldDescription>

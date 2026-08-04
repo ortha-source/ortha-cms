@@ -4,23 +4,38 @@ import { BasePage } from './BasePage';
 /**
  * Page object for the **rich-text field** — the WYSIWYG plugin's
  * (`@ortha-cms/wysiwyg-admin`) `ENTRY_FIELD_CONTROL_SLOT` contribution: a
- * preview of the stored content in the entry form, opening into a TipTap editor
- * dialog with the formatting toolbar.
+ * preview of the stored content in the entry form, expanding into a TipTap
+ * editor that takes over the entry editor's **work area**.
+ *
+ * It is a view, not a dialog — so there is no `dialog` role to wait on. The
+ * toolbar's arrival is the signal that the editor is up, and the record's own
+ * chrome (top-bar actions, Properties rail, app sidebar) is expected to still
+ * be on screen beside it.
  *
  * Seed with `mockSignedIn`, `mockWorkspaces`, and the `WYSIWYG_*` content mocks
  * (their schema is what makes the plugin claim the field), plus `spyEntrySave`
  * for anything that asserts the HTML actually stored.
  */
 export class WysiwygFieldPage extends BasePage {
-    /** The editor dialog, named by the field it belongs to. */
-    readonly dialog: Locator;
-    /** The dialog's toolbar. */
+    /** The expanded editor's toolbar — present only while a field is expanded. */
     readonly toolbar: Locator;
+    /** The entry editor's tab strip — present only while the form is showing. */
+    readonly editorTabs: Locator;
+    /** The record's Properties rail, in the app's third column. */
+    readonly propertiesPanel: Locator;
+    /** The workspace's content navigation, in the app sidebar. */
+    readonly contentNav: Locator;
 
     constructor(page: Page) {
         super(page);
-        this.dialog = page.getByRole('dialog');
         this.toolbar = page.getByRole('group', { name: 'Formatting' });
+        this.editorTabs = page.getByRole('tab', { name: 'General' });
+        this.propertiesPanel = page.getByRole('complementary', {
+            name: 'Properties'
+        });
+        this.contentNav = page.getByRole('navigation', {
+            name: 'Content types'
+        });
     }
 
     /** Open the create editor for the seeded `article` collection. */
@@ -53,10 +68,20 @@ export class WysiwygFieldPage extends BasePage {
         return this.control(label).locator('..');
     }
 
-    /** Open a field's editor dialog and wait for the toolbar to arrive. */
+    /** Expand a field into the work area, and wait for the editor to arrive. */
     async open(label: string): Promise<void> {
         await this.control(label).click();
         await this.toolbar.waitFor();
+    }
+
+    /** The expanded editor's heading — the field's label, below the record's. */
+    expandedHeading(label: string): Locator {
+        return this.page.getByRole('heading', { name: label, exact: true });
+    }
+
+    /** A table inside the expanded editor's document. */
+    get editorTable(): Locator {
+        return this.page.getByRole('table');
     }
 
     /**
@@ -114,9 +139,15 @@ export class WysiwygFieldPage extends BasePage {
         return this.page.locator(`#entry-field-${fieldName}-error`);
     }
 
-    /** Close the dialog via its footer action. */
+    /** Collapse back to the form via the editor's footer action. */
     async done(): Promise<void> {
         await this.page.getByRole('button', { name: 'Done' }).click();
-        await this.dialog.waitFor({ state: 'hidden' });
+        await this.toolbar.waitFor({ state: 'hidden' });
+    }
+
+    /** Collapse back to the form via the editor's header link. */
+    async backToFields(): Promise<void> {
+        await this.page.getByRole('button', { name: 'Back to fields' }).click();
+        await this.toolbar.waitFor({ state: 'hidden' });
     }
 }

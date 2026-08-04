@@ -1,13 +1,8 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Pencil } from 'lucide-react';
 import { cn } from '@ortha-cms/design-system';
 import type { EntryFieldControlContext } from '@ortha-cms/content-admin';
-import {
-    asRichTextHtml,
-    isEmptyRichText
-} from '../../../domain/richTextValue';
-import { WysiwygEditorDialog } from '../WysiwygEditorDialog';
+import { isEmptyRichText } from '../../../domain/richTextValue';
 import { WysiwygPreview } from '../WysiwygPreview';
 
 const messages = defineMessages({
@@ -36,6 +31,11 @@ const PREVIEW_CLAMP = 'max-h-72';
  * `<textarea>` is a wall of tags nobody can proofread, so the field shows the
  * *content* and keeps the authoring surface behind a deliberate press.
  *
+ * Pressing it **expands the field into the work area** (`WysiwygFieldFullView`)
+ * rather than opening a dialog over the form — so the record, its Save action,
+ * and the Properties rail all stay where they were. The control owns none of
+ * that: it asks, `EntryEditor` swaps the view.
+ *
  * ### Why the button overlays the preview instead of wrapping it
  *
  * Wrapping formatted content in a `<button>` puts headings, lists, and tables
@@ -54,51 +54,48 @@ export function WysiwygFieldControl({
     value,
     error,
     describedBy,
-    onChange,
-    onBlur
+    setExpanded
 }: EntryFieldControlContext) {
     const intl = useIntl();
-    const [open, setOpen] = useState(false);
     const placeholder = field.admin['placeholder'];
     const empty = isEmptyRichText(value);
 
     return (
-        <>
-            <div
-                className={cn(
-                    'relative rounded-lg border border-input bg-card',
-                    // The ring follows the overlay button, so the card reads as
-                    // one focusable control rather than the button reading as a
-                    // second thing floating on top of it.
-                    'has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring/40',
-                    error && 'border-destructive'
-                )}
-            >
-                {empty ? (
-                    <p className="px-4 py-3 text-sm text-muted-foreground">
-                        {typeof placeholder === 'string' && placeholder !== ''
-                            ? placeholder
-                            : intl.formatMessage(messages.empty)}
-                    </p>
-                ) : (
-                    <div
-                        className={cn(
-                            'relative overflow-hidden px-4 py-3',
-                            PREVIEW_CLAMP
-                        )}
-                    >
-                        <WysiwygPreview value={value} />
-                        {/* Fades the clipped edge, so a body longer than the
+        <div
+            className={cn(
+                'relative rounded-lg border border-input bg-card',
+                // The ring follows the overlay button, so the card reads as
+                // one focusable control rather than the button reading as a
+                // second thing floating on top of it.
+                'has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring/40',
+                error && 'border-destructive'
+            )}
+        >
+            {empty ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                    {typeof placeholder === 'string' && placeholder !== ''
+                        ? placeholder
+                        : intl.formatMessage(messages.empty)}
+                </p>
+            ) : (
+                <div
+                    className={cn(
+                        'relative overflow-hidden px-4 py-3',
+                        PREVIEW_CLAMP
+                    )}
+                >
+                    <WysiwygPreview value={value} />
+                    {/* Fades the clipped edge, so a body longer than the
                             clamp reads as continuing rather than as ending
                             mid-sentence. */}
-                        <span
-                            aria-hidden
-                            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
-                        />
-                    </div>
-                )}
+                    <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
+                    />
+                </div>
+            )}
 
-                {/* The name is an `aria-label`, not `sr-only` text: this button
+            {/* The name is an `aria-label`, not `sr-only` text: this button
                     carries the field's `id`, so content-admin's `<label for>`
                     points at it — and a native label outranks a button's own
                     contents, which left it announcing "Body" with no hint that
@@ -111,40 +108,26 @@ export function WysiwygFieldControl({
                     reaches assistive tech the way it can — `aria-describedby`
                     points at the message content-admin renders below, so it is
                     announced on focus and not only when it appears. The red
-                    border above carries the same thing visually. */}
-                <button
-                    id={id}
-                    type="button"
-                    className="absolute inset-0 rounded-lg focus-visible:outline-none"
-                    aria-label={intl.formatMessage(messages.edit, { label })}
-                    aria-haspopup="dialog"
-                    aria-describedby={describedBy}
-                    onClick={() => setOpen(true)}
-                />
+                    border above carries the same thing visually.
 
-                <span
-                    aria-hidden
-                    className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground"
-                >
-                    <Pencil className="size-3" />
-                    {intl.formatMessage(messages.editChip)}
-                </span>
-            </div>
-
-            <WysiwygEditorDialog
-                open={open}
-                onOpenChange={(next) => {
-                    setOpen(next);
-                    // Closing the editor is the moment the author is done with
-                    // this field, which is what `touch` means to the form — it
-                    // is when a `required` field is finally allowed to complain.
-                    if (!next) onBlur?.();
-                }}
-                fieldLabel={label}
-                initialHtml={asRichTextHtml(value)}
-                placeholder={typeof placeholder === 'string' ? placeholder : ''}
-                onChange={onChange}
+                    No `aria-haspopup` either: pressing this navigates the work
+                    area to the editor, it does not open a popup over it. */}
+            <button
+                id={id}
+                type="button"
+                className="absolute inset-0 rounded-lg focus-visible:outline-none"
+                aria-label={intl.formatMessage(messages.edit, { label })}
+                aria-describedby={describedBy}
+                onClick={() => setExpanded(true)}
             />
-        </>
+
+            <span
+                aria-hidden
+                className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground"
+            >
+                <Pencil className="size-3" />
+                {intl.formatMessage(messages.editChip)}
+            </span>
+        </div>
     );
 }

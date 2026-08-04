@@ -1,6 +1,5 @@
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import { Baseline, Check, Highlighter } from 'lucide-react';
 import {
     DropdownMenu,
@@ -15,6 +14,7 @@ import {
     TEXT_COLORS,
     type SwatchOption
 } from '../../../../domain/constants';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
@@ -97,15 +97,16 @@ export function ColorMenu({
         ? TEXT_COLORS
         : HIGHLIGHT_COLORS;
 
-    const current = useEditorState({
+    const current = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => {
+        (instance) => {
             const color = isText
                 ? instance.getAttributes('textStyle')['color']
                 : instance.getAttributes('highlight')['color'];
             return typeof color === 'string' ? color : undefined;
-        }
-    });
+        },
+        undefined
+    );
 
     const pick = (value: string) => {
         if (isText) editor.chain().focus().setColor(value).run();
@@ -160,9 +161,7 @@ export function ColorMenu({
                                     ) : null}
                                 </span>
                                 <span className="sr-only">
-                                    {intl.formatMessage(
-                                        COLOR_NAMES[swatch.id]
-                                    )}
+                                    {intl.formatMessage(COLOR_NAMES[swatch.id])}
                                 </span>
                             </DropdownMenuItem>
                         );

@@ -1,6 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import { Pilcrow } from 'lucide-react';
 import {
     DropdownMenu,
@@ -9,6 +8,7 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
@@ -58,16 +58,17 @@ const HEADINGS: readonly {
  */
 export function BlockTypeMenu({ editor }: { editor: Editor }) {
     const intl = useIntl();
-    const current = useEditorState({
+    const current = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }): BlockType => {
+        (instance): BlockType => {
             if (instance.isActive('codeBlock')) return BLOCK_TYPE.CodeBlock;
             const heading = HEADINGS.find((item) =>
                 instance.isActive('heading', { level: item.level })
             );
             return heading?.value ?? BLOCK_TYPE.Paragraph;
-        }
-    });
+        },
+        BLOCK_TYPE.Paragraph
+    );
 
     const apply = (next: string) => {
         if (next === BLOCK_TYPE.CodeBlock) {

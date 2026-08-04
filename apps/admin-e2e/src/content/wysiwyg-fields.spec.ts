@@ -22,8 +22,9 @@ const WS = WYSIWYG_WORKSPACE.id;
 /**
  * The **rich-text field** (`@ortha-cms/wysiwyg-admin`, contributed through
  * content-admin's `ENTRY_FIELD_CONTROL_SLOT`): the entry form shows what was
- * written rather than the HTML behind it, pressing it opens the TipTap editor,
- * and everything the toolbar does ends up in the saved value.
+ * written rather than the HTML behind it, pressing it expands the TipTap editor
+ * into the work area, and everything the toolbar does ends up in the saved
+ * value.
  *
  * The save spy is the point of most of these — the visible editor is only half
  * the feature; what gets *stored* is the other half, and only the request body
@@ -93,9 +94,9 @@ test.describe('Entry editor — rich text field', () => {
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoNewArticle(WS);
-            await expect(
-                wysiwygFieldPage.preview('Body')
-            ).toContainText('Tell the story…');
+            await expect(wysiwygFieldPage.preview('Body')).toContainText(
+                'Tell the story…'
+            );
         });
 
         test('keeps a plain textarea for a field that opted out', async ({
@@ -113,20 +114,55 @@ test.describe('Entry editor — rich text field', () => {
         });
     });
 
-    test.describe('the editor dialog', () => {
-        test('opens on the field with the caret already in the text', async ({
+    test.describe('the expanded editor', () => {
+        test('takes over the work area with the caret already in the text', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
             await wysiwygFieldPage.open('Body');
 
-            await expect(wysiwygFieldPage.dialog).toBeVisible();
             await expect(
-                wysiwygFieldPage.dialog.getByRole('heading', { name: 'Body' })
+                wysiwygFieldPage.expandedHeading('Body')
             ).toBeVisible();
-            // Focus lands in the document, not on the ✕ — the author pressed
-            // this to write.
+            // The form it replaced is gone, not merely covered — this is a view
+            // swap, so the tab strip and the other fields have unmounted.
+            await expect(wysiwygFieldPage.editorTabs).toBeHidden();
+            await expect(wysiwygFieldPage.control('Summary')).toHaveCount(0);
+            // Focus lands in the document — the author pressed this to write.
             await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
+        });
+
+        test('keeps the record and its chrome on screen', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            // The whole point of expanding into the work area rather than
+            // opening a modal: everything around the field keeps working.
+            await expect(wysiwygFieldPage.contentNav).toBeVisible();
+            await expect(wysiwygFieldPage.propertiesPanel).toBeVisible();
+            await expect(contentLibraryPage.editorSave).toBeVisible();
+            // …including which record is being edited.
+            await expect(
+                contentLibraryPage.viewHeading('Articles')
+            ).toBeVisible();
+        });
+
+        test('returns to the form from either exit', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.backToFields();
+            await expect(wysiwygFieldPage.editorTabs).toBeVisible();
+            await expect(wysiwygFieldPage.control('Body')).toBeVisible();
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.done();
+            await expect(wysiwygFieldPage.editorTabs).toBeVisible();
         });
 
         test('writes edits back to the form as they are made', async ({
@@ -141,7 +177,7 @@ test.describe('Entry editor — rich text field', () => {
             await wysiwygFieldPage.done();
 
             // Back on the form, the preview already shows it — nothing is
-            // "committed" by closing, so every way out of the dialog is safe.
+            // "committed" by collapsing, so leaving the view is always safe.
             await expect(wysiwygFieldPage.preview('Body')).toContainText(
                 'Hello there'
             );
@@ -207,9 +243,7 @@ test.describe('Entry editor — rich text field', () => {
             await wysiwygFieldPage.open('Body');
             await wysiwygFieldPage.openToolbarMenu('Table');
             await wysiwygFieldPage.menuItem('Insert table').click();
-            await expect(
-                wysiwygFieldPage.dialog.getByRole('table')
-            ).toBeVisible();
+            await expect(wysiwygFieldPage.editorTable).toBeVisible();
             await wysiwygFieldPage.done();
 
             await contentLibraryPage.saveDraft();
@@ -273,7 +307,7 @@ test.describe('Entry editor — rich text field', () => {
             await expectNoA11yViolations(makeAxe());
         });
 
-        test('the open editor dialog has no violations', async ({
+        test('the expanded editor has no violations', async ({
             wysiwygFieldPage,
             makeAxe
         }) => {
@@ -288,7 +322,9 @@ test.describe('Entry editor — rich text field', () => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
             await wysiwygFieldPage.openWithKeyboard('Body');
 
-            await expect(wysiwygFieldPage.dialog).toBeVisible();
+            await expect(
+                wysiwygFieldPage.expandedHeading('Body')
+            ).toBeVisible();
             await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
         });
     });

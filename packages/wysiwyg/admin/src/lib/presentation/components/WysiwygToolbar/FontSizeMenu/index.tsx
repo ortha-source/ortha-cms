@@ -1,6 +1,5 @@
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import { CaseSensitive } from 'lucide-react';
 import {
     DropdownMenu,
@@ -10,6 +9,7 @@ import {
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
 import { FONT_SIZES } from '../../../../domain/constants';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
@@ -46,16 +46,18 @@ const DEFAULT_VALUE = 'default';
  */
 export function FontSizeMenu({ editor }: { editor: Editor }) {
     const intl = useIntl();
-    const current = useEditorState({
+    const current = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => {
+        (instance) => {
             const size = instance.getAttributes('textStyle')['fontSize'];
             return typeof size === 'string' ? size : DEFAULT_VALUE;
-        }
-    });
+        },
+        DEFAULT_VALUE
+    );
 
     const apply = (next: string) => {
-        if (next === DEFAULT_VALUE) editor.chain().focus().unsetFontSize().run();
+        if (next === DEFAULT_VALUE)
+            editor.chain().focus().unsetFontSize().run();
         else editor.chain().focus().setFontSize(next).run();
     };
 

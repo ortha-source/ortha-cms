@@ -10,18 +10,29 @@ import {
 import { WYSIWYG_WIDGET } from '../../domain/constants';
 
 /**
- * The control, split out of the initial bundle.
+ * The two surfaces, split out of the initial bundle.
  *
  * A plugin factory runs at boot — it has to, or its slot contribution isn't
  * registered before the first render — so anything it imports statically lands
- * in the entry chunk. TipTap and ProseMirror are ~450 kB of that, for a control
+ * in the entry chunk. TipTap and ProseMirror are ~460 kB of that, for a field
  * that only ever renders inside an entry editor, itself already behind a lazy
  * route. Loading them with the field instead of with the app keeps the sign-in
  * page as light as it was before this plugin existed.
+ *
+ * The two split points share TipTap through a third chunk (the schema in
+ * `editorExtensions`, which the preview's renderer and the editor both need),
+ * so expanding a field downloads only the editor's own ~39 kB — the heavy part
+ * arrived with the preview.
  */
 const WysiwygFieldControl = lazy(() =>
     import('../components/WysiwygFieldControl').then((module) => ({
         default: module.WysiwygFieldControl
+    }))
+);
+
+const WysiwygFieldFullView = lazy(() =>
+    import('../components/WysiwygFieldFullView').then((module) => ({
+        default: module.WysiwygFieldFullView
     }))
 );
 
@@ -34,11 +45,25 @@ function WysiwygFieldFallback() {
     return <Skeleton className="h-24 w-full rounded-lg" />;
 }
 
-/** The slot's component: the real control, behind its own loading boundary. */
+/** Stands in for the expanded view, which fills whatever height it is given. */
+function WysiwygFullViewFallback() {
+    return <Skeleton className="min-h-0 w-full flex-1 rounded-lg" />;
+}
+
+/** The slot's control: the real one, behind its own loading boundary. */
 function LazyWysiwygFieldControl(context: EntryFieldControlContext) {
     return (
         <Suspense fallback={<WysiwygFieldFallback />}>
             <WysiwygFieldControl {...context} />
+        </Suspense>
+    );
+}
+
+/** The slot's expanded view, same treatment. */
+function LazyWysiwygFieldFullView(context: EntryFieldControlContext) {
+    return (
+        <Suspense fallback={<WysiwygFullViewFallback />}>
+            <WysiwygFieldFullView {...context} />
         </Suspense>
     );
 }
@@ -75,6 +100,11 @@ export type WysiwygAdminPlugin = AdminPlugin;
  * alike, on the General tab and inside a localized type's Translated/Shared
  * groups.
  *
+ * The contribution has two halves: the `Component` is the field as it sits in
+ * the form (a preview of what's written), and the `FullView` is the editor it
+ * expands into — rendered by `EntryEditor` in place of the tab strip, so the
+ * record's chrome stays put instead of being covered by a modal.
+ *
  * Register it **after** `ContentPlugin()`, whose slot it fills.
  */
 export function WysiwygPlugin(): WysiwygAdminPlugin {
@@ -87,7 +117,8 @@ export function WysiwygPlugin(): WysiwygAdminPlugin {
                     {
                         id: 'wysiwyg.entry.richtext',
                         appliesTo: isWysiwygField,
-                        Component: LazyWysiwygFieldControl
+                        Component: LazyWysiwygFieldControl,
+                        FullView: LazyWysiwygFieldFullView
                     }
                 ]
             }

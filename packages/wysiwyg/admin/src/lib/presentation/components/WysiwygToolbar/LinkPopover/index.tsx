@@ -1,7 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import { Link2 } from 'lucide-react';
 import {
     Button,
@@ -11,6 +10,7 @@ import {
     PopoverContent,
     PopoverTrigger
 } from '@ortha-cms/design-system';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
@@ -41,13 +41,14 @@ export function LinkPopover({ editor }: { editor: Editor }) {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState('');
 
-    const href = useEditorState({
+    const href = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => {
+        (instance) => {
             const value = instance.getAttributes('link')['href'];
             return typeof value === 'string' ? value : '';
-        }
-    });
+        },
+        ''
+    );
 
     // Reseed from the document each time the popover opens — not on every
     // `href` change, which would overwrite what the user is mid-way through

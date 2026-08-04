@@ -659,8 +659,23 @@ fetching internally.
       match wins in registration order, so a later plugin never silently steals
       a field an earlier one claimed — keep `appliesTo` narrow (a field type,
       plus an `admin.widget` opt-out).
-    - `@ortha-cms/wysiwyg-admin` fills it for `richtext`, replacing the raw-HTML
-      `Textarea` with a rendered preview that opens a TipTap editor.
+    - An item may also declare a **`FullView`** — an expanded editing surface
+      `EntryEditor` renders **in place of the tab strip**, filling the work area,
+      once the control calls `setExpanded(true)`. The record's title row stays
+      above it and the chrome around it is untouched: the app sidebar, the top
+      bar's Save / Publish, and the Properties rail all keep working, because the
+      expanded view is still inside this form — same tree, same values, the
+      publish gate updating as the author types. That is the point of a view swap
+      over a dialog, which would cover the rail it should be updating and put
+      Save behind an overlay. The state (which field is expanded, at most one)
+      lives in `EntryEditor` and reaches `EntryFieldInput` through
+      `hooks/useExpandedField` — a context, because the path runs through
+      `EntryFieldSections` and `FieldGroup`, neither of which has any interest in
+      it. An item with no `FullView` never expands, and its control's
+      `setExpanded` is a no-op.
+    - `@ortha-cms/wysiwyg-admin` fills it for `richtext`: the `Component` is a
+      rendered preview of the body, the `FullView` is the TipTap editor it
+      expands into.
 
 The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
 list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`

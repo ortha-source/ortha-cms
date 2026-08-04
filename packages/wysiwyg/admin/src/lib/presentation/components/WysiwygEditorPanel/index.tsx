@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import { EditorContent, useEditor } from '@tiptap/react';
 import { Button } from '@ortha-cms/design-system';
-import { WYSIWYG_PROSE_CLASS } from '../../../../domain/constants';
-import { normalizeRichText } from '../../../../domain/richTextValue';
-import { editorExtensions } from '../../../../infrastructure/editorExtensions';
-import { WysiwygToolbar } from '../../WysiwygToolbar';
+import { WYSIWYG_PROSE_CLASS } from '../../../domain/constants';
+import { normalizeRichText } from '../../../domain/richTextValue';
+import { editorExtensions } from '../../../infrastructure/editorExtensions';
+import { useLiveEditorState } from '../../hooks/useLiveEditorState';
+import { WysiwygToolbar } from '../WysiwygToolbar';
 
 const messages = defineMessages({
     editorLabel: {
@@ -21,35 +22,40 @@ const messages = defineMessages({
 });
 
 /**
- * The editing surface itself: toolbar, document, footer.
+ * The editing surface itself: toolbar, document, footer. Expects a flex-column
+ * parent that has already claimed its height — the body is the part that
+ * scrolls, so the toolbar and the footer stay put while a long document moves
+ * under them.
  *
- * Mounted **only while the dialog is open** (Radix unmounts its portal when
- * closed), which is what lets the editor be seeded from `initialHtml` once at
- * mount and own its own state from then on — no controlled-content sync, and
- * therefore none of the caret-jumping that comes with it.
+ * Mounted **only while the field is expanded**, which is what lets the editor be
+ * seeded from `initialHtml` once at mount and own its state from then on — no
+ * controlled-content sync, and therefore none of the caret-jumping that comes
+ * with one.
  *
  * Edits are written straight back to the entry form as they're made, exactly
- * like typing in any other field. That is what makes every way out of this
- * dialog safe: Done, the ✕, Escape, and a click outside all leave the work in
- * the form, where the record's own Save (and the unsaved-changes guard) is the
- * real commit boundary.
+ * like typing in any other field. The record's own Save — still right there in
+ * the top bar, since expanding swapped only the work area — stays the commit
+ * boundary, so leaving this view never loses anything.
  */
 export function WysiwygEditorPanel({
     fieldLabel,
     initialHtml,
     placeholder,
+    required = false,
     onChange,
     onDone
 }: {
     /** The field's display label, used to name the editing region. */
     fieldLabel: string;
-    /** The value at open time. Read once — this is not a controlled prop. */
+    /** The value when the field was expanded. Read once — not a controlled prop. */
     initialHtml: string;
     /** The field's `admin.placeholder`, shown in an empty document. */
     placeholder: string;
+    /** Mirrors the field's `required` onto the editing surface. */
+    required?: boolean;
     /** Write an edit back to the entry form. */
     onChange: (value: string) => void;
-    /** Close the dialog. */
+    /** Collapse back to the form. */
     onDone: () => void;
 }) {
     const intl = useIntl();
@@ -66,9 +72,9 @@ export function WysiwygEditorPanel({
     const editor = useEditor({
         extensions: editorExtensions(placeholder),
         content: initialHtml,
-        // The author pressed "edit" to keep writing, so start where the text
-        // ends. This is also what puts focus inside the dialog, since the
-        // dialog suppresses Radix's own auto-focus.
+        // The author pressed the field to keep writing, so start where the text
+        // ends — and put focus in the document rather than leaving it on the
+        // control that just disappeared.
         autofocus: 'end',
         editorProps: {
             attributes: {
@@ -80,6 +86,7 @@ export function WysiwygEditorPanel({
                 // inputs (there can be several rich-text fields on one record).
                 role: 'textbox',
                 'aria-multiline': 'true',
+                'aria-required': String(required),
                 'aria-label': intl.formatMessage(messages.editorLabel, {
                     field: fieldLabel
                 })
@@ -90,15 +97,17 @@ export function WysiwygEditorPanel({
         }
     });
 
-    const counts = useEditorState({
+    const counts = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => ({
-            words: instance.storage['characterCount'].words() as number,
-            characters: instance.storage[
-                'characterCount'
-            ].characters() as number
-        })
-    });
+        (instance) => {
+            const count = instance.storage['characterCount'] as {
+                words: () => number;
+                characters: () => number;
+            };
+            return { words: count.words(), characters: count.characters() };
+        },
+        { words: 0, characters: 0 }
+    );
 
     return (
         <>

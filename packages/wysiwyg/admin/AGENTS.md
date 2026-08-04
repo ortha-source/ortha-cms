@@ -2,8 +2,8 @@
 
 The **rich-text editing plugin** for the Ortha CMS admin UI. It owns how a
 `richtext` field looks and behaves in the entry form: the field shows the
-content **as it reads**, and pressing it opens a full-size
-[TipTap](https://tiptap.dev) editor with the formatting toolbar — text style and
+content **as it reads**, and pressing it expands a [TipTap](https://tiptap.dev)
+editor into the record's work area, with the formatting toolbar — text style and
 size, colors and highlights, alignment, lists, links, callouts, tables, and
 column layouts.
 
@@ -51,10 +51,12 @@ Written layered from the start, like `content/admin`:
   `extensions/columns` (nodes TipTap doesn't ship), and `renderRichText` (the
   read-only renderer — see **Trust boundary** below).
 - **`presentation/`** — React. `wysiwygPlugin` (the `AdminPlugin` factory),
-  `components/WysiwygFieldControl` (what the slot mounts), `WysiwygPreview`,
-  `WysiwygEditorDialog`, and `WysiwygToolbar` with a folder per menu.
+  `components/WysiwygFieldControl` (the field as it sits in the form) and
+  `components/WysiwygFieldFullView` (what it expands into) — the slot item's
+  `Component` and `FullView` — plus `WysiwygPreview`, `WysiwygEditorPanel`,
+  `WysiwygToolbar` with a folder per menu, and `hooks/useLiveEditorState`.
 
-## Four decisions worth knowing before you change anything
+## Five decisions worth knowing before you change anything
 
 ### 1. Trust boundary: the preview never renders the stored HTML as-is
 
@@ -70,8 +72,9 @@ schema** — parsed out of an inert `DOMParser` document, re-serialized from the
 parsed nodes. Only what the schema declares survives; event handlers are
 dropped, and the Link extension blanks any href outside its protocol allowlist
 (`javascript:`). The allowlist is therefore the *same definition* as "what this
-editor can write", so the preview is exactly what the author sees with the
-dialog open. A hand-kept tag list would be a second definition, free to drift.
+editor can write", so the preview is exactly what the author sees once the
+field is expanded. A hand-kept tag list would be a second definition, free to
+drift.
 
 **If you add a node or mark to `editorExtensions`, the preview supports it the
 same day.** If you ever render rich text somewhere else, go through
@@ -98,20 +101,37 @@ own contents, which left it announcing just "Body". It carries no
 reaches AT through `aria-describedby`, pointing at the `<FieldError>`
 content-admin renders below.
 
-### 3. Edits are written to the form as they're made
+### 3. The editor is a **view**, not a dialog
 
-The dialog has no Save/Cancel. `onUpdate` writes straight back to the entry form
-through the slot's `onChange`, exactly like typing in any other field, and the
-record's own Save (plus the unsaved-changes guard) stays the only commit
-boundary. That is what makes **every** way out of the dialog safe — Done, the ✕,
-Escape, a click outside — instead of Escape being a work-losing trap.
+Pressing the field expands it into the entry editor's work area — content-admin
+renders the slot item's `FullView` in place of the tab strip. Everything around
+it is untouched: the app sidebar, the record's title, the top bar's Save /
+Publish, and the Properties rail, whose publish gate ticks over live as the body
+is written. All of that keeps working because the expanded view is still inside
+the record's own form — same tree, same values.
 
-The dialog panel mounts only while open (Radix unmounts its portal), so the
-editor is seeded from the value once at mount and owns its state from then on.
-There is no controlled-content sync, and therefore none of the caret-jumping
-that comes with one.
+A modal could do none of that. It would cover the rail it should be updating,
+hide the record it belongs to, and put Save behind an overlay.
 
-### 4. "Empty" is defined as what empty *is*
+The control owns none of the swap. It calls `setExpanded(true)`; `EntryEditor`
+holds the state and decides what to render. The view mounts only while expanded,
+so the editor is seeded from the value once at mount and owns its state from
+then on — no controlled-content sync, and none of the caret-jumping that comes
+with one.
+
+Leaving is explicit — **Back to fields** at the top, **Done** in the footer.
+There is deliberately **no Escape shortcut**: the toolbar's menus and popovers
+each answer Escape themselves, and a second handler on the view would race them
+into closing the whole editor out from under an open menu.
+
+### 4. Edits are written to the form as they're made
+
+There is no Save/Cancel of its own. `onUpdate` writes straight back to the entry
+form through the slot's `onChange`, exactly like typing in any other field, and
+the record's own Save (plus the unsaved-changes guard) stays the only commit
+boundary. So leaving the view — by either exit — can never lose work.
+
+### 5. "Empty" is defined as what empty *is*
 
 `isEmptyRichText` matches the exact markup an emptied editor leaves behind —
 paragraph wrappers, `<br>`, whitespace — and calls **everything else** content.
@@ -132,12 +152,18 @@ in the app's entry chunk. TipTap and ProseMirror are ~460 kB of that, for a
 control that only ever renders inside an entry editor (itself already behind a
 lazy route).
 
-So `wysiwygPlugin` reaches the control through `React.lazy`, and `src/index.ts`
-exports **nothing but** `WysiwygPlugin` and `WYSIWYG_WIDGET`. Re-exporting the
-preview or the dialog from the entry point would pull TipTap straight back in.
-The guard is a number: the admin's entry chunk is ~255 kB, and
-`WysiwygFieldControl-*.js` is ~460 kB of its own. If a change moves the first
-number, the lazy boundary has been broken.
+So `wysiwygPlugin` reaches both the control and the full view through
+`React.lazy`, and `src/index.ts` exports **nothing but** `WysiwygPlugin` and
+`WYSIWYG_WIDGET`. Re-exporting the preview or the editor from the entry point
+would pull TipTap straight back in.
+
+The two split points share TipTap through a third chunk (the schema in
+`editorExtensions`, which the preview's renderer and the editor both need), so
+expanding a field downloads only the editor's own ~39 kB.
+
+The guard is a number: the admin's entry chunk is **~255 kB** (it was ~254 kB
+before this plugin existed), with TipTap out in `editorExtensions-*.js` at ~420
+kB. If a change moves the first number, the lazy boundary has been broken.
 
 ## Styling: one scope, shared by the editor and the preview
 
@@ -162,13 +188,22 @@ structure however it likes.
 ## Adding a control
 
 1. Add the extension to `infrastructure/editorExtensions` (or a new node under
-   `infrastructure/extensions/`, if TipTap doesn't ship one).
+   `infrastructure/extensions/`, if TipTap doesn't ship one). Check StarterKit
+   first — it already bundles Link, Underline, and TrailingNode, and a second
+   copy makes TipTap warn about a duplicate name and resolve the extension set
+   unpredictably.
 2. Add a folder under `presentation/components/WysiwygToolbar/`, with its own
    co-located `defineMessages`. Reuse `ToolbarButton` (toggles/actions) or
    `ToolbarMenuTrigger` (dropdowns) so the bar stays one shape.
-3. Subscribe to only the state you need with `useEditorState` — each menu owns
-   its own slice, so the bar's shared selector doesn't become the thing every
-   menu re-renders through.
+3. Subscribe to only the state you need with **`useLiveEditorState`**, never
+   `useEditorState` directly — each menu owns its own slice, so the bar's shared
+   selector doesn't become the thing every menu re-renders through. The wrapper
+   exists because the admin renders under `StrictMode`: every `useEditor` mounts,
+   tears down, and remounts, and the dead instance's subscription fires one last
+   selector run. `can().undo()` or `storage.characterCount.words()` on a
+   destroyed editor throws *during render*, and React unwinds the whole editor
+   subtree — the toolbar just vanishes. `useLiveEditorState` returns your
+   `whenGone` value for that one frame instead.
 4. Both must `preventDefault` on `mousedown`. Otherwise pressing the control
    moves focus out of the editor, collapsing the selection the command was about
    to act on — the classic "I selected a word, hit Bold, nothing happened".

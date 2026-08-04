@@ -476,6 +476,20 @@ export type EntryFieldControlContext = {
     onChange: (value: unknown) => void;
     /** Mark the field touched, so its error may show. */
     onBlur?: () => void;
+    /**
+     * Whether this field currently **owns the editor's work area** — the
+     * expanded view described on {@link EntryFieldControlItem.FullView}. Always
+     * `false` for an item that declares no `FullView`.
+     */
+    expanded: boolean;
+    /**
+     * Take the work area over for this field, or hand it back. A no-op for an
+     * item with no `FullView` — there would be nothing to show.
+     *
+     * At most one field is expanded at a time; expanding a second collapses the
+     * first.
+     */
+    setExpanded: (next: boolean) => void;
 };
 
 /** One contributed field control (e.g. the WYSIWYG plugin's rich-text editor). */
@@ -492,6 +506,24 @@ export type EntryFieldControlItem = {
     appliesTo: (field: ContentField) => boolean;
     /** The input surface, rendered inside the standard `Field` wrapper. */
     Component: ComponentType<EntryFieldControlContext>;
+    /**
+     * An **expanded** editing surface for the field, for a control that needs
+     * far more room than a form row — a rich-text body, a code editor, a canvas.
+     *
+     * `EntryEditor` renders it in place of the **tab strip**, filling the work
+     * area, once the control calls `setExpanded(true)`. The record's title row
+     * stays above it and the surrounding chrome is untouched: the app sidebar,
+     * the top bar's Save / Publish actions, and the Properties rail all keep
+     * working — because the expanded view is still inside the editor's form.
+     * Same tree, same values, same publish gate updating as the author types.
+     *
+     * That is why this is a view swap and not a dialog. A modal over the form
+     * would cover the rail it should be updating and put the record's own Save
+     * behind an overlay.
+     *
+     * Omit it and the field simply never expands.
+     */
+    FullView?: ComponentType<EntryFieldControlContext>;
 };
 
 /**

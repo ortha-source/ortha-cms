@@ -1,6 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import {
     AlignCenter,
     AlignJustify,
@@ -19,6 +18,7 @@ import {
     Underline,
     Undo2
 } from 'lucide-react';
+import { useLiveEditorState } from '../../hooks/useLiveEditorState';
 import { BlockTypeMenu } from './BlockTypeMenu';
 import { CalloutMenu } from './CalloutMenu';
 import { COLOR_KIND, ColorMenu } from './ColorMenu';
@@ -84,6 +84,25 @@ const messages = defineMessages({
     }
 });
 
+/** Every toggle off, neither history direction available — what a toolbar
+ *  reports for the frame in which its editor no longer exists. */
+const TOOLBAR_INERT = {
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+    code: false,
+    bulletList: false,
+    orderedList: false,
+    blockquote: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
+    alignJustify: false,
+    canUndo: false,
+    canRedo: false
+};
+
 /** A hairline between two runs of controls. Decorative — never announced. */
 function ToolbarSeparator() {
     return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />;
@@ -104,9 +123,9 @@ function ToolbarSeparator() {
  */
 export function WysiwygToolbar({ editor }: { editor: Editor }) {
     const intl = useIntl();
-    const state = useEditorState({
+    const state = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => ({
+        (instance) => ({
             bold: instance.isActive('bold'),
             italic: instance.isActive('italic'),
             underline: instance.isActive('underline'),
@@ -121,8 +140,9 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
             alignJustify: instance.isActive({ textAlign: 'justify' }),
             canUndo: instance.can().undo(),
             canRedo: instance.can().redo()
-        })
-    });
+        }),
+        TOOLBAR_INERT
+    );
 
     return (
         <div
@@ -213,7 +233,9 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
                 label={intl.formatMessage(messages.alignLeft)}
                 icon={AlignLeft}
                 active={state.alignLeft}
-                onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                onClick={() =>
+                    editor.chain().focus().setTextAlign('left').run()
+                }
             />
             <ToolbarButton
                 label={intl.formatMessage(messages.alignCenter)}
@@ -249,9 +271,7 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
             <ToolbarButton
                 label={intl.formatMessage(messages.horizontalRule)}
                 icon={Minus}
-                onClick={() =>
-                    editor.chain().focus().setHorizontalRule().run()
-                }
+                onClick={() => editor.chain().focus().setHorizontalRule().run()}
             />
 
             <ToolbarSeparator />

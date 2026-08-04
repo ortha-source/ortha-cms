@@ -1,6 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import { Columns3 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -12,14 +11,14 @@ import {
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
 import { COLUMN_COUNTS } from '../../../../domain/constants';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
     label: { id: 'wysiwyg.columns.label', defaultMessage: 'Columns' },
     count: {
         id: 'wysiwyg.columns.count',
-        defaultMessage:
-            '{count, plural, one {# column} other {# columns}}'
+        defaultMessage: '{count, plural, one {# column} other {# columns}}'
     },
     remove: {
         id: 'wysiwyg.columns.remove',
@@ -38,14 +37,15 @@ const NONE = '';
  */
 export function ColumnsMenu({ editor }: { editor: Editor }) {
     const intl = useIntl();
-    const current = useEditorState({
+    const current = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => {
+        (instance) => {
             if (!instance.isActive('columnBlock')) return NONE;
             const count = instance.getAttributes('columnBlock')['count'];
             return typeof count === 'number' ? String(count) : NONE;
-        }
-    });
+        },
+        NONE
+    );
 
     const label = intl.formatMessage(messages.label);
 

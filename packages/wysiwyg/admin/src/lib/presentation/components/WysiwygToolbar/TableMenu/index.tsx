@@ -1,6 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import { useEditorState } from '@tiptap/react';
 import { Table as TableIcon } from 'lucide-react';
 import {
     DropdownMenu,
@@ -10,6 +9,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '@ortha-cms/design-system';
+import { useLiveEditorState } from '../../../hooks/useLiveEditorState';
 import { ToolbarMenuTrigger } from '../ToolbarMenuTrigger';
 
 const messages = defineMessages({
@@ -63,17 +63,19 @@ const INITIAL_TABLE = { rows: 3, cols: 3, withHeaderRow: true } as const;
  */
 export function TableMenu({ editor }: { editor: Editor }) {
     const intl = useIntl();
-    const inTable = useEditorState({
+    const inTable = useLiveEditorState(
         editor,
-        selector: ({ editor: instance }) => instance.isActive('table')
-    });
+        (instance) => instance.isActive('table'),
+        false
+    );
 
     const label = intl.formatMessage(messages.label);
-    const run = (action: (chain: ReturnType<Editor['chain']>) => void) => () => {
-        const chain = editor.chain().focus();
-        action(chain);
-        chain.run();
-    };
+    const run =
+        (action: (chain: ReturnType<Editor['chain']>) => void) => () => {
+            const chain = editor.chain().focus();
+            action(chain);
+            chain.run();
+        };
 
     return (
         <DropdownMenu>
