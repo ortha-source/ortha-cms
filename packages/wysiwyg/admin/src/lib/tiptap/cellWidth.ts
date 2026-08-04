@@ -13,7 +13,8 @@ declare module '@tiptap/core' {
             resizeTableColumnPair: (
                 index: number,
                 left: number,
-                right: number
+                right: number,
+                pin: number
             ) => ReturnType;
             /**
              * Grows the table and the last column together, holding every other
@@ -95,7 +96,7 @@ export const CellWidth = Extension.create({
     addCommands() {
         return {
             resizeTableColumnPair:
-                (index, left, right) =>
+                (index, left, right, pin) =>
                 ({ state, tr, dispatch }) => {
                     const table = tableAround(state);
                     if (!table) return false;
@@ -110,9 +111,12 @@ export const CellWidth = Extension.create({
                     });
                     // A table with sized columns needs a width of its own, or
                     // the percentages are fractions of a number nobody can see.
-                    if (cellWidth(table.node.attrs['width']) === null) {
-                        tr.setNodeAttribute(table.pos, 'width', 100);
-                    }
+                    // It is the width the table **already had**, measured by the
+                    // grip before the drag began — not 100%. Snapping an unsized
+                    // table out to the full measure is a resize the author did
+                    // not ask for, and it lands the dragged column somewhere far
+                    // from where they let go.
+                    tr.setNodeAttribute(table.pos, 'width', clamp(pin));
                     if (dispatch) dispatch(tr);
                     return true;
                 },

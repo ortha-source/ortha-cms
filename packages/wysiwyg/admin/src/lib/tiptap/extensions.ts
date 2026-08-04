@@ -2,10 +2,11 @@ import type { AnyExtension } from '@tiptap/core';
 import type { BlockTypeItem } from './blockTypes';
 import { StarterKit } from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
-import { TableKit } from '@tiptap/extension-table';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TiptapImageBlock } from './TiptapImageBlock';
+import { TiptapTable } from './TiptapTable';
 import { HEADING_LEVELS } from '@ortha-cms/wysiwyg-core';
 import { BlockAlignment } from './blockAlign';
 import { FontRole, TextColor, TextHighlight, TextSize } from './inlineMarks';
@@ -93,9 +94,23 @@ export function buildExtensions(options: {
                 return [{ tag: 'li[data-checked]', priority: 100 }];
             }
         }).configure({ nested: true }),
-        TableKit.configure({
-            table: { resizable: false, allowTableNodeSelection: true }
-        }),
+        // `TableKit` is unpacked rather than configured because only the table
+        // itself takes a node view. Its cells deliberately do not: a React node
+        // view always wraps its component in an element of its own, and nothing
+        // may stand between a `<tr>` and its `<td>`.
+        Table.extend({
+            addNodeView: () =>
+                // The rows go in a `<tbody>`, not the `<div>` a node view holds
+                // its content in by default — a table's children have to be
+                // table children or the browser invents anonymous boxes for
+                // them.
+                ReactNodeViewRenderer(TiptapTable, {
+                    contentDOMElementTag: 'tbody'
+                })
+        }).configure({ resizable: false, allowTableNodeSelection: true }),
+        TableRow,
+        TableHeader,
+        TableCell,
         CellWidth,
         BlockAlignment,
         TextColor,
