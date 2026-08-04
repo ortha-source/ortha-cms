@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { cn } from '@ortha-cms/design-system';
 import type { WysiwygMediaPort } from '../../media/wysiwygMedia';
@@ -6,6 +6,9 @@ import { TiptapProvider } from '../tiptapContext';
 import { TiptapToolbar } from '../TiptapToolbar';
 import { WysiwygProseSurface } from '../WysiwygProseSurface';
 import { useWysiwygEditor } from '../useWysiwygEditor';
+import { TiptapBlockHandle } from '../TiptapBlockHandle';
+import { TiptapSlashMenu } from '../TiptapSlashMenu';
+import type { SlashMenuState } from '../slashCommand';
 
 const messages = defineMessages({
     label: {
@@ -75,12 +78,28 @@ export function TiptapEditor({
     'aria-describedby': describedBy
 }: TiptapEditorProps) {
     const intl = useIntl();
+    const [slash, setSlash] = useState<SlashMenuState | null>(null);
+    /**
+     * The editor root, as state, because the overlays portal **into it**
+     * rather than into `document.body`. It sets no `transform`, so their
+     * viewport coordinates still resolve against the viewport, and living
+     * inside the editor keeps them in whatever tree it is mounted in —
+     * including one that has been made inert around it.
+     */
+    const [root, setRoot] = useState<HTMLDivElement | null>(null);
+
     const editor = useWysiwygEditor({
         value,
         onChange,
         onBlur,
         readOnly,
-        placeholder: intl.formatMessage(messages.placeholder)
+        placeholder: intl.formatMessage(messages.placeholder),
+        formatLabel: useCallback(
+            (label: Parameters<typeof intl.formatMessage>[0]) =>
+                intl.formatMessage(label),
+            [intl]
+        ),
+        onSlashChange: setSlash
     });
 
     const context = useMemo(
@@ -91,6 +110,7 @@ export function TiptapEditor({
     return (
         <TiptapProvider value={context}>
             <div
+                ref={setRoot}
                 id={id}
                 role="group"
                 aria-label={intl.formatMessage(messages.label)}
@@ -116,7 +136,11 @@ export function TiptapEditor({
                     toolbar={toolbar}
                     readOnly={readOnly}
                 />
+                <TiptapBlockHandle />
             </div>
+            {slash && !readOnly && (
+                <TiptapSlashMenu state={slash} container={root} />
+            )}
         </TiptapProvider>
     );
 }

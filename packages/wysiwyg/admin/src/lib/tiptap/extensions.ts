@@ -1,4 +1,5 @@
 import type { AnyExtension } from '@tiptap/core';
+import type { BlockTypeItem } from './blockTypes';
 import { StarterKit } from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
@@ -16,6 +17,9 @@ import {
     ToggleSummary
 } from './blockNodes';
 import { CellWidth } from './cellWidth';
+import { SlashCommand } from './slashCommand';
+import { BLOCK_TYPES, filterBlockTypes } from './blockTypes';
+import type { SlashMenuState } from './slashCommand';
 
 /**
  * The editor's schema — **one description of the document**, used to render it
@@ -36,6 +40,10 @@ import { CellWidth } from './cellWidth';
 export function buildExtensions(options: {
     /** Shown in an empty paragraph. */
     placeholder?: string;
+    /** Formats a block's label, so the `/` query can match on it. */
+    formatLabel?: (label: BlockTypeItem['label']) => string;
+    /** Publishes the `/` palette's state, or `null` when it closes. */
+    onSlashChange?: (state: SlashMenuState | null) => void;
 }): AnyExtension[] {
     return [
         StarterKit.configure({
@@ -99,6 +107,13 @@ export function buildExtensions(options: {
         Columns,
         ImageFigure,
         Embed,
+        SlashCommand.configure({
+            items: (query) =>
+                options.formatLabel
+                    ? filterBlockTypes(query, options.formatLabel)
+                    : [...BLOCK_TYPES],
+            onStateChange: (state) => options.onSlashChange?.(state)
+        }),
         Placeholder.configure({
             placeholder: ({ node }) =>
                 node.type.name === 'paragraph'

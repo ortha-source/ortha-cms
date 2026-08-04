@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useEditor, type Editor } from '@tiptap/react';
 import { isEmptyHtml, normalizeWysiwygHtml } from '@ortha-cms/wysiwyg-core';
 import { buildExtensions } from './extensions';
+import type { BlockTypeItem } from './blockTypes';
+import type { SlashMenuState } from './slashCommand';
 
 /**
  * The TipTap editor behind the field, wrapped in the **value contract** the
@@ -30,13 +32,17 @@ export function useWysiwygEditor({
     onChange,
     onBlur,
     readOnly,
-    placeholder
+    placeholder,
+    formatLabel,
+    onSlashChange
 }: {
     value: string;
     onChange(html: string): void;
     onBlur?(): void;
     readOnly: boolean;
     placeholder?: string;
+    formatLabel?: (label: BlockTypeItem['label']) => string;
+    onSlashChange?: (state: SlashMenuState | null) => void;
 }): Editor | null {
     /** The last HTML this editor emitted, to recognise its own echo. */
     const emitted = useRef<string>(value);
@@ -46,14 +52,27 @@ export function useWysiwygEditor({
     const blurred = useRef(onBlur);
     blurred.current = onBlur;
 
-    const extensions = useMemo(
-        () => buildExtensions({ placeholder }),
-        [placeholder]
-    );
+    // Held in refs so a new inline handler never rebuilds the schema, which
+    // would tear down the editor and take the caret with it.
+    const slash = useRef(onSlashChange);
+    slash.current = onSlashChange;
+    const label = useRef(formatLabel);
+    label.current = formatLabel;
 
     const editor = useEditor(
         {
-            extensions,
+            // Built **here**, inside the factory, not in a `useMemo` outside
+            // it. TipTap extensions are stateful and bind to the editor they
+            // are given, so one set shared across two editors is one set with
+            // a dangling owner — and React's StrictMode mounts twice on
+            // purpose. The symptom was the `/` palette: its plugin fired,
+            // resolved its items, and published an empty list from the dead
+            // instance, so the menu opened onto nothing and closed again.
+            extensions: buildExtensions({
+                placeholder,
+                formatLabel: (value) => label.current?.(value) ?? '',
+                onSlashChange: (state) => slash.current?.(state)
+            }),
             content: value,
             editable: !readOnly,
             // React 19 + StrictMode: TipTap must not render immediately, or the
@@ -69,7 +88,7 @@ export function useWysiwygEditor({
                 blurred.current?.();
             }
         },
-        [extensions]
+        [placeholder]
     );
 
     // Value → editor, and only when it is genuinely someone else's change.
