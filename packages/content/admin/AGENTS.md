@@ -202,6 +202,16 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   navigation. Relation headers render **non-sortable** — the server's sort
   whitelist excludes relations, so a click would silently fall back to
   `updatedAt`.
+- **Rich-text columns** render a plain-text excerpt of their HTML
+  (`domain/richTextExcerpt`), not the value. A `richtext` cell printed raw shows
+  the reader `<p>Shipped <strong>faster</strong>…</p>` — their markup instead of
+  their sentence. Block tags become a space so text either side doesn't run
+  together, inline marks vanish without one, and a body with markup but **no
+  words** (an empty `<p></p>`) falls back to the em-dash — `isEmpty` can't see
+  that case, since the string isn't blank. The excerpt is only ever rendered as
+  text, so tag-stripping by regex carries no injection risk; rendering rich text
+  as *markup* is a different problem with a different answer
+  (`@ortha-cms/wysiwyg-admin`'s `renderRichText`).
 - Column **order and visibility** are both chosen in
   `CollectionRecordsColumnPicker` — a `Popover` (not a `DropdownMenu`, whose menu
   semantics fight dnd-kit's keyboard sensor) listing visible columns first as
@@ -530,11 +540,13 @@ above), not an in-form staging preview; restore remains the switch-back path.
 
 ## Extension slots
 
-The library exposes ten named slots (`presentation/slots/contentSlots`, via
+The library exposes eleven named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills the other two
-(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads).
+`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills two
+(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
+`@ortha-cms/wysiwyg-admin` fills the last (`ENTRY_FIELD_CONTROL_SLOT`, the
+rich-text editor).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -630,6 +642,25 @@ fetching internally.
   and `commit` uploads them and swaps in the real ids. The staging lives in the
   hook because editor **tabs are routes** — the Media panel unmounts on every tab
   switch, and a file staged there must not die with it.
+- **`ENTRY_FIELD_CONTROL_SLOT`** — a per-field **control override**. An item is
+  `{ id, appliesTo(field), Component }`; `EntryFieldInput` resolves the **first**
+  match before its type switch and mounts the component in place of the built-in
+  input, everywhere the form renders (records editor and single alike, General
+  tab and the Translated/Shared groups).
+    - Only the **input** is handed over. The label row (label, required mark,
+      Changed badge, localized globe), the description, and the `<FieldError>`
+      stay with `EntryFieldInput`, so a contributed control can't drift from the
+      built-ins on any of it. The item gets an `EntryFieldControlContext`:
+      `field`, the `id` the `<label for>` points at (put it on the **focusable**
+      element), the resolved `label`, `value`, `error`, `describedBy`,
+      `onChange`, `onBlur`.
+    - Unlike the hook-style slots this one is resolved with a `find`, not a loop:
+      it holds **components**, and mounting one is what runs its hooks. First
+      match wins in registration order, so a later plugin never silently steals
+      a field an earlier one claimed — keep `appliesTo` narrow (a field type,
+      plus an `admin.widget` opt-out).
+    - `@ortha-cms/wysiwyg-admin` fills it for `richtext`, replacing the raw-HTML
+      `Textarea` with a rendered preview that opens a TipTap editor.
 
 The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
 list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`

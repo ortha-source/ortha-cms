@@ -12,7 +12,8 @@
         "@ortha-cms/media-admin": "*",
         "@ortha-cms/shell-admin": "*",
         "@ortha-cms/users-admin": "*",
-        "@ortha-cms/workspaces-admin": "*"
+        "@ortha-cms/workspaces-admin": "*",
+        "@ortha-cms/wysiwyg-admin": "*"
     },
     "nx": {
         "name": "admin",

@@ -98,6 +98,9 @@
         },
         {
             "path": "./packages/api-tokens/admin"
+        },
+        {
+            "path": "./packages/wysiwyg/admin"
         }
     ]
 }

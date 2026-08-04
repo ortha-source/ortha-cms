@@ -19,6 +19,7 @@ import type { ContentField } from '../../../domain/types/contentType';
 import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../../domain/constants';
+import { ENTRY_FIELD_CONTROL_SLOT } from '../../slots/contentSlots';
 import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
@@ -100,6 +101,10 @@ function asNumber(raw: string): unknown {
  * the {@link MultiSelect}. Every control
  * is **flat** (border, no shadow). Fully controlled — the form owns
  * `value`/`error`; this is presentation only.
+ *
+ * A plugin can take a field's **input** over via `ENTRY_FIELD_CONTROL_SLOT`,
+ * checked before the type switch; the label row, description, and error stay
+ * here either way.
  */
 export function EntryFieldInput({
     field,
@@ -159,6 +164,44 @@ export function EntryFieldInput({
     // not only when it first appears. (InputField wires its own id internally.)
     const errorId = `${id}-error`;
     const describedBy = error ? errorId : undefined;
+
+    // A plugin may own this field's control (ENTRY_FIELD_CONTROL_SLOT — the
+    // WYSIWYG plugin claims `richtext`). Only the *input* is handed over: the
+    // label row, description, and error stay here, so a contributed control
+    // can't drift from the built-ins on the required mark, the Changed badge,
+    // the localized globe, or the error wiring. A plain `find` is right — this
+    // slot holds components, not hooks, so nothing runs until one is mounted.
+    const contributed = ENTRY_FIELD_CONTROL_SLOT.getItems().find((item) =>
+        item.appliesTo(field)
+    );
+    if (contributed) {
+        const { Component } = contributed;
+        return (
+            <Field data-invalid={!!error}>
+                <FieldLabel
+                    htmlFor={id}
+                    className={endAdornment ? 'w-full' : undefined}
+                >
+                    {labelNode}
+                    {endAdornment}
+                </FieldLabel>
+                <Component
+                    field={field}
+                    id={id}
+                    label={label}
+                    value={value}
+                    error={error}
+                    describedBy={describedBy}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                />
+                {description && (
+                    <FieldDescription>{description}</FieldDescription>
+                )}
+                {error && <FieldError id={errorId}>{error}</FieldError>}
+            </Field>
+        );
+    }
 
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Boolean:

@@ -40,13 +40,13 @@
             "path": "../../packages/i18n/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/wysiwyg/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/workspaces/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/users/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/api-tokens/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/shell/admin/tsconfig.lib.json"
@@ -65,6 +65,9 @@
         },
         {
             "path": "../../packages/bootstrap/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/api-tokens/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/activity/admin/tsconfig.lib.json"
