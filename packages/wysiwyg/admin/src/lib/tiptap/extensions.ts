@@ -1,25 +1,16 @@
 import type { AnyExtension } from '@tiptap/core';
-import type { BlockTypeItem } from './blockTypes';
 import { StarterKit } from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
-import {
-    Table,
-    TableCell,
-    TableHeader,
-    TableRow
-} from '@tiptap/extension-table';
-import { Placeholder, Selection } from '@tiptap/extensions';
+import { TableKit } from '@tiptap/extension-table';
 import { Typography } from '@tiptap/extension-typography';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
-import { ReactNodeViewRenderer } from '@tiptap/react';
-import { TiptapImageBlock } from './TiptapImageBlock';
-import { TiptapTable } from './TiptapTable';
-import { TiptapCalloutBlock } from './TiptapCalloutBlock';
-import { TiptapEmbedBlock } from './TiptapEmbedBlock';
+import { Placeholder, Selection } from '@tiptap/extensions';
 import { HEADING_LEVELS } from '@ortha-cms/wysiwyg-core';
+import { HorizontalRule } from '../../tiptap-ui/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension';
 import { BlockAlignment } from './blockAlign';
-import { FontRole, TextColor, TextHighlight, TextSize } from './inlineMarks';
+import { StoredHighlight } from './highlight';
+import { FontRole, TextColor, TextSize } from './storedMarks';
 import {
     Callout,
     Column,
@@ -28,57 +19,67 @@ import {
     ImageFigure,
     Toggle,
     ToggleSummary
-} from './blockNodes';
+} from './storedBlocks';
 import { CellWidth } from './cellWidth';
-import { SlashCommand } from './slashCommand';
-import { BLOCK_TYPES, filterBlockTypes } from './blockTypes';
-import type { SlashMenuState } from './slashCommand';
 
 /**
- * The editor's schema — **one description of the document**, used to render it
- * and to read it back.
+ * The editor's schema — the **Simple Editor template's extension set**, plus the
+ * few things this CMS cannot do without.
  *
- * That single description is the whole reason for putting the schema in
- * TipTap's hands. Before, a block type was a renderer on one side and a
- * serializer on the other, agreeing by convention; here each node states the
- * HTML it is, once, and TipTap derives both directions from it.
+ * The template's list is taken as-is: StarterKit, the task list, images,
+ * typography, super/subscript, the horizontal rule its node styles are written
+ * for, and `Selection` (which keeps the selected range visible while focus is in
+ * a toolbar overlay — the reason its link popover can act on what you had
+ * selected). What is added falls into exactly two groups, and neither adds a
+ * feature to the toolbar.
  *
- * What is *not* here is the security boundary. The value still leaves through
- * `normalizeWysiwygHtml`, which parses and re-serializes against the same
- * allow-list the server applies on write — so what this schema has to get right
- * is being *parseable*, not being canonical. Two consequences worth stating:
- * an editor bug cannot widen what HTML is storable, and the stored value stays
- * byte-identical whichever half of the system produced it.
+ * **Two extensions are upstream's with one attribute re-pointed.** The value
+ * this field stores is HTML, and it leaves through `normalizeWysiwygHtml` —
+ * the same allow-list the server applies on write. Alignment as
+ * `style="text-align"` and a highlight as `background-color: var(--tt-…)` are
+ * both dropped by that pass, so upstream's versions would let an author apply
+ * either, watch it apply, and lose it on save. `blockAlign.ts` and
+ * `highlight.ts` write `data-align` and `data-highlight` instead; nothing else
+ * about either extension changes, and the template's buttons drive them
+ * untouched.
+ *
+ * **The rest are schema without UI, and are here so that documents already
+ * saved survive being opened.** Callouts, toggles, columns, tables and the
+ * typographic span marks are all in the sanitizer's vocabulary and exist in
+ * stored content; a document containing one, opened in an editor whose schema
+ * has never heard of it, comes back flattened on the next save. No toolbar
+ * offers them — the Simple Editor has no such controls and this is its editor
+ * now — but nothing an author wrote is destroyed by that.
  */
 export function buildExtensions(options: {
     /** Shown in an empty paragraph. */
     placeholder?: string;
-    /** Formats a block's label, so the `/` query can match on it. */
-    formatLabel?: (label: BlockTypeItem['label']) => string;
-    /** Publishes the `/` palette's state, or `null` when it closes. */
-    onSlashChange?: (state: SlashMenuState | null) => void;
 }): AnyExtension[] {
     return [
+        // --- The Simple Editor template's set ------------------------------
         StarterKit.configure({
             heading: { levels: [...HEADING_LEVELS] },
-            // The list extensions are configured below, as a to-do list needs
-            // its own shape and both share `listItem`.
+            // The template ships its own, which its node stylesheet is written
+            // for; the lists are configured below because a to-do list needs a
+            // shape of its own and both share `listItem`.
+            horizontalRule: false,
             bulletList: { keepMarks: true },
             orderedList: { keepMarks: true },
-            // No `HTMLAttributes` here on purpose. Setting `rel` would put it
-            // *before* `href` in the rendered tag, and the serializer keeps the
-            // order it parsed — so every link would round-trip to a different
+            // No `HTMLAttributes` on purpose. Setting `rel` would put it
+            // *before* `href` in the rendered tag and the serializer keeps the
+            // order it parsed, so every link would round-trip to a different
             // string than the one it came in as. The sanitizer already forces
             // `rel="noopener noreferrer"` onto any link that opens a new tab,
             // which is the pairing that actually matters.
-            // TipTap renders `target` and `rel` ahead of `href`; the sanitizer
-            // pins anchors back to `href`-first, so a link this editor merely
-            // opened is not rewritten on the way out.
-            link: { openOnClick: false, autolink: true },
-            // `<u>` is not in StarterKit's default set.
+            link: { openOnClick: false, enableClickSelection: true },
             underline: {},
             trailingNode: false
         }),
+        HorizontalRule,
+        Typography,
+        Superscript,
+        Subscript,
+        Selection,
         // A to-do list is a `<ul data-list="todo">` of `<li data-checked>`,
         // which is the shape core parses — TipTap's own is `data-type`.
         TaskList.extend({
@@ -104,86 +105,31 @@ export function buildExtensions(options: {
                 return [{ tag: 'li[data-checked]', priority: 100 }];
             }
         }).configure({ nested: true }),
-        // `TableKit` is unpacked rather than configured because only the table
-        // itself takes a node view. Its cells deliberately do not: a React node
-        // view always wraps its component in an element of its own, and nothing
-        // may stand between a `<tr>` and its `<td>`.
-        Table.extend({
-            addNodeView: () =>
-                // The rows go in a `<tbody>`, not the `<div>` a node view holds
-                // its content in by default — a table's children have to be
-                // table children or the browser invents anonymous boxes for
-                // them.
-                ReactNodeViewRenderer(TiptapTable, {
-                    contentDOMElementTag: 'tbody'
-                })
-        }).configure({ resizable: false, allowTableNodeSelection: true }),
-        TableRow,
-        TableHeader,
-        TableCell,
-        CellWidth,
+
+        // --- Upstream, writing what the sanitizer keeps --------------------
         BlockAlignment,
-        // From the Simple Editor template's extension set. `<sub>` and `<sup>`
-        // are already in the sanitizer's vocabulary, so the two mark buttons it
-        // ships store what they show. `Typography` is input rules only — smart
-        // quotes, dashes, ellipses — and changes nothing about the schema.
-        // `Selection` keeps the selected range visible while focus is in a
-        // toolbar overlay, which is the whole reason a link popover can act on
-        // what you had selected.
-        Superscript,
-        Subscript,
-        Typography,
-        Selection,
-        TextColor,
-        TextHighlight,
-        FontRole,
-        TextSize,
-        Callout.extend({
-            addNodeView: () => ReactNodeViewRenderer(TiptapCalloutBlock)
-        }),
+        StoredHighlight,
+
+        // --- Schema only, so stored documents survive ----------------------
+        TableKit.configure({ table: { resizable: false } }),
+        CellWidth,
+        // Not TipTap's `Image`, which is a bare void `<img>`: a stored figure
+        // carries a caption and a width, and a schema that has never heard of
+        // either turns the caption into a stray paragraph on the next save.
+        ImageFigure,
+        Callout,
         ToggleSummary,
-        Toggle.extend({
-            // A plain DOM node view, not a React one, and that is the whole
-            // reason it exists: `<summary>` only works as a **direct** child of
-            // `<details>`, and a React node view always puts an element of its
-            // own in between. Here the content element *is* the `<details>`.
-            //
-            // It is held open because a closed one hides its children from
-            // layout, and content with no layout has no caret — an author could
-            // see the summary of a toggle they had written and reach no word of
-            // what was inside it. Open is an editing state: it is never
-            // serialized, so how a toggle first appears to a reader stays the
-            // delivery surface's decision.
-            addNodeView: () => () => {
-                const dom = document.createElement('details');
-                dom.open = true;
-                return { dom, contentDOM: dom };
-            }
-        }),
+        Toggle,
         Column,
         Columns,
-        // The node views are added here rather than on the nodes themselves, so
-        // `blockNodes.ts` stays what it claims to be: the schema, and only the
-        // schema. A view is how a block is *edited*; it has no say in what the
-        // document is or what it serializes to.
-        ImageFigure.extend({
-            addNodeView: () => ReactNodeViewRenderer(TiptapImageBlock)
-        }),
-        Embed.extend({
-            addNodeView: () => ReactNodeViewRenderer(TiptapEmbedBlock)
-        }),
-        SlashCommand.configure({
-            items: (query) =>
-                options.formatLabel
-                    ? filterBlockTypes(query, options.formatLabel)
-                    : [...BLOCK_TYPES],
-            onStateChange: (state) => options.onSlashChange?.(state)
-        }),
+        Embed,
+        TextColor,
+        FontRole,
+        TextSize,
+
         Placeholder.configure({
             placeholder: ({ node }) =>
-                node.type.name === 'paragraph'
-                    ? (options.placeholder ?? '')
-                    : ''
+                node.type.name === 'paragraph' ? (options.placeholder ?? '') : ''
         })
     ];
 }

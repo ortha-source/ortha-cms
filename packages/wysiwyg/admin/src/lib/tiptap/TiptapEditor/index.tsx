@@ -1,21 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { EditorContext } from '@tiptap/react';
+import { EditorContent, EditorContext } from '@tiptap/react';
 import { cn } from '@ortha-cms/design-system';
 import type { WysiwygMediaPort } from '../../media/wysiwygMedia';
+import { WYSIWYG_INLINE_PROSE } from '../../render/wysiwygProse';
 import { TiptapProvider } from '../tiptapContext';
 import { TiptapToolbar } from '../TiptapToolbar';
-import { WysiwygProseSurface } from '../WysiwygProseSurface';
 import { useWysiwygEditor } from '../useWysiwygEditor';
-import { TiptapBlockHandle } from '../TiptapBlockHandle';
-import { TiptapSelectionToolbar } from '../TiptapSelectionToolbar';
-import { TiptapTableToolbar } from '../TiptapTableToolbar';
-import { TiptapSlashMenu } from '../TiptapSlashMenu';
-import type { SlashMenuState } from '../slashCommand';
 
-// The Simple Editor template's tokens, and the block styles its node CSS owns.
-// Imported here rather than in each renderer because there is one writing
-// surface and these are the rules it is drawn with.
+// The Simple Editor template's tokens and the block styles its node CSS owns —
+// the same imports its own `simple-editor.tsx` makes.
 import '../tiptapTheme.scss';
 import '../../../tiptap-ui/components/tiptap-node/blockquote-node/blockquote-node.scss';
 import '../../../tiptap-ui/components/tiptap-node/code-block-node/code-block-node.scss';
@@ -32,11 +26,11 @@ const messages = defineMessages({
     },
     placeholder: {
         id: 'wysiwyg.editor.placeholder',
-        defaultMessage: 'Write something, or press / for blocks'
+        defaultMessage: 'Write something…'
     }
 });
 
-/** Props of the block editor. */
+/** Props of the editor. */
 export interface TiptapEditorProps {
     /** The document, as HTML. The editor is fully controlled. */
     value: string;
@@ -49,15 +43,13 @@ export interface TiptapEditorProps {
     /** Draw the invalid state and set `aria-invalid`. */
     invalid?: boolean;
     /**
-     * Show the persistent toolbar and fill the parent's height, scrolling the
-     * writing surface under it. For a surface with room for one — the expanded
-     * field. Inline in a form, the floating selection toolbar is the whole
-     * formatting UI.
+     * Show the toolbar and fill the parent's height, scrolling the writing
+     * surface under it. For a surface with room for one — the expanded field.
      */
     toolbar?: boolean;
     /**
-     * The host's media library. Given one, the image block offers "choose from
-     * library" alongside pasting a URL.
+     * The host's media library. Given one, the toolbar offers an image button
+     * that opens it; without one there is nothing to open and it is not drawn.
      */
     media?: WysiwygMediaPort | null;
     id?: string;
@@ -66,19 +58,20 @@ export interface TiptapEditorProps {
 }
 
 /**
- * The Ortha block editor — a Notion-shaped writing surface whose value is plain
- * **HTML**, in and out.
+ * The editor — Tiptap's **Simple Editor** template, wrapped in the form-control
+ * contract this CMS needs.
  *
- * The document, the commands, undo, selection and every contenteditable edge
- * case belong to TipTap. What is left here is the wiring TipTap has no opinion
- * about: the form-control contract (see `useWysiwygEditor`), the chrome, and
- * the focus boundary of the editor as a field.
+ * What is here is the wrapping and nothing else: the toolbar is the template's,
+ * the writing surface is its `EditorContent` with its `simple-editor` class, and
+ * the styles are the ones its own components import. The parts that are not the
+ * template's are the parts a template cannot know about — that the value is
+ * HTML a server will sanitize (`useWysiwygEditor`), and that images come from a
+ * media library the host owns.
  *
- * That division is the whole reason for the rewrite. The behaviour this file
- * used to own — what Enter does at the end of a list item, what Backspace does
- * at the start of a heading, how a mark survives a selection spanning three
- * others — is not product design, it is contenteditable, and every hour spent
- * on it was an hour not spent on the editor itself.
+ * Two providers, on purpose. `TiptapProvider` carries the read-only flag and the
+ * media port; the template's components look the editor up in TipTap's own
+ * `EditorContext`, and giving them anything else would mean editing every copied
+ * file.
  */
 export function TiptapEditor({
     value,
@@ -93,15 +86,6 @@ export function TiptapEditor({
     'aria-describedby': describedBy
 }: TiptapEditorProps) {
     const intl = useIntl();
-    const [slash, setSlash] = useState<SlashMenuState | null>(null);
-    /**
-     * The editor root, as state, because the overlays portal **into it**
-     * rather than into `document.body`. It sets no `transform`, so their
-     * viewport coordinates still resolve against the viewport, and living
-     * inside the editor keeps them in whatever tree it is mounted in —
-     * including one that has been made inert around it.
-     */
-    const [root, setRoot] = useState<HTMLDivElement | null>(null);
 
     const editor = useWysiwygEditor({
         value,
@@ -109,12 +93,7 @@ export function TiptapEditor({
         onBlur,
         readOnly,
         placeholder: intl.formatMessage(messages.placeholder),
-        formatLabel: useCallback(
-            (label: Parameters<typeof intl.formatMessage>[0]) =>
-                intl.formatMessage(label),
-            [intl]
-        ),
-        onSlashChange: setSlash
+        label: intl.formatMessage(messages.label)
     });
 
     const context = useMemo(
@@ -124,14 +103,9 @@ export function TiptapEditor({
     const editorContext = useMemo(() => ({ editor }), [editor]);
 
     return (
-        // Two providers, on purpose. Ours carries the read-only flag and the
-        // media port; the template's components look the editor up in TipTap's
-        // own `EditorContext` (`useTiptapEditor`), and giving them anything
-        // else would mean editing every copied file.
         <EditorContext.Provider value={editorContext}>
             <TiptapProvider value={context}>
                 <div
-                    ref={setRoot}
                     id={id}
                     role="group"
                     aria-label={intl.formatMessage(messages.label)}
@@ -140,30 +114,40 @@ export function TiptapEditor({
                     aria-readonly={readOnly || undefined}
                     className={cn(
                         'bg-background',
-                        // With a toolbar the editor is the whole surface: it fills
-                        // its parent and scrolls under the bar, so the bar stays.
+                        // With a toolbar the editor is the whole surface: it
+                        // fills its parent and scrolls under the bar.
                         toolbar
                             ? 'flex h-full min-h-0 flex-col'
                             : 'rounded-md border',
                         invalid && !toolbar && 'border-destructive',
                         readOnly && 'bg-muted/30',
-                        'focus:outline-none',
                         className
                     )}
                 >
                     {toolbar && !readOnly && <TiptapToolbar />}
-                    <WysiwygProseSurface
-                        editor={editor}
-                        toolbar={toolbar}
-                        readOnly={readOnly}
-                    />
-                    <TiptapBlockHandle />
-                    <TiptapSelectionToolbar />
-                    <TiptapTableToolbar />
+                    <div
+                        className={cn(
+                            toolbar && 'min-h-0 flex-1 overflow-y-auto'
+                        )}
+                    >
+                        <EditorContent
+                            editor={editor}
+                            role="presentation"
+                            className={cn(
+                                'px-4 py-3',
+                                toolbar && 'mx-auto max-w-3xl px-6 py-10',
+                                // The **inline** half of the shared prose
+                                // rules, and only that half: the template's
+                                // node stylesheets own the blocks. A colour
+                                // lives in the markup itself, and without these
+                                // an author picks green and watches a `<mark>`
+                                // come out the browser's default yellow, while
+                                // the rendered document shows it correctly.
+                                ...WYSIWYG_INLINE_PROSE
+                            )}
+                        />
+                    </div>
                 </div>
-                {slash && !readOnly && (
-                    <TiptapSlashMenu state={slash} container={root} />
-                )}
             </TiptapProvider>
         </EditorContext.Provider>
     );

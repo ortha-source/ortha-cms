@@ -4,9 +4,9 @@
  * The default export surface is deliberately one component: `WysiwygEditor` is
  * a controlled form control whose value is HTML, so a consumer needs no editor
  * concepts at all to use it. Everything below it is exported for the other
- * case — extending the editor, which now means adding a TipTap extension to
- * `buildExtensions` and an entry to the block catalogue, rather than a block
- * definition plus a renderer registered under the same `type`.
+ * case — extending the editor, which means adding a TipTap extension to
+ * `buildExtensions` and, if it needs a control, a component from the Tiptap UI
+ * template's primitives to the toolbar.
  */
 
 export { WysiwygField } from './lib/field/WysiwygField';
@@ -16,8 +16,6 @@ export type { TiptapEditorProps as WysiwygEditorProps } from './lib/tiptap/Tipta
 
 // ── Extending the schema ──────────────────────────────────────────────────
 export { buildExtensions } from './lib/tiptap/extensions';
-export { BLOCK_TYPES, filterBlockTypes } from './lib/tiptap/blockTypes';
-export type { BlockTypeItem } from './lib/tiptap/blockTypes';
 export { useWysiwyg } from './lib/tiptap/tiptapContext';
 export type { TiptapContextValue } from './lib/tiptap/tiptapContext';
 export { WysiwygPreviewCard } from './lib/field/WysiwygPreviewCard';

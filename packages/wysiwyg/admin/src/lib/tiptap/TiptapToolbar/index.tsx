@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { INLINE_COLOR } from '@ortha-cms/wysiwyg-core';
 import { useWysiwyg } from '../tiptapContext';
-import { TiptapInsertMenu } from '../TiptapInsertMenu';
-import { TiptapInlineControls } from '../TiptapInlineControls';
+import { MediaLibraryButton } from '../MediaLibraryButton';
 
 // --- The Simple Editor template's primitives and controls -------------------
 import {
@@ -14,38 +14,67 @@ import { HeadingDropdownMenu } from '../../../tiptap-ui/components/tiptap-ui/hea
 import { ListDropdownMenu } from '../../../tiptap-ui/components/tiptap-ui/list-dropdown-menu';
 import { BlockquoteButton } from '../../../tiptap-ui/components/tiptap-ui/blockquote-button';
 import { CodeBlockButton } from '../../../tiptap-ui/components/tiptap-ui/code-block-button';
+import { ColorHighlightPopover } from '../../../tiptap-ui/components/tiptap-ui/color-highlight-popover';
 import { MarkButton } from '../../../tiptap-ui/components/tiptap-ui/mark-button';
 import { TextAlignButton } from '../../../tiptap-ui/components/tiptap-ui/text-align-button';
 import { UndoRedoButton } from '../../../tiptap-ui/components/tiptap-ui/undo-redo-button';
 import { LinkPopover } from '../../../tiptap-ui/components/tiptap-ui/link-popover';
 
 const messages = defineMessages({
-    label: { id: 'wysiwyg.toolbar.label', defaultMessage: 'Editor toolbar' }
+    label: { id: 'wysiwyg.toolbar.label', defaultMessage: 'Editor toolbar' },
+    gray: { id: 'wysiwyg.color.gray', defaultMessage: 'Gray' },
+    brown: { id: 'wysiwyg.color.brown', defaultMessage: 'Brown' },
+    orange: { id: 'wysiwyg.color.orange', defaultMessage: 'Orange' },
+    yellow: { id: 'wysiwyg.color.yellow', defaultMessage: 'Yellow' },
+    green: { id: 'wysiwyg.color.green', defaultMessage: 'Green' },
+    blue: { id: 'wysiwyg.color.blue', defaultMessage: 'Blue' },
+    purple: { id: 'wysiwyg.color.purple', defaultMessage: 'Purple' },
+    pink: { id: 'wysiwyg.color.pink', defaultMessage: 'Pink' },
+    red: { id: 'wysiwyg.color.red', defaultMessage: 'Red' }
 });
 
 /**
- * The persistent toolbar, shown when the editor owns the work area.
+ * The highlight palette, as **names** rather than the template's
+ * `var(--tt-color-highlight-…)`.
  *
- * This is the Simple Editor template's `MainToolbarContent`, in its order and
- * built from its components, with three deliberate departures.
+ * The popover sets whatever `value` an entry carries, and that value is what
+ * ends up in the document. A CSS variable is not something the sanitizer keeps
+ * — nor something a delivery surface could resolve if it did — so the entries
+ * carry the ten words core's vocabulary is written in, and the surface maps
+ * them onto its own palette. They double as valid CSS colour keywords, which is
+ * what draws the swatch.
+ */
+const HIGHLIGHTS = [
+    INLINE_COLOR.Gray,
+    INLINE_COLOR.Brown,
+    INLINE_COLOR.Orange,
+    INLINE_COLOR.Yellow,
+    INLINE_COLOR.Green,
+    INLINE_COLOR.Blue,
+    INLINE_COLOR.Purple,
+    INLINE_COLOR.Pink,
+    INLINE_COLOR.Red
+] as const;
+
+/**
+ * The toolbar — the Simple Editor template's `MainToolbarContent`, in its order
+ * and built from its components.
  *
- * **No theme toggle.** The template ships one because it is a standalone demo;
- * here the admin app owns the theme, and a second control that disagrees with
- * the one in the sidebar is worse than none.
+ * Two departures, both because the template is a standalone demo and this is a
+ * field in a CMS.
  *
- * **Colour and typography are ours, not the template's
- * `ColorHighlightPopover`.** Upstream's palette is built from its own CSS
- * custom properties, and a `var(--tt-color-highlight-green)` in a `<mark>` is
- * a value the sanitizer drops — an author would pick a colour, watch it apply,
- * and lose it on save. Ours stores a palette *name* the delivery surface can
- * map, with a hex as the documented exception.
+ * **No theme toggle.** The admin app owns the theme, and a second control that
+ * disagrees with the one in the sidebar is worse than none.
  *
- * **Insert is ours**, because the blocks it offers — table, columns, callout,
- * toggle, embed — are ours; the template has no equivalent.
+ * **The image button opens the media library**, where the template's uploads a
+ * file. In this app an image is an asset the host already manages, and the port
+ * it hands the editor offers one thing: pick one. Everything else about the
+ * button is the template's.
  *
- * Everything else is upstream's and works untouched, including the alignment
- * buttons: they look for an extension named `textAlign` with a `setTextAlign`
- * command, which is exactly what `blockAlign.ts` now configures.
+ * It wraps where the template scrolls. One fixed row with `overflow-x: auto` is
+ * right for a full-width page and wrong for a work area beside a properties
+ * rail: the last controls end up off the edge, behind a scrollbar nobody would
+ * think to look for.
  */
 export function TiptapToolbar() {
     const intl = useIntl();
@@ -55,11 +84,6 @@ export function TiptapToolbar() {
     return (
         <Toolbar
             aria-label={intl.formatMessage(messages.label)}
-            // Wrapping, where the template scrolls. Its toolbar is one fixed
-            // row with `overflow-x: auto`, which is right for a full-width
-            // page and wrong for a work area beside a properties rail: the
-            // controls at the end are simply off the edge, with no scrollbar
-            // an author would think to look for.
             className="border-border bg-background/95 sticky top-0 z-20 !h-auto !flex-wrap gap-y-1 border-b py-1 backdrop-blur"
         >
             <ToolbarGroup>
@@ -86,6 +110,15 @@ export function TiptapToolbar() {
                 <MarkButton type="underline" />
                 <MarkButton type="strike" />
                 <MarkButton type="code" />
+                <ColorHighlightPopover
+                    colors={HIGHLIGHTS.map((name) => ({
+                        label: intl.formatMessage(messages[name]),
+                        value: name,
+                        // The swatch's ring. The names double as CSS colour
+                        // keywords, which is what draws both.
+                        border: name
+                    }))}
+                />
                 <LinkPopover />
             </ToolbarGroup>
 
@@ -107,15 +140,8 @@ export function TiptapToolbar() {
 
             <ToolbarSeparator />
 
-            {/* Ours, for the reasons in the note above. */}
             <ToolbarGroup>
-                <TiptapInlineControls colorAndTypeOnly />
-            </ToolbarGroup>
-
-            <ToolbarSeparator />
-
-            <ToolbarGroup>
-                <TiptapInsertMenu />
+                <MediaLibraryButton />
             </ToolbarGroup>
 
             <Spacer />
