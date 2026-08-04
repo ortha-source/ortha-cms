@@ -4,6 +4,8 @@ import { StarterKit } from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import { TiptapImageBlock } from './TiptapImageBlock';
 import { HEADING_LEVELS } from '@ortha-cms/wysiwyg-core';
 import { BlockAlignment } from './blockAlign';
 import { FontRole, TextColor, TextHighlight, TextSize } from './inlineMarks';
@@ -105,7 +107,13 @@ export function buildExtensions(options: {
         Toggle,
         Column,
         Columns,
-        ImageFigure,
+        // The node views are added here rather than on the nodes themselves, so
+        // `blockNodes.ts` stays what it claims to be: the schema, and only the
+        // schema. A view is how a block is *edited*; it has no say in what the
+        // document is or what it serializes to.
+        ImageFigure.extend({
+            addNodeView: () => ReactNodeViewRenderer(TiptapImageBlock)
+        }),
         Embed,
         SlashCommand.configure({
             items: (query) =>
