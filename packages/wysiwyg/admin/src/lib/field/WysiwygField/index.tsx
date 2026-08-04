@@ -5,9 +5,9 @@ import { Minimize2 } from 'lucide-react';
 import { htmlToPlainText } from '@ortha-cms/wysiwyg-core';
 import { Button, cn } from '@ortha-cms/design-system';
 import {
-    WysiwygEditor,
-    type WysiwygEditorProps
-} from '../../editor/WysiwygEditor';
+    TiptapEditor as WysiwygEditor,
+    type TiptapEditorProps as WysiwygEditorProps
+} from '../../tiptap/TiptapEditor';
 import { WysiwygPreviewCard } from '../WysiwygPreviewCard';
 import { KEY } from '../../utils/constants';
 

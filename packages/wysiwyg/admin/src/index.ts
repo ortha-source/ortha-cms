@@ -11,8 +11,15 @@
 
 export { WysiwygField } from './lib/field/WysiwygField';
 export type { WysiwygFieldProps } from './lib/field/WysiwygField';
-export { WysiwygEditor } from './lib/editor/WysiwygEditor';
-export type { WysiwygEditorProps } from './lib/editor/WysiwygEditor';
+export { TiptapEditor as WysiwygEditor } from './lib/tiptap/TiptapEditor';
+export type { TiptapEditorProps as WysiwygEditorProps } from './lib/tiptap/TiptapEditor';
+
+// ── Extending the schema ──────────────────────────────────────────────────
+export { buildExtensions } from './lib/tiptap/extensions';
+export { BLOCK_TYPES, filterBlockTypes } from './lib/tiptap/blockTypes';
+export type { BlockTypeItem } from './lib/tiptap/blockTypes';
+export { useWysiwyg } from './lib/tiptap/tiptapContext';
+export type { TiptapContextValue } from './lib/tiptap/tiptapContext';
 export { WysiwygPreviewCard } from './lib/field/WysiwygPreviewCard';
 
 // ── Rendering a stored value ──────────────────────────────────────────────
