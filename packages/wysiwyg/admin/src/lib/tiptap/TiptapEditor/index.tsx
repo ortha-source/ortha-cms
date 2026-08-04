@@ -7,6 +7,7 @@ import { TiptapToolbar } from '../TiptapToolbar';
 import { WysiwygProseSurface } from '../WysiwygProseSurface';
 import { useWysiwygEditor } from '../useWysiwygEditor';
 import { TiptapBlockHandle } from '../TiptapBlockHandle';
+import { TiptapSelectionToolbar } from '../TiptapSelectionToolbar';
 import { TiptapSlashMenu } from '../TiptapSlashMenu';
 import type { SlashMenuState } from '../slashCommand';
 
@@ -137,6 +138,7 @@ export function TiptapEditor({
                     readOnly={readOnly}
                 />
                 <TiptapBlockHandle />
+                <TiptapSelectionToolbar />
             </div>
             {slash && !readOnly && (
                 <TiptapSlashMenu state={slash} container={root} />

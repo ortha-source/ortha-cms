@@ -20,6 +20,7 @@ import { ToolbarButton } from '../../menus/ToolbarButton';
 import { useWysiwyg } from '../tiptapContext';
 import { TiptapBlockTypeMenu } from '../TiptapBlockTypeMenu';
 import { TiptapInsertMenu } from '../TiptapInsertMenu';
+import { TiptapInlineControls } from '../TiptapInlineControls';
 
 const messages = defineMessages({
     label: { id: 'wysiwyg.toolbar.label', defaultMessage: 'Editor toolbar' },
@@ -171,6 +172,9 @@ export function TiptapToolbar() {
             >
                 <RemoveFormatting aria-hidden className="size-4" />
             </ToolbarButton>
+
+            <Separator orientation="vertical" className="mx-1 h-5" />
+            <TiptapInlineControls />
 
             <Separator orientation="vertical" className="mx-1 h-5" />
             {ALIGNMENTS.map(({ align, Icon, message }) => (
