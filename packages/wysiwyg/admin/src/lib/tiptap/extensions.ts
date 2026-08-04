@@ -7,6 +7,8 @@ import { Placeholder } from '@tiptap/extensions';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TiptapImageBlock } from './TiptapImageBlock';
 import { TiptapTable } from './TiptapTable';
+import { TiptapCalloutBlock } from './TiptapCalloutBlock';
+import { TiptapEmbedBlock } from './TiptapEmbedBlock';
 import { HEADING_LEVELS } from '@ortha-cms/wysiwyg-core';
 import { BlockAlignment } from './blockAlign';
 import { FontRole, TextColor, TextHighlight, TextSize } from './inlineMarks';
@@ -117,9 +119,28 @@ export function buildExtensions(options: {
         TextHighlight,
         FontRole,
         TextSize,
-        Callout,
+        Callout.extend({
+            addNodeView: () => ReactNodeViewRenderer(TiptapCalloutBlock)
+        }),
         ToggleSummary,
-        Toggle,
+        Toggle.extend({
+            // A plain DOM node view, not a React one, and that is the whole
+            // reason it exists: `<summary>` only works as a **direct** child of
+            // `<details>`, and a React node view always puts an element of its
+            // own in between. Here the content element *is* the `<details>`.
+            //
+            // It is held open because a closed one hides its children from
+            // layout, and content with no layout has no caret — an author could
+            // see the summary of a toggle they had written and reach no word of
+            // what was inside it. Open is an editing state: it is never
+            // serialized, so how a toggle first appears to a reader stays the
+            // delivery surface's decision.
+            addNodeView: () => () => {
+                const dom = document.createElement('details');
+                dom.open = true;
+                return { dom, contentDOM: dom };
+            }
+        }),
         Column,
         Columns,
         // The node views are added here rather than on the nodes themselves, so
@@ -129,7 +150,9 @@ export function buildExtensions(options: {
         ImageFigure.extend({
             addNodeView: () => ReactNodeViewRenderer(TiptapImageBlock)
         }),
-        Embed,
+        Embed.extend({
+            addNodeView: () => ReactNodeViewRenderer(TiptapEmbedBlock)
+        }),
         SlashCommand.configure({
             items: (query) =>
                 options.formatLabel
