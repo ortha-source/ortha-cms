@@ -1,0 +1,11 @@
+/**
+ * The Simple Editor template's design tokens, pulled in once.
+ *
+ * The template's own `simple-editor.scss` is deliberately *not* imported: it is
+ * a page stylesheet — it fetches Google Fonts and restyles `body`, `html` and
+ * `#root` — and the admin app already owns all three. These two partials are
+ * the part that belongs to the components: the `--tt-*` custom properties every
+ * copied SCSS file reads, and the keyframes they animate with.
+ */
+@use '../../tiptap-ui/styles/variables';
+@use '../../tiptap-ui/styles/keyframe-animations';

@@ -167,7 +167,7 @@ export function TiptapBlockHandle() {
                                     <DropdownMenuItem
                                         key={align}
                                         onSelect={() =>
-                                            onBlock().setBlockAlign(align).run()
+                                            onBlock().setTextAlign(align).run()
                                         }
                                     >
                                         {intl.formatMessage(

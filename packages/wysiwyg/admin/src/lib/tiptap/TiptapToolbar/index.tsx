@@ -1,195 +1,124 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { useEditorState } from '@tiptap/react';
-import {
-    AlignCenter,
-    AlignJustify,
-    AlignLeft,
-    AlignRight,
-    Bold,
-    Code,
-    Italic,
-    Redo2,
-    RemoveFormatting,
-    Strikethrough,
-    Underline,
-    Undo2
-} from 'lucide-react';
-import { BLOCK_ALIGN, type BlockAlign } from '@ortha-cms/wysiwyg-core';
-import { Separator } from '@ortha-cms/design-system';
-import { ToolbarButton } from '../../menus/ToolbarButton';
 import { useWysiwyg } from '../tiptapContext';
-import { TiptapBlockTypeMenu } from '../TiptapBlockTypeMenu';
 import { TiptapInsertMenu } from '../TiptapInsertMenu';
 import { TiptapInlineControls } from '../TiptapInlineControls';
 
-const messages = defineMessages({
-    label: { id: 'wysiwyg.toolbar.label', defaultMessage: 'Editor toolbar' },
-    undo: { id: 'wysiwyg.toolbar.undo', defaultMessage: 'Undo' },
-    redo: { id: 'wysiwyg.toolbar.redo', defaultMessage: 'Redo' },
-    bold: { id: 'wysiwyg.mark.bold', defaultMessage: 'Bold' },
-    italic: { id: 'wysiwyg.mark.italic', defaultMessage: 'Italic' },
-    underline: { id: 'wysiwyg.mark.underline', defaultMessage: 'Underline' },
-    strike: { id: 'wysiwyg.mark.strike', defaultMessage: 'Strikethrough' },
-    code: { id: 'wysiwyg.mark.code', defaultMessage: 'Inline code' },
-    clear: {
-        id: 'wysiwyg.mark.clear',
-        defaultMessage: 'Clear formatting'
-    },
-    alignLeft: { id: 'wysiwyg.align.left', defaultMessage: 'Align left' },
-    alignCenter: { id: 'wysiwyg.align.center', defaultMessage: 'Align centre' },
-    alignRight: { id: 'wysiwyg.align.right', defaultMessage: 'Align right' },
-    alignJustify: {
-        id: 'wysiwyg.align.justify',
-        defaultMessage: 'Justify'
-    }
-});
+// --- The Simple Editor template's primitives and controls -------------------
+import {
+    Toolbar,
+    ToolbarGroup,
+    ToolbarSeparator
+} from '../../../tiptap-ui/components/tiptap-ui-primitive/toolbar';
+import { Spacer } from '../../../tiptap-ui/components/tiptap-ui-primitive/spacer';
+import { HeadingDropdownMenu } from '../../../tiptap-ui/components/tiptap-ui/heading-dropdown-menu';
+import { ListDropdownMenu } from '../../../tiptap-ui/components/tiptap-ui/list-dropdown-menu';
+import { BlockquoteButton } from '../../../tiptap-ui/components/tiptap-ui/blockquote-button';
+import { CodeBlockButton } from '../../../tiptap-ui/components/tiptap-ui/code-block-button';
+import { MarkButton } from '../../../tiptap-ui/components/tiptap-ui/mark-button';
+import { TextAlignButton } from '../../../tiptap-ui/components/tiptap-ui/text-align-button';
+import { UndoRedoButton } from '../../../tiptap-ui/components/tiptap-ui/undo-redo-button';
+import { LinkPopover } from '../../../tiptap-ui/components/tiptap-ui/link-popover';
 
-/** The alignments, in the order they read on a toolbar. */
-const ALIGNMENTS: readonly {
-    align: BlockAlign;
-    Icon: typeof AlignLeft;
-    message: 'alignLeft' | 'alignCenter' | 'alignRight' | 'alignJustify';
-}[] = [
-    { align: BLOCK_ALIGN.Left, Icon: AlignLeft, message: 'alignLeft' },
-    { align: BLOCK_ALIGN.Center, Icon: AlignCenter, message: 'alignCenter' },
-    { align: BLOCK_ALIGN.Right, Icon: AlignRight, message: 'alignRight' },
-    { align: BLOCK_ALIGN.Justify, Icon: AlignJustify, message: 'alignJustify' }
-];
+const messages = defineMessages({
+    label: { id: 'wysiwyg.toolbar.label', defaultMessage: 'Editor toolbar' }
+});
 
 /**
  * The persistent toolbar, shown when the editor owns the work area.
  *
- * Every control reads its state from **one** `useEditorState` selector, which
- * is the thing that could not be done before: the old toolbar and the floating
- * one each computed "is the selection bold" from the DOM, and keeping the two
- * answers identical was a rule rather than a fact. Here both subscribe to the
- * same editor and cannot disagree.
+ * This is the Simple Editor template's `MainToolbarContent`, in its order and
+ * built from its components, with three deliberate departures.
  *
- * The selector is also what keeps this cheap — it re-renders the bar only when
- * one of the values it names actually changes, not on every keystroke.
+ * **No theme toggle.** The template ships one because it is a standalone demo;
+ * here the admin app owns the theme, and a second control that disagrees with
+ * the one in the sidebar is worse than none.
+ *
+ * **Colour and typography are ours, not the template's
+ * `ColorHighlightPopover`.** Upstream's palette is built from its own CSS
+ * custom properties, and a `var(--tt-color-highlight-green)` in a `<mark>` is
+ * a value the sanitizer drops — an author would pick a colour, watch it apply,
+ * and lose it on save. Ours stores a palette *name* the delivery surface can
+ * map, with a hex as the documented exception.
+ *
+ * **Insert is ours**, because the blocks it offers — table, columns, callout,
+ * toggle, embed — are ours; the template has no equivalent.
+ *
+ * Everything else is upstream's and works untouched, including the alignment
+ * buttons: they look for an extension named `textAlign` with a `setTextAlign`
+ * command, which is exactly what `blockAlign.ts` now configures.
  */
 export function TiptapToolbar() {
     const intl = useIntl();
     const { editor } = useWysiwyg();
-
-    const state = useEditorState({
-        editor,
-        selector: ({ editor: instance }) =>
-            instance
-                ? {
-                      bold: instance.isActive('bold'),
-                      italic: instance.isActive('italic'),
-                      underline: instance.isActive('underline'),
-                      strike: instance.isActive('strike'),
-                      code: instance.isActive('code'),
-                      align:
-                          instance.getAttributes('paragraph')['align'] ??
-                          instance.getAttributes('heading')['align'] ??
-                          null,
-                      canUndo: instance.can().undo(),
-                      canRedo: instance.can().redo()
-                  }
-                : null
-    });
-
-    if (!editor || !state) return null;
-    const run = () => editor.chain().focus();
+    if (!editor) return null;
 
     return (
-        <div
-            role="toolbar"
+        <Toolbar
             aria-label={intl.formatMessage(messages.label)}
-            aria-orientation="horizontal"
-            className="border-border bg-background/95 sticky top-0 z-20 flex flex-wrap items-center gap-0.5 border-b px-2 py-1 backdrop-blur"
+            // Wrapping, where the template scrolls. Its toolbar is one fixed
+            // row with `overflow-x: auto`, which is right for a full-width
+            // page and wrong for a work area beside a properties rail: the
+            // controls at the end are simply off the edge, with no scrollbar
+            // an author would think to look for.
+            className="border-border bg-background/95 sticky top-0 z-20 !h-auto !flex-wrap gap-y-1 border-b py-1 backdrop-blur"
         >
-            <ToolbarButton
-                label={intl.formatMessage(messages.undo)}
-                shortcut="⌘Z"
-                active={false}
-                disabled={!state.canUndo}
-                onClick={() => run().undo().run()}
-            >
-                <Undo2 aria-hidden className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.redo)}
-                shortcut="⇧⌘Z"
-                active={false}
-                disabled={!state.canRedo}
-                onClick={() => run().redo().run()}
-            >
-                <Redo2 aria-hidden className="size-4" />
-            </ToolbarButton>
+            <ToolbarGroup>
+                <UndoRedoButton action="undo" />
+                <UndoRedoButton action="redo" />
+            </ToolbarGroup>
 
-            <Separator orientation="vertical" className="mx-1 h-5" />
-            <TiptapBlockTypeMenu />
+            <ToolbarSeparator />
 
-            <Separator orientation="vertical" className="mx-1 h-5" />
-            <ToolbarButton
-                label={intl.formatMessage(messages.bold)}
-                shortcut="⌘B"
-                active={state.bold}
-                onClick={() => run().toggleBold().run()}
-            >
-                <Bold aria-hidden className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.italic)}
-                shortcut="⌘I"
-                active={state.italic}
-                onClick={() => run().toggleItalic().run()}
-            >
-                <Italic aria-hidden className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.underline)}
-                shortcut="⌘U"
-                active={state.underline}
-                onClick={() => run().toggleUnderline().run()}
-            >
-                <Underline aria-hidden className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.strike)}
-                shortcut="⌘D"
-                active={state.strike}
-                onClick={() => run().toggleStrike().run()}
-            >
-                <Strikethrough aria-hidden className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.code)}
-                shortcut="⌘E"
-                active={state.code}
-                onClick={() => run().toggleCode().run()}
-            >
-                <Code aria-hidden className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton
-                label={intl.formatMessage(messages.clear)}
-                active={false}
-                onClick={() => run().unsetAllMarks().run()}
-            >
-                <RemoveFormatting aria-hidden className="size-4" />
-            </ToolbarButton>
+            <ToolbarGroup>
+                <HeadingDropdownMenu levels={[1, 2, 3, 4, 5, 6]} />
+                <ListDropdownMenu
+                    types={['bulletList', 'orderedList', 'taskList']}
+                />
+                <BlockquoteButton />
+                <CodeBlockButton />
+            </ToolbarGroup>
 
-            <Separator orientation="vertical" className="mx-1 h-5" />
-            <TiptapInlineControls />
+            <ToolbarSeparator />
 
-            <Separator orientation="vertical" className="mx-1 h-5" />
-            {ALIGNMENTS.map(({ align, Icon, message }) => (
-                <ToolbarButton
-                    key={align}
-                    label={intl.formatMessage(messages[message])}
-                    active={(state.align ?? BLOCK_ALIGN.Left) === align}
-                    onClick={() => run().setBlockAlign(align).run()}
-                >
-                    <Icon aria-hidden className="size-4" />
-                </ToolbarButton>
-            ))}
+            <ToolbarGroup>
+                <MarkButton type="bold" />
+                <MarkButton type="italic" />
+                <MarkButton type="underline" />
+                <MarkButton type="strike" />
+                <MarkButton type="code" />
+                <LinkPopover />
+            </ToolbarGroup>
 
-            <Separator orientation="vertical" className="mx-1 h-5" />
-            <TiptapInsertMenu />
-        </div>
+            <ToolbarSeparator />
+
+            <ToolbarGroup>
+                <MarkButton type="superscript" />
+                <MarkButton type="subscript" />
+            </ToolbarGroup>
+
+            <ToolbarSeparator />
+
+            <ToolbarGroup>
+                <TextAlignButton align="left" />
+                <TextAlignButton align="center" />
+                <TextAlignButton align="right" />
+                <TextAlignButton align="justify" />
+            </ToolbarGroup>
+
+            <ToolbarSeparator />
+
+            {/* Ours, for the reasons in the note above. */}
+            <ToolbarGroup>
+                <TiptapInlineControls colorAndTypeOnly />
+            </ToolbarGroup>
+
+            <ToolbarSeparator />
+
+            <ToolbarGroup>
+                <TiptapInsertMenu />
+            </ToolbarGroup>
+
+            <Spacer />
+        </Toolbar>
     );
 }

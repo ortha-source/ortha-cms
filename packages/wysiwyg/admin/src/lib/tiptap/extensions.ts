@@ -8,7 +8,10 @@ import {
     TableHeader,
     TableRow
 } from '@tiptap/extension-table';
-import { Placeholder } from '@tiptap/extensions';
+import { Placeholder, Selection } from '@tiptap/extensions';
+import { Typography } from '@tiptap/extension-typography';
+import { Subscript } from '@tiptap/extension-subscript';
+import { Superscript } from '@tiptap/extension-superscript';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TiptapImageBlock } from './TiptapImageBlock';
 import { TiptapTable } from './TiptapTable';
@@ -120,6 +123,17 @@ export function buildExtensions(options: {
         TableCell,
         CellWidth,
         BlockAlignment,
+        // From the Simple Editor template's extension set. `<sub>` and `<sup>`
+        // are already in the sanitizer's vocabulary, so the two mark buttons it
+        // ships store what they show. `Typography` is input rules only — smart
+        // quotes, dashes, ellipses — and changes nothing about the schema.
+        // `Selection` keeps the selected range visible while focus is in a
+        // toolbar overlay, which is the whole reason a link popover can act on
+        // what you had selected.
+        Superscript,
+        Subscript,
+        Typography,
+        Selection,
         TextColor,
         TextHighlight,
         FontRole,

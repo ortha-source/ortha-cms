@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { EditorContext } from '@tiptap/react';
 import { cn } from '@ortha-cms/design-system';
 import type { WysiwygMediaPort } from '../../media/wysiwygMedia';
 import { TiptapProvider } from '../tiptapContext';
@@ -11,6 +12,18 @@ import { TiptapSelectionToolbar } from '../TiptapSelectionToolbar';
 import { TiptapTableToolbar } from '../TiptapTableToolbar';
 import { TiptapSlashMenu } from '../TiptapSlashMenu';
 import type { SlashMenuState } from '../slashCommand';
+
+// The Simple Editor template's tokens, and the block styles its node CSS owns.
+// Imported here rather than in each renderer because there is one writing
+// surface and these are the rules it is drawn with.
+import '../tiptapTheme.scss';
+import '../../../tiptap-ui/components/tiptap-node/blockquote-node/blockquote-node.scss';
+import '../../../tiptap-ui/components/tiptap-node/code-block-node/code-block-node.scss';
+import '../../../tiptap-ui/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss';
+import '../../../tiptap-ui/components/tiptap-node/list-node/list-node.scss';
+import '../../../tiptap-ui/components/tiptap-node/image-node/image-node.scss';
+import '../../../tiptap-ui/components/tiptap-node/heading-node/heading-node.scss';
+import '../../../tiptap-ui/components/tiptap-node/paragraph-node/paragraph-node.scss';
 
 const messages = defineMessages({
     label: {
@@ -108,43 +121,50 @@ export function TiptapEditor({
         () => ({ editor, readOnly, media }),
         [editor, readOnly, media]
     );
+    const editorContext = useMemo(() => ({ editor }), [editor]);
 
     return (
-        <TiptapProvider value={context}>
-            <div
-                ref={setRoot}
-                id={id}
-                role="group"
-                aria-label={intl.formatMessage(messages.label)}
-                aria-describedby={describedBy}
-                aria-invalid={invalid || undefined}
-                aria-readonly={readOnly || undefined}
-                className={cn(
-                    'bg-background',
-                    // With a toolbar the editor is the whole surface: it fills
-                    // its parent and scrolls under the bar, so the bar stays.
-                    toolbar
-                        ? 'flex h-full min-h-0 flex-col'
-                        : 'rounded-md border',
-                    invalid && !toolbar && 'border-destructive',
-                    readOnly && 'bg-muted/30',
-                    'focus:outline-none',
-                    className
+        // Two providers, on purpose. Ours carries the read-only flag and the
+        // media port; the template's components look the editor up in TipTap's
+        // own `EditorContext` (`useTiptapEditor`), and giving them anything
+        // else would mean editing every copied file.
+        <EditorContext.Provider value={editorContext}>
+            <TiptapProvider value={context}>
+                <div
+                    ref={setRoot}
+                    id={id}
+                    role="group"
+                    aria-label={intl.formatMessage(messages.label)}
+                    aria-describedby={describedBy}
+                    aria-invalid={invalid || undefined}
+                    aria-readonly={readOnly || undefined}
+                    className={cn(
+                        'bg-background',
+                        // With a toolbar the editor is the whole surface: it fills
+                        // its parent and scrolls under the bar, so the bar stays.
+                        toolbar
+                            ? 'flex h-full min-h-0 flex-col'
+                            : 'rounded-md border',
+                        invalid && !toolbar && 'border-destructive',
+                        readOnly && 'bg-muted/30',
+                        'focus:outline-none',
+                        className
+                    )}
+                >
+                    {toolbar && !readOnly && <TiptapToolbar />}
+                    <WysiwygProseSurface
+                        editor={editor}
+                        toolbar={toolbar}
+                        readOnly={readOnly}
+                    />
+                    <TiptapBlockHandle />
+                    <TiptapSelectionToolbar />
+                    <TiptapTableToolbar />
+                </div>
+                {slash && !readOnly && (
+                    <TiptapSlashMenu state={slash} container={root} />
                 )}
-            >
-                {toolbar && !readOnly && <TiptapToolbar />}
-                <WysiwygProseSurface
-                    editor={editor}
-                    toolbar={toolbar}
-                    readOnly={readOnly}
-                />
-                <TiptapBlockHandle />
-                <TiptapSelectionToolbar />
-                <TiptapTableToolbar />
-            </div>
-            {slash && !readOnly && (
-                <TiptapSlashMenu state={slash} container={root} />
-            )}
-        </TiptapProvider>
+            </TiptapProvider>
+        </EditorContext.Provider>
     );
 }

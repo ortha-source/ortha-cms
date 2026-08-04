@@ -1,5 +1,4 @@
-import { Extension } from '@tiptap/core';
-import { BLOCK_ALIGN, type BlockAlign } from '@ortha-cms/wysiwyg-core';
+import { TextAlign } from '@tiptap/extension-text-align';
 
 /** The node types an alignment may be set on — the ones core round-trips it for. */
 export const ALIGNABLE_TYPES = [
@@ -15,72 +14,49 @@ export const ALIGNABLE_TYPES = [
     'tableHeader'
 ] as const;
 
-declare module '@tiptap/core' {
-    interface Commands<ReturnType> {
-        blockAlign: {
-            /** Aligns every alignable node in the selection. */
-            setBlockAlign: (align: BlockAlign) => ReturnType;
-        };
-    }
-}
-
 /**
- * Alignment as a **global attribute**, stored on `data-align`.
+ * Alignment — TipTap's own `TextAlign`, with the one thing about it that does
+ * not fit replaced: **where the value is written**.
  *
- * Not TipTap's own `TextAlign`, which writes `style="text-align: …"`. The
- * stored value is HTML a delivery surface styles for itself, so the choice has
- * to survive as a *name* it can map — `data-align="center"`, pinned to a
- * vocabulary by the sanitizer both runtimes share. An inline `text-align` would
- * be dropped by that pass, so the alignment would simply not survive a save.
+ * Upstream renders `style="text-align: …"`. The stored value here is HTML a
+ * delivery surface styles for itself, and the sanitizer both runtimes share
+ * drops an inline `text-align` — so upstream's version of this extension would
+ * let an author centre a paragraph, show it centred, and lose it on save. The
+ * attribute is re-pointed at `data-align`, which is in the sanitizer's
+ * vocabulary, and nothing else about the extension changes.
  *
- * `left` is the absence of an alignment and is never written, which is what
- * keeps a centred-then-uncentred paragraph byte-identical to one nobody
- * touched.
+ * Keeping the extension (rather than writing our own, which is what this was)
+ * is what lets the Simple Editor template's `TextAlignButton` work untouched:
+ * it looks for an extension *named* `textAlign`, a `setTextAlign` command, and
+ * a node attribute called `textAlign`. All three are upstream's.
+ *
+ * `left` is the default and is never written, which is what keeps a
+ * centred-then-uncentred paragraph byte-identical to one nobody touched.
  */
-export const BlockAlignment = Extension.create({
-    name: 'blockAlign',
-
+export const BlockAlignment = TextAlign.extend({
     addGlobalAttributes() {
         return [
             {
-                types: [...ALIGNABLE_TYPES],
+                types: this.options.types,
                 attributes: {
-                    align: {
-                        default: null,
+                    textAlign: {
+                        default: this.options.defaultAlignment,
                         parseHTML: (element) =>
                             element.getAttribute('data-align'),
-                        renderHTML: (attributes) =>
-                            attributes['align']
-                                ? { 'data-align': attributes['align'] }
-                                : {}
+                        renderHTML: (attributes) => {
+                            const value = attributes['textAlign'];
+                            return typeof value === 'string' &&
+                                value !== this.options.defaultAlignment
+                                ? { 'data-align': value }
+                                : {};
+                        }
                     }
                 }
             }
         ];
-    },
-
-    addCommands() {
-        return {
-            setBlockAlign:
-                (align) =>
-                ({ state, tr, dispatch }) => {
-                    const value = align === BLOCK_ALIGN.Left ? null : align;
-                    const { from, to } = state.selection;
-                    let touched = false;
-                    state.doc.nodesBetween(from, to, (node, pos) => {
-                        if (
-                            !(ALIGNABLE_TYPES as readonly string[]).includes(
-                                node.type.name
-                            )
-                        ) {
-                            return;
-                        }
-                        tr.setNodeAttribute(pos, 'align', value);
-                        touched = true;
-                    });
-                    if (touched && dispatch) dispatch(tr);
-                    return touched;
-                }
-        };
     }
+}).configure({
+    types: [...ALIGNABLE_TYPES],
+    alignments: ['left', 'center', 'right', 'justify'],
+    defaultAlignment: 'left'
 });

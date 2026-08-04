@@ -161,10 +161,10 @@ export function TiptapTableToolbar() {
                 ...instance.getAttributes('tableHeader')
             };
             return {
-                cellAlign: (cell['align'] as string) ?? BLOCK_ALIGN.Left,
+                cellAlign: (cell['textAlign'] as string) ?? BLOCK_ALIGN.Left,
                 cellValign: (cell['valign'] as string) ?? CELL_VALIGN.Top,
                 tableAlign:
-                    (tableAround(instance.state)?.node.attrs['align'] as
+                    (tableAround(instance.state)?.node.attrs['textAlign'] as
                         | string
                         | undefined) ?? BLOCK_ALIGN.Left,
                 header: instance.isActive('tableHeader')
@@ -249,7 +249,24 @@ export function TiptapTableToolbar() {
                     key={`cell-${align}`}
                     label={intl.formatMessage(messages[message])}
                     active={state.cellAlign === align}
-                    onClick={() => run().setBlockAlign(align).run()}
+                    // `updateAttributes` on the cell, not `setTextAlign`:
+                    // that command walks every alignable node the selection is
+                    // inside, and a cell is inside its table — so "align this
+                    // cell" also centred the whole table, which is exactly the
+                    // confusion the three alignments are kept apart to avoid.
+                    onClick={() =>
+                        run()
+                            .updateAttributes(
+                                state.header ? 'tableHeader' : 'tableCell',
+                                {
+                                    textAlign:
+                                        align === BLOCK_ALIGN.Left
+                                            ? null
+                                            : align
+                                }
+                            )
+                            .run()
+                    }
                 >
                     <Icon aria-hidden className="size-4" />
                 </ToolbarButton>
@@ -293,7 +310,7 @@ export function TiptapTableToolbar() {
                         const { tr } = editor.state;
                         tr.setNodeAttribute(
                             table.pos,
-                            'align',
+                            'textAlign',
                             align === BLOCK_ALIGN.Left ? null : align
                         );
                         editor.view.dispatch(tr);

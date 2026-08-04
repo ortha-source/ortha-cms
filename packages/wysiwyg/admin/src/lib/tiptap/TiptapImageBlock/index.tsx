@@ -100,7 +100,7 @@ export function TiptapImageBlock({ node, updateAttributes }: NodeViewProps) {
     // A dragged width overrides the preset — they say the same thing at
     // different resolutions, and the one the author touched last wins.
     const width = mediaWidth(node.attrs['width']);
-    const align = node.attrs['align'];
+    const align = node.attrs['textAlign'];
     // `text-align` can't move the picture: the CSS reset makes `<img>` a block,
     // and a block box ignores it. Auto margins are what actually centre it.
     const imageAlign =

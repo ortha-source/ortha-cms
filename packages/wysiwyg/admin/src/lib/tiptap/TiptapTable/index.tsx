@@ -46,7 +46,7 @@ interface Border {
  */
 export function TiptapTable({ node, editor }: NodeViewProps) {
     const width = cellWidth(node.attrs['width']);
-    const align = node.attrs['align'];
+    const align = node.attrs['textAlign'];
     const wrapper = useRef<HTMLDivElement>(null);
     const [borders, setBorders] = useState<readonly Border[]>([]);
 

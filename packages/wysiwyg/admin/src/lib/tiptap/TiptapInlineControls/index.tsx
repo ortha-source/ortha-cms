@@ -22,7 +22,16 @@ import { useWysiwyg } from '../tiptapContext';
  * place because the controls are shared with nothing else, and a saved range
  * that is immediately overwritten costs nothing.
  */
-export function TiptapInlineControls() {
+export function TiptapInlineControls({
+    colorAndTypeOnly = false
+}: {
+    /**
+     * Leave the link control out. The persistent toolbar uses the template's
+     * own `LinkPopover`, and two link buttons in one bar is one too many; the
+     * floating toolbar has no such component and shows all three.
+     */
+    colorAndTypeOnly?: boolean;
+} = {}) {
     const { editor } = useWysiwyg();
 
     const state = useEditorState({
@@ -58,25 +67,27 @@ export function TiptapInlineControls() {
 
     return (
         <>
-            <LinkControl
-                href={state.href}
-                onApply={(url) =>
-                    editor
-                        .chain()
-                        .focus()
-                        .extendMarkRange('link')
-                        .setLink({ href: url })
-                        .run()
-                }
-                onRemove={() =>
-                    editor
-                        .chain()
-                        .focus()
-                        .extendMarkRange('link')
-                        .unsetLink()
-                        .run()
-                }
-            />
+            {!colorAndTypeOnly && (
+                <LinkControl
+                    href={state.href}
+                    onApply={(url) =>
+                        editor
+                            .chain()
+                            .focus()
+                            .extendMarkRange('link')
+                            .setLink({ href: url })
+                            .run()
+                    }
+                    onRemove={() =>
+                        editor
+                            .chain()
+                            .focus()
+                            .extendMarkRange('link')
+                            .unsetLink()
+                            .run()
+                    }
+                />
+            )}
             <ColorControl
                 color={state.color}
                 highlight={state.highlight}
