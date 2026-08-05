@@ -1,31 +1,14 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
-import {
-    AlignCenter,
-    AlignJustify,
-    AlignLeft,
-    AlignRight,
-    Bold,
-    Code,
-    Italic,
-    List,
-    ListOrdered,
-    Minus,
-    Quote,
-    Redo2,
-    RemoveFormatting,
-    Strikethrough,
-    Underline,
-    Undo2
-} from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Redo2, Undo2 } from 'lucide-react';
 import { useLiveEditorState } from '../../hooks/useLiveEditorState';
+import { AlignMenu } from './AlignMenu';
 import { BlockTypeMenu } from './BlockTypeMenu';
-import { CalloutMenu } from './CalloutMenu';
 import { COLOR_KIND, ColorMenu } from './ColorMenu';
-import { ColumnsMenu } from './ColumnsMenu';
 import { FontSizeMenu } from './FontSizeMenu';
+import { InsertMenu } from './InsertMenu';
 import { LinkPopover } from './LinkPopover';
-import { TableMenu } from './TableMenu';
+import { MoreMarksMenu } from './MoreMarksMenu';
 import { ToolbarButton } from './ToolbarButton';
 
 const messages = defineMessages({
@@ -37,15 +20,6 @@ const messages = defineMessages({
     redo: { id: 'wysiwyg.toolbar.redo', defaultMessage: 'Redo' },
     bold: { id: 'wysiwyg.toolbar.bold', defaultMessage: 'Bold' },
     italic: { id: 'wysiwyg.toolbar.italic', defaultMessage: 'Italic' },
-    underline: {
-        id: 'wysiwyg.toolbar.underline',
-        defaultMessage: 'Underline'
-    },
-    strike: {
-        id: 'wysiwyg.toolbar.strike',
-        defaultMessage: 'Strikethrough'
-    },
-    code: { id: 'wysiwyg.toolbar.code', defaultMessage: 'Inline code' },
     bulletList: {
         id: 'wysiwyg.toolbar.bulletList',
         defaultMessage: 'Bulleted list'
@@ -53,34 +27,6 @@ const messages = defineMessages({
     orderedList: {
         id: 'wysiwyg.toolbar.orderedList',
         defaultMessage: 'Numbered list'
-    },
-    blockquote: {
-        id: 'wysiwyg.toolbar.blockquote',
-        defaultMessage: 'Quote'
-    },
-    alignLeft: {
-        id: 'wysiwyg.toolbar.alignLeft',
-        defaultMessage: 'Align left'
-    },
-    alignCenter: {
-        id: 'wysiwyg.toolbar.alignCenter',
-        defaultMessage: 'Align center'
-    },
-    alignRight: {
-        id: 'wysiwyg.toolbar.alignRight',
-        defaultMessage: 'Align right'
-    },
-    alignJustify: {
-        id: 'wysiwyg.toolbar.alignJustify',
-        defaultMessage: 'Justify'
-    },
-    horizontalRule: {
-        id: 'wysiwyg.toolbar.horizontalRule',
-        defaultMessage: 'Divider'
-    },
-    clearFormat: {
-        id: 'wysiwyg.toolbar.clearFormat',
-        defaultMessage: 'Clear formatting'
     }
 });
 
@@ -89,27 +35,42 @@ const messages = defineMessages({
 const TOOLBAR_INERT = {
     bold: false,
     italic: false,
-    underline: false,
-    strike: false,
-    code: false,
     bulletList: false,
     orderedList: false,
-    blockquote: false,
-    alignLeft: false,
-    alignCenter: false,
-    alignRight: false,
-    alignJustify: false,
     canUndo: false,
     canRedo: false
 };
 
-/** A hairline between two runs of controls. Decorative — never announced. */
+/**
+ * A hairline between two runs of controls. Decorative — never announced.
+ *
+ * No horizontal margin: the bar's own `gap` already puts 2px either side, and
+ * five separators' margins were the last ~20px that tipped the bar onto a
+ * second row.
+ */
 function ToolbarSeparator() {
-    return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />;
+    return <span aria-hidden className="h-5 w-px shrink-0 bg-border" />;
 }
 
 /**
- * The editor's control bar.
+ * The editor's control bar — **one row**.
+ *
+ * That constraint is the design. Twenty flat controls wrapped onto a second
+ * line at ordinary window widths, which moved every control below it and made
+ * the last few feel like an afterthought. So the bar keeps out front only what
+ * is reached mid-sentence — undo/redo, the block type, size, bold/italic, the
+ * two colors, the two lists, and links — and folds the rest into three menus
+ * that group by *what the action is*, not by what happened to fit:
+ *
+ * - {@link MoreMarksMenu} — underline, strikethrough, inline code, quote, clear
+ *   formatting.
+ * - {@link AlignMenu} — the four alignments, which were always mutually
+ *   exclusive and so were four buttons doing a radio group's job.
+ * - {@link InsertMenu} — tables, columns, callouts, dividers: "put a block
+ *   here", each with its own submenu for editing that block.
+ *
+ * `flex-wrap` stays as the fallback for a genuinely narrow window — wrapping is
+ * bad, clipping the last controls off the edge is worse.
  *
  * Deliberately a `role="group"`, not `role="toolbar"`: the ARIA toolbar pattern
  * promises arrow-key navigation with a single tab stop, and promising it
@@ -128,16 +89,8 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
         (instance) => ({
             bold: instance.isActive('bold'),
             italic: instance.isActive('italic'),
-            underline: instance.isActive('underline'),
-            strike: instance.isActive('strike'),
-            code: instance.isActive('code'),
             bulletList: instance.isActive('bulletList'),
             orderedList: instance.isActive('orderedList'),
-            blockquote: instance.isActive('blockquote'),
-            alignLeft: instance.isActive({ textAlign: 'left' }),
-            alignCenter: instance.isActive({ textAlign: 'center' }),
-            alignRight: instance.isActive({ textAlign: 'right' }),
-            alignJustify: instance.isActive({ textAlign: 'justify' }),
             canUndo: instance.can().undo(),
             canRedo: instance.can().redo()
         }),
@@ -182,24 +135,7 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
                 active={state.italic}
                 onClick={() => editor.chain().focus().toggleItalic().run()}
             />
-            <ToolbarButton
-                label={intl.formatMessage(messages.underline)}
-                icon={Underline}
-                active={state.underline}
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.strike)}
-                icon={Strikethrough}
-                active={state.strike}
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.code)}
-                icon={Code}
-                active={state.code}
-                onClick={() => editor.chain().focus().toggleCode().run()}
-            />
+            <MoreMarksMenu editor={editor} />
 
             <ToolbarSeparator />
 
@@ -220,69 +156,12 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
                 active={state.orderedList}
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
             />
-            <ToolbarButton
-                label={intl.formatMessage(messages.blockquote)}
-                icon={Quote}
-                active={state.blockquote}
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            />
-
-            <ToolbarSeparator />
-
-            <ToolbarButton
-                label={intl.formatMessage(messages.alignLeft)}
-                icon={AlignLeft}
-                active={state.alignLeft}
-                onClick={() =>
-                    editor.chain().focus().setTextAlign('left').run()
-                }
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.alignCenter)}
-                icon={AlignCenter}
-                active={state.alignCenter}
-                onClick={() =>
-                    editor.chain().focus().setTextAlign('center').run()
-                }
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.alignRight)}
-                icon={AlignRight}
-                active={state.alignRight}
-                onClick={() =>
-                    editor.chain().focus().setTextAlign('right').run()
-                }
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.alignJustify)}
-                icon={AlignJustify}
-                active={state.alignJustify}
-                onClick={() =>
-                    editor.chain().focus().setTextAlign('justify').run()
-                }
-            />
+            <AlignMenu editor={editor} />
 
             <ToolbarSeparator />
 
             <LinkPopover editor={editor} />
-            <CalloutMenu editor={editor} />
-            <TableMenu editor={editor} />
-            <ColumnsMenu editor={editor} />
-            <ToolbarButton
-                label={intl.formatMessage(messages.horizontalRule)}
-                icon={Minus}
-                onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            />
-
-            <ToolbarSeparator />
-
-            <ToolbarButton
-                label={intl.formatMessage(messages.clearFormat)}
-                icon={RemoveFormatting}
-                onClick={() =>
-                    editor.chain().focus().unsetAllMarks().clearNodes().run()
-                }
-            />
+            <InsertMenu editor={editor} />
         </div>
     );
 }

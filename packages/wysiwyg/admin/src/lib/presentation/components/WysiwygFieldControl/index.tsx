@@ -20,7 +20,18 @@ const messages = defineMessages({
     }
 });
 
-/** How tall the collapsed preview grows before it fades out. */
+/**
+ * The collapsed field's height band.
+ *
+ * The floor matters as much as the ceiling. A body field that shrink-wraps a
+ * one-line excerpt — or, empty, a single line of placeholder — reads as a minor
+ * input squeezed between the record's text boxes, when it is the field the page
+ * is actually about. The floor gives it the presence of a long-form control
+ * (comfortably more than the `rows={4}` textarea it replaced) whether or not
+ * anything is written yet; the ceiling stops a long body from pushing the rest
+ * of the form off the screen.
+ */
+const PREVIEW_MIN = 'min-h-40';
 const PREVIEW_CLAMP = 'max-h-72';
 
 /**
@@ -64,6 +75,7 @@ export function WysiwygFieldControl({
         <div
             className={cn(
                 'relative rounded-lg border border-input bg-card',
+                PREVIEW_MIN,
                 // The ring follows the overlay button, so the card reads as
                 // one focusable control rather than the button reading as a
                 // second thing floating on top of it.

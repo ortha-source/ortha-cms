@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_262 test cases across 31 spec files._
+_263 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -371,6 +371,7 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | --- |
 | takes over the work area with the caret already in the text |
 | keeps the record and its chrome on screen |
+| keeps the toolbar on a single row |
 | returns to the form from either exit |
 | writes edits back to the form as they are made |
 | stores the formatting the toolbar applied |

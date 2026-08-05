@@ -70,7 +70,7 @@ export function FontSizeMenu({ editor }: { editor: Editor }) {
                 <ToolbarMenuTrigger
                     label={intl.formatMessage(messages.label)}
                     icon={CaseSensitive}
-                    value={intl.formatMessage(SIZE_LABELS[activeId])}
+                    active={activeId !== DEFAULT_VALUE}
                 />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-40">

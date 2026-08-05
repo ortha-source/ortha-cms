@@ -150,6 +150,18 @@ test.describe('Entry editor — rich text field', () => {
             ).toBeVisible();
         });
 
+        test('keeps the toolbar on a single row', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            // Twenty flat controls wrapped onto a second line at ordinary
+            // widths, pushing everything below them down. The bar now folds
+            // marks, alignment, and block insertion into three menus to fit.
+            expect(await wysiwygFieldPage.toolbarRowCount()).toBe(1);
+        });
+
         test('returns to the form from either exit', async ({
             wysiwygFieldPage
         }) => {
@@ -217,7 +229,7 @@ test.describe('Entry editor — rich text field', () => {
 
             await wysiwygFieldPage.open('Body');
             await wysiwygFieldPage.type('Mind the gap');
-            await wysiwygFieldPage.openToolbarMenu('Callout');
+            await wysiwygFieldPage.openInsertSubmenu('Callout');
             await wysiwygFieldPage.menuItem('Warning').click();
             await wysiwygFieldPage.done();
 
@@ -241,7 +253,7 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.fieldTextbox('Title').fill('Draft');
 
             await wysiwygFieldPage.open('Body');
-            await wysiwygFieldPage.openToolbarMenu('Table');
+            await wysiwygFieldPage.openInsertSubmenu('Table');
             await wysiwygFieldPage.menuItem('Insert table').click();
             await expect(wysiwygFieldPage.editorTable).toBeVisible();
             await wysiwygFieldPage.done();
@@ -265,7 +277,7 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.fieldTextbox('Title').fill('Draft');
 
             await wysiwygFieldPage.open('Body');
-            await wysiwygFieldPage.openToolbarMenu('Columns');
+            await wysiwygFieldPage.openInsertSubmenu('Columns');
             await wysiwygFieldPage.menuRadio('3 columns').click();
             await wysiwygFieldPage.done();
 

@@ -42,7 +42,7 @@ export function ToolbarMenuTrigger({
                     variant="ghost"
                     size="sm"
                     className={cn(
-                        'h-8 shrink-0 gap-1 rounded-md px-2',
+                        'h-8 shrink-0 gap-0.5 rounded-md px-1.5',
                         active && 'bg-accent text-accent-foreground'
                     )}
                     aria-label={label}
@@ -57,7 +57,7 @@ export function ToolbarMenuTrigger({
                             {value}
                         </span>
                     ) : null}
-                    <ChevronDown className="opacity-60" />
+                    <ChevronDown className="!size-3 opacity-60" />
                 </Button>
             </TooltipTrigger>
             <TooltipContent>{label}</TooltipContent>

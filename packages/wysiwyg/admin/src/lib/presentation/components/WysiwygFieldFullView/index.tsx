@@ -61,20 +61,28 @@ export function WysiwygFieldFullView({
             aria-labelledby={headingId}
             className="flex min-h-0 flex-1 flex-col"
         >
-            <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-2 h-7 gap-1.5 px-2 text-muted-foreground"
-                    onClick={collapse}
-                >
-                    <ArrowLeft />
-                    {intl.formatMessage(messages.back)}
-                </Button>
+            {/* Two rows, not one. A `Button` is a flex box with its own icon
+                and line-height; baseline-aligning it against an `<h2>` lines up
+                the two texts' baselines but leaves the button's box sitting
+                visibly low against the heading. Giving the back link its own
+                row — the same shape the record's own "Back to records" link
+                uses — sidesteps the mismatch and reads as a hierarchy: leave,
+                then what you're in. */}
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mb-3 -ml-2 h-7 w-fit gap-1.5 px-2 text-muted-foreground"
+                onClick={collapse}
+            >
+                <ArrowLeft />
+                {intl.formatMessage(messages.back)}
+            </Button>
+
+            <div className="mb-3 flex items-center gap-2">
                 <h2
                     id={headingId}
-                    className="text-sm font-medium tracking-[-0.01em]"
+                    className="text-base font-semibold tracking-[-0.01em]"
                 >
                     {label}
                 </h2>

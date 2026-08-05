@@ -24,6 +24,33 @@ const messages = defineMessages({
     codeBlock: {
         id: 'wysiwyg.blockType.codeBlock',
         defaultMessage: 'Code block'
+    },
+    // Short forms for the trigger only. The full names above stay in the menu,
+    // where there is room to read them; the trigger has to survive on a bar
+    // that must not wrap, and "Heading 2" spent 60px saying what "H2" says.
+    shortParagraph: {
+        id: 'wysiwyg.blockType.shortParagraph',
+        defaultMessage: 'Text'
+    },
+    shortHeading1: {
+        id: 'wysiwyg.blockType.shortHeading1',
+        defaultMessage: 'H1'
+    },
+    shortHeading2: {
+        id: 'wysiwyg.blockType.shortHeading2',
+        defaultMessage: 'H2'
+    },
+    shortHeading3: {
+        id: 'wysiwyg.blockType.shortHeading3',
+        defaultMessage: 'H3'
+    },
+    shortHeading4: {
+        id: 'wysiwyg.blockType.shortHeading4',
+        defaultMessage: 'H4'
+    },
+    shortCodeBlock: {
+        id: 'wysiwyg.blockType.shortCodeBlock',
+        defaultMessage: 'Code'
     }
 });
 
@@ -44,11 +71,32 @@ const HEADINGS: readonly {
     level: 1 | 2 | 3 | 4;
     value: BlockType;
     message: typeof messages.heading1;
+    short: typeof messages.heading1;
 }[] = [
-    { level: 1, value: BLOCK_TYPE.Heading1, message: messages.heading1 },
-    { level: 2, value: BLOCK_TYPE.Heading2, message: messages.heading2 },
-    { level: 3, value: BLOCK_TYPE.Heading3, message: messages.heading3 },
-    { level: 4, value: BLOCK_TYPE.Heading4, message: messages.heading4 }
+    {
+        level: 1,
+        value: BLOCK_TYPE.Heading1,
+        message: messages.heading1,
+        short: messages.shortHeading1
+    },
+    {
+        level: 2,
+        value: BLOCK_TYPE.Heading2,
+        message: messages.heading2,
+        short: messages.shortHeading2
+    },
+    {
+        level: 3,
+        value: BLOCK_TYPE.Heading3,
+        message: messages.heading3,
+        short: messages.shortHeading3
+    },
+    {
+        level: 4,
+        value: BLOCK_TYPE.Heading4,
+        message: messages.heading4,
+        short: messages.shortHeading4
+    }
 ];
 
 /**
@@ -92,10 +140,10 @@ export function BlockTypeMenu({ editor }: { editor: Editor }) {
 
     const label = intl.formatMessage(messages.label);
     const currentLabel = intl.formatMessage(
-        HEADINGS.find((item) => item.value === current)?.message ??
+        HEADINGS.find((item) => item.value === current)?.short ??
             (current === BLOCK_TYPE.CodeBlock
-                ? messages.codeBlock
-                : messages.paragraph)
+                ? messages.shortCodeBlock
+                : messages.shortParagraph)
     );
 
     return (

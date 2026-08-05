@@ -115,9 +115,50 @@ export class WysiwygFieldPage extends BasePage {
         return this.toolbar.getByRole('button', { name, exact: true });
     }
 
-    /** Open one of the toolbar's dropdowns (e.g. "Callout", "Table"). */
+    /** Open one of the toolbar's dropdowns (e.g. "Insert", "Alignment"). */
     async openToolbarMenu(name: string): Promise<void> {
         await this.toolbarButton(name).click();
+    }
+
+    /**
+     * Open the **Insert** menu and step into one of its submenus ("Table",
+     * "Columns", "Callout"). The block-insertion controls live behind one
+     * trigger so the toolbar stays a single row.
+     */
+    async openInsertSubmenu(name: string): Promise<void> {
+        await this.openToolbarMenu('Insert');
+        await this.page.getByRole('menuitem', { name, exact: true }).click();
+    }
+
+    /**
+     * How many rows the toolbar wraps onto — 1 unless the window is narrow.
+     *
+     * `MeasuredBar` is the shape of what the callback touches, spelled out
+     * locally: this project's `tsconfig` has no `dom` lib (specs are black-box
+     * and otherwise never name a DOM type), so `HTMLElement` doesn't resolve
+     * here even though the callback runs in the browser.
+     */
+    async toolbarRowCount(): Promise<number> {
+        type MeasuredBar = {
+            children: ArrayLike<{
+                getBoundingClientRect(): { top: number; height: number };
+            }>;
+        };
+        return this.toolbar.evaluate((element) => {
+            const bar = element as unknown as MeasuredBar;
+            // Rows are grouped by vertical **centre**, not by `top`. The bar is
+            // `items-center` and its children are different heights (a 32px
+            // button beside a 20px separator), so same-row items have different
+            // tops — counting those reports four rows for a bar that renders
+            // one.
+            const centres = new Set<number>();
+            for (const child of Array.from(bar.children)) {
+                const box = child.getBoundingClientRect();
+                // Round: sub-pixel layout differences are not extra rows.
+                centres.add(Math.round(box.top + box.height / 2));
+            }
+            return centres.size;
+        });
     }
 
     /** An item inside an open toolbar dropdown. */

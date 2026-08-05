@@ -185,6 +185,38 @@ custom nodes: a callout serializes to `<aside data-callout data-tone="warning">`
 and a layout to `<div data-columns="3">`, so the consuming site styles the
 structure however it likes.
 
+## The toolbar fits on one row
+
+That is a constraint, not an accident. Twenty flat controls wrapped onto a
+second line at ordinary window widths — and the work area is narrower than the
+window, because the app sidebar and the Properties rail are still there (about
+**620px** at a 1280px viewport). A wrapped bar pushes the document down and
+makes whatever landed on row two read as an afterthought.
+
+So the bar keeps out front only what is reached mid-sentence — undo/redo, block
+type, size, bold/italic, the two colors, the two lists, links — and folds the
+rest into three menus grouped by *what the action is*:
+
+- **More formatting** — underline, strikethrough, inline code, quote, clear
+  formatting. Its toggles are checkbox items, so the menu still says what is
+  active.
+- **Alignment** — the four alignments, which were always mutually exclusive and
+  so were four buttons doing a radio group's job. The trigger shows the current
+  one's icon.
+- **Insert** — tables, columns, callouts, dividers ("put a block here"), each
+  with its own submenu for editing that block.
+
+`flex-wrap` stays as the fallback for a genuinely narrow window: wrapping is
+bad, clipping the last controls off the edge is worse.
+
+**The budget is about 40px.** Adding a control to the bar means taking one off,
+or it wraps again. `admin-e2e`'s *"keeps the toolbar on a single row"* case
+measures this — it groups children by vertical **centre**, not `top`, because
+the bar is `items-center` and a 32px button beside a 20px separator otherwise
+reads as two rows. Watch for the width that isn't in the obvious sum: the
+separators' own margins were the last 20px that tipped it over, which is why
+they now have none and lean on the bar's `gap`.
+
 ## Adding a control
 
 1. Add the extension to `infrastructure/editorExtensions` (or a new node under
@@ -195,7 +227,8 @@ structure however it likes.
 2. Add a folder under `presentation/components/WysiwygToolbar/`, with its own
    co-located `defineMessages`. Reuse `ToolbarButton` (toggles/actions) or
    `ToolbarMenuTrigger` (dropdowns) so the bar stays one shape.
-3. Subscribe to only the state you need with **`useLiveEditorState`**, never
+3. Prefer a menu to a new button — see the one-row budget above. Subscribe to
+   only the state you need with **`useLiveEditorState`**, never
    `useEditorState` directly — each menu owns its own slice, so the bar's shared
    selector doesn't become the thing every menu re-renders through. The wrapper
    exists because the admin renders under `StrictMode`: every `useEditor` mounts,
