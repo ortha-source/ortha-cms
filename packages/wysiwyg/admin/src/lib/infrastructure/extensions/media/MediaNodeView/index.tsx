@@ -7,6 +7,7 @@ import {
     MEDIA_RESIZE_STEP,
     WYSIWYG_MEDIA_KIND
 } from '../../../../domain/constants';
+import { AltTextPopover } from './AltTextPopover';
 
 const messages = defineMessages({
     resize: {
@@ -56,6 +57,7 @@ export function MediaNodeView({
     const isVideo = node.type.name === WYSIWYG_MEDIA_KIND.Video;
     const src = String(node.attrs['src'] ?? '');
     const alt = String(node.attrs['alt'] ?? '');
+    const decorative = node.attrs['decorative'] === true;
     const width =
         typeof node.attrs['width'] === 'number'
             ? (node.attrs['width'] as number)
@@ -123,10 +125,30 @@ export function MediaNodeView({
                 ) : (
                     <img
                         src={src}
+                        // In the editor an un-alt'd image still needs *a* name,
+                        // or it reads as an unlabelled graphic to the author's
+                        // own screen reader while they are working. The stored
+                        // HTML gets the real value — empty if that's what it is
+                        // — because inventing alt for published content would
+                        // be worse than none.
                         alt={alt || intl.formatMessage(messages.imageAlt)}
                         className="block w-full"
                     />
                 )}
+
+                {/* Alt is a published, per-image decision, so its control lives
+                    on the image — the point where the author can see what the
+                    picture is doing in the text. Images only: `alt` is not a
+                    thing a `<video>` has. */}
+                {editor.isEditable && !isVideo ? (
+                    <div className="absolute top-1.5 left-1.5">
+                        <AltTextPopover
+                            alt={alt}
+                            decorative={decorative}
+                            onSave={(next) => updateAttributes(next)}
+                        />
+                    </div>
+                ) : null}
 
                 {editor.isEditable ? (
                     <button

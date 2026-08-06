@@ -180,6 +180,33 @@ export class WysiwygFieldPage extends BasePage {
         return this.surfaceRoot.locator('video');
     }
 
+    /**
+     * The alt-text control on an image in the document. Its name is the prompt:
+     * "Add alt text" while the image has neither alt nor a decorative mark,
+     * "Alt text" once the author has answered either way.
+     */
+    altControl(name: 'Add alt text' | 'Alt text'): Locator {
+        return this.page.getByRole('button', { name, exact: true });
+    }
+
+    /** Open the alt popover, type a description, and save. */
+    async setAltText(text: string): Promise<void> {
+        await this.page
+            .getByRole('button', { name: /^(Add alt text|Alt text)$/ })
+            .click();
+        await this.page.getByLabel('Describe this image').fill(text);
+        await this.page.getByRole('button', { name: 'Save' }).click();
+    }
+
+    /** Open the alt popover, tick "Decorative", and save. */
+    async markAltDecorative(): Promise<void> {
+        await this.page
+            .getByRole('button', { name: /^(Add alt text|Alt text)$/ })
+            .click();
+        await this.page.getByRole('checkbox', { name: /^Decorative/ }).check();
+        await this.page.getByRole('button', { name: 'Save' }).click();
+    }
+
     /** The resize handle on the selected media node. */
     get resizeHandle(): Locator {
         return this.page.getByRole('button', { name: /^Resize/ });

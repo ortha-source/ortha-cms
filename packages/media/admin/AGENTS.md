@@ -206,7 +206,10 @@ returns `null` for anything the editor has no node for (audio, a PDF), which is
 the second gate behind the picker's own `accept` filter. An image embeds its
 **`previewUrl`** — a body has no use for a 12-megapixel original — and a video
 its `url`; the asset's `alt` and pixel width ride along, so the node lands at a
-sensible size with the alt text someone already wrote in the library.
+sensible size with the alt text someone already wrote in the library. An asset
+with no alt (and every fresh upload) arrives un-described — the editor prompts
+for it on the image itself, which is where the author can see what the picture
+is doing.
 
 ### Why this uploads immediately, unlike a media field
 

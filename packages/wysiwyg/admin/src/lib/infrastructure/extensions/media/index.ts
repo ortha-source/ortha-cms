@@ -47,6 +47,15 @@ declare module '@tiptap/core' {
             insertMedia: (embeds: readonly MediaEmbedInput[]) => ReturnType;
             /** Resize the selected media. `null` restores its natural width. */
             setMediaWidth: (width: number | null) => ReturnType;
+            /**
+             * Describe the selected image. `decorative` marks it as carrying no
+             * information — the alt is emptied and the "needs alt text" prompt
+             * stops asking, because the author has answered.
+             */
+            setMediaAlt: (input: {
+                alt: string;
+                decorative: boolean;
+            }) => ReturnType;
         };
     }
 }
@@ -99,6 +108,23 @@ export const ResizableImage = Node.create({
                 default: '',
                 parseHTML: (element) => element.getAttribute('alt') ?? '',
                 renderHTML: (attributes) => ({ alt: attributes['alt'] ?? '' })
+            },
+            /**
+             * The author said this image carries no information.
+             *
+             * `alt=""` is already HTML's way of saying that, but on its own it
+             * cannot be told apart from "nobody has written the alt yet" — and
+             * those need opposite treatment: one is finished, the other is an
+             * accessibility defect the editor should keep pointing at. So the
+             * decision is recorded as a `data-` attribute and the prompt keys
+             * off it. It rides into the stored HTML, where it is inert for any
+             * consumer that ignores it and a useful signal for one that doesn't.
+             */
+            decorative: {
+                default: false,
+                parseHTML: (element) => element.hasAttribute('data-decorative'),
+                renderHTML: (attributes) =>
+                    attributes['decorative'] ? { 'data-decorative': '' } : {}
             }
         };
     },
@@ -176,7 +202,18 @@ export const ResizableImage = Node.create({
                         }
                     }
                     return false;
-                }
+                },
+
+            setMediaAlt:
+                ({ alt, decorative }) =>
+                ({ commands }) =>
+                    commands.updateAttributes(WYSIWYG_MEDIA_KIND.Image, {
+                        // Decorative wins over whatever is in the box: the two
+                        // can't both be true, and an `alt` left behind a ticked
+                        // box would be announced by a screen reader anyway.
+                        alt: decorative ? '' : alt,
+                        decorative
+                    })
         };
     }
 });

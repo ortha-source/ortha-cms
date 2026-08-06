@@ -20,6 +20,7 @@ import {
 import {
     mockMediaApi,
     MEDIA_ASSET_IDS,
+    MEDIA_HERO_ALT,
     type MediaUploadSpy
 } from '../support/api/media';
 import { expectNoA11yViolations } from '../support/a11y';
@@ -446,6 +447,93 @@ test.describe('Entry editor — rich text field', () => {
 
             expect(String(saves.bodies[0].values?.['body'])).toMatch(
                 /<img[^>]*width="\d+"/
+            );
+        });
+
+        test('prompts for alt text, and stores what the author writes', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Image from a URL…');
+            // Inserted with **no** alt — the case an upload always lands in,
+            // and the one the insert dialogs can't cover on their own.
+            await wysiwygFieldPage.fillMediaUrl(
+                'https://example.com/photo.jpg'
+            );
+
+            // The prompt is the control: the defect is visible while writing,
+            // not discovered in an audit.
+            await expect(
+                wysiwygFieldPage.altControl('Add alt text')
+            ).toBeVisible();
+
+            await wysiwygFieldPage.setAltText('Ada at her desk');
+            // Answered — the chip stops nagging and becomes a plain edit.
+            await expect(wysiwygFieldPage.altControl('Alt text')).toBeVisible();
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            expect(String(saves.bodies[0].values?.['body'])).toContain(
+                'alt="Ada at her desk"'
+            );
+        });
+
+        test('records a decorative image as answered, not as missing', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Image from a URL…');
+            await wysiwygFieldPage.fillMediaUrl(
+                'https://example.com/divider.png'
+            );
+            await wysiwygFieldPage.markAltDecorative();
+
+            // `alt=""` alone can't be told from "nobody wrote it yet", so the
+            // decision is recorded — and the prompt stops asking.
+            await expect(
+                wysiwygFieldPage.altControl('Add alt text')
+            ).toHaveCount(0);
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            const body = String(saves.bodies[0].values?.['body']);
+            expect(body).toContain('alt=""');
+            expect(body).toContain('data-decorative=""');
+        });
+
+        test('carries the library asset’s own alt into the body', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Media Library…');
+            await wysiwygFieldPage.pickLibraryAsset('hero.png');
+
+            // Alt written once in the library shouldn't be written again per
+            // body — so this image arrives already answered.
+            await expect(wysiwygFieldPage.altControl('Alt text')).toBeVisible();
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            expect(String(saves.bodies[0].values?.['body'])).toContain(
+                `alt="${MEDIA_HERO_ALT}"`
             );
         });
 
