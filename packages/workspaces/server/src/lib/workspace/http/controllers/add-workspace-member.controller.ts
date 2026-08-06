@@ -15,6 +15,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { AddMemberUseCase } from '../../application/use-cases/add-member.use-case';
 import { AddWorkspaceMemberDto } from '../../application/dto/add-workspace-member.dto';
 import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.query';
@@ -28,8 +29,12 @@ import {
  * `POST /api/workspaces/:id/members` — links an existing user to a workspace;
  * requires `workspaces:update`. Idempotent (re-adding is a no-op). A missing
  * workspace or user maps to 404. Guarded by `OriginGuard` (CSRF).
+ *
+ * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
+ * `:id` gets a flat 403 — indistinguishable from a workspace that doesn't
+ * exist — so a permission never reaches another tenant's workspace.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceMemberGuard)
 @RequirePermissions(PERMISSIONS.WORKSPACES_UPDATE)
 @Controller('workspaces')
 export class AddWorkspaceMemberController {

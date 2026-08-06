@@ -14,6 +14,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { SetWorkspaceStatusUseCase } from '../../application/use-cases/set-workspace-status.use-case';
 import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.query';
 import type { WorkspaceView } from '../../application/queries/workspace.view';
@@ -26,8 +27,12 @@ import { WorkspaceNotFoundError } from '../../domain/errors';
  * change, so it isn't gated on `workspaces:delete`). Each is idempotent and
  * returns the updated view; a missing workspace maps to 404. Guarded by
  * `OriginGuard` (CSRF).
+ *
+ * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
+ * `:id` gets a flat 403 — indistinguishable from a workspace that doesn't
+ * exist — so a permission never reaches another tenant's workspace.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceMemberGuard)
 @RequirePermissions(PERMISSIONS.WORKSPACES_UPDATE)
 @Controller('workspaces')
 export class SetWorkspaceStatusController {

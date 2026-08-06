@@ -65,11 +65,30 @@ business truth (ADR-0003 frontend guidance).
 - `useCurrentWorkspace()` — reads the open workspace from the shell's context
   (no re-fetch); throws if called outside a shell route.
 
+## Access is scoped to membership
+
+`GET /api/workspaces` returns **only the workspaces the signed-in user is a
+member of** (the server enforces this; see `workspaces-server`'s AGENTS.md).
+Every surface here renders from that one `useWorkspaces()` list — the sidebar
+quick-list, the `WorkspaceSwitcher`, the command palette, the home stat tiles +
+panel, the workspaces table, and the Content Library's nav section — so none of
+them can show a workspace the user doesn't belong to. **Don't add a client-side
+membership filter**: the list is already the user's own, and filtering again
+would silently hide workspaces the server did grant.
+
+The one way to reach a foreign workspace is a deep link, and `WorkspaceShell`
+handles it: the `:id` doesn't resolve against the list, so instead of the
+workspace it renders a **no-access** state (`role="alert"`, "You don't have
+access to this workspace" + a "Back to workspaces" link) and injects no sidebar
+nav. It deliberately does **not** distinguish "not a member" from "doesn't
+exist", mirroring the API's flat 403.
+
 ## Workspace shell (`/workspaces/:id/*`)
 
-- `WorkspaceShell` resolves the `:id` param against `useWorkspaces()`, publishes
-  it via `CurrentWorkspaceProvider`, and **injects `WorkspaceNav` into the app
-  sidebar** via `useSidebarContent(() => <WorkspaceNav workspace={current}/>,
+- `WorkspaceShell` resolves the `:id` param against `useWorkspaces()` (the
+  membership-scoped list, so an unresolved id *is* the no-access case),
+  publishes it via `CurrentWorkspaceProvider`, and **injects `WorkspaceNav` into
+  the app sidebar** via `useSidebarContent(() => <WorkspaceNav workspace={current}/>,
   [current.id])`, clearing it on unmount. Its own render is just the content
   area whose nested `<Routes>` are built from `WORKSPACE_ROUTE_SLOT`; landing on
   the base redirects to the lowest-`order` route (the Content Library).

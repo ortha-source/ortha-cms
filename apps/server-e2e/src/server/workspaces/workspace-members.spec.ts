@@ -155,7 +155,7 @@ describe('Workspace members + activity', () => {
             expect(added).toHaveLength(1);
         });
 
-        it('404s for an unknown workspace', async () => {
+        it('403s for an unknown workspace (never 404 — no id enumeration)', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const member = await seedUser(harness.app, {
                 email: 'member@example.com',
@@ -167,7 +167,23 @@ describe('Workspace members + activity', () => {
                     '/api/workspaces/00000000-0000-0000-0000-000000000000/members'
                 )
                 .send({ userId: member.id })
-                .expect(404);
+                .expect(403);
+        });
+
+        it('forbids a non-member admin from adding themselves', async () => {
+            const { agent: owner } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(owner);
+            const { user: outsider, agent: outsiderAgent } = await loginAs(
+                'admin',
+                'wsm-outsider@example.com'
+            );
+
+            // The membership guard closes the self-service loophole: an
+            // outsider can't grant themselves access to a workspace.
+            await outsiderAgent
+                .post(`/api/workspaces/${id}/members`)
+                .send({ userId: outsider.id })
+                .expect(403);
         });
 
         it('404s for an unknown user', async () => {
@@ -233,19 +249,41 @@ describe('Workspace members + activity', () => {
             const { user, agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);
 
+            // A second member, so the workspace stays observable after the
+            // creator drops out (the list is membership-scoped).
+            const { user: other, agent: otherAgent } = await loginAs(
+                'admin',
+                'wsm-second@example.com'
+            );
+            await agent
+                .post(`/api/workspaces/${id}/members`)
+                .send({ userId: other.id })
+                .expect(201);
+
             // Access is purely permission-based — no member is special, so the
-            // creator (the sole member) is removable like anyone else.
+            // creator is removable like anyone else.
             await agent
                 .delete(`/api/workspaces/${id}/members/${user.id}`)
                 .expect(204);
 
-            const res = await agent.get('/api/workspaces').expect(200);
+            const res = await otherAgent.get('/api/workspaces').expect(200);
             const workspace = res.body.find(
                 (w: { id: string }) => w.id === id
             );
             expect(
                 workspace.members.some((m: { id: string }) => m.id === user.id)
             ).toBe(false);
+
+            // Removing yourself removes your access: the workspace is gone
+            // from the ex-member's own list, and its routes now 403.
+            const mine = await agent.get('/api/workspaces').expect(200);
+            expect(mine.body.some((w: { id: string }) => w.id === id)).toBe(
+                false
+            );
+            await agent
+                .patch(`/api/workspaces/${id}`)
+                .send({ name: 'Locked out' })
+                .expect(403);
         });
 
         it('is a no-op (204) and records nothing when not a member', async () => {

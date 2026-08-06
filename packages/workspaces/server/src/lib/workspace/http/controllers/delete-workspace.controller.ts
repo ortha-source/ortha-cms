@@ -17,6 +17,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { DeleteWorkspaceUseCase } from '../../application/use-cases/delete-workspace.use-case';
 import {
     WorkspaceNotEmptyError,
@@ -28,8 +29,12 @@ import {
  * content grants cascade); requires the stronger `workspaces:delete`. Returns
  * 204; a missing workspace maps to 404, and one that still holds content entries
  * to 409 (delete them first, so nothing is orphaned). Guarded by `OriginGuard`.
+ *
+ * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
+ * `:id` gets a flat 403 — indistinguishable from a workspace that doesn't
+ * exist — so a permission never reaches another tenant's workspace.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceMemberGuard)
 @RequirePermissions(PERMISSIONS.WORKSPACES_DELETE)
 @Controller('workspaces')
 export class DeleteWorkspaceController {

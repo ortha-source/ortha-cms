@@ -121,6 +121,33 @@ test.describe('Workspaces page', () => {
         ).toBeVisible();
     });
 
+    test('a workspace the user is not a member of shows a no-access screen', async ({
+        page
+    }) => {
+        // `GET /api/workspaces` is membership-scoped server-side, so a
+        // workspace the user doesn't belong to simply isn't in the list — the
+        // shell can't resolve the `:id` and renders the no-access state instead
+        // of the workspace. Deep-linking is the only way to reach this.
+        await page.goto('/workspaces/ws_not_a_member');
+
+        const noAccess = page.getByRole('alert');
+        await expect(
+            noAccess.getByText('You don’t have access to this workspace')
+        ).toBeVisible();
+        await expect(
+            noAccess.getByText(/You’re not a member of this workspace/)
+        ).toBeVisible();
+
+        // None of the workspace's chrome leaks: no rail, no switcher.
+        await expect(
+            page.getByRole('button', { name: /Switch workspace/ })
+        ).toBeHidden();
+
+        // And the way out goes back to the list the user can see.
+        await noAccess.getByRole('link', { name: 'Back to workspaces' }).click();
+        await expect(page).toHaveURL('/workspaces');
+    });
+
     test.describe('create wizard', () => {
         test.beforeEach(async ({ page }) => {
             // Stateful create flow: the list GET reflects POSTed workspaces, plus

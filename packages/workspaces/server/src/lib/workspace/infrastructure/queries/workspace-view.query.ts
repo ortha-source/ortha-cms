@@ -24,17 +24,34 @@ type WorkspaceRow = typeof workspaces.$inferSelect;
 export class WorkspaceViewQuery {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
-    /** Every workspace, newest first, each with its members and grants. */
-    async listAll(): Promise<WorkspaceView[]> {
+    /**
+     * The workspaces `userId` is a member of, newest first, each with its
+     * members and grants — the only list read this query offers, by design.
+     * Membership is the tenancy boundary, so there is deliberately **no**
+     * unscoped `listAll()` to reach for: a user never learns that a workspace
+     * they don't belong to exists.
+     */
+    async listForMember(userId: string): Promise<WorkspaceView[]> {
         const rows = await this.db
-            .select()
+            .select({ workspace: workspaces })
             .from(workspaces)
+            .innerJoin(
+                memberships,
+                eq(memberships.workspaceId, workspaces.id)
+            )
+            .where(eq(memberships.userId, userId))
             .orderBy(desc(workspaces.createdAt));
         if (rows.length === 0) return [];
-        return this.toViews(rows);
+        // The `(workspace_id, user_id)` unique constraint makes the join
+        // at-most-one-row-per-workspace, so no de-duplication is needed.
+        return this.toViews(rows.map((row) => row.workspace));
     }
 
-    /** The view for one workspace, or `null` when it doesn't exist. */
+    /**
+     * The view for one workspace, or `null` when it doesn't exist. Unscoped by
+     * itself — every caller sits behind `WorkspaceMemberGuard`, which has
+     * already established that the actor is a member of that id.
+     */
     async byId(workspaceId: string): Promise<WorkspaceView | null> {
         const rows = await this.db
             .select()

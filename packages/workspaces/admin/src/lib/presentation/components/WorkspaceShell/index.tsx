@@ -1,10 +1,15 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { Lock, TriangleAlert } from 'lucide-react';
 import {
-    Alert,
-    AlertTitle,
-    AlertDescription,
-    Container
+    Button,
+    Container,
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle
 } from '@ortha-cms/design-system';
 import { useSidebarContent } from '@ortha-cms/shell-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
@@ -13,16 +18,20 @@ import { WORKSPACE_ROUTE_SLOT } from '../../slots/workspaceSlots';
 import { WorkspaceShellSkeleton } from '../WorkspacesSkeleton';
 import { WorkspaceNav } from '../WorkspaceNav';
 
-/** Intl descriptors for the shell's error/empty states, co-located here. */
+/** Intl descriptors for the shell's error/no-access states, co-located here. */
 const messages = defineMessages({
-    notFoundTitle: {
-        id: 'workspaces.shell.notFoundTitle',
-        defaultMessage: 'Workspace not found'
+    noAccessTitle: {
+        id: 'workspaces.shell.noAccessTitle',
+        defaultMessage: 'You don’t have access to this workspace'
     },
-    notFoundBody: {
-        id: 'workspaces.shell.notFoundBody',
+    noAccessBody: {
+        id: 'workspaces.shell.noAccessBody',
         defaultMessage:
-            'This workspace doesn’t exist or you don’t have access to it.'
+            'You’re not a member of this workspace, or it no longer exists. Ask one of its members to add you.'
+    },
+    backToWorkspaces: {
+        id: 'workspaces.shell.backToWorkspaces',
+        defaultMessage: 'Back to workspaces'
     },
     errorTitle: {
         id: 'workspaces.shell.errorTitle',
@@ -34,14 +43,32 @@ const messages = defineMessages({
     }
 });
 
-/** Centered alert used for the shell's not-found / load-error states. */
-function ShellMessage({ title, body }: { title: string; body: string }) {
+/**
+ * Centered state used for the shell's no-access / load-error screens. Marked
+ * `role="alert"` so a screen reader announces it when the shell swaps it in for
+ * the workspace the URL asked for.
+ */
+function ShellMessage({
+    icon,
+    title,
+    body,
+    action
+}: {
+    icon: React.ReactNode;
+    title: string;
+    body: string;
+    action?: React.ReactNode;
+}) {
     return (
         <Container>
-            <Alert className="mt-10" role="alert">
-                <AlertTitle>{title}</AlertTitle>
-                <AlertDescription>{body}</AlertDescription>
-            </Alert>
+            <Empty className="mt-10 border" role="alert">
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">{icon}</EmptyMedia>
+                    <EmptyTitle>{title}</EmptyTitle>
+                    <EmptyDescription>{body}</EmptyDescription>
+                </EmptyHeader>
+                {action ? <EmptyContent>{action}</EmptyContent> : null}
+            </Empty>
         </Container>
     );
 }
@@ -82,17 +109,30 @@ export function WorkspaceShell() {
     if (isError) {
         return (
             <ShellMessage
+                icon={<TriangleAlert />}
                 title={intl.formatMessage(messages.errorTitle)}
                 body={intl.formatMessage(messages.errorBody)}
             />
         );
     }
 
+    // The list only ever contains workspaces the user is a member of (the
+    // server scopes `GET /workspaces` to membership), so an unresolved `:id` is
+    // exactly the "no access" case — whether the workspace exists or not. We
+    // deliberately don't distinguish the two, matching the API's flat 403.
     if (!current) {
         return (
             <ShellMessage
-                title={intl.formatMessage(messages.notFoundTitle)}
-                body={intl.formatMessage(messages.notFoundBody)}
+                icon={<Lock />}
+                title={intl.formatMessage(messages.noAccessTitle)}
+                body={intl.formatMessage(messages.noAccessBody)}
+                action={
+                    <Button asChild variant="outline" className="shadow-none">
+                        <Link to="/workspaces">
+                            {intl.formatMessage(messages.backToWorkspaces)}
+                        </Link>
+                    </Button>
+                }
             />
         );
     }

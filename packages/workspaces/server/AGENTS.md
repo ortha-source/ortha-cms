@@ -30,11 +30,42 @@ application/     # orchestration — one use case per state change
   dto/                             # class-validator DTOs (shape checks only)
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleWorkspaceRepository, WorkspaceMapper, DrizzleMemberProvisioner, workspace-lock
-  queries/      # read models (WorkspaceViewQuery, SlugAvailabilityQuery, MemberLookupQuery, MembershipCheckQuery)
+  queries/      # read models (WorkspaceViewQuery — membership-scoped list, SlugAvailabilityQuery,
+                #              MemberLookupQuery, MembershipCheckQuery)
   schema/       # Drizzle tables + external-refs stub
   content/      # the mock catalogue fallback
-http/            # thin controllers + WorkspaceGuard + @CurrentWorkspace
+http/            # thin controllers + the two workspace guards + @CurrentWorkspace
 ```
+
+## The tenancy boundary — membership, not permissions
+
+**Membership decides *where* a user may act; permissions decide *what* they may
+do. Both must pass.** Holding `workspaces:update` does not grant reach into a
+workspace you don't belong to, and no endpoint ever returns one.
+
+- **`GET /api/workspaces` is membership-scoped.** It serves
+  `WorkspaceViewQuery.listForMember(actor.id)`; there is deliberately **no**
+  unscoped `listAll()` on the query. The admin's sidebar quick-list, workspace
+  switcher, command palette, home widgets, and the workspaces table all render
+  from this one response, so scoping it here scopes all of them at once — and
+  the list can't be used to enumerate ids.
+- **Every `/workspaces/:id/…` route carries `WorkspaceMemberGuard`** alongside
+  `PermissionsGuard` (update, archive/unarchive, delete, add/remove member,
+  grant/revoke content, and both entry-count pre-checks).
+- **Two guards, one rule.** `WorkspaceGuard` resolves the workspace from the
+  `X-Workspace-Id` header (what feature plugins like content and media use);
+  `WorkspaceMemberGuard` resolves it from the `:id` path param (what this
+  context's own routes use). Both delegate to `authorizeWorkspaceAccess`
+  (`http/guards/workspace-access.ts`), so what "has access" means can't drift
+  between them. Both are exported from the barrel and provided globally.
+- **A non-member always gets a flat 403 — never a 404.** "Not a member" and "no
+  such workspace" are indistinguishable, so the routes leak no ids. The guard
+  runs before the handler, so the handler's own `WorkspaceNotFoundError → 404`
+  is now only reachable for a workspace the caller *is* a member of (i.e. one
+  deleted concurrently).
+- **There is still no per-workspace owner or role.** Membership is a pure link:
+  any member with `workspaces:update` can add or remove any other member,
+  including themselves — self-removal simply ends their own access.
 
 ## The one hard rule
 

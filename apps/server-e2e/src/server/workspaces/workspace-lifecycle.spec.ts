@@ -136,13 +136,23 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
             await agent.post(`/api/workspaces/${id}/archive`).expect(403);
         });
 
-        it('404s for an unknown workspace', async () => {
+        it('403s for an unknown workspace (never 404 — no id enumeration)', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             await agent
                 .post(
                     '/api/workspaces/00000000-0000-0000-0000-000000000000/archive'
                 )
-                .expect(404);
+                .expect(403);
+        });
+
+        it('forbids an admin who is not a member of the workspace', async () => {
+            const { agent: owner } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(owner);
+            const { agent: outsider } = await loginAs(
+                'admin',
+                'wsl-outsider@example.com'
+            );
+            await outsider.post(`/api/workspaces/${id}/archive`).expect(403);
         });
     });
 
@@ -181,11 +191,39 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
             await agent.delete(`/api/workspaces/${id}`).expect(403);
         });
 
-        it('404s for an unknown workspace', async () => {
+        it('403s for an unknown workspace (never 404 — no id enumeration)', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             await agent
                 .delete('/api/workspaces/00000000-0000-0000-0000-000000000000')
-                .expect(404);
+                .expect(403);
+        });
+
+        it('forbids an admin who is not a member from deleting it', async () => {
+            const { agent: owner } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(owner);
+            const { agent: outsider } = await loginAs(
+                'admin',
+                'wsl-outsider2@example.com'
+            );
+            await outsider.delete(`/api/workspaces/${id}`).expect(403);
+
+            // Still there for its member.
+            const list = await owner.get('/api/workspaces').expect(200);
+            expect(list.body.some((ws: { id: string }) => ws.id === id)).toBe(
+                true
+            );
+        });
+
+        it('forbids the entry-count read for a non-member admin', async () => {
+            const { agent: owner } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(owner);
+            const { agent: outsider } = await loginAs(
+                'admin',
+                'wsl-outsider3@example.com'
+            );
+            await outsider
+                .get(`/api/workspaces/${id}/entry-count`)
+                .expect(403);
         });
 
         it('refuses (409) to delete a workspace that still has content entries', async () => {
