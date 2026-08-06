@@ -54,8 +54,9 @@ describe('POST /api/users/:id/(disable|enable)', () => {
             password: PASSWORD,
             role: 'contributor'
         });
-        await login('member@example.com'); // opens a session
+        const memberAgent = await login('member@example.com'); // opens a session
         expect(await countUserSessions(member.id)).toBe(1);
+        await memberAgent.get('/api/auth/me').expect(200);
 
         const agent = await login(ADMIN_EMAIL);
         const res = await agent
@@ -66,11 +67,35 @@ describe('POST /api/users/:id/(disable|enable)', () => {
         const row = await getUserByEmail('member@example.com');
         expect(row?.status).toBe('disabled');
 
-        // The disabled member can no longer authenticate with the old session.
+        // The session the member was already holding dies with the disable —
+        // they are signed out where they sit, not at next expiry. (Revocation
+        // is soft, so the row survives for audit; only its use is refused.)
+        await memberAgent.get('/api/auth/me').expect(401);
+
+        // And they cannot open a new one.
         await request(harness.server)
             .post('/api/auth/login')
             .send({ email: 'member@example.com', password: PASSWORD })
             .expect(401);
+    });
+
+    it('lets a reactivated member sign in again, on a fresh session', async () => {
+        const member = await seedActiveUser(harness.app, {
+            email: 'member@example.com',
+            password: PASSWORD,
+            role: 'contributor'
+        });
+        const memberAgent = await login('member@example.com');
+
+        const agent = await login(ADMIN_EMAIL);
+        await agent.post(`/api/users/${member.id}/disable`).expect(201);
+        await agent.post(`/api/users/${member.id}/enable`).expect(201);
+
+        // Reactivating restores sign-in, but never resurrects the revoked
+        // cookie — the member logs back in.
+        await memberAgent.get('/api/auth/me').expect(401);
+        const revived = await login('member@example.com');
+        await revived.get('/api/auth/me').expect(200);
     });
 
     it('refuses to let a member disable themselves with 409', async () => {

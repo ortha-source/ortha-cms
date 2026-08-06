@@ -1,5 +1,10 @@
-import type { ReactNode } from 'react';
-import { useCurrentUser } from '../../../application/useCurrentUser';
+import { useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { setUnauthorizedHandler } from '@ortha-cms/utils-admin';
+import {
+    currentUserKey,
+    useCurrentUser
+} from '../../../application/useCurrentUser';
 import {
     AuthProviderContext,
     AuthStatus,
@@ -12,9 +17,30 @@ import {
  * around `RequireAuth` in its `layout`, so it wraps the private area (not the
  * public sign-in page); the host renders that layout without knowing any of this
  * exists.
+ *
+ * It also owns the **session-lost** reaction: while mounted it installs the
+ * shared client's `401` handler, so a session that dies mid-visit — revoked from
+ * another device, expired, or the account suspended by an admin — drops the
+ * cached user and lands the visitor on the sign-in page instead of leaving a
+ * shell that 401s on every request.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, isPending, isFetching } = useCurrentUser();
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        setUnauthorizedHandler(() => {
+            // Answer the probe with "no user" rather than invalidating it: the
+            // session is gone, so a refetch would only 401 again, and the null
+            // settles the gate on `unauthenticated` at once. Deliberately not
+            // `removeQueries`/`clear` — evicting queries that still have mounted
+            // observers makes them refetch, and each refetch 401s straight back
+            // into this handler. The redirect unmounts the private tree instead,
+            // leaving its data inactive for the cache's own GC.
+            queryClient.setQueryData(currentUserKey, null);
+        });
+        return () => setUnauthorizedHandler(null);
+    }, [queryClient]);
 
     // `data` present → authenticated. Otherwise, while the probe is in flight —
     // the initial load or a post-login/logout refetch — hold in `loading` so the

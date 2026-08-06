@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_407 test cases across 35 spec files._
+_425 test cases across 36 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -233,6 +233,9 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | rejects an expired session |
 | rejects a revoked session |
 | rejects a session whose user was deleted |
+| rejects a live session whose account was suspended |
+| accepts the same session again once the account is reactivated |
+| rejects a live session whose account fell back to pending |
 
 <!-- source: apps/server-e2e/src/server/auth/root-admin.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
@@ -844,6 +847,7 @@ _<sub>apps/server-e2e/src/server/users/set-user-status.spec.ts</sub>_
 | Test case |
 | --- |
 | disables an active member and revokes their sessions |
+| lets a reactivated member sign in again, on a fresh session |
 | refuses to let a member disable themselves with 409 |
 | rejects disabling an already-disabled member with 409 |
 | re-enables a disabled member |
@@ -933,7 +937,32 @@ _<sub>apps/server-e2e/src/server/workspaces/update-workspace.spec.ts</sub>_
 | applies a partial patch, leaving unspecified fields intact |
 | is a no-op for an empty patch and records nothing |
 | forbids a contributor (lacks workspaces:update) with 403 |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids an admin who is not a member of the workspace |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-access.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-access.spec.ts</sub>_
+
+## Workspace access is scoped to membership
+
+### GET /api/workspaces
+
+| Test case |
+| --- |
+| returns only the workspaces the caller belongs to |
+| is empty for a user who belongs to no workspace |
+| starts returning a workspace once the user is added to it |
+| requires workspaces:read |
+
+### /api/workspaces/:id/… as a non-member
+
+| Test case |
+| --- |
+| forbids reading the other tenant’s entry counts |
+| forbids editing, archiving, and deleting it |
+| forbids changing its members |
+| forbids granting and revoking its content types |
+| leaves the workspace untouched after every rejected call |
 
 <!-- source: apps/server-e2e/src/server/workspaces/workspace-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/workspace-content.spec.ts</sub>_
@@ -978,7 +1007,8 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts</sub>_
 | is idempotent — archiving an archived workspace records nothing new |
 | unarchives back to active and records workspace.unarchived |
 | forbids a contributor (lacks workspaces:update) with 403 |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids an admin who is not a member of the workspace |
 
 ### DELETE /api/workspaces/:id
 
@@ -986,7 +1016,9 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts</sub>_
 | --- |
 | deletes a workspace and records workspace.deleted |
 | forbids a contributor (lacks workspaces:delete) with 403 |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids an admin who is not a member from deleting it |
+| forbids the entry-count read for a non-member admin |
 | refuses (409) to delete a workspace that still has content entries |
 | forbids the entry-count read for a contributor (lacks workspaces:delete) with 403 |
 
@@ -1007,7 +1039,8 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 | --- |
 | adds a member and records workspace.member_added |
 | is idempotent — re-adding a member records nothing new |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids a non-member admin from adding themselves |
 | 404s for an unknown user |
 | forbids a contributor (lacks workspaces:update) with 403 |
 

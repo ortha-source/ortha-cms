@@ -85,7 +85,8 @@ owns auth). `src/lib` is organized into:
 - `PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH` — the client-side mirror of the
   server's credential rule
 - `AuthProvider` — fetches `/api/auth/me` and publishes auth state; the shell
-  wraps it around `RequireAuth` in its `layout`
+  wraps it around `RequireAuth` in its `layout`. It also owns the **session-lost**
+  reaction (see below)
 - `RequireAuth` — the route gate; redirects to `/identity/signin` while
   unauthenticated, preserving the attempted location for return-to. Reusable by
   any plugin that needs to gate its own sub-routes (imported from here, not the
@@ -141,6 +142,21 @@ owns auth). `src/lib` is organized into:
   session cookie, so the page invalidates `currentUserKey` and navigates to `/`.
 - **Design system.** UI is built from `@ortha-cms/design-system` components
   (`Card`, `Alert`, `Input`, `Field*`, `Button`, `Logo`), not bespoke markup.
+- **Session lost mid-visit.** A session can die while a tab is open — an admin
+  suspends the account (the server revokes its sessions in the same
+  transaction), it expires, or another device kills it. Two things pick that up,
+  and both settle on the same "no cached user → gate redirects to sign-in":
+    - `AuthProvider` installs `utils-admin`'s `setUnauthorizedHandler` while
+      mounted, so **any** `401` on a request that expected a session writes
+      `null` into `currentUserKey`. It deliberately does **not**
+      `removeQueries`/`clear` — evicting queries that still have mounted
+      observers makes them refetch, and each refetch `401`s straight back into
+      the handler. The redirect unmounts the private tree instead.
+    - `useCurrentUser` re-probes **on window focus** (bounded by `staleTime`)
+      rather than resolving once per tab, so an idle tab whose account was
+      suspended is caught on return without waiting for the next action. The
+      refetch is invisible: `AuthProvider` keeps reporting the cached user while
+      it is in flight, so focus never flashes the root loader.
 
 ## Usage
 

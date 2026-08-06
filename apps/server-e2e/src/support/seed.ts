@@ -221,6 +221,22 @@ export async function revokeUserSessions(userId: string): Promise<void> {
         .where(eq(sessions.userId, userId));
 }
 
+/**
+ * Flip a user's lifecycle status **without** touching their sessions — the
+ * out-of-band suspension the API's own disable endpoint never performs (it
+ * revokes in the same transaction). Lets a spec assert that a live cookie is
+ * refused on account status alone.
+ */
+export async function setUserStatus(
+    userId: string,
+    status: UserStatus
+): Promise<void> {
+    await getDatabase()
+        .update(users)
+        .set({ status })
+        .where(eq(users.id, userId));
+}
+
 /** Delete a user row (cascades to their sessions via FK). */
 export async function deleteUser(userId: string): Promise<void> {
     await getDatabase().delete(users).where(eq(users.id, userId));
