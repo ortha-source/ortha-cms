@@ -312,8 +312,18 @@ test.describe('Entry editor — Media tab', () => {
     }) => {
         // Uploads are deferred to the save, so an ungranted upload would 403
         // *inside* the write and take the whole record save down with it.
+        //
+        // `content:create` is what makes this a *writable* create form —
+        // without it the editor is a read-only preview and every media control
+        // is gone, which would pass this assertion for the wrong reason. This
+        // case is about the `media:*` matrix, so the content side is granted.
         await mockSignedIn(page, {
-            permissions: ['content:read', 'content:update', 'media:read']
+            permissions: [
+                'content:read',
+                'content:create',
+                'content:update',
+                'media:read'
+            ]
         });
         await mediaFieldPage.gotoNewArticle(WS);
         await mediaFieldPage.openMediaTab();
@@ -328,8 +338,10 @@ test.describe('Entry editor — Media tab', () => {
         page,
         mediaFieldPage
     }) => {
+        // As above: `content:create` keeps the create form writable, so what
+        // this case observes is the missing `media:read` and nothing else.
         await mockSignedIn(page, {
-            permissions: ['content:read', 'content:update']
+            permissions: ['content:read', 'content:create', 'content:update']
         });
         await mediaFieldPage.gotoNewArticle(WS);
         await mediaFieldPage.openMediaTab();

@@ -127,6 +127,25 @@ There is deliberately **no Escape shortcut**: the toolbar's menus and popovers
 each answer Escape themselves, and a second handler on the view would race them
 into closing the whole editor out from under an open menu.
 
+### 3b. Read-only keeps the expansion, and only the expansion
+
+When the entry editor is read-only (`EntryFieldControlContext.readOnly` — the
+reader has no `content:update`, or no `content:create` on a create form), every
+other field on the record simply goes inert in place. A body can't: the collapsed
+preview is height-clamped with a fade where it's cut, so a reader who is allowed
+to read the record would be unable to read the part of it that matters most.
+
+So the control is kept and renamed — **View {label}**, with an eye instead of a
+pencil — and what it opens is the same view with `WysiwygEditorPanel`'s
+`readOnly`: `editable: false`, **no toolbar** (it is nothing but commands that
+write, so it is dropped whole rather than mounted with twenty inert controls), no
+`autofocus` (dropping a reader at the end of a document is the opposite of
+useful), and `role="region"` in place of `role="textbox"` + `aria-multiline` +
+`aria-required` — a textbox that takes no text misdescribes the surface, and
+`required` is meaningless on something the reader can't fill. The empty-state line
+also swaps to a plain statement, since both the `admin.placeholder` and the
+default ("press Edit to start") are written at an author.
+
 ### 4. Edits are written to the form as they're made
 
 There is no Save/Cancel of its own. `onUpdate` writes straight back to the entry

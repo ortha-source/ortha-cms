@@ -84,6 +84,7 @@ export function DateField({
     onBlur,
     withTime,
     invalid,
+    disabled,
     'aria-describedby': ariaDescribedby
 }: {
     id: string;
@@ -92,6 +93,13 @@ export function DateField({
     onBlur?: () => void;
     withTime: boolean;
     invalid?: boolean;
+    /**
+     * Render the trigger inert (a read-only editor). A picker has no `readOnly`
+     * to fall back on the way a text input does — its value is only reachable
+     * through the popover — so the formatted date stays on the trigger and only
+     * the popover is closed off.
+     */
+    disabled?: boolean;
     /** Ids of the hint/error elements describing the trigger. */
     'aria-describedby'?: string;
 }) {
@@ -106,6 +114,7 @@ export function DateField({
                 onChange={(next) => onChange(next ? toISODateTime(next) : '')}
                 onBlur={onBlur}
                 invalid={invalid}
+                disabled={disabled}
                 aria-describedby={ariaDescribedby}
                 placeholder={intl.formatMessage(messages.dateTimePlaceholder)}
                 timeLabel={intl.formatMessage(messages.time)}
@@ -120,6 +129,7 @@ export function DateField({
             onChange={(next) => onChange(next ? toISODate(next) : '')}
             onBlur={onBlur}
             invalid={invalid}
+            disabled={disabled}
             aria-describedby={ariaDescribedby}
             placeholder={intl.formatMessage(messages.datePlaceholder)}
         />

@@ -60,6 +60,15 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
+     * The same control in a **read-only** editor, where it is named "View
+     * {label}" — the expansion is kept (a clamped preview can't show a long
+     * body) but it opens a reading surface, not an editor.
+     */
+    viewControl(label: string): Locator {
+        return this.page.getByRole('button', { name: `View ${label}` });
+    }
+
+    /**
      * The rendered preview for a field, located by walking up from its control
      * to the shared card. Used to assert the field shows *content* — a heading,
      * a list — rather than the markup that produced it.

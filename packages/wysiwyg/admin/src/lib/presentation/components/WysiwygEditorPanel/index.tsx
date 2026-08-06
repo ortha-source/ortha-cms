@@ -42,6 +42,7 @@ export function WysiwygEditorPanel({
     initialHtml,
     placeholder,
     required = false,
+    readOnly = false,
     onChange,
     onDone
 }: {
@@ -53,6 +54,13 @@ export function WysiwygEditorPanel({
     placeholder: string;
     /** Mirrors the field's `required` onto the editing surface. */
     required?: boolean;
+    /**
+     * Render the document as a **reading** surface: no toolbar, no caret, no
+     * writes. Used when the entry editor is read-only, where expanding a body is
+     * still worth doing — a long document doesn't fit the collapsed preview's
+     * clamp — but nothing about it may change.
+     */
+    readOnly?: boolean;
     /** Write an edit back to the entry form. */
     onChange: (value: string) => void;
     /** Collapse back to the form. */
@@ -72,10 +80,13 @@ export function WysiwygEditorPanel({
     const editor = useEditor({
         extensions: editorExtensions(placeholder),
         content: initialHtml,
+        editable: !readOnly,
         // The author pressed the field to keep writing, so start where the text
         // ends — and put focus in the document rather than leaving it on the
-        // control that just disappeared.
-        autofocus: 'end',
+        // control that just disappeared. A reader has nothing to type into, and
+        // dropping them at the *end* of a document they came to read is the
+        // opposite of useful — so focus is left alone in that case.
+        autofocus: readOnly ? false : 'end',
         editorProps: {
             attributes: {
                 class: `${WYSIWYG_PROSE_CLASS} outline-none`,
@@ -84,15 +95,28 @@ export function WysiwygEditorPanel({
                 // `aria-multiline` is the mapping ProseMirror doesn't apply for
                 // us, and the label keeps it distinct from the entry form's own
                 // inputs (there can be several rich-text fields on one record).
-                role: 'textbox',
-                'aria-multiline': 'true',
-                'aria-required': String(required),
+                //
+                // None of that applies once the surface isn't editable: a
+                // `textbox` that takes no text misdescribes it, and `required`
+                // is meaningless on something the reader can't fill. It reads as
+                // a labelled `region` instead — a passage of the page, which is
+                // what it now is.
+                ...(readOnly
+                    ? { role: 'region' }
+                    : {
+                          role: 'textbox',
+                          'aria-multiline': 'true',
+                          'aria-required': String(required)
+                      }),
                 'aria-label': intl.formatMessage(messages.editorLabel, {
                     field: fieldLabel
                 })
             }
         },
         onUpdate: ({ editor: instance }) => {
+            // Belt-and-braces: `editable: false` already refuses every
+            // transaction, but this is the one line that writes to the record.
+            if (readOnly) return;
             onChangeRef.current(normalizeRichText(instance.getHTML()));
         }
     });
@@ -111,7 +135,10 @@ export function WysiwygEditorPanel({
 
     return (
         <>
-            <WysiwygToolbar editor={editor} />
+            {/* The toolbar is nothing but commands that write, so in a
+                read-only view it is dropped whole rather than mounted with
+                twenty inert controls. */}
+            {readOnly ? null : <WysiwygToolbar editor={editor} />}
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                 <EditorContent editor={editor} />
             </div>

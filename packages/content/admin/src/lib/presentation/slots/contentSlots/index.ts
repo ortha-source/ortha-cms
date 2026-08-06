@@ -283,6 +283,15 @@ export type EntryTabContext = EntrySlotContext & {
     /** Form bridge for rendering controls bound to the editor's values. */
     form: EntryTabForm;
     /**
+     * Whether the editor is a **read-only preview** — the reader may see this
+     * record but not change it (no `content:update`, or no `content:create` on a
+     * create form). A contributed tab **must** honour it: show the field's
+     * current value and drop every write affordance it owns (pickers, upload
+     * triggers, remove/reorder controls). The server refuses the write either
+     * way; a tab that still accepts input just loses the user's work at Save.
+     */
+    readOnly: boolean;
+    /**
      * The saved entry's media fields resolved to display refs (name / thumbnail
      * url / kind), keyed by field name — so a tab can label pre-existing assets
      * without re-fetching. Empty while creating, or when no media resolver is
@@ -476,6 +485,16 @@ export type EntryFieldControlContext = {
     onChange: (value: unknown) => void;
     /** Mark the field touched, so its error may show. */
     onBlur?: () => void;
+    /**
+     * Whether the editor is a **read-only preview** — the reader may see this
+     * record but not change it (no `content:update`, or no `content:create` on a
+     * create form). A contributed control **must** honour it: render the value,
+     * accept no input, and drop its own write affordances (pickers, upload
+     * triggers, toolbars). The built-in controls do the same, and the server
+     * refuses the write regardless — but a control that still takes typing lets
+     * the user do work that is thrown away at Save.
+     */
+    readOnly: boolean;
     /**
      * Whether this field currently **owns the editor's work area** — the
      * expanded view described on {@link EntryFieldControlItem.FullView}. Always

@@ -65,6 +65,7 @@ export function MediaFieldSection({
     initialRefs,
     refsPending,
     uploads,
+    readOnly,
     onChange,
     onBlur
 }: {
@@ -79,6 +80,8 @@ export function MediaFieldSection({
     refsPending?: boolean;
     /** Editor-level staging for files that upload with the record. */
     uploads?: MediaPendingUploads;
+    /** Whether the entry editor is a read-only preview (no `content:update`). */
+    readOnly?: boolean;
     onChange: (value: unknown) => void;
     onBlur: () => void;
 }) {
@@ -168,6 +171,7 @@ export function MediaFieldSection({
                 initialRefs={initialRefs}
                 refsPending={refsPending}
                 uploads={uploads}
+                readOnly={readOnly}
                 invalid={!!error}
                 describedBy={error ? errorId : undefined}
                 onChange={onChange}

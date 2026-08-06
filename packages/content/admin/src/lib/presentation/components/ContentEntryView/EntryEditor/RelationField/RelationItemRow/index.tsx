@@ -31,6 +31,12 @@ const messages = defineMessages({
  * **Replace** action (single relation), and remove. Presentational and
  * controlled — the parent owns the value and every callback. Accessible names
  * for the controls are passed in so the parent can interpolate the record title.
+ *
+ * In a **read-only** editor every write control is dropped rather than disabled
+ * — reorder arrows, drag handle, Replace, remove — because there is no state in
+ * which they would light up for this reader, and a row of five dead buttons
+ * reads as a broken editor rather than a preview. The open-in-a-new-tab link
+ * stays: following a link to a record you can read is not a write.
  */
 export type RelationItemRowProps = {
     title: string;
@@ -69,6 +75,11 @@ export type RelationItemRowProps = {
     style?: CSSProperties;
     /** Whether this row is the one being dragged (dims it). */
     dragging?: boolean;
+    /**
+     * Preview mode — drop every write control (reorder, drag, Replace, remove)
+     * and keep the record's identity and its open-in-a-new-tab link.
+     */
+    readOnly?: boolean;
 };
 
 export function RelationItemRow({
@@ -90,7 +101,8 @@ export function RelationItemRow({
     dragHandle,
     rowRef,
     style,
-    dragging = false
+    dragging = false,
+    readOnly = false
 }: RelationItemRowProps) {
     const intl = useIntl();
     const iconButton = cn(
@@ -107,7 +119,7 @@ export function RelationItemRow({
                 dragging ? 'opacity-60 shadow-sm' : ''
             )}
         >
-            {dragHandle ?? null}
+            {readOnly ? null : (dragHandle ?? null)}
             {leading ?? null}
             <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
                 <span className="truncate text-sm font-medium">{title}</span>
@@ -120,7 +132,9 @@ export function RelationItemRow({
             {status ? (
                 <Badge
                     variant={
-                        status === ENTRY_STATUS.Published ? 'success' : 'secondary'
+                        status === ENTRY_STATUS.Published
+                            ? 'success'
+                            : 'secondary'
                     }
                     className="shrink-0"
                 >
@@ -131,7 +145,7 @@ export function RelationItemRow({
                     )}
                 </Badge>
             ) : null}
-            {onMoveUp ? (
+            {onMoveUp && !readOnly ? (
                 <Button
                     type="button"
                     variant="ghost"
@@ -144,7 +158,7 @@ export function RelationItemRow({
                     <ChevronUp className="size-4" aria-hidden />
                 </Button>
             ) : null}
-            {onMoveDown ? (
+            {onMoveDown && !readOnly ? (
                 <Button
                     type="button"
                     variant="ghost"
@@ -168,7 +182,7 @@ export function RelationItemRow({
                     <ExternalLink className="size-4" aria-hidden />
                 </a>
             ) : null}
-            {onReplace ? (
+            {onReplace && !readOnly ? (
                 <Button
                     type="button"
                     variant="ghost"
@@ -179,16 +193,18 @@ export function RelationItemRow({
                     {intl.formatMessage(messages.replace)}
                 </Button>
             ) : null}
-            <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                aria-label={removeLabel}
-                onClick={onRemove}
-            >
-                <X className="size-4" />
-            </Button>
+            {readOnly ? null : (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label={removeLabel}
+                    onClick={onRemove}
+                >
+                    <X className="size-4" />
+                </Button>
+            )}
         </div>
     );
 }

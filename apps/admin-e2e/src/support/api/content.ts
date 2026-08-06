@@ -320,6 +320,110 @@ export const WYSIWYG_MEDIA_ENTRY_ID = 'article-with-media';
 export const WYSIWYG_MEDIA_ENTRY_BODY =
     '<p>Before</p><img src="/api/media/assets/hero/raw" alt="A hero shot" width="640"><p>After</p>';
 
+/**
+ * The read-only suite's catalogue — one **single** (a routed page), which is
+ * where a reader most often lands: a page has no records table in front of it,
+ * so opening the type *is* opening its editor.
+ */
+export const READ_ONLY_SCHEMA_SEED: ContentTypeSummary[] = [
+    { name: 'landing', kind: 'single', label: 'Landing', path: '/' }
+];
+
+/**
+ * The read-only suite's field schema. Deliberately one field per **control
+ * shape**, because read-only is applied per shape and each has its own way of
+ * going inert: a plain text input, a `color`-widget text input (an `admin.widget`
+ * hint the built-in control renders as text — the field this whole suite was
+ * written for), a select, a boolean segmented control, a date picker, a rich-text
+ * body (a *contributed* control, `@ortha-cms/wysiwyg-admin`), and a media field
+ * (a *contributed tab*, `@ortha-cms/media-admin`). A regression that reaches only
+ * the built-ins would pass a single-field seed.
+ */
+export const READ_ONLY_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    landing: {
+        name: 'landing',
+        kind: 'single',
+        label: 'Landing',
+        path: '/',
+        publishable: true,
+        fields: [
+            {
+                name: 'title',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Title' }
+            },
+            {
+                name: 'subtitle',
+                type: 'text',
+                required: false,
+                validation: {},
+                admin: { label: 'Subtitle' }
+            },
+            {
+                name: 'accentColor',
+                type: 'text',
+                required: false,
+                validation: {},
+                admin: { label: 'Accent color', widget: 'color' }
+            },
+            {
+                name: 'variant',
+                type: 'select',
+                required: false,
+                validation: {},
+                admin: { label: 'Variant' },
+                options: ['a', 'b', 'c']
+            },
+            {
+                name: 'featured',
+                type: 'boolean',
+                required: false,
+                validation: {},
+                admin: { label: 'Featured' }
+            },
+            {
+                name: 'goLiveOn',
+                type: 'date',
+                required: false,
+                validation: {},
+                admin: { label: 'Go live on' }
+            },
+            {
+                name: 'body',
+                type: 'richtext',
+                required: false,
+                validation: {},
+                admin: { label: 'Body' }
+            },
+            {
+                name: 'hero',
+                type: 'media',
+                required: false,
+                validation: {},
+                admin: { label: 'Hero image' },
+                accept: { kinds: ['image'] }
+            }
+        ]
+    }
+};
+
+/** The one stored row of {@link READ_ONLY_DETAIL_SEED}'s single. */
+export const READ_ONLY_ENTRY_ID = 'landing-row';
+
+/**
+ * The permission set a reader holds: `content:read` (and the media/workspace
+ * reads the shell needs) but **no** `content:create`/`update`/`publish`/`delete`.
+ * Hand it to `mockSignedIn` to render the editor as a preview.
+ */
+export const READ_ONLY_PERMISSIONS = [
+    'workspaces:read',
+    'users:read',
+    'content:read',
+    'media:read'
+];
+
 /** Full field schemas for the relations suite (article + its three targets). */
 export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
     article: {
@@ -601,6 +705,45 @@ export const MEDIA_FIELDS_WORKSPACE: WorkspaceView = {
     name: 'Media fields demo',
     slug: 'media-fields-demo',
     content: ['article']
+};
+
+/**
+ * The read-only suite's one stored row — a landing page with **every** field
+ * already filled. A preview that shows nothing proves nothing: the point of
+ * these assertions is that the values are still legible while the controls that
+ * would change them are not there.
+ *
+ * The `hero` id is `MEDIA_ASSET_IDS.hero` from `support/api/media` spelled out
+ * rather than imported, so this module keeps its one dependency direction (the
+ * media seed imports nothing from here and vice versa). The shared kernel
+ * shape-checks a media value as a uuid, so it has to be a real one.
+ */
+export const READ_ONLY_ENTRIES_SEED: Record<string, EntryRecord[]> = {
+    landing: [
+        seedRow(
+            READ_ONLY_ENTRY_ID,
+            {
+                title: 'Welcome to Ortha',
+                subtitle: 'The CMS that gets out of the way',
+                accentColor: '#4f46e5',
+                variant: 'b',
+                featured: true,
+                goLiveOn: '2026-03-01',
+                body: '<h2>What we ship</h2><p>Content, <strong>fast</strong>.</p>',
+                hero: '11111111-1111-4111-8111-111111111111'
+            },
+            'published'
+        )
+    ]
+};
+
+/** A workspace granted the read-only suite's one page. */
+export const READ_ONLY_WORKSPACE: WorkspaceView = {
+    ...LIBRARY_WORKSPACE,
+    id: 'ws_readonly',
+    name: 'Read only demo',
+    slug: 'read-only-demo',
+    content: ['landing']
 };
 
 /** A workspace granted the rich-text suite's one collection. */
