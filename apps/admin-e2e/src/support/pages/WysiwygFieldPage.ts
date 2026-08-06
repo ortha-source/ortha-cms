@@ -161,6 +161,80 @@ export class WysiwygFieldPage extends BasePage {
         });
     }
 
+    /**
+     * Open **Insert ▸ Media**, then one of its entries — the contributed
+     * sources ("Media Library…", "Upload files…") or a built-in URL entry.
+     */
+    async openMediaSource(name: string | RegExp): Promise<void> {
+        await this.openInsertSubmenu('Media');
+        await this.page.getByRole('menuitem', { name }).click();
+    }
+
+    /** An image inside the expanded editor's document. */
+    editorImage(alt: string | RegExp): Locator {
+        return this.surfaceRoot.getByRole('img', { name: alt });
+    }
+
+    /** Every `<video>` in the expanded editor's document. */
+    get editorVideos(): Locator {
+        return this.surfaceRoot.locator('video');
+    }
+
+    /** The resize handle on the selected media node. */
+    get resizeHandle(): Locator {
+        return this.page.getByRole('button', { name: /^Resize/ });
+    }
+
+    /** The built-in "from a URL" dialog. */
+    private get mediaUrlDialog(): Locator {
+        return this.page.getByRole('dialog', { name: /from a URL$/ });
+    }
+
+    /** Fill the URL dialog and submit it. */
+    async fillMediaUrl(url: string, alt?: string): Promise<void> {
+        await this.mediaUrlDialog.getByLabel('URL').fill(url);
+        if (alt !== undefined) {
+            await this.mediaUrlDialog.getByLabel('Alt text').fill(alt);
+        }
+        await this.mediaUrlDialog
+            .getByRole('button', { name: 'Insert' })
+            .click();
+    }
+
+    /** The URL dialog's validation message. */
+    get mediaUrlError(): Locator {
+        return this.mediaUrlDialog.getByRole('alert');
+    }
+
+    /**
+     * Pick one asset in the Media Library picker and confirm. The picker is
+     * `@ortha-cms/media-admin`'s own — the same one a media *field* opens.
+     */
+    async pickLibraryAsset(name: string): Promise<void> {
+        const picker = this.page.getByRole('dialog', { name: 'Select assets' });
+        await picker
+            .getByRole('button', { name: new RegExp(name.replace('.', '\\.')) })
+            .click();
+        await picker.getByRole('button', { name: 'Add selected' }).click();
+        await picker.waitFor({ state: 'hidden' });
+    }
+
+    /** Nudge the focused resize handle, one arrow-key press at a time. */
+    async nudgeResize(
+        direction: 'ArrowLeft' | 'ArrowRight',
+        times = 1
+    ): Promise<void> {
+        await this.resizeHandle.focus();
+        for (let i = 0; i < times; i += 1) {
+            await this.page.keyboard.press(direction);
+        }
+    }
+
+    /** The editor's writing surface, as a plain element for content queries. */
+    private get surfaceRoot(): Locator {
+        return this.page.locator('[role="textbox"][aria-multiline="true"]');
+    }
+
     /** An item inside an open toolbar dropdown. */
     menuItem(name: string): Locator {
         return this.page.getByRole('menuitem', { name, exact: true });

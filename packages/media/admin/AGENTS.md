@@ -186,6 +186,37 @@ is disabled and the card says why.
   rejected file never reaches the value; the server re-checks the real asset on
   save, which is the enforcing pass.
 
+## The rich-text editor's media sources
+
+Beyond the Media tab, this plugin also fills **`WYSIWYG_MEDIA_SLOT`**, declared
+by `@ortha-cms/wysiwyg-admin` (hence that dependency; it runs media → wysiwyg,
+never the reverse — the editor must stay usable with no media plugin installed).
+Two contributions, because they are different acts:
+
+- **`WysiwygLibrarySource`** — the same `MediaPickerDialog` a media field opens,
+  in `multiple` mode, narrowed to the kinds the editor can hold. One picker
+  implementation, so an author moving between a field and a body meets the same
+  browsing, searching, and folders.
+- **`WysiwygUploadSource`** — the same `UploadDialog`, then one `uploadFile`
+  request per file, then insert. Files land in `ROOT_FOLDER_ID` and the media
+  caches are invalidated as soon as anything lands.
+
+`utils/toWysiwygEmbed` is the one place an asset becomes the editor's model. It
+returns `null` for anything the editor has no node for (audio, a PDF), which is
+the second gate behind the picker's own `accept` filter. An image embeds its
+**`previewUrl`** — a body has no use for a 12-megapixel original — and a video
+its `url`; the asset's `alt` and pixel width ride along, so the node lands at a
+sensible size with the alt text someone already wrote in the library.
+
+### Why this uploads immediately, unlike a media field
+
+A media **field** defers uploads to the record's save (below), because the field
+holds an *id* and an abandoned edit would litter the library. A **body** holds a
+*URL*, and there is no URL until the bytes exist — so the upload has to happen
+when the file is chosen. The trade is one-directional and deliberate: abandoning
+the edit leaves an asset in the library, where it is visible and deletable,
+rather than leaving the body pointing at nothing.
+
 ## Deferred uploads — a record and its new assets are one commit
 
 **`hooks/usePendingMediaUploads`** is the plugin's contribution to content-admin's
@@ -272,6 +303,12 @@ whose multi-segment route would otherwise answer `/:id/media` with an entry
 record.
 
 The **Media Library page** still has only `media-library.spec.ts`.
+
+The editor sources are covered from the other side, in
+`apps/admin-e2e/src/content/wysiwyg-fields.spec.ts` (its `media` describe): that
+both contributions appear in Insert ▸ Media beside the editor's own URL entries,
+that a library pick stores the asset's URL and seeds the node's width, and that
+nothing uploads when an existing asset is chosen.
 
 ## Not yet (follow-ups)
 

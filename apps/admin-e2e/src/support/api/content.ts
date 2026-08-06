@@ -309,6 +309,17 @@ export const WYSIWYG_ENTRY_ID = 'article-rich';
 export const WYSIWYG_ENTRY_BODY =
     '<h2>Release notes</h2><p>Shipped <strong>faster</strong> builds.</p><ul><li>Cold start</li><li>Watch mode</li></ul>';
 
+/** An article whose `body` already embeds a picture. */
+export const WYSIWYG_MEDIA_ENTRY_ID = 'article-with-media';
+
+/**
+ * The stored HTML {@link WYSIWYG_MEDIA_ENTRY_ID} comes back with. A relative
+ * `src` on purpose — that is what the Media Library serves, and what an install
+ * that changes hostname needs it to stay.
+ */
+export const WYSIWYG_MEDIA_ENTRY_BODY =
+    '<p>Before</p><img src="/api/media/assets/hero/raw" alt="A hero shot" width="640"><p>After</p>';
+
 /** Full field schemas for the relations suite (article + its three targets). */
 export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
     article: {

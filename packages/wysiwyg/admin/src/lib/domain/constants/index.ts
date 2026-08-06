@@ -23,6 +23,34 @@ export const WYSIWYG_WIDGET = {
     Textarea: 'textarea'
 } as const;
 
+/** The media kinds the editor can hold — one node type each. */
+export const WYSIWYG_MEDIA_KIND = {
+    /** An `<img>`. */
+    Image: 'image',
+    /** A `<video controls>`. */
+    Video: 'video'
+} as const;
+
+/** A media kind the editor can hold. */
+export type WysiwygMediaKind =
+    (typeof WYSIWYG_MEDIA_KIND)[keyof typeof WYSIWYG_MEDIA_KIND];
+
+/** Every kind, for a source that accepts whatever the editor does. */
+export const WYSIWYG_MEDIA_KINDS: readonly WysiwygMediaKind[] = [
+    WYSIWYG_MEDIA_KIND.Image,
+    WYSIWYG_MEDIA_KIND.Video
+];
+
+/**
+ * Narrowest a resized media block may get, in pixels. Below this the drag
+ * handle is bigger than what it is resizing, and the block stops being
+ * recognisable as the thing the author placed.
+ */
+export const MEDIA_MIN_WIDTH = 64;
+
+/** How far one arrow-key press moves the resize handle (Shift ×4). */
+export const MEDIA_RESIZE_STEP = 16;
+
 /** A callout's severity — the `data-tone` written into the stored HTML. */
 export const CALLOUT_TONE = {
     Info: 'info',

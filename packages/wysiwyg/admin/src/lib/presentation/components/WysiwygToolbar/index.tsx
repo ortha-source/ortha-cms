@@ -1,6 +1,16 @@
+import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import type { Editor } from '@tiptap/react';
 import { Bold, Italic, List, ListOrdered, Redo2, Undo2 } from 'lucide-react';
+import { byOrder } from '@ortha-cms/utils-admin';
+import {
+    WYSIWYG_MEDIA_KINDS,
+    type WysiwygMediaKind
+} from '../../../domain/constants';
+import {
+    WYSIWYG_MEDIA_SLOT,
+    type WysiwygMediaEmbed
+} from '../../slots/wysiwygSlots';
 import { useLiveEditorState } from '../../hooks/useLiveEditorState';
 import { AlignMenu } from './AlignMenu';
 import { BlockTypeMenu } from './BlockTypeMenu';
@@ -8,6 +18,7 @@ import { COLOR_KIND, ColorMenu } from './ColorMenu';
 import { FontSizeMenu } from './FontSizeMenu';
 import { InsertMenu } from './InsertMenu';
 import { LinkPopover } from './LinkPopover';
+import { MediaUrlDialog } from './MediaUrlDialog';
 import { MoreMarksMenu } from './MoreMarksMenu';
 import { ToolbarButton } from './ToolbarButton';
 
@@ -97,71 +108,127 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
         TOOLBAR_INERT
     );
 
+    // Contributed media sources, ordered once — the slot is boot-frozen, so
+    // there is nothing to recompute.
+    const mediaSources = useMemo(
+        () => byOrder([...WYSIWYG_MEDIA_SLOT.getItems()]),
+        []
+    );
+    /** Which contributed source is open, by item id. */
+    const [openSource, setOpenSource] = useState<string | null>(null);
+    /** Which built-in URL dialog is open, by the kind it inserts. */
+    const [urlKind, setUrlKind] = useState<WysiwygMediaKind | null>(null);
+
+    const insertMedia = (embeds: WysiwygMediaEmbed[]) => {
+        editor.chain().focus().insertMedia(embeds).run();
+    };
+
     return (
-        <div
-            role="group"
-            aria-label={intl.formatMessage(messages.toolbar)}
-            className="flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/40 px-2 py-1.5"
-        >
-            <ToolbarButton
-                label={intl.formatMessage(messages.undo)}
-                icon={Undo2}
-                disabled={!state.canUndo}
-                onClick={() => editor.chain().focus().undo().run()}
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.redo)}
-                icon={Redo2}
-                disabled={!state.canRedo}
-                onClick={() => editor.chain().focus().redo().run()}
-            />
+        <>
+            <div
+                role="group"
+                aria-label={intl.formatMessage(messages.toolbar)}
+                className="flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/40 px-2 py-1.5"
+            >
+                <ToolbarButton
+                    label={intl.formatMessage(messages.undo)}
+                    icon={Undo2}
+                    disabled={!state.canUndo}
+                    onClick={() => editor.chain().focus().undo().run()}
+                />
+                <ToolbarButton
+                    label={intl.formatMessage(messages.redo)}
+                    icon={Redo2}
+                    disabled={!state.canRedo}
+                    onClick={() => editor.chain().focus().redo().run()}
+                />
 
-            <ToolbarSeparator />
+                <ToolbarSeparator />
 
-            <BlockTypeMenu editor={editor} />
-            <FontSizeMenu editor={editor} />
+                <BlockTypeMenu editor={editor} />
+                <FontSizeMenu editor={editor} />
 
-            <ToolbarSeparator />
+                <ToolbarSeparator />
 
-            <ToolbarButton
-                label={intl.formatMessage(messages.bold)}
-                icon={Bold}
-                active={state.bold}
-                onClick={() => editor.chain().focus().toggleBold().run()}
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.italic)}
-                icon={Italic}
-                active={state.italic}
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-            />
-            <MoreMarksMenu editor={editor} />
+                <ToolbarButton
+                    label={intl.formatMessage(messages.bold)}
+                    icon={Bold}
+                    active={state.bold}
+                    onClick={() => editor.chain().focus().toggleBold().run()}
+                />
+                <ToolbarButton
+                    label={intl.formatMessage(messages.italic)}
+                    icon={Italic}
+                    active={state.italic}
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
+                />
+                <MoreMarksMenu editor={editor} />
 
-            <ToolbarSeparator />
+                <ToolbarSeparator />
 
-            <ColorMenu editor={editor} kind={COLOR_KIND.Text} />
-            <ColorMenu editor={editor} kind={COLOR_KIND.Highlight} />
+                <ColorMenu editor={editor} kind={COLOR_KIND.Text} />
+                <ColorMenu editor={editor} kind={COLOR_KIND.Highlight} />
 
-            <ToolbarSeparator />
+                <ToolbarSeparator />
 
-            <ToolbarButton
-                label={intl.formatMessage(messages.bulletList)}
-                icon={List}
-                active={state.bulletList}
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-            />
-            <ToolbarButton
-                label={intl.formatMessage(messages.orderedList)}
-                icon={ListOrdered}
-                active={state.orderedList}
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            />
-            <AlignMenu editor={editor} />
+                <ToolbarButton
+                    label={intl.formatMessage(messages.bulletList)}
+                    icon={List}
+                    active={state.bulletList}
+                    onClick={() =>
+                        editor.chain().focus().toggleBulletList().run()
+                    }
+                />
+                <ToolbarButton
+                    label={intl.formatMessage(messages.orderedList)}
+                    icon={ListOrdered}
+                    active={state.orderedList}
+                    onClick={() =>
+                        editor.chain().focus().toggleOrderedList().run()
+                    }
+                />
+                <AlignMenu editor={editor} />
 
-            <ToolbarSeparator />
+                <ToolbarSeparator />
 
-            <LinkPopover editor={editor} />
-            <InsertMenu editor={editor} />
-        </div>
+                <LinkPopover editor={editor} />
+                <InsertMenu
+                    editor={editor}
+                    mediaSources={mediaSources}
+                    onOpenMediaSource={setOpenSource}
+                    onOpenMediaUrl={setUrlKind}
+                />
+            </div>
+
+            {/* Media sources are mounted **here**, outside the menu that opens
+            them. `DropdownMenuContent` unmounts the moment the menu closes —
+            which is precisely when a picker is meant to appear — so a dialog
+            rendered inside it would open into a tree being torn down. Same
+            reason content-admin renders its ⋯-menu items' overlays outside the
+            menu. Mounted for the editor's whole life, each source keeps its own
+            state across openings. */}
+            {mediaSources.map((source) => (
+                <source.Source
+                    key={source.id}
+                    open={openSource === source.id}
+                    onOpenChange={(next) =>
+                        setOpenSource(next ? source.id : null)
+                    }
+                    accept={WYSIWYG_MEDIA_KINDS}
+                    onInsert={insertMedia}
+                />
+            ))}
+
+            {urlKind ? (
+                <MediaUrlDialog
+                    open
+                    onOpenChange={(next) => {
+                        if (!next) setUrlKind(null);
+                    }}
+                    kind={urlKind}
+                    onInsert={insertMedia}
+                />
+            ) : null}
+        </>
     );
 }

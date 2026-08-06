@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_263 test cases across 31 spec files._
+_269 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -379,6 +379,17 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | stores a table with its header row |
 | stores a column layout as nested divs |
 | stores an emptied field as empty, not as a blank paragraph |
+
+### media
+
+| Test case |
+| --- |
+| offers the contributed sources beside the built-in URL entries |
+| stores an image named by URL |
+| refuses a URL the editor would not publish |
+| places an asset picked from the Media Library |
+| resizes an image from the keyboard, and stores the width |
+| shows a stored image in the collapsed preview |
 
 ### accessibility
 

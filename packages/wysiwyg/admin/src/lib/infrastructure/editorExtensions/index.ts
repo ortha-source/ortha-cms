@@ -13,6 +13,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import { TableKit } from '@tiptap/extension-table';
 import { Callout } from '../extensions/callout';
 import { Column, ColumnBlock } from '../extensions/columns';
+import { ResizableImage, ResizableVideo } from '../extensions/media';
 
 /** Heading levels the editor offers. Deeper than h4 has no place in a CMS body. */
 const HEADING_LEVELS = [1, 2, 3, 4] as const;
@@ -52,6 +53,11 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
         Callout,
         ColumnBlock,
         Column,
+        // Media the author embeds. Where it *comes from* is not decided here —
+        // `WYSIWYG_MEDIA_SLOT` is what a media plugin fills; these two nodes
+        // just hold whatever any source hands over.
+        ResizableImage,
+        ResizableVideo,
         Placeholder.configure({ placeholder }),
         // Powers the dialog's footer count. Informational only: a `richtext`
         // field's `maxLength` is validated against the **HTML** string (tags

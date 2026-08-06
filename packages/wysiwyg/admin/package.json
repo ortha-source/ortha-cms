@@ -19,6 +19,7 @@
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/content-admin": "*",
         "@ortha-cms/design-system": "*",
+        "@ortha-cms/utils-admin": "*",
         "@tiptap/core": "^3.29.2",
         "@tiptap/extension-highlight": "^3.29.2",
         "@tiptap/extension-table": "^3.29.2",

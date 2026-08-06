@@ -4,8 +4,8 @@ The **rich-text editing plugin** for the Ortha CMS admin UI. It owns how a
 `richtext` field looks and behaves in the entry form: the field shows the
 content **as it reads**, and pressing it expands a [TipTap](https://tiptap.dev)
 editor into the record's work area, with the formatting toolbar — text style and
-size, colors and highlights, alignment, lists, links, callouts, tables, and
-column layouts.
+size, colors and highlights, alignment, lists, links, callouts, tables, column
+layouts, and **embedded images and video**.
 
 It is **not a place in the app**. It contributes no route, no navigation entry,
 and no page. Its entire surface is one contribution to content-admin's
@@ -47,9 +47,12 @@ Written layered from the start, like `content/admin`:
   `richTextValue` (what "empty" means for a stored value, and the storage
   normalization that follows from it).
 - **`infrastructure/`** — the TipTap layer. `editorExtensions` (the one place
-  that decides what an author can write), `extensions/callout` +
-  `extensions/columns` (nodes TipTap doesn't ship), and `renderRichText` (the
-  read-only renderer — see **Trust boundary** below).
+  that decides what an author can write), `extensions/callout`,
+  `extensions/columns`, and `extensions/media` (nodes TipTap doesn't ship — the
+  last one keeps its React node view beside it, since a node view is the
+  extension's own plumbing and putting it under `presentation/` would have this
+  layer importing upward), and `renderRichText` (the read-only renderer — see
+  **Trust boundary** below).
 - **`presentation/`** — React. `wysiwygPlugin` (the `AdminPlugin` factory),
   `components/WysiwygFieldControl` (the field as it sits in the form) and
   `components/WysiwygFieldFullView` (what it expands into) — the slot item's
@@ -184,6 +187,48 @@ content and stay put — those are content, not chrome. Same principle in the
 custom nodes: a callout serializes to `<aside data-callout data-tone="warning">`
 and a layout to `<div data-columns="3">`, so the consuming site styles the
 structure however it likes.
+
+## Media comes from a slot, not from a dependency
+
+The editor knows how to **hold** an image or a video: `extensions/media` defines
+a resizable `<img>` and a resizable `<video controls>`, and ships one way to
+name one — paste a URL. It deliberately knows nothing about the Media Library.
+
+Browsing folders, filtering by kind, and uploading are `@ortha-cms/media-admin`'s
+whole job. Importing it here would make rich text unusable in an install without
+a media plugin, and pin the editor to one library's shape forever. So the editor
+declares `WYSIWYG_MEDIA_SLOT` and media-admin fills it — the same inversion
+content-admin uses for its own slots, and the reason the dependency runs
+media → wysiwyg rather than the other way.
+
+A contribution is `{ id, label, icon?, order, Source }`. `Source` is handed
+`{ open, onOpenChange, accept, onInsert }` and calls `onInsert` with
+`WysiwygMediaEmbed[]` — a **URL plus display metadata**, not a library asset,
+which is what lets one node type serve a pick, an upload, and a typed link
+alike. media-admin registers two: **Media Library…** (its own picker, the same
+one a media field opens) and **Upload files…** (files go into the library, then
+into the text).
+
+Two things to keep in mind if you add a source:
+
+- **The toolbar mounts every `Source`, not the menu item that opens it.** A
+  `DropdownMenuContent` unmounts the moment its menu closes — exactly when a
+  picker is meant to appear — so a dialog rendered inside it opens into a tree
+  being torn down. Same reason content-admin renders its ⋯-menu overlays outside
+  the menu. Sources are mounted for the editor's whole life and told whether
+  they are `open`.
+- **`src` is vetted twice.** `domain/mediaSrc` allows `http(s)` and same-origin
+  paths and refuses everything else — including protocol-relative `//host/…`,
+  which inherits a scheme this editor can't vouch for. The dialogs check it to
+  explain *why* nothing happened; the node checks it on insert and on parse,
+  which is the pass that protects stored content.
+
+Sizing rides the **`width` attribute**, never an inline style or a stored
+height: an attribute survives being pasted into an email or re-rendered by a
+template, and a stored height is what goes wrong when someone swaps the asset.
+The resize handle is a real `<button>` with arrow-key support — the width is
+published content, so a pointer-only resize would put a content decision out of
+reach of keyboard users.
 
 ## The toolbar fits on one row
 

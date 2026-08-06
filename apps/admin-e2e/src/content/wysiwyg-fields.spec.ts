@@ -7,6 +7,8 @@ import {
     WYSIWYG_DETAIL_SEED,
     WYSIWYG_ENTRY_ID,
     WYSIWYG_ENTRY_BODY,
+    WYSIWYG_MEDIA_ENTRY_ID,
+    WYSIWYG_MEDIA_ENTRY_BODY,
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
@@ -15,6 +17,11 @@ import {
     spyEntrySave,
     type EntrySaveSpy
 } from '../support/api/content';
+import {
+    mockMediaApi,
+    MEDIA_ASSET_IDS,
+    type MediaUploadSpy
+} from '../support/api/media';
 import { expectNoA11yViolations } from '../support/a11y';
 
 const WS = WYSIWYG_WORKSPACE.id;
@@ -32,6 +39,7 @@ const WS = WYSIWYG_WORKSPACE.id;
  */
 test.describe('Entry editor — rich text field', () => {
     let saves: EntrySaveSpy;
+    let uploads: MediaUploadSpy;
 
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
@@ -52,10 +60,19 @@ test.describe('Entry editor — rich text field', () => {
                     body: WYSIWYG_ENTRY_BODY,
                     summary: '<p>Short and sweet.</p>',
                     rawHtml: '<div class="legacy">kept as-is</div>'
+                },
+                [`article/${WYSIWYG_MEDIA_ENTRY_ID}`]: {
+                    title: 'With media',
+                    body: WYSIWYG_MEDIA_ENTRY_BODY,
+                    summary: '<p>Short and sweet.</p>',
+                    rawHtml: ''
                 }
             }
         });
         saves = await spyEntrySave(page);
+        // The Media Library sources come from `@ortha-cms/media-admin` through
+        // the editor's own slot, so the media endpoints have to answer too.
+        uploads = await mockMediaApi(page);
     });
 
     test.describe('the collapsed field', () => {
@@ -306,6 +323,141 @@ test.describe('Entry editor — rich text field', () => {
                 'Required'
             );
             expect(saves.bodies).toHaveLength(0);
+        });
+    });
+
+    test.describe('media', () => {
+        test('offers the contributed sources beside the built-in URL entries', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openInsertSubmenu('Media');
+
+            // The first two are the media plugin's `WYSIWYG_MEDIA_SLOT`
+            // contributions — the editor itself knows nothing about a library.
+            await expect(
+                wysiwygFieldPage.menuItem('Media Library…')
+            ).toBeVisible();
+            await expect(
+                wysiwygFieldPage.menuItem('Upload files…')
+            ).toBeVisible();
+            // …and the editor's own entries, which need no plugin at all.
+            await expect(
+                wysiwygFieldPage.menuItem('Image from a URL…')
+            ).toBeVisible();
+            await expect(
+                wysiwygFieldPage.menuItem('Video from a URL…')
+            ).toBeVisible();
+        });
+
+        test('stores an image named by URL', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Image from a URL…');
+            await wysiwygFieldPage.fillMediaUrl(
+                'https://example.com/photo.jpg',
+                'A photo'
+            );
+
+            // Asserted on the node, not on the paint: the URL is external and
+            // this suite has no network, so the image is broken and has no box.
+            // What matters is that the editor made a node carrying that source.
+            await expect(
+                wysiwygFieldPage.editorImage('A photo')
+            ).toHaveAttribute('src', 'https://example.com/photo.jpg');
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            const body = String(saves.bodies[0].values?.['body']);
+            expect(body).toContain(
+                '<img src="https://example.com/photo.jpg" alt="A photo">'
+            );
+        });
+
+        test('refuses a URL the editor would not publish', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Image from a URL…');
+
+            // `javascript:` never reaches the document — the dialog says why
+            // rather than inserting a node that would carry it into published
+            // HTML.
+            await wysiwygFieldPage.fillMediaUrl('javascript:alert(1)');
+            await expect(wysiwygFieldPage.mediaUrlError).toBeVisible();
+            await expect(wysiwygFieldPage.editorImage(/./)).toHaveCount(0);
+        });
+
+        test('places an asset picked from the Media Library', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Media Library…');
+            await wysiwygFieldPage.pickLibraryAsset('hero.png');
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            // The stored `src` points at the library asset, and the asset's own
+            // pixel width seeds the node — so it lands at its natural size.
+            const body = String(saves.bodies[0].values?.['body']);
+            expect(body).toContain(`/api/media/assets/${MEDIA_ASSET_IDS.hero}`);
+            expect(body).toContain('<img ');
+            expect(body).toContain('width="1200"');
+            // Nothing was uploaded: an existing asset is already in the library.
+            expect(uploads.count).toBe(0);
+        });
+
+        test('resizes an image from the keyboard, and stores the width', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openMediaSource('Image from a URL…');
+            await wysiwygFieldPage.fillMediaUrl(
+                'https://example.com/photo.jpg',
+                'A photo'
+            );
+
+            // Resizing is a content decision — the width is published — so it
+            // has to work without a mouse.
+            await wysiwygFieldPage.nudgeResize('ArrowLeft', 2);
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            expect(String(saves.bodies[0].values?.['body'])).toMatch(
+                /<img[^>]*width="\d+"/
+            );
+        });
+
+        test('shows a stored image in the collapsed preview', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_MEDIA_ENTRY_ID);
+            // The preview renders the same node the editor does — it is the
+            // same schema round-trip, so a picture reads as a picture.
+            await expect(
+                wysiwygFieldPage.preview('Body').getByRole('img')
+            ).toBeVisible();
         });
     });
 

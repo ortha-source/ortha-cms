@@ -117,10 +117,37 @@
     margin: 1.75em 0;
 }
 
-.ortha-wysiwyg img {
+/* --- Embedded media ----------------------------------------------------- */
+
+.ortha-wysiwyg img,
+.ortha-wysiwyg video {
     border-radius: var(--radius);
+    display: block;
     height: auto;
     max-width: 100%;
+}
+
+/* A media node's wrapper. `width` on the element is what carries the author's
+   resize into published HTML (an attribute survives being pasted into an email
+   or re-rendered by a template, where a `style` may not) — but the element's
+   own `max-width: 100%` still wins on a narrow screen, so a 1200px image never
+   forces a horizontal scrollbar on a phone. */
+.ortha-wysiwyg figure {
+    margin: 1.25em 0;
+    max-width: 100%;
+}
+
+.ortha-wysiwyg figure > img,
+.ortha-wysiwyg figure > video {
+    width: 100%;
+}
+
+/* Editor-only: the node view's selection ring and resize handle. A preview
+   renders the same `<img>` with none of this. */
+.ortha-wysiwyg .ortha-wysiwyg-media {
+    /* The wrapper is a block in the flow; the figure inside carries the width,
+       so a resized image stays left-aligned rather than centring itself. */
+    display: block;
 }
 
 /* --- Inline ------------------------------------------------------------- */
