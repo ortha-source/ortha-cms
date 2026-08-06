@@ -63,6 +63,12 @@ const asset = (
  * in the entry values, where the shared validation kernel shape-checks it, so a
  * friendlier `a_hero` would be rejected client-side before any save.
  */
+/**
+ * The alt text {@link MEDIA_ASSET_IDS.hero} carries in the library. Seeded so a
+ * suite can prove alt written once in the library isn't written again per body.
+ */
+export const MEDIA_HERO_ALT = 'The team at the launch';
+
 export const MEDIA_ASSET_IDS = {
     hero: '11111111-1111-4111-8111-111111111111',
     report: '22222222-2222-4222-8222-222222222222',
@@ -92,7 +98,8 @@ export const MEDIA_SEED = {
             kind: 'image',
             mimeType: 'image/png',
             width: 1200,
-            height: 800
+            height: 800,
+            alt: MEDIA_HERO_ALT
         }),
         asset({ id: MEDIA_ASSET_IDS.report, name: 'report.pdf' }),
         asset({

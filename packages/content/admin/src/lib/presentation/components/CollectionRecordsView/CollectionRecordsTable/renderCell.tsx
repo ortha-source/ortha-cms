@@ -4,6 +4,7 @@ import { FileText } from 'lucide-react';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../domain/types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../domain/constants';
+import { richTextExcerpt } from '../../../../domain/richTextExcerpt';
 
 /** The em-dash placeholder for an empty cell. */
 const EMPTY = '—';
@@ -16,10 +17,11 @@ function isEmpty(value: unknown): boolean {
 /**
  * Render one field value into a table cell, by field type: scalars inline
  * (truncated), `boolean`/`select`/`status` as badges, dates via the intl
- * formatter, relations as a label with a `+N` overflow, and the heavy
- * `richtext`/`json` types as a muted, iconified summary (they don't fit
- * a cell). An empty value renders a muted em-dash. `intl` is passed in so the
- * function stays a pure renderer (no hook).
+ * formatter, relations as a label with a `+N` overflow, `json` as a muted,
+ * iconified summary, and `richtext` as a plain-text excerpt of its HTML (the
+ * markup itself doesn't fit — or read as — a cell). An empty value renders a
+ * muted em-dash. `intl` is passed in so the function stays a pure renderer (no
+ * hook).
  */
 export function renderCell(
     field: ContentField,
@@ -96,7 +98,16 @@ export function renderCell(
                     </span>
                 </span>
             );
-        case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.RichText: {
+            // Rich text is HTML: printed raw, the cell shows the reader their
+            // markup instead of their sentence. Excerpt it to the words, and
+            // treat "markup with no words" (an empty `<p></p>`) as empty —
+            // `isEmpty` above can't see that, since the string isn't blank.
+            const text = richTextExcerpt(value);
+            if (text === '')
+                return <span className="text-muted-foreground">{EMPTY}</span>;
+            return <span className="block max-w-[28ch] truncate">{text}</span>;
+        }
         case CONTENT_FIELD_TYPE.Text:
         default:
             return (
