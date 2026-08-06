@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
@@ -283,6 +283,32 @@ export async function getInviteTokenHashes(userId: string): Promise<string[]> {
     return rows
         .filter((row) => row.type === 'invite')
         .map((row) => row.tokenHash);
+}
+
+/**
+ * Force a user's invite tokens into the past — simulates a link that sat in an
+ * inbox past its TTL, without making the suite wait out the real one.
+ */
+export async function expireInviteTokens(userId: string): Promise<void> {
+    await getDatabase()
+        .update(tokens)
+        .set({ expiresAt: new Date(Date.now() - 60_000) })
+        .where(and(eq(tokens.userId, userId), eq(tokens.type, 'invite')));
+}
+
+/**
+ * Whether a user's invite token has been burned — `consumedAt` is what makes an
+ * invite link one-time, so a spec asserting "the link is spent" reads it here.
+ * `null` when the user has no invite token at all.
+ */
+export async function getInviteConsumedAt(
+    userId: string
+): Promise<Date | null | undefined> {
+    const [row] = await getDatabase()
+        .select({ consumedAt: tokens.consumedAt })
+        .from(tokens)
+        .where(and(eq(tokens.userId, userId), eq(tokens.type, 'invite')));
+    return row?.consumedAt;
 }
 
 /** Count a user's session rows — used to assert a session was created. */

@@ -1,33 +1,62 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { tokens } from '@ortha-cms/identity-server';
-import { INVITE_TOKEN_TTL_DAYS } from '../../member.constants';
+import {
+    InjectIdentityConfig,
+    tokens,
+    type IdentityPluginConfig
+} from '@ortha-cms/identity-server';
+
+/**
+ * Namespace for the per-user advisory lock that serializes {@link
+ * InviteTokenService.rotate}. Paired with `hashtext(userId)`, so the lock is
+ * scoped to one invitee — rotations for *different* people never block each
+ * other.
+ */
+const INVITE_LOCK_NAMESPACE = 0x494e5654; // "INVT"
 
 /**
  * Issues and rotates the one-time invite tokens backing the invite flow,
  * stored in identity's `tokens` table. Mirrors identity's session convention:
  * only the SHA-256 of the raw token is persisted, so a read-only DB leak
  * yields nothing usable. The raw token is returned to the caller solely for
- * delivery (the invite email).
+ * delivery — today the inviting admin copies the link out of the response;
+ * once a mailer exists it is emailed instead (identity epic #11).
  */
 @Injectable()
 export class InviteTokenService {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        @InjectIdentityConfig()
+        private readonly identityConfig: IdentityPluginConfig
+    ) {}
 
     /**
      * Replaces any live invite tokens for the user with a fresh one — used
      * both on first invite and on resend, so at most one invite token is
      * valid per user at a time. Returns the raw token for delivery.
+     *
+     * Lifetime comes from the host's `token.inviteTtlSeconds`, so a deployment
+     * that shortens or extends invite validity actually gets what it configured.
+     *
+     * The delete/insert pair runs under a per-user advisory lock: without it two
+     * concurrent resends can each take their `DELETE` snapshot before the
+     * other's `INSERT` commits, leaving **two** live links where the contract
+     * promises one.
      */
     async rotate(userId: string, executor?: TokenExecutor): Promise<string> {
         const raw = randomBytes(32).toString('hex');
         const expiresAt = new Date(
-            Date.now() + INVITE_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000
+            Date.now() + this.identityConfig.token.inviteTtlSeconds * 1000
         );
 
         const run = async (db: TokenExecutor): Promise<void> => {
+            // Transaction-scoped: released at commit/rollback, so there is
+            // nothing to unlock by hand.
+            await db.execute(
+                sql`select pg_advisory_xact_lock(${INVITE_LOCK_NAMESPACE}, hashtext(${userId}))`
+            );
             await db
                 .delete(tokens)
                 .where(
@@ -60,5 +89,7 @@ export class InviteTokenService {
 /**
  * The executor `rotate` accepts: the root client or an open transaction. Lets a
  * caller hand in its `tx` so the token swap commits in-band with the invite.
+ * `execute` is part of the shape because the advisory lock has to be taken on
+ * the **same** transaction as the swap it guards.
  */
-type TokenExecutor = Pick<Database, 'delete' | 'insert'>;
+type TokenExecutor = Pick<Database, 'delete' | 'insert' | 'execute'>;

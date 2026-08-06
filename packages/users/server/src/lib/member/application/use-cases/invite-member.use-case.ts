@@ -23,6 +23,11 @@ import type { InviteMemberDto } from '../dto/invite-member.dto';
  * race-proof backstop (its violation, surfaced by the repository, maps to the
  * same error). Drains `member.invited` (carrying the actor), where the activity
  * subscriber turns it into the `user.invited` audit row.
+ *
+ * Returns the raw invite token alongside the new member's id. Until a mailer
+ * exists (identity epic #11) the inviting admin is the delivery channel: the
+ * controller hands them the link once, the same reveal-once shape API tokens
+ * use. The token itself is only ever stored hashed.
  */
 @Injectable()
 export class InviteMemberUseCase {
@@ -36,8 +41,11 @@ export class InviteMemberUseCase {
         private readonly workspaceLinker: WorkspaceLinker
     ) {}
 
-    /** Runs the invite, returning the new member's id. */
-    async execute(actor: PublicUser, dto: InviteMemberDto): Promise<string> {
+    /** Runs the invite, returning the new member's id and their raw token. */
+    async execute(
+        actor: PublicUser,
+        dto: InviteMemberDto
+    ): Promise<InvitedMember> {
         const email = dto.email.toLowerCase();
         if (await this.members.existsByEmail(email)) {
             throw new EmailTakenError(dto.email);
@@ -51,10 +59,12 @@ export class InviteMemberUseCase {
             });
             await this.members.save(member);
 
-            await this.inviteTokens.rotate(member.id.value, this.uow.current());
-            // TODO(users-email): deliver the invite link. No mailer exists yet
-            // (identity epic #11) — the raw token is intentionally dropped here,
-            // and "Resend invite" rotates it once delivery lands.
+            // TODO(users-email): send this link instead of returning it, once a
+            // mailer exists (identity epic #11).
+            const inviteToken = await this.inviteTokens.rotate(
+                member.id.value,
+                this.uow.current()
+            );
 
             await this.workspaceLinker.link(
                 member.id.value,
@@ -65,7 +75,18 @@ export class InviteMemberUseCase {
             // subscriber; the actor rides along on the event payload.
             await this.outbox.append(attachActor(member.pullEvents(), actor));
 
-            return member.id.value;
+            return { id: member.id.value, inviteToken };
         });
     }
+}
+
+/** What an invite produces: the new member's id and their one-time token. */
+export interface InvitedMember {
+    /** The `pending` member's user id. */
+    id: string;
+    /**
+     * The raw invite token — the secret half of the invite link. Returned
+     * exactly once, never readable again (only its hash is stored).
+     */
+    inviteToken: string;
 }

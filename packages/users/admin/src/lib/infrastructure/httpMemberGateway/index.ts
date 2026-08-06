@@ -4,10 +4,19 @@ import {
     initialsOf,
     toApiError
 } from '@ortha-cms/utils-admin';
-import type { Member, MemberList } from '../../domain/types/member';
+import type {
+    InvitedMember,
+    Member,
+    MemberList
+} from '../../domain/types/member';
 import type { UserSession } from '../../domain/types/session';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
-import { toMember, type MemberResponse } from '../memberMapper';
+import {
+    toInvitedMember,
+    toMember,
+    type InvitedMemberResponse,
+    type MemberResponse
+} from '../memberMapper';
 import type { MembersListParams } from '../membersKeys';
 import type {
     AddWorkspaceMemberInput,
@@ -107,24 +116,24 @@ export const httpMemberGateway: MemberGateway = {
         }
     },
 
-    async invite(input: InviteMemberInput): Promise<Member> {
+    async invite(input: InviteMemberInput): Promise<InvitedMember> {
         try {
-            const { data } = await apiClient.post<MemberResponse>(
+            const { data } = await apiClient.post<InvitedMemberResponse>(
                 '/users/invites',
                 input
             );
-            return toMember(data);
+            return toInvitedMember(data);
         } catch (error) {
             throw toApiError(error);
         }
     },
 
-    async resendInvite(id: string): Promise<Member> {
+    async resendInvite(id: string): Promise<InvitedMember> {
         try {
-            const { data } = await apiClient.post<MemberResponse>(
+            const { data } = await apiClient.post<InvitedMemberResponse>(
                 `/users/${id}/invites/resend`
             );
-            return toMember(data);
+            return toInvitedMember(data);
         } catch (error) {
             throw toApiError(error);
         }

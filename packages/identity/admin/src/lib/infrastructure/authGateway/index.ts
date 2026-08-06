@@ -1,4 +1,9 @@
-import type { CurrentUser, LoginCredentials } from '../../../types/auth';
+import type {
+    AcceptInviteInput,
+    CurrentUser,
+    InviteDetails,
+    LoginCredentials
+} from '../../../types/auth';
 
 /**
  * The port over the remote auth API — the single seam the identity plugin talks
@@ -26,4 +31,19 @@ export type AuthGateway = {
      * succeeds. Throws an `ApiError` on a transport failure.
      */
     logout(): Promise<void>;
+    /**
+     * Resolves an invite link's token to who it is for via
+     * `GET /api/auth/invite/:token`. Throws an `ApiError` on failure — `404`
+     * covers every dead-link case (unknown, expired, already used), which the
+     * server deliberately does not distinguish.
+     */
+    describeInvite(token: string): Promise<InviteDetails>;
+    /**
+     * Redeems an invite via `POST /api/auth/invite/accept`, setting the
+     * account's first password. On success the server activates the account and
+     * sets the session cookie, so the invitee is signed in — this resolves with
+     * no value, like `login`. Throws an `ApiError` (`404` = dead link,
+     * `400` = the password failed the server's rules).
+     */
+    acceptInvite(input: AcceptInviteInput): Promise<void>;
 };

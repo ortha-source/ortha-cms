@@ -31,20 +31,26 @@ export class ResendInviteUseCase {
         private readonly members: MemberRepository
     ) {}
 
-    /** Runs the resend. 404s an unknown member; 409s a non-pending one. */
-    async execute(actor: PublicUser, id: string): Promise<void> {
+    /**
+     * Runs the resend, returning the fresh raw token for delivery. 404s an
+     * unknown member; 409s a non-pending one.
+     */
+    async execute(actor: PublicUser, id: string): Promise<string> {
         const memberId = MemberId.create(id);
 
-        await this.uow.run(async () => {
+        return this.uow.run(async () => {
             const member = await this.members.findById(memberId);
             if (!member) {
                 throw new MemberNotFoundError(id);
             }
             member.ensureCanResendInvite();
 
-            await this.inviteTokens.rotate(member.id.value, this.uow.current());
-            // TODO(users-email): deliver the rotated invite link once a mailer
-            // exists (identity epic #11).
+            // TODO(users-email): send this link instead of returning it, once a
+            // mailer exists (identity epic #11).
+            const inviteToken = await this.inviteTokens.rotate(
+                member.id.value,
+                this.uow.current()
+            );
 
             await this.outbox.append(
                 attachActor(
@@ -56,6 +62,8 @@ export class ResendInviteUseCase {
                     actor
                 )
             );
+
+            return inviteToken;
         });
     }
 }

@@ -1,4 +1,4 @@
-import { useId, type ComponentType, type ReactNode } from 'react';
+import { useId, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
@@ -30,6 +30,8 @@ import {
     cn,
     toast
 } from '@ortha-cms/design-system';
+import { inviteLinkFor } from '../../../../infrastructure/inviteLink';
+import { InviteLinkDialog } from '../../InviteLinkDialog';
 import { useResendInvite } from '../../../../application/useResendInvite';
 import { useRevokeInvite } from '../../../../application/useRevokeInvite';
 import { useSetMemberStatus } from '../../../../application/useSetMemberStatus';
@@ -111,10 +113,7 @@ const messages = defineMessages({
         id: 'users.actions.enabled.toast',
         defaultMessage: 'Enabled {name}'
     },
-    resent: {
-        id: 'users.actions.resent.toast',
-        defaultMessage: 'Invite re-sent to {email}'
-    },
+
     revoked: {
         id: 'users.actions.revoked.toast',
         defaultMessage: 'Revoked the invite for {email}'
@@ -151,6 +150,11 @@ export function MemberRowActions({ member }: { member: Member }) {
     const resendInvite = useResendInvite();
     const revokeInvite = useRevokeInvite();
 
+    // The rotated link, held only until the dialog is dismissed. Resending
+    // invalidates whatever link the invitee already had, so the new one has to
+    // be handed over — until a mailer exists, by the admin (identity epic #11).
+    const [rotatedLink, setRotatedLink] = useState<string | null>(null);
+
     const failed = () => toast.error(intl.formatMessage(messages.actionFailed));
     const base = `/users/${member.id}`;
 
@@ -181,11 +185,9 @@ export function MemberRowActions({ member }: { member: Member }) {
                     key="resend"
                     onSelect={() =>
                         resendInvite.mutate(member.id, {
-                            onSuccess: () =>
-                                toast.success(
-                                    intl.formatMessage(messages.resent, {
-                                        email: member.email
-                                    })
+                            onSuccess: (invited) =>
+                                setRotatedLink(
+                                    inviteLinkFor(invited.inviteToken)
                                 ),
                             onError: failed
                         })
@@ -284,108 +286,122 @@ export function MemberRowActions({ member }: { member: Member }) {
     const hasQuick = visibleQuick.length > 0 || destructiveItem;
 
     return (
-        // `modal={false}` so the open menu doesn't aria-hide the page root (which
-        // holds focusable content) — a row menu needs no background trap.
-        <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    id={`member-actions-${member.id}`}
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label={intl.formatMessage(messages.open, {
-                        name: member.name
-                    })}
-                >
-                    <MoreHorizontal aria-hidden />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuGroup>
-                    <DropdownMenuLabel>
-                        {intl.formatMessage(messages.account)}
-                    </DropdownMenuLabel>
-                    {navItem(
-                        'general',
-                        UserRound,
-                        intl.formatMessage(messages.general),
-                        `${base}/general`
-                    )}
-                    {navItem(
-                        'role',
-                        ShieldCheck,
-                        intl.formatMessage(messages.role),
-                        `${base}/roles`
-                    )}
-                    {navItem(
-                        'workspaces',
-                        Building2,
-                        intl.formatMessage(messages.workspaces),
-                        `${base}/workspaces`
-                    )}
-                </DropdownMenuGroup>
+        <>
+            {/* `modal={false}` so the open menu doesn't aria-hide the page root
+            (which holds focusable content) — a row menu needs no background
+            trap. */}
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        id={`member-actions-${member.id}`}
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        aria-label={intl.formatMessage(messages.open, {
+                            name: member.name
+                        })}
+                    >
+                        <MoreHorizontal aria-hidden />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuGroup>
+                        <DropdownMenuLabel>
+                            {intl.formatMessage(messages.account)}
+                        </DropdownMenuLabel>
+                        {navItem(
+                            'general',
+                            UserRound,
+                            intl.formatMessage(messages.general),
+                            `${base}/general`
+                        )}
+                        {navItem(
+                            'role',
+                            ShieldCheck,
+                            intl.formatMessage(messages.role),
+                            `${base}/roles`
+                        )}
+                        {navItem(
+                            'workspaces',
+                            Building2,
+                            intl.formatMessage(messages.workspaces),
+                            `${base}/workspaces`
+                        )}
+                    </DropdownMenuGroup>
 
-                {canUpdate || canReadActivity ? (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuLabel>
-                                {intl.formatMessage(messages.audit)}
-                            </DropdownMenuLabel>
-                            {canUpdate
-                                ? navItem(
-                                      'sessions',
-                                      MonitorSmartphone,
-                                      intl.formatMessage(messages.sessions),
-                                      `${base}/sessions`
-                                  )
-                                : null}
-                            {canReadActivity
-                                ? navItem(
-                                      'activity',
-                                      Activity,
-                                      intl.formatMessage(messages.activity),
-                                      `${base}/activity`
-                                  )
-                                : null}
-                        </DropdownMenuGroup>
-                    </>
-                ) : null}
-
-                {canUpdate ? (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuLabel>
-                                {intl.formatMessage(messages.access)}
-                            </DropdownMenuLabel>
-                            {navItem(
-                                'access',
-                                KeyRound,
-                                intl.formatMessage(messages.signInAccess),
-                                `${base}/access`
-                            )}
-                        </DropdownMenuGroup>
-                    </>
-                ) : null}
-
-                {hasQuick ? (
-                    <>
-                        <DropdownMenuSeparator />
-                        {visibleQuick.length > 0 ? (
+                    {canUpdate || canReadActivity ? (
+                        <>
+                            <DropdownMenuSeparator />
                             <DropdownMenuGroup>
-                                {visibleQuick}
+                                <DropdownMenuLabel>
+                                    {intl.formatMessage(messages.audit)}
+                                </DropdownMenuLabel>
+                                {canUpdate
+                                    ? navItem(
+                                          'sessions',
+                                          MonitorSmartphone,
+                                          intl.formatMessage(messages.sessions),
+                                          `${base}/sessions`
+                                      )
+                                    : null}
+                                {canReadActivity
+                                    ? navItem(
+                                          'activity',
+                                          Activity,
+                                          intl.formatMessage(messages.activity),
+                                          `${base}/activity`
+                                      )
+                                    : null}
                             </DropdownMenuGroup>
-                        ) : null}
-                        {destructiveItem ? (
+                        </>
+                    ) : null}
+
+                    {canUpdate ? (
+                        <>
+                            <DropdownMenuSeparator />
                             <DropdownMenuGroup>
-                                {destructiveItem}
+                                <DropdownMenuLabel>
+                                    {intl.formatMessage(messages.access)}
+                                </DropdownMenuLabel>
+                                {navItem(
+                                    'access',
+                                    KeyRound,
+                                    intl.formatMessage(messages.signInAccess),
+                                    `${base}/access`
+                                )}
                             </DropdownMenuGroup>
-                        ) : null}
-                    </>
-                ) : null}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                        </>
+                    ) : null}
+
+                    {hasQuick ? (
+                        <>
+                            <DropdownMenuSeparator />
+                            {visibleQuick.length > 0 ? (
+                                <DropdownMenuGroup>
+                                    {visibleQuick}
+                                </DropdownMenuGroup>
+                            ) : null}
+                            {destructiveItem ? (
+                                <DropdownMenuGroup>
+                                    {destructiveItem}
+                                </DropdownMenuGroup>
+                            ) : null}
+                        </>
+                    ) : null}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <InviteLinkDialog
+                link={rotatedLink}
+                email={member.email}
+                open={rotatedLink !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setRotatedLink(null);
+                    }
+                }}
+            />
+        </>
     );
 }
 

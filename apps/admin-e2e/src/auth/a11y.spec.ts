@@ -1,5 +1,10 @@
 import { test } from '../support/fixtures';
 import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
+import {
+    DEFAULT_INVITE,
+    mockInvite,
+    spyAcceptInvite
+} from '../support/api/invites';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -37,6 +42,59 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await loginPage.goto();
         await loginPage.login('admin@example.com', 'wrong-password');
         await loginPage.errorBanner.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('accept-invite page — form ready', async ({
+        page,
+        acceptInvitePage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+        await acceptInvitePage.heading.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('accept-invite page — validation errors visible', async ({
+        page,
+        acceptInvitePage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+        await acceptInvitePage.heading.waitFor();
+        await acceptInvitePage.submit.click();
+        await acceptInvitePage.fieldError(/Choose a password/).waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('accept-invite page — submission-error banner visible', async ({
+        page,
+        acceptInvitePage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page);
+        await spyAcceptInvite(page, { status: 404 });
+        await acceptInvitePage.goto();
+        await acceptInvitePage.heading.waitFor();
+        await acceptInvitePage.setPassword('correct horse battery staple');
+        await acceptInvitePage.errorBanner.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('accept-invite page — dead link', async ({
+        page,
+        acceptInvitePage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page, DEFAULT_INVITE, { status: 404 });
+        await acceptInvitePage.goto();
+        await acceptInvitePage.unavailableHeading().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

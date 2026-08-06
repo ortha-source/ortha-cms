@@ -16,13 +16,14 @@ import { InviteMemberDto } from '../../application/dto/invite-member.dto';
 import { InviteMemberUseCase } from '../../application/use-cases/invite-member.use-case';
 import { EmailTakenError } from '../../domain/errors';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
-import type { MemberView } from '../../application/queries/member.view';
+import type { InvitedMemberView } from '../../application/queries/member.view';
 
 /**
  * `POST /api/users/invites` — invites a person by email. Creates the pending
  * member and issues their invite token; requires `users:create`. Returns the
  * new member row so the admin list can show it immediately with its
- * "Invited" status.
+ * "Invited" status, plus the raw `inviteToken` — the admin's only chance to
+ * capture the link, since no mailer sends it yet (identity epic #11).
  */
 @UseGuards(PermissionsGuard)
 @RequirePermissions('users:create')
@@ -37,14 +38,17 @@ export class InviteMemberController {
     async invite(
         @CurrentUser() actor: PublicUser,
         @Body() body: InviteMemberDto
-    ): Promise<MemberView> {
+    ): Promise<InvitedMemberView> {
         try {
-            const id = await this.inviteMember.execute(actor, body);
+            const { id, inviteToken } = await this.inviteMember.execute(
+                actor,
+                body
+            );
             const view = await this.views.byId(id);
             if (!view) {
                 throw new NotFoundException();
             }
-            return view;
+            return { ...view, inviteToken };
         } catch (error) {
             if (error instanceof EmailTakenError) {
                 throw new ConflictException(

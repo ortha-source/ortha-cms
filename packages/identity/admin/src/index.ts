@@ -2,7 +2,13 @@ export { IdentityPlugin } from './lib/presentation/identityPlugin';
 export type { IdentityAdminPlugin } from './lib/presentation/identityPlugin';
 export { IdentityRouter } from './lib/presentation/router';
 export { LoginForm } from './lib/presentation/components/LoginForm';
+export { AcceptInviteForm } from './lib/presentation/components/AcceptInviteForm';
+export type { AcceptInviteFormValues } from './lib/presentation/components/AcceptInviteForm';
 export { AuthLayout } from './lib/presentation/components/AuthLayout';
+export {
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_MAX_LENGTH
+} from './lib/domain/value-objects/password';
 export { AuthProvider } from './lib/presentation/auth/AuthProvider';
 export { RequireAuth } from './lib/presentation/auth/RequireAuth';
 export {
@@ -18,5 +24,7 @@ export { useLogoutMutation } from './lib/application/useLogoutMutation';
 export type {
     LoginCredentials,
     AuthTokens,
-    CurrentUser
+    CurrentUser,
+    InviteDetails,
+    AcceptInviteInput
 } from './types/auth';

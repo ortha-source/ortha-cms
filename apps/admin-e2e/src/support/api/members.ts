@@ -229,8 +229,19 @@ export async function mockMembers(
 }
 
 /**
- * Stub `POST /api/users/invites`, echoing back a new pending member and
- * recording each call so a test can assert the invite was (not) sent.
+ * The raw invite token the mocked mint endpoints hand back. The real server
+ * returns it exactly once (it stores only the hash), which is what the admin's
+ * reveal-once link panel exists for.
+ */
+export const INVITE_TOKEN = 'tok_invite_abc123';
+
+/** The token a resend rotates to — deliberately different, as rotation implies. */
+export const ROTATED_INVITE_TOKEN = 'tok_invite_rotated456';
+
+/**
+ * Stub `POST /api/users/invites`, echoing back a new pending member plus the
+ * one-time `inviteToken`, and recording each call so a test can assert the
+ * invite was (not) sent.
  */
 export async function spyInvite(
     page: Page
@@ -250,7 +261,37 @@ export async function spyInvite(
                 status: 'pending',
                 createdAt: TIMESTAMP,
                 isLastAdmin: false,
-                workspaces: []
+                workspaces: [],
+                inviteToken: INVITE_TOKEN
+            })
+        });
+    });
+    return {
+        get count() {
+            return count;
+        }
+    };
+}
+
+/**
+ * Stub `POST /api/users/:id/invites/resend`, echoing the member back with a
+ * **rotated** token and recording each call. Rotation kills whatever link the
+ * invitee already held, so the admin UI has to surface the new one — this mock
+ * is what lets a test assert that it does.
+ */
+export async function spyResendInvite(
+    page: Page,
+    member: MemberSeed
+): Promise<{ readonly count: number }> {
+    let count = 0;
+    await page.route('**/api/users/*/invites/resend', async (route) => {
+        count += 1;
+        await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                ...member,
+                inviteToken: ROTATED_INVITE_TOKEN
             })
         });
     });

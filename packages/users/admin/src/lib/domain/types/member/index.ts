@@ -54,6 +54,18 @@ export type Member = {
     workspaces: MemberWorkspace[];
 };
 
+/**
+ * A member the API just issued an invite token for — the response of inviting
+ * and of resending, and nothing else. No mailer sends the link yet, so the
+ * inviting admin is the delivery channel: the token comes back once, is turned
+ * into a link for them to copy, and is never readable again (the server stores
+ * only its hash).
+ */
+export type InvitedMember = Member & {
+    /** The raw invite token, shown to the inviting admin exactly once. */
+    inviteToken: string;
+};
+
 /** One page of members plus the pagination envelope. */
 export type MemberList = {
     /** The members on this page. */

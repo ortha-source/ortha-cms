@@ -11,7 +11,7 @@ import {
 } from '@ortha-cms/design-system';
 import type { LoginCredentials } from '../../../../types/auth';
 import { useLoginSchema } from './useLoginSchema';
-import { LoginField } from './LoginField';
+import { AuthField } from '../AuthField';
 import { LoginAlert } from './LoginAlert';
 import { LoginActions } from './LoginActions';
 import { LegalFooter } from './LegalFooter';
@@ -116,7 +116,7 @@ export function LoginForm({
 
                             <form.Field name="email">
                                 {(field) => (
-                                    <LoginField
+                                    <AuthField
                                         field={field}
                                         id="login-email"
                                         type="email"
@@ -133,7 +133,7 @@ export function LoginForm({
 
                             <form.Field name="password">
                                 {(field) => (
-                                    <LoginField
+                                    <AuthField
                                         field={field}
                                         id="login-password"
                                         type="password"
