@@ -122,6 +122,13 @@ export function MediaUrlDialog({
                     className="flex flex-col gap-4"
                     onSubmit={(event) => {
                         event.preventDefault();
+                        // Stop the submit here. This form is portalled in the
+                        // DOM but still sits inside the entry editor's `<form>`
+                        // in the **React tree**, and React bubbles synthetic
+                        // events along that tree — so without this, saving a
+                        // URL/alt submitted the whole record (publishing it, on
+                        // a publishable type).
+                        event.stopPropagation();
                         submit();
                     }}
                 >

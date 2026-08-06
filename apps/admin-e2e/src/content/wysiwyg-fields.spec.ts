@@ -513,6 +513,36 @@ test.describe('Entry editor — rich text field', () => {
             expect(body).toContain('data-decorative=""');
         });
 
+        test('never saves the record from an overlay’s own form', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            // On an **existing** record, so a save would actually go out —
+            // a create form's required fields would mask the bug.
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_MEDIA_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            // These overlays portal out of the DOM but stay inside the entry
+            // editor's `<form>` in the React tree, and React bubbles synthetic
+            // events along *that* tree — so each of their Save/Apply/Insert
+            // buttons used to submit the whole record, publishing it.
+            await wysiwygFieldPage.setAltText('A hero shot, described');
+
+            await wysiwygFieldPage.openMediaSource('Image from a URL…');
+            await wysiwygFieldPage.fillMediaUrl(
+                'https://example.com/second.jpg',
+                'Another'
+            );
+
+            await wysiwygFieldPage.openLinkPopover();
+            await wysiwygFieldPage.applyLink('https://example.com');
+
+            // Nothing reached the write endpoint: the record is saved when the
+            // author saves it, and not before.
+            expect(saves.bodies).toHaveLength(0);
+            await expect(contentLibraryPage.savedToast).toHaveCount(0);
+        });
+
         test('carries the library asset’s own alt into the body', async ({
             wysiwygFieldPage,
             contentLibraryPage

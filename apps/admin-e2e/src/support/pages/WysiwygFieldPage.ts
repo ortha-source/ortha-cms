@@ -207,6 +207,17 @@ export class WysiwygFieldPage extends BasePage {
         await this.page.getByRole('button', { name: 'Save' }).click();
     }
 
+    /** Open the toolbar's link popover. */
+    async openLinkPopover(): Promise<void> {
+        await this.toolbarButton('Link').click();
+    }
+
+    /** Type a URL into the open link popover and apply it. */
+    async applyLink(url: string): Promise<void> {
+        await this.page.getByLabel('URL').fill(url);
+        await this.page.getByRole('button', { name: 'Apply' }).click();
+    }
+
     /** The resize handle on the selected media node. */
     get resizeHandle(): Locator {
         return this.page.getByRole('button', { name: /^Resize/ });

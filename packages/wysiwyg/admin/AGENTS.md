@@ -230,6 +230,48 @@ The resize handle is a real `<button>` with arrow-key support — the width is
 published content, so a pointer-only resize would put a content decision out of
 reach of keyboard users.
 
+### Alt text lives on the image, not only on the insert dialogs
+
+Alt is published content and the difference between an image that works for a
+screen-reader user and one that doesn't, so it can't only be a field on the way
+in. An **upload** arrives with no alt at all; a **library pick** arrives with
+whatever alt the library happened to hold. Either way, the moment an author
+knows what a picture is *for* is in the body, with the surrounding text on
+screen — so every image carries its own alt control (`MediaNodeView`'s
+`AltTextPopover`).
+
+The trigger doubles as the prompt: an image with neither alt nor a decorative
+mark shows a warning-tinted **"Add alt text"** chip, so the defect is visible
+while writing rather than found in an audit.
+
+**"Decorative" is a checkbox, not just an empty box.** `alt=""` is HTML's way of
+saying an image carries no information, but on its own it can't be told apart
+from "nobody has written this yet" — and those want opposite treatment, one
+finished and one still a defect. So the answer is recorded as a `decorative`
+attribute (`data-decorative` in the stored HTML, inert for any consumer that
+ignores it) and the prompt keys off it. Ticking it also empties the alt, because
+a screen reader would otherwise announce text sitting behind a ticked box.
+
+One deliberate asymmetry: inside the editor an un-alt'd image still renders a
+fallback accessible name, or it reads as an unlabelled graphic to the *author's*
+own screen reader while they work. The stored HTML gets the real value — empty
+if that is what it is. Inventing alt for published content would be worse than
+none.
+
+### Every overlay's `<form>` must stop its own submit
+
+The alt popover, the link popover, and the "from a URL" dialog each render a
+`<form>` so Enter works. All three are portalled — moved in the DOM, but **not**
+in the React tree, and React bubbles synthetic events along that tree. So each
+one's submit reached the entry editor's `<form>` and saved-and-**published** the
+record.
+
+All three now `stopPropagation()` on their own submit, and content-admin's form
+ignores submits it didn't raise. Pinned by the *"never saves the record from an
+overlay's own form"* e2e case, which fired **three** saves before the fix — one
+per overlay. Any new overlay in this package that wants a `<form>` needs the
+same call.
+
 ## The toolbar fits on one row
 
 That is a constraint, not an accident. Twenty flat controls wrapped onto a

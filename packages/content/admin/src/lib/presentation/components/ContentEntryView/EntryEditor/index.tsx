@@ -581,6 +581,21 @@ export function EntryEditor({
                 className="flex min-h-0 flex-1 flex-col"
                 onSubmit={(event) => {
                     event.preventDefault();
+                    // Only **this** form's own submit counts.
+                    //
+                    // A slot-contributed control (the WYSIWYG editor's alt-text
+                    // and link popovers, its "from a URL" dialog) renders its
+                    // own `<form>` inside a portal. The portal moves it in the
+                    // DOM but not in the **React tree**, and React bubbles
+                    // synthetic events along that tree — so pressing Save in one
+                    // of those popovers arrived here and saved-and-published the
+                    // whole record.
+                    //
+                    // Those overlays stop propagation on their side too, but the
+                    // guard belongs here as well: this form is a seam any plugin
+                    // can render into, and it should not act on a submit it
+                    // didn't raise.
+                    if (event.target !== event.currentTarget) return;
                     // Submitting (e.g. Enter) runs the primary action — publish for
                     // a publishable type, otherwise a plain save — so it matches the
                     // visually-primary button rather than silently saving a draft.

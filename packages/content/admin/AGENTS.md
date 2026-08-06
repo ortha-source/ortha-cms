@@ -676,6 +676,14 @@ fetching internally.
     - `@ortha-cms/wysiwyg-admin` fills it for `richtext`: the `Component` is a
       rendered preview of the body, the `FullView` is the TipTap editor it
       expands into.
+    - **A contributed control's own `<form>` cannot submit the record.** The
+      editor's `<form>` ignores any submit whose `target` isn't itself, because
+      a control that portals a dialog or popover is moved in the DOM but **not**
+      in the React tree — and React bubbles synthetic events along that tree. A
+      Save button inside the WYSIWYG's alt-text popover therefore arrived at
+      this handler and saved-and-*published* the whole record. Contributed
+      overlays should `stopPropagation` on their own submit as well; the guard
+      here is what makes the seam safe for the ones that forget.
 
 The data hooks accept slot-contributed passthrough: `useContentEntries` (`extra`
 list params), `useSaveEntry` (`extra` create-body params), `useRelationCandidates`
