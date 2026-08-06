@@ -11,8 +11,11 @@ import {
     ENTRY_TAB_SLOT,
     type ContentTypeDetail
 } from '@ortha-cms/content-admin';
-import { Image } from 'lucide-react';
+import { WYSIWYG_MEDIA_SLOT } from '@ortha-cms/wysiwyg-admin';
+import { Image, Upload } from 'lucide-react';
 import { EntryMediaTab } from '../../components/EntryMediaTab';
+import { WysiwygLibrarySource } from '../../components/WysiwygLibrarySource';
+import { WysiwygUploadSource } from '../../components/WysiwygUploadSource';
 import {
     MEDIA_PRESAVE_ID,
     usePendingMediaUploads
@@ -91,6 +94,41 @@ export function MediaPlugin(): MediaAdminPlugin {
                         order: 10,
                         appliesTo: hasMediaField,
                         Component: EntryMediaTab
+                    }
+                ]
+            },
+            // Rich text gets the library too. The editor
+            // (`@ortha-cms/wysiwyg-admin`) declares `WYSIWYG_MEDIA_SLOT` and
+            // knows only how to *hold* an image or a video; browsing folders
+            // and uploading are this plugin's job, so it fills the seam rather
+            // than the editor importing a library it would then be pinned to.
+            //
+            // Two entries, because they are different acts: pick something that
+            // exists, or add something that doesn't. Both end with an asset in
+            // the Media Library — an image in a body is a first-class asset,
+            // not an orphan attachment.
+            {
+                slot: WYSIWYG_MEDIA_SLOT,
+                items: [
+                    {
+                        id: 'media.wysiwyg.library',
+                        label: {
+                            id: 'media.wysiwyg.library',
+                            defaultMessage: 'Media Library…'
+                        },
+                        icon: Image,
+                        order: 10,
+                        Source: WysiwygLibrarySource
+                    },
+                    {
+                        id: 'media.wysiwyg.upload',
+                        label: {
+                            id: 'media.wysiwyg.upload',
+                            defaultMessage: 'Upload files…'
+                        },
+                        icon: Upload,
+                        order: 20,
+                        Source: WysiwygUploadSource
                     }
                 ]
             },

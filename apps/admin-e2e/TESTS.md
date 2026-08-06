@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_246 test cases across 30 spec files._
+_275 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -350,6 +350,60 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | relations tab — field sections |
 | relation picker — open |
 | relation picker — inline filter open |
+
+<!-- source: apps/admin-e2e/src/content/wysiwyg-fields.spec.ts -->
+_<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
+
+## Entry editor — rich text field
+
+### the collapsed field
+
+| Test case |
+| --- |
+| renders stored HTML as content, not markup |
+| offers no link to fall into on the way to the editor |
+| shows the field placeholder while empty |
+| keeps a plain textarea for a field that opted out |
+
+### the expanded editor
+
+| Test case |
+| --- |
+| takes over the work area with the caret already in the text |
+| keeps the record and its chrome on screen |
+| keeps the toolbar on a single row |
+| returns to the form from either exit |
+| writes edits back to the form as they are made |
+| stores the formatting the toolbar applied |
+| stores a callout as semantic HTML, not admin classes |
+| stores a table with its header row |
+| stores a paragraph’s alignment as text-align |
+| stores a column layout as nested divs |
+| stores an emptied field as empty, not as a blank paragraph |
+
+### media
+
+| Test case |
+| --- |
+| offers the contributed sources beside the built-in URL entries |
+| stores an image named by URL |
+| refuses a URL the editor would not publish |
+| places an asset picked from the Media Library |
+| resizes an image from the keyboard, and stores the width |
+| centres a selected image, and stores where it sits |
+| prompts for alt text, and stores what the author writes |
+| records a decorative image as answered, not as missing |
+| never saves the record from an overlay’s own form |
+| carries the library asset’s own alt into the body |
+| shows a stored image in the collapsed preview |
+
+### accessibility
+
+| Test case |
+| --- |
+| the collapsed field has no violations |
+| the expanded editor has no violations |
+| the field is reachable and openable from the keyboard |
 
 <!-- source: apps/admin-e2e/src/home/dashboard.spec.ts -->
 _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_

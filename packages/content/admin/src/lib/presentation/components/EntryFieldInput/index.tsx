@@ -19,6 +19,8 @@ import type { ContentField } from '../../../domain/types/contentType';
 import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../../domain/constants';
+import { ENTRY_FIELD_CONTROL_SLOT } from '../../slots/contentSlots';
+import { useExpandedField } from '../../hooks/useExpandedField';
 import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
@@ -100,6 +102,10 @@ function asNumber(raw: string): unknown {
  * the {@link MultiSelect}. Every control
  * is **flat** (border, no shadow). Fully controlled — the form owns
  * `value`/`error`; this is presentation only.
+ *
+ * A plugin can take a field's **input** over via `ENTRY_FIELD_CONTROL_SLOT`,
+ * checked before the type switch; the label row, description, and error stay
+ * here either way.
  */
 export function EntryFieldInput({
     field,
@@ -118,6 +124,7 @@ export function EntryFieldInput({
     onBlur?: () => void;
 }) {
     const intl = useIntl();
+    const expandedField = useExpandedField();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
     // The label row's right-hand adornments, kept together so they never
@@ -159,6 +166,54 @@ export function EntryFieldInput({
     // not only when it first appears. (InputField wires its own id internally.)
     const errorId = `${id}-error`;
     const describedBy = error ? errorId : undefined;
+
+    // A plugin may own this field's control (ENTRY_FIELD_CONTROL_SLOT — the
+    // WYSIWYG plugin claims `richtext`). Only the *input* is handed over: the
+    // label row, description, and error stay here, so a contributed control
+    // can't drift from the built-ins on the required mark, the Changed badge,
+    // the localized globe, or the error wiring. A plain `find` is right — this
+    // slot holds components, not hooks, so nothing runs until one is mounted.
+    const contributed = ENTRY_FIELD_CONTROL_SLOT.getItems().find((item) =>
+        item.appliesTo(field)
+    );
+    if (contributed) {
+        const { Component } = contributed;
+        // Expanding is only offered when the item has something to expand
+        // *into*; without a `FullView` the request would swap the tab strip for
+        // a blank pane. `EntryEditor` owns the state — it is what renders the
+        // expanded view — so this only reads and forwards it.
+        const canExpand = !!contributed.FullView;
+        return (
+            <Field data-invalid={!!error}>
+                <FieldLabel
+                    htmlFor={id}
+                    className={endAdornment ? 'w-full' : undefined}
+                >
+                    {labelNode}
+                    {endAdornment}
+                </FieldLabel>
+                <Component
+                    field={field}
+                    id={id}
+                    label={label}
+                    value={value}
+                    error={error}
+                    describedBy={describedBy}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    expanded={canExpand && expandedField.name === field.name}
+                    setExpanded={(next) => {
+                        if (!canExpand) return;
+                        expandedField.setName(next ? field.name : null);
+                    }}
+                />
+                {description && (
+                    <FieldDescription>{description}</FieldDescription>
+                )}
+                {error && <FieldError id={errorId}>{error}</FieldError>}
+            </Field>
+        );
+    }
 
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Boolean:

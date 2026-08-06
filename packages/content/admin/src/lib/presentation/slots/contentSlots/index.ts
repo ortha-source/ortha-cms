@@ -20,6 +20,7 @@ import type { MessageDescriptor } from 'react-intl';
 import { createSlot } from '@ortha-cms/utils-admin';
 import type { FilterField } from '@ortha-cms/query-builder-admin';
 import type {
+    ContentField,
     ContentTypeDetail,
     EntryRecord,
     MediaRef
@@ -438,4 +439,104 @@ export type EntryPresaveItem = {
  */
 export const ENTRY_PRESAVE_SLOT = createSlot<EntryPresaveItem>(
     'content.entry.presave'
+);
+
+/**
+ * Context handed to an {@link EntryFieldControlItem}'s control — one field's
+ * slice of the entry form, already resolved by `EntryFieldInput`.
+ *
+ * A control renders **only the input surface**. The label row (label, required
+ * mark, Changed badge, localized globe), the description, and the error message
+ * stay with `EntryFieldInput`, so a contributed control can't drift from the
+ * built-in ones on any of it. Fully controlled, exactly like the built-ins: the
+ * form owns `value`/`error`, the control reports edits through `onChange`.
+ */
+export type EntryFieldControlContext = {
+    /** The field being rendered (type, validation, `admin` hints). */
+    field: ContentField;
+    /**
+     * The DOM id the rendered `<FieldLabel htmlFor>` points at. The control
+     * MUST put it on whatever element the label names — the focusable one, not
+     * a wrapper — or clicking the label lands nowhere.
+     */
+    id: string;
+    /** The resolved display label (the `admin.label`, else the humanized name). */
+    label: string;
+    /** The field's current form value. */
+    value: unknown;
+    /** The field's localized validation error, when it has one. */
+    error?: string;
+    /**
+     * The id of the rendered `<FieldError>`, or `undefined` when valid. Spread
+     * onto the focusable element as `aria-describedby` so the error is read on
+     * focus, not only when it appears.
+     */
+    describedBy?: string;
+    /** Report an edit (the form marks the field dirty). */
+    onChange: (value: unknown) => void;
+    /** Mark the field touched, so its error may show. */
+    onBlur?: () => void;
+    /**
+     * Whether this field currently **owns the editor's work area** — the
+     * expanded view described on {@link EntryFieldControlItem.FullView}. Always
+     * `false` for an item that declares no `FullView`.
+     */
+    expanded: boolean;
+    /**
+     * Take the work area over for this field, or hand it back. A no-op for an
+     * item with no `FullView` — there would be nothing to show.
+     *
+     * At most one field is expanded at a time; expanding a second collapses the
+     * first.
+     */
+    setExpanded: (next: boolean) => void;
+};
+
+/** One contributed field control (e.g. the WYSIWYG plugin's rich-text editor). */
+export type EntryFieldControlItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /**
+     * Whether this item owns the given field's control. The **first** matching
+     * item wins, in registration order — so a plugin registered later never
+     * silently steals a field a earlier one already claimed. Keep the predicate
+     * narrow (a field type, plus an `admin.widget` opt-out); a broad one takes
+     * over fields the plugin was never meant to render.
+     */
+    appliesTo: (field: ContentField) => boolean;
+    /** The input surface, rendered inside the standard `Field` wrapper. */
+    Component: ComponentType<EntryFieldControlContext>;
+    /**
+     * An **expanded** editing surface for the field, for a control that needs
+     * far more room than a form row — a rich-text body, a code editor, a canvas.
+     *
+     * `EntryEditor` renders it in place of the **tab strip**, filling the work
+     * area, once the control calls `setExpanded(true)`. The record's title row
+     * stays above it and the surrounding chrome is untouched: the app sidebar,
+     * the top bar's Save / Publish actions, and the Properties rail all keep
+     * working — because the expanded view is still inside the editor's form.
+     * Same tree, same values, same publish gate updating as the author types.
+     *
+     * That is why this is a view swap and not a dialog. A modal over the form
+     * would cover the rail it should be updating and put the record's own Save
+     * behind an overlay.
+     *
+     * Omit it and the field simply never expands.
+     */
+    FullView?: ComponentType<EntryFieldControlContext>;
+};
+
+/**
+ * Per-field control overrides for the entry form. A contribution replaces the
+ * **input** `EntryFieldInput` would otherwise render for a field, everywhere the
+ * form renders — a collection's records editor and a single (page) alike, on the
+ * General tab and inside a localized type's Translated/Shared groups.
+ *
+ * This is a plain (non-hook) slot, so the render site resolves it with a `find`
+ * rather than calling every item: a control is a component, and mounting it is
+ * what runs its hooks. `@ortha-cms/wysiwyg-admin` fills it with the TipTap
+ * editor for `richtext` fields.
+ */
+export const ENTRY_FIELD_CONTROL_SLOT = createSlot<EntryFieldControlItem>(
+    'content.entry.fieldControl'
 );
