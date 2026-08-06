@@ -2,6 +2,13 @@ export { WorkspacesPlugin } from './lib/utils/workspaces-plugin';
 export type { WorkspacesServerPlugin } from './lib/utils/workspaces-plugin';
 export { WorkspacesModule } from './lib/workspaces.module';
 export { WorkspaceGuard } from './lib/workspace/http/guards/workspace.guard';
+// The header a workspace-scoped request names its workspace with, and the id
+// shape it must have — exported so a plugin writing its own workspace guard
+// (e.g. the public content API's token guard, which resolves the workspace
+// from a token's bucket rather than a membership) speaks the same contract
+// instead of re-declaring the header name.
+export { WORKSPACE_HEADER } from './lib/workspace/http/guards/workspace.guard';
+export { WORKSPACE_ID_PATTERN } from './lib/workspace/http/guards/workspace-access';
 // The `:id`-scoped sibling of `WorkspaceGuard`, for routes that name their
 // workspace in the path instead of the `X-Workspace-Id` header.
 export { WorkspaceMemberGuard } from './lib/workspace/http/guards/workspace-member.guard';

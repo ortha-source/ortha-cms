@@ -355,6 +355,83 @@ order? } }`): inside the create/update transaction `applyDelta` unlinks the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).
 
+## Public content API (`/api/v1`, `src/lib/public-api/`)
+
+The **token-authenticated read surface** an external site or app fetches content
+with — the consumer side of the bearer tokens `identity-server` mints and the
+admin's API Tokens page manages. Layered per ADR-0003, sibling to `entries/`:
+
+```
+public-api/
+  http/
+    api-token-request.ts          # PublicApiToken + the request it rides on
+    guards/api-token.guard.ts     # Authorization: Bearer → verified token + scope check
+    guards/api-token-workspace.guard.ts  # which of the token's workspaces this request targets
+    decorators/current-api-token.decorator.ts
+    controllers/                  # public-entries, public-content-types, resolve-granted-type
+    dto/                          # the narrow published query contract
+  infrastructure/
+    public-entries.query.ts       # the published-only read
+    public-entry-row.ts           # row → PublicEntry projection (pure, unit-tested)
+  types/public-entry.ts           # the WIRE CONTRACT — a published API, kept still
+```
+
+**Routes** (all `@Public()`, so the session `AuthGuard` skips them — a bearer
+token is the only way in, and a session cookie is *not* accepted):
+
+- `GET /v1/content-types` — summaries of every type the workspace was granted.
+- `GET /v1/content-types/:name` — one type's full field schema.
+- `GET /v1/content/:typeName` — one page of published entries
+  (`?page=&pageSize=&sort=&locale=`). Serves **singles too** — with i18n a
+  single still has one row per locale, so the list envelope is honest for both;
+  take `items[0]`.
+- `GET /v1/content/:typeName/:id` — one published entry (`?locale=`).
+
+**Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
+resolves it through identity's `ApiTokenService.verify` (unknown / revoked /
+expired are one flat 401), and attaches it as `request.apiToken`. Authorization
+reuses the **same** machinery as the session routes — `scopePermissions` turns
+the token's `read`/`full` scope into a permission set and the route's
+`@RequirePermissions(...)` is evaluated by identity's pure `AccessPolicy` — so
+a requirement means the same thing for a token and a logged-in user, and adding
+a write route later needs no guard change. A token acts as **itself**: the
+minting user's role grants are deliberately not consulted, so revoking the token
+is enough to revoke its access.
+
+**Workspace resolution** (`ApiTokenWorkspaceGuard`, the token-authenticated
+counterpart of workspaces' membership-based `WorkspaceGuard`): a token now
+carries a **bucket** of workspaces. `X-Workspace-Id` picks one — malformed is a
+400, outside the bucket a 403 (same as no-such-workspace, so ids can't be
+probed). With the header absent, a token covering exactly one workspace uses it
+(the common case needs no header); a token covering several 400s rather than
+guessing. The resolved id lands on `request.workspaceId`, so `@CurrentWorkspace()`
+works unchanged.
+
+**What a token can see** — one predicate, in `PublicEntriesQuery.readableWhere`:
+the resolved workspace, **published only** on publishable types, **not
+soft-deleted** on paranoid types, plus the bound `CONTENT_ENTRY_EXTENSION`'s
+scope (so i18n locale handling comes for free). It is deliberately **not** built
+on `EntriesService`: that service's knobs are the admin's, and `?deleted=only`
+alone selects rows this API must never serve — stating a narrow WHERE beats
+reaching through a wide one and subtracting.
+
+**Grant-pruned.** `:typeName` must be registered **and** in the workspace's
+`workspace_content` grants; anything else is the same 404
+(`resolveGrantedType`). Stricter than the admin's own entries list, on purpose:
+an admin caller is a member looking at their own CMS, a token is an external
+credential, and the grant set is the workspace's declared content surface.
+`/v1/content-types` lists exactly the names that won't 404, so nothing is left
+to guess.
+
+**The wire shape** (`types/public-entry.ts`) is its own contract, not the
+admin's `EntryRecord` — a published API must be free to stay still while the
+admin's internals move. `values` carries every **column-backed** field, including
+an owning single relation's raw target id (follow it with a second read); a
+many-relation and an inverse carry no column and are **absent** — this API reads
+flat records and expands nothing. `status` is not exposed (it would be a
+constant "published"); `publishedAt` is, along with `locale`/`localeGroupId` on
+i18n types.
+
 ## OpenAPI — the types describe themselves (`src/lib/docs/`)
 
 The host generates an OpenAPI document at boot and serves it as a Scalar

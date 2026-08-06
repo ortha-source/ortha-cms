@@ -36,7 +36,7 @@ detail.
 | `media/admin`         | `@ortha-cms/media-admin`         | **Plugin.** Media Library (workspace nav), the entry editor's Media tab, and the rich-text editor's media sources (`WYSIWYG_MEDIA_SLOT`).                                                                                                                                                                                              |
 | `insights/admin`      | `@ortha-cms/insights-admin`      | **Plugin.** Insights (workspace nav). Scaffold; no server yet.                                                                                                                                                                                                   |
 | `activity/server`     | `@ortha-cms/activity-server`     | **Plugin.** Audit-event schema + read API.                                                                                                                                                                                                                       |
-| `api-tokens/admin`    | `@ortha-cms/api-tokens-admin`    | **Plugin.** Global API Tokens page (directory group): mint a workspace-scoped bearer token, reveal its secret once, revoke it. Token model + management API live in `identity/server`.                                                                           |
+| `api-tokens/admin`    | `@ortha-cms/api-tokens-admin`    | **Plugin.** Global API Tokens page (directory group): mint a bearer token over one *or more* workspaces, reveal its secret once, revoke it. Token model + management API live in `identity/server`; the public API the token is spent against lives in `content/server`.                                                                           |
 | `activity/admin`      | `@ortha-cms/activity-admin`      | **Plugin.** Global & user-scoped activity logs + home recent-activity panel.                                                                                                                                                                                     |
 | `shell/admin`         | `@ortha-cms/shell-admin`         | **Plugin.** Authenticated chrome (left sidebar, layout, home dashboard). Defines `SIDEBAR_NAV_SLOT` / `SIDEBAR_SECTION_SLOT` / `SIDEBAR_FOOTER_SLOT` / `HOME_SECTION_SLOT`.                                                                                      |
 | `query-builder/admin` | `@ortha-cms/query-builder-admin` | Admin filter/query-builder UI.                                                                                                                                                                                                                                   |
@@ -73,6 +73,12 @@ detail.
   `@RequirePermissions` + `PermissionsGuard` (server) and `useHasPermission`
   (admin).
 - **Workspace** — a tenant/grouping. **Membership** — an M:N user↔workspace link.
+- **API token / workspace bucket** — a long-lived bearer credential for the
+  **public content API** (`/api/v1/...`), minted in the admin's API Tokens page.
+  Its *bucket* is the set of workspaces it may read (`api_token_workspaces`, one
+  or more); a request picks one with `X-Workspace-Id`. Model + management API:
+  `identity/server`; the read API and its guards: `content/server`
+  (`public-api/`).
 - **Activity event** — an append-only audit row, written _in the same
   transaction_ as the mutation it records.
 - **`workspace_content`** — ⚠️ an access-control mapping (workspace → code-defined

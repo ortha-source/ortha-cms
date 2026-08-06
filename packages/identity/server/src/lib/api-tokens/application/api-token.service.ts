@@ -4,7 +4,7 @@ import { HashingService } from '../../auth/services/hashing.service';
 import type { ApiTokenScope } from '../domain/api-token-scope';
 import {
     DrizzleApiTokenRepository,
-    type ApiTokenRow
+    type ApiTokenRecord
 } from '../infrastructure/persistence/drizzle-api-token.repository';
 
 /** Human-readable prefix so a raw token is recognisable as an Ortha API key. */
@@ -29,7 +29,11 @@ const LAST_USED_TOUCH_INTERVAL_MS = 60_000;
 /** Input to {@link ApiTokenService.mint}. */
 export interface MintApiTokenInput {
     name: string;
-    workspaceId: string;
+    /**
+     * Every workspace the token may act in — at least one. Duplicates are
+     * collapsed by {@link ApiTokenService.mint}; an empty list is rejected.
+     */
+    workspaceIds: readonly string[];
     scope: ApiTokenScope;
     /** Absolute expiry, or `null`/omitted for a token that never expires. */
     expiresAt?: Date | null;
@@ -41,7 +45,8 @@ export interface MintApiTokenInput {
 export interface ApiTokenView {
     id: string;
     name: string;
-    workspaceId: string;
+    /** Every workspace the token may act in — always at least one. */
+    workspaceIds: string[];
     scope: ApiTokenScope;
     lookupPrefix: string;
     expiresAt: Date | null;
@@ -74,13 +79,17 @@ export class ApiTokenService {
         private readonly hashing: HashingService
     ) {}
 
-    /** Generates a token, persists its hash, and returns the plaintext once. */
+    /**
+     * Generates a token, persists its hash and workspace bucket, and returns
+     * the plaintext once. Duplicate workspace ids are collapsed, so the bucket
+     * a caller sees back is the set it actually granted.
+     */
     async mint(input: MintApiTokenInput): Promise<MintedApiToken> {
         const secret =
             TOKEN_PREFIX +
             randomBytes(TOKEN_ENTROPY_BYTES).toString('base64url');
         const row = await this.repo.insert({
-            workspaceId: input.workspaceId,
+            workspaceIds: [...new Set(input.workspaceIds)],
             name: input.name,
             tokenHash: this.hashing.hashToken(secret),
             lookupPrefix: secret.slice(0, LOOKUP_PREFIX_LENGTH),
@@ -92,12 +101,13 @@ export class ApiTokenService {
     }
 
     /**
-     * Resolves a raw bearer token to its live row, or `null` if it is unknown,
-     * revoked, or expired. On a successful resolve it also refreshes
-     * `last_used_at` (throttled, fire-and-forget) so the update never blocks the
-     * request it is authenticating.
+     * Resolves a raw bearer token to its live record — the row **plus its
+     * workspace bucket**, which is what the caller scopes a request with — or
+     * `null` if it is unknown, revoked, or expired. On a successful resolve it
+     * also refreshes `last_used_at` (throttled, fire-and-forget) so the update
+     * never blocks the request it is authenticating.
      */
-    async verify(secret: string): Promise<ApiTokenRow | null> {
+    async verify(secret: string): Promise<ApiTokenRecord | null> {
         const row = await this.repo.findByHash(this.hashing.hashToken(secret));
         if (!row || row.revokedAt) {
             return null;
@@ -110,7 +120,11 @@ export class ApiTokenService {
         return row;
     }
 
-    /** One page of token metadata for the management UI. */
+    /**
+     * One page of token metadata for the management UI. `workspaceId` narrows
+     * to the tokens whose bucket **contains** it — a multi-workspace token
+     * shows up under each of its workspaces.
+     */
     async list(options: {
         workspaceId?: string;
         page: number;
@@ -143,7 +157,7 @@ export class ApiTokenService {
      * Refreshes `last_used_at` only when it is stale, and never awaits the
      * write — a failed touch must not fail the authenticated request.
      */
-    private maybeTouchLastUsed(row: ApiTokenRow, now: Date): void {
+    private maybeTouchLastUsed(row: ApiTokenRecord, now: Date): void {
         const last = row.lastUsedAt?.getTime() ?? 0;
         if (now.getTime() - last < LAST_USED_TOUCH_INTERVAL_MS) {
             return;
@@ -152,12 +166,12 @@ export class ApiTokenService {
     }
 }
 
-/** Projects a stored row to the secret-free view. */
-function toView(row: ApiTokenRow): ApiTokenView {
+/** Projects a stored record to the secret-free view. */
+function toView(row: ApiTokenRecord): ApiTokenView {
     return {
         id: row.id,
         name: row.name,
-        workspaceId: row.workspaceId,
+        workspaceIds: row.workspaceIds,
         scope: row.scope,
         lookupPrefix: row.lookupPrefix,
         expiresAt: row.expiresAt,

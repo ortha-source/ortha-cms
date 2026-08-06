@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+    ArrayMaxSize,
+    ArrayNotEmpty,
+    IsArray,
     IsIn,
     IsISO8601,
     IsOptional,
@@ -15,6 +18,13 @@ import {
 
 /** Max length of a token's display name. */
 const NAME_MAX_LENGTH = 120;
+
+/**
+ * Upper bound on a token's workspace bucket. Generous (no realistic deployment
+ * mints a token spanning more), but it bounds the insert a single request can
+ * provoke rather than leaving it open-ended.
+ */
+export const WORKSPACE_IDS_MAX = 100;
 
 /**
  * Body for `POST /api/api-tokens`. The strict host `ValidationPipe`
@@ -34,15 +44,20 @@ export class CreateApiTokenDto {
     @MaxLength(NAME_MAX_LENGTH)
     name!: string;
 
-    /** The single workspace the token may read. */
+    /** Every workspace the token may act in — at least one. */
     @ApiProperty({
-        type: String,
+        type: [String],
         format: 'uuid',
+        minItems: 1,
+        maxItems: WORKSPACE_IDS_MAX,
         description:
-            'The single workspace this token may act in. A token is never cross-workspace.'
+            'The workspaces this token may act in. At least one; a token may span several, and the public content API picks which one a request targets with `X-Workspace-Id`. Duplicates are collapsed.'
     })
-    @IsUUID()
-    workspaceId!: string;
+    @IsArray()
+    @ArrayNotEmpty()
+    @ArrayMaxSize(WORKSPACE_IDS_MAX)
+    @IsUUID(undefined, { each: true })
+    workspaceIds!: string[];
 
     /** `read` (read-only) or `full` (content CRUD). */
     @ApiProperty({

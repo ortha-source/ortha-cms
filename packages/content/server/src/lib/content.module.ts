@@ -37,6 +37,11 @@ import { RevisionRefsQuery } from './revisions/infrastructure/queries/revision-r
 import { RevisionsController } from './revisions/http/controllers/revisions.controller';
 import { RestoreRevisionController } from './revisions/http/controllers/restore-revision.controller';
 import { PublishRevisionController } from './revisions/http/controllers/publish-revision.controller';
+import { PublicContentTypesController } from './public-api/http/controllers/public-content-types.controller';
+import { PublicEntriesController } from './public-api/http/controllers/public-entries.controller';
+import { ApiTokenGuard } from './public-api/http/guards/api-token.guard';
+import { ApiTokenWorkspaceGuard } from './public-api/http/guards/api-token-workspace.guard';
+import { PublicEntriesQuery } from './public-api/infrastructure/public-entries.query';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -82,7 +87,14 @@ export class ContentModule {
                 // routes above.
                 RevisionsController,
                 RestoreRevisionController,
-                PublishRevisionController
+                PublishRevisionController,
+                // The public, token-authenticated read API (`/api/v1/...`).
+                // Its own `v1` prefix keeps it clear of the admin routes, so
+                // registration order relative to them doesn't matter; the
+                // `v1/content-types` prefix likewise can't collide with
+                // `v1/content/:typeName` (different first segment).
+                PublicContentTypesController,
+                PublicEntriesController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },
@@ -133,6 +145,12 @@ export class ContentModule {
                 BulkPublishEntriesUseCase,
                 BulkUnpublishEntriesUseCase,
                 BulkPublishPreviewQuery,
+                // Public API: the bearer guard (which resolves a token through
+                // identity's exported `ApiTokenService`), the workspace
+                // resolver, and the narrow published-only read.
+                ApiTokenGuard,
+                ApiTokenWorkspaceGuard,
+                PublicEntriesQuery,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
                 // bound (nothing would stamp the NOT NULL locale column).
                 EntryExtensionBootCheck

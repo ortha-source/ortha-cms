@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_407 test cases across 35 spec files._
+_449 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -75,10 +75,63 @@ _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
 | Test case |
 | --- |
 | mints a token and returns the plaintext exactly once |
+| mints a token spanning several workspaces |
+| collapses duplicate workspace ids |
+| rejects an empty workspace bucket |
+| lists a multi-workspace token under each of its workspaces |
 | rejects an expiry in the past |
 | revokes a token |
 | gates management on the tokens permissions |
 | requires authentication |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
+
+## Public content API (/api/v1)
+
+### authentication
+
+| Test case |
+| --- |
+| 401s without an Authorization header |
+| 401s on an unknown bearer token |
+| 401s on a non-bearer Authorization scheme |
+| does not accept a session cookie in place of a token |
+| 401s once the token is revoked |
+| does not open the management API to a bearer token |
+
+### workspace resolution
+
+| Test case |
+| --- |
+| defaults to the only workspace of a single-workspace token |
+| requires X-Workspace-Id when the token covers several |
+| reads each workspace of a multi-workspace token |
+| 403s a workspace outside the token’s bucket |
+| 400s a malformed X-Workspace-Id |
+
+### entry reads
+
+| Test case |
+| --- |
+| serves only published, non-deleted entries |
+| returns a flat entry: no relations, no workspace, no status |
+| reads one entry by id |
+| 404s a draft entry by id |
+| 404s an entry that lives in another workspace |
+| 404s a content type the workspace was not granted |
+| 404s an unknown content type |
+| serves a single (page) type through the same list route |
+| paginates |
+| rejects an undeclared query parameter |
+
+### schema discovery
+
+| Test case |
+| --- |
+| lists only the types the workspace was granted |
+| serves one type’s field schema |
+| 404s the schema of an ungranted type |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_
@@ -933,7 +986,32 @@ _<sub>apps/server-e2e/src/server/workspaces/update-workspace.spec.ts</sub>_
 | applies a partial patch, leaving unspecified fields intact |
 | is a no-op for an empty patch and records nothing |
 | forbids a contributor (lacks workspaces:update) with 403 |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids an admin who is not a member of the workspace |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-access.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-access.spec.ts</sub>_
+
+## Workspace access is scoped to membership
+
+### GET /api/workspaces
+
+| Test case |
+| --- |
+| returns only the workspaces the caller belongs to |
+| is empty for a user who belongs to no workspace |
+| starts returning a workspace once the user is added to it |
+| requires workspaces:read |
+
+### /api/workspaces/:id/… as a non-member
+
+| Test case |
+| --- |
+| forbids reading the other tenant’s entry counts |
+| forbids editing, archiving, and deleting it |
+| forbids changing its members |
+| forbids granting and revoking its content types |
+| leaves the workspace untouched after every rejected call |
 
 <!-- source: apps/server-e2e/src/server/workspaces/workspace-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/workspace-content.spec.ts</sub>_
@@ -978,7 +1056,8 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts</sub>_
 | is idempotent — archiving an archived workspace records nothing new |
 | unarchives back to active and records workspace.unarchived |
 | forbids a contributor (lacks workspaces:update) with 403 |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids an admin who is not a member of the workspace |
 
 ### DELETE /api/workspaces/:id
 
@@ -986,7 +1065,9 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts</sub>_
 | --- |
 | deletes a workspace and records workspace.deleted |
 | forbids a contributor (lacks workspaces:delete) with 403 |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids an admin who is not a member from deleting it |
+| forbids the entry-count read for a non-member admin |
 | refuses (409) to delete a workspace that still has content entries |
 | forbids the entry-count read for a contributor (lacks workspaces:delete) with 403 |
 
@@ -1007,7 +1088,8 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 | --- |
 | adds a member and records workspace.member_added |
 | is idempotent — re-adding a member records nothing new |
-| 404s for an unknown workspace |
+| 403s for an unknown workspace (never 404 — no id enumeration) |
+| forbids a non-member admin from adding themselves |
 | 404s for an unknown user |
 | forbids a contributor (lacks workspaces:update) with 403 |
 

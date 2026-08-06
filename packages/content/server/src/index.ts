@@ -33,7 +33,10 @@ export type {
 
 // Row ↔ record mappers, exported for extension plugins (e.g. i18n's
 // translation copy) so their wire shapes can't drift from the pipeline's.
-export { toColumns, toRecord } from './lib/entries/infrastructure/persistence/entry-row';
+export {
+    toColumns,
+    toRecord
+} from './lib/entries/infrastructure/persistence/entry-row';
 export type {
     EntryListView,
     EntryMediaView,
@@ -83,3 +86,21 @@ export type {
     RelationOnDelete,
     RelationSpec
 } from './lib/types/fields';
+
+// --- Public content API (`/api/v1/...`) ---
+// The token-authenticated read surface. The wire contracts are exported so a
+// consumer inside the monorepo (or a generated client) can type against them;
+// the guards, so a plugin adding a route to the same surface reuses the exact
+// authentication and workspace-resolution rules instead of restating them.
+export type {
+    PublicEntry,
+    PublicEntryListView
+} from './lib/public-api/types/public-entry';
+export type { PublicContentTypeListView } from './lib/public-api/http/controllers/public-content-types.controller';
+export { ApiTokenGuard } from './lib/public-api/http/guards/api-token.guard';
+export { ApiTokenWorkspaceGuard } from './lib/public-api/http/guards/api-token-workspace.guard';
+export { CurrentApiToken } from './lib/public-api/http/decorators/current-api-token.decorator';
+export type {
+    ApiTokenRequest,
+    PublicApiToken
+} from './lib/public-api/http/api-token-request';

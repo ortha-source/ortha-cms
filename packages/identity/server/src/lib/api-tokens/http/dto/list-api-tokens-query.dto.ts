@@ -10,12 +10,16 @@ export const API_TOKENS_DEFAULT_PAGE_SIZE = 25;
 
 /** Query parameters for `GET /api/api-tokens`. */
 export class ListApiTokensQueryDto {
-    /** Restrict the list to one workspace's tokens; omit for all workspaces. */
+    /**
+     * Restrict the list to tokens whose workspace bucket **contains** this id;
+     * omit for every token. A multi-workspace token matches under each of its
+     * workspaces.
+     */
     @ApiPropertyOptional({
         type: String,
         format: 'uuid',
         description:
-            "Restrict the list to one workspace's tokens; omit for every workspace."
+            'Restrict the list to tokens whose workspace bucket contains this id; omit for every token. A multi-workspace token matches under each of its workspaces.'
     })
     @IsOptional()
     @IsUUID()

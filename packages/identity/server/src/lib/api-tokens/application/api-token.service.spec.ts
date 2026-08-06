@@ -1,19 +1,19 @@
 import { HashingService } from '../../auth/services/hashing.service';
 import { ApiTokenService } from './api-token.service';
 import type {
-    ApiTokenRow,
+    ApiTokenRecord,
     DrizzleApiTokenRepository,
     NewApiToken
 } from '../infrastructure/persistence/drizzle-api-token.repository';
 
-/** Builds a stored row from an insert plus overridable envelope fields. */
-function rowFrom(
+/** Builds a stored record from an insert plus overridable envelope fields. */
+function recordFrom(
     insert: NewApiToken,
-    over: Partial<ApiTokenRow> = {}
-): ApiTokenRow {
+    over: Partial<ApiTokenRecord> = {}
+): ApiTokenRecord {
     return {
         id: 'token-1',
-        workspaceId: insert.workspaceId,
+        workspaceIds: [...insert.workspaceIds],
         name: insert.name,
         tokenHash: insert.tokenHash,
         lookupPrefix: insert.lookupPrefix,
@@ -30,12 +30,12 @@ function rowFrom(
 describe('ApiTokenService', () => {
     const hashing = new HashingService();
 
-    /** A repo stub that records the last insert and serves a fixed row. */
-    function makeRepo(row: ApiTokenRow | null) {
+    /** A repo stub that records the last insert and serves a fixed record. */
+    function makeRepo(row: ApiTokenRecord | null) {
         const touchLastUsed = jest.fn().mockResolvedValue(undefined);
         return {
             repo: {
-                insert: jest.fn(async (v: NewApiToken) => rowFrom(v)),
+                insert: jest.fn(async (v: NewApiToken) => recordFrom(v)),
                 findByHash: jest.fn(async () => row),
                 findById: jest.fn(),
                 list: jest.fn(),
@@ -53,7 +53,7 @@ describe('ApiTokenService', () => {
 
             const { token, secret } = await service.mint({
                 name: 'CI',
-                workspaceId: 'ws-1',
+                workspaceIds: ['ws-1'],
                 scope: 'read',
                 createdBy: 'user-1'
             });
@@ -69,12 +69,43 @@ describe('ApiTokenService', () => {
             expect(token.scope).toBe('read');
         });
 
+        it('persists the whole workspace bucket', async () => {
+            const { repo } = makeRepo(null);
+            const service = new ApiTokenService(repo, hashing);
+
+            const { token } = await service.mint({
+                name: 'multi',
+                workspaceIds: ['ws-1', 'ws-2', 'ws-3'],
+                scope: 'read',
+                createdBy: 'user-1'
+            });
+
+            const insert = (repo.insert as jest.Mock).mock.calls[0][0];
+            expect(insert.workspaceIds).toEqual(['ws-1', 'ws-2', 'ws-3']);
+            expect(token.workspaceIds).toEqual(['ws-1', 'ws-2', 'ws-3']);
+        });
+
+        it('collapses duplicate workspace ids', async () => {
+            const { repo } = makeRepo(null);
+            const service = new ApiTokenService(repo, hashing);
+
+            await service.mint({
+                name: 'dupes',
+                workspaceIds: ['ws-1', 'ws-2', 'ws-1'],
+                scope: 'read',
+                createdBy: 'user-1'
+            });
+
+            const insert = (repo.insert as jest.Mock).mock.calls[0][0];
+            expect(insert.workspaceIds).toEqual(['ws-1', 'ws-2']);
+        });
+
         it('defaults a missing expiry to null (never expires)', async () => {
             const { repo } = makeRepo(null);
             const service = new ApiTokenService(repo, hashing);
             await service.mint({
                 name: 'forever',
-                workspaceId: 'ws-1',
+                workspaceIds: ['ws-1'],
                 scope: 'full',
                 createdBy: 'user-1'
             });
@@ -86,7 +117,7 @@ describe('ApiTokenService', () => {
     describe('verify', () => {
         const secret = 'orthacms_secret';
         const baseInsert: NewApiToken = {
-            workspaceId: 'ws-1',
+            workspaceIds: ['ws-1', 'ws-2'],
             name: 't',
             tokenHash: hashing.hashToken(secret),
             lookupPrefix: 'orthacms_sec',
@@ -95,13 +126,13 @@ describe('ApiTokenService', () => {
             createdBy: 'user-1'
         };
 
-        it('resolves a live token and touches last-used when stale', async () => {
-            const { repo, touchLastUsed } = makeRepo(rowFrom(baseInsert));
+        it('resolves a live token with its whole bucket, and touches last-used when stale', async () => {
+            const { repo, touchLastUsed } = makeRepo(recordFrom(baseInsert));
             const service = new ApiTokenService(repo, hashing);
 
             const result = await service.verify(secret);
 
-            expect(result?.workspaceId).toBe('ws-1');
+            expect(result?.workspaceIds).toEqual(['ws-1', 'ws-2']);
             expect(touchLastUsed).toHaveBeenCalledWith(
                 'token-1',
                 expect.any(Date)
@@ -110,7 +141,7 @@ describe('ApiTokenService', () => {
 
         it('rejects a revoked token', async () => {
             const { repo } = makeRepo(
-                rowFrom(baseInsert, { revokedAt: new Date('2026-02-01Z') })
+                recordFrom(baseInsert, { revokedAt: new Date('2026-02-01Z') })
             );
             const service = new ApiTokenService(repo, hashing);
             expect(await service.verify(secret)).toBeNull();
@@ -118,7 +149,7 @@ describe('ApiTokenService', () => {
 
         it('rejects an expired token', async () => {
             const { repo } = makeRepo(
-                rowFrom(baseInsert, { expiresAt: new Date('2020-01-01Z') })
+                recordFrom(baseInsert, { expiresAt: new Date('2020-01-01Z') })
             );
             const service = new ApiTokenService(repo, hashing);
             expect(await service.verify(secret)).toBeNull();
@@ -132,7 +163,7 @@ describe('ApiTokenService', () => {
 
         it('does not touch last-used when it is recent', async () => {
             const { repo, touchLastUsed } = makeRepo(
-                rowFrom(baseInsert, { lastUsedAt: new Date() })
+                recordFrom(baseInsert, { lastUsedAt: new Date() })
             );
             const service = new ApiTokenService(repo, hashing);
             await service.verify(secret);
