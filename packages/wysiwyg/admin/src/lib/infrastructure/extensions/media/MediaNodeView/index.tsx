@@ -5,7 +5,8 @@ import { cn } from '@ortha-cms/design-system';
 import {
     MEDIA_MIN_WIDTH,
     MEDIA_RESIZE_STEP,
-    WYSIWYG_MEDIA_KIND
+    WYSIWYG_MEDIA_KIND,
+    asMediaAlign
 } from '../../../../domain/constants';
 import { AltTextPopover } from './AltTextPopover';
 
@@ -62,6 +63,7 @@ export function MediaNodeView({
         typeof node.attrs['width'] === 'number'
             ? (node.attrs['width'] as number)
             : null;
+    const align = asMediaAlign(node.attrs['align']);
 
     /** The rendered width, for a resize that starts from "natural". */
     const measuredWidth = () =>
@@ -114,14 +116,25 @@ export function MediaNodeView({
         >
             <figure
                 ref={figureRef}
+                // The same hook the stored HTML carries, so the editor moves the
+                // block by exactly the rule that will move it once published.
+                data-align={align}
+                // Whether the author has chosen a width. Only a sized figure
+                // stretches its media to fill it; an unsized one shrinks to the
+                // media's natural size, which is what a bare `<img>` does
+                // everywhere else this HTML lands.
+                data-sized={width === null ? undefined : ''}
                 style={width ? { width: `${width}px` } : undefined}
                 className={cn(
                     'relative my-4 max-w-full',
                     selected && 'outline-2 outline-offset-2 outline-ring'
                 )}
             >
+                {/* No width class here: the stylesheet decides, so a resized
+                    block fills the figure and an unsized one keeps its natural
+                    size — the same two rules the published HTML gets. */}
                 {isVideo ? (
-                    <video src={src} controls className="block w-full" />
+                    <video src={src} controls className="block" />
                 ) : (
                     <img
                         src={src}
@@ -132,7 +145,7 @@ export function MediaNodeView({
                         // — because inventing alt for published content would
                         // be worse than none.
                         alt={alt || intl.formatMessage(messages.imageAlt)}
-                        className="block w-full"
+                        className="block"
                     />
                 )}
 

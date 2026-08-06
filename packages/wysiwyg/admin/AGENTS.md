@@ -230,6 +230,30 @@ The resize handle is a real `<button>` with arrow-key support — the width is
 published content, so a pointer-only resize would put a content decision out of
 reach of keyboard users.
 
+### Media does not align with `text-align`
+
+`@tiptap/extension-text-align` is configured for `heading` and `paragraph` only,
+and adding the media nodes to that list would **not** work: `text-align`
+positions a block's inline *children*, and an image **is** the block. The
+property lands on the `<img>` and moves nothing — which is exactly what "align
+centre does nothing to a selected image" looked like.
+
+So media carries its own `align` attribute (`MEDIA_ALIGN`), stored as
+`data-align` and applied by **margins** in `styles.css`. A `data-` attribute
+rather than the long-deprecated `align="center"` or an inline `style`, for the
+same reason `width` is an attribute: it survives a template's or an email
+client's sanitizer. `left` is never written — it is where a block already sits.
+
+`AlignMenu` stays **one** control, because it is one decision to the author: it
+switches to `setMediaAlign` whenever the selection is on a media node, and drops
+**Justify** from the list while it is (justify spreads the words of a line, and a
+picture has none).
+
+The figure the node view renders is `width: fit-content` unless the author has
+chosen a width (`data-sized`). Otherwise an un-resized image fills the measure in
+the editor while the preview shows it at its natural size — and centring has
+nothing to move, because the block already spans the line.
+
 ### Alt text lives on the image, not only on the insert dialogs
 
 Alt is published content and the difference between an image that works for a

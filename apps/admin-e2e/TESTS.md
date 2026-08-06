@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_273 test cases across 31 spec files._
+_275 test cases across 31 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -377,6 +377,7 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | stores the formatting the toolbar applied |
 | stores a callout as semantic HTML, not admin classes |
 | stores a table with its header row |
+| stores a paragraph’s alignment as text-align |
 | stores a column layout as nested divs |
 | stores an emptied field as empty, not as a blank paragraph |
 
@@ -389,6 +390,7 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | refuses a URL the editor would not publish |
 | places an asset picked from the Media Library |
 | resizes an image from the keyboard, and stores the width |
+| centres a selected image, and stores where it sits |
 | prompts for alt text, and stores what the author writes |
 | records a decorative image as answered, not as missing |
 | never saves the record from an overlay’s own form |

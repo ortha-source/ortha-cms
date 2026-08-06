@@ -287,6 +287,29 @@ test.describe('Entry editor — rich text field', () => {
             expect(body.match(/<tr>/g)).toHaveLength(3);
         });
 
+        test('stores a paragraph’s alignment as text-align', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.type('Centred');
+            await wysiwygFieldPage.align('Align center');
+            await wysiwygFieldPage.done();
+
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            // Text aligns by `text-align`; media, which is a block and has no
+            // inline children to position, aligns by its margins instead. The
+            // one menu picks the right one — this is the text half.
+            expect(String(saves.bodies[0].values?.['body'])).toContain(
+                'text-align: center'
+            );
+        });
+
         test('stores a column layout as nested divs', async ({
             wysiwygFieldPage,
             contentLibraryPage
@@ -447,6 +470,45 @@ test.describe('Entry editor — rich text field', () => {
 
             expect(String(saves.bodies[0].values?.['body'])).toMatch(
                 /<img[^>]*width="\d+"/
+            );
+        });
+
+        test('centres a selected image, and stores where it sits', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            // From the library, so the image is a real one the browser can
+            // render: the author picks it by **clicking the picture**, and a
+            // source the sandbox can't fetch has no box to click.
+            await wysiwygFieldPage.openMediaSource('Media Library…');
+            await wysiwygFieldPage.pickLibraryAsset('hero.png');
+
+            await wysiwygFieldPage.editorImage(MEDIA_HERO_ALT).click();
+            await wysiwygFieldPage.openToolbarMenu('Alignment');
+            // An image *is* the block, so there are no words inside it to
+            // spread — the menu drops "Justify" while media is selected.
+            await expect(wysiwygFieldPage.menuRadio('Justify')).toHaveCount(0);
+            await wysiwygFieldPage.menuRadio('Align center').click();
+
+            // Media moves by its margins, not by `text-align` — which is why
+            // this is its own attribute and not the text extension's.
+            await expect(wysiwygFieldPage.editorFigure).toHaveAttribute(
+                'data-align',
+                'center'
+            );
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            // Where a picture sits is published layout, so it has to survive the
+            // round-trip — the editor agreeing is only half of it.
+            expect(String(saves.bodies[0].values?.['body'])).toContain(
+                'data-align="center"'
             );
         });
 

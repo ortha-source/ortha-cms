@@ -21,8 +21,12 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import {
+    MEDIA_ALIGN,
     MEDIA_MIN_WIDTH,
     WYSIWYG_MEDIA_KIND,
+    WYSIWYG_MEDIA_KINDS,
+    asMediaAlign,
+    type MediaAlign,
     type WysiwygMediaKind
 } from '../../../domain/constants';
 import { isSafeMediaSrc, safeMediaSrc } from '../../../domain/mediaSrc';
@@ -47,6 +51,12 @@ declare module '@tiptap/core' {
             insertMedia: (embeds: readonly MediaEmbedInput[]) => ReturnType;
             /** Resize the selected media. `null` restores its natural width. */
             setMediaWidth: (width: number | null) => ReturnType;
+            /**
+             * Move the selected media across the measure. Separate from
+             * `setTextAlign` because media is aligned by its **margins**, not by
+             * the `text-align` that positions a block's inline children.
+             */
+            setMediaAlign: (align: MediaAlign) => ReturnType;
             /**
              * Describe the selected image. `decorative` marks it as carrying no
              * information — the alt is emptied and the "needs alt text" prompt
@@ -85,6 +95,27 @@ function sizingAttributes() {
             renderHTML: (attributes: Record<string, unknown>) => {
                 const width = attributes['width'];
                 return typeof width === 'number' ? { width: String(width) } : {};
+            }
+        },
+        /**
+         * Where the block sits across the measure.
+         *
+         * A `data-` attribute rather than `align="center"` (long deprecated, and
+         * dropped by anything that sanitizes presentational HTML) or an inline
+         * `style` (a `style` is the first thing an email client or a template's
+         * own sanitizer strips). It rides the published HTML as an inert hook
+         * the renderer styles — the same one this plugin's stylesheet uses, so
+         * the editor, the preview, and the published page agree.
+         */
+        align: {
+            default: MEDIA_ALIGN.Left,
+            parseHTML: (element: HTMLElement) =>
+                asMediaAlign(element.getAttribute('data-align')),
+            renderHTML: (attributes: Record<string, unknown>) => {
+                const align = asMediaAlign(attributes['align']);
+                // Left is where a block already sits; writing it would add an
+                // attribute that changes nothing.
+                return align === MEDIA_ALIGN.Left ? {} : { 'data-align': align };
             }
         }
     };
@@ -191,14 +222,22 @@ export const ResizableImage = Node.create({
                             : Math.max(MEDIA_MIN_WIDTH, Math.round(width));
                     // Whichever media node the selection is on — the command is
                     // shared, so it must not assume the image.
-                    for (const name of [
-                        WYSIWYG_MEDIA_KIND.Image,
-                        WYSIWYG_MEDIA_KIND.Video
-                    ]) {
+                    for (const name of WYSIWYG_MEDIA_KINDS) {
                         if (editor.isActive(name)) {
                             return commands.updateAttributes(name, {
                                 width: next
                             });
+                        }
+                    }
+                    return false;
+                },
+
+            setMediaAlign:
+                (align) =>
+                ({ commands, editor }) => {
+                    for (const name of WYSIWYG_MEDIA_KINDS) {
+                        if (editor.isActive(name)) {
+                            return commands.updateAttributes(name, { align });
                         }
                     }
                     return false;

@@ -181,6 +181,21 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
+     * The `<figure>` a media node renders as inside the editor. It is what
+     * carries the author's width and alignment on screen — the bare `<img>` in
+     * the stored HTML carries the same values.
+     */
+    get editorFigure(): Locator {
+        return this.surfaceRoot.locator('figure');
+    }
+
+    /** Open the toolbar's alignment menu and choose one of its options. */
+    async align(name: string): Promise<void> {
+        await this.openToolbarMenu('Alignment');
+        await this.menuRadio(name).click();
+    }
+
+    /**
      * The alt-text control on an image in the document. Its name is the prompt:
      * "Add alt text" while the image has neither alt nor a decorative mark,
      * "Alt text" once the author has answered either way.

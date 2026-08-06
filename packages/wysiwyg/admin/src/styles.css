@@ -135,18 +135,50 @@
 .ortha-wysiwyg figure {
     margin: 1.25em 0;
     max-width: 100%;
+    /* Shrink to what is inside it. Without this the figure is a full-width
+       block, so an un-resized image would sit stretched across the measure in
+       the editor while the preview showed it at its natural size — and
+       "centre" would have nothing to move, because the block already fills the
+       line. */
+    width: fit-content;
 }
 
-.ortha-wysiwyg figure > img,
-.ortha-wysiwyg figure > video {
+/* Only a figure the author has actually resized stretches its media to fill it.
+   `data-sized` is the node view saying a width was chosen; an unsized figure is
+   sized *by* the media, which is what a bare `<img>` does everywhere else this
+   HTML lands. */
+.ortha-wysiwyg figure[data-sized] > img,
+.ortha-wysiwyg figure[data-sized] > video {
     width: 100%;
+}
+
+/* Alignment. Media is a block, so it moves by its **margins** — `text-align`
+   positions a block's inline children and does nothing to the block itself,
+   which is why media carries `data-align` instead of the text extension's
+   `text-align` (see MEDIA_ALIGN).
+
+   Two selectors for one rule, on purpose: the editor aligns the node view's
+   `<figure>`, while a preview — and any consumer of the stored HTML — aligns
+   the bare `<img>` / `<video>` that carries the very same attribute. `left` is
+   absent because it is where a block already sits. */
+.ortha-wysiwyg figure[data-align='center'],
+.ortha-wysiwyg img[data-align='center'],
+.ortha-wysiwyg video[data-align='center'] {
+    margin-inline: auto;
+}
+
+.ortha-wysiwyg figure[data-align='right'],
+.ortha-wysiwyg img[data-align='right'],
+.ortha-wysiwyg video[data-align='right'] {
+    margin-inline-end: 0;
+    margin-inline-start: auto;
 }
 
 /* Editor-only: the node view's selection ring and resize handle. A preview
    renders the same `<img>` with none of this. */
 .ortha-wysiwyg .ortha-wysiwyg-media {
-    /* The wrapper is a block in the flow; the figure inside carries the width,
-       so a resized image stays left-aligned rather than centring itself. */
+    /* The wrapper is a block in the flow spanning the full measure; the figure
+       inside it is what carries the width and the alignment. */
     display: block;
 }
 

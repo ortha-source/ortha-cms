@@ -51,6 +51,43 @@ export const MEDIA_MIN_WIDTH = 64;
 /** How far one arrow-key press moves the resize handle (Shift ×4). */
 export const MEDIA_RESIZE_STEP = 16;
 
+/**
+ * Where a media block sits across the measure — the `data-align` written into
+ * the stored HTML.
+ *
+ * Media does **not** use `text-align`. An image is a block in the flow, and
+ * `text-align` positions a block's inline *children*, not the block itself — so
+ * the property the text alignment extension writes lands on the image and moves
+ * nothing. A block moves by its margins, which is what the stylesheet does with
+ * this attribute.
+ *
+ * There is no `justify`: it spreads a line's words to both edges, and a picture
+ * has no words to spread.
+ */
+export const MEDIA_ALIGN = {
+    /** The default — where a block sits with no margins of its own. */
+    Left: 'left',
+    Center: 'center',
+    Right: 'right'
+} as const;
+
+/** Where a media block sits. */
+export type MediaAlign = (typeof MEDIA_ALIGN)[keyof typeof MEDIA_ALIGN];
+
+/** Every alignment media can take, in the order the toolbar menu lists them. */
+export const MEDIA_ALIGNS: readonly MediaAlign[] = [
+    MEDIA_ALIGN.Left,
+    MEDIA_ALIGN.Center,
+    MEDIA_ALIGN.Right
+];
+
+/** Narrows an unknown attribute value to an alignment, defaulting to left. */
+export function asMediaAlign(value: unknown): MediaAlign {
+    return MEDIA_ALIGNS.includes(value as MediaAlign)
+        ? (value as MediaAlign)
+        : MEDIA_ALIGN.Left;
+}
+
 /** A callout's severity — the `data-tone` written into the stored HTML. */
 export const CALLOUT_TONE = {
     Info: 'info',
