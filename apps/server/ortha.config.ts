@@ -8,6 +8,7 @@
  */
 
 import type { ApiDocsOptions } from '@ortha-cms/bootstrap-server';
+import type { CopilotPluginConfig } from '@ortha-cms/copilot-server';
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
 import type { MediaPluginConfig } from '@ortha-cms/media-server';
@@ -36,6 +37,8 @@ export interface OrthaConfig {
         i18n: I18nPluginConfig;
         /** Media plugin settings — storage providers + upload limits. */
         media: MediaPluginConfig;
+        /** Copilot plugin settings — kill switch + model providers. */
+        copilot: CopilotPluginConfig;
     };
 }
 
@@ -132,6 +135,37 @@ const config: OrthaConfig = {
             // Upload cap — 50 MB by default.
             maxUploadBytes:
                 Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800
+        },
+        copilot: {
+            // Off by default (ADR-0005 §10). Enabling a hosted provider sends
+            // workspace content to a third party, so an operator opts in.
+            enabled: process.env['COPILOT_ENABLED'] === 'true',
+            // Which registered provider serves a run when `plugins.ts` supplies
+            // no custom `resolve` handler. `fake` needs no key and no network,
+            // so a fresh clone and CI both boot without configuration.
+            defaultProvider: process.env['COPILOT_PROVIDER'] ?? 'fake',
+            maxOutputTokens:
+                Number(process.env['COPILOT_MAX_OUTPUT_TOKENS']) || 8_192,
+            anthropic: {
+                apiKey: process.env['ANTHROPIC_API_KEY'] ?? '',
+                // Stable product configuration, so a literal like the i18n
+                // locales; the env var is here for pinning a different model
+                // without a redeploy of this file.
+                model:
+                    process.env['COPILOT_ANTHROPIC_MODEL'] ?? 'claude-opus-5',
+                ...(process.env['ANTHROPIC_BASE_URL']
+                    ? { baseUrl: process.env['ANTHROPIC_BASE_URL'] }
+                    : {})
+            },
+            openaiCompatible: {
+                // Defaults to a local Ollama, the common self-hosted setup —
+                // point it at vLLM, LiteLLM, Azure or OpenAI instead.
+                baseUrl:
+                    process.env['COPILOT_OPENAI_BASE_URL'] ??
+                    'http://localhost:11434/v1',
+                model: process.env['COPILOT_OPENAI_MODEL'] ?? 'llama3.1',
+                apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? ''
+            }
         }
     }
 };

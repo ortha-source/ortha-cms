@@ -101,6 +101,24 @@
         },
         {
             "path": "./packages/wysiwyg/admin"
+        },
+        {
+            "path": "./packages/copilot/provider-openai-compatible"
+        },
+        {
+            "path": "./packages/copilot/provider-anthropic"
+        },
+        {
+            "path": "./packages/copilot/provider-fake"
+        },
+        {
+            "path": "./packages/copilot/domain"
+        },
+        {
+            "path": "./packages/copilot/server"
+        },
+        {
+            "path": "./packages/copilot/admin"
         }
     ]
 }

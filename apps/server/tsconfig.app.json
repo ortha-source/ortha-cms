@@ -28,6 +28,15 @@
             "path": "../../packages/media/provider-local/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/copilot/provider-openai-compatible/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/copilot/provider-anthropic/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
@@ -35,9 +44,6 @@
         },
         {
             "path": "../../packages/content/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/bootstrap/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/activity/server/tsconfig.lib.json"
@@ -50,6 +56,12 @@
         },
         {
             "path": "../../packages/identity/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/copilot/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/bootstrap/server/tsconfig.lib.json"
         }
     ]
 }

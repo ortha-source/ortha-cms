@@ -2,6 +2,10 @@ import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
+import { CopilotPlugin } from '@ortha-cms/copilot-server';
+import { createAnthropicProvider } from '@ortha-cms/copilot-provider-anthropic';
+import { createFakeProvider } from '@ortha-cms/copilot-provider-fake';
+import { createOpenAiCompatibleProvider } from '@ortha-cms/copilot-provider-openai-compatible';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
@@ -68,6 +72,35 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             },
             config: config.plugins.media
         }),
-        I18nServerPlugin(config.plugins.i18n)
+        I18nServerPlugin(config.plugins.i18n),
+        // Copilot — registered after workspaces (runs are workspace-scoped)
+        // and identity (runs execute as the calling user, gated on
+        // `copilot:use`). Like media, the composition root is the single place
+        // that selects a backend: register model providers by name and,
+        // optionally, a `resolve` handler to route per run. All three shipped
+        // adapters are registered so an operator can switch between them with
+        // `COPILOT_PROVIDER` alone — no redeploy, which is most of what
+        // self-hosters are asking for (ADR-0004 §5).
+        //
+        // To route per run, add a handler, e.g.:
+        //   resolve: (ctx) => (isBigWorkspace(ctx.workspaceId) ? 'anthropic' : 'local'),
+        //
+        // Phase 0 ships nothing visible: this binds the model seam and the
+        // config so the chat vertical slice has something to build on.
+        CopilotPlugin({
+            providers: {
+                anthropic: createAnthropicProvider(
+                    config.plugins.copilot.anthropic
+                ),
+                local: createOpenAiCompatibleProvider(
+                    config.plugins.copilot.openaiCompatible
+                ),
+                // Shipped, not test scaffolding (ADR-0004 §3): it is how
+                // server-e2e drives the loop with no key and no network, and
+                // how a contributor runs the admin offline.
+                fake: createFakeProvider()
+            },
+            config: config.plugins.copilot
+        })
     ];
 }
