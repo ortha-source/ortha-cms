@@ -15,6 +15,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { RevokeContentUseCase } from '../../application/use-cases/revoke-content.use-case';
 import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.query';
 import type { WorkspaceView } from '../../application/queries/workspace.view';
@@ -29,8 +30,12 @@ import {
  * holds entries in the workspace, so a revoke never orphans reachable records.
  * Revoking a grant the workspace never held is a no-op. Returns the updated
  * view; a missing workspace maps to 404. Guarded by `OriginGuard` (CSRF).
+ *
+ * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
+ * `:id` gets a flat 403 — indistinguishable from a workspace that doesn't
+ * exist — so a permission never reaches another tenant's workspace.
  */
-@UseGuards(OriginGuard, PermissionsGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceMemberGuard)
 @RequirePermissions(PERMISSIONS.WORKSPACES_UPDATE)
 @Controller('workspaces')
 export class RemoveWorkspaceContentController {

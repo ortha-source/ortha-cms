@@ -151,11 +151,36 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
             .expect(403);
     });
 
-    it('404s for an unknown workspace', async () => {
+    it('403s for an unknown workspace (never 404 — no id enumeration)', async () => {
         const { agent } = await loginAs('admin', ADMIN_EMAIL);
+        // `WorkspaceMemberGuard` runs before the handler, so a caller who is
+        // not a member cannot tell an unknown id from one they simply don't
+        // belong to. Both are a flat 403.
         await agent
             .patch('/api/workspaces/00000000-0000-0000-0000-000000000000')
             .send({ name: 'Ghost' })
-            .expect(404);
+            .expect(403);
+    });
+
+    it('forbids an admin who is not a member of the workspace', async () => {
+        const { agent: owner } = await loginAs('admin', ADMIN_EMAIL);
+        const id = await createWorkspace(owner);
+
+        // A second admin holds `workspaces:update` but belongs to no
+        // workspace — permissions say *what*, membership says *where*.
+        const { agent: outsider } = await loginAs(
+            'admin',
+            'wsu-outsider@example.com'
+        );
+        await outsider
+            .patch(`/api/workspaces/${id}`)
+            .send({ name: 'Hijacked' })
+            .expect(403);
+
+        // The workspace is untouched.
+        const res = await owner.get('/api/workspaces').expect(200);
+        expect(
+            res.body.find((w: { id: string }) => w.id === id).name
+        ).toBe('Marketing site');
     });
 });

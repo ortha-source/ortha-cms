@@ -13,6 +13,7 @@ import { GetWorkspaceContentCountController } from './workspace/http/controllers
 import { GetWorkspaceEntryCountController } from './workspace/http/controllers/get-workspace-entry-count.controller';
 import { ListContentTypesController } from './workspace/http/controllers/list-content-types.controller';
 import { WorkspaceGuard } from './workspace/http/guards/workspace.guard';
+import { WorkspaceMemberGuard } from './workspace/http/guards/workspace-member.guard';
 import { CreateWorkspaceUseCase } from './workspace/application/use-cases/create-workspace.use-case';
 import { UpdateWorkspaceUseCase } from './workspace/application/use-cases/update-workspace.use-case';
 import { SetWorkspaceStatusUseCase } from './workspace/application/use-cases/set-workspace-status.use-case';
@@ -107,14 +108,18 @@ export class WorkspacesModule {
                 // Resolved by `@UseGuards(WorkspaceGuard)` on workspace-scoped
                 // routes in other plugins; injectable everywhere since this
                 // module is global (same pattern as identity's PermissionsGuard).
-                WorkspaceGuard
+                WorkspaceGuard,
+                // The `:id`-scoped sibling, guarding this context's own
+                // `/workspaces/:id/…` routes.
+                WorkspaceMemberGuard
             ],
             exports: [
                 // Exported so a feature plugin's `@UseGuards(WorkspaceGuard)`
                 // (instantiated in the consuming module's injector) can resolve
                 // the guard and its `MembershipCheckQuery` dependency.
                 MembershipCheckQuery,
-                WorkspaceGuard
+                WorkspaceGuard,
+                WorkspaceMemberGuard
             ]
         };
     }
