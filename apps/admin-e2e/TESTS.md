@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_294 test cases across 32 spec files._
+_296 test cases across 32 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -144,6 +144,12 @@ _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
 | redirects a signed-out user from / to the sign-in page |
 | redirects a signed-out user from an unknown path to the sign-in page |
 | returns to the home page after a gated user signs in |
+
+## Session lost mid-visit
+
+| Test case |
+| --- |
+| redirects to the sign-in page when a request comes back 401 |
 
 <!-- source: apps/admin-e2e/src/auth/routing.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
@@ -672,6 +678,7 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | shows a contextual empty state when nothing matches |
 | a row shows the workspace member and type counts |
 | a row opens its workspace on click |
+| a workspace the user is not a member of shows a no-access screen |
 
 ### create wizard
 

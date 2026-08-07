@@ -11,6 +11,7 @@ import {
     resetDb,
     revokeUserSessions,
     seedActiveUser,
+    setUserStatus,
     type SeededUser
 } from '../../support/seed';
 
@@ -178,6 +179,33 @@ describe('GET /api/auth/me', () => {
         it('rejects a session whose user was deleted', async () => {
             const cookie = await login();
             await deleteUser(user.id);
+            await get().set('Cookie', cookie).expect(401);
+        });
+
+        /**
+         * Disabling through the API also revokes the member's sessions, so this
+         * suspends the account behind the API's back — the state a login racing
+         * a disable can leave behind. The cookie is still live; the account is
+         * not, and the resolve must refuse it on that alone.
+         */
+        it('rejects a live session whose account was suspended', async () => {
+            const cookie = await login();
+            await setUserStatus(user.id, 'disabled');
+            await get().set('Cookie', cookie).expect(401);
+        });
+
+        it('accepts the same session again once the account is reactivated', async () => {
+            const cookie = await login();
+            await setUserStatus(user.id, 'disabled');
+            await get().set('Cookie', cookie).expect(401);
+
+            await setUserStatus(user.id, 'active');
+            await get().set('Cookie', cookie).expect(200);
+        });
+
+        it('rejects a live session whose account fell back to pending', async () => {
+            const cookie = await login();
+            await setUserStatus(user.id, 'pending');
             await get().set('Cookie', cookie).expect(401);
         });
     });

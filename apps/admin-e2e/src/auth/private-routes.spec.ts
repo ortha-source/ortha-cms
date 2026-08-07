@@ -1,5 +1,11 @@
 import { test, expect } from '../support/fixtures';
-import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
+import {
+    mockLogin,
+    mockSignedIn,
+    mockSignedOut,
+    mockUnauthorized
+} from '../support/api/auth';
+import { mockMembers } from '../support/api/members';
 
 const EMAIL = 'admin@example.com';
 const PASSWORD = 'SecurePass123!';
@@ -52,5 +58,36 @@ test.describe('Private route gating', () => {
         await expect(page).toHaveURL('/');
         await expect(homePage.heading).toBeVisible();
         await expect(homePage.nav).toBeVisible();
+    });
+});
+
+/**
+ * A session can die while a tab is open — an admin suspends the account (which
+ * revokes its sessions server-side), it expires, or another device kills it.
+ * The next request comes back `401`, and the shared client's global handler
+ * turns that into a real sign-out instead of a page that keeps failing in place.
+ *
+ * `GET /api/auth/me` stays mocked as **signed in** throughout, so the redirect
+ * can only come from the `401` on the data request.
+ */
+test.describe('Session lost mid-visit', () => {
+    test('redirects to the sign-in page when a request comes back 401', async ({
+        page,
+        loginPage,
+        membersPage
+    }) => {
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await membersPage.goto();
+        await expect(membersPage.heading).toBeVisible();
+
+        // The session dies; the next list request is refused.
+        await mockUnauthorized(page, '**/api/users?*');
+        await membersPage.search.fill('ada');
+
+        await expect(page).toHaveURL(/\/identity\/signin$/);
+        await expect(loginPage.heading).toBeVisible();
+        // The private shell is gone with it — no nav left over a dead session.
+        await expect(membersPage.nav).toBeHidden();
     });
 });
