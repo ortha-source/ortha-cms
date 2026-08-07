@@ -88,6 +88,21 @@ stays in the controller, and the loop is testable by draining the generator.
   recover from, and the run continues. An unknown tool and a withheld one get
   the **same** message, because "that exists but you may not use it" is itself
   information.
+- **A repeated identical call is refused, not re-run.** A model — especially a
+  smaller local one — will sometimes re-request a call it already made instead
+  of using the result. Without a guard the engine obliges every time until it
+  hits `maxSteps`: eight model calls, eight identical queries, no answer, and a
+  stop reason that explains nothing. The guard compares `name` + arguments
+  (key-sorted, so argument order doesn't defeat it) and feeds back a tool error
+  *saying* the call was already made — telling the model is what breaks the
+  loop; silently re-running or refusing without a reason both just repeat.
+  Checked after authorization, so a repeat can never reveal more than a first
+  call would.
+- **`maxSteps` is configurable** via `config.limits.maxSteps` (`COPILOT_MAX_STEPS`).
+  The default of 8 suits a frontier model; a smaller local one often needs more
+  round trips for the same question. Raising it costs tokens rather than safety
+  — every step is still authorized, audited, and bounded by the wall-clock and
+  token ceilings.
 - **Every attempted call is audited**, successful or not — a refused call is
   exactly what a reviewer is looking for. Output is stored as a **summary**, not
   whole: copying entry bodies into an append-only table would duplicate content

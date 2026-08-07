@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_457 test cases across 37 spec files._
+_460 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -589,6 +589,9 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | turns a tool that throws into a tool error and keeps going |
 | refuses a tool the model invented, without failing the run |
 | rejects arguments that do not match the tool schema |
+| refuses an identical repeated call instead of re-running the tool |
+| treats a call with different arguments as a new call |
+| stops with max-steps when the model never stops calling tools |
 | audits every attempted call, successful or not |
 
 ### the capability profile

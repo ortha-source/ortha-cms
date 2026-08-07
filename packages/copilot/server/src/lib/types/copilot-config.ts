@@ -1,3 +1,5 @@
+import type { RunLimits } from '@ortha-cms/copilot-domain';
+
 /**
  * The copilot plugin's host-supplied config.
  *
@@ -22,4 +24,15 @@ export interface CopilotPluginConfig {
     defaultProvider: string;
     /** Ceiling on a single model response, in tokens. */
     maxOutputTokens: number;
+    /**
+     * Optional overrides for the run engine's ceilings. Omitted fields keep
+     * `DEFAULT_RUN_LIMITS`.
+     *
+     * `maxSteps` is the one an operator actually reaches for: a smaller local
+     * model often needs more tool round trips than a frontier one to answer the
+     * same question, and the default of 8 is tuned for the latter. Raising it
+     * costs tokens rather than safety — every step is still authorized, audited
+     * and bounded by the wall clock and token ceilings.
+     */
+    limits?: Partial<RunLimits>;
 }

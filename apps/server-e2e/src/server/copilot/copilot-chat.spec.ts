@@ -432,6 +432,76 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(fixtures.invoked).toEqual([]);
         });
 
+        // Without this guard a model that re-requests a call it already made
+        // burns every remaining step on identical queries and ends on
+        // `max-steps` with nothing to show for it. Smaller local models do this
+        // routinely.
+        it('refuses an identical repeated call instead of re-running the tool', async () => {
+            scriptCopilot(
+                {
+                    toolCalls: [
+                        { name: 'fixture.readThing', input: { q: 'launch' } }
+                    ]
+                },
+                {
+                    toolCalls: [
+                        { name: 'fixture.readThing', input: { q: 'launch' } }
+                    ]
+                },
+                { text: 'Using the earlier result: 3.' }
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const events = await run(agent, { message: 'search' });
+
+            const results = framesOfType(events, 'tool-result');
+            expect(results[0].ok).toBe(true);
+            expect(results[1].ok).toBe(false);
+            expect(results[1].error).toContain('already called');
+            // The tool ran exactly once — the repeat never reached it.
+            expect(fixtures.invoked).toEqual(['fixture.readThing']);
+            expect(framesOfType(events, 'done')[0].stopReason).toBe('end');
+        });
+
+        it('treats a call with different arguments as a new call', async () => {
+            scriptCopilot(
+                { toolCalls: [{ name: 'fixture.readThing', input: { q: 'a' } }] },
+                { toolCalls: [{ name: 'fixture.readThing', input: { q: 'b' } }] },
+                { text: 'done' }
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const events = await run(agent, { message: 'search' });
+
+            expect(
+                framesOfType(events, 'tool-result').map((r) => r.ok)
+            ).toEqual([true, true]);
+            expect(fixtures.invoked).toEqual([
+                'fixture.readThing',
+                'fixture.readThing'
+            ]);
+        });
+
+        it('stops with max-steps when the model never stops calling tools', async () => {
+            // Nine distinct calls — more than the default ceiling of 8 steps,
+            // and distinct so the repeat guard doesn't end it first.
+            scriptCopilot(
+                ...Array.from({ length: 9 }, (_, index) => ({
+                    toolCalls: [
+                        {
+                            name: 'fixture.readThing',
+                            input: { q: `query-${index}` }
+                        }
+                    ]
+                }))
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const events = await run(agent, { message: 'go' });
+
+            expect(framesOfType(events, 'done')[0].stopReason).toBe('max-steps');
+        });
+
         it('audits every attempted call, successful or not', async () => {
             scriptCopilot(
                 {

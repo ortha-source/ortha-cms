@@ -111,7 +111,10 @@ export class RunEngine {
         @Inject(COPILOT_RUN_LIMITS)
         limits: RunLimits | null = null
     ) {
-        this.limits = limits ?? DEFAULT_RUN_LIMITS;
+        // Precedence: an explicitly bound token, then the host's config, then
+        // the defaults. Config is the ordinary path (it is env-driven); the
+        // token stays for tests that need to pin a limit without a whole config.
+        this.limits = limits ?? { ...DEFAULT_RUN_LIMITS, ...config.limits };
     }
 
     /** Runs one turn, yielding events as they happen. */
@@ -273,6 +276,9 @@ export class RunEngine {
     }): AsyncGenerator<CopilotRunEvent, RunStopReason> {
         const messages = [...ctx.history];
         const tools = toModelTools(ctx.profile.tools);
+        // Signatures of calls already made this run, so a model that asks for
+        // the same thing twice is told rather than silently obliged.
+        const alreadyCalled = new Set<string>();
 
         for (let step = 0; step < this.limits.maxSteps; step += 1) {
             if (ctx.input.signal.aborted) {
@@ -324,7 +330,7 @@ export class RunEngine {
                     name: call.name,
                     input: call.input
                 };
-                const outcome = await this.executeTool(ctx, call);
+                const outcome = await this.executeTool(ctx, call, alreadyCalled);
                 results.push(outcome.block);
                 yield outcome.event;
             }
@@ -405,7 +411,8 @@ export class RunEngine {
             conversationId: string;
             profile: CapabilityProfile;
         },
-        call: ToolUseBlock
+        call: ToolUseBlock,
+        alreadyCalled: Set<string>
     ): Promise<{ block: ToolResultBlock; event: CopilotRunEvent }> {
         const startedAt = Date.now();
         const fail = async (message: string) => {
@@ -462,6 +469,29 @@ export class RunEngine {
         if (!validation.valid) {
             return fail(`Invalid arguments: ${validation.errors.join('; ')}`);
         }
+
+        // The loop guard. A model — especially a smaller local one — will
+        // sometimes re-request a call it has already made instead of using the
+        // result, and without this the engine obliges every time until it hits
+        // `maxSteps`: eight model calls, eight identical queries, no answer, and
+        // a stop reason that says nothing about why.
+        //
+        // Telling it what happened is what actually breaks the loop; silently
+        // re-running, or refusing without saying why, both just repeat. Checked
+        // AFTER authorization so a repeat can never reveal more than a first
+        // call would.
+        const signature = `${call.name} ${stableStringify(call.input)}`;
+        if (alreadyCalled.has(signature)) {
+            this.logger.warn(
+                `Run ${ctx.runId}: "${call.name}" repeated with identical arguments; refusing.`
+            );
+            return fail(
+                `You already called "${call.name}" with exactly these arguments in this ` +
+                    'conversation, and its result is above. Use that result, or call a ' +
+                    'different tool, or answer the question — do not repeat this call.'
+            );
+        }
+        alreadyCalled.add(signature);
 
         const toolContext: ToolContext = {
             userId: ctx.input.userId,
@@ -562,6 +592,25 @@ function toModelTools(tools: readonly ToolSpec[]): ModelTool[] {
 /** Input + output across a run. */
 function totalTokens(usage: ModelUsage): number {
     return usage.inputTokens + usage.outputTokens;
+}
+
+/**
+ * JSON with object keys sorted, so two calls that differ only in the order the
+ * model happened to emit their arguments compare equal. Without the sort,
+ * `{a,b}` and `{b,a}` are different strings and the loop guard misses the
+ * repeat it exists to catch.
+ */
+function stableStringify(value: unknown): string {
+    if (value === null || typeof value !== 'object') {
+        return JSON.stringify(value) ?? 'null';
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map(stableStringify).join(',')}]`;
+    }
+    const entries = Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, val]) => `${JSON.stringify(key)}:${stableStringify(val)}`);
+    return `{${entries.join(',')}}`;
 }
 
 /**
