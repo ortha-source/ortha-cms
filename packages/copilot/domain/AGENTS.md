@@ -49,6 +49,16 @@ something here needs a dependency, it belongs in a layer above.
   in `plugins.ts`, returning a registered provider **name**.
 - `UnknownModelProviderError` — thrown by the registry, transport-agnostic.
 
+### The abort contract, made executable
+
+- `isAbortError(error, signal?)` and `abortedEvent()` (`lib/model/abort.ts`).
+
+The port says an abort **ends** the stream with `stopReason: 'aborted'` rather
+than throwing out of it, and that a cancelled call reports zero usage. Every
+adapter has to implement that clause, so it lives here as two functions instead
+of as prose copy-pasted into each one. Both are pure, so this costs the layer
+nothing.
+
 ### The baseline
 
 - `SUPPORTED_BASELINE`, `baselineShortfalls(caps)`, `meetsSupportedBaseline(caps)`.

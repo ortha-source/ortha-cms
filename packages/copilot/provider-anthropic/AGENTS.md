@@ -14,6 +14,25 @@ Drizzle and Nest out of any `domain/` layer.
   the composition root. `config` is
   `{ apiKey, model, baseUrl?, effort?, maxRetries?, timeoutMs? }`.
 
+## Layout
+
+```
+src/lib/
+  anthropic-provider.ts   # the factory — orchestration only, ~90 lines
+  config.ts               # AnthropicProviderConfig, AnthropicEffort, FALLBACK_CAPABILITIES
+  client.ts               # createLazyClient — memoized SDK client + the missing-key error
+  capabilities.ts         # probeCapabilities — the Models API probe and its fallback
+  wire/
+    request.ts            # port -> Anthropic: messages, tools, toStreamParams
+    response.ts           # Anthropic -> port: toStopReason, toUsage
+```
+
+The split follows the seams a reader actually needs: `wire/` is pure mapping and
+holds no state, `client.ts` and `capabilities.ts` are the two pieces that touch
+the network, and the factory is left thin enough to read the streaming loop in
+one screen. The `wire/` functions are exercised through the provider spec
+rather than directly — they have no behaviour a caller can reach on its own.
+
 ## The lazy client, and why
 
 The SDK client is constructed on **first use**, not in the factory. A host

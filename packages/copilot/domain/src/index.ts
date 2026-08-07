@@ -28,4 +28,5 @@ export type {
     ModelResolver
 } from './lib/model/model-provider';
 export { MODEL_REGISTRY, MODEL_RESOLVER } from './lib/model/model-provider';
+export { isAbortError, abortedEvent } from './lib/model/abort';
 export { UnknownModelProviderError } from './lib/errors/unknown-model-provider.error';

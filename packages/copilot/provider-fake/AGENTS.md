@@ -25,6 +25,17 @@ make every assertion downstream of it flaky too.
 _a viewer's run must be verified not to be offered write tools._ That is an
 assertion about `calls[0].tools`, made without a model.
 
+## Layout
+
+```
+src/lib/
+  fake-provider.ts   # the factory — the stream loop, ~100 lines
+  config.ts          # FakeProviderConfig/FakeTurn/FakeToolCall/FakeProvider + defaults
+  script.ts          # createScriptReader — the two modes below, and exhaustion
+  usage.ts           # estimateUsage — the deterministic token estimate
+  text.ts            # chunkText — the delta splitter
+```
+
 ## Two modes, and the difference matters
 
 - **No `script` (dev mode).** Every call returns the same canned reply, forever.

@@ -4,4 +4,4 @@ export type {
     FakeProviderConfig,
     FakeTurn,
     FakeToolCall
-} from './lib/fake-provider';
+} from './lib/config';

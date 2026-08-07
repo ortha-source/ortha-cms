@@ -19,6 +19,24 @@ a few lines of SSE parsing, and a dependency for that would not earn its place.
 (`http://localhost:11434/v1`); `/chat/completions` is appended, with any
 trailing slashes trimmed first.
 
+## Layout
+
+```
+src/lib/
+  openai-compatible-provider.ts  # the factory — request + stream loop, ~130 lines
+  config.ts                      # config type, defaults, resolveEndpoint/resolveCapabilities
+  sse.ts                         # readDataEvents — the event-stream reader
+  wire/
+    types.ts                     # ChatMessage, ChatCompletionChunk, ToolCallDelta
+    request.ts                   # port -> OpenAI: messages, tools, body, headers
+    response.ts                  # OpenAI -> port: toStopReason, toUsage
+    tool-call-accumulator.ts     # fragment assembly + parseArgs
+```
+
+`tool-call-accumulator.ts` is the only piece here with real state, so it has its
+own spec rather than being covered solely through the provider — parallel calls
+interleave on the wire, and index-keyed assembly is worth pinning directly.
+
 ## Capabilities are declared, not probed
 
 Unlike the Anthropic adapter, this one cannot ask: the wire format exposes no
