@@ -18,7 +18,8 @@ const messages = defineMessages({
         defaultMessage:
             '{words, plural, one {# word} other {# words}} · {characters, plural, one {# character} other {# characters}}'
     },
-    done: { id: 'wysiwyg.editor.done', defaultMessage: 'Done' }
+    done: { id: 'wysiwyg.editor.done', defaultMessage: 'Done' },
+    back: { id: 'wysiwyg.editor.back', defaultMessage: 'Back to fields' }
 });
 
 /**
@@ -121,17 +122,32 @@ export function WysiwygEditorPanel({
         }
     });
 
-    const counts = useLiveEditorState(
-        editor,
-        (instance) => {
-            const count = instance.storage['characterCount'] as {
-                words: () => number;
-                characters: () => number;
-            };
-            return { words: count.words(), characters: count.characters() };
-        },
-        { words: 0, characters: 0 }
-    );
+    /** The document's live word/character totals, read off the editor. */
+    const readCounts = (instance: typeof editor) => {
+        const count = instance.storage['characterCount'] as {
+            words: () => number;
+            characters: () => number;
+        };
+        return { words: count.words(), characters: count.characters() };
+    };
+
+    const live = useLiveEditorState(editor, readCounts, {
+        words: 0,
+        characters: 0
+    });
+
+    // `useEditorState` refreshes its snapshot on the editor's `transaction` /
+    // `update` events and nothing else, and its **first** snapshot is taken
+    // before the initial content has settled — so the counts only become right
+    // once some transaction fires. While editing, `autofocus: 'end'` fires one
+    // on mount and every keystroke fires more, so that was invisible.
+    //
+    // A read-only editor has neither: no autofocus, and `editable: false`
+    // refuses every transaction. The subscription would sit on that first empty
+    // snapshot forever and the footer would read "0 words · 0 characters" over a
+    // full document. Nothing can change those totals here, so read them straight
+    // off the editor instead of waiting for an event that will never arrive.
+    const counts = readOnly && !editor.isDestroyed ? readCounts(editor) : live;
 
     return (
         <>
@@ -151,8 +167,14 @@ export function WysiwygEditorPanel({
                 >
                     {intl.formatMessage(messages.count, counts)}
                 </p>
+                {/* "Done" is the end of an editing session — the wrong word for
+                    a reader, who has nothing to finish. It does the same thing
+                    either way (collapse back to the form), so in preview it just
+                    says so, matching the link at the top of the view. */}
                 <Button type="button" onClick={onDone}>
-                    {intl.formatMessage(messages.done)}
+                    {intl.formatMessage(
+                        readOnly ? messages.back : messages.done
+                    )}
                 </Button>
             </div>
         </>

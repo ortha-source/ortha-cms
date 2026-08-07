@@ -167,6 +167,22 @@ test.describe('Entry editor — read-only', () => {
                 wysiwygFieldPage.expandedHeading('Body')
             ).toBeVisible();
             await expect(wysiwygFieldPage.toolbar).toHaveCount(0);
+
+            // The footer counts the document that is actually on screen.
+            // `useEditorState` only refreshes on a transaction, and a read-only
+            // editor fires none — so this read "0 words · 0 characters" over a
+            // full body until the panel stopped waiting for an event that never
+            // comes. The exit says what it does, too: "Done" is the end of an
+            // editing session, which this reader never started.
+            await expect(wysiwygFieldPage.counts).toHaveText(
+                '5 words · 26 characters'
+            );
+            // Two: the header link and the footer button, both now saying the
+            // same thing because they do the same thing.
+            await expect(
+                wysiwygFieldPage.exitButton('Back to fields')
+            ).toHaveCount(2);
+            await expect(wysiwygFieldPage.exitButton('Done')).toHaveCount(0);
         });
 
         test('shows the media field without any way to attach or upload', async ({

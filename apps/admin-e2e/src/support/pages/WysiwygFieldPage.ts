@@ -316,9 +316,29 @@ export class WysiwygFieldPage extends BasePage {
         return this.page.locator(`#entry-field-${fieldName}-error`);
     }
 
+    /**
+     * The expanded view's word/character read-out ("5 words · 26 characters").
+     * Worth asserting rather than eyeballing: it is fed by `useEditorState`,
+     * which only refreshes on an editor transaction — so a surface that fires
+     * none (the read-only view) can sit on a stale, empty first snapshot and
+     * report 0 over a full document.
+     */
+    get counts(): Locator {
+        return this.page.getByText(/\d+ words? · \d+ characters?/);
+    }
+
+    /**
+     * The footer's exit button. Its label is the mode: **Done** while editing,
+     * **Back to fields** in the read-only view, where "done" would name the end
+     * of an editing session the reader never began.
+     */
+    exitButton(label: 'Done' | 'Back to fields'): Locator {
+        return this.page.getByRole('button', { name: label });
+    }
+
     /** Collapse back to the form via the editor's footer action. */
     async done(): Promise<void> {
-        await this.page.getByRole('button', { name: 'Done' }).click();
+        await this.exitButton('Done').click();
         await this.toolbar.waitFor({ state: 'hidden' });
     }
 
