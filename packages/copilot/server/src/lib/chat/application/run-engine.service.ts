@@ -1,0 +1,576 @@
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import {
+    DEFAULT_RUN_LIMITS,
+    MODEL_REGISTRY,
+    MODEL_RESOLVER,
+    fenceUntrusted,
+    isAbortError,
+    resolveModel,
+    validateToolInput,
+    type CapabilityProfile,
+    type CopilotRunEvent,
+    type ModelContentBlock,
+    type ModelMessage,
+    type ModelRegistry,
+    type ModelResolver,
+    type ModelStreamEvent,
+    type ModelTool,
+    type ModelUsage,
+    type RunLimits,
+    type RunStopReason,
+    type ToolContext,
+    type ToolResultBlock,
+    type ToolSpec,
+    type ToolUseBlock
+} from '@ortha-cms/copilot-domain';
+import { COPILOT_RUN_LIMITS, InjectCopilotConfig } from '../../copilot.tokens';
+import type { CopilotPluginConfig } from '../../types/copilot-config';
+import { ConversationRepository } from '../infrastructure/persistence/conversation.repository';
+import { CapabilityProfileService } from './capability-profile.service';
+import { summarizeToolOutput } from './summarize-tool-output';
+import {
+    buildSystemPrompt,
+    SYSTEM_PROMPT_VERSION,
+    type SurfaceContext
+} from './system-prompt';
+
+/** What the controller hands the engine to start one turn. */
+export interface StartRunInput {
+    /** The user the run acts as. */
+    userId: string;
+    /** The user's role, for resolving the capability profile. */
+    roleId: string;
+    /** The workspace the run is scoped to; membership already proven. */
+    workspaceId: string;
+    /** Continue this thread, or start a new one when absent. */
+    conversationId?: string;
+    /** What the user typed. */
+    message: string;
+    /** Where the user is. */
+    context: SurfaceContext;
+    /** The admin UI's locale — the language to answer in. */
+    uiLocale: string;
+    /** Content-type summaries for the workspace. */
+    typeSummaries: readonly string[];
+    /**
+     * The backend this turn should run on. Either half may be omitted: no
+     * provider means the host's resolver picks, and no model means that
+     * provider's default. A user switching model mid-conversation simply sends
+     * a different pair on the next turn — nothing is pinned to the thread.
+     */
+    choice?: { provider?: string; model?: string };
+    /** Aborted when the client disconnects. */
+    signal: AbortSignal;
+}
+
+/**
+ * Thrown when a run names a provider or model that isn't registered. The
+ * controller turns it into an error frame rather than a 500 — it is a bad
+ * request, and by the time we know, the stream is usually already open.
+ */
+export class UnknownModelChoiceError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'UnknownModelChoiceError';
+    }
+}
+
+/** Thrown when a run cannot start at all — the controller maps it to a 4xx. */
+export class CopilotDisabledError extends Error {
+    constructor() {
+        super('The copilot is disabled.');
+        this.name = 'CopilotDisabledError';
+    }
+}
+
+/**
+ * The run engine: a **bounded** loop that calls the model, executes the tools
+ * it asks for, feeds the results back, and stops on a final answer or a ceiling
+ * ([`docs/design/copilot.md`](../../../../../../docs/design/copilot.md) §5).
+ *
+ * It is an async generator rather than a service that writes to a response.
+ * That keeps the transport out of the engine — the SSE controller serializes
+ * whatever this yields — and it is what makes the loop testable without a
+ * socket: a test drains the generator and asserts on the event sequence.
+ */
+@Injectable()
+export class RunEngine {
+    private readonly logger = new Logger(RunEngine.name);
+
+    /** The ceilings this engine enforces. */
+    private readonly limits: RunLimits;
+
+    constructor(
+        @Inject(MODEL_REGISTRY) private readonly registry: ModelRegistry,
+        @Inject(MODEL_RESOLVER) private readonly resolver: ModelResolver,
+        @InjectCopilotConfig() private readonly config: CopilotPluginConfig,
+        private readonly profiles: CapabilityProfileService,
+        private readonly conversations: ConversationRepository,
+        @Optional()
+        @Inject(COPILOT_RUN_LIMITS)
+        limits: RunLimits | null = null
+    ) {
+        this.limits = limits ?? DEFAULT_RUN_LIMITS;
+    }
+
+    /** Runs one turn, yielding events as they happen. */
+    async *run(input: StartRunInput): AsyncGenerator<CopilotRunEvent> {
+        if (!this.config.enabled) {
+            // The operator's kill switch (ADR-0005 §10). Checked here rather
+            // than in a guard so the reason reaches the user as a normal
+            // answer instead of an opaque 403.
+            throw new CopilotDisabledError();
+        }
+
+        const runId = randomUUID();
+        const startedAt = Date.now();
+
+        const conversation = input.conversationId
+            ? await this.conversations.findOrFail(
+                  input.conversationId,
+                  input.userId,
+                  input.workspaceId
+              )
+            : await this.conversations.create(
+                  input.userId,
+                  input.workspaceId,
+                  input.context.surface ?? 'chat',
+                  input.message
+              );
+
+        // The user's message is persisted BEFORE the model is called, so a
+        // dropped connection never loses what someone typed (design §5, step 3).
+        const userMessage = await this.conversations.appendMessage({
+            conversationId: conversation.id,
+            runId,
+            role: 'user',
+            content: [{ type: 'text', text: input.message }]
+        });
+
+        yield {
+            type: 'run-started',
+            conversationId: conversation.id,
+            runId,
+            messageId: userMessage.id
+        };
+
+        const profile = await this.profiles.resolve(
+            input.userId,
+            input.roleId,
+            input.workspaceId
+        );
+
+        // An explicitly requested provider wins over the host's resolver: the
+        // resolver expresses a default routing policy, not a veto over what the
+        // user picked from the catalogue they were shown.
+        const providerName =
+            input.choice?.provider ??
+            this.resolver(
+                { workspaceId: input.workspaceId, userId: input.userId },
+                this.registry
+            );
+        if (!this.registry.has(providerName)) {
+            throw new UnknownModelChoiceError(
+                `Unknown copilot provider "${providerName}".`
+            );
+        }
+        const provider = this.registry.get(providerName);
+
+        // Resolved once, here, rather than left to the adapter: the run record
+        // has to name the model that actually answered, and an adapter
+        // resolving it internally would leave us writing `null` into
+        // `copilot_messages.model` — exactly the column cost accounting and
+        // "which model said this?" both read.
+        const model = resolveModel(input.choice?.model, provider.models());
+
+        const system = buildSystemPrompt({
+            uiLocale: input.uiLocale,
+            context: input.context,
+            typeSummaries: input.typeSummaries,
+            hasTools: profile.tools.length > 0
+        });
+
+        // The thread so far, plus this turn. Read from the transcript rather
+        // than held in memory, so a continued conversation replays exactly what
+        // was persisted.
+        const history = await this.loadHistory(conversation.id);
+
+        const usage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
+        const assistantBlocks: ModelContentBlock[] = [];
+        let stopReason: RunStopReason = 'end';
+
+        try {
+            stopReason = yield* this.loop({
+                input,
+                runId,
+                conversationId: conversation.id,
+                profile,
+                provider: { name: providerName, provider },
+                model,
+                system,
+                history,
+                usage,
+                assistantBlocks,
+                startedAt
+            });
+        } catch (error) {
+            if (isAbortError(error, input.signal)) {
+                stopReason = 'aborted';
+            } else {
+                stopReason = 'error';
+                this.logger.error(
+                    `Copilot run ${runId} failed`,
+                    error instanceof Error ? error.stack : String(error)
+                );
+                yield { type: 'error', message: userFacingMessage(error) };
+            }
+        }
+
+        // The assistant turn is persisted even when the run was cancelled or
+        // failed: the transcript is append-only and a partial answer is part of
+        // what happened. Skipped only when nothing at all was produced.
+        let assistantMessageId: string | undefined;
+        if (assistantBlocks.length > 0) {
+            const written = await this.conversations.appendMessage({
+                conversationId: conversation.id,
+                runId,
+                role: 'assistant',
+                content: assistantBlocks,
+                model,
+                provider: providerName,
+                stopReason,
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens
+            });
+            assistantMessageId = written.id;
+        }
+
+        yield {
+            type: 'done',
+            stopReason,
+            usage,
+            ...(assistantMessageId ? { messageId: assistantMessageId } : {})
+        };
+    }
+
+    /**
+     * The loop itself: model call → tool calls → repeat. Returns the reason the
+     * run ended.
+     */
+    private async *loop(ctx: {
+        input: StartRunInput;
+        runId: string;
+        conversationId: string;
+        profile: CapabilityProfile;
+        provider: { name: string; provider: ReturnType<ModelRegistry['get']> };
+        model: string;
+        system: string;
+        history: ModelMessage[];
+        usage: ModelUsage;
+        assistantBlocks: ModelContentBlock[];
+        startedAt: number;
+    }): AsyncGenerator<CopilotRunEvent, RunStopReason> {
+        const messages = [...ctx.history];
+        const tools = toModelTools(ctx.profile.tools);
+
+        for (let step = 0; step < this.limits.maxSteps; step += 1) {
+            if (ctx.input.signal.aborted) {
+                return 'aborted';
+            }
+            if (Date.now() - ctx.startedAt > this.limits.wallClockMs) {
+                return 'timeout';
+            }
+            if (totalTokens(ctx.usage) > this.limits.maxTotalTokens) {
+                return 'max-tokens';
+            }
+
+            const turn = await this.streamTurn(ctx, messages, tools);
+
+            ctx.usage.inputTokens += turn.usage.inputTokens;
+            ctx.usage.outputTokens += turn.usage.outputTokens;
+            for (const event of turn.events) {
+                yield event;
+            }
+            if (turn.text) {
+                ctx.assistantBlocks.push({ type: 'text', text: turn.text });
+            }
+            ctx.assistantBlocks.push(...turn.toolUses);
+
+            if (turn.stopReason === 'aborted') return 'aborted';
+            if (turn.stopReason === 'refusal') return 'refusal';
+            if (turn.stopReason === 'max_tokens') return 'max-output-tokens';
+            if (turn.toolUses.length === 0) return 'end';
+
+            // The model asked for tools. Everything it said this turn — text
+            // and tool_use blocks together — goes back as one assistant turn,
+            // then the results ride on a user turn, which is what both wire
+            // formats expect.
+            messages.push({
+                role: 'assistant',
+                content: [
+                    ...(turn.text
+                        ? [{ type: 'text' as const, text: turn.text }]
+                        : []),
+                    ...turn.toolUses
+                ]
+            });
+
+            const results: ToolResultBlock[] = [];
+            for (const call of turn.toolUses) {
+                yield {
+                    type: 'tool-call',
+                    id: call.id,
+                    name: call.name,
+                    input: call.input
+                };
+                const outcome = await this.executeTool(ctx, call);
+                results.push(outcome.block);
+                yield outcome.event;
+            }
+
+            ctx.assistantBlocks.push(...results);
+            messages.push({ role: 'user', content: results });
+        }
+
+        return 'max-steps';
+    }
+
+    /** One model call, reduced to text, tool uses, usage and a stop reason. */
+    private async streamTurn(
+        ctx: {
+            input: StartRunInput;
+            system: string;
+            model: string;
+            provider: { name: string; provider: ReturnType<ModelRegistry['get']> };
+        },
+        messages: ModelMessage[],
+        tools: ModelTool[]
+    ): Promise<{
+        text: string;
+        toolUses: ToolUseBlock[];
+        usage: ModelUsage;
+        stopReason: string;
+        events: CopilotRunEvent[];
+    }> {
+        const events: CopilotRunEvent[] = [];
+        const toolUses: ToolUseBlock[] = [];
+        let text = '';
+        let usage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
+        let stopReason = 'end';
+
+        const stream = ctx.provider.provider.stream(
+            {
+                model: ctx.model,
+                system: ctx.system,
+                messages,
+                ...(tools.length > 0 ? { tools } : {}),
+                maxOutputTokens: this.config.maxOutputTokens
+            },
+            ctx.input.signal
+        );
+
+        for await (const event of stream as AsyncIterable<ModelStreamEvent>) {
+            if (event.type === 'text-delta') {
+                text += event.text;
+                events.push({ type: 'text-delta', text: event.text });
+            } else if (event.type === 'tool-call') {
+                toolUses.push({
+                    type: 'tool_use',
+                    id: event.id,
+                    name: event.name,
+                    input: event.input
+                });
+            } else {
+                usage = event.usage;
+                stopReason = event.stopReason;
+            }
+        }
+
+        return { text, toolUses, usage, stopReason, events };
+    }
+
+    /**
+     * Authorizes, validates and runs one tool call, and writes its audit row.
+     *
+     * **Never throws.** Every failure — unknown tool, revoked permission,
+     * malformed arguments, a tool that blew up — comes back as a tool *error*
+     * the model can recover from, and the run continues (design §5, step 6).
+     * Turning a model mistake into a 500 would lose the whole turn.
+     */
+    private async executeTool(
+        ctx: {
+            input: StartRunInput;
+            runId: string;
+            conversationId: string;
+            profile: CapabilityProfile;
+        },
+        call: ToolUseBlock
+    ): Promise<{ block: ToolResultBlock; event: CopilotRunEvent }> {
+        const startedAt = Date.now();
+        const fail = async (message: string) => {
+            const durationMs = Date.now() - startedAt;
+            await this.audit(ctx, call, {
+                ok: false,
+                error: message,
+                durationMs,
+                outputSummary: null
+            });
+            return {
+                block: {
+                    type: 'tool_result' as const,
+                    toolUseId: call.id,
+                    content: message,
+                    isError: true
+                },
+                event: {
+                    type: 'tool-result' as const,
+                    id: call.id,
+                    name: call.name,
+                    ok: false,
+                    durationMs,
+                    summary: 'failed',
+                    error: message
+                }
+            };
+        };
+
+        const tool = ctx.profile.tools.find((entry) => entry.name === call.name);
+        if (!tool) {
+            // Either a hallucinated name or a tool that was withheld. Both get
+            // the same answer: the model is never told which, because "that
+            // tool exists but you may not use it" is itself information.
+            return fail(`Unknown tool "${call.name}".`);
+        }
+
+        // Re-authorize against freshly resolved grants (ADR-0005 §3): the offer
+        // was computed at the start of the run, and a role can change while a
+        // long turn is in flight.
+        const fresh = await this.profiles.resolve(
+            ctx.input.userId,
+            ctx.input.roleId,
+            ctx.input.workspaceId
+        );
+        if (!fresh.tools.some((entry) => entry.name === call.name)) {
+            this.logger.warn(
+                `Run ${ctx.runId}: tool "${call.name}" was offered but is no longer permitted; refused.`
+            );
+            return fail(`You are not permitted to use "${call.name}".`);
+        }
+
+        const validation = validateToolInput(call.input, tool.inputSchema);
+        if (!validation.valid) {
+            return fail(`Invalid arguments: ${validation.errors.join('; ')}`);
+        }
+
+        const toolContext: ToolContext = {
+            userId: ctx.input.userId,
+            workspaceId: ctx.input.workspaceId,
+            runId: ctx.runId,
+            conversationId: ctx.conversationId,
+            signal: ctx.input.signal
+        };
+
+        try {
+            const output = await tool.run(call.input, toolContext);
+            const durationMs = Date.now() - startedAt;
+            const summary = summarizeToolOutput(output);
+
+            await this.audit(ctx, call, {
+                ok: true,
+                error: null,
+                durationMs,
+                outputSummary: summary
+            });
+
+            return {
+                block: {
+                    type: 'tool_result',
+                    toolUseId: call.id,
+                    // Fenced as untrusted data: entry bodies are user-authored
+                    // and must enter the model as material, never instructions.
+                    content: fenceUntrusted(call.name, output)
+                },
+                event: {
+                    type: 'tool-result',
+                    id: call.id,
+                    name: call.name,
+                    ok: true,
+                    durationMs,
+                    summary,
+                    output
+                }
+            };
+        } catch (error) {
+            this.logger.warn(
+                `Run ${ctx.runId}: tool "${call.name}" threw`,
+                error instanceof Error ? error.stack : String(error)
+            );
+            return fail(userFacingMessage(error));
+        }
+    }
+
+    /** Writes one `copilot_tool_calls` row. Never fails the run. */
+    private async audit(
+        ctx: { runId: string; conversationId: string },
+        call: ToolUseBlock,
+        outcome: {
+            ok: boolean;
+            error: string | null;
+            durationMs: number;
+            outputSummary: string | null;
+        }
+    ): Promise<void> {
+        try {
+            await this.conversations.recordToolCall({
+                conversationId: ctx.conversationId,
+                runId: ctx.runId,
+                callId: call.id,
+                name: call.name,
+                input: call.input,
+                ...outcome
+            });
+        } catch (error) {
+            // An audit write failing must not take the answer down with it,
+            // but it is exactly the kind of thing that has to be loud.
+            this.logger.error(
+                `Failed to record tool call "${call.name}" for run ${ctx.runId}`,
+                error instanceof Error ? error.stack : String(error)
+            );
+        }
+    }
+
+    /** The persisted transcript, as the port's message shape. */
+    private async loadHistory(conversationId: string): Promise<ModelMessage[]> {
+        const rows = await this.conversations.messages(conversationId);
+        return rows.map((row) => ({ role: row.role, content: row.content }));
+    }
+}
+
+/** The prompt version this engine builds with, for the run record. */
+export const ENGINE_PROMPT_VERSION = SYSTEM_PROMPT_VERSION;
+
+/** The provider-facing view of the offered tools. */
+function toModelTools(tools: readonly ToolSpec[]): ModelTool[] {
+    return tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema
+    }));
+}
+
+/** Input + output across a run. */
+function totalTokens(usage: ModelUsage): number {
+    return usage.inputTokens + usage.outputTokens;
+}
+
+/**
+ * An error reduced to something safe to show a user or feed back to the model
+ * — never a stack, a provider payload, or anything naming internal wiring.
+ */
+function userFacingMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    return 'Something went wrong.';
+}

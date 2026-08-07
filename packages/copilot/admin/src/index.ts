@@ -1,2 +1,33 @@
 export { CopilotPlugin } from './lib/presentation/copilotPlugin';
 export type { CopilotAdminPlugin } from './lib/presentation/copilotPlugin';
+
+// The panel and its launcher, exported so a future entry point (the ⌘K
+// palette, the entry editor) can mount the same surface rather than build a
+// second one.
+export { CopilotPanel } from './lib/presentation/CopilotPanel';
+export type { CopilotPanelProps } from './lib/presentation/CopilotPanel';
+export { CopilotLauncher } from './lib/presentation/CopilotLauncher';
+
+// The transport and the chat state, exported for the same reason: an inline
+// surface reuses the run stream instead of reimplementing SSE over fetch.
+export { streamRun, CopilotRunError } from './lib/application/runStream';
+export type {
+    StartRunRequest,
+    StartRunOptions
+} from './lib/application/runStream';
+export { useCopilotChat } from './lib/application/useCopilotChat';
+export type { CopilotChat } from './lib/application/useCopilotChat';
+export { useConversations, conversationsKey } from './lib/application/useConversations';
+export type { CopilotConversation } from './lib/application/useConversations';
+export {
+    useCopilotModels,
+    copilotModelsKey,
+    modelChoiceKey,
+    parseModelChoiceKey
+} from './lib/application/useCopilotModels';
+export type {
+    CopilotModelChoice,
+    CopilotModelCatalogue
+} from './lib/application/useCopilotModels';
+export { ModelPicker } from './lib/presentation/ModelPicker';
+export type { ChatMessage, ChatToolStep } from './lib/domain/types/chat';

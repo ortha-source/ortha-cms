@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_425 test cases across 36 spec files._
+_457 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -546,6 +546,78 @@ _<sub>apps/server-e2e/src/server/content/relation-preview.spec.ts</sub>_
 | Test case |
 | --- |
 | issues the same number of queries for a 1-row and a 5-row page |
+
+<!-- source: apps/server-e2e/src/server/copilot/copilot-chat.spec.ts -->
+_<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
+
+## Copilot chat (POST /api/copilot/runs)
+
+### guard composition
+
+| Test case |
+| --- |
+| 401s an unauthenticated run |
+| 403s a role without copilot:use |
+| 403s a cross-site Origin (OriginGuard) |
+| 400s a run with no X-Workspace-Id (WorkspaceGuard) |
+| 403s a workspace the caller is not a member of |
+
+### request validation
+
+| Test case |
+| --- |
+| 400s an undeclared top-level property, naming it |
+| 400s an undeclared property inside the nested context |
+| 400s an empty message |
+| passes the nested context through to the prompt intact |
+
+### the event stream
+
+| Test case |
+| --- |
+| streams run-started, the answer, then exactly one done |
+| persists the turn and serves it back on the transcript route |
+| continues an existing conversation rather than starting a new one |
+| 404s a conversation belonging to another user |
+
+### the tool loop
+
+| Test case |
+| --- |
+| runs a tool, streams its call and result, and feeds it back |
+| fences the tool result as untrusted data |
+| turns a tool that throws into a tool error and keeps going |
+| refuses a tool the model invented, without failing the run |
+| rejects arguments that do not match the tool schema |
+| audits every attempted call, successful or not |
+
+### the capability profile
+
+| Test case |
+| --- |
+| offers a viewer no write tools |
+| offers a contributor propose tools but never apply tools |
+| withholds apply tools even from an admin |
+| refuses a withheld tool at execution, not only at offer time |
+
+### model selection
+
+| Test case |
+| --- |
+| serves the catalogue of registered backends |
+| gates the catalogue on copilot:use |
+| runs on the requested provider and model, and records both |
+| records the default model when the run names none |
+| refuses an unregistered provider with an error frame |
+| refuses a model the provider does not offer |
+
+### the content tools
+
+| Test case |
+| --- |
+| offers the phase-1 read tools and searches real entries |
+| names the workspace’s granted types in the system prompt, without fields |
+| refuses a content type the workspace was not granted |
 
 <!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_

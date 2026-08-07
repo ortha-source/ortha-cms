@@ -1,9 +1,8 @@
 # @ortha-cms/copilot-domain
 
-The copilot's **framework-free core**. Today it holds one thing: the
-`ModelProvider` port and everything that crosses it — the request shape, the
-normalised stream events, the usage record, and the supported-capability
-baseline.
+The copilot's **framework-free core**: the `ModelProvider` port and everything
+that crosses it, plus (as of phase 1) the tool contracts, the capability
+profile, the run vocabulary, and the untrusted-content fence.
 
 > Feature context: [`docs/design/copilot.md`](../../../docs/design/copilot.md).
 > The two settled decisions:
@@ -16,8 +15,13 @@ baseline.
 **This package imports nothing.** Not Nest, not Drizzle, not React, and — the
 rule ADR-0004 §1 exists to enforce — **no vendor SDK**. `@anthropic-ai/sdk` may
 appear in `copilot/provider-anthropic` and nowhere else. That is what makes the
-tool contracts, the capability profile and (later) the run state machine
-testable without a framework or a model.
+tool contracts, the capability profile and the run vocabulary testable without a
+framework or a model.
+
+This rule has real consequences, and they are features rather than costs: the
+capability profile restates set membership instead of importing identity's
+`AccessPolicy`, and tool-input validation is a hand-written schema subset
+instead of a library. Both are documented where they live.
 
 `package.json` has no `dependencies` block at all. Keep it that way; if
 something here needs a dependency, it belongs in a layer above.
@@ -70,6 +74,42 @@ than throwing out of it, and that a cancelled call reports zero usage. Every
 adapter has to implement that clause, so it lives here as two functions instead
 of as prose copy-pasted into each one. Both are pure, so this costs the layer
 nothing.
+
+### The tool seam (phase 1)
+
+- `ToolSpec` / `ToolContext` / `ToolEffect` — one capability the copilot may
+  invoke. A tool declares the `PermissionKey[]` its caller must hold **in full**
+  and an `effect` of `read | propose | apply`.
+- `COPILOT_TOOL_PROVIDER` + `CopilotToolProvider` — the port each feature plugin
+  binds. **It lives here, not in `copilot/server`**, deviating from
+  `docs/design/copilot.md` §4 for the same reason phase 0 moved
+  `MODEL_REGISTRY`: the port exists so `copilot/server` never imports
+  `content-server`, and putting the token in the server would merely invert that
+  dependency. A binder depends on the domain and on nothing else.
+- `resolveCapabilityProfile(...)` — the **offer**-time gate (ADR-0005 §3). Pure
+  and total, which is what makes "a viewer is offered no write tools" a unit
+  test rather than a promise. It restates identity's set-membership check in ten
+  lines instead of importing `AccessPolicy`, because this package imports
+  nothing and that class sits behind a Nest barrel.
+- `validateToolInput(input, schema)` — a **deliberate JSON Schema subset**
+  covering what the generated tool schemas use, ignoring keywords it doesn't
+  know. Sound because it is defence in depth behind the profile, not the
+  boundary: its job is stopping a malformed model call from becoming a 500.
+
+### The run (phase 1)
+
+- `CopilotRunEvent` — the engine's output vocabulary and exactly what the SSE
+  controller serializes. A client reducer written against this union turns a new
+  event kind into a compile error rather than a silently ignored frame.
+- `RunLimits` / `DEFAULT_RUN_LIMITS` / `RunStopReason` — the three ceilings
+  (steps, wall clock, tokens) and why a run ended. `RunStopReason` is a superset
+  of `ModelStopReason`: the model reports why *it* stopped, this reports why the
+  *run* did, including limits the model never sees.
+- `fenceUntrusted(source, payload)` + `UNTRUSTED_DATA_RULE` — ADR-0005 §8's
+  structural defence. Two properties carry it: the payload is JSON (so no field
+  can introduce a line that reads as a new turn) and `<` is escaped (so the
+  closing delimiter is unforgeable from inside). Unit-tested against a forged
+  fence.
 
 ### The baseline
 

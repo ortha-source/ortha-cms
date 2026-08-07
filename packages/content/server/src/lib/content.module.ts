@@ -18,6 +18,8 @@ import { UpdateEntryController } from './entries/http/controllers/update-entry.c
 import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
+import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
+import { ContentCopilotToolsRegistrar } from './copilot/content-tools.registrar';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
 import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
@@ -135,7 +137,12 @@ export class ContentModule {
                 BulkPublishPreviewQuery,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
                 // bound (nothing would stamp the NOT NULL locale column).
-                EntryExtensionBootCheck
+                EntryExtensionBootCheck,
+                // The copilot's read-only content tools, and the bootstrap hook
+                // that registers them. Both no-op when no copilot plugin is
+                // registered — the registrar injects the registry optionally.
+                ContentCopilotToolProvider,
+                ContentCopilotToolsRegistrar
             ],
             exports: [
                 CONTENT_REGISTRY,

@@ -1,32 +1,118 @@
 # @ortha-cms/copilot-server
 
-The copilot **plugin**. Phase 0 of
-[`docs/design/copilot.md`](../../../docs/design/copilot.md) §9: it binds the
-model seam and the plugin config, and **ships nothing visible**.
+The copilot **plugin**. Phase 0 bound the model seam; **phase 1 added the chat
+vertical slice** — the SSE run route, the bounded run engine, the capability
+profile, and the transcript this plugin now owns and migrates
+([`docs/design/copilot.md`](../../../docs/design/copilot.md) §9).
 
 ## What exists today
 
 - `CopilotPlugin({ providers, resolve?, config })` — the standard `ServerPlugin`
-  shape with `copilotConfig` attached. `providers` is a **list** of
-  `{ name, provider }`, in preference order.
-- `CopilotModule.forRoot(...)` — a **global** dynamic module binding three
-  values: `COPILOT_CONFIG`, `MODEL_REGISTRY` (from `buildModelRegistry`), and
-  `MODEL_RESOLVER` (the host's handler, or a constant returning
-  `config.defaultProvider`).
+  shape with `copilotConfig` attached and a `migrations` descriptor.
+  `providers` is a **list** of `{ name, provider }`, in preference order.
+- `CopilotModule.forRoot(...)` — a **global** dynamic module binding
+  `COPILOT_CONFIG`, `MODEL_REGISTRY`, `MODEL_RESOLVER` and the chat services,
+  and mounting four routes.
 - `buildModelRegistry(registrations)` — the immutable name→provider lookup,
   plus `catalogue()`: every provider × model pair on offer, in registration
-  order. That is what a model picker renders.
+  order. That is exactly what `GET /api/copilot/models` serves.
 
-## What deliberately does not exist yet
+### Routes
 
-No controllers, no run engine, no tool registry, no MCP client, no schema, no
-`drizzle.config.ts`, and therefore **no `migrations` descriptor** — the plugin
-owns no tables. Adding them later is a `drizzle.config.ts` plus a `migrations`
-entry on the plugin object, exactly as media does; nothing here has to move.
+| Route                                | Guards                                                | Notes |
+| ------------------------------------ | ----------------------------------------------------- | ----- |
+| `POST /api/copilot/runs`             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard`   | SSE. One turn. |
+| `GET /api/copilot/models`            | `PermissionsGuard`                                    | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
+| `GET /api/copilot/conversations`     | `PermissionsGuard`, `WorkspaceGuard`                  | This user's threads. |
+| `GET /api/copilot/conversations/:id` | `PermissionsGuard`, `WorkspaceGuard`                  | Thread + transcript. |
 
-Phase 1 (the chat vertical slice) adds the SSE controller, the run engine, the
-capability profile and conversation persistence. Phase 4 adds runtime model
-config and the MCP client. Keep this file honest as those land.
+All four require `copilot:use`.
+
+## Three things that will bite you
+
+These are spike findings from phase 1, each now covered by a test.
+
+- **Client-disconnect detection hangs off `res`, never `req`.** Express has
+  consumed the request body before a handler runs, and a fully-consumed
+  `IncomingMessage` emits `'close'` immediately — while the client is still
+  connected and waiting. Wiring an abort to `req.on('close')` cancels every run
+  the instant it starts, and because `writeHead` hasn't flushed, it presents as
+  a request that **hangs with no response** rather than as an error. See
+  `SseStream.onClientDisconnect`.
+- **The strict global `ValidationPipe` traverses nested DTOs only with
+  `@ValidateNested()` + `@Type()`.** Without them, `context` is not treated as a
+  DTO at all: the whitelist strips its properties and the handler silently gets
+  `{}`. `forbidNonWhitelisted` 400s an unknown *top-level* key by name, which is
+  loud; this failure is silent.
+- **Nest ignores a TypeScript default on a constructor parameter.** It resolves
+  every argument positionally, so `limits: RunLimits = DEFAULT_RUN_LIMITS` fails
+  boot with an unresolvable dependency. Use an `@Optional() @Inject(TOKEN)`
+  parameter and apply the default in the body — see `COPILOT_RUN_LIMITS`.
+  Relatedly, a parameter typed `Foo | null` emits `Object` for
+  `design:paramtypes`, so an `@Optional()` one silently injects `undefined`
+  unless you name the token explicitly.
+
+## The tool seam
+
+`copilot/server` must not import `content-server` — that would put the copilot
+at the bottom of the package graph. Instead:
+
+- `ToolSpec`, `ToolContext` and `COPILOT_TOOL_PROVIDER` live in
+  **`copilot-domain`**, so a binder depends only on the framework-free core.
+- Binders **register at runtime**: inject `CopilotToolRegistry` from their own
+  `OnApplicationBootstrap` and call `register(...)`. This is the precedent
+  `OutboxDispatcher.register` set, and it exists because **Nest cannot merge a
+  multi-provider token across independent dynamic modules** — every plugin here
+  is one, so a second binder would silently replace the first rather than join
+  it. A static single binding to `COPILOT_TOOL_PROVIDER` is also honoured.
+- A provider that throws while describing its tools is **skipped, not fatal**:
+  one plugin failing degrades that run's catalogue instead of failing the chat.
+
+The content tools ship in `content/server` (`lib/copilot/`), as thin wrappers
+over the same `EntriesService` / `EntryWriterService` the HTTP controllers call.
+
+## The run engine
+
+An **async generator**, not a service that writes to a response — the transport
+stays in the controller, and the loop is testable by draining the generator.
+
+- **Bounded three ways** (`RunLimits`): max steps, wall clock, total tokens.
+  Exceeding any one ends the run with a reason the UI shows.
+- **The user's message is persisted before the model is called**, so a dropped
+  connection never loses what someone typed.
+- **The capability profile is recomputed per run and re-checked per tool call**
+  against freshly resolved grants (ADR-0005 §2, §3). Nothing is cached; a role
+  revoked mid-turn takes effect on the next tool call.
+- **`executeTool` never throws.** Unknown tool, revoked permission, malformed
+  arguments, a tool that blew up — all come back as tool *errors* the model can
+  recover from, and the run continues. An unknown tool and a withheld one get
+  the **same** message, because "that exists but you may not use it" is itself
+  information.
+- **Every attempted call is audited**, successful or not — a refused call is
+  exactly what a reviewer is looking for. Output is stored as a **summary**, not
+  whole: copying entry bodies into an append-only table would duplicate content
+  with a different deletion story, and the transcript already holds what the
+  model saw.
+- **The model is resolved in the engine**, not left to the adapter, so
+  `copilot_messages.model` names the model that actually answered.
+
+## Schema
+
+Three tables, migrated under `__drizzle_migrations_copilot`:
+
+| Table                   | Holds                                                    |
+| ----------------------- | -------------------------------------------------------- |
+| `copilot_conversations` | Thread per user × workspace. FKs cascade from both.       |
+| `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond. |
+| `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.  |
+
+`external-refs.ts` carries id-only stubs of `users` and `workspaces` so
+drizzle-kit can emit the cross-context FKs without pulling another plugin's Nest
+providers into its esbuild pass. Same pattern as `workspaces/server`.
+
+**Every repository method takes the owning `userId` and `workspaceId` and filters
+on both.** `WorkspaceGuard` proves the caller belongs to the workspace they
+named; nothing upstream proves a *conversation id* belongs to them.
 
 ## The model seam
 
@@ -41,17 +127,16 @@ Structurally identical to media storage, by decision
 | `STORAGE_RESOLVER`       | `MODEL_RESOLVER`         |
 | `config.defaultProvider` | `config.defaultProvider` |
 
-**This package knows no adapter exists.** Its only `@ortha-cms` dependencies
-are `copilot-domain` and `bootstrap-server` — it does not import a vendor SDK,
-a factory, _or_ an adapter config type. That is what ADR-0004 §2 means by
-"adding a provider is a new package, never a change to the engine": a Bedrock
-adapter is a package plus one entry in `plugins.ts`, with nothing to change
-here.
+**This package knows no adapter exists.** It does not import a vendor SDK, a
+factory, _or_ an adapter config type — so a Bedrock adapter is a package plus
+one entry in `plugins.ts`. Provider *connection* settings live with the host, in
+`apps/server/ortha.config.ts`.
 
-Provider _connection_ settings therefore live with the host, in
-`apps/server/ortha.config.ts` under `OrthaCopilotConfig.providers`, typed by
-importing each adapter's own config type. The host already imports the
-factories, so that costs no new coupling.
+A run may name a `provider` and `model`; an explicitly requested provider wins
+over the host's `resolve` handler, because the resolver expresses a default
+routing policy rather than a veto over what the user picked from the catalogue
+they were shown. Naming one is not an escalation: the registry is fixed at boot,
+so the worst a caller can do is choose a backend the operator already configured.
 
 ### Why a list, not a map
 
@@ -65,67 +150,44 @@ renders in that order) and two providers of the same kind are just two entries:
 ```
 
 A list can express what a map cannot — a blank name, or the same name twice —
-so `buildModelRegistry` rejects both explicitly. Silently keeping whichever
-duplicate won would route runs to a backend nobody chose.
+so `buildModelRegistry` rejects both explicitly.
 
 `buildModelRegistry` snapshots the provider map into a **null-prototype**
-object. Two reasons, both load-bearing: a later mutation of the host's map
-can't reroute a run mid-flight, and a lookup of `constructor`/`toString` misses
-instead of resolving something off `Object.prototype` that is not a provider.
-(Media's `buildRegistry` still has the second issue — worth fixing there too.)
+object: a later mutation of the host's map can't reroute a run mid-flight, and a
+lookup of `constructor`/`toString` misses instead of resolving something off
+`Object.prototype` that is not a provider. (Media's `buildRegistry` still has
+the second issue — worth fixing there too.)
 
 ## Eager config validation
 
-`CopilotPlugin` validates at **construction**, like `I18nServerPlugin`'s
-locales and `ContentPlugin`'s registry: at least one provider registered, every
-provider declaring at least one model, a `defaultProvider` that names one of
-them, and a positive `maxOutputTokens`. Name uniqueness is enforced by
-`buildModelRegistry` over the same list. A host that mistypes a provider name
-fails before boot rather than on the first chat message — the point where the
-mistake is most expensive to diagnose.
+`CopilotPlugin` validates at **construction**, like `I18nServerPlugin`'s locales
+and `ContentPlugin`'s registry: at least one provider registered, every provider
+declaring at least one model, a `defaultProvider` that names one of them, and a
+positive `maxOutputTokens`. A host that mistypes a provider name fails before
+boot rather than on the first chat message.
 
-Being **disabled is not a wiring error**: `config.enabled: false` is the
-default and constructs fine. That switch is the operator's kill switch
-([ADR-0005](../../../docs/adr/0005-copilot-authority-model.md) §10), read by the
-engine, not by the plugin factory.
+Being **disabled is not a wiring error**: `config.enabled: false` is the default
+and constructs fine. That switch is the operator's kill switch (ADR-0005 §10),
+read by the engine — so a disabled deployment answers with a readable error
+frame rather than an opaque 403.
 
 ## Permissions
 
 `copilot:use` and `copilot:configure` live in `identity/server`'s `PERMISSIONS`,
 not here — the catalogue has exactly one source of truth. **No migration:**
-`seedSystemRoles` is idempotent and runs each boot from `PERMISSIONS` /
-`SYSTEM_ROLES`, so the keys and grants land on next start. Viewers hold
-`copilot:use` (ADR-0005 §10, resolved); `copilot:configure` is admin-only.
+`seedSystemRoles` is idempotent and runs each boot. Viewers hold `copilot:use`
+(ADR-0005 §10, resolved); `copilot:configure` is admin-only and unused until
+phase 4.
 
 ## Package
 
 - Name: `@ortha-cms/copilot-server`
-- Import: `import { CopilotPlugin } from '@ortha-cms/copilot-server'`
 - Register **after** `WorkspacesPlugin` (runs are workspace-scoped) and
   `IdentityPlugin` (runs execute as the calling user)
-
-## Configuration
-
-Config flows from `apps/server/ortha.config.ts` (`plugins.copilot`, env-sourced)
-into the plugin. The composition root selects the backend:
-
-```typescript
-CopilotPlugin({
-    providers: {
-        anthropic: createAnthropicProvider(config.plugins.copilot.anthropic),
-        local: createOpenAiCompatibleProvider(
-            config.plugins.copilot.openaiCompatible
-        ),
-        fake: createFakeProvider()
-    },
-    // Optional: route per run instead of using config.defaultProvider.
-    // resolve: (ctx) => (isBigWorkspace(ctx.workspaceId) ? 'anthropic' : 'local'),
-    config: config.plugins.copilot
-});
-```
 
 ## Commands
 
 - `npx nx typecheck @ortha-cms/copilot-server`
 - `npx nx lint @ortha-cms/copilot-server`
 - `npx nx test @ortha-cms/copilot-server`
+- `npx nx run @ortha-cms/copilot-server:db:generate --name=<name>`

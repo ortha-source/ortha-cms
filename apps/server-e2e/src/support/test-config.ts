@@ -83,6 +83,20 @@ export function buildTestConfig(
             // The media plugin registers an in-memory `memory` provider in
             // `buildTestPlugins`, so uploads never touch disk. `defaultProvider`
             // names it; local/s3 settings are unused in tests.
+            // The copilot boots ENABLED in tests. Production defaults it off
+            // (ADR-0005 §10) because enabling a hosted provider ships content
+            // to a third party — but the e2e run's only provider is the
+            // scripted fake, which makes no network call, so there is nothing
+            // to opt into and everything to cover.
+            copilot: {
+                enabled: true,
+                defaultProvider: 'fake',
+                maxOutputTokens: 1024,
+                providers: {
+                    claude: { apiKey: '', models: ['unused'] },
+                    ollama: { baseUrl: 'http://localhost:1', models: ['unused'] }
+                }
+            },
             media: {
                 defaultProvider: 'memory',
                 local: {

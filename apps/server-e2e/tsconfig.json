@@ -24,13 +24,22 @@
             "path": "../../packages/activity/server"
         },
         {
-            "path": "../../packages/bootstrap/server"
-        },
-        {
             "path": "../../packages/media/server"
         },
         {
+            "path": "../../packages/copilot/provider-fake"
+        },
+        {
+            "path": "../../packages/copilot/domain"
+        },
+        {
             "path": "../../packages/content/server"
+        },
+        {
+            "path": "../../packages/copilot/server"
+        },
+        {
+            "path": "../../packages/bootstrap/server"
         },
         {
             "path": "../../packages/workspaces/server"

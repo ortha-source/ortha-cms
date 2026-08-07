@@ -89,8 +89,9 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // To route per run, add a `resolve` handler, e.g.:
         //   resolve: (ctx) => (isBigWorkspace(ctx.workspaceId) ? 'claude' : 'ollama'),
         //
-        // Phase 0 ships nothing visible: this binds the model seam and the
-        // config so the chat vertical slice has something to build on.
+        // Every provider × model pair registered here is what the chat panel's
+        // model picker offers (`GET /api/copilot/models`), so adding a backend
+        // is an entry in this list and nothing else.
         CopilotPlugin({
             providers: [
                 {

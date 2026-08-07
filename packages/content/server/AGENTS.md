@@ -154,6 +154,34 @@ a clean **409**. A boot check (`EntryExtensionBootCheck`) fails start-up if an
 `i18n: true` type has no extension bound. Only one binding is supported (a
 second consumer would need a composite).
 
+### The copilot tools (`src/lib/copilot/`)
+
+This package **binds** the copilot's tool port, the same inversion again with
+the roles swapped back: `copilot/server` declares `COPILOT_TOOL_PROVIDER` (in
+`copilot-domain`) and never imports content, while content — which already owns
+`EntriesService`, `EntryWriterService` and the registry — supplies the tools as
+thin wrappers over them. No query logic is duplicated and no refactor was needed.
+
+- `ContentCopilotToolProvider` ships phase 1's three **read-only** tools:
+  `content.listTypes`, `content.searchEntries`, `content.getEntry`.
+- `ContentCopilotToolsRegistrar` registers them from `OnApplicationBootstrap`.
+  Registration is a **runtime `register(...)` call**, not a multi-provider
+  binding: Nest cannot merge a multi-provider token across independent dynamic
+  modules, so a second binder (media, at phase 3) would silently replace this
+  one. `CopilotToolRegistry` is injected `@Optional()` **with an explicit
+  `@Inject(...)`** — a `Foo | null` parameter type emits `Object` for
+  `design:paramtypes`, and an optional one then injects `undefined` silently,
+  producing a copilot with no content tools and no error anywhere.
+- **Every tool re-checks the workspace's content grants** via
+  `WorkspaceGrantsQuery`. `WorkspaceGuard` proved the caller belongs to the
+  workspace, not that the workspace may reach a given type — and the type name
+  arrives from the *model*, which is steerable by content it has read. "Not
+  granted" and "does not exist" return the **same** message, so a run in one
+  workspace cannot enumerate the deployment's other content types.
+- Page size is clamped in `run` as well as declared in the input schema: the
+  schema validator is defence in depth, not the boundary, and a model ignoring
+  `maximum` must not be able to pull a whole table into a prompt.
+
 ## Generated storage (`buildTables`)
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per
