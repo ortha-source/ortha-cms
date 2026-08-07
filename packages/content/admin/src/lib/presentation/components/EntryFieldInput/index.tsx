@@ -21,6 +21,7 @@ import { adminProps } from '../../../domain/adminProps';
 import { CONTENT_FIELD_TYPE } from '../../../domain/constants';
 import { ENTRY_FIELD_CONTROL_SLOT } from '../../slots/contentSlots';
 import { useExpandedField } from '../../hooks/useExpandedField';
+import { useEntryReadOnly } from '../../hooks/useEntryReadOnly';
 import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
@@ -106,6 +107,14 @@ function asNumber(raw: string): unknown {
  * A plugin can take a field's **input** over via `ENTRY_FIELD_CONTROL_SLOT`,
  * checked before the type switch; the label row, description, and error stay
  * here either way.
+ *
+ * In a **read-only** editor (`useEntryReadOnly` — the reader has no
+ * `content:update`/`content:create`) every control renders as a preview. Text
+ * and textarea controls take `readOnly` rather than `disabled`, so the value
+ * stays legible, focusable, and selectable — a reader who can't edit a record
+ * can still read and copy out of it. The controls with no read-only state of
+ * their own (select, multi-select, the boolean segments, the date picker) fall
+ * back to `disabled`, which is the only way to close their popover off.
  */
 export function EntryFieldInput({
     field,
@@ -125,6 +134,7 @@ export function EntryFieldInput({
 }) {
     const intl = useIntl();
     const expandedField = useExpandedField();
+    const readOnly = useEntryReadOnly();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
     // The label row's right-hand adornments, kept together so they never
@@ -158,6 +168,11 @@ export function EntryFieldInput({
     );
     // Mirrors the marker for assistive tech, spread onto each control.
     const requiredProps = field.required ? { 'aria-required': true } : {};
+    // Read-only for the controls that have one (`<input>`, `<textarea>`): the
+    // value stays focusable, selectable, and full-contrast, which is what makes
+    // this a preview rather than a greyed-out husk. Everything else in the
+    // switch below uses `disabled` — see the component JSDoc.
+    const readOnlyProps = readOnly ? { readOnly: true } : {};
     const admin = adminProps(field);
     // The error message takes the description's place, so suppress the hint
     // (and any type-specific fallback hint below) whenever the field is invalid.
@@ -199,6 +214,7 @@ export function EntryFieldInput({
                     value={value}
                     error={error}
                     describedBy={describedBy}
+                    readOnly={readOnly}
                     onChange={onChange}
                     onBlur={onBlur}
                     expanded={canExpand && expandedField.name === field.name}
@@ -230,6 +246,7 @@ export function EntryFieldInput({
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
                         {...requiredProps}
+                        disabled={readOnly}
                         aria-describedby={describedBy}
                         value={
                             value === true ? BOOL_SEGMENT.On : BOOL_SEGMENT.Off
@@ -267,6 +284,7 @@ export function EntryFieldInput({
                     </FieldLabel>
                     <Select
                         value={asText(value) || undefined}
+                        disabled={readOnly}
                         onValueChange={(next) => {
                             onChange(next);
                             onBlur?.();
@@ -326,6 +344,7 @@ export function EntryFieldInput({
                         invalid={!!error}
                         aria-describedby={describedBy}
                         {...requiredProps}
+                        disabled={readOnly}
                         placeholder={intl.formatMessage(
                             messages.selectPlaceholder
                         )}
@@ -364,6 +383,7 @@ export function EntryFieldInput({
                         value={display}
                         rows={isJson ? 6 : 4}
                         {...requiredProps}
+                        {...readOnlyProps}
                         className={isJson ? `${FLAT} font-mono text-xs` : FLAT}
                         aria-invalid={!!error}
                         aria-describedby={describedBy}
@@ -401,6 +421,7 @@ export function EntryFieldInput({
                             value={ids.join('\n')}
                             rows={3}
                             {...requiredProps}
+                            {...readOnlyProps}
                             className={`${FLAT} font-mono text-xs`}
                             aria-invalid={!!error}
                             aria-describedby={describedBy}
@@ -443,6 +464,7 @@ export function EntryFieldInput({
                     onBlur={onBlur}
                     className={`${FLAT} font-mono text-xs`}
                     {...requiredProps}
+                    {...readOnlyProps}
                 />
             );
         }
@@ -465,6 +487,7 @@ export function EntryFieldInput({
                         onBlur={onBlur}
                         withTime={field.type === CONTENT_FIELD_TYPE.Datetime}
                         invalid={!!error}
+                        disabled={readOnly}
                         {...requiredProps}
                         aria-describedby={describedBy}
                     />
@@ -503,6 +526,7 @@ export function EntryFieldInput({
                     onBlur={onBlur}
                     className={FLAT}
                     {...requiredProps}
+                    {...readOnlyProps}
                     {...(numeric
                         ? { type: 'number', inputMode: 'decimal' as const }
                         : {})}

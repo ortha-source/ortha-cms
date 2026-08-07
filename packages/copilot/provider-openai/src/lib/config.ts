@@ -1,0 +1,64 @@
+import type { ModelCapabilities } from '@ortha-cms/copilot-domain';
+
+/** Options for `createOpenAiProvider`. */
+export interface OpenAiProviderConfig {
+    /**
+     * The API root, up to and including the version segment — e.g.
+     * `http://localhost:11434/v1` (Ollama) or `https://api.openai.com/v1`.
+     * `/chat/completions` is appended.
+     */
+    baseUrl: string;
+    /**
+     * Model ids this endpoint serves, in preference order; the first is the
+     * default. Several models behind one endpoint is the common case — a small
+     * fast one and a large one on the same Ollama — and lets a user switch
+     * mid-conversation without a redeploy.
+     */
+    models: readonly string[];
+    /** Bearer token. Omit for a local runtime that wants no auth. */
+    apiKey?: string;
+    /** Extra headers — an Azure `api-key`, an OpenRouter attribution header. */
+    headers?: Readonly<Record<string, string>>;
+    /**
+     * What this endpoint's models can do. The wire format exposes no
+     * capability discovery, so the operator declares it: a 3B model that
+     * cannot call tools must say so, or the engine will assume a baseline it
+     * cannot meet
+     * ([ADR-0004](../../../../docs/adr/0004-model-agnostic-copilot-provider.md) §4).
+     *
+     * Applies to **every** model on this endpoint. When two models differ
+     * materially — one calls tools, one doesn't — register them as two
+     * providers instead of flattening both to the weaker profile.
+     */
+    capabilities?: Partial<Omit<ModelCapabilities, 'model'>>;
+    /** Request timeout in milliseconds. Defaults to 120 000. */
+    timeoutMs?: number;
+}
+
+/** Optimistic defaults — the frontier-model case, overridden per deployment. */
+export const DEFAULT_CAPABILITIES = {
+    toolCalling: true,
+    streaming: true,
+    vision: false,
+    contextWindow: 32_768,
+    maxOutputTokens: 4_096
+} as const;
+
+export const DEFAULT_TIMEOUT_MS = 120_000;
+
+/** Appends the chat-completions path, tolerating a trailing slash on the root. */
+export function resolveEndpoint(baseUrl: string): string {
+    return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+}
+
+/** Merges the operator's declared capabilities over the defaults, for one model. */
+export function resolveCapabilities(
+    config: OpenAiProviderConfig,
+    model: string
+): ModelCapabilities {
+    return {
+        ...DEFAULT_CAPABILITIES,
+        ...config.capabilities,
+        model
+    };
+}

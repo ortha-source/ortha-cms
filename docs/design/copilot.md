@@ -12,7 +12,10 @@ settled in ADRs and are not re-argued here:
 - [ADR-0005](../adr/0005-copilot-authority-model.md) — what the copilot may do
   (capability profile, propose-then-apply, untrusted content).
 
-**Status:** proposed, not started. Phase 0 is the first buildable slice (§9).
+**Status:** in progress. **Phase 0 has shipped** (§9) — the `ModelProvider` port
+and registry, the three adapters, `plugins.copilot`, the two permission keys,
+and an empty plugin registered in both hosts. Nothing is visible yet; phase 1
+(the chat vertical slice) is the next buildable slice.
 
 ---
 
@@ -84,7 +87,7 @@ React or a model.
 | `copilot/server`                     | `CopilotPlugin()`, run engine + tool loop, tool registry, MCP client, SSE controller, provider registry, schema + migrations, the `COPILOT_TOOL_PROVIDER` port. |
 | `copilot/admin`                      | Chat panel, streaming transport, proposal diff UI, model/connector settings, slot contributions.                                                              |
 | `copilot/provider-anthropic`         | Adapter over `@anthropic-ai/sdk`.                                                                                                                            |
-| `copilot/provider-openai-compatible` | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                     |
+| `copilot/provider-openai`            | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                     |
 | `copilot/provider-fake`              | Scripted provider for e2e and offline dev.                                                                                                                   |
 
 **Tool bindings live with their owners.** Content tools ship in
@@ -247,9 +250,26 @@ The plugin seams are ready; the streaming and model plumbing is not.
 
 Six phases; each after phase 1 is independently shippable.
 
-**Phase 0 — Foundations.** `ModelProvider` port + registry, the three adapters,
-`plugins.copilot` config, `copilot:use` / `copilot:configure`, empty plugin
-registered in both hosts. *Ships nothing visible; unblocks everything.*
+**Phase 0 — Foundations. ✅ Shipped.** `ModelProvider` port + registry, the three
+adapters, `plugins.copilot` config, `copilot:use` / `copilot:configure`, empty
+plugin registered in both hosts. *Ships nothing visible; unblocks everything.*
+Four things landed differently from the sketch above, all deliberate and all
+detailed in the package `AGENTS.md` files:
+
+- The port carries **no sampling parameters** — current frontier models reject
+  `temperature`/`top_p`/`top_k` outright.
+- The Anthropic adapter leaves **thinking at the API default** rather than
+  disabling it: with thinking off, a model will occasionally write a tool call
+  into its visible text, where it silently never runs.
+- **A provider serves a list of models**, not one. `models()` is part of the
+  port and `ModelRegistry.catalogue()` enumerates every provider × model pair,
+  so a user can switch model mid-conversation and an operator can switch
+  provider with one env var — neither needs a redeploy.
+- **`CopilotPluginConfig` names no adapter.** Provider connection settings live
+  with the host, so `copilot/server` depends only on `copilot-domain` and
+  `bootstrap-server`. Adding a Bedrock adapter is a package plus a line in
+  `plugins.ts` — what ADR-0004 §2 actually asked for. The first cut had the
+  config importing both adapter packages for their types.
 
 **Phase 1 — Chat (the vertical slice).** SSE endpoint, run engine, capability
 profile, conversation persistence, the read-only content tools, the chat panel.
@@ -311,10 +331,12 @@ Settled enough to start phase 0; decide before the phase that needs them.
   types would blow the budget if every field were inlined. Current plan: type
   summaries in the prompt, full schema on demand via `content.listTypes` — one
   extra round trip, bounded cost. Revisit with real workspaces.
-- **Does `copilot:use` extend to viewers?** A read-only copilot is useful and,
-  by construction, cannot mutate; the counter-argument is cost, since viewers
-  are the largest population. Leaning yes, with per-role rate limits rather than
-  a role exclusion.
+- ~~**Does `copilot:use` extend to viewers?**~~ **Decided: yes.** A read-only
+  copilot is useful and, by construction, cannot mutate — a viewer's runs are
+  offered only the tools that viewer's own permissions already allow. Cost is
+  handled with per-role rate limits rather than a role exclusion. Granted in
+  `SYSTEM_ROLES` as of phase 0. `content:publish` stays withheld at every role
+  (ADR-0005 §7), and direct-apply remains an admin opt-in (§6).
 - **SSE or websockets?** SSE is the smaller change and enough for token
   streaming. Websockets only earn their cost if presence or server-initiated
   notifications follow. Revisit at phase 5.

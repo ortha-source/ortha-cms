@@ -60,6 +60,15 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
+     * The same control in a **read-only** editor, where it is named "View
+     * {label}" — the expansion is kept (a clamped preview can't show a long
+     * body) but it opens a reading surface, not an editor.
+     */
+    viewControl(label: string): Locator {
+        return this.page.getByRole('button', { name: `View ${label}` });
+    }
+
+    /**
      * The rendered preview for a field, located by walking up from its control
      * to the shared card. Used to assert the field shows *content* — a heading,
      * a list — rather than the markup that produced it.
@@ -307,9 +316,29 @@ export class WysiwygFieldPage extends BasePage {
         return this.page.locator(`#entry-field-${fieldName}-error`);
     }
 
+    /**
+     * The expanded view's word/character read-out ("5 words · 26 characters").
+     * Worth asserting rather than eyeballing: it is fed by `useEditorState`,
+     * which only refreshes on an editor transaction — so a surface that fires
+     * none (the read-only view) can sit on a stale, empty first snapshot and
+     * report 0 over a full document.
+     */
+    get counts(): Locator {
+        return this.page.getByText(/\d+ words? · \d+ characters?/);
+    }
+
+    /**
+     * The footer's exit button. Its label is the mode: **Done** while editing,
+     * **Back to fields** in the read-only view, where "done" would name the end
+     * of an editing session the reader never began.
+     */
+    exitButton(label: 'Done' | 'Back to fields'): Locator {
+        return this.page.getByRole('button', { name: label });
+    }
+
     /** Collapse back to the form via the editor's footer action. */
     async done(): Promise<void> {
-        await this.page.getByRole('button', { name: 'Done' }).click();
+        await this.exitButton('Done').click();
         await this.toolbar.waitFor({ state: 'hidden' });
     }
 

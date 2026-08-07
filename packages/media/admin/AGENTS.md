@@ -159,6 +159,19 @@ uploads are deferred into the save, so an ungranted upload 403s *inside the writ
 and takes the user's unrelated edits down with it. Without `media:create` the
 Upload button and the drop zone are gone; without `media:read` the picker trigger
 is disabled and the card says why.
+
+**A third gate sits above both: the record's own.** `EntryTabContext.readOnly`
+(content-admin) is true when the reader has no `content:update` — or no
+`content:create` on a create form — and `EntryMediaTab` threads it down through
+`MediaFieldSection` to `MediaFieldControl` and each `MediaFieldItem`. It is a
+*content* permission, distinct from the `media:*` matrix: a user may hold every
+media permission there is and still not be allowed to change **this record**, and
+attaching an asset to a record is a write to the record. Read-only leaves the
+tiles (preview, name, metadata, position badge, open-in-a-new-tab) and removes
+everything else — the Select/Replace/Add and Upload row, the remove and reorder
+controls, the drop zone (via `canStage`), and the `UploadDialog`, which is left
+unmounted. The accept hint and the "no Media Library access" note go too: the
+first describes attaching, and the second would blame the wrong permission.
 - **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`, **permission-
   aware** (the trigger is disabled without `media:read`, and the field says why)
   and with its own **error** state: a failed library read offers a retry instead

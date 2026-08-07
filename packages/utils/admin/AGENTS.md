@@ -16,8 +16,18 @@ singletons live in one place instead of inside `bootstrap-admin`.
 
 - `apiClient` — the shared axios instance (`baseURL: '/api'`, `withCredentials`).
   Plugins call it (`apiClient.post('/auth/login', …)`) instead of importing
-  `axios`, so base URL, credentials, and future interceptors (e.g. a global
-  `401` → redirect, added with auth gating) have a single home.
+  `axios`, so base URL, credentials, and interceptors have a single home: the
+  `X-Workspace-Id` request header and the global `401` handling below.
+- `setUnauthorizedHandler(fn | null)` — installs the callback the response
+  interceptor fires when the API answers `401` to a request that expected a live
+  session (revoked, expired, or the account suspended mid-visit). The transport
+  seam lives here; the **auth state it flips does not** — `identity-admin`'s
+  `AuthProvider` registers a handler that drops the cached current user, so the
+  route gate redirects to sign-in. That inversion is what keeps this leaf from
+  depending on the identity plugin. The interceptor always rethrows, so a
+  caller's own error handling still runs, and it skips the paths where a `401`
+  is the endpoint's own answer (`/auth/login`, `/auth/logout`, `/auth/me`,
+  `/auth/invite`) — a rejected sign-in must not read as a lost session.
 - `queryClient` — the app's single TanStack Query `QueryClient`. The host wires
   it into `QueryClientProvider`; plugins use `useQuery`/`useMutation`.
 - `ApiError` / `toApiError(error)` — a normalized transport error carrying

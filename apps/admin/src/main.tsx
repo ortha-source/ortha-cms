@@ -10,6 +10,7 @@ import { InsightsPlugin } from '@ortha-cms/insights-admin';
 import { UsersPlugin } from '@ortha-cms/users-admin';
 import { ActivityPlugin } from '@ortha-cms/activity-admin';
 import { ApiTokensPlugin } from '@ortha-cms/api-tokens-admin';
+import { CopilotPlugin } from '@ortha-cms/copilot-admin';
 import './styles.css';
 
 createAdmin({
@@ -27,6 +28,11 @@ createAdmin({
         // `richtext` field renders — so it likewise follows ContentPlugin().
         WysiwygPlugin(),
         MediaPlugin(),
+        // Contributes nothing yet — phase 0 of the copilot registers the
+        // plugin so the chat panel lands as a UI change, not a wiring one.
+        // Belongs with the workspace-interior features: the panel will mount
+        // into the workspace shell's sidebar footer.
+        CopilotPlugin(),
         InsightsPlugin(),
         UsersPlugin(),
         ActivityPlugin(),

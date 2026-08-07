@@ -120,6 +120,26 @@ export async function mockSignedOut(page: Page): Promise<void> {
 }
 
 /**
+ * Answer `401` on any request matching `urlPattern` — the shape a live tab sees
+ * the moment its session stops being valid (revoked elsewhere, expired, or the
+ * account suspended by an admin). Register it **after** the endpoint's normal
+ * mock: later routes win, so a test can browse with real data and then flip a
+ * single endpoint to "session lost" mid-visit.
+ */
+export async function mockUnauthorized(
+    page: Page,
+    urlPattern: string
+): Promise<void> {
+    await page.route(urlPattern, async (route) => {
+        await route.fulfill({
+            status: 401,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Unauthorized' })
+        });
+    });
+}
+
+/**
  * Stub `POST /api/auth/logout` (always succeeds) and record each call, so a
  * test can assert the account menu's Logout triggered it.
  */

@@ -40,6 +40,15 @@
   **plugin**: owns the auth/RBAC schema (Drizzle tables in `src/lib/schema`)
   and **ships its own migrations** (`drizzle.config.ts` + committed
   `migrations/`). Opens no connection; the host applies its migrations.
+- `packages/copilot/*` — the AI copilot. `domain` holds the framework-free
+  `ModelProvider` port; `server` is the plugin (`CopilotPlugin`) that binds the
+  model registry + resolver + config; `admin` is the chat panel's (still empty)
+  home; `provider-anthropic` / `provider-openai` / `provider-fake`
+  are the three shipped adapters, constructed at the composition root. Only
+  `provider-anthropic` may import a vendor SDK
+  ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Phase 0 of
+  [`docs/design/copilot.md`](docs/design/copilot.md) — no routes, no engine, no
+  tables yet.
 - `packages/nx` — `@ortha-cms/nx`, the workspace **Nx plugin**: infers and
   implements the `db:generate` / `db:migrate` targets (Drizzle migration
   tooling). Registered in `nx.json`.

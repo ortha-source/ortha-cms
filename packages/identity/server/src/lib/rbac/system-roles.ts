@@ -26,7 +26,9 @@ export const PERMISSIONS = {
     MEDIA_DELETE: 'media:delete',
     TOKENS_READ: 'tokens:read',
     TOKENS_CREATE: 'tokens:create',
-    TOKENS_DELETE: 'tokens:delete'
+    TOKENS_DELETE: 'tokens:delete',
+    COPILOT_USE: 'copilot:use',
+    COPILOT_CONFIGURE: 'copilot:configure'
 } as const;
 
 /** A `resource:action` permission key drawn from {@link PERMISSIONS}. */
@@ -49,7 +51,16 @@ export interface SystemRole {
  * The three built-in roles and their grants — the §4.2 matrix verbatim.
  * Admin holds the full enumerated set (no wildcard, by decision): a future
  * permission must be added both to {@link PERMISSIONS} and to admin's grants
- * here. Viewer is identical to contributor in v1 by design.
+ * here.
+ *
+ * `copilot:use` is granted to **every** role, viewer included
+ * ([ADR-0005](../../../../../../docs/adr/0005-copilot-authority-model.md) §10):
+ * the copilot has no authority of its own, so a viewer's copilot is
+ * *provably* read-only — it can only ever offer the tools that viewer's own
+ * permissions already allow. Cost is handled with per-role rate limits rather
+ * than by excluding the largest population from the feature.
+ * `copilot:configure` stays admin-only: registering a model or a connector
+ * decides where workspace content travels.
  */
 export const SYSTEM_ROLES: readonly SystemRole[] = [
     { key: 'admin', name: 'Administrator', permissions: [...PERMISSION_KEYS] },
@@ -65,7 +76,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.CONTENT_PUBLISH,
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.MEDIA_CREATE,
-            PERMISSIONS.MEDIA_UPDATE
+            PERMISSIONS.MEDIA_UPDATE,
+            PERMISSIONS.COPILOT_USE
         ]
     },
     {
@@ -75,7 +87,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.WORKSPACES_READ,
             PERMISSIONS.USERS_READ,
             PERMISSIONS.CONTENT_READ,
-            PERMISSIONS.MEDIA_READ
+            PERMISSIONS.MEDIA_READ,
+            PERMISSIONS.COPILOT_USE
         ]
     }
 ] as const;

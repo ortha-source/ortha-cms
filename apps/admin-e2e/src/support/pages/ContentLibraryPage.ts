@@ -283,9 +283,16 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('link', { name: 'Back to records' });
     }
 
-    /** A form field's text input by its label. */
-    fieldTextbox(label: string): Locator {
-        return this.page.getByRole('textbox', { name: label });
+    /**
+     * A form field's text input by its label.
+     *
+     * Pass `exact` when the type has labels that are substrings of one another
+     * — Playwright's `name` match is a case-insensitive **substring** by
+     * default, so a "Title" field and a "Subtitle" field are two hits for
+     * `'Title'` and the locator fails strict mode.
+     */
+    fieldTextbox(label: string, { exact = false } = {}): Locator {
+        return this.page.getByRole('textbox', { name: label, exact });
     }
 
     /**
@@ -309,6 +316,42 @@ export class ContentLibraryPage extends BasePage {
     /** A form field's `<label>` element, by the field's machine name. */
     fieldLabel(fieldName: string): Locator {
         return this.page.locator(`label[for="entry-field-${fieldName}"]`);
+    }
+
+    /** Navigate straight to a **single** (page) type's editor, which is the type
+     * route itself — a page has one row, so there is no records table in front
+     * of it. */
+    async gotoSingle(workspaceId: string, typeName: string) {
+        await this.page.goto(`/workspaces/${workspaceId}/content/${typeName}`);
+    }
+
+    /** The banner shown over a read-only entry editor. */
+    get readOnlyNotice(): Locator {
+        return this.page.getByText('View only', { exact: true });
+    }
+
+    /**
+     * The control carrying a field's id — a `select`'s trigger, a date field's
+     * button. Located by id rather than by role because the assertion these
+     * serve is about the element's *disabled* state, and a handle that resolves
+     * in both states is what lets a test assert the transition instead of the
+     * element simply vanishing.
+     */
+    fieldTrigger(fieldName: string): Locator {
+        return this.page.locator(`#entry-field-${fieldName}`);
+    }
+
+    /**
+     * The buttons of a `boolean` field's segmented control, scoped by the
+     * `aria-labelledby` the entry form puts on the group — so two booleans on
+     * one type never collide. Anchored on that rather than on a role, because
+     * the design-system control is a Radix toggle group whose role mapping is
+     * its own business and not something a test should encode.
+     */
+    booleanSegments(fieldName: string): Locator {
+        return this.page
+            .locator(`[aria-labelledby="entry-field-${fieldName}-label"]`)
+            .locator('button');
     }
 
     /** The "Localized field" tooltip trigger inside a field's label row. */

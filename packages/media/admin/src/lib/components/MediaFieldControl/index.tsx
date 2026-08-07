@@ -88,6 +88,14 @@ const messages = defineMessages({
         id: 'media.field.noMediaAccess',
         defaultMessage:
             'You don’t have access to the Media Library, so this field can only be read.'
+    },
+    emptyReadOnly: {
+        id: 'media.field.emptyReadOnly',
+        defaultMessage: 'Nothing attached'
+    },
+    emptyBodyReadOnly: {
+        id: 'media.field.emptyBodyReadOnly',
+        defaultMessage: 'This field has no assets.'
     }
 });
 
@@ -126,6 +134,13 @@ function dragHasFiles(transfer: DataTransfer | null): boolean {
  *
  * Fully controlled: the parent (the Media tab, bound to the entry form) owns the
  * value as an asset id or id array.
+ *
+ * **Read-only** (the reader has no `content:update`/`content:create` on the
+ * record) reduces it to the tiles: no drop zone, no Select/Upload row, no
+ * remove or reorder on a tile. Note this is a *content* permission, distinct
+ * from the `media:*` gates below — a user may hold every media permission there
+ * is and still not be allowed to change **this record**, and attaching an asset
+ * to a record is a write to the record.
  */
 export function MediaFieldControl({
     id,
@@ -138,6 +153,7 @@ export function MediaFieldControl({
     describedBy,
     required,
     uploads,
+    readOnly = false,
     onChange,
     onBlur
 }: {
@@ -163,6 +179,11 @@ export function MediaFieldControl({
      * rather than an Upload button that could never commit.
      */
     uploads?: MediaPendingUploads;
+    /**
+     * Preview mode — the entry editor is read-only, so the field shows what is
+     * attached and offers no way to change it.
+     */
+    readOnly?: boolean;
     onChange: (value: unknown) => void;
     onBlur?: () => void;
 }) {
@@ -189,8 +210,12 @@ export function MediaFieldControl({
     const ids = toIds(value);
 
     // Staging is only offered when the user may actually upload; the presave
-    // step would otherwise fail the save on their behalf.
-    const canStage = !!uploads && canUploadMedia;
+    // step would otherwise fail the save on their behalf. A read-only record is
+    // the same argument one level up: there is no save to ride.
+    //
+    // This also disarms the drop zone, whose enter/drop handlers both bail on
+    // `!canStage` — so a read-only field can't be dropped onto.
+    const canStage = !!uploads && canUploadMedia && !readOnly;
     const pending = uploads?.pending;
 
     const displays = useMemo<MediaFieldDisplay[]>(() => {
@@ -401,21 +426,29 @@ export function MediaFieldControl({
                                 )}
                             </EmptyMedia>
                             <EmptyTitle className="text-base">
-                                {dragging
-                                    ? intl.formatMessage(messages.dropHere)
-                                    : intl.formatMessage(
-                                          multiple
-                                              ? messages.emptyMultiple
-                                              : messages.emptySingle
-                                      )}
+                                {readOnly
+                                    ? intl.formatMessage(messages.emptyReadOnly)
+                                    : dragging
+                                      ? intl.formatMessage(messages.dropHere)
+                                      : intl.formatMessage(
+                                            multiple
+                                                ? messages.emptyMultiple
+                                                : messages.emptySingle
+                                        )}
                             </EmptyTitle>
+                            {/* Every non-read-only variant of this line invites
+                                an action ("Drop a file here…", "Pick an asset
+                                from…"). A reader has none of them, so the state
+                                is simply stated. */}
                             <EmptyDescription>
                                 {intl.formatMessage(
-                                    dragging
-                                        ? messages.dropBody
-                                        : canStage
-                                          ? messages.emptyBody
-                                          : messages.emptyBodyPickOnly
+                                    readOnly
+                                        ? messages.emptyBodyReadOnly
+                                        : dragging
+                                          ? messages.dropBody
+                                          : canStage
+                                            ? messages.emptyBody
+                                            : messages.emptyBodyPickOnly
                                 )}
                             </EmptyDescription>
                         </EmptyHeader>
@@ -436,6 +469,7 @@ export function MediaFieldControl({
                                 index={index}
                                 total={displays.length}
                                 multiple={multiple}
+                                readOnly={readOnly}
                                 onRemove={() => removeAt(index)}
                                 onMove={(delta) => move(index, delta)}
                             />
@@ -445,39 +479,48 @@ export function MediaFieldControl({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shadow-none"
-                    id={id}
-                    aria-required={required}
-                    aria-invalid={invalid}
-                    aria-describedby={describedBy}
-                    disabled={!canPickMedia}
-                    onClick={() => setPickerOpen(true)}
-                >
-                    <ImagePlus className="size-4" aria-hidden />
-                    {intl.formatMessage(
-                        !multiple && displays.length > 0
-                            ? messages.replace
-                            : multiple
-                              ? messages.add
-                              : messages.select
-                    )}
-                </Button>
-                {canStage ? (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shadow-none"
-                        onClick={() => openUploadWith([])}
-                    >
-                        <UploadCloud className="size-4" aria-hidden />
-                        {intl.formatMessage(messages.upload)}
-                    </Button>
-                ) : null}
+                {/* Both triggers go in preview mode. The accept hint and the
+                    "no Media Library access" note go with them: both describe
+                    *attaching* something, which isn't on offer — and the second
+                    would blame the wrong permission, since what stops this
+                    reader is `content:update` on the record, not `media:read`. */}
+                {readOnly ? null : (
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="shadow-none"
+                            id={id}
+                            aria-required={required}
+                            aria-invalid={invalid}
+                            aria-describedby={describedBy}
+                            disabled={!canPickMedia}
+                            onClick={() => setPickerOpen(true)}
+                        >
+                            <ImagePlus className="size-4" aria-hidden />
+                            {intl.formatMessage(
+                                !multiple && displays.length > 0
+                                    ? messages.replace
+                                    : multiple
+                                      ? messages.add
+                                      : messages.select
+                            )}
+                        </Button>
+                        {canStage ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shadow-none"
+                                onClick={() => openUploadWith([])}
+                            >
+                                <UploadCloud className="size-4" aria-hidden />
+                                {intl.formatMessage(messages.upload)}
+                            </Button>
+                        ) : null}
+                    </>
+                )}
 
                 {/* Only when it has something to say — an always-rendered
                     element leaves an empty paragraph in the accessibility tree. */}
@@ -485,8 +528,8 @@ export function MediaFieldControl({
                     className={cn(
                         'ml-auto flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground',
                         !stagedCount &&
-                            !acceptHint &&
-                            canPickMedia &&
+                            (!acceptHint || readOnly) &&
+                            (canPickMedia || readOnly) &&
                             !(multiple && displays.length > 0) &&
                             'hidden'
                     )}
@@ -505,14 +548,14 @@ export function MediaFieldControl({
                             })}
                         </span>
                     ) : null}
-                    {acceptHint ? (
+                    {acceptHint && !readOnly ? (
                         <span>
                             {intl.formatMessage(messages.accepts, {
                                 what: acceptHint
                             })}
                         </span>
                     ) : null}
-                    {canPickMedia ? null : (
+                    {canPickMedia || readOnly ? null : (
                         <span>
                             {intl.formatMessage(messages.noMediaAccess)}
                         </span>
@@ -535,7 +578,10 @@ export function MediaFieldControl({
             ) : null}
 
             {/* The Media Library's own upload modal — same staging, previews,
-                and copy; narrowed to what this field accepts. */}
+                and copy; narrowed to what this field accepts. Not mounted at
+                all in preview: nothing can open it, and neither the Upload
+                button nor the drop zone exists to. */}
+            {readOnly ? null : (
             <UploadDialog
                 open={uploadOpen}
                 onOpenChange={setUploadOpen}
@@ -556,6 +602,7 @@ export function MediaFieldControl({
                 initialFiles={dropped}
                 onUpload={onStaged}
             />
+            )}
         </div>
     );
 }

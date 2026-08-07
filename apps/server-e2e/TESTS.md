@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_449 test cases across 37 spec files._
+_453 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -286,6 +286,9 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | rejects an expired session |
 | rejects a revoked session |
 | rejects a session whose user was deleted |
+| rejects a live session whose account was suspended |
+| accepts the same session again once the account is reactivated |
+| rejects a live session whose account fell back to pending |
 
 <!-- source: apps/server-e2e/src/server/auth/root-admin.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
@@ -897,6 +900,7 @@ _<sub>apps/server-e2e/src/server/users/set-user-status.spec.ts</sub>_
 | Test case |
 | --- |
 | disables an active member and revokes their sessions |
+| lets a reactivated member sign in again, on a fresh session |
 | refuses to let a member disable themselves with 409 |
 | rejects disabling an already-disabled member with 409 |
 | re-enables a disabled member |

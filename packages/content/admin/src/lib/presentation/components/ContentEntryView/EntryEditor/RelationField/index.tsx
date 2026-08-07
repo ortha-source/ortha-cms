@@ -28,6 +28,7 @@ import {
     handleFor,
     slugFromValues
 } from '../../../../../domain/relationHandle';
+import { useEntryReadOnly } from '../../../../hooks/useEntryReadOnly';
 import { RelationItemRow } from './RelationItemRow';
 import { RelationPickerDialog } from './RelationPickerDialog';
 
@@ -79,6 +80,7 @@ export function RelationField({
 }) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
+    const readOnly = useEntryReadOnly();
     const [open, setOpen] = useState(false);
     // Records picked this session — the id in `value` is all the form keeps, so
     // we remember each chosen candidate to render its row (title/slug/status).
@@ -193,23 +195,29 @@ export function RelationField({
                     href={hrefFor(detail.id)}
                     openLabel={openLabelFor(detail.title)}
                     onReplace={() => setOpen(true)}
+                    readOnly={readOnly}
                 />
             ) : (
                 <>
                     <p className="text-sm text-muted-foreground">
                         {intl.formatMessage(messages.empty)}
                     </p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-center border-dashed shadow-none"
-                        onClick={() => setOpen(true)}
-                    >
-                        <Plus className="size-4" />
-                        {intl.formatMessage(messages.assign, {
-                            label: targetLabel
-                        })}
-                    </Button>
+                    {/* An empty relation the reader can't fill: the sentence
+                        above is the whole story, so the dashed Select trigger
+                        would be an invitation to an action that isn't theirs. */}
+                    {readOnly ? null : (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-center border-dashed shadow-none"
+                            onClick={() => setOpen(true)}
+                        >
+                            <Plus className="size-4" />
+                            {intl.formatMessage(messages.assign, {
+                                label: targetLabel
+                            })}
+                        </Button>
+                    )}
                 </>
             )}
 
@@ -221,15 +229,19 @@ export function RelationField({
             ) : null}
             {error ? <FieldError>{error}</FieldError> : null}
 
-            <RelationPickerDialog
-                open={open}
-                onOpenChange={setOpen}
-                targetName={targetName}
-                targetLabel={targetLabel}
-                many={false}
-                selectedIds={ids}
-                onConfirm={confirm}
-            />
+            {/* Not mounted at all in preview: nothing can open it, and it would
+                otherwise register the target type's candidate queries. */}
+            {readOnly ? null : (
+                <RelationPickerDialog
+                    open={open}
+                    onOpenChange={setOpen}
+                    targetName={targetName}
+                    targetLabel={targetLabel}
+                    many={false}
+                    selectedIds={ids}
+                    onConfirm={confirm}
+                />
+            )}
         </Field>
     );
 }
