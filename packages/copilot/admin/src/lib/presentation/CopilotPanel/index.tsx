@@ -56,6 +56,13 @@ const messages = defineMessages({
 /** How much of the window the panel takes. */
 type PanelSize = 'docked' | 'expanded' | 'minimized';
 
+/**
+ * Enter/exit duration, in ms. Must match the `duration-200` class below — the
+ * timeout is what unmounts the panel after the exit transition, and unmounting
+ * early would cut the animation off mid-way.
+ */
+const MOTION_MS = 200;
+
 export interface CopilotPanelProps {
     /**
      * The workspace runs are scoped to. `null` outside a workspace, where the
@@ -100,6 +107,13 @@ export function CopilotPanel({
 }: CopilotPanelProps) {
     const intl = useIntl();
     const [size, setSize] = useState<PanelSize>('docked');
+    // `rendered` keeps the panel in the tree long enough to play the exit
+    // transition; `visible` drives the transition itself. Two states rather
+    // than one because the element has to mount in its hidden position *first*,
+    // then flip to visible on a later frame — set both at once and the browser
+    // has nothing to transition from.
+    const [rendered, setRendered] = useState(open);
+    const [visible, setVisible] = useState(false);
 
     // Escape closes. Bound on the panel's own subtree rather than the window,
     // so Escape inside a page dialog behind us doesn't also close the chat.
@@ -111,15 +125,33 @@ export function CopilotPanel({
     };
 
     useEffect(() => {
-        if (!open) {
+        if (open) {
+            setRendered(true);
+            // Two frames: the first commits the mounted-but-hidden element, the
+            // second starts the transition. One frame is enough in most
+            // browsers and flaky in the rest.
+            let inner = 0;
+            const outer = requestAnimationFrame(() => {
+                inner = requestAnimationFrame(() => setVisible(true));
+            });
+            return () => {
+                cancelAnimationFrame(outer);
+                cancelAnimationFrame(inner);
+            };
+        }
+
+        setVisible(false);
+        const timer = setTimeout(() => {
+            setRendered(false);
             // Restore the default size for next time: reopening into a
             // minimized window reads as "the panel is broken".
             setSize('docked');
             returnFocusRef?.current?.focus();
-        }
+        }, MOTION_MS);
+        return () => clearTimeout(timer);
     }, [open, returnFocusRef]);
 
-    if (!open) {
+    if (!rendered) {
         return null;
     }
 
@@ -142,7 +174,23 @@ export function CopilotPanel({
                 'max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)]',
                 minimized && 'w-[380px]',
                 !minimized && !expanded && 'h-[620px] w-[420px]',
-                expanded && 'h-[calc(100vh-2rem)] w-[min(820px,calc(100vw-2rem))]'
+                expanded && 'h-[calc(100vh-2rem)] w-[min(820px,calc(100vw-2rem))]',
+                // A **transition**, not an `animate-in` utility: those come from
+                // tailwindcss-animate, which this workspace deliberately does
+                // not install — the classes shadcn ships generate no CSS here
+                // (see the note atop the design system's styles.css). A
+                // transition is also the safer primitive: with motion disabled
+                // the element simply lands on its visible state, where a
+                // keyframe animation could leave it stuck invisible.
+                // `translate` and `scale`, NOT `transform`: Tailwind v4 emits
+                // those as standalone CSS properties rather than folding them
+                // into the `transform` shorthand, so transitioning `transform`
+                // fades the opacity while the movement snaps.
+                'origin-bottom-right transition-[opacity,translate,scale] duration-200 ease-out',
+                'motion-reduce:transition-none',
+                visible
+                    ? 'translate-y-0 scale-100 opacity-100'
+                    : 'translate-y-2 scale-95 opacity-0'
             )}
         >
             <header className="flex shrink-0 items-center gap-1 border-b px-3 py-2">

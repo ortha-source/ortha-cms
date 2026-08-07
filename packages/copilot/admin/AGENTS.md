@@ -53,6 +53,13 @@ presentation/
   dozens of times per answer and must append to the *current* last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
+- **Two triggers, one panel.** A sidebar-footer row (which carries the `⌘J`
+  hint, so the shortcut is discoverable) and a floating button in the corner the
+  panel opens from. Focus returns to **whichever** trigger was used. The
+  floating button fades out while the panel is open — but stays mounted, so
+  focus has somewhere to return to, and takes `tabIndex={-1}` + `aria-hidden`
+  meanwhile, because an invisible-but-tabbable button is a trap in a non-modal
+  surface where Tab really does reach it.
 - **The panel is a non-modal docked window, not a `Sheet`.** A modal drawer
   dims the page, traps focus and blocks every control behind it — but the useful
   thing to do with an answer is act on it, which would mean closing the
@@ -74,6 +81,26 @@ presentation/
   escaping does not save you from `[click](javascript:…)`. **If a second gap
   like the table one turns up, stop growing this and take `react-markdown`** —
   it is a drop-in replacement for the component.
+
+## Motion
+
+Two traps, both hit while building this:
+
+- **`animate-in` / `fade-in-0` / `zoom-in-95` do nothing in this workspace.**
+  Those are `tailwindcss-animate` utilities and it is deliberately not
+  installed, so the classes shadcn ships generate no CSS at all — see the note
+  atop `packages/design-system/src/styles.css`. The panel and the floating
+  button use plain **transitions** instead, which is also the safer primitive:
+  with motion disabled the element simply lands on its visible state, where a
+  keyframe animation can leave it stuck invisible.
+- **Transition `translate` and `scale`, not `transform`.** Tailwind v4 emits
+  those as standalone CSS properties rather than folding them into the
+  `transform` shorthand, so `transition-[opacity,transform]` fades the opacity
+  while the movement snaps. It looks subtly broken and reads as a timing bug.
+
+The panel keeps a `rendered`/`visible` state pair so the exit transition can
+play before unmounting — and it does still unmount, which is what ends the run.
+Both elements carry `motion-reduce:transition-none`.
 
 ## Model selection
 

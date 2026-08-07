@@ -65,10 +65,10 @@ rather than a re-platform:
 ## 2. The chat
 
 The primary surface is a persistent chat panel: a **docked window in the
-bottom-right corner**, opened from the sidebar footer or `⌘J`, with threads
-scoped to a user × workspace. Three lighter entry points feed the same engine
-and the same transcript, so work started inline can be continued in
-conversation.
+bottom-right corner**, opened from a floating button in that corner, from the
+sidebar footer, or with `⌘J` — with threads scoped to a user × workspace. Three
+lighter entry points feed the same engine and the same transcript, so work
+started inline can be continued in conversation.
 
 **Docked and non-modal, not a drawer.** The useful thing to do with an answer
 about your content is act on it — open the entry it named, check a field, run
@@ -94,7 +94,7 @@ A turn shows:
 
 | Surface         | Where                                     | What it does                                                                                                                                   |
 | --------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat panel      | Workspace shell sidebar footer, `⌘J`      | The full conversation. All enabled tools. A model picker over `GET /api/copilot/models` chooses the backend **per turn**, so a thread can start cheap and escalate. |
+| Chat panel      | Floating corner button, sidebar footer, `⌘J` | The full conversation. All enabled tools. A model picker over `GET /api/copilot/models` chooses the backend **per turn**, so a thread can start cheap and escalate. |
 | ⌘K palette      | `COMMAND_SLOT`                            | Natural language → the *existing* list filters via `query-builder-admin`'s `FilterField`s. The model emits a filter object, not SQL; the user sees the chips it chose. |
 | Entry editor    | `ENTRY_MENU_SLOT`, `ENTRY_SIDEBAR_WIDGET_SLOT` | Tighten copy, write the SEO description, suggest relations, translate. Field-level diffs accepted individually.                             |
 | Records toolbar | `RECORDS_TOOLBAR_SLOT`                    | Export by description — the copilot builds the filter and column set, reports the row count, streams a file.                                     |
