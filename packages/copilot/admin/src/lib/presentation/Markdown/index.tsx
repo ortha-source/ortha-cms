@@ -62,14 +62,19 @@ function renderBlock(block: Block): ReactNode {
                 // The panel is narrow and a content-type table is wide, so the
                 // table scrolls inside its own container rather than making the
                 // whole transcript scroll sideways.
-                <div className="overflow-x-auto">
+                <div className="border-border overflow-x-auto rounded-md border">
                     <table className="w-full border-collapse text-xs">
-                        <thead>
+                        {/* A tinted header and a rule beneath it, matching the
+                            design system's own `Table`. Type is `text-xs` but
+                            full-strength `text-foreground`, not muted: this is
+                            data the user asked for, and small text is exactly
+                            where a dimmed colour stops being readable. */}
+                        <thead className="bg-muted/50">
                             <tr className="border-border border-b">
                                 {block.header.map((cell, index) => (
                                     <th
                                         key={index}
-                                        className="px-2 py-1.5 font-medium"
+                                        className="px-2.5 py-1.5 font-semibold whitespace-nowrap"
                                         style={{
                                             textAlign: block.align[index] ?? 'left'
                                         }}
@@ -83,12 +88,12 @@ function renderBlock(block: Block): ReactNode {
                             {block.rows.map((row, rowIndex) => (
                                 <tr
                                     key={rowIndex}
-                                    className="border-border/50 border-b last:border-0"
+                                    className="border-border/60 border-b last:border-0"
                                 >
                                     {row.map((cell, index) => (
                                         <td
                                             key={index}
-                                            className="px-2 py-1.5 align-top"
+                                            className="px-2.5 py-1.5 align-top"
                                             style={{
                                                 textAlign:
                                                     block.align[index] ?? 'left'

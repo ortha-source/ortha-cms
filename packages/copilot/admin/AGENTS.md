@@ -82,6 +82,24 @@ presentation/
   like the table one turns up, stop growing this and take `react-markdown`** —
   it is a drop-in replacement for the component.
 
+## The panel is portalled to `<body>` — and must stay that way
+
+This component is contributed to the **sidebar's footer slot**, so without a
+portal the fixed-position chrome is a DOM *descendant of the sidebar* and
+inherits its styling. That is not hypothetical: the sidebar sets
+`text-sidebar-foreground` (a near-white, for its dark background), so the panel
+rendered near-white text on its own white surface at **2.86:1** — well under the
+4.5:1 WCAG AA requires, and the first thing anyone using it complained about.
+
+`createPortal(…, document.body)` fixes the whole class of problem (colour, font,
+letter-spacing) rather than the one symptom, and stops `position: fixed` ever
+being trapped by a transform on an ancestor. React context flows through
+portals, so the permission and workspace hooks are unaffected.
+
+The panel additionally states `text-foreground` on its own root: it paints its
+own surface, so it should own the colour that goes on it rather than inheriting
+one. Measured after the fix: **17.67:1**.
+
 ## Motion
 
 Two traps, both hit while building this:

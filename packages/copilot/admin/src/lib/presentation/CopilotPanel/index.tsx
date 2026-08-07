@@ -167,7 +167,11 @@ export function CopilotPanel({
             aria-label={intl.formatMessage(messages.title)}
             onKeyDown={onKeyDown}
             className={cn(
-                'bg-background fixed right-4 bottom-4 z-50 flex flex-col',
+                // `text-foreground` is stated rather than inherited: the panel
+                // paints its own surface, so it must own the colour that goes
+                // on it. Inheriting is what produced near-white text on white
+                // when this rendered inside the dark sidebar's subtree.
+                'bg-background text-foreground fixed right-4 bottom-4 z-50 flex flex-col',
                 'rounded-lg border shadow-lg',
                 // Never taller or wider than the viewport allows, so the panel
                 // stays usable on a laptop screen and on a short window.

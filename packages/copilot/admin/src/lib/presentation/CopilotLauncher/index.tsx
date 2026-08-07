@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Sparkles } from 'lucide-react';
 import { cn, Kbd } from '@ortha-cms/design-system';
@@ -113,6 +114,20 @@ export function CopilotLauncher() {
                 <Kbd className="hidden sm:inline-flex">⌘J</Kbd>
             </button>
 
+            {/* Portalled to `<body>`. This component is contributed to the
+                sidebar's footer slot, so without a portal the fixed-position
+                chrome below stays a DOM *descendant of the sidebar* — and
+                inherits its styling. That is not hypothetical: the sidebar sets
+                `text-sidebar-foreground` (a near-white, for its dark
+                background), so the panel rendered near-white text on its own
+                white surface at a 2.86:1 contrast ratio, well under the 4.5:1
+                WCAG AA needs. A portal fixes the whole class of problem —
+                colour, font, letter-spacing — rather than just the one symptom,
+                and also protects the `position: fixed` from ever being trapped
+                by a transform on an ancestor. React context still flows through
+                portals, so the permission and workspace hooks are unaffected. */}
+            {createPortal(
+                <>
             <button
                 ref={floatingRef}
                 type="button"
@@ -152,6 +167,9 @@ export function CopilotLauncher() {
                 onOpenChange={setOpen}
                 returnFocusRef={returnFocusRef}
             />
+                </>,
+                document.body
+            )}
         </>
     );
 }
