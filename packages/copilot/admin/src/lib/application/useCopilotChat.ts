@@ -111,7 +111,7 @@ export function useCopilotChat(workspaceId: string): CopilotChat {
                             intl.formatMessage({
                                 id: 'copilot.chat.error.generic',
                                 defaultMessage:
-                                    'The copilot could not answer. Please try again.'
+                                    'Ortha AI could not answer. Please try again.'
                             })
                         )
                     });

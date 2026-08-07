@@ -125,7 +125,7 @@ export class CreateRunController {
                 stream.send({
                     type: 'error',
                     message:
-                        'The copilot is turned off for this deployment. An administrator can enable it.'
+                        'Ortha AI is turned off for this deployment. An administrator can enable it.'
                 });
             } else if (
                 error instanceof UnknownModelChoiceError ||
@@ -143,7 +143,7 @@ export class CreateRunController {
                 );
                 stream.send({
                     type: 'error',
-                    message: 'The copilot could not complete this run.'
+                    message: 'Ortha AI could not complete this run.'
                 });
             }
             // Always terminate with `done`, whatever went wrong: the client's

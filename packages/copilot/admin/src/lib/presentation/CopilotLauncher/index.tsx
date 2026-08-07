@@ -6,10 +6,14 @@ import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useWorkspaceIdFromRoute } from '../../application/useWorkspaceIdFromRoute';
 import { CopilotPanel } from '../CopilotPanel';
 
+// The product is called **Ortha AI**; the code, packages, routes, permission
+// keys and tables all keep the `copilot` name. That mismatch is deliberate —
+// see the naming note in `docs/design/copilot.md` — so don't "fix" the message
+// ids to match the label.
 const messages = defineMessages({
     open: {
         id: 'copilot.launcher.open',
-        defaultMessage: 'Copilot'
+        defaultMessage: 'Ortha AI'
     }
 });
 

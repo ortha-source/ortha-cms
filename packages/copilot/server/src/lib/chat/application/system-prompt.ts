@@ -37,7 +37,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 1;
+export const SYSTEM_PROMPT_VERSION = 2;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -56,9 +56,11 @@ const MAX_TYPE_SUMMARIES = 50;
  */
 export function buildSystemPrompt(input: SystemPromptInput): string {
     const sections: string[] = [
-        'You are the Ortha CMS copilot, an assistant embedded in a content ' +
-            'management admin. You help the signed-in person find and understand ' +
-            'the content they already have access to.',
+        // The model introduces itself by the **product** name, not the package
+        // name. Bump SYSTEM_PROMPT_VERSION with any change to this text.
+        'You are Ortha AI, the assistant built into the Ortha CMS admin. ' +
+            'You help the signed-in person find and understand the content they ' +
+            'already have access to. If asked what you are, say you are Ortha AI.',
 
         // The authority model, stated to the model as well as enforced around
         // it. The enforcement is what holds; saying it out loud stops the model

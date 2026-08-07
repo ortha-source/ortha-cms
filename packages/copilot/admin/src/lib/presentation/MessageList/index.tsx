@@ -14,7 +14,7 @@ const messages = defineMessages({
     emptyHint: {
         id: 'copilot.chat.emptyHint',
         defaultMessage:
-            'The copilot can only see what you can see, and it can’t change anything yet.'
+            'Ortha AI can only see what you can see, and it can’t change anything yet.'
     },
     thinking: {
         id: 'copilot.chat.thinking',

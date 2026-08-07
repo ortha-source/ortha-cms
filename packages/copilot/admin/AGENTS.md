@@ -2,6 +2,13 @@
 
 The admin-side copilot plugin — the chat panel.
 
+> **The product is called Ortha AI; this package is called `copilot`.** Every
+> `defaultMessage` a user reads says "Ortha AI"; the message **ids**, component
+> names, routes and permission keys all keep `copilot`. Deliberate — see the
+> naming note at the top of
+> [`docs/design/copilot.md`](../../../docs/design/copilot.md). When you add a
+> string, follow the same split.
+
 **Phase 1 contributes one thing: an entry point.** `CopilotPlugin()` fills the
 shell's `SIDEBAR_FOOTER_SLOT` with a launcher that opens the panel (or `⌘J`) and
 contributes **no routes** — the panel is a sheet over whatever page you are on,

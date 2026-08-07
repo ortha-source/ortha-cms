@@ -16,15 +16,17 @@ import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
 import type { CopilotModelChoice } from '../../application/useCopilotModels';
 
+// Product name is **Ortha AI**; the code keeps `copilot`. See the naming note
+// in `docs/design/copilot.md`.
 const messages = defineMessages({
     title: {
         id: 'copilot.panel.title',
-        defaultMessage: 'Copilot'
+        defaultMessage: 'Ortha AI'
     },
     description: {
         id: 'copilot.panel.description',
         defaultMessage:
-            'Ask about the content in this workspace. The copilot acts with your permissions.'
+            'Ask about the content in this workspace. Ortha AI acts with your permissions.'
     },
     newChat: {
         id: 'copilot.panel.newChat',

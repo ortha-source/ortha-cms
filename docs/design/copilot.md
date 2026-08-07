@@ -4,6 +4,24 @@ The AI partner inside the admin: a chat that can find, export, create and edit
 content, running on whatever model the operator points it at, able to do exactly
 what the signed-in person is allowed to do.
 
+> ## Naming: the product is **Ortha AI**, the code is `copilot`
+>
+> Every string a user reads says **Ortha AI** — the panel title, the sidebar
+> launcher, the empty state, the error frames, and how the model introduces
+> itself. Everything a user does not read keeps the `copilot` name: the packages
+> (`@ortha-cms/copilot-*`), the routes (`/api/copilot/runs`), the permission
+> keys (`copilot:use`, `copilot:configure`), the tables
+> (`copilot_conversations`, …), the i18n message ids (`copilot.panel.title`),
+> and this document.
+>
+> **This mismatch is deliberate — please don't "fix" it.** Renaming the code
+> would mean a breaking API change, a table-rename migration, and a
+> permission-key migration that is genuinely awkward: `seedSystemRoles` is
+> idempotent with `ON CONFLICT DO NOTHING`, so the old keys would linger and
+> every role grant would need re-pointing. None of that buys a user anything.
+> If the product name ever needs to reach the code, it deserves its own change
+> with its own migration, not a rename bundled into a feature.
+
 This document is the working reference for building it. Two decisions are
 settled in ADRs and are not re-argued here:
 

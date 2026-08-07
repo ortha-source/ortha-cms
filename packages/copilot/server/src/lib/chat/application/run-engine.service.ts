@@ -172,7 +172,7 @@ export class RunEngine {
             );
         if (!this.registry.has(providerName)) {
             throw new UnknownModelChoiceError(
-                `Unknown copilot provider "${providerName}".`
+                `Unknown model provider "${providerName}".`
             );
         }
         const provider = this.registry.get(providerName);
