@@ -64,10 +64,19 @@ rather than a re-platform:
 
 ## 2. The chat
 
-The primary surface is a persistent chat panel: a right-hand sheet in the
-workspace shell, opened from the sidebar footer or `⌘J`, with threads scoped to
-a user × workspace. Three lighter entry points feed the same engine and the same
-transcript, so work started inline can be continued in conversation.
+The primary surface is a persistent chat panel: a **docked window in the
+bottom-right corner**, opened from the sidebar footer or `⌘J`, with threads
+scoped to a user × workspace. Three lighter entry points feed the same engine
+and the same transcript, so work started inline can be continued in
+conversation.
+
+**Docked and non-modal, not a drawer.** The useful thing to do with an answer
+about your content is act on it — open the entry it named, check a field, run
+the filter it suggested. A modal drawer dims the page, traps focus and blocks
+every control behind it, so acting on an answer means closing the conversation
+first. The docked window sits alongside the page instead: scroll the records
+table, click into an entry, keep the thread open beside it. It minimizes to its
+title bar (the run keeps streaming) and expands for long answers.
 
 A turn shows:
 

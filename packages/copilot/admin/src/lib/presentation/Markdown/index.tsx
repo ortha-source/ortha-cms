@@ -1,15 +1,23 @@
 import { Fragment, type ReactNode } from 'react';
+import { parseBlocks, type Block } from './parseBlocks';
 
 /**
  * A deliberately small Markdown renderer for assistant answers.
  *
  * **Scope, stated honestly.** It handles what a CMS assistant actually emits —
  * paragraphs, ATX headings, fenced code blocks, unordered and ordered lists,
- * and the inline run of `**bold**`, `*italic*`, `` `code` `` and `[links](url)`.
- * It is not a CommonMark implementation and does not try to be: no tables, no
- * block quotes, no nested lists, no reference links. Unmatched syntax renders
- * as the literal characters the model wrote, which is the right failure — a
- * user sees slightly noisy text rather than a silently swallowed sentence.
+ * **pipe tables**, and the inline run of `**bold**`, `*italic*`, `` `code` ``
+ * and `[links](url)`. It is not a CommonMark implementation and does not try to
+ * be: no block quotes, no nested lists, no reference links. Unmatched syntax
+ * renders as the literal characters the model wrote, which is the right
+ * failure — a user sees slightly noisy text rather than a silently swallowed
+ * sentence.
+ *
+ * Tables were the first gap real use hit, and hard: asked to list content
+ * types, the model emits a pipe table, and without table support every row fell
+ * through to the paragraph branch — which joins lines with a space, collapsing
+ * the whole table into one unreadable run-on line. If a second gap like that
+ * turns up, that is the signal to stop growing this and take `react-markdown`.
  *
  * **It builds React elements and never touches `dangerouslySetInnerHTML`.**
  * That is the load-bearing property: an answer is derived from content the
@@ -34,90 +42,6 @@ export function Markdown({ text }: { text: string }) {
     );
 }
 
-/** One top-level block of the answer. */
-type Block =
-    | { kind: 'paragraph'; text: string }
-    | { kind: 'heading'; level: number; text: string }
-    | { kind: 'code'; language: string; code: string }
-    | { kind: 'list'; ordered: boolean; items: string[] };
-
-/** Splits the answer into blocks, line by line. */
-function parseBlocks(text: string): Block[] {
-    const lines = text.split('\n');
-    const blocks: Block[] = [];
-    let paragraph: string[] = [];
-
-    const flushParagraph = () => {
-        if (paragraph.length > 0) {
-            blocks.push({ kind: 'paragraph', text: paragraph.join(' ') });
-            paragraph = [];
-        }
-    };
-
-    for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index];
-
-        // A fence runs to the closing fence, or — while an answer is still
-        // streaming — to the end of what has arrived so far. Rendering the
-        // partial block is what stops a code answer flickering in as prose and
-        // then rearranging itself once the closing fence lands.
-        const fence = /^```(\w*)\s*$/.exec(line);
-        if (fence) {
-            flushParagraph();
-            const code: string[] = [];
-            index += 1;
-            while (index < lines.length && !/^```/.test(lines[index])) {
-                code.push(lines[index]);
-                index += 1;
-            }
-            blocks.push({
-                kind: 'code',
-                language: fence[1],
-                code: code.join('\n')
-            });
-            continue;
-        }
-
-        const heading = /^(#{1,4})\s+(.*)$/.exec(line);
-        if (heading) {
-            flushParagraph();
-            blocks.push({
-                kind: 'heading',
-                level: heading[1].length,
-                text: heading[2]
-            });
-            continue;
-        }
-
-        const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
-        const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line);
-        if (bullet || numbered) {
-            flushParagraph();
-            const ordered = !bullet;
-            const items: string[] = [(bullet ?? numbered)![1]];
-            while (index + 1 < lines.length) {
-                const next = lines[index + 1];
-                const nextItem = ordered
-                    ? /^\s*\d+[.)]\s+(.*)$/.exec(next)
-                    : /^\s*[-*]\s+(.*)$/.exec(next);
-                if (!nextItem) break;
-                items.push(nextItem[1]);
-                index += 1;
-            }
-            blocks.push({ kind: 'list', ordered, items });
-            continue;
-        }
-
-        if (line.trim() === '') {
-            flushParagraph();
-            continue;
-        }
-        paragraph.push(line);
-    }
-
-    flushParagraph();
-    return blocks;
-}
 
 function renderBlock(block: Block): ReactNode {
     switch (block.kind) {
@@ -132,6 +56,52 @@ function renderBlock(block: Block): ReactNode {
                 <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">
                     <code>{block.code}</code>
                 </pre>
+            );
+        case 'table':
+            return (
+                // The panel is narrow and a content-type table is wide, so the
+                // table scrolls inside its own container rather than making the
+                // whole transcript scroll sideways.
+                <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-xs">
+                        <thead>
+                            <tr className="border-border border-b">
+                                {block.header.map((cell, index) => (
+                                    <th
+                                        key={index}
+                                        className="px-2 py-1.5 font-medium"
+                                        style={{
+                                            textAlign: block.align[index] ?? 'left'
+                                        }}
+                                    >
+                                        {renderInline(cell)}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {block.rows.map((row, rowIndex) => (
+                                <tr
+                                    key={rowIndex}
+                                    className="border-border/50 border-b last:border-0"
+                                >
+                                    {row.map((cell, index) => (
+                                        <td
+                                            key={index}
+                                            className="px-2 py-1.5 align-top"
+                                            style={{
+                                                textAlign:
+                                                    block.align[index] ?? 'left'
+                                            }}
+                                        >
+                                            {renderInline(cell)}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             );
         case 'list': {
             const Tag = block.ordered ? 'ol' : 'ul';

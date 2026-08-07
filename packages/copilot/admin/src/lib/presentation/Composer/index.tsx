@@ -29,6 +29,13 @@ export interface ComposerProps {
     onSend(text: string): void;
     /** Cancels the run in flight. */
     onStop(): void;
+    /**
+     * The textarea, so the panel can focus it on open. A ref rather than
+     * `autoFocus`: the panel is **non-modal**, and `autoFocus` would also steal
+     * focus on any remount (a resize, a workspace switch) while someone is
+     * typing somewhere else on the page.
+     */
+    inputRef?: React.Ref<HTMLTextAreaElement>;
 }
 
 /**
@@ -39,7 +46,7 @@ export interface ComposerProps {
  * Enter commits a candidate rather than meaning "send", and without the guard
  * anyone typing Japanese, Chinese or Korean would send a half-finished word.
  */
-export function Composer({ busy, onSend, onStop }: ComposerProps) {
+export function Composer({ busy, onSend, onStop, inputRef }: ComposerProps) {
     const intl = useIntl();
     const [value, setValue] = useState('');
 
@@ -67,6 +74,7 @@ export function Composer({ busy, onSend, onStop }: ComposerProps) {
         <div className="border-border/60 border-t p-3">
             <div className="relative">
                 <Textarea
+                    ref={inputRef}
                     value={value}
                     onChange={(event) => setValue(event.target.value)}
                     onKeyDown={onKeyDown}

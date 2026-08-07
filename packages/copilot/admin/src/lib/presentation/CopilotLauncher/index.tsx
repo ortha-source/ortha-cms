@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Sparkles } from 'lucide-react';
 import { Kbd } from '@ortha-cms/design-system';
@@ -37,6 +37,8 @@ const COPILOT_USE = 'copilot:use';
 export function CopilotLauncher() {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    // The panel is non-modal, so nothing restores focus for us on close.
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const canUse = useHasPermission(COPILOT_USE);
     const workspaceId = useWorkspaceIdFromRoute();
     const available = canUse && !!workspaceId;
@@ -69,6 +71,7 @@ export function CopilotLauncher() {
     return (
         <>
             <button
+                ref={triggerRef}
                 type="button"
                 onClick={() => setOpen(true)}
                 aria-haspopup="dialog"
@@ -86,6 +89,7 @@ export function CopilotLauncher() {
                 workspaceId={workspaceId}
                 open={open}
                 onOpenChange={setOpen}
+                returnFocusRef={triggerRef}
             />
         </>
     );

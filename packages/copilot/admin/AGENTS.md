@@ -53,14 +53,27 @@ presentation/
   dozens of times per answer and must append to the *current* last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
+- **The panel is a non-modal docked window, not a `Sheet`.** A modal drawer
+  dims the page, traps focus and blocks every control behind it — but the useful
+  thing to do with an answer is act on it, which would mean closing the
+  conversation first. Consequences, all deliberate: no focus trap (Tab leaves
+  the panel, because the page is live), no overlay, focus still *managed*
+  (composer on open, `returnFocusRef` on close), Escape closes. Minimizing hides
+  the body but keeps it **mounted**, so a run in flight keeps streaming rather
+  than being silently cancelled.
 - **Markdown is rendered by a small local component**, not a dependency. It
-  covers what an assistant actually emits and renders unmatched syntax as
-  literal text. The load-bearing property is that it builds **React elements and
-  never touches `dangerouslySetInnerHTML`**, so escaping is automatic — an
-  answer is derived from content the model read, which is user-authored and
+  covers what an assistant actually emits — including **pipe tables**, which was
+  the first gap real use hit and hit hard: without them a content-type table
+  fell through to the paragraph branch, which joins lines with a space and
+  collapsed the whole thing into one run-on line. The parser is split into
+  `parseBlocks.ts` so those cases are unit-tested without rendering. The
+  load-bearing property is that it builds **React elements and never touches
+  `dangerouslySetInnerHTML`**, so escaping is automatic — an answer is derived
+  from content the model read, which is user-authored and
   attacker-influenceable. Link hrefs are additionally scheme-allow-listed, since
-  escaping does not save you from `[click](javascript:…)`. Swapping in
-  `react-markdown` later is a drop-in replacement.
+  escaping does not save you from `[click](javascript:…)`. **If a second gap
+  like the table one turns up, stop growing this and take `react-markdown`** —
+  it is a drop-in replacement for the component.
 
 ## Model selection
 
