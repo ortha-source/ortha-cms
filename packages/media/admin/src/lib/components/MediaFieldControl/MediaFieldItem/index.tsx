@@ -69,12 +69,17 @@ function kindOf(kind: string): MediaKind {
  * tile instead of a broken preview, so a dead id can still be found and removed,
  * and a `resolving` one (its ref still in flight) renders a placeholder rather
  * than guessing a URL — a guess would fetch the full-size original.
+ *
+ * In a **read-only** editor the tile keeps its preview, its name, its metadata
+ * and its open-in-a-new-tab link, and drops remove + reorder. The position badge
+ * stays: order is part of what the field *holds*, not a control.
  */
 export function MediaFieldItem({
     item,
     index,
     total,
     multiple,
+    readOnly = false,
     onRemove,
     onMove
 }: {
@@ -84,6 +89,8 @@ export function MediaFieldItem({
     total: number;
     /** Ordered-multiple field: renders the position badge + reorder arrows. */
     multiple: boolean;
+    /** Preview mode — drop the remove and reorder controls. */
+    readOnly?: boolean;
     onRemove: () => void;
     onMove: (delta: number) => void;
 }) {
@@ -188,21 +195,23 @@ export function MediaFieldItem({
                             </a>
                         </Button>
                     )}
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        aria-label={intl.formatMessage(messages.remove, {
-                            name: item.name
-                        })}
-                        onClick={onRemove}
-                    >
-                        <Trash2 className="size-3.5" aria-hidden />
-                    </Button>
+                    {readOnly ? null : (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={intl.formatMessage(messages.remove, {
+                                name: item.name
+                            })}
+                            onClick={onRemove}
+                        >
+                            <Trash2 className="size-3.5" aria-hidden />
+                        </Button>
+                    )}
                 </div>
 
-                {multiple && total > 1 ? (
+                {multiple && total > 1 && !readOnly ? (
                     <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 rounded-md bg-background/85 p-0.5 shadow-sm backdrop-blur transition-opacity focus-within:opacity-100 group-hover/item:opacity-100 sm:opacity-0">
                         <Button
                             type="button"

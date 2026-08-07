@@ -25,7 +25,7 @@ const messages = defineMessages({
  */
 export function EntryMediaTab(ctx: EntryTabContext) {
     const intl = useIntl();
-    const { schema, form, mediaRefs, mediaRefsPending } = ctx;
+    const { schema, form, mediaRefs, mediaRefsPending, readOnly } = ctx;
     // The plugin's own presave handle — the staging for files chosen here, held
     // above this panel (which unmounts on every tab switch) and uploaded by the
     // save. A tab reads only its own key from `presave`.
@@ -40,9 +40,14 @@ export function EntryMediaTab(ctx: EntryTabContext) {
 
     return (
         <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-                {intl.formatMessage(messages.subtitle)}
-            </p>
+            {/* The subtitle is an instruction for attaching and uploading, so
+                it has nothing to tell a reader who can do neither. The editor's
+                own read-only banner has already said why. */}
+            {readOnly ? null : (
+                <p className="text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.subtitle)}
+                </p>
+            )}
             {fields.map((field) => (
                 <MediaFieldSection
                     key={field.name}
@@ -53,6 +58,7 @@ export function EntryMediaTab(ctx: EntryTabContext) {
                     initialRefs={mediaRefs[field.name]}
                     refsPending={mediaRefsPending}
                     uploads={uploads}
+                    readOnly={readOnly}
                     onChange={(value) => form.setValue(field.name, value)}
                     onBlur={() => form.touch(field.name)}
                 />

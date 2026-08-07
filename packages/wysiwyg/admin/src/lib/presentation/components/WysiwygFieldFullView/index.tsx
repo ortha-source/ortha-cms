@@ -40,6 +40,7 @@ export function WysiwygFieldFullView({
     label,
     value,
     error,
+    readOnly,
     onChange,
     onBlur,
     setExpanded
@@ -114,6 +115,7 @@ export function WysiwygFieldFullView({
                         typeof placeholder === 'string' ? placeholder : ''
                     }
                     required={field.required}
+                    readOnly={readOnly}
                     onChange={onChange}
                     onDone={collapse}
                 />

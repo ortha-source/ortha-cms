@@ -359,6 +359,48 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
   (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
   extracted by `infrastructure/entryIssues`.
+- **The editor is read-only without the write permission — the _form_, not just
+  its buttons.** `EntryEditor` resolves `content:create` (a create form) or
+  `content:update` (an existing record) and publishes the answer through
+  **`presentation/hooks/useEntryReadOnly`**, a context taking the same path as
+  `useExpandedField` (`EntryEditor` → `EntryFieldSections` → `FieldGroup` →
+  `EntryFieldInput`, and the relation stack), plus a `readOnly` flag on
+  **`EntryFieldControlContext`** and **`EntryTabContext`** so contributed
+  controls and tabs honour it too. Gating the actions alone was not enough: a
+  reader could retitle a page, recolor it, and stage an image upload, and only
+  learn at Save that none of it was theirs — the server refused the write all
+  along, but the UI didn't say so.
+    - **Text and textarea controls take `readOnly`, everything else `disabled`.**
+      A read-only input keeps its value legible, focusable, and selectable, so a
+      reader can still copy out of the record; a select, a multi-select, the
+      boolean segments and the date picker have no such state — their value is
+      only reachable through a popover — so `disabled` is the only thing that
+      closes them off.
+    - **Write affordances are removed, not disabled.** Relation assign/remove/
+      reorder + the drag handle, the picker dialogs, the media Select/Upload row
+      and its drop zone, the WYSIWYG toolbar: there is no state in which they
+      light up for this reader, and a row of dead buttons reads as a broken
+      editor rather than a preview. The open-in-a-new-tab links stay — following
+      a link to a record you can read is not a write. Picker/upload dialogs are
+      left **unmounted**, which also stops them registering their candidate and
+      library queries.
+    - `runSave`/`save` return early and `useUnsavedChanges` is not armed. The
+      early return is not belt-and-braces: the editor's `<form>` submits on Enter
+      in a text field, which is the one save path that never goes through a
+      button.
+    - A **`ReadOnlyNotice`** banner sits under the record title. It is
+      deliberately *not* the design-system `Alert`, whose `role="alert"` is a
+      live region — this is page furniture present from first paint, not an
+      event.
+    - The rich-text field is the one place expansion survives: its collapsed
+      preview is height-clamped, so removing the way in would leave a reader
+      unable to read the field the page is mostly about. The control is renamed
+      **View**, and `WysiwygEditorPanel` takes `readOnly` (`editable: false`, no
+      toolbar, no autofocus, `role="region"` instead of `textbox`).
+    - Pinned by `apps/admin-e2e/src/content/entry-read-only.spec.ts`, which also
+      carries the **control case** — the same editor fully live for a role that
+      holds `content:update`. Every other assertion there is about something
+      being absent, and a bug that dropped the whole form would pass them all.
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@ortha-cms/design-system`).

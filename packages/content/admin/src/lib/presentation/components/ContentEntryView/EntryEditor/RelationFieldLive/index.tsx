@@ -28,13 +28,20 @@ import type {
 import { useContentSchema } from '../../../../../application/useContentSchema';
 import { useRelationFieldLinks } from '../../../../../application/useRelationFieldLinks';
 import type { RelationCandidate } from '../../../../../application/useRelationCandidates';
-import { applyStaged, reconcileStaged } from '../../../../../domain/stagedRelation';
+import {
+    applyStaged,
+    reconcileStaged
+} from '../../../../../domain/stagedRelation';
 import { contentEntryPath } from '../../../../../domain/contentEntryPath';
-import { handleFor, slugFromValues } from '../../../../../domain/relationHandle';
+import {
+    handleFor,
+    slugFromValues
+} from '../../../../../domain/relationHandle';
 import { RelationItemRow } from '../RelationField/RelationItemRow';
 import { RelationIndex } from '../RelationField/RelationIndex';
 import { SortableRelationItem } from '../RelationField/SortableRelationItem';
 import { RelationPickerDialog } from '../RelationField/RelationPickerDialog';
+import { useEntryReadOnly } from '../../../../hooks/useEntryReadOnly';
 
 const messages = defineMessages({
     assign: {
@@ -123,6 +130,7 @@ export function RelationFieldLive({
 }) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
+    const readOnly = useEntryReadOnly();
     const [open, setOpen] = useState(false);
     const [preparing, setPreparing] = useState(false);
     const sensors = useSensors(
@@ -134,14 +142,21 @@ export function RelationFieldLive({
 
     const many = field.relation?.many ?? false;
     const targetName = field.relation?.to ?? '';
-    // Owning many-relations own their order; an inverse reads it but can't set it.
-    const reorderable = many && !field.relation?.inverse;
+    // Owning many-relations own their order; an inverse reads it but can't set
+    // it — and neither can a reader in preview, so the whole dnd context is left
+    // unmounted rather than mounted with every drag rejected.
+    const reorderable = many && !field.relation?.inverse && !readOnly;
 
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
     const targetFields = targetSchema?.fields ?? [];
 
-    const links = useRelationFieldLinks(typeName, entryId, field.name, !!entryId);
+    const links = useRelationFieldLinks(
+        typeName,
+        entryId,
+        field.name,
+        !!entryId
+    );
     const serverItems = entryId ? links.items : [];
 
     const displayed = applyStaged(serverItems, staged);
@@ -157,9 +172,7 @@ export function RelationFieldLive({
     // Deep link to the related record's own editor (open-in-new-tab), when the
     // target type is known.
     const hrefFor = (id: string) =>
-        targetName
-            ? contentEntryPath(workspace.id, targetName, id)
-            : undefined;
+        targetName ? contentEntryPath(workspace.id, targetName, id) : undefined;
 
     // Title lookup for the drag announcements, keyed off the displayed set.
     const titleById = new Map(displayed.map((item) => [item.id, item.title]));
@@ -215,7 +228,11 @@ export function RelationFieldLive({
         );
     };
 
-    const removeId = (id: string) => confirm(ids.filter((x) => x !== id), []);
+    const removeId = (id: string) =>
+        confirm(
+            ids.filter((x) => x !== id),
+            []
+        );
 
     // Move a row one place up/down — same staged `order` path as a drag, so the
     // arrows and drag stay a single source of order (owning many-relations only).
@@ -250,7 +267,9 @@ export function RelationFieldLive({
                 let loaded = links.items.length;
                 let more = true;
                 while (more) {
-                    const result = await links.fetchNextPage().catch(() => null);
+                    const result = await links
+                        .fetchNextPage()
+                        .catch(() => null);
                     // A failed fetch — open with whatever loaded; the load-error
                     // state still surfaces below.
                     if (!result) break;
@@ -337,7 +356,10 @@ export function RelationFieldLive({
                                         key={item.id}
                                         id={item.id}
                                         title={item.title}
-                                        handle={handleFor(item.title, item.slug)}
+                                        handle={handleFor(
+                                            item.title,
+                                            item.slug
+                                        )}
                                         status={item.status}
                                         leading={<RelationIndex position={i} />}
                                         onRemove={() => removeId(item.id)}
@@ -370,6 +392,7 @@ export function RelationFieldLive({
                                 removeLabel={removeLabelFor(item.title)}
                                 href={hrefFor(item.id)}
                                 openLabel={openLabelFor(item.title)}
+                                readOnly={readOnly}
                             />
                         ))
                     )}
@@ -382,30 +405,40 @@ export function RelationFieldLive({
                 </div>
             )}
 
-            <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-center border-dashed shadow-none"
-                onClick={openPicker}
-                disabled={preparing}
-            >
-                {preparing ? (
-                    <Spinner className="size-4" aria-hidden />
-                ) : (
-                    <Plus className="size-4" />
-                )}
-                {intl.formatMessage(triggerLabel, { label: targetLabel })}
-            </Button>
+            {/* The Add trigger and the picker behind it are dropped whole in
+                preview: the trigger has no enabled state for this reader, and
+                mounting the dialog would register the target type's candidate
+                queries for a pick that can never happen. */}
+            {readOnly ? null : (
+                <>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-center border-dashed shadow-none"
+                        onClick={openPicker}
+                        disabled={preparing}
+                    >
+                        {preparing ? (
+                            <Spinner className="size-4" aria-hidden />
+                        ) : (
+                            <Plus className="size-4" />
+                        )}
+                        {intl.formatMessage(triggerLabel, {
+                            label: targetLabel
+                        })}
+                    </Button>
 
-            <RelationPickerDialog
-                open={open}
-                onOpenChange={setOpen}
-                targetName={targetName}
-                targetLabel={targetLabel}
-                many={many}
-                selectedIds={ids}
-                onConfirm={confirm}
-            />
+                    <RelationPickerDialog
+                        open={open}
+                        onOpenChange={setOpen}
+                        targetName={targetName}
+                        targetLabel={targetLabel}
+                        many={many}
+                        selectedIds={ids}
+                        onConfirm={confirm}
+                    />
+                </>
+            )}
         </div>
     );
 }

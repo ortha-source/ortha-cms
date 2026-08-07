@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Pencil } from 'lucide-react';
+import { Eye, Pencil } from 'lucide-react';
 import { cn } from '@ortha-cms/design-system';
 import type { EntryFieldControlContext } from '@ortha-cms/content-admin';
 import { isEmptyRichText } from '../../../domain/richTextValue';
@@ -14,9 +14,21 @@ const messages = defineMessages({
         id: 'wysiwyg.field.editChip',
         defaultMessage: 'Edit'
     },
+    view: {
+        id: 'wysiwyg.field.view',
+        defaultMessage: 'View {label}'
+    },
+    viewChip: {
+        id: 'wysiwyg.field.viewChip',
+        defaultMessage: 'View'
+    },
     empty: {
         id: 'wysiwyg.field.empty',
         defaultMessage: 'Nothing written yet — press Edit to start.'
+    },
+    emptyReadOnly: {
+        id: 'wysiwyg.field.emptyReadOnly',
+        defaultMessage: 'Nothing written yet.'
     }
 });
 
@@ -57,6 +69,15 @@ const PREVIEW_CLAMP = 'max-h-72';
  * anywhere on the card still opens the editor. That only holds because
  * `renderRichText` leaves no focusable elements in the preview — otherwise the
  * links underneath would be tab stops hidden beneath a button.
+ *
+ * ### Read-only
+ *
+ * The expansion is kept, and only renamed — "View" rather than "Edit". A body
+ * is the one field the collapsed row genuinely cannot show in full (the preview
+ * is height-clamped, with a fade where it's cut), so removing the way in would
+ * leave a reader with permission to read the record unable to read the part of
+ * it that matters most. What it expands into is the same view with its toolbar
+ * gone and its document inert (`WysiwygEditorPanel`'s `readOnly`).
  */
 export function WysiwygFieldControl({
     field,
@@ -65,6 +86,7 @@ export function WysiwygFieldControl({
     value,
     error,
     describedBy,
+    readOnly,
     setExpanded
 }: EntryFieldControlContext) {
     const intl = useIntl();
@@ -85,9 +107,16 @@ export function WysiwygFieldControl({
         >
             {empty ? (
                 <p className="px-4 py-3 text-sm text-muted-foreground">
-                    {typeof placeholder === 'string' && placeholder !== ''
-                        ? placeholder
-                        : intl.formatMessage(messages.empty)}
+                    {/* The placeholder is written *at an author* ("Tell the
+                        story…"), so a reader who can't write gets the plain
+                        statement of fact instead — and never the default's
+                        "press Edit to start", which names an action they
+                        don't have. */}
+                    {readOnly
+                        ? intl.formatMessage(messages.emptyReadOnly)
+                        : typeof placeholder === 'string' && placeholder !== ''
+                          ? placeholder
+                          : intl.formatMessage(messages.empty)}
                 </p>
             ) : (
                 <div
@@ -128,7 +157,10 @@ export function WysiwygFieldControl({
                 id={id}
                 type="button"
                 className="absolute inset-0 rounded-lg focus-visible:outline-none"
-                aria-label={intl.formatMessage(messages.edit, { label })}
+                aria-label={intl.formatMessage(
+                    readOnly ? messages.view : messages.edit,
+                    { label }
+                )}
                 aria-describedby={describedBy}
                 onClick={() => setExpanded(true)}
             />
@@ -137,8 +169,14 @@ export function WysiwygFieldControl({
                 aria-hidden
                 className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground"
             >
-                <Pencil className="size-3" />
-                {intl.formatMessage(messages.editChip)}
+                {readOnly ? (
+                    <Eye className="size-3" />
+                ) : (
+                    <Pencil className="size-3" />
+                )}
+                {intl.formatMessage(
+                    readOnly ? messages.viewChip : messages.editChip
+                )}
             </span>
         </div>
     );

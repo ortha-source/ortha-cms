@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_296 test cases across 32 spec files._
+_305 test cases across 33 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -229,6 +229,30 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | a numeric field accepts a number and sends it as one |
 | clearing a numeric field sends nothing rather than NaN |
 | a blocked publish explains itself instead of doing nothing |
+
+<!-- source: apps/admin-e2e/src/content/entry-read-only.spec.ts -->
+_<sub>apps/admin-e2e/src/content/entry-read-only.spec.ts</sub>_
+
+## Entry editor — read-only
+
+### as a reader (no content:update)
+
+| Test case |
+| --- |
+| explains itself and offers no save action |
+| renders every text field read-only, colour field included |
+| refuses typing into the colour field |
+| disables the controls that have no read-only state |
+| offers the rich-text body to view, not to edit |
+| shows the media field without any way to attach or upload |
+| never saves, even on a form submit from a field |
+| has no accessibility violations |
+
+### as an editor (with content:update)
+
+| Test case |
+| --- |
+| keeps the fields and the actions live |
 
 <!-- source: apps/admin-e2e/src/content/entry-revisions.spec.ts -->
 _<sub>apps/admin-e2e/src/content/entry-revisions.spec.ts</sub>_
