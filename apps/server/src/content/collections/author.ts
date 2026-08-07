@@ -37,7 +37,10 @@ export const author = collection('author', {
         handle: field.text({
             required: true,
             pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
-            admin: { widget: 'slug', description: 'URL handle, e.g. ada-lovelace' }
+            admin: {
+                widget: 'slug',
+                description: 'URL handle, e.g. ada-lovelace'
+            }
         }),
         // Long-form, block-based rich text.
         bio: field.richtext({

@@ -31,7 +31,8 @@ import { tag } from './tag';
 
 export const master_collection = collection('master_collection', {
     label: 'Master collection',
-    description: 'Every field type, flag, and relation cardinality in one type.',
+    description:
+        'Every field type, flag, and relation cardinality in one type.',
     publishable: true,
     paranoid: true,
     i18n: true,

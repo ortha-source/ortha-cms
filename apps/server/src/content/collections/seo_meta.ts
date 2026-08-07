@@ -9,7 +9,8 @@ import { collection, field } from '@ortha-cms/content-server/define';
 
 export const seo_meta = collection('seo_meta', {
     label: 'SEO metadata',
-    description: 'Per-entry search/social metadata (one-to-one with an article).',
+    description:
+        'Per-entry search/social metadata (one-to-one with an article).',
     fields: {
         metaTitle: field.text({
             required: true,

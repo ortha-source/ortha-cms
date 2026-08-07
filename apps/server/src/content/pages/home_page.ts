@@ -18,7 +18,11 @@ export const home_page = single('home_page', {
     i18n: true,
     publishable: true,
     fields: {
-        heroTitle: field.text({ required: true, localized: true, maxLength: 120 }),
+        heroTitle: field.text({
+            required: true,
+            localized: true,
+            maxLength: 120
+        }),
         heroSubtitle: field.text({
             localized: true,
             admin: { widget: 'textarea' }

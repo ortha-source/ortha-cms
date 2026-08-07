@@ -8,9 +8,36 @@
  */
 
 import type { ApiDocsOptions } from '@ortha-cms/bootstrap-server';
+import type { CopilotPluginConfig } from '@ortha-cms/copilot-server';
+import type { AnthropicProviderConfig } from '@ortha-cms/copilot-provider-anthropic';
+import type { OpenAiProviderConfig } from '@ortha-cms/copilot-provider-openai';
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
 import type { MediaPluginConfig } from '@ortha-cms/media-server';
+
+/**
+ * Copilot settings, plus the connection settings for the model backends this
+ * deployment can reach.
+ *
+ * The provider settings live **here**, not in `CopilotPluginConfig`: the
+ * plugin is adapter-agnostic by decision (ADR-0004 §2), so it names no
+ * provider kind. This file already imports the adapter factories in
+ * `plugins.ts`, so importing their config types costs no new coupling — and
+ * adding a fourth backend is a key here plus a line there, with nothing to
+ * change inside the copilot packages.
+ *
+ * Each key is the name runs refer to the provider by. Register two of the same
+ * kind freely (`ollamaFast`, `ollamaBig`); each declares its own model list.
+ */
+export interface OrthaCopilotConfig extends CopilotPluginConfig {
+    /** Model backends, keyed by the name they are registered under. */
+    providers: {
+        /** Native Claude. */
+        claude: AnthropicProviderConfig;
+        /** An OpenAI-wire-format endpoint — Ollama by default. */
+        ollama: OpenAiProviderConfig;
+    };
+}
 
 /** Database connection settings. */
 export interface OrthaDatabaseConfig {
@@ -36,6 +63,8 @@ export interface OrthaConfig {
         i18n: I18nPluginConfig;
         /** Media plugin settings — storage providers + upload limits. */
         media: MediaPluginConfig;
+        /** Copilot plugin settings — kill switch + model providers. */
+        copilot: OrthaCopilotConfig;
     };
 }
 
@@ -132,6 +161,48 @@ const config: OrthaConfig = {
             // Upload cap — 50 MB by default.
             maxUploadBytes:
                 Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800
+        },
+        copilot: {
+            // Off by default (ADR-0005 §10). Enabling a hosted provider sends
+            // workspace content to a third party, so an operator opts in.
+            enabled: process.env['COPILOT_ENABLED'] === 'true',
+            // Which registered provider serves a run when `plugins.ts` supplies
+            // no custom `resolve` handler. `fake` needs no key and no network,
+            // so a fresh clone and CI both boot without configuration.
+            defaultProvider: process.env['COPILOT_PROVIDER'] ?? 'fake',
+            maxOutputTokens:
+                Number(process.env['COPILOT_MAX_OUTPUT_TOKENS']) || 8_192,
+            providers: {
+                claude: {
+                    apiKey: process.env['ANTHROPIC_API_KEY'] ?? '',
+                    // Stable product configuration, so literals like the i18n
+                    // locales. First is the default; the rest are what a user
+                    // can switch to mid-conversation. Comma-separated env
+                    // override for pinning a different set without a redeploy.
+                    models: (
+                        process.env['COPILOT_ANTHROPIC_MODELS'] ??
+                        'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
+                    )
+                        .split(',')
+                        .map((model) => model.trim())
+                        .filter(Boolean),
+                    ...(process.env['ANTHROPIC_BASE_URL']
+                        ? { baseUrl: process.env['ANTHROPIC_BASE_URL'] }
+                        : {})
+                },
+                ollama: {
+                    // Defaults to a local Ollama, the common self-hosted setup
+                    // — point it at vLLM, LiteLLM, Azure or OpenAI instead.
+                    baseUrl:
+                        process.env['COPILOT_OPENAI_BASE_URL'] ??
+                        'http://localhost:11434/v1',
+                    models: (process.env['COPILOT_OPENAI_MODELS'] ?? 'llama3.1')
+                        .split(',')
+                        .map((model) => model.trim())
+                        .filter(Boolean),
+                    apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? ''
+                }
+            }
         }
     }
 };
