@@ -237,7 +237,11 @@ export function CopilotPanel({
                 )}
             >
                 {workspaceId ? (
-                    <PanelBody key={workspaceId} workspaceId={workspaceId} />
+                    <PanelBody
+                        key={workspaceId}
+                        workspaceId={workspaceId}
+                        hidden={minimized}
+                    />
                 ) : (
                     <p className="text-muted-foreground p-4 text-sm">
                         {intl.formatMessage(messages.description)}
@@ -272,9 +276,15 @@ function IconButton({
     );
 }
 
-function PanelBody({ workspaceId }: { workspaceId: string }) {
+function PanelBody({
+    workspaceId,
+    hidden
+}: {
+    workspaceId: string;
+    hidden: boolean;
+}) {
     const intl = useIntl();
-    const chat = useCopilotChat(workspaceId);
+    const chat = useCopilotChat(workspaceId, hidden);
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // `null` means "let the host's resolver pick", which is a real choice
     // rather than the absence of one — see ModelPicker. Held here, not on the

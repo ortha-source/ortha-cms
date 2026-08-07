@@ -100,6 +100,36 @@ The panel additionally states `text-foreground` on its own root: it paints its
 own surface, so it should own the colour that goes on it rather than inheriting
 one. Measured after the fix: **17.67:1**.
 
+## Errors: alert, warning, toast
+
+Three presentations, chosen by what the user can actually see and do:
+
+- **A failed turn → `Alert variant="destructive"` in the transcript.** It is the
+  record: it stays with the turn it belongs to and survives scrolling. Streamed
+  text already received is kept above it — a partial answer is part of what
+  happened.
+- **A truncated run → `Alert variant="warning"`.** A ceiling is not an error;
+  the answer above is real, just cut short. This used to be muted 12px text
+  under the answer, which is exactly where "this is incomplete" goes unread. A
+  deliberate cancel is neither, and gets a quiet line instead of a banner
+  telling the user about their own action.
+- **A system condition → `toast.error`, but only while minimized.** The toast
+  exists to reach someone who *cannot see* the alert, and the only such state is
+  a minimized panel (a run keeps streaming while it is). Toasting with the panel
+  open is worse than useless: the host mounts `Toaster` bottom-right, exactly
+  where the panel sits, so it covers the composer to announce something already
+  on screen a few pixels above.
+
+`describe()` classifies the throw: an abort is the user's Stop, a
+`CopilotRunError` carries the server's own message (with 401 reworded — "your
+session has expired" beats "Unauthorized"), and a bare `TypeError` from `fetch`
+means the host was unreachable. Only the last two are `systemic`.
+
+**Read panel state through a ref, not the captured value.** `send`'s async
+closure is created when the message is sent, but the failure it handles can land
+seconds later, by which time the panel may have been minimized — which is the
+case the toast is for. Capturing would decide on the state at Enter.
+
 ## Motion
 
 Two traps, both hit while building this:

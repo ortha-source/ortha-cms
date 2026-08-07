@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { CircleAlert } from 'lucide-react';
-import { cn } from '@ortha-cms/design-system';
+import { CircleAlert, TriangleAlert } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
 import type { ChatMessage } from '../../domain/types/chat';
 import { Markdown } from '../Markdown';
 import { ToolStep } from '../ToolStep';
@@ -20,9 +20,21 @@ const messages = defineMessages({
         id: 'copilot.chat.thinking',
         defaultMessage: 'Thinking…'
     },
+    errorTitle: {
+        id: 'copilot.chat.errorTitle',
+        defaultMessage: 'Something went wrong'
+    },
+    incompleteTitle: {
+        id: 'copilot.chat.incompleteTitle',
+        defaultMessage: 'This answer is incomplete'
+    },
     stoppedFor: {
         id: 'copilot.chat.stoppedFor',
-        defaultMessage: 'Stopped: {reason}'
+        defaultMessage: 'Stopped because it {reason}.'
+    },
+    cancelled: {
+        id: 'copilot.chat.cancelled',
+        defaultMessage: 'You stopped this answer.'
     },
     transcript: {
         id: 'copilot.chat.transcript',
@@ -30,14 +42,17 @@ const messages = defineMessages({
     }
 });
 
-/** Stop reasons worth surfacing — `end` is the normal case and says nothing. */
-const NOTABLE_STOP_REASONS: Record<string, string> = {
+/**
+ * Stop reasons that mean the answer above is **truncated**, phrased to complete
+ * "Stopped because it …". `end` is the normal case and says nothing; `aborted`
+ * is deliberate and handled separately below.
+ */
+const TRUNCATING_STOP_REASONS: Record<string, string> = {
     'max-steps': 'reached the maximum number of steps',
     'max-tokens': 'reached this run’s token budget',
     timeout: 'took too long',
-    'max-output-tokens': 'the answer was cut short',
-    refusal: 'the model declined to answer',
-    aborted: 'cancelled'
+    'max-output-tokens': 'hit the response length limit',
+    refusal: 'declined to answer'
 };
 
 /**
@@ -84,8 +99,11 @@ export function MessageList({ messages: turns }: { messages: ChatMessage[] }) {
 function Turn({ turn }: { turn: ChatMessage }) {
     const intl = useIntl();
     const reason = turn.stopReason
-        ? NOTABLE_STOP_REASONS[turn.stopReason]
+        ? TRUNCATING_STOP_REASONS[turn.stopReason]
         : undefined;
+    // Cancelling is something the user did on purpose, so it gets a quiet note
+    // rather than a warning banner telling them about their own action.
+    const cancelled = turn.stopReason === 'aborted';
 
     if (turn.role === 'user') {
         return (
@@ -115,21 +133,39 @@ function Turn({ turn }: { turn: ChatMessage }) {
                 </p>
             )}
 
+            {/* A real Alert, not a line of red text: a failed turn is the one
+                thing in the transcript a user must not scroll past, and the
+                design system's `role="alert"` also gets it announced. */}
             {turn.error && (
-                <p
-                    className={cn(
-                        'text-destructive flex items-start gap-1.5 text-sm'
-                    )}
-                >
-                    <CircleAlert className="mt-0.5 size-3.5 shrink-0" />
-                    {turn.error}
+                <Alert variant="destructive">
+                    <CircleAlert className="size-4" />
+                    <AlertTitle>
+                        {intl.formatMessage(messages.errorTitle)}
+                    </AlertTitle>
+                    <AlertDescription>{turn.error}</AlertDescription>
+                </Alert>
+            )}
+
+            {cancelled && !turn.error && (
+                <p className="text-muted-foreground text-xs">
+                    {intl.formatMessage(messages.cancelled)}
                 </p>
             )}
 
-            {reason && (
-                <p className="text-muted-foreground text-xs">
-                    {intl.formatMessage(messages.stoppedFor, { reason })}
-                </p>
+            {/* A ceiling is not an error — the answer above is real, just cut
+                short — so it is a warning rather than a destructive alert. It
+                used to be muted 12px text under the answer, which is exactly
+                where "this is truncated" goes unread. */}
+            {reason && !turn.error && (
+                <Alert variant="warning">
+                    <TriangleAlert className="size-4" />
+                    <AlertTitle>
+                        {intl.formatMessage(messages.incompleteTitle)}
+                    </AlertTitle>
+                    <AlertDescription>
+                        {intl.formatMessage(messages.stoppedFor, { reason })}
+                    </AlertDescription>
+                </Alert>
             )}
         </div>
     );
