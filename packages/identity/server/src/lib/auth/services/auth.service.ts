@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { users } from '../../schema';
 import { RefreshSessionUseCase } from '../../application/use-cases/refresh-session.use-case';
@@ -21,6 +21,11 @@ export type PublicUser = Pick<
  * app-wide `AuthGuard` attaches. Credential and session **mutations** live in
  * the auth use-cases (`LoginUseCase` / `LogoutUseCase`); this side never writes
  * except for the throttled `lastUsedAt` touch the `RefreshSessionUseCase` owns.
+ *
+ * It also carries one half of the suspension lockout: login refuses to open a
+ * session for a non-`active` account, and this resolve refuses to authenticate
+ * one — so a session that outlives the suspension (see {@link currentUser})
+ * still grants nothing.
  */
 @Injectable()
 export class AuthService {
@@ -31,9 +36,20 @@ export class AuthService {
 
     /**
      * Resolves an opaque session token to the current {@link PublicUser}, or
-     * `null` when the session is invalid or its user has vanished. Refreshes the
-     * session's `lastUsedAt` (throttled) as a side effect. The hash is never
-     * selected, so it cannot leak through this path.
+     * `null` when the session is invalid, its user has vanished, or that user is
+     * no longer `active`. Refreshes the session's `lastUsedAt` (throttled) as a
+     * side effect. The hash is never selected, so it cannot leak through this
+     * path.
+     *
+     * The status predicate is **defense in depth**, not the primary lockout:
+     * suspending a member revokes their live sessions in the same transaction
+     * (users-server's `SetMemberStatusUseCase`), so their cookie is normally
+     * dead already. It closes the window where a session outlives the
+     * suspension — a login that commits concurrently with the disable inserts
+     * its row after that revoke's snapshot, and any future path that flips
+     * `status` without revoking would leak access the same way. Both read as a
+     * plain 401 to the caller, so a suspended account can't be told from an
+     * expired one.
      */
     async currentUser(sessionId: string): Promise<PublicUser | null> {
         const resolved = await this.refreshSession.execute(sessionId);
@@ -50,7 +66,9 @@ export class AuthService {
                 status: users.status
             })
             .from(users)
-            .where(eq(users.id, resolved.userId));
+            .where(
+                and(eq(users.id, resolved.userId), eq(users.status, 'active'))
+            );
 
         return user ?? null;
     }

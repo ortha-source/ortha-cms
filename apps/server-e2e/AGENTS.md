@@ -27,7 +27,9 @@ running Docker daemon for testcontainers).
    app's **real `HashingService`** (pulled from DI), so seeded credentials match
    what login verifies. `resetDb()` truncates the mutable tables, leaving the
    seeded system roles. Plus `expireUserSessions` / `revokeUserSessions` /
-   `deleteUser` / `countUserSessions` for session-lifecycle assertions.
+   `deleteUser` / `countUserSessions` for session-lifecycle assertions, and
+   `setUserStatus` for the out-of-band suspension the API never performs (its
+   disable endpoint revokes sessions in the same transaction).
 
 ## Conventions
 

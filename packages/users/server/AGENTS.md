@@ -92,7 +92,12 @@ application enforces it (`SelfActionError`).
   private infrastructure, `member-lock.ts`). Insert maps the DB's
   case-insensitive unique-email violation to `EmailTakenError`.
 - `SessionRevoker` (`SESSION_REVOKER`) → `DrizzleSessionRevoker`: revokes a
-  disabled member's live sessions (identity's `sessions`).
+  disabled member's live sessions (identity's `sessions`), in the disable's own
+  transaction, so a suspended member is signed out where they sit rather than at
+  next expiry. It is the **primary** lockout, not the only one — identity
+  refuses to open a session for a non-`active` account and refuses to resolve one
+  to a non-`active` user, which covers a session that outlives the suspension
+  (a login committing concurrently with the disable).
 - `WorkspaceLinker` (`WORKSPACE_LINKER`) → `DrizzleWorkspaceLinker`: links an
   invited member to workspaces (the workspaces context's `memberships`).
 

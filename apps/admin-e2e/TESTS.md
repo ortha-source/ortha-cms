@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_304 test cases across 33 spec files._
+_305 test cases across 33 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -144,6 +144,12 @@ _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
 | redirects a signed-out user from / to the sign-in page |
 | redirects a signed-out user from an unknown path to the sign-in page |
 | returns to the home page after a gated user signs in |
+
+## Session lost mid-visit
+
+| Test case |
+| --- |
+| redirects to the sign-in page when a request comes back 401 |
 
 <!-- source: apps/admin-e2e/src/auth/routing.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_

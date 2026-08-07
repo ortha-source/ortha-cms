@@ -333,6 +333,15 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   #10). The `sessions` PK stores the **SHA-256 of** the token, not the token, so
   a read-only DB/backup leak yields no usable sessions (`SessionService` hashes
   on write and on lookup; no migration — the column is still `text`).
+- **Account status is checked on every request, not just at login.** A suspended
+  member is locked out at three points: `LoginUseCase` refuses to open a session
+  for a non-`active` account, users-server's disable revokes their live sessions
+  in the same transaction, and `AuthService.currentUser` resolves a session
+  **only** to an `active` user. The third is defense in depth for the window
+  where a session outlives the suspension — a login committing concurrently with
+  a disable inserts its row after that revoke's snapshot — and for any future
+  path that flips `status` without revoking. All of it reads as a plain `401`,
+  so a suspended account is indistinguishable from an expired session.
 - **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
   (10/min, in-memory — per-instance; needs a shared store + Express `trust
 proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
