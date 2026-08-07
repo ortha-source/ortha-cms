@@ -1,10 +1,14 @@
-import type { AnthropicProviderConfig } from '@ortha-cms/copilot-provider-anthropic';
-import type { OpenAiCompatibleProviderConfig } from '@ortha-cms/copilot-provider-openai-compatible';
-
 /**
- * The copilot plugin's host-supplied config. Provider **connection** settings
- * live here; the routing handler, if any, is code in the composition root
- * rather than config — the same split as media storage.
+ * The copilot plugin's host-supplied config.
+ *
+ * Deliberately **adapter-agnostic**: it names no provider kind and imports no
+ * adapter package, so adding a Bedrock or Vertex adapter is a new package and
+ * a line in the composition root — never a change here
+ * ([ADR-0004](../../../../../docs/adr/0004-model-agnostic-copilot-provider.md) §2).
+ *
+ * Provider *connection* settings therefore live with the host, next to the
+ * factories that consume them; each adapter exports its own config type. The
+ * routing handler, if any, is code in the composition root rather than config.
  */
 export interface CopilotPluginConfig {
     /**
@@ -14,12 +18,8 @@ export interface CopilotPluginConfig {
      * that is an operator's decision to make explicitly.
      */
     enabled: boolean;
-    /** Provider the core uses when the host supplies no `resolve` handler. */
+    /** Registered provider name used when the host supplies no `resolve`. */
     defaultProvider: string;
     /** Ceiling on a single model response, in tokens. */
     maxOutputTokens: number;
-    /** Native Claude connection settings. */
-    anthropic: AnthropicProviderConfig;
-    /** OpenAI-wire-format connection settings — Ollama, vLLM, LiteLLM, Azure… */
-    openaiCompatible: OpenAiCompatibleProviderConfig;
 }

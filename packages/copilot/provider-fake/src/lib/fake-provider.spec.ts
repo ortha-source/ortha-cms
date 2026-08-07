@@ -146,4 +146,20 @@ describe('createFakeProvider', () => {
         expect(provider.calls).toHaveLength(0);
         await expect(drain(provider.stream(request))).resolves.toHaveLength(2);
     });
+
+    it('advertises a single `fake` model by default', () => {
+        expect(createFakeProvider().models()).toEqual(['fake']);
+    });
+
+    it('advertises declared models and rejects one it was not given', async () => {
+        const provider = createFakeProvider({ models: ['small', 'large'] });
+
+        expect(provider.models()).toEqual(['small', 'large']);
+        await expect(provider.capabilities('large')).resolves.toMatchObject({
+            model: 'large'
+        });
+        await expect(
+            drain(provider.stream({ ...request, model: 'huge' }))
+        ).rejects.toThrow(/not offered by this copilot provider/);
+    });
 });

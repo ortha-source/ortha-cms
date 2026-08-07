@@ -26,9 +26,19 @@ something here needs a dependency, it belongs in a layer above.
 
 ### The port
 
-- `ModelProvider` — `capabilities()` and `stream(request, signal)`. Two methods,
-  deliberately: the surface is narrow enough that a third-party abstraction
-  library would cost more than it saves (ADR-0004, alternatives).
+- `ModelProvider` — `models()`, `capabilities(model?)` and
+  `stream(request, signal)`. Three methods, deliberately: the surface is narrow
+  enough that a third-party abstraction library would cost more than it saves
+  (ADR-0004, alternatives).
+- **A provider serves several models.** `models()` returns the ids it offers,
+  first as the default, so one endpoint and one credential can back a cheap
+  model for routine turns and a frontier one for hard work — and a user can
+  switch mid-conversation without a redeploy. It is synchronous because it is
+  declared configuration: a model picker renders it with no round trip.
+- `resolveModel(requested, available)` — the one rule every adapter applies:
+  the named model, or the first as default, and `UnknownModelError` for
+  anything else. Falling back to the default would answer on a different model
+  than the caller asked for, and bill it silently.
 - `ModelRequest` — model id (optional; the provider's configured default wins),
   system prompt, messages, tools, output ceiling. **No sampling parameters**:
   current frontier models reject `temperature`/`top_p`/`top_k` outright, so the
@@ -41,7 +51,9 @@ something here needs a dependency, it belongs in a layer above.
 
 ### The registry seam
 
-- `ModelRegistry` + `MODEL_REGISTRY` — name→provider lookup, bound at the
+- `ModelRegistry` + `MODEL_REGISTRY` — name→provider lookup plus
+  `catalogue()`, every provider × model pair on offer (what a model picker
+  renders, and the full set a run may legally choose from). Bound at the
   composition root. The implementation (`buildModelRegistry`) lives in
   `copilot/server`; only the interface and the token are here, so an adapter
   package depends on the domain and never on the server.

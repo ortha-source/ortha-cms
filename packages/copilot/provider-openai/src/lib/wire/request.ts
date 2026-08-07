@@ -3,7 +3,7 @@ import type {
     ModelRequest,
     ModelTool
 } from '@ortha-cms/copilot-domain';
-import type { OpenAiCompatibleProviderConfig } from '../config';
+import type { OpenAiProviderConfig } from '../config';
 import type { ChatMessage } from './types';
 
 /**
@@ -71,14 +71,15 @@ export function toChatTools(tools: readonly ModelTool[]): unknown[] {
     }));
 }
 
-/** Builds the streaming request body. */
+/** Builds the streaming request body for an already-resolved `model`. */
 export function toRequestBody(
     request: ModelRequest,
-    config: OpenAiCompatibleProviderConfig
+    config: OpenAiProviderConfig,
+    model: string
 ): Record<string, unknown> {
     const tools = request.tools ?? [];
     return {
-        model: request.model ?? config.model,
+        model,
         messages: toChatMessages(request.messages, request.system),
         ...(tools.length > 0 ? { tools: toChatTools(tools) } : {}),
         max_tokens: request.maxOutputTokens,
@@ -91,7 +92,7 @@ export function toRequestBody(
 
 /** Assembles the request headers, letting `config.headers` override the rest. */
 export function toRequestHeaders(
-    config: OpenAiCompatibleProviderConfig
+    config: OpenAiProviderConfig
 ): Record<string, string> {
     return {
         'content-type': 'application/json',

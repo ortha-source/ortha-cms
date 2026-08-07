@@ -2,10 +2,11 @@ import type { ModelProvider } from '@ortha-cms/copilot-domain';
 import { CopilotPlugin, type CopilotPluginOptions } from './copilot-plugin';
 import type { CopilotPluginConfig } from '../types/copilot-config';
 
-const provider = (): ModelProvider => ({
+const provider = (models: string[] = ['m1']): ModelProvider => ({
+    models: () => models,
     capabilities: () =>
         Promise.resolve({
-            model: 'stub',
+            model: models[0],
             toolCalling: true,
             streaming: true,
             vision: false,
@@ -24,18 +25,13 @@ const config = (
     enabled: false,
     defaultProvider: 'fake',
     maxOutputTokens: 8_192,
-    anthropic: { apiKey: '', model: 'claude-opus-5' },
-    openaiCompatible: {
-        baseUrl: 'http://localhost:11434/v1',
-        model: 'llama3.1'
-    },
     ...overrides
 });
 
 const options = (
     overrides: Partial<CopilotPluginOptions> = {}
 ): CopilotPluginOptions => ({
-    providers: { fake: provider() },
+    providers: [{ name: 'fake', provider: provider() }],
     config: config(),
     ...overrides
 });
@@ -63,18 +59,28 @@ describe('CopilotPlugin config validation', () => {
         expect(() => CopilotPlugin(options())).not.toThrow();
     });
 
-    it('rejects an empty provider map', () => {
-        expect(() => CopilotPlugin(options({ providers: {} }))).toThrow(
+    it('rejects an empty provider list', () => {
+        expect(() => CopilotPlugin(options({ providers: [] }))).toThrow(
             /at least one model provider/
         );
+    });
+
+    it('rejects a provider declaring no models', () => {
+        expect(() =>
+            CopilotPlugin(
+                options({
+                    providers: [{ name: 'fake', provider: provider([]) }]
+                })
+            )
+        ).toThrow(/"fake" declares no models/);
     });
 
     it('rejects a defaultProvider nobody registered', () => {
         expect(() =>
             CopilotPlugin(
-                options({ config: config({ defaultProvider: 'anthropic' }) })
+                options({ config: config({ defaultProvider: 'claude' }) })
             )
-        ).toThrow(/"anthropic" is not registered\. Registered: fake/);
+        ).toThrow(/"claude" is not registered\. Registered: fake/);
     });
 
     it('rejects a blank defaultProvider', () => {

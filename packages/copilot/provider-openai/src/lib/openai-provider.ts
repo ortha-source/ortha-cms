@@ -1,6 +1,7 @@
 import {
     abortedEvent,
     isAbortError,
+    resolveModel,
     type ModelCapabilities,
     type ModelProvider,
     type ModelRequest,
@@ -12,7 +13,7 @@ import {
     DEFAULT_TIMEOUT_MS,
     resolveCapabilities,
     resolveEndpoint,
-    type OpenAiCompatibleProviderConfig
+    type OpenAiProviderConfig
 } from './config';
 import { readDataEvents } from './sse';
 import { toRequestBody, toRequestHeaders } from './wire/request';
@@ -34,23 +35,28 @@ import type { ChatCompletionChunk } from './wire/types';
  *
  * @example
  * ```typescript
- * createOpenAiCompatibleProvider({
+ * createOpenAiProvider({
  *     baseUrl: 'http://localhost:11434/v1',
  *     model: 'llama3.1',
  *     capabilities: { contextWindow: 8_192 }
  * });
  * ```
  */
-export function createOpenAiCompatibleProvider(
-    config: OpenAiCompatibleProviderConfig
+export function createOpenAiProvider(
+    config: OpenAiProviderConfig
 ): ModelProvider {
     const endpoint = resolveEndpoint(config.baseUrl);
     const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const models = [...config.models];
 
     async function* stream(
         request: ModelRequest,
         signal?: AbortSignal
     ): AsyncIterable<ModelStreamEvent> {
+        // Resolved before the request is built, so a run naming a model this
+        // endpoint doesn't serve fails loudly instead of silently answering
+        // on the default one.
+        const model = resolveModel(request.model, models);
         const timeout = AbortSignal.timeout(timeoutMs);
         const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
@@ -58,7 +64,7 @@ export function createOpenAiCompatibleProvider(
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: toRequestHeaders(config),
-                body: JSON.stringify(toRequestBody(request, config)),
+                body: JSON.stringify(toRequestBody(request, config, model)),
                 signal: combined
             });
 
@@ -121,8 +127,11 @@ export function createOpenAiCompatibleProvider(
     }
 
     return {
-        capabilities(): Promise<ModelCapabilities> {
-            return Promise.resolve(resolveCapabilities(config));
+        models: () => models,
+        capabilities(model?: string): Promise<ModelCapabilities> {
+            return Promise.resolve(
+                resolveCapabilities(config, resolveModel(model, models))
+            );
         },
         stream
     };

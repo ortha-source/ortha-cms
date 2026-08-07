@@ -8,8 +8,13 @@ export type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export interface AnthropicProviderConfig {
     /** API key. Never leaves the server, and never reaches the browser. */
     apiKey: string;
-    /** Default model id, e.g. `claude-opus-5`. Overridable per request. */
-    model: string;
+    /**
+     * Model ids this provider offers, in preference order; the first is the
+     * default. Declaring several — a frontier model for hard work, a cheaper
+     * one for routine turns — lets a user switch mid-conversation without a
+     * redeploy.
+     */
+    models: readonly string[];
     /** Overrides the API host — a gateway, a proxy, or a regional endpoint. */
     baseUrl?: string;
     /** Reasoning-budget setting. Omitted, the API's own default (`high`) applies. */

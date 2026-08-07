@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/copilot-provider-openai-compatible",
+    "name": "@ortha-cms/copilot-provider-openai",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",

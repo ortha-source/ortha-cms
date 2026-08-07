@@ -1,6 +1,7 @@
 import {
     abortedEvent,
     isAbortError,
+    resolveModel,
     type ModelCapabilities,
     type ModelProvider,
     type ModelRequest,
@@ -35,18 +36,25 @@ export function createAnthropicProvider(
     config: AnthropicProviderConfig
 ): ModelProvider {
     const client = createLazyClient(config);
-    let cachedCapabilities: Promise<ModelCapabilities> | undefined;
+    const models = [...config.models];
+    // Cached per model: the probe is one network call per model, and a
+    // provider offering three shouldn't pay it three times per run.
+    const cachedCapabilities = new Map<string, Promise<ModelCapabilities>>();
 
     async function* stream(
         request: ModelRequest,
         signal?: AbortSignal
     ): AsyncIterable<ModelStreamEvent> {
+        // Resolved before the try: a run naming a model this provider doesn't
+        // offer is the caller's error, not an abort to be swallowed.
+        const model = resolveModel(request.model, models);
+
         // Opening the stream lives inside the try alongside iterating it: an
         // already-aborted signal makes the SDK reject at construction, and
         // that is still an abort rather than a failure the caller should see.
         try {
             const messageStream = client().messages.stream(
-                toStreamParams(request, config),
+                toStreamParams(request, config, model),
                 signal ? { signal } : undefined
             );
 
@@ -89,9 +97,15 @@ export function createAnthropicProvider(
     }
 
     return {
-        capabilities(): Promise<ModelCapabilities> {
-            cachedCapabilities ??= probeCapabilities(client, config);
-            return cachedCapabilities;
+        models: () => models,
+        capabilities(model?: string): Promise<ModelCapabilities> {
+            const resolved = resolveModel(model, models);
+            let probe = cachedCapabilities.get(resolved);
+            if (!probe) {
+                probe = probeCapabilities(client, resolved);
+                cachedCapabilities.set(resolved, probe);
+            }
+            return probe;
         },
         stream
     };

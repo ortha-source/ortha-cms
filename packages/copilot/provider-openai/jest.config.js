@@ -7,7 +7,7 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 module.exports = {
-    displayName: 'copilot-provider-openai-compatible',
+    displayName: 'copilot-provider-openai',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',
     transform: {

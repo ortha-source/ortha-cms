@@ -1,5 +1,6 @@
 import {
     abortedEvent,
+    resolveModel,
     type ModelCapabilities,
     type ModelRequest,
     type ModelStreamEvent
@@ -7,6 +8,7 @@ import {
 import {
     DEFAULT_CAPABILITIES,
     DEFAULT_CHUNK_SIZE,
+    DEFAULT_MODELS,
     type FakeProvider,
     type FakeProviderConfig
 } from './config';
@@ -38,10 +40,7 @@ export function createFakeProvider(
     config: FakeProviderConfig = {}
 ): FakeProvider {
     const chunkSize = Math.max(1, config.chunkSize ?? DEFAULT_CHUNK_SIZE);
-    const capabilities: ModelCapabilities = {
-        ...DEFAULT_CAPABILITIES,
-        ...config.capabilities
-    };
+    const models = [...(config.models ?? DEFAULT_MODELS)];
     const script = createScriptReader(config.script);
     const calls: ModelRequest[] = [];
 
@@ -49,6 +48,9 @@ export function createFakeProvider(
         request: ModelRequest,
         signal?: AbortSignal
     ): AsyncIterable<ModelStreamEvent> {
+        // Resolved even though the fake ignores it: a test that asks for an
+        // unlisted model should fail the same way production would.
+        resolveModel(request.model, models);
         const callIndex = calls.push(request) - 1;
         // Read the turn before checking the signal so an aborted call still
         // advances the script — the run happened, it just didn't finish.
@@ -98,8 +100,13 @@ export function createFakeProvider(
             calls.length = 0;
             script.reset();
         },
-        capabilities(): Promise<ModelCapabilities> {
-            return Promise.resolve(capabilities);
+        models: () => models,
+        capabilities(model?: string): Promise<ModelCapabilities> {
+            return Promise.resolve({
+                ...DEFAULT_CAPABILITIES,
+                ...config.capabilities,
+                model: resolveModel(model, models)
+            });
         },
         stream
     };

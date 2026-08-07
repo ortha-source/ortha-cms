@@ -1,9 +1,9 @@
 import type { ModelCapabilities } from '@ortha-cms/copilot-domain';
 import type { LazyClient } from './client';
-import { FALLBACK_CAPABILITIES, type AnthropicProviderConfig } from './config';
+import { FALLBACK_CAPABILITIES } from './config';
 
 /**
- * Probes the Models API for the live capability record.
+ * Probes the Models API for one model's live capability record.
  *
  * Falls back to {@link FALLBACK_CAPABILITIES} when the call can't be made —
  * reporting "unknown" as "unsupported" would drop a frontier model into
@@ -15,11 +15,11 @@ import { FALLBACK_CAPABILITIES, type AnthropicProviderConfig } from './config';
  */
 export async function probeCapabilities(
     client: LazyClient,
-    config: AnthropicProviderConfig
+    model: string
 ): Promise<ModelCapabilities> {
-    const base = { model: config.model, ...FALLBACK_CAPABILITIES };
+    const base = { ...FALLBACK_CAPABILITIES, model };
     try {
-        const info = await client().models.retrieve(config.model);
+        const info = await client().models.retrieve(model);
         return {
             model: info.id,
             toolCalling: true,

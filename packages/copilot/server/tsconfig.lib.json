@@ -13,9 +13,11 @@
     "include": ["src/**/*.ts"],
     "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
     "references": [
-        { "path": "../domain/tsconfig.lib.json" },
-        { "path": "../provider-anthropic/tsconfig.lib.json" },
-        { "path": "../provider-openai-compatible/tsconfig.lib.json" },
-        { "path": "../../bootstrap/server/tsconfig.lib.json" }
+        {
+            "path": "../domain/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bootstrap/server/tsconfig.lib.json"
+        }
     ]
 }

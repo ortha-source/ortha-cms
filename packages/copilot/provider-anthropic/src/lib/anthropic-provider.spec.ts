@@ -41,7 +41,10 @@ const finalMessage = (overrides: Record<string, unknown> = {}) => ({
     ...overrides
 });
 
-const config = { apiKey: 'sk-test', model: 'claude-opus-5' };
+const config = {
+    apiKey: 'sk-test',
+    models: ['claude-opus-5', 'claude-haiku-4-5']
+};
 
 const request: ModelRequest = {
     messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
@@ -69,7 +72,7 @@ describe('createAnthropicProvider', () => {
 
     describe('the lazy client', () => {
         it('constructs no SDK client until the provider is actually used', () => {
-            createAnthropicProvider({ apiKey: '', model: 'claude-opus-5' });
+            createAnthropicProvider({ apiKey: '', models: ['claude-opus-5'] });
 
             // A host registers every provider it might route to; an operator
             // running local inference has no key, and an unused adapter must
@@ -80,7 +83,7 @@ describe('createAnthropicProvider', () => {
         it('fails with a message naming the fix when selected without a key', async () => {
             const provider = createAnthropicProvider({
                 apiKey: '',
-                model: 'claude-opus-5'
+                models: ['claude-opus-5']
             });
 
             await expect(drain(provider.stream(request))).rejects.toThrow(
@@ -284,7 +287,7 @@ describe('createAnthropicProvider', () => {
             expect(lastParams()).not.toHaveProperty('top_k');
         });
 
-        it('uses the configured model, and honours a per-request override', async () => {
+        it('defaults to the first declared model, and honours a per-request override', async () => {
             const provider = createAnthropicProvider(config);
 
             await drain(provider.stream(request));
@@ -294,6 +297,19 @@ describe('createAnthropicProvider', () => {
                 provider.stream({ ...request, model: 'claude-haiku-4-5' })
             );
             expect(lastParams()['model']).toBe('claude-haiku-4-5');
+        });
+
+        it('rejects a model this provider does not offer', async () => {
+            // Silently answering on the default would bill the wrong budget
+            // and make the transcript a lie about what produced the answer.
+            await expect(
+                drain(
+                    createAnthropicProvider(config).stream({
+                        ...request,
+                        model: 'gpt-4o'
+                    })
+                )
+            ).rejects.toThrow(/not offered by this copilot provider/);
         });
 
         it('sends effort only when configured', async () => {
@@ -391,6 +407,15 @@ describe('createAnthropicProvider', () => {
         });
     });
 
+    describe('models', () => {
+        it('advertises every declared model, in order', () => {
+            expect(createAnthropicProvider(config).models()).toEqual([
+                'claude-opus-5',
+                'claude-haiku-4-5'
+            ]);
+        });
+    });
+
     describe('capabilities', () => {
         it('probes the Models API and caches the result', async () => {
             mockRetrieve.mockResolvedValue({
@@ -412,6 +437,27 @@ describe('createAnthropicProvider', () => {
 
             await provider.capabilities();
             expect(mockRetrieve).toHaveBeenCalledTimes(1);
+        });
+
+        it('probes each model separately, caching them independently', async () => {
+            mockRetrieve.mockImplementation((model: string) =>
+                Promise.resolve({
+                    id: model,
+                    max_input_tokens: 200_000,
+                    max_tokens: 8_192,
+                    capabilities: { image_input: { supported: true } }
+                })
+            );
+            const provider = createAnthropicProvider(config);
+
+            await provider.capabilities('claude-opus-5');
+            await provider.capabilities('claude-haiku-4-5');
+            await provider.capabilities('claude-haiku-4-5');
+
+            expect(mockRetrieve).toHaveBeenCalledTimes(2);
+            await expect(
+                provider.capabilities('claude-haiku-4-5')
+            ).resolves.toMatchObject({ model: 'claude-haiku-4-5' });
         });
 
         it('falls back conservatively when the probe fails', async () => {

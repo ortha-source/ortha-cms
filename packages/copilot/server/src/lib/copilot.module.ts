@@ -2,17 +2,19 @@ import { DynamicModule, Module } from '@nestjs/common';
 import {
     MODEL_REGISTRY,
     MODEL_RESOLVER,
-    type ModelProvider,
     type ModelResolver
 } from '@ortha-cms/copilot-domain';
 import { COPILOT_CONFIG } from './copilot.tokens';
-import { buildModelRegistry } from './infrastructure/model-registry';
+import {
+    buildModelRegistry,
+    type ProviderRegistration
+} from './infrastructure/model-registry';
 import type { CopilotPluginConfig } from './types/copilot-config';
 
 /** Options `CopilotModule.forRoot` binds into DI. */
 export interface CopilotModuleOptions {
-    /** Named model providers, chosen at the composition root. */
-    providers: Record<string, ModelProvider>;
+    /** The model backends this deployment offers, in preference order. */
+    providers: readonly ProviderRegistration[];
     /** Optional custom handler picking a provider per run. */
     resolve?: ModelResolver;
     /** Host config (kill switch + default provider + connection settings). */

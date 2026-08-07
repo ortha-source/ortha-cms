@@ -14,7 +14,11 @@ make every assertion downstream of it flaky too.
 ## What it exports
 
 - `createFakeProvider(config?): FakeProvider` where `config` is
-  `{ script?, capabilities?, chunkSize? }`.
+  `{ script?, capabilities?, chunkSize?, models? }`.
+
+`models` defaults to a single `fake`. Declare several to exercise a model
+picker or the engine's model-switching path with no real provider; a run naming
+one that wasn't declared is rejected exactly as production would reject it.
 
 `FakeProvider` extends `ModelProvider` with the inspection surface tests need:
 

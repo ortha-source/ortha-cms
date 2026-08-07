@@ -1,6 +1,7 @@
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import type { ModelProvider, ModelResolver } from '@ortha-cms/copilot-domain';
+import type { ModelResolver } from '@ortha-cms/copilot-domain';
 import { CopilotModule } from '../copilot.module';
+import type { ProviderRegistration } from '../infrastructure/model-registry';
 import type { CopilotPluginConfig } from '../types/copilot-config';
 
 /** The copilot plugin shape, with its config attached. */
@@ -10,27 +11,43 @@ export type CopilotServerPluginDefinition = ServerPlugin & {
 
 /** Options the host passes to {@link CopilotPlugin}. */
 export interface CopilotPluginOptions {
-    /** Named model providers available to this deployment. */
-    providers: Record<string, ModelProvider>;
+    /**
+     * The model backends this deployment can reach, in preference order. Each
+     * entry pairs an operator-chosen name with an already-constructed adapter,
+     * so the plugin never learns which adapters exist — register two of the
+     * same kind (`ollama-fast`, `ollama-big`) freely.
+     */
+    providers: readonly ProviderRegistration[];
     /** Optional custom handler picking a provider per run (plain code). */
     resolve?: ModelResolver;
-    /** Host config (kill switch + default provider + connection settings). */
+    /** Host config (kill switch + default provider + output ceiling). */
     config: CopilotPluginConfig;
 }
 
 /**
  * Validate the wiring **eagerly** (like `ContentPlugin`'s registry and
  * `I18nServerPlugin`'s locales): a `defaultProvider` naming a provider nobody
- * registered is a misconfiguration that should fail at construction, before
- * boot, rather than on the first chat message.
+ * registered, or a provider declaring no models, is a misconfiguration that
+ * should fail at construction — before boot — rather than on the first chat
+ * message, where it is most expensive to diagnose.
+ *
+ * Name uniqueness is enforced by `buildModelRegistry`, which the module builds
+ * from the same list.
  */
 function assertOptions(options: CopilotPluginOptions): void {
-    const names = Object.keys(options.providers);
+    const names = options.providers.map((entry) => entry.name);
     if (names.length === 0) {
         throw new Error(
             'CopilotPlugin requires at least one model provider. Register one at the composition root, ' +
-                'e.g. `providers: { fake: createFakeProvider() }`.'
+                "e.g. `providers: [{ name: 'fake', provider: createFakeProvider() }]`."
         );
+    }
+    for (const entry of options.providers) {
+        if (entry.provider.models().length === 0) {
+            throw new Error(
+                `Copilot model provider "${entry.name}" declares no models. Configure at least one.`
+            );
+        }
     }
     if (!options.config.defaultProvider) {
         throw new Error(
@@ -38,12 +55,7 @@ function assertOptions(options: CopilotPluginOptions): void {
                 `Registered: ${names.join(', ')}.`
         );
     }
-    if (
-        !Object.prototype.hasOwnProperty.call(
-            options.providers,
-            options.config.defaultProvider
-        )
-    ) {
+    if (!names.includes(options.config.defaultProvider)) {
         throw new Error(
             `CopilotPlugin's defaultProvider "${options.config.defaultProvider}" is not registered. ` +
                 `Registered: ${names.join(', ')}.`
@@ -61,7 +73,7 @@ function assertOptions(options: CopilotPluginOptions): void {
  * are workspace-scoped) and `IdentityPlugin` (runs execute as the calling
  * user, with the `copilot:use` permission checked by its guard). Model
  * providers are constructed at the composition root and passed in here — the
- * plugin never imports a vendor SDK
+ * plugin never imports a vendor SDK, and never learns which adapters exist
  * ([ADR-0004](../../../../../docs/adr/0004-model-agnostic-copilot-provider.md) §1).
  *
  * **Phase 0 ships nothing visible.** It binds the model seam, the config and
@@ -72,10 +84,11 @@ function assertOptions(options: CopilotPluginOptions): void {
  * @example
  * ```typescript
  * CopilotPlugin({
- *     providers: {
- *         anthropic: createAnthropicProvider(config.plugins.copilot.anthropic),
- *         fake: createFakeProvider()
- *     },
+ *     providers: [
+ *         { name: 'claude', provider: createAnthropicProvider(providers.claude) },
+ *         { name: 'ollama', provider: createOpenAiProvider(providers.ollama) },
+ *         { name: 'fake', provider: createFakeProvider() }
+ *     ],
  *     config: config.plugins.copilot
  * });
  * ```

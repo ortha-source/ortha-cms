@@ -17,8 +17,6 @@
     "dependencies": {
         "@nestjs/common": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
-        "@ortha-cms/copilot-domain": "*",
-        "@ortha-cms/copilot-provider-anthropic": "*",
-        "@ortha-cms/copilot-provider-openai-compatible": "*"
+        "@ortha-cms/copilot-domain": "*"
     }
 }

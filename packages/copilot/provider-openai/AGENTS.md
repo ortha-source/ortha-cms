@@ -1,4 +1,4 @@
-# @ortha-cms/copilot-provider-openai-compatible
+# @ortha-cms/copilot-provider-openai
 
 A `ModelProvider` speaking the **OpenAI chat-completions wire format** against a
 configurable `baseUrl`. Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, OpenRouter,
@@ -48,6 +48,18 @@ That matters. An operator pointing this at a 3B local model **must** say
 meet and the run will fail confusingly instead of dropping into the documented
 degraded mode (ADR-0004 §4).
 
+The declaration applies to **every** model on the endpoint. When two differ
+materially — one calls tools, one doesn't — register them as two providers
+rather than flattening both to the weaker profile.
+
+## Why not just `copilot-provider-openai-compatible`
+
+It was, and the shorter name is a deliberate trade. The adapter is **not** an
+OpenAI client: it speaks a wire format that Ollama, vLLM, llama.cpp, LM Studio,
+LiteLLM, OpenRouter and Azure all implement. If you are self-hosting and don't
+use OpenAI, this is still the package you want — the `baseUrl` is the whole
+point.
+
 ## Streaming normalisation — the actual work
 
 Three shapes have to collapse into the port's vocabulary:
@@ -83,6 +95,6 @@ ignores comments and keep-alives, tolerates `\r\n`, and stops at `[DONE]`.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/copilot-provider-openai-compatible`
-- `npx nx lint @ortha-cms/copilot-provider-openai-compatible`
-- `npx nx test @ortha-cms/copilot-provider-openai-compatible`
+- `npx nx typecheck @ortha-cms/copilot-provider-openai`
+- `npx nx lint @ortha-cms/copilot-provider-openai`
+- `npx nx test @ortha-cms/copilot-provider-openai`

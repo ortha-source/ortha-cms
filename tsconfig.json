@@ -103,9 +103,6 @@
             "path": "./packages/wysiwyg/admin"
         },
         {
-            "path": "./packages/copilot/provider-openai-compatible"
-        },
-        {
             "path": "./packages/copilot/provider-anthropic"
         },
         {
@@ -119,6 +116,9 @@
         },
         {
             "path": "./packages/copilot/admin"
+        },
+        {
+            "path": "./packages/copilot/provider-openai"
         }
     ]
 }

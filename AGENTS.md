@@ -43,7 +43,7 @@
 - `packages/copilot/*` — the AI copilot. `domain` holds the framework-free
   `ModelProvider` port; `server` is the plugin (`CopilotPlugin`) that binds the
   model registry + resolver + config; `admin` is the chat panel's (still empty)
-  home; `provider-anthropic` / `provider-openai-compatible` / `provider-fake`
+  home; `provider-anthropic` / `provider-openai` / `provider-fake`
   are the three shipped adapters, constructed at the composition root. Only
   `provider-anthropic` may import a vendor SDK
   ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Phase 0 of

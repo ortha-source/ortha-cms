@@ -1,5 +1,5 @@
 import type { ModelRequest, ModelStreamEvent } from '@ortha-cms/copilot-domain';
-import { createOpenAiCompatibleProvider } from './openai-compatible-provider';
+import { createOpenAiProvider } from './openai-provider';
 
 /** Builds an SSE response body from chunk objects, plus the `[DONE]` sentinel. */
 function sseResponse(chunks: unknown[], status = 200): Response {
@@ -18,9 +18,9 @@ const request: ModelRequest = {
 };
 
 const provider = () =>
-    createOpenAiCompatibleProvider({
+    createOpenAiProvider({
         baseUrl: 'http://localhost:11434/v1/',
-        model: 'llama3.1'
+        models: ['llama3.1', 'qwen2.5']
     });
 
 async function drain(
@@ -43,7 +43,7 @@ function lastBody(): Record<string, unknown> {
  * "Consequences"): two wire formats, two tool-call encodings and two usage
  * shapes have to collapse to one internal event stream.
  */
-describe('createOpenAiCompatibleProvider', () => {
+describe('createOpenAiProvider', () => {
     beforeEach(() => {
         globalThis.fetch = jest.fn();
     });
@@ -367,9 +367,9 @@ describe('createOpenAiCompatibleProvider', () => {
     });
 
     it('reports operator-declared capabilities, so degraded mode is honest', async () => {
-        const degraded = createOpenAiCompatibleProvider({
+        const degraded = createOpenAiProvider({
             baseUrl: 'http://localhost:11434/v1',
-            model: 'tinyllama',
+            models: ['tinyllama'],
             capabilities: { toolCalling: false, contextWindow: 2_048 }
         });
 
@@ -381,5 +381,36 @@ describe('createOpenAiCompatibleProvider', () => {
             contextWindow: 2_048,
             maxOutputTokens: 4_096
         });
+    });
+
+    it('advertises every declared model and defaults to the first', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+
+        expect(provider().models()).toEqual(['llama3.1', 'qwen2.5']);
+        await drain(provider().stream(request));
+        expect(lastBody()['model']).toBe('llama3.1');
+    });
+
+    it('sends a per-request model override', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+
+        await drain(provider().stream({ ...request, model: 'qwen2.5' }));
+
+        expect(lastBody()['model']).toBe('qwen2.5');
+    });
+
+    it('rejects a model this endpoint does not serve, before sending anything', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+
+        await expect(
+            drain(provider().stream({ ...request, model: 'gpt-4o' }))
+        ).rejects.toThrow(/not offered by this copilot provider/);
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports capabilities per model, keeping the declared profile', async () => {
+        await expect(provider().capabilities('qwen2.5')).resolves.toMatchObject(
+            { model: 'qwen2.5', toolCalling: true }
+        );
     });
 });

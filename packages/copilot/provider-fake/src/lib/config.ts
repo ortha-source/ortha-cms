@@ -44,6 +44,12 @@ export interface FakeProviderConfig {
     capabilities?: Partial<ModelCapabilities>;
     /** Characters per `text-delta`. Defaults to 8, so assembly is exercised. */
     chunkSize?: number;
+    /**
+     * Model ids to advertise. Defaults to a single `fake`. Declare several to
+     * exercise a model picker, or the engine's model-switching path, without a
+     * real provider.
+     */
+    models?: readonly string[];
 }
 
 /**
@@ -73,3 +79,5 @@ export const DEFAULT_CAPABILITIES: ModelCapabilities = {
 };
 
 export const DEFAULT_CHUNK_SIZE = 8;
+
+export const DEFAULT_MODELS = ['fake'] as const;

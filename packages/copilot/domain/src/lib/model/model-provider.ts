@@ -94,11 +94,22 @@ export type ModelStreamEvent = TextDeltaEvent | ToolCallEvent | DoneEvent;
  */
 export interface ModelProvider {
     /**
-     * What this provider's configured model can do. Async because an adapter
-     * may probe a live endpoint (a local runtime's `/models`) rather than
-     * answer from a table.
+     * The model ids this provider offers, in declaration order; the first is
+     * the default a request gets when it names none.
+     *
+     * A provider serves **several** models on purpose — one endpoint and one
+     * credential, a cheap model for routine turns and a frontier one for hard
+     * work — so an operator (or a user, mid-conversation) can switch without a
+     * redeploy. Synchronous: this is declared configuration, so a model picker
+     * can render it without a round trip.
      */
-    capabilities(): Promise<ModelCapabilities>;
+    models(): readonly string[];
+    /**
+     * What one of this provider's models can do. Defaults to the provider's
+     * first model. Async because an adapter may probe a live endpoint (the
+     * Models API, a local runtime's `/models`) rather than answer from a table.
+     */
+    capabilities(model?: string): Promise<ModelCapabilities>;
     /**
      * Runs one model call, yielding normalised events. Aborting `signal` must
      * end the iteration promptly; a provider that observes the abort emits a
@@ -118,6 +129,14 @@ export interface ModelRunContext {
     userId: string;
 }
 
+/** One selectable backend: a registered provider plus one of its models. */
+export interface ModelChoice {
+    /** The provider's registered name, e.g. `claude` or `ollama`. */
+    provider: string;
+    /** A model id that provider offers. */
+    model: string;
+}
+
 /** The named providers available to route between. */
 export interface ModelRegistry {
     /** Resolves a provider by name; throws if the name isn't registered. */
@@ -126,6 +145,11 @@ export interface ModelRegistry {
     has(name: string): boolean;
     /** Every registered provider name. */
     names(): string[];
+    /**
+     * Every provider × model pair on offer, in registration order — what a
+     * model picker renders, and the full set a run may legally choose from.
+     */
+    catalogue(): ModelChoice[];
 }
 
 /** DI token the composition root binds to the {@link ModelRegistry}. */

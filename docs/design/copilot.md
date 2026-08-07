@@ -87,7 +87,7 @@ React or a model.
 | `copilot/server`                     | `CopilotPlugin()`, run engine + tool loop, tool registry, MCP client, SSE controller, provider registry, schema + migrations, the `COPILOT_TOOL_PROVIDER` port. |
 | `copilot/admin`                      | Chat panel, streaming transport, proposal diff UI, model/connector settings, slot contributions.                                                              |
 | `copilot/provider-anthropic`         | Adapter over `@anthropic-ai/sdk`.                                                                                                                            |
-| `copilot/provider-openai-compatible` | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                     |
+| `copilot/provider-openai`            | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                     |
 | `copilot/provider-fake`              | Scripted provider for e2e and offline dev.                                                                                                                   |
 
 **Tool bindings live with their owners.** Content tools ship in
@@ -253,12 +253,23 @@ Six phases; each after phase 1 is independently shippable.
 **Phase 0 — Foundations. ✅ Shipped.** `ModelProvider` port + registry, the three
 adapters, `plugins.copilot` config, `copilot:use` / `copilot:configure`, empty
 plugin registered in both hosts. *Ships nothing visible; unblocks everything.*
-Two things landed slightly differently from the sketch above, both deliberate:
-the port carries **no sampling parameters** (current frontier models reject
-`temperature`/`top_p`/`top_k`), and the Anthropic adapter leaves **thinking at
-the API default** rather than disabling it — with thinking off, a model will
-occasionally write a tool call into its visible text, where it silently never
-runs. Package `AGENTS.md` files carry the detail.
+Four things landed differently from the sketch above, all deliberate and all
+detailed in the package `AGENTS.md` files:
+
+- The port carries **no sampling parameters** — current frontier models reject
+  `temperature`/`top_p`/`top_k` outright.
+- The Anthropic adapter leaves **thinking at the API default** rather than
+  disabling it: with thinking off, a model will occasionally write a tool call
+  into its visible text, where it silently never runs.
+- **A provider serves a list of models**, not one. `models()` is part of the
+  port and `ModelRegistry.catalogue()` enumerates every provider × model pair,
+  so a user can switch model mid-conversation and an operator can switch
+  provider with one env var — neither needs a redeploy.
+- **`CopilotPluginConfig` names no adapter.** Provider connection settings live
+  with the host, so `copilot/server` depends only on `copilot-domain` and
+  `bootstrap-server`. Adding a Bedrock adapter is a package plus a line in
+  `plugins.ts` — what ADR-0004 §2 actually asked for. The first cut had the
+  config importing both adapter packages for their types.
 
 **Phase 1 — Chat (the vertical slice).** SSE endpoint, run engine, capability
 profile, conversation persistence, the read-only content tools, the chat panel.

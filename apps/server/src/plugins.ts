@@ -5,7 +5,7 @@ import { ContentPlugin } from '@ortha-cms/content-server';
 import { CopilotPlugin } from '@ortha-cms/copilot-server';
 import { createAnthropicProvider } from '@ortha-cms/copilot-provider-anthropic';
 import { createFakeProvider } from '@ortha-cms/copilot-provider-fake';
-import { createOpenAiCompatibleProvider } from '@ortha-cms/copilot-provider-openai-compatible';
+import { createOpenAiProvider } from '@ortha-cms/copilot-provider-openai';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
@@ -76,30 +76,40 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place
-        // that selects a backend: register model providers by name and,
-        // optionally, a `resolve` handler to route per run. All three shipped
-        // adapters are registered so an operator can switch between them with
-        // `COPILOT_PROVIDER` alone — no redeploy, which is most of what
-        // self-hosters are asking for (ADR-0004 §5).
+        // that selects a backend, and the plugin never learns which adapters
+        // exist: it takes a list of named, already-constructed providers.
         //
-        // To route per run, add a handler, e.g.:
-        //   resolve: (ctx) => (isBigWorkspace(ctx.workspaceId) ? 'anthropic' : 'local'),
+        // Each provider declares several models, so a user can switch between
+        // them mid-conversation, and an operator can switch provider entirely
+        // with `COPILOT_PROVIDER` — no redeploy, which is most of what
+        // self-hosters are asking for (ADR-0004 §5). Registering two of the
+        // same kind is just another entry:
+        //   { name: 'ollama-big', provider: createOpenAiProvider({ … }) },
+        //
+        // To route per run, add a `resolve` handler, e.g.:
+        //   resolve: (ctx) => (isBigWorkspace(ctx.workspaceId) ? 'claude' : 'ollama'),
         //
         // Phase 0 ships nothing visible: this binds the model seam and the
         // config so the chat vertical slice has something to build on.
         CopilotPlugin({
-            providers: {
-                anthropic: createAnthropicProvider(
-                    config.plugins.copilot.anthropic
-                ),
-                local: createOpenAiCompatibleProvider(
-                    config.plugins.copilot.openaiCompatible
-                ),
+            providers: [
+                {
+                    name: 'claude',
+                    provider: createAnthropicProvider(
+                        config.plugins.copilot.providers.claude
+                    )
+                },
+                {
+                    name: 'ollama',
+                    provider: createOpenAiProvider(
+                        config.plugins.copilot.providers.ollama
+                    )
+                },
                 // Shipped, not test scaffolding (ADR-0004 §3): it is how
                 // server-e2e drives the loop with no key and no network, and
                 // how a contributor runs the admin offline.
-                fake: createFakeProvider()
-            },
+                { name: 'fake', provider: createFakeProvider() }
+            ],
             config: config.plugins.copilot
         })
     ];

@@ -12,7 +12,12 @@ Drizzle and Nest out of any `domain/` layer.
 
 - `createAnthropicProvider(config): ModelProvider` — a factory the host binds at
   the composition root. `config` is
-  `{ apiKey, model, baseUrl?, effort?, maxRetries?, timeoutMs? }`.
+  `{ apiKey, models, baseUrl?, effort?, maxRetries?, timeoutMs? }`.
+
+`models` is a **list**, first entry the default. One key and one client back
+several models, so a user can switch mid-conversation. A run naming a model
+outside the list raises `UnknownModelError` rather than quietly answering on
+the default.
 
 ## Layout
 
@@ -69,8 +74,9 @@ Sampling parameters are likewise absent: current models reject `temperature`,
 
 ## Capabilities are probed, not guessed
 
-`capabilities()` calls the Models API once (cached for the adapter's lifetime)
-and reads the live context window, output cap and vision support. If the call
+`capabilities(model?)` calls the Models API once **per model** (cached for the
+adapter's lifetime) and reads the live context window, output cap and vision
+support. If the call
 fails — no network, no key, a gateway that doesn't proxy `/v1/models` — it falls
 back to a conservative record rather than reporting "unknown" as "unsupported",
 which would drop a frontier model into degraded mode over a transient blip.

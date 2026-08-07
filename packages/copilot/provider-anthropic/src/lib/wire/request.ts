@@ -53,7 +53,7 @@ export function toAnthropicMessages(
 }
 
 /**
- * Builds the streaming request body.
+ * Builds the streaming request body for an already-resolved `model`.
  *
  * **No `thinking` configuration is sent**, deliberately. On current models
  * thinking is on by default, and turning it off makes them occasionally write
@@ -66,11 +66,12 @@ export function toAnthropicMessages(
  */
 export function toStreamParams(
     request: ModelRequest,
-    config: AnthropicProviderConfig
+    config: AnthropicProviderConfig,
+    model: string
 ): StreamParams {
     const tools = request.tools ?? [];
     return {
-        model: request.model ?? config.model,
+        model,
         max_tokens: request.maxOutputTokens,
         ...(request.system ? { system: request.system } : {}),
         messages: toAnthropicMessages(request.messages),
