@@ -110,6 +110,14 @@ stays in the controller, and the loop is testable by draining the generator.
   model saw.
 - **The model is resolved in the engine**, not left to the adapter, so
   `copilot_messages.model` names the model that actually answered.
+- **`streamTurn` is a generator, and the `yield*` is load-bearing.** It once
+  collected text deltas into an array and returned them for `loop` to flush
+  after the provider's stream ended — which silently turns streaming off: the
+  answer arrives in one burst when the model finishes, indistinguishable from a
+  slow non-streaming API. A fast provider hides this completely, which is how it
+  survived the first round of verification. To check it, point the server at a
+  deliberately slow OpenAI-compatible endpoint and time the frames; anything
+  else measures nothing.
 
 ## Schema
 

@@ -291,13 +291,14 @@ export class RunEngine {
                 return 'max-tokens';
             }
 
-            const turn = await this.streamTurn(ctx, messages, tools);
+            // `yield*` forwards each delta to the client as it arrives and
+            // still gives us the turn's summary as the generator's return
+            // value — the same shape `loop` itself uses to return its stop
+            // reason.
+            const turn = yield* this.streamTurn(ctx, messages, tools);
 
             ctx.usage.inputTokens += turn.usage.inputTokens;
             ctx.usage.outputTokens += turn.usage.outputTokens;
-            for (const event of turn.events) {
-                yield event;
-            }
             if (turn.text) {
                 ctx.assistantBlocks.push({ type: 'text', text: turn.text });
             }
@@ -343,7 +344,7 @@ export class RunEngine {
     }
 
     /** One model call, reduced to text, tool uses, usage and a stop reason. */
-    private async streamTurn(
+    private async *streamTurn(
         ctx: {
             input: StartRunInput;
             system: string;
@@ -352,14 +353,15 @@ export class RunEngine {
         },
         messages: ModelMessage[],
         tools: ModelTool[]
-    ): Promise<{
-        text: string;
-        toolUses: ToolUseBlock[];
-        usage: ModelUsage;
-        stopReason: string;
-        events: CopilotRunEvent[];
-    }> {
-        const events: CopilotRunEvent[] = [];
+    ): AsyncGenerator<
+        CopilotRunEvent,
+        {
+            text: string;
+            toolUses: ToolUseBlock[];
+            usage: ModelUsage;
+            stopReason: string;
+        }
+    > {
         const toolUses: ToolUseBlock[] = [];
         let text = '';
         let usage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
@@ -379,7 +381,11 @@ export class RunEngine {
         for await (const event of stream as AsyncIterable<ModelStreamEvent>) {
             if (event.type === 'text-delta') {
                 text += event.text;
-                events.push({ type: 'text-delta', text: event.text });
+                // Yielded, not collected. Buffering these into an array and
+                // flushing after the provider's stream ends turns the whole
+                // feature off: the answer arrives in one burst when the model
+                // finishes, which looks exactly like a slow non-streaming API.
+                yield { type: 'text-delta', text: event.text };
             } else if (event.type === 'tool-call') {
                 toolUses.push({
                     type: 'tool_use',
@@ -393,7 +399,7 @@ export class RunEngine {
             }
         }
 
-        return { text, toolUses, usage, stopReason, events };
+        return { text, toolUses, usage, stopReason };
     }
 
     /**

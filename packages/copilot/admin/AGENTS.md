@@ -112,15 +112,22 @@ so the model can resolve "this entry" and "here". It comes from the **URL**
 in the sidebar, outside `CurrentWorkspaceProvider`, and anything the entry editor
 exposed through context would be equally out of reach.
 
+It is **opt-in**: a `+ Add context` button attaches the current page, and the
+chip has an `×`. Attaching automatically was the first version and it was wrong
+— every question looked like it was about whatever page happened to be open, so
+asking "how many authors are there?" from the Articles list told the model you
+were looking at articles. The attached value is a **snapshot**, not a live
+mirror of the URL; navigating re-offers the button so a stale one can be
+replaced without removing it first.
+
 Two things that matter:
 
 - **`new` and `trash` are not entry ids.** They sit in the `:entryId` slot on
   the create form and the trash view. Sending `entryId: "new"` would have the
   model confidently discuss an entry that does not exist.
 - **The attached context is shown** (`ContextChip`, above the composer). Context
-  attached invisibly is context the user cannot correct when it is wrong, and a
-  URL is easily stale relative to what someone means. The design's turn anatomy
-  asks for it too: "Your message, plus where you are" (§2).
+  attached invisibly is context the user cannot correct when it is wrong. The
+  design's turn anatomy asks for it too: "Your message, plus where you are" (§2).
 
 None of it is an authority claim. `workspaceId` becomes `X-Workspace-Id`, which
 `WorkspaceGuard` validates; `contentType`/`entryId` reach the model as prompt

@@ -298,6 +298,9 @@ function PanelBody({
     const intl = useIntl();
     const chat = useCopilotChat(workspaceId, hidden);
     const composerRef = useRef<HTMLTextAreaElement>(null);
+    // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
+    // context should not silently change under the user as they navigate.
+    const [attached, setAttached] = useState<RouteContext | null>(null);
     // `null` means "let the host's resolver pick", which is a real choice
     // rather than the absence of one — see ModelPicker. Held here, not on the
     // thread: the model applies to the next turn, so a conversation can start
@@ -333,11 +336,14 @@ function PanelBody({
 
             <MessageList messages={chat.messages} />
 
-            {/* "Your message, plus where you are" (design §2). Shown because
-                context that is attached invisibly is context the user cannot
-                correct when it is wrong — and the route can be stale relative to
-                what they mean. */}
-            <ContextChip context={routeContext} />
+            {/* "Your message, plus where you are" (design §2) — but only when
+                the user asked for it. See ContextChip for why this is opt-in. */}
+            <ContextChip
+                current={routeContext}
+                attached={attached}
+                onAttach={() => setAttached(routeContext)}
+                onDetach={() => setAttached(null)}
+            />
 
             <Composer
                 busy={chat.busy}
@@ -346,15 +352,18 @@ function PanelBody({
                     chat.send(
                         text,
                         {
-                            surface: routeContext.surface,
-                            ...(routeContext.contentType
-                                ? { contentType: routeContext.contentType }
+                            // Nothing attached means a plain chat turn — the
+                            // model is told where the user is only when they
+                            // said so.
+                            surface: attached?.surface ?? 'chat',
+                            ...(attached?.contentType
+                                ? { contentType: attached.contentType }
                                 : {}),
-                            ...(routeContext.entryId
-                                ? { entryId: routeContext.entryId }
+                            ...(attached?.entryId
+                                ? { entryId: attached.entryId }
                                 : {}),
-                            ...(routeContext.locale
-                                ? { locale: routeContext.locale }
+                            ...(attached?.locale
+                                ? { locale: attached.locale }
                                 : {})
                         },
                         {

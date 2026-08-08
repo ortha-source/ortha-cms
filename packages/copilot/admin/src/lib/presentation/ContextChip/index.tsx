@@ -1,59 +1,129 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { FileText, Table2 } from 'lucide-react';
-import { Badge } from '@ortha-cms/design-system';
+import { FileText, Plus, Table2, X } from 'lucide-react';
+import { Badge, Button } from '@ortha-cms/design-system';
 import type { RouteContext } from '../../application/readRouteContext';
 
 const messages = defineMessages({
-    label: {
-        id: 'copilot.context.label',
-        defaultMessage: 'Looking at'
+    add: {
+        id: 'copilot.context.add',
+        defaultMessage: 'Add this page as context'
+    },
+    addShort: {
+        id: 'copilot.context.addShort',
+        defaultMessage: 'Add context'
+    },
+    update: {
+        id: 'copilot.context.update',
+        defaultMessage: 'Attach the page you are on now instead'
+    },
+    remove: {
+        id: 'copilot.context.remove',
+        defaultMessage: 'Remove context'
     },
     entry: {
         id: 'copilot.context.entry',
-        defaultMessage: 'this {type} entry'
+        defaultMessage: '{type} entry'
     },
     records: {
         id: 'copilot.context.records',
-        defaultMessage: 'the {type} list'
+        defaultMessage: '{type} list'
     }
 });
 
+export interface ContextChipProps {
+    /** Where the user is now, from the URL. */
+    current: RouteContext;
+    /** What is attached to the next turn, or `null` for nothing. */
+    attached: RouteContext | null;
+    /** Attach the current page. */
+    onAttach(): void;
+    /** Detach whatever is attached. */
+    onDetach(): void;
+}
+
+/** Two contexts point at the same thing. */
+function sameTarget(a: RouteContext | null, b: RouteContext | null): boolean {
+    return (
+        a?.contentType === b?.contentType &&
+        a?.entryId === b?.entryId &&
+        a?.locale === b?.locale
+    );
+}
+
 /**
- * What the run is being told about where the user is.
+ * The context attached to the next turn — **opt-in**.
  *
- * Shown because **context attached invisibly is context the user cannot correct
- * when it is wrong** — the URL can easily be stale relative to what someone
- * means, and "this entry" quietly resolving to the last thing they happened to
- * open is worse than not resolving at all. The design's own turn anatomy asks
- * for it: "Your message, plus where you are" (§2).
+ * Attaching automatically from the URL was the first version, and it was wrong:
+ * it made every question look like it was about whatever page happened to be
+ * open. Ask "how many authors are there?" from the Articles list and the model
+ * is told you are looking at articles, which is at best noise and at worst a
+ * wrong steer. Explicit attachment also matches what the user can *see* — a
+ * chip they added is one they can remove.
  *
- * Renders nothing outside the content library, where there is no entry-level
- * context to report and a permanent empty bar would be noise.
+ * Renders nothing where there is no page-level context to offer (outside the
+ * content library), rather than an inert button.
  */
-export function ContextChip({ context }: { context: RouteContext }) {
+export function ContextChip({
+    current,
+    attached,
+    onAttach,
+    onDetach
+}: ContextChipProps) {
     const intl = useIntl();
 
-    if (!context.contentType) {
+    const canAttachCurrent = !!current.contentType;
+    // Offer the button when nothing is attached, or when the user has navigated
+    // somewhere else since attaching — an attached context is a snapshot, and a
+    // stale one should be replaceable without first removing it.
+    const offerAttach = canAttachCurrent && !sameTarget(current, attached);
+
+    if (!attached && !offerAttach) {
         return null;
     }
 
-    const isEntry = context.surface === 'entry';
-    const Icon = isEntry ? FileText : Table2;
-
     return (
-        <div className="text-muted-foreground flex items-center gap-1.5 px-3 pt-2 text-xs">
-            <span>{intl.formatMessage(messages.label)}</span>
-            <Badge variant="secondary" className="gap-1 font-normal">
-                <Icon className="size-3" />
-                {intl.formatMessage(
-                    isEntry ? messages.entry : messages.records,
-                    { type: context.contentType }
-                )}
-            </Badge>
-            {context.locale && (
-                <Badge variant="secondary" className="font-normal uppercase">
-                    {context.locale}
+        <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2">
+            {attached && (
+                <Badge variant="secondary" className="gap-1 pr-1 font-normal">
+                    {attached.surface === 'entry' ? (
+                        <FileText className="size-3" />
+                    ) : (
+                        <Table2 className="size-3" />
+                    )}
+                    {intl.formatMessage(
+                        attached.surface === 'entry'
+                            ? messages.entry
+                            : messages.records,
+                        { type: attached.contentType }
+                    )}
+                    {attached.locale && (
+                        <span className="uppercase">· {attached.locale}</span>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onDetach}
+                        aria-label={intl.formatMessage(messages.remove)}
+                        className="hover:bg-muted-foreground/20 ml-0.5 rounded-sm p-0.5"
+                    >
+                        <X className="size-3" />
+                    </button>
                 </Badge>
+            )}
+
+            {offerAttach && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onAttach}
+                    className="text-muted-foreground h-6 gap-1 px-1.5 text-xs"
+                    title={intl.formatMessage(
+                        attached ? messages.update : messages.add
+                    )}
+                >
+                    <Plus className="size-3" />
+                    {intl.formatMessage(messages.addShort)}
+                </Button>
             )}
         </div>
     );
