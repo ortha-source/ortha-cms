@@ -482,7 +482,16 @@ A linked entry is returned as a **full `PublicEntry`** — the same envelope +
 already has. Linked entries are **not themselves expanded** (no `relations` /
 `media` on them), which is what bounds a request to one level of the graph.
 Hydration is one batched `IN (…)` read per target *type*, so the count stays
-flat: measured at 7 content queries for both `pageSize=1` and `pageSize=50`. Both are **batched across the page** — verified against a live server:
+flat: measured at 7 content queries for both `pageSize=1` and `pageSize=50`.
+
+**Per-field item limits.** `?relationLimit=` / `?mediaLimit=` set how many
+links / assets each expanded field returns (1…`MAX_PAGE_SIZE`, default
+`DEFAULT_EXPANSION_LIMIT` = 20); `relationLimit` also drives the `/relations`
+sibling route. The field's `total` always reports the **true** visible count, so
+a low limit is observable as `items.length < total` and never passes a slice off
+as the whole set — page the rest via `/relations/<field>`. Worth knowing that
+these are per field *per entry*, so a large page multiplies: `pageSize` × fields
+× limit is the real bound on a response, and the limit is the knob for it. Both are **batched across the page** — verified against a live server:
 `pageSize=1` and `pageSize=50` each issue the same 6 content queries (count,
 page, one `refsFor` per single relation, a windowed pass + titles per join-backed
 one, and **one** media resolve). Notes:

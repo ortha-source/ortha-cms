@@ -32,6 +32,12 @@ const FIELDS_MAX_LENGTH = 1024;
 export const PREVIEW = 'preview';
 
 /**
+ * Default links / assets returned per expanded field. Matches the admin
+ * preview's cap so both surfaces summarise a relation the same way.
+ */
+export const DEFAULT_EXPANSION_LIMIT = 20;
+
+/**
  * The one parameter every public read accepts: which locale to read. Shared by
  * the list and the single-entry route so the slug is declared once.
  */
@@ -71,6 +77,43 @@ export class PublicEntryQueryDto {
     @IsOptional()
     @IsIn([PREVIEW])
     media?: typeof PREVIEW;
+
+    /**
+     * Links returned per expanded relation field. The **true** count is always
+     * reported as that field's `total`, so lowering this never hides the fact
+     * that more exist.
+     */
+    @ApiPropertyOptional({
+        type: 'integer',
+        minimum: 1,
+        maximum: MAX_PAGE_SIZE,
+        default: DEFAULT_EXPANSION_LIMIT,
+        description: `Links returned per expanded relation field (1…${MAX_PAGE_SIZE}, default ${DEFAULT_EXPANSION_LIMIT}). The field's \`total\` always reports the true count, so a low limit hides nothing. Page the rest via /relations/<field>.`
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(MAX_PAGE_SIZE)
+    relationLimit?: number;
+
+    /**
+     * Assets returned per expanded media field, with the same
+     * `total`-tells-the-truth guarantee as {@link relationLimit}.
+     */
+    @ApiPropertyOptional({
+        type: 'integer',
+        minimum: 1,
+        maximum: MAX_PAGE_SIZE,
+        default: DEFAULT_EXPANSION_LIMIT,
+        description: `Assets returned per expanded media field (1…${MAX_PAGE_SIZE}, default ${DEFAULT_EXPANSION_LIMIT}). The field's \`total\` always reports the true count.`
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(MAX_PAGE_SIZE)
+    mediaLimit?: number;
 
     /** Comma-separated media field names to expand. */
     @ApiPropertyOptional({

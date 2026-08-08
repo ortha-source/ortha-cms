@@ -24,10 +24,7 @@ import {
 } from '../../extension/entry-extension';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
-import {
-    RelationLinkService,
-    RELATION_PAGE_SIZE
-} from '../../entries/infrastructure/persistence/relation-link.service';
+import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
 import type { RelationFieldView } from '../../entries/types/entry-list-view';
 import type {
     PublicMediaFieldView,
@@ -40,6 +37,7 @@ import { parseFieldSelection } from './field-selection';
 import { PublicExpansionQuery } from './public-expansion.query';
 import { DEFAULT_PAGE_SIZE } from '../../entries/entries.constants';
 import {
+    DEFAULT_EXPANSION_LIMIT,
     PREVIEW,
     type PublicEntryQueryDto,
     type PublicListEntriesQueryDto
@@ -160,7 +158,8 @@ export class PublicEntriesQuery {
             rows as Record<string, unknown>[],
             workspaceId,
             relationFields,
-            mediaFields
+            mediaFields,
+            { relation: query.relationLimit, media: query.mediaLimit }
         );
         return { items, total, page, pageSize };
     }
@@ -176,7 +175,8 @@ export class PublicEntriesQuery {
         rows: Record<string, unknown>[],
         workspaceId: string,
         relationFields: string[],
-        mediaFields: string[]
+        mediaFields: string[],
+        limits: { relation?: number; media?: number }
     ): Promise<void> {
         if (!relationFields.length && !mediaFields.length) {
             return;
@@ -186,9 +186,16 @@ export class PublicEntriesQuery {
                 type,
                 relationFields,
                 rows,
-                workspaceId
+                workspaceId,
+                limits.relation
             ),
-            this.expansion.mediaForRows(type, mediaFields, rows, workspaceId)
+            this.expansion.mediaForRows(
+                type,
+                mediaFields,
+                rows,
+                workspaceId,
+                limits.media
+            )
         ]);
         for (const item of items) {
             // Keys are present-but-empty when the caller asked for a field the
@@ -311,7 +318,8 @@ export class PublicEntriesQuery {
             [row as Record<string, unknown>],
             workspaceId,
             relationFields,
-            mediaFields
+            mediaFields,
+            { relation: query.relationLimit, media: query.mediaLimit }
         );
         return entry;
     }
@@ -327,14 +335,15 @@ export class PublicEntriesQuery {
         id: string,
         workspaceId: string,
         grantedTypes: ReadonlySet<string>,
-        locale?: string
+        locale?: string,
+        limit = DEFAULT_EXPANSION_LIMIT
     ): Promise<Record<string, PublicRelationFieldView>> {
         const row = await this.readableRow(type, id, workspaceId, locale);
         const views = await this.relationLinks.readAll(
             type,
             row,
             workspaceId,
-            RELATION_PAGE_SIZE,
+            limit,
             { publishedOnly: true }
         );
         // Skip a relation whose target type this workspace can't reach, so the
@@ -402,7 +411,8 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         id: string,
         workspaceId: string,
-        locale?: string
+        locale?: string,
+        limit = DEFAULT_EXPANSION_LIMIT
     ): Promise<Record<string, PublicMediaFieldView>> {
         const row = await this.readableRow(type, id, workspaceId, locale);
         const fields = Object.entries(type.fields)
@@ -412,7 +422,8 @@ export class PublicEntriesQuery {
             type,
             fields,
             [row],
-            workspaceId
+            workspaceId,
+            limit
         );
         const out = media.get(id) ?? {};
         for (const field of fields) out[field] ??= { items: [], total: 0 };

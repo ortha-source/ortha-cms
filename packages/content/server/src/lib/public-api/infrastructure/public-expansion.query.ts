@@ -7,10 +7,8 @@ import {
     InjectMediaAssetResolver,
     type MediaAssetResolver
 } from '../../extension/media-asset-resolver';
-import {
-    RelationLinkService,
-    RELATION_PAGE_SIZE
-} from '../../entries/infrastructure/persistence/relation-link.service';
+import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
+import { DEFAULT_EXPANSION_LIMIT } from '../http/dto/public-list-entries-query.dto';
 import type {
     PublicMediaFieldView,
     PublicMediaRef,
@@ -130,7 +128,8 @@ export class PublicExpansionQuery {
         type: AnyContentType,
         fields: string[],
         rows: Row[],
-        workspaceId: string
+        workspaceId: string,
+        limit = DEFAULT_EXPANSION_LIMIT
     ): Promise<Map<string, Record<string, PublicRelationFieldView>>> {
         const out = new Map<string, Record<string, PublicRelationFieldView>>();
         if (!fields.length || !rows.length) {
@@ -141,7 +140,7 @@ export class PublicExpansionQuery {
             fields,
             rows,
             workspaceId,
-            RELATION_PAGE_SIZE,
+            limit,
             { publishedOnly: true }
         );
         // The preview yields ordered link ids; hydrate them into full entries
@@ -276,7 +275,8 @@ export class PublicExpansionQuery {
         type: AnyContentType,
         fields: string[],
         rows: Row[],
-        workspaceId: string
+        workspaceId: string,
+        limit = DEFAULT_EXPANSION_LIMIT
     ): Promise<Map<string, Record<string, PublicMediaFieldView>>> {
         const out = new Map<string, Record<string, PublicMediaFieldView>>();
         if (!this.media || !fields.length || !rows.length) {
@@ -311,28 +311,29 @@ export class PublicExpansionQuery {
                 // `missing` placeholder to preserve ordering in an editor; a
                 // public read has no such need and simply omits it, so every
                 // ref it returns is a real asset.
-                const items = ids
+                const present = ids
                     .map((id) => resolved.get(id))
                     .filter((asset): asset is NonNullable<typeof asset> =>
                         Boolean(asset)
-                    )
-                    .map(
-                        (asset): PublicMediaRef => ({
-                            id: asset.id,
-                            name: asset.name,
-                            url: asset.url,
-                            ...(asset.thumbUrl
-                                ? { thumbUrl: asset.thumbUrl }
-                                : {}),
-                            ...(asset.previewUrl
-                                ? { previewUrl: asset.previewUrl }
-                                : {}),
-                            kind: asset.kind,
-                            mimeType: asset.mimeType,
-                            alt: asset.alt
-                        })
                     );
-                view[field] = { items, total: items.length };
+                // `total` counts every asset actually attached, before the
+                // limit — so a lowered limit is visible as `items.length <
+                // total` rather than silently passing off a slice as the whole.
+                const items = present.slice(0, limit).map(
+                    (asset): PublicMediaRef => ({
+                        id: asset.id,
+                        name: asset.name,
+                        url: asset.url,
+                        ...(asset.thumbUrl ? { thumbUrl: asset.thumbUrl } : {}),
+                        ...(asset.previewUrl
+                            ? { previewUrl: asset.previewUrl }
+                            : {}),
+                        kind: asset.kind,
+                        mimeType: asset.mimeType,
+                        alt: asset.alt
+                    })
+                );
+                view[field] = { items, total: present.length };
             }
             out.set(entryId, view);
         }

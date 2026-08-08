@@ -26,7 +26,14 @@ interface PublicItem {
     values: Record<string, unknown>;
     relations?: Record<
         string,
-        { items: { id: string; title: string }[]; total: number }
+        {
+            items: {
+                id: string;
+                createdAt: string;
+                values: Record<string, unknown>;
+            }[];
+            total: number;
+        }
     >;
     media?: Record<string, { items: { id: string }[]; total: number }>;
 }
@@ -737,9 +744,63 @@ describe('Public content API (/api/v1)', () => {
             // The draft link is neither shown nor counted — `total` must not
             // advertise a link the caller can never reach.
             expect(item?.relations?.['tags'].total).toBe(1);
-            expect(
-                item?.relations?.['tags'].items.map((ref) => ref.title)
-            ).toEqual(['Live tag']);
+            // A linked entry comes back in the SAME shape as a base record —
+            // envelope + `values` — not a bespoke ref object.
+            const [linked] = item?.relations?.['tags'].items ?? [];
+            expect(linked.values['name']).toBe('Live tag');
+            expect(linked.id).toEqual(expect.any(String));
+            expect(linked.createdAt).toEqual(expect.any(String));
+            // One level only: a linked entry is not itself expanded.
+            expect(linked).not.toHaveProperty('relations');
+        });
+
+        it('caps preview items with relationLimit, keeping total truthful', async () => {
+            await seedContentGrants(workspaceId, ['test_tag']);
+            const tagIds = await seedTags(
+                Array.from({ length: 5 }, (_, index) => ({
+                    name: `Tag ${index}`,
+                    status: 'published',
+                    publishedAt: new Date()
+                })),
+                workspaceId
+            );
+            const source = await seedPublished('Capped source');
+            await seedArticleTags(source, tagIds);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    relations: 'preview',
+                    relationFields: 'tags',
+                    relationLimit: 2
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const item = (res.body.items as PublicItem[]).find(
+                (row) => row.id === source
+            );
+            // Fewer items than links, but `total` still reports all 5 — a low
+            // limit must never pass a slice off as the whole set.
+            expect(item?.relations?.['tags'].items).toHaveLength(2);
+            expect(item?.relations?.['tags'].total).toBe(5);
+        });
+
+        it('rejects a relationLimit outside 1…100', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            for (const relationLimit of [0, 500]) {
+                await request(harness.server)
+                    .get('/api/v1/content/test_article')
+                    .query({ relations: 'preview', relationLimit })
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(400);
+            }
         });
 
         it('400s expanding a relation into an ungranted type', async () => {
@@ -801,7 +862,7 @@ describe('Public content API (/api/v1)', () => {
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(200);
             expect(one.body.items).toHaveLength(1);
-            expect(one.body.items[0].title).toBe('Sibling tag');
+            expect(one.body.items[0].values.name).toBe('Sibling tag');
 
             // A non-relation field is a 400, not an empty page.
             await request(harness.server)
@@ -836,9 +897,10 @@ describe('Public content API (/api/v1)', () => {
                 workspaceIds: [workspaceId]
             });
 
+            // No `mediaFields`: `preview` alone expands every media field.
             const res = await request(harness.server)
                 .get('/api/v1/content/test_article')
-                .query({ media: 'preview', mediaFields: 'image,attachments' })
+                .query({ media: 'preview' })
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(200);
 

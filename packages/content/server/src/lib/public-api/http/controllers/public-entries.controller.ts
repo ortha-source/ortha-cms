@@ -157,7 +157,8 @@ export class PublicEntriesController {
                 id,
                 workspaceId,
                 granted,
-                query.locale
+                query.locale,
+                query.relationLimit
             )
         };
     }
@@ -190,7 +191,7 @@ export class PublicEntriesController {
             id,
             field,
             query.page ?? 1,
-            query.pageSize ?? RELATION_PAGE_SIZE,
+            query.pageSize ?? query.relationLimit ?? RELATION_PAGE_SIZE,
             workspaceId,
             granted,
             query.locale
@@ -224,7 +225,8 @@ export class PublicEntriesController {
                 type,
                 id,
                 workspaceId,
-                query.locale
+                query.locale,
+                query.mediaLimit
             )
         };
     }
