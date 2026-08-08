@@ -133,13 +133,16 @@ export class RelationLinkService {
      * keyed by field name — what the editor loads on open. Each field is read
      * independently (paginated), so a relation with many links contributes only
      * its first page, not every id.
+     *
+     * Admin-only, hence no {@link RelationTargetVisibility}: an editor must see
+     * the draft targets it may be about to publish. The public API reads links
+     * one field at a time through {@link readField}, which takes the flag.
      */
     async readAll(
         type: AnyContentType,
         row: Row,
         workspaceId: string,
-        pageSize = RELATION_PAGE_SIZE,
-        visibility?: RelationTargetVisibility
+        pageSize = RELATION_PAGE_SIZE
     ): Promise<Record<string, RelationFieldView>> {
         // Each relation field is an independent read, so fan them out
         // concurrently rather than awaiting one before starting the next — a
@@ -150,16 +153,7 @@ export class RelationLinkService {
         );
         const views = await Promise.all(
             fields.map(([name, spec]) =>
-                this.readField(
-                    type,
-                    row,
-                    name,
-                    spec,
-                    1,
-                    pageSize,
-                    workspaceId,
-                    visibility
-                )
+                this.readField(type, row, name, spec, 1, pageSize, workspaceId)
             )
         );
         const out: Record<string, RelationFieldView> = {};

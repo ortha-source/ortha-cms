@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_480 test cases across 37 spec files._
+_482 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -137,7 +137,7 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | rejects a relationLimit outside 1…100 |
 | 400s expanding a relation into an ungranted type |
 | 400s a relationFields name that is not a relation |
-| reads relations from the sibling routes |
+| pages one relation field from the sibling route |
 | 404s the relation and media routes for an entry it cannot read |
 | exposes media fields as empty views when nothing is attached |
 | 400s a mediaFields name that is not a media field |
@@ -155,6 +155,8 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | previews translations across a whole list page |
 | serves the same siblings from the /translations route |
 | 404s /translations for an entry it cannot read |
+| serves every single-entry route by translation group too |
+| 404s the group sibling routes when the locale has no published row |
 | 400s every locale feature on a type that is not localized |
 
 ### schema discovery

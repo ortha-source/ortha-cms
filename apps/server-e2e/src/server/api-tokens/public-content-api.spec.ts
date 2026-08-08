@@ -833,7 +833,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(400);
         });
 
-        it('reads relations from the sibling routes', async () => {
+        it('pages one relation field from the sibling route', async () => {
             await seedContentGrants(workspaceId, ['test_tag']);
             const tagIds = await seedTags(
                 [
@@ -851,15 +851,6 @@ describe('Public content API (/api/v1)', () => {
                 workspaceIds: [workspaceId]
             });
 
-            const all = await request(harness.server)
-                .get(`/api/v1/content/test_article/${source}/relations`)
-                .set('Authorization', `Bearer ${secret}`)
-                .expect(200);
-            expect(all.body.relations.tags.total).toBe(1);
-            // An ungranted target is omitted from the map entirely, matching
-            // what `relationFields` would refuse.
-            expect(all.body.relations).not.toHaveProperty('author');
-
             const one = await request(harness.server)
                 .get(`/api/v1/content/test_article/${source}/relations/tags`)
                 .query({ page: 1, pageSize: 1 })
@@ -871,6 +862,11 @@ describe('Public content API (/api/v1)', () => {
             // A non-relation field is a 400, not an empty page.
             await request(harness.server)
                 .get(`/api/v1/content/test_article/${source}/relations/text`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+            // …and so is a relation whose target the workspace can't reach.
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${source}/relations/author`)
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(400);
         });
@@ -886,7 +882,7 @@ describe('Public content API (/api/v1)', () => {
 
             // The sibling routes must be exactly as invisible as the entry.
             await request(harness.server)
-                .get(`/api/v1/content/test_article/${draft}/relations`)
+                .get(`/api/v1/content/test_article/${draft}/relations/tags`)
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(404);
             await request(harness.server)
@@ -1167,6 +1163,84 @@ describe('Public content API (/api/v1)', () => {
                 .expect(404);
         });
 
+        it('serves every single-entry route by translation group too', async () => {
+            await seedContentGrants(workspaceId, ['test_tag']);
+            const tagIds = await seedTags(
+                [
+                    {
+                        name: 'Group tag',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            const { groupId, byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            await seedArticleTags(byLocale['de'], tagIds);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const base = `/api/v1/content/test_article/group/${groupId}`;
+            // Every read a caller can do holding `byLocale.de` it can also do
+            // holding the group id plus `?locale=de` — the identity a localized
+            // front-end actually carries.
+            const links = await request(harness.server)
+                .get(`${base}/relations/tags`)
+                .query({ locale: 'de' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(links.body.items[0].values.name).toBe('Group tag');
+
+            const media = await request(harness.server)
+                .get(`${base}/media`)
+                .query({ locale: 'de' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(media.body.media.image).toEqual({ items: [], total: 0 });
+
+            // The group id alone names every language the story is live in.
+            const siblings = await request(harness.server)
+                .get(`${base}/translations`)
+                .query({ locale: 'de' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(
+                (siblings.body.translations as PublicItem[]).map((t) => t.id)
+            ).toEqual([byLocale['en']]);
+
+            // The `en` row has no tags, so the same group in the default locale
+            // resolves to a different row — proof the locale, not the group,
+            // picks which entry the sibling routes act on.
+            const enLinks = await request(harness.server)
+                .get(`${base}/relations/tags`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(enLinks.body.total).toBe(0);
+        });
+
+        it('404s the group sibling routes when the locale has no published row', async () => {
+            const { groupId } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'fr', text: 'Story FR', status: 'draft' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const base = `/api/v1/content/test_article/group/${groupId}`;
+            for (const path of ['/media', '/translations']) {
+                await request(harness.server)
+                    .get(`${base}${path}`)
+                    .query({ locale: 'fr' })
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(404);
+            }
+        });
+
         it('400s every locale feature on a type that is not localized', async () => {
             // `test_tag` is a granted, non-i18n collection — the case where a
             // silent empty list would read as "no other locales" when the truth
@@ -1195,10 +1269,16 @@ describe('Public content API (/api/v1)', () => {
                 .get(`/api/v1/content/test_tag/${tagId}/translations`)
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(400);
-            await request(harness.server)
-                .get(`/api/v1/content/test_tag/group/${randomUUID()}`)
-                .set('Authorization', `Bearer ${secret}`)
-                .expect(400);
+            // Addressing a non-localized type by group is a 400 on every route
+            // that accepts the group form, not just the entry read — the caller
+            // used an identity the type does not have.
+            const group = `/api/v1/content/test_tag/group/${randomUUID()}`;
+            for (const path of ['', '/media', '/translations']) {
+                await request(harness.server)
+                    .get(`${group}${path}`)
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(400);
+            }
         });
     });
 

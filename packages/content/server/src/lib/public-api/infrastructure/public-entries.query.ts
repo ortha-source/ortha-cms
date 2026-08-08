@@ -26,7 +26,6 @@ import {
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
-import type { RelationFieldView } from '../../entries/types/entry-list-view';
 import type {
     PublicMediaFieldView,
     PublicRelationFieldView
@@ -56,6 +55,18 @@ type ContentTable = Record<string, AnyColumn>;
  * predicate helpers use against the looser `AnyColumn` operators.
  */
 type ContentColumns = Record<string, PgColumn>;
+
+/**
+ * How a request names the **one** entry it wants. Two spellings, one meaning:
+ * an entry id, or a translation group whose row for the requested locale is
+ * taken (see `getOne`). Every single-entry read takes a locator rather than an
+ * id, so each route exists in both spellings by construction — a group-addressed
+ * caller is never told "that one is id-only", and neither form can drift on what
+ * it hides.
+ */
+export type EntryLocator =
+    | { readonly id: string }
+    | { readonly localeGroupId: string };
 
 /**
  * The read side of the public content API. Generic over the content type like
@@ -349,13 +360,18 @@ export class PublicEntriesQuery {
      */
     async translationsOf(
         type: AnyContentType,
-        id: string,
+        locator: EntryLocator,
         workspaceId: string,
         query: PublicEntryQueryDto
     ): Promise<PublicEntry[]> {
         this.assertLocalized(type, 'translations');
         const selected = parseFieldSelection(type, query.fields);
-        const row = await this.readableRow(type, id, workspaceId, query.locale);
+        const row = await this.readableRow(
+            type,
+            locator,
+            workspaceId,
+            query.locale
+        );
         const entry = toPublicEntry(type, row, selected);
         const byEntry = await this.translationsForEntries(
             type,
@@ -363,7 +379,7 @@ export class PublicEntriesQuery {
             workspaceId,
             selected
         );
-        return byEntry.get(id) ?? [];
+        return byEntry.get(entry.id) ?? [];
     }
 
     /**
@@ -410,74 +426,28 @@ export class PublicEntriesQuery {
     }
 
     /**
-     * One publicly readable entry by id. A draft, a soft-deleted row, an entry
-     * in another workspace, and an id that never existed are all the same 404 —
-     * an unpublished entry must not be distinguishable from a missing one.
+     * One publicly readable entry, addressed by **either** spelling of
+     * {@link EntryLocator}.
+     *
+     * By id: a draft, a soft-deleted row, an entry in another workspace, and an
+     * id that never existed are all the same 404 — an unpublished entry must not
+     * be distinguishable from a missing one.
+     *
+     * By translation group, the read a localized front-end actually wants: a
+     * consumer that knows an article by its group id ("this story") renders it
+     * in whatever locale the visitor is in by varying `?locale=` alone, instead
+     * of keeping a per-locale id map — the group id is the stable identity of
+     * the story across languages, while each locale's `id` is not. A group with
+     * no published row in the requested locale is the same 404 as an unknown
+     * group: the caller asked for content that isn't live in that language, and
+     * which of the two it is isn't theirs to learn.
      */
     async getOne(
         type: AnyContentType,
-        id: string,
+        locator: EntryLocator,
         workspaceId: string,
         query: PublicEntryQueryDto,
         grantedTypes: ReadonlySet<string>
-    ): Promise<PublicEntry> {
-        const table = type.table as unknown as ContentTable;
-        return this.readOne(
-            type,
-            eq(table['id'], id),
-            workspaceId,
-            query,
-            grantedTypes,
-            `No published "${type.name}" entry with id "${id}".`
-        );
-    }
-
-    /**
-     * One publicly readable entry addressed by its **translation group** plus
-     * the requested locale — `GET /v1/content/:type/group/:localeGroupId`.
-     *
-     * This is the route a localized front-end actually wants. A consumer that
-     * knows an article by its group id ("this story") renders it in whatever
-     * locale the visitor is in by varying `?locale=` alone, instead of keeping
-     * a per-locale id map: the group id is the stable identity of the story
-     * across languages, while each locale's `id` is not.
-     *
-     * A group with no **published** row in the requested locale is a 404, the
-     * same as an unknown group — the caller asked for content that isn't live
-     * in that language, and which of the two it is isn't theirs to learn.
-     */
-    async getByLocaleGroup(
-        type: AnyContentType,
-        localeGroupId: string,
-        workspaceId: string,
-        query: PublicEntryQueryDto,
-        grantedTypes: ReadonlySet<string>
-    ): Promise<PublicEntry> {
-        this.assertLocalized(type, 'localeGroupId');
-        const table = type.table as unknown as ContentTable;
-        return this.readOne(
-            type,
-            eq(table['localeGroupId'], localeGroupId),
-            workspaceId,
-            query,
-            grantedTypes,
-            `No published "${type.name}" entry in translation group "${localeGroupId}" for the requested locale.`
-        );
-    }
-
-    /**
-     * Read exactly one publicly readable entry matching `match`, with the same
-     * projection, expansions, and 404 as every single-entry route — shared so
-     * "by id" and "by translation group" cannot drift on what they return or
-     * what they hide.
-     */
-    private async readOne(
-        type: AnyContentType,
-        match: SQL | undefined,
-        workspaceId: string,
-        query: PublicEntryQueryDto,
-        grantedTypes: ReadonlySet<string>,
-        notFound: string
     ): Promise<PublicEntry> {
         const selected = parseFieldSelection(type, query.fields);
         const relationFields =
@@ -501,11 +471,14 @@ export class PublicEntriesQuery {
             : this.db.select().from(type.table);
         const [row] = await rowQuery
             .where(
-                and(match, this.readableWhere(type, workspaceId, query.locale))
+                and(
+                    this.locate(type, locator),
+                    this.readableWhere(type, workspaceId, query.locale)
+                )
             )
             .limit(1);
         if (!row) {
-            throw new NotFoundException(notFound);
+            throw new NotFoundException(this.notFoundFor(type, locator));
         }
         const entry = toPublicEntry(
             type,
@@ -531,46 +504,39 @@ export class PublicEntriesQuery {
     }
 
     /**
-     * Every relation field of one entry, first page each — the sibling route
-     * for a consumer that wants links without re-reading the entry, and the way
-     * past the preview's per-field cap in combination with
-     * {@link relationField}. Published-only, like every public read.
+     * The WHERE clause that pins a read to the one entry a locator names.
+     *
+     * A group locator is only meaningful on a localized type, and is a **400**
+     * elsewhere — the caller addressed the entry by something the type does not
+     * have, which is a different mistake from naming a group that doesn't exist
+     * (a 404). Note the group form matches the whole group; the locale scope in
+     * `readableWhere` is what narrows it to one row, so `?locale=` selects the
+     * translation and `LIMIT 1` never has to break a tie.
      */
-    async relationsOf(
-        type: AnyContentType,
-        id: string,
-        workspaceId: string,
-        grantedTypes: ReadonlySet<string>,
-        locale?: string,
-        limit = DEFAULT_EXPANSION_LIMIT
-    ): Promise<Record<string, PublicRelationFieldView>> {
-        const row = await this.readableRow(type, id, workspaceId, locale);
-        const views = await this.relationLinks.readAll(
-            type,
-            row,
-            workspaceId,
-            limit,
-            { publishedOnly: true }
-        );
-        // Skip a relation whose target type this workspace can't reach, so the
-        // route agrees with what `relationFields` would allow.
-        const reachable: Record<string, RelationFieldView> = {};
-        for (const [field, view] of Object.entries(views)) {
-            const target = type.fields[field]?.relation?.to();
-            if (target && grantedTypes.has(target.name))
-                reachable[field] = view;
+    private locate(type: AnyContentType, locator: EntryLocator): SQL {
+        const table = type.table as unknown as ContentTable;
+        if ('id' in locator) {
+            return eq(table['id'], locator.id) as SQL;
         }
-        return this.expansion.hydrateRelationViews(
-            type,
-            reachable,
-            workspaceId
-        );
+        this.assertLocalized(type, 'localeGroupId');
+        return eq(table['localeGroupId'], locator.localeGroupId) as SQL;
     }
 
-    /** One page of a single relation field's links. */
+    /** The 404 message for a locator that matched nothing readable. */
+    private notFoundFor(type: AnyContentType, locator: EntryLocator): string {
+        return 'id' in locator
+            ? `No published "${type.name}" entry with id "${locator.id}".`
+            : `No published "${type.name}" entry in translation group "${locator.localeGroupId}" for the requested locale.`;
+    }
+
+    /**
+     * One page of a single relation field's links — the only relation read that
+     * `?relations=preview` cannot express, and therefore the only one with a
+     * route of its own.
+     */
     async relationField(
         type: AnyContentType,
-        id: string,
+        locator: EntryLocator,
         field: string,
         page: number,
         pageSize: number,
@@ -593,7 +559,7 @@ export class PublicEntriesQuery {
                 `"${field}" cannot be expanded — this workspace has no access to "${spec.relation.to().name}".`
             );
         }
-        const row = await this.readableRow(type, id, workspaceId, locale);
+        const row = await this.readableRow(type, locator, workspaceId, locale);
         const view = await this.relationLinks.readField(
             type,
             row,
@@ -615,12 +581,12 @@ export class PublicEntriesQuery {
     /** Every media field of one entry, resolved to asset metadata + URLs. */
     async mediaOf(
         type: AnyContentType,
-        id: string,
+        locator: EntryLocator,
         workspaceId: string,
         locale?: string,
         limit = DEFAULT_EXPANSION_LIMIT
     ): Promise<Record<string, PublicMediaFieldView>> {
-        const row = await this.readableRow(type, id, workspaceId, locale);
+        const row = await this.readableRow(type, locator, workspaceId, locale);
         const fields = Object.entries(type.fields)
             .filter(([, spec]) => spec.type === CONTENT_FIELD_TYPE.Media)
             .map(([name]) => name);
@@ -631,37 +597,37 @@ export class PublicEntriesQuery {
             workspaceId,
             limit
         );
-        const out = media.get(id) ?? {};
+        // Keyed by the row's OWN id, not by anything in the locator — a group
+        // locator resolved to a row whose id the caller may never have seen.
+        const out = media.get(row['id'] as string) ?? {};
         for (const field of fields) out[field] ??= { items: [], total: 0 };
         return out;
     }
 
     /**
      * The full row of one publicly readable entry, or a 404 — the shared
-     * pre-step of the sibling routes, so `/relations` and `/media` are exactly
-     * as invisible for a draft or foreign entry as the entry read itself.
+     * pre-step of the sibling routes, so `/relations/:field`, `/media`, and
+     * `/translations` are exactly as invisible for a draft or foreign entry as
+     * the entry read itself, in either addressing form.
      */
     private async readableRow(
         type: AnyContentType,
-        id: string,
+        locator: EntryLocator,
         workspaceId: string,
         locale?: string
     ): Promise<Record<string, unknown>> {
-        const table = type.table as unknown as ContentTable;
         const [row] = await this.db
             .select()
             .from(type.table)
             .where(
                 and(
-                    eq(table['id'], id),
+                    this.locate(type, locator),
                     this.readableWhere(type, workspaceId, locale)
                 )
             )
             .limit(1);
         if (!row) {
-            throw new NotFoundException(
-                `No published "${type.name}" entry with id "${id}".`
-            );
+            throw new NotFoundException(this.notFoundFor(type, locator));
         }
         return row as Record<string, unknown>;
     }

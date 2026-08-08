@@ -387,13 +387,47 @@ token is the only way in, and a session cookie is _not_ accepted):
   is honest for both; take `items[0]`.
 - `GET /v1/content/:typeName/:id` — one published entry (`?fields=&locale=`,
   plus the same expansion params as the list).
-- `GET /v1/content/:typeName/group/:localeGroupId` — one published entry
-  addressed by its **translation group** + `?locale=` (see _Localization_).
-- `GET /v1/content/:typeName/:id/relations` — every relation field, first page
-  each; `/relations/:field?page=&pageSize=` pages one field past the cap.
+- `GET /v1/content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
+  one relation field's links.
 - `GET /v1/content/:typeName/:id/media` — every media field, resolved to asset
   metadata + URLs.
 - `GET /v1/content/:typeName/:id/translations` — the entry's other locale rows.
+
+**Every single-entry route exists twice**: once under `:id` and once under
+`group/:localeGroupId` (`…/group/:gid`, `…/group/:gid/relations/:field`,
+`…/group/:gid/media`, `…/group/:gid/translations`). Anything a consumer can do
+holding an entry id, it can do holding the group id plus a `?locale=` — the
+identity a localized front-end actually carries, since a group is stable across
+languages and each locale's `id` is not. Both spellings funnel into one
+`EntryLocator` in `PublicEntriesQuery`, so the pair is a routing detail and never
+a behavioural fork; each of the four reads has exactly one implementation and one
+shared controller handler. Only the **list** has no group form — a group names
+one entry, which is what the entry routes are for.
+
+The `group/…` routes are declared **first**. They cannot be shadowed on segment
+count alone (`:typeName/:id/relations/:field` needs a literal `relations` where a
+group route carries the group id), but Express matches in declaration order, so
+literal-prefixed routes go ahead of the wildcards to keep that true as the
+pattern set grows.
+
+**There is deliberately no `/:id/relations`.** An all-fields relation route
+existed and returned exactly what `GET /:id?relations=preview` already returns
+minus the entry — a second spelling of one read, on a contract that has to stay
+still. Paging one field past the preview's cap is the one thing a query parameter
+cannot express, so `/relations/:field` is the one relation route that survives.
+(The same argument applies to `/:id/media` and `/:id/translations`, which are
+also pure duplicates of their preview params; they are kept for now because a
+media field has no per-field pager to fall back on.)
+
+**Reading a non-default-locale row by id needs `?locale=`.** The locale scope is
+AND-ed into every read including the id ones, so `GET /:type/<de-row-id>` is a
+404 unless `?locale=de` comes with it. This is not new and is self-consistent
+(every payload that hands a consumer a foreign-locale id — a translations preview,
+a locale-scoped list — carries that row's `locale` right beside it), and the group
+routes remove the need to carry foreign ids at all. It is still a sharp edge: the
+fix would be to skip the extension's `listScope` for id-addressed reads, which is
+a deliberate narrowing of a **visibility hook** and wants its own decision rather
+than a drive-by.
 
 **Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
 resolves it through identity's `ApiTokenService.verify` (unknown / revoked /
@@ -491,8 +525,8 @@ flat: measured at 7 content queries for both `pageSize=1` and `pageSize=50`.
 
 **Per-field item limits.** `?relationLimit=` / `?mediaLimit=` set how many
 links / assets each expanded field returns (1…`MAX_PAGE_SIZE`, default
-`DEFAULT_EXPANSION_LIMIT` = 20); `relationLimit` also drives the `/relations`
-sibling route. The field's `total` always reports the **true** visible count, so
+`DEFAULT_EXPANSION_LIMIT` = 20); `relationLimit` is also the default page size
+for `/relations/:field`. The field's `total` always reports the **true** visible count, so
 a low limit is observable as `items.length < total` and never passes a slice off
 as the whole set — page the rest via `/relations/<field>`. Worth knowing that
 these are per field _per entry_, so a large page multiplies: `pageSize` × fields
@@ -508,8 +542,8 @@ one, and **one** media resolve). Notes:
   advertise links a caller cannot reach. Confirmed live: the same entry reads
   `total: 2` for the admin and `total: 1` publicly.
 - **Grant-pruned.** Expanding into a type the workspace wasn't granted is a
-  **400** on the query params, and such a field is simply absent from the
-  `/relations` route — matching how `?filter=` treats a traversal into one.
+  **400**, on the query params and on `/relations/:field` alike — matching how
+  `?filter=` treats a traversal into one.
 - **Media is batched by hand**, deliberately _not_ through
   `MediaRefsQuery.forValues`: that takes one entry's values, so a page would call
   it per row — exactly the N+1 the relation preview exists to avoid.

@@ -16,7 +16,10 @@ import { CurrentWorkspace } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../../../content-types/queries/workspace-grants.query';
-import { PublicEntriesQuery } from '../../infrastructure/public-entries.query';
+import {
+    PublicEntriesQuery,
+    type EntryLocator
+} from '../../infrastructure/public-entries.query';
 import type {
     PublicEntry,
     PublicEntryListView
@@ -33,11 +36,6 @@ import {
     PublicListEntriesQueryDto
 } from '../dto/public-list-entries-query.dto';
 import { resolveGrantedType } from './resolve-granted-type';
-
-/** One entry's relation links, keyed by field name. */
-export interface PublicEntryRelationsView {
-    relations: Record<string, PublicRelationFieldView>;
-}
 
 /** One entry's media assets, keyed by field name. */
 export interface PublicEntryMediaView {
@@ -110,20 +108,32 @@ export class PublicEntriesController {
         return this.entries.list(type, query, workspaceId, granted);
     }
 
+    // ---- addressed by translation group -----------------------------------
+    //
+    // Every single-entry read below exists twice: once under `:id` and once
+    // under `group/:localeGroupId`. Anything a consumer can do holding an
+    // entry id, it can do holding the group id plus a `?locale=` — which is
+    // the identity a localized front-end actually carries, since the group is
+    // stable across languages and each locale's `id` is not. Both forms funnel
+    // into the same `EntryLocator`, so the two spellings cannot drift on what
+    // they return or what they hide.
+    //
+    // The `group/...` routes are declared FIRST. They cannot be shadowed by
+    // the `:id` ones on segment count alone (`:typeName/:id/relations/:field`
+    // requires a literal `relations` where a group route carries the group id),
+    // but Express matches in declaration order, so putting the more specific
+    // literal-prefixed routes ahead of the wildcards keeps that independent of
+    // how the pattern set grows.
+
     /**
      * `GET /api/v1/content/:typeName/group/:localeGroupId` — one published
      * entry addressed by its translation group and the requested locale.
-     *
-     * Declared **before** `:typeName/:id` so the literal `group` segment is not
-     * a concern either way: that route is two segments and this one is three,
-     * so they cannot collide. The ordering is kept for readability and to stay
-     * safe if a three-segment wildcard route is ever added below.
      */
     @Get(':typeName/group/:localeGroupId')
     @ApiOperation({
         summary: 'Read one published entry by translation group + locale',
         description:
-            'The group’s published row in the requested `?locale=` (the default locale when none is given) — so a localized front-end renders “this story” by varying the locale alone, instead of keeping a per-locale id map. 404 when the group has no published row in that locale, or does not exist. 400 when the type is not localized.'
+            'The group’s published row in the requested `?locale=` (the default locale when none is given) — so a localized front-end renders “this story” by varying the locale alone, instead of keeping a per-locale id map. Takes the same expansion params as the `:id` read. 404 when the group has no published row in that locale, or does not exist. 400 when the type is not localized.'
     })
     async getByLocaleGroup(
         @Param('typeName') typeName: string,
@@ -131,20 +141,83 @@ export class PublicEntriesController {
         @Query() query: PublicEntryQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntry> {
-        const { type, granted } = await resolveGrantedType(
-            this.registry,
-            this.grants,
+        return this.readEntry(typeName, { localeGroupId }, query, workspaceId);
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/group/:localeGroupId/relations/:field` —
+     * one page of a relation field's links, for the group's row in the
+     * requested locale.
+     */
+    @Get(':typeName/group/:localeGroupId/relations/:field')
+    @ApiOperation({
+        summary: 'Page one relation field’s links, by translation group',
+        description:
+            'As the `:id` form, for the group’s published row in the requested `?locale=`.'
+    })
+    async getRelationFieldByLocaleGroup(
+        @Param('typeName') typeName: string,
+        @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
+        @Param('field') field: string,
+        @Query() query: PublicListEntriesQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicRelationFieldView> {
+        return this.readRelationField(
             typeName,
+            { localeGroupId },
+            field,
+            query,
             workspaceId
         );
-        return this.entries.getByLocaleGroup(
-            type,
-            localeGroupId,
-            workspaceId,
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/group/:localeGroupId/media` — the media
+     * assets of the group's row in the requested locale.
+     */
+    @Get(':typeName/group/:localeGroupId/media')
+    @ApiOperation({
+        summary: 'Read one entry’s media assets, by translation group',
+        description:
+            'As the `:id` form, for the group’s published row in the requested `?locale=`.'
+    })
+    async getMediaByLocaleGroup(
+        @Param('typeName') typeName: string,
+        @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntryMediaView> {
+        return this.readMedia(typeName, { localeGroupId }, query, workspaceId);
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/group/:localeGroupId/translations` — the
+     * group's other published locale rows.
+     *
+     * Reachable without holding any entry id at all: the group id alone names
+     * every language a story is live in.
+     */
+    @Get(':typeName/group/:localeGroupId/translations')
+    @ApiOperation({
+        summary: 'Read a translation group’s other locale rows',
+        description:
+            'As the `:id` form, for the group’s published row in the requested `?locale=` — so the group id alone is enough to enumerate the languages a story is live in.'
+    })
+    async getTranslationsByLocaleGroup(
+        @Param('typeName') typeName: string,
+        @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntryTranslationsView> {
+        return this.readTranslations(
+            typeName,
+            { localeGroupId },
             query,
-            granted
+            workspaceId
         );
     }
+
+    // ---- addressed by entry id ---------------------------------------------
 
     /** `GET /api/v1/content/:typeName/:id` — one published entry. */
     @Get(':typeName/:id')
@@ -159,60 +232,25 @@ export class PublicEntriesController {
         @Query() query: PublicEntryQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntry> {
-        const { type, granted } = await resolveGrantedType(
-            this.registry,
-            this.grants,
-            typeName,
-            workspaceId
-        );
-        return this.entries.getOne(type, id, workspaceId, query, granted);
-    }
-
-    /**
-     * `GET /api/v1/content/:typeName/:id/relations` — every relation field of
-     * one entry, first page each. The sibling of the list's `?relations=preview`
-     * for a consumer that already has the entry, and — with the per-field route
-     * below — the way past the preview's cap.
-     */
-    @Get(':typeName/:id/relations')
-    @ApiOperation({
-        summary: 'Read one entry’s relation links',
-        description:
-            'Every relation field of the entry, keyed by field name, each with one capped page of links plus the count of visible ones. Only published targets are shown or counted; a field whose target type the workspace was not granted is omitted.'
-    })
-    async getRelations(
-        @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string,
-        @Query() query: PublicEntryQueryDto,
-        @CurrentWorkspace() workspaceId: string
-    ): Promise<PublicEntryRelationsView> {
-        const { type, granted } = await resolveGrantedType(
-            this.registry,
-            this.grants,
-            typeName,
-            workspaceId
-        );
-        return {
-            relations: await this.entries.relationsOf(
-                type,
-                id,
-                workspaceId,
-                granted,
-                query.locale,
-                query.relationLimit
-            )
-        };
+        return this.readEntry(typeName, { id }, query, workspaceId);
     }
 
     /**
      * `GET /api/v1/content/:typeName/:id/relations/:field` — one page of a
-     * single relation field's links, for paging past the preview cap.
+     * single relation field's links.
+     *
+     * The **only** relation route, deliberately. An all-fields sibling
+     * (`/:id/relations`) used to sit here and returned exactly what
+     * `GET /:id?relations=preview` already returns minus the entry — a second
+     * spelling of one read, on a contract that has to stay still. Paging one
+     * field past the preview's cap is the one thing a query parameter cannot
+     * express, so it is the one thing that keeps a route.
      */
     @Get(':typeName/:id/relations/:field')
     @ApiOperation({
         summary: 'Page one relation field’s links',
         description:
-            'One ordered page of a single relation field’s visible links. 400 when the field is not a relation, or its target type is not granted to the workspace.'
+            'One ordered page of a single relation field’s visible links — the way past the `?relationLimit=` cap that `?relations=preview` applies. Only published targets are shown or counted. 400 when the field is not a relation, or its target type is not granted to the workspace.'
     })
     async getRelationField(
         @Param('typeName') typeName: string,
@@ -221,22 +259,32 @@ export class PublicEntriesController {
         @Query() query: PublicListEntriesQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicRelationFieldView> {
-        const { type, granted } = await resolveGrantedType(
-            this.registry,
-            this.grants,
+        return this.readRelationField(
             typeName,
+            { id },
+            field,
+            query,
             workspaceId
         );
-        return this.entries.relationField(
-            type,
-            id,
-            field,
-            query.page ?? 1,
-            query.pageSize ?? query.relationLimit ?? RELATION_PAGE_SIZE,
-            workspaceId,
-            granted,
-            query.locale
-        );
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/:id/media` — every media field of one
+     * entry, resolved to asset metadata and URLs.
+     */
+    @Get(':typeName/:id/media')
+    @ApiOperation({
+        summary: 'Read one entry’s media assets',
+        description:
+            'Every media field of the entry, keyed by field name, resolved to asset metadata (name, kind, MIME type, alt) and URLs. The URLs are the CMS media routes, which require an authenticated session — a bearer token cannot fetch them.'
+    })
+    async getMedia(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntryMediaView> {
+        return this.readMedia(typeName, { id }, query, workspaceId);
     }
 
     /**
@@ -256,37 +304,63 @@ export class PublicEntriesController {
         @Query() query: PublicEntryQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntryTranslationsView> {
-        const { type } = await resolveGrantedType(
+        return this.readTranslations(typeName, { id }, query, workspaceId);
+    }
+
+    // ---- the shared handlers, one per read ---------------------------------
+    //
+    // Each is called by exactly two routes — the `:id` spelling and the
+    // `group/:localeGroupId` one — so the pair is a routing detail and never a
+    // behavioural fork.
+
+    /** @see getOne */
+    private async readEntry(
+        typeName: string,
+        locator: EntryLocator,
+        query: PublicEntryQueryDto,
+        workspaceId: string
+    ): Promise<PublicEntry> {
+        const { type, granted } = await resolveGrantedType(
             this.registry,
             this.grants,
             typeName,
             workspaceId
         );
-        return {
-            translations: await this.entries.translationsOf(
-                type,
-                id,
-                workspaceId,
-                query
-            )
-        };
+        return this.entries.getOne(type, locator, workspaceId, query, granted);
     }
 
-    /**
-     * `GET /api/v1/content/:typeName/:id/media` — every media field of one
-     * entry, resolved to asset metadata and URLs.
-     */
-    @Get(':typeName/:id/media')
-    @ApiOperation({
-        summary: 'Read one entry’s media assets',
-        description:
-            'Every media field of the entry, keyed by field name, resolved to asset metadata (name, kind, MIME type, alt) and URLs. The URLs are the CMS media routes, which require an authenticated session — a bearer token cannot fetch them.'
-    })
-    async getMedia(
-        @Param('typeName') typeName: string,
-        @Param('id', ParseUUIDPipe) id: string,
-        @Query() query: PublicEntryQueryDto,
-        @CurrentWorkspace() workspaceId: string
+    /** @see getRelationField */
+    private async readRelationField(
+        typeName: string,
+        locator: EntryLocator,
+        field: string,
+        query: PublicListEntriesQueryDto,
+        workspaceId: string
+    ): Promise<PublicRelationFieldView> {
+        const { type, granted } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.entries.relationField(
+            type,
+            locator,
+            field,
+            query.page ?? 1,
+            query.pageSize ?? query.relationLimit ?? RELATION_PAGE_SIZE,
+            workspaceId,
+            granted,
+            query.locale
+        );
+    }
+
+    /** @see getMedia */
+    private async readMedia(
+        typeName: string,
+        locator: EntryLocator,
+        query: PublicEntryQueryDto,
+        workspaceId: string
     ): Promise<PublicEntryMediaView> {
         const { type } = await resolveGrantedType(
             this.registry,
@@ -297,10 +371,33 @@ export class PublicEntriesController {
         return {
             media: await this.entries.mediaOf(
                 type,
-                id,
+                locator,
                 workspaceId,
                 query.locale,
                 query.mediaLimit
+            )
+        };
+    }
+
+    /** @see getTranslations */
+    private async readTranslations(
+        typeName: string,
+        locator: EntryLocator,
+        query: PublicEntryQueryDto,
+        workspaceId: string
+    ): Promise<PublicEntryTranslationsView> {
+        const { type } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return {
+            translations: await this.entries.translationsOf(
+                type,
+                locator,
+                workspaceId,
+                query
             )
         };
     }
