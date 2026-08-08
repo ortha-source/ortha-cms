@@ -869,6 +869,15 @@ describe('Public content API (/api/v1)', () => {
                 .get(`/api/v1/content/test_article/${source}/relations/author`)
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(400);
+
+            // There is deliberately no all-fields `/relations` route: it
+            // returned exactly what `?relations=preview` already does, so it
+            // was removed rather than shipped as a second spelling. Pinned here
+            // because "the route is gone" is otherwise invisible to the suite.
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${source}/relations`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
         });
 
         it('404s the relation and media routes for an entry it cannot read', async () => {
@@ -1147,6 +1156,106 @@ describe('Public content API (/api/v1)', () => {
             ).toEqual([byLocale['de']]);
         });
 
+        it('orders translations by locale slug', async () => {
+            const { byLocale } = await seedGroup([
+                { locale: 'en', text: 'EN' },
+                { locale: 'fr', text: 'FR' },
+                { locale: 'de', text: 'DE' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${byLocale['en']}`)
+                .query({ translations: 'preview' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            // Insertion order was en, fr, de — the response must not echo it.
+            expect(
+                (res.body.translations as PublicItem[]).map((t) => t.locale)
+            ).toEqual(['de', 'fr']);
+        });
+
+        it('hides a soft-deleted or cross-workspace sibling', async () => {
+            const { groupId, byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            // A published-but-soft-deleted `fr` sibling: only the soft-delete
+            // guard keeps it out of the answer.
+            await seedArticles(
+                [
+                    {
+                        text: 'Deleted FR',
+                        select: 'article',
+                        locale: 'fr',
+                        localeGroupId: groupId,
+                        status: 'published',
+                        publishedAt: new Date(),
+                        deletedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            // …and a live row carrying the SAME group id in the OTHER
+            // workspace. Group ids are opaque uuids, so nothing but the
+            // workspace clause keeps this out of the response.
+            //
+            // It has to be `fr`: the `(locale_group_id, locale)` unique index
+            // is partial on `deleted_at IS NULL` but NOT workspace-scoped, so
+            // reusing `de` or `en` here would collide with this workspace's own
+            // live row. `fr` is free precisely because the row above is deleted.
+            await seedArticles(
+                [
+                    {
+                        text: 'Theirs FR',
+                        select: 'article',
+                        locale: 'fr',
+                        localeGroupId: groupId,
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                otherWorkspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${byLocale['en']}`)
+                .query({ translations: 'preview' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(
+                (res.body.translations as PublicItem[]).map((t) => t.id)
+            ).toEqual([byLocale['de']]);
+        });
+
+        it('previews translations on the group-addressed entry read', async () => {
+            const { groupId, byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/group/${groupId}`)
+                .query({ locale: 'de', translations: 'preview' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(res.body.id).toBe(byLocale['de']);
+            expect(
+                (res.body.translations as PublicItem[]).map((t) => t.id)
+            ).toEqual([byLocale['en']]);
+        });
+
         it('404s /translations for an entry it cannot read', async () => {
             const { byLocale } = await seedGroup([
                 { locale: 'en', text: 'Hidden', status: 'draft' }
@@ -1223,6 +1332,9 @@ describe('Public content API (/api/v1)', () => {
         });
 
         it('404s the group sibling routes when the locale has no published row', async () => {
+            // Granted so `/relations/tags` gets past its own grant check and
+            // reaches the row lookup — the thing under test here.
+            await seedContentGrants(workspaceId, ['test_tag']);
             const { groupId } = await seedGroup([
                 { locale: 'en', text: 'Story EN' },
                 { locale: 'fr', text: 'Story FR', status: 'draft' }
@@ -1232,7 +1344,14 @@ describe('Public content API (/api/v1)', () => {
             });
 
             const base = `/api/v1/content/test_article/group/${groupId}`;
-            for (const path of ['/media', '/translations']) {
+            // Every route that accepts the group form, so none of them can
+            // resolve a row the entry read itself would refuse.
+            for (const path of [
+                '',
+                '/relations/tags',
+                '/media',
+                '/translations'
+            ]) {
                 await request(harness.server)
                     .get(`${base}${path}`)
                     .query({ locale: 'fr' })
@@ -1272,12 +1391,25 @@ describe('Public content API (/api/v1)', () => {
             // Addressing a non-localized type by group is a 400 on every route
             // that accepts the group form, not just the entry read — the caller
             // used an identity the type does not have.
+            // `articles` is a real relation on test_tag whose target IS granted,
+            // so the request clears the field and grant checks and fails on the
+            // addressing form itself rather than incidentally.
             const group = `/api/v1/content/test_tag/group/${randomUUID()}`;
-            for (const path of ['', '/media', '/translations']) {
-                await request(harness.server)
+            for (const path of [
+                '',
+                '/relations/articles',
+                '/media',
+                '/translations'
+            ]) {
+                const res = await request(harness.server)
                     .get(`${group}${path}`)
                     .set('Authorization', `Bearer ${secret}`)
                     .expect(400);
+                // Assert the REASON, not just the status. `/relations/:field`
+                // has field and grant checks that run first and 400 on their
+                // own; without this the case could pass while never reaching
+                // the addressing check it exists to cover.
+                expect(res.body.message).toContain('not a localized');
             }
         });
     });

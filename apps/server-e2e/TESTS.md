@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_482 test cases across 37 spec files._
+_485 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -154,6 +154,9 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | previews an entry’s sibling translations, published only |
 | previews translations across a whole list page |
 | serves the same siblings from the /translations route |
+| orders translations by locale slug |
+| hides a soft-deleted or cross-workspace sibling |
+| previews translations on the group-addressed entry read |
 | 404s /translations for an entry it cannot read |
 | serves every single-entry route by translation group too |
 | 404s the group sibling routes when the locale has no published row |
