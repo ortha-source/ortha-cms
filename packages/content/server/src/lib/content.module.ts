@@ -18,8 +18,9 @@ import { UpdateEntryController } from './entries/http/controllers/update-entry.c
 import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
+import { copilotToolsRegistrar } from '@ortha-cms/copilot-server';
 import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
-import { ContentCopilotToolsRegistrar } from './copilot/content-tools.registrar';
+import { RevisionCopilotToolProvider } from './copilot/revision-tool.provider';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
 import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
@@ -178,13 +179,24 @@ export class ContentModule {
                 // that registers them. Both no-op when no copilot plugin is
                 // registered — the registrar injects the registry optionally.
                 ContentCopilotToolProvider,
-                ContentCopilotToolsRegistrar
+                RevisionCopilotToolProvider,
+                copilotToolsRegistrar(
+                    'content',
+                    ContentCopilotToolProvider,
+                    RevisionCopilotToolProvider
+                )
             ],
             exports: [
                 CONTENT_REGISTRY,
                 CONTENT_CATALOG,
                 CONTENT_ENTRY_COUNTER,
-                EntryValidationService
+                EntryValidationService,
+                // Exported for the plugins that bind their own copilot tools
+                // over content-scoped data (i18n, media). A tool's type name
+                // arrives from the model, so every one of them has to re-check
+                // the workspace's grants — and there must be exactly one
+                // implementation of that check, not one per binder.
+                WorkspaceGrantsQuery
             ]
         };
     }

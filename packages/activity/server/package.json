@@ -19,6 +19,8 @@
         "@nestjs/common": "^11.0.0",
         "@nestjs/swagger": "^11.4.6",
         "@ortha-cms/bootstrap-server": "*",
+        "@ortha-cms/copilot-domain": "*",
+        "@ortha-cms/copilot-server": "*",
         "@ortha-cms/database": "*",
         "@ortha-cms/identity-server": "*",
         "@ortha-cms/utils-server": "*",

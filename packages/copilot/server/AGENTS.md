@@ -19,12 +19,12 @@ profile, and the transcript this plugin now owns and migrates
 
 ### Routes
 
-| Route                                | Guards                                                | Notes |
-| ------------------------------------ | ----------------------------------------------------- | ----- |
-| `POST /api/copilot/runs`             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard`   | SSE. One turn. |
-| `GET /api/copilot/models`            | `PermissionsGuard`                                    | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
-| `GET /api/copilot/conversations`     | `PermissionsGuard`, `WorkspaceGuard`                  | This user's threads. |
-| `GET /api/copilot/conversations/:id` | `PermissionsGuard`, `WorkspaceGuard`                  | Thread + transcript. |
+| Route                                | Guards                                              | Notes                                                       |
+| ------------------------------------ | --------------------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/copilot/runs`             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | SSE. One turn.                                              |
+| `GET /api/copilot/models`            | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
+| `GET /api/copilot/conversations`     | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads.                                        |
+| `GET /api/copilot/conversations/:id` | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript.                                        |
 
 All four require `copilot:use`.
 
@@ -42,7 +42,7 @@ These are spike findings from phase 1, each now covered by a test.
 - **The strict global `ValidationPipe` traverses nested DTOs only with
   `@ValidateNested()` + `@Type()`.** Without them, `context` is not treated as a
   DTO at all: the whitelist strips its properties and the handler silently gets
-  `{}`. `forbidNonWhitelisted` 400s an unknown *top-level* key by name, which is
+  `{}`. `forbidNonWhitelisted` 400s an unknown _top-level_ key by name, which is
   loud; this failure is silent.
 - **Nest ignores a TypeScript default on a constructor parameter.** It resolves
   every argument positionally, so `limits: RunLimits = DEFAULT_RUN_LIMITS` fails
@@ -59,17 +59,36 @@ at the bottom of the package graph. Instead:
 
 - `ToolSpec`, `ToolContext` and `COPILOT_TOOL_PROVIDER` live in
   **`copilot-domain`**, so a binder depends only on the framework-free core.
-- Binders **register at runtime**: inject `CopilotToolRegistry` from their own
-  `OnApplicationBootstrap` and call `register(...)`. This is the precedent
+- Binders **register at runtime**, by adding `copilotToolsRegistrar('<plugin>',
+…Providers)` to their module's `providers`. This is the precedent
   `OutboxDispatcher.register` set, and it exists because **Nest cannot merge a
   multi-provider token across independent dynamic modules** — every plugin here
   is one, so a second binder would silently replace the first rather than join
   it. A static single binding to `COPILOT_TOOL_PROVIDER` is also honoured.
+- **Use the helper, not a hand-written registrar class.** A registrar has to
+  inject the registry `@Optional()` (a deployment without `CopilotPlugin` is
+  normal), and a constructor parameter typed `CopilotToolRegistry | null` emits
+  `Object` for `design:paramtypes` — Nest then has no type to resolve and, being
+  optional, injects `undefined` without failing. The result is a registrar that
+  runs, finds no registry, and returns: the copilot boots with none of that
+  plugin's tools and nothing reports a problem. That shipped once. A factory's
+  `inject` list names its dependencies as values, so there is no reflected type
+  to get wrong.
 - A provider that throws while describing its tools is **skipped, not fatal**:
   one plugin failing degrades that run's catalogue instead of failing the chat.
 
-The content tools ship in `content/server` (`lib/copilot/`), as thin wrappers
-over the same `EntriesService` / `EntryWriterService` the HTTP controllers call.
+Every tool ships with the plugin that owns its data, as a thin wrapper over the
+same service the HTTP controllers call:
+
+| Plugin     | Tools                                                                      |
+| ---------- | -------------------------------------------------------------------------- |
+| `content`  | `listTypes`, `searchEntries`, `getEntry`, `listRevisions`, `diffRevisions` |
+| `i18n`     | `listLocales`, `getTranslations`                                           |
+| `media`    | `searchAssets`                                                             |
+| `activity` | `recent` — deployment-wide, `activity:read` (admin only)                   |
+| `users`    | `workspace.members` — scoped to the run's workspace                        |
+
+All are `effect: 'read'`; phase 3 adds the `propose` half.
 
 ## The run engine
 
@@ -84,7 +103,7 @@ stays in the controller, and the loop is testable by draining the generator.
   against freshly resolved grants (ADR-0005 §2, §3). Nothing is cached; a role
   revoked mid-turn takes effect on the next tool call.
 - **`executeTool` never throws.** Unknown tool, revoked permission, malformed
-  arguments, a tool that blew up — all come back as tool *errors* the model can
+  arguments, a tool that blew up — all come back as tool _errors_ the model can
   recover from, and the run continues. An unknown tool and a withheld one get
   the **same** message, because "that exists but you may not use it" is itself
   information.
@@ -94,7 +113,7 @@ stays in the controller, and the loop is testable by draining the generator.
   hits `maxSteps`: eight model calls, eight identical queries, no answer, and a
   stop reason that explains nothing. The guard compares `name` + arguments
   (key-sorted, so argument order doesn't defeat it) and feeds back a tool error
-  *saying* the call was already made — telling the model is what breaks the
+  _saying_ the call was already made — telling the model is what breaks the
   loop; silently re-running or refusing without a reason both just repeat.
   Checked after authorization, so a repeat can never reveal more than a first
   call would.
@@ -123,11 +142,11 @@ stays in the controller, and the loop is testable by draining the generator.
 
 Three tables, migrated under `__drizzle_migrations_copilot`:
 
-| Table                   | Holds                                                    |
-| ----------------------- | -------------------------------------------------------- |
-| `copilot_conversations` | Thread per user × workspace. FKs cascade from both.       |
+| Table                   | Holds                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `copilot_conversations` | Thread per user × workspace. FKs cascade from both.                                                                                                                     |
 | `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond. |
-| `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.  |
+| `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.                                                                                                                |
 
 `external-refs.ts` carries id-only stubs of `users` and `workspaces` so
 drizzle-kit can emit the cross-context FKs without pulling another plugin's Nest
@@ -135,7 +154,7 @@ providers into its esbuild pass. Same pattern as `workspaces/server`.
 
 **Every repository method takes the owning `userId` and `workspaceId` and filters
 on both.** `WorkspaceGuard` proves the caller belongs to the workspace they
-named; nothing upstream proves a *conversation id* belongs to them.
+named; nothing upstream proves a _conversation id_ belongs to them.
 
 ## The model seam
 
@@ -152,7 +171,7 @@ Structurally identical to media storage, by decision
 
 **This package knows no adapter exists.** It does not import a vendor SDK, a
 factory, _or_ an adapter config type — so a Bedrock adapter is a package plus
-one entry in `plugins.ts`. Provider *connection* settings live with the host, in
+one entry in `plugins.ts`. Provider _connection_ settings live with the host, in
 `apps/server/ortha.config.ts`.
 
 A run may name a `provider` and `model`; an explicitly requested provider wins

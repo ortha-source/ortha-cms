@@ -60,6 +60,31 @@ entirely.
   `created_at` (write time). Indexes on `(subject_type, subject_id, at)`,
   `(actor_id, at)`, `(kind, at)`.
 
+## The copilot tool (`src/lib/copilot/`)
+
+`ActivityCopilotToolProvider` binds one read tool, `activity.recent`, wrapping
+`ActivityService.list`. Registered by `copilotToolsRegistrar('activity', …)` in
+`ActivityModule.forRoot`, which injects the copilot registry **optionally** — a
+deployment without `CopilotPlugin` is normal.
+
+**The tool is deployment-wide, not workspace-scoped, and that is not an
+oversight.** `activity_events` has no workspace column by design (see Schema
+above): the trail records invites, role changes and workspace lifecycle
+alongside content edits, and several of those belong to no workspace at all.
+There is nothing to scope by, so the tool's description says so rather than
+implying a boundary it cannot enforce.
+
+What bounds it is `activity:read`, admin-only in the v1 role matrix and the same
+key guarding `GET /api/activity`. The copilot's capability profile withholds the
+tool at **offer** time, so a viewer's or contributor's run is never told it
+exists (ADR-0005 §3), and re-checks at execution. An admin asking their copilot
+about the audit log reads exactly what the Activity page already shows them.
+
+`meta` is passed through rather than stripped. It is an open per-kind payload
+and some of it is user-authored, so it is untrusted — but it reaches the model
+inside the run engine's `fenceUntrusted` envelope like every other tool result.
+The fence is what makes that safe; omission would only make the tool less useful.
+
 ## Architecture
 
 - `ActivityModule.forRoot()` is **global** and **exports `ActivityService`** +

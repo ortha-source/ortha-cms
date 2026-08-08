@@ -16,7 +16,9 @@ import { AssetMapper } from './infrastructure/persistence/asset.mapper';
 import { FolderMapper } from './infrastructure/persistence/folder.mapper';
 import { DrizzleAssetRepository } from './infrastructure/persistence/drizzle-asset.repository';
 import { DrizzleFolderRepository } from './infrastructure/persistence/drizzle-folder.repository';
+import { copilotToolsRegistrar } from '@ortha-cms/copilot-server';
 import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
+import { MediaCopilotToolProvider } from './copilot/media-tool.provider';
 import { ListFoldersQuery } from './infrastructure/queries/list-folders.query';
 import { AssetViewQuery } from './infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from './infrastructure/queries/download-asset.query';
@@ -111,6 +113,11 @@ export class MediaModule {
                 // Read models.
                 ListAssetsQuery,
                 ListFoldersQuery,
+                // The copilot's read-only asset search. Both no-op when no
+                // copilot plugin is registered — the registrar injects the
+                // registry optionally.
+                MediaCopilotToolProvider,
+                copilotToolsRegistrar('media', MediaCopilotToolProvider),
                 AssetViewQuery,
                 DownloadAssetQuery,
                 // Binds content-server's media-asset resolver port, so a content

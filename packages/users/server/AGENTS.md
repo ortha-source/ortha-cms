@@ -129,6 +129,28 @@ event kinds (`member.*`) intentionally **differ** from the audit kinds
 (`user.*`), so that move maps between the two catalogues rather than reusing the
 same strings.
 
+## The copilot tool (`src/lib/copilot/`)
+
+`WorkspaceCopilotToolProvider` binds one read tool, `workspace.members` —
+who is on the current workspace, with role and account status. It is what turns
+an `actorEmail` from `activity.recent` or an `authorId` on a revision into a
+person. Registered by `copilotToolsRegistrar('workspace', …)` in
+`UsersModule.forRoot`, which injects the copilot registry **optionally**.
+
+It reads through a purpose-built `WorkspaceMembersQuery`
+(`member/infrastructure/queries/`) — `memberships ⋈ users ⋈ roles`, paginated —
+rather than through `MemberViewQuery`. That one is the deployment-wide directory
+the users grid renders and has no workspace predicate at all; adding one would
+thread a workspace through the whole member-list contract for a caller that
+wants strictly less and none of its extras (`isLastAdmin`, the per-member
+workspace list, the `?filter=` tree).
+
+**The scoping is the point.** A copilot run is workspace-scoped, so "who is on
+this team?" must not answer with every account in the deployment — which
+`users:read` alone would permit. Nothing security-relevant is returned: email,
+name, role key and status, exactly the columns the members page renders for the
+same permission. No invite tokens, no session data.
+
 ## Architecture notes
 
 - Plain `ServerPlugin` factory (`UsersPlugin()`), no config, **no migrations**

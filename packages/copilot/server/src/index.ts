@@ -19,6 +19,10 @@ export type { ProviderRegistration } from './lib/infrastructure/model-registry';
 // `CopilotToolProvider` contracts it registers live in `@ortha-cms/copilot-domain`,
 // so a binder never has to import this package's internals.
 export { CopilotToolRegistry } from './lib/chat/application/tool-registry.service';
+// The one-liner a binding plugin adds to its module's `providers` to register
+// its tools at bootstrap. Prefer it over a hand-written registrar class — see
+// its JSDoc for the `design:paramtypes` trap it exists to close.
+export { copilotToolsRegistrar } from './lib/chat/application/tools-registrar';
 
 // The run engine and its collaborators, exported for tests and for a future
 // non-HTTP surface (a job runner in phase 5) that needs the loop without the

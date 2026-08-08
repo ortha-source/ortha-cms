@@ -194,16 +194,32 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
   content-server stays locale-agnostic here as everywhere. An unknown locale is
   a tool error, never a silent read of the default. `content.getEntry` takes no
   `locale`: an entry id already names one row including its locale.
-- `ContentCopilotToolsRegistrar` registers them from `OnApplicationBootstrap`.
+- `RevisionCopilotToolProvider` ships the **version-history** pair,
+  `content.listRevisions` and `content.diffRevisions`. A second provider rather
+  than more methods on the first: revisions are their own feature folder with
+  their own port, and the registry takes any number of providers. `diffRevisions`
+  returns **only the changed fields** plus a count of the unchanged ones — the
+  admin's dialog renders every field because a person wants unchanged rows for
+  context, but on a wide type the unchanged richtext bodies alone would dominate
+  a run's token budget. The comparison rules (`copilot/diff-snapshots.ts`, pure
+  and unit-tested) mirror `content-admin`'s `diffRevision` exactly: empties
+  collapse, link sets compare order-sensitively. The duplication is deliberate
+  until the two sides' schema types are unified — noted at the call site.
+- Both providers are registered by `copilotToolsRegistrar('content', …)` from
+  `@ortha-cms/copilot-server`, in `ContentModule.forRoot`'s `providers`.
   Registration is a **runtime `register(...)` call**, not a multi-provider
   binding: Nest cannot merge a multi-provider token across independent dynamic
-  modules, so a second binder (media, at phase 3) would silently replace this
-  one. `CopilotToolRegistry` is injected `@Optional()` **with an explicit
-  `@Inject(...)`** — a `Foo | null` parameter type emits `Object` for
-  `design:paramtypes`, and an optional one then injects `undefined` silently,
-  producing a copilot with no content tools and no error anywhere.
+  modules, so a second binder (media, i18n, …) would silently replace this one.
+  The helper exists because the hand-written registrar it replaced had to inject
+  the registry `@Optional()`, and a `Foo | null` parameter type emits `Object`
+  for `design:paramtypes` — Nest then injects `undefined` silently, producing a
+  copilot with no content tools and no error anywhere. A factory's `inject` list
+  names its dependencies as values, so there is no reflected type to get wrong.
 - **Every tool re-checks the workspace's content grants** via
-  `WorkspaceGrantsQuery`. `WorkspaceGuard` proved the caller belongs to the
+  `WorkspaceGrantsQuery` — which is **exported from this package and from the
+  global module** for the same reason: i18n and media bind their own
+  content-scoped tools, each takes a type name from the model, and that check
+  needs one implementation rather than one per binder. `WorkspaceGuard` proved the caller belongs to the
   workspace, not that the workspace may reach a given type — and the type name
   arrives from the _model_, which is steerable by content it has read. "Not
   granted" and "does not exist" return the **same** message, so a run in one

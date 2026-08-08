@@ -48,7 +48,7 @@ rather than a re-platform:
 - **A self-describing content model.** Content types are code-defined and
   validated at boot; `ContentTypeRegistry` already serialises fields, types,
   required flags, relation targets and the `i18n`/publishable envelope flags.
-  Tool JSON Schemas are *generated* from it, so the model never guesses a field
+  Tool JSON Schemas are _generated_ from it, so the model never guesses a field
   name and a schema change updates the tools for free.
 - **An authority model to inherit.** RBAC, `WorkspaceGuard` and the activity
   recorder already gate every mutation (ADR-0005).
@@ -92,12 +92,12 @@ A turn shows:
 
 **Entry points**
 
-| Surface         | Where                                     | What it does                                                                                                                                   |
-| --------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat panel      | Floating corner button, sidebar footer, `⌘J` | The full conversation. All enabled tools. A model picker over `GET /api/copilot/models` chooses the backend **per turn**, so a thread can start cheap and escalate. |
-| ⌘K palette      | `COMMAND_SLOT`                            | Natural language → the *existing* list filters via `query-builder-admin`'s `FilterField`s. The model emits a filter object, not SQL; the user sees the chips it chose. |
-| Entry editor    | `ENTRY_MENU_SLOT`, `ENTRY_SIDEBAR_WIDGET_SLOT` | Tighten copy, write the SEO description, suggest relations, translate. Field-level diffs accepted individually.                             |
-| Records toolbar | `RECORDS_TOOLBAR_SLOT`                    | Export by description — the copilot builds the filter and column set, reports the row count, streams a file.                                     |
+| Surface         | Where                                          | What it does                                                                                                                                                           |
+| --------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat panel      | Floating corner button, sidebar footer, `⌘J`   | The full conversation. All enabled tools. A model picker over `GET /api/copilot/models` chooses the backend **per turn**, so a thread can start cheap and escalate.    |
+| ⌘K palette      | `COMMAND_SLOT`                                 | Natural language → the _existing_ list filters via `query-builder-admin`'s `FilterField`s. The model emits a filter object, not SQL; the user sees the chips it chose. |
+| Entry editor    | `ENTRY_MENU_SLOT`, `ENTRY_SIDEBAR_WIDGET_SLOT` | Tighten copy, write the SEO description, suggest relations, translate. Field-level diffs accepted individually.                                                        |
+| Records toolbar | `RECORDS_TOOLBAR_SLOT`                         | Export by description — the copilot builds the filter and column set, reports the row count, streams a file.                                                           |
 
 Background work (phase 5) produces proposals that land in your chat as pending
 cards; it never edits live.
@@ -110,14 +110,14 @@ infrastructure / http`, with `domain/` importing no framework — so the tool
 contracts, capability profile and run state machine are testable without Nest,
 React or a model.
 
-| Package                              | Owns                                                                                                                                                        |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `copilot/domain`                     | Run state machine, message/tool-call value objects, `ToolSpec`, `ModelProvider`, capability profile, proposal types. No framework imports.                    |
-| `copilot/server`                     | `CopilotPlugin()`, run engine + tool loop, tool registry, MCP client, SSE controller, provider registry, schema + migrations, the `COPILOT_TOOL_PROVIDER` port. |
-| `copilot/admin`                      | Chat panel, streaming transport, proposal diff UI, model/connector settings, slot contributions.                                                              |
-| `copilot/provider-anthropic`         | Adapter over `@anthropic-ai/sdk`.                                                                                                                            |
-| `copilot/provider-openai`            | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                     |
-| `copilot/provider-fake`              | Scripted provider for e2e and offline dev.                                                                                                                   |
+| Package                      | Owns                                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `copilot/domain`             | Run state machine, message/tool-call value objects, `ToolSpec`, `ModelProvider`, capability profile, proposal types. No framework imports.                      |
+| `copilot/server`             | `CopilotPlugin()`, run engine + tool loop, tool registry, MCP client, SSE controller, provider registry, schema + migrations, the `COPILOT_TOOL_PROVIDER` port. |
+| `copilot/admin`              | Chat panel, streaming transport, proposal diff UI, model/connector settings, slot contributions.                                                                |
+| `copilot/provider-anthropic` | Adapter over `@anthropic-ai/sdk`.                                                                                                                               |
+| `copilot/provider-openai`    | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                       |
+| `copilot/provider-fake`      | Scripted provider for e2e and offline dev.                                                                                                                      |
 
 **Tool bindings live with their owners.** Content tools ship in
 `content/server`, media tools in `media/server`, and so on — each a small
@@ -172,7 +172,7 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
    policy → this run's tool set. Everything downstream reads from it.
 3. **Persist the turn, open the SSE stream.** The user message is written first,
    so a dropped connection never loses it.
-4. **Assemble context** — system prompt + content-type *summaries* for this
+4. **Assemble context** — system prompt + content-type _summaries_ for this
    workspace + surface context + trimmed history, fitted to the provider's
    context window. Full field schema is fetched on demand via
    `content.listTypes`, not inlined. Content bodies arrive only through tool
@@ -196,34 +196,53 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
 `read` runs freely; `propose` produces a reviewable change; `apply` writes
 directly and is off unless workspace policy enables it (ADR-0005 §6).
 
-| Tool                      | Bound by  | Requires            | Effect  |
-| ------------------------- | --------- | ------------------- | ------- |
-| `content.listTypes`       | content   | `content:read`      | read    |
-| `content.searchEntries`   | content   | `content:read`      | read    |
-| `content.getEntry`        | content   | `content:read`      | read    |
-| `content.diffRevisions`   | content   | `content:read`      | read    |
-| `content.exportEntries`   | content   | `content:read`      | read    |
-| `content.proposeEntry`    | content   | `content:create`    | propose |
-| `content.proposeEdit`     | content   | `content:update`    | propose |
-| `i18n.proposeTranslation` | i18n      | `content:update`    | propose |
-| `media.searchAssets`      | media     | `media:read`        | read    |
-| `media.proposeAltText`    | media     | `media:update`      | propose |
-| `activity.recent`         | activity  | `activity:read`     | read    |
-| `workspace.members`       | users     | `users:read`        | read    |
-| `mcp.<connector>.*`       | connector | as mapped by admin  | read by default |
+| Tool                      | Bound by  | Requires           | Effect          |
+| ------------------------- | --------- | ------------------ | --------------- |
+| `content.listTypes`       | content   | `content:read`     | read            |
+| `content.searchEntries`   | content   | `content:read`     | read            |
+| `content.getEntry`        | content   | `content:read`     | read            |
+| `content.listRevisions`   | content   | `content:read`     | read            |
+| `content.diffRevisions`   | content   | `content:read`     | read            |
+| `content.exportEntries`   | content   | `content:read`     | read            |
+| `i18n.listLocales`        | i18n      | `content:read`     | read            |
+| `i18n.getTranslations`    | i18n      | `content:read`     | read            |
+| `content.proposeEntry`    | content   | `content:create`   | propose         |
+| `content.proposeEdit`     | content   | `content:update`   | propose         |
+| `i18n.proposeTranslation` | i18n      | `content:update`   | propose         |
+| `media.searchAssets`      | media     | `media:read`       | read            |
+| `media.proposeAltText`    | media     | `media:update`     | propose         |
+| `activity.recent`         | activity  | `activity:read`    | read            |
+| `workspace.members`       | users     | `users:read`       | read            |
+| `mcp.<connector>.*`       | connector | as mapped by admin | read by default |
 
 Because the profile is derived from `SYSTEM_ROLES`, the practical effect is:
 
 | The copilot can…               | Viewer | Contributor | Admin |
 | ------------------------------ | :----: | :---------: | :---: |
-| Answer questions about content |   ✔    |      ✔      |   ✔   |
-| Search & filter entries        |   ✔    |      ✔      |   ✔   |
-| Export what you can read       |   ✔    |      ✔      |   ✔   |
-| Draft & edit entries           |   —    |      ✔      |   ✔   |
-| Translate into other locales   |   —    |      ✔      |   ✔   |
-| Write alt text on assets       |   —    |      ✔      |   ✔   |
-| Read the activity log          |   —    |      —      |   ✔   |
-| Configure models & connectors  |   —    |      —      |   ✔   |
+| Answer questions about content |   ✔   |     ✔      |  ✔   |
+| Search & filter entries        |   ✔   |     ✔      |  ✔   |
+| Export what you can read       |   ✔   |     ✔      |  ✔   |
+| Draft & edit entries           |   —    |     ✔      |  ✔   |
+| Translate into other locales   |   —    |     ✔      |  ✔   |
+| Write alt text on assets       |   —    |     ✔      |  ✔   |
+| Read the activity log          |   —    |      —      |  ✔   |
+| Configure models & connectors  |   —    |      —      |  ✔   |
+
+**Two tools the first draft of this table didn't have.** `content.listRevisions`
+is what makes `content.diffRevisions` reachable — a diff needs two version
+numbers, and nothing else tells the model which exist. `i18n.listLocales` is
+what makes `content.searchEntries`'s `locale` usable: locale slugs are
+deployment configuration, so without it the model either omits `locale` and
+silently searches the default language or guesses a slug and gets an error.
+`i18n.getTranslations` follows, since "which article is missing a German
+version?" is the question a localized CMS is actually asked.
+
+**`activity.recent` is deployment-wide, not workspace-scoped.** `activity_events`
+has no workspace column — the trail records invites, role changes and workspace
+lifecycle alongside content edits, several of which belong to no workspace at
+all. So there is nothing to scope by; what bounds the tool is `activity:read`,
+admin-only, withheld at offer time from everyone else. Its description says
+which scope it covers rather than implying a boundary it cannot enforce.
 
 **Export deserves care.** `content.exportEntries` takes a filter, column set and
 format (JSON/CSV/Markdown) and streams through a download route
@@ -242,15 +261,15 @@ and `copilot:configure` (admin only).
 (`nx run copilot-server:db:generate --name=…`; applied by the host's
 `db:migrate`).
 
-| Table                   | Holds                                                                       | Notes                                                                |
-| ----------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `copilot_conversations` | Thread per user × workspace, title, surface, archived flag                   | FKs to identity `users` and workspaces                                |
-| `copilot_messages`      | Ordered turns: role, content blocks, model id, finish reason                 | Append-only — the transcript for replay and audit                     |
-| `copilot_tool_calls`    | Tool name, input, redacted output, duration, error                           | What actually touched data; the security-review surface               |
-| `copilot_proposals`     | Target (type, entry, locale), patch, status, decided by/at                   | The accept boundary; applying runs the ordinary update use-case       |
-| `copilot_model_configs` | Adapter kind, base URL, model id, encrypted credential, probed capabilities  | Runtime provider registration (ADR-0004 §5); secrets never leave the server |
-| `copilot_connectors`    | MCP endpoint, auth, enabled workspaces, per-tool permission mapping          | Admin-managed; disabled by default                                    |
-| `copilot_usage`         | Per run: input/output tokens, cost, provider, model                          | Backs quotas and the cost panel                                       |
+| Table                   | Holds                                                                       | Notes                                                                       |
+| ----------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `copilot_conversations` | Thread per user × workspace, title, surface, archived flag                  | FKs to identity `users` and workspaces                                      |
+| `copilot_messages`      | Ordered turns: role, content blocks, model id, finish reason                | Append-only — the transcript for replay and audit                           |
+| `copilot_tool_calls`    | Tool name, input, redacted output, duration, error                          | What actually touched data; the security-review surface                     |
+| `copilot_proposals`     | Target (type, entry, locale), patch, status, decided by/at                  | The accept boundary; applying runs the ordinary update use-case             |
+| `copilot_model_configs` | Adapter kind, base URL, model id, encrypted credential, probed capabilities | Runtime provider registration (ADR-0004 §5); secrets never leave the server |
+| `copilot_connectors`    | MCP endpoint, auth, enabled workspaces, per-tool permission mapping         | Admin-managed; disabled by default                                          |
+| `copilot_usage`         | Per run: input/output tokens, cost, provider, model                         | Backs quotas and the cost panel                                             |
 
 Phase 5 adds `copilot_embeddings` (entry, locale, chunk, vector), which needs
 the `pgvector` extension — a deployment change, not just a migration, and the
@@ -260,20 +279,20 @@ reason semantic retrieval is last.
 
 The plugin seams are ready; the streaming and model plumbing is not.
 
-| Capability                  | Today       | What's needed                                                                                                                                                                                                                       |
-| --------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Model port & adapters       | none        | No LLM dependency in `package.json`. The port copies `StorageProvider` + `buildRegistry`, so the shape is settled; the adapters and streaming normalisation are the work.                                                             |
-| Streaming transport         | **done**    | `SseStream` (Nest) + `streamRun` (admin). The `fetch` transport replicates `apiClient`'s credentials and `X-Workspace-Id` rather than changing it, as planned. |
-| Runtime provider config      | none        | All config is env-only via `ortha.config.ts`. First DB-persisted settings and first encrypted-secret-at-rest in the codebase; needs a key in config and a rotation story.                                                             |
-| MCP client                  | none        | Connection lifecycle, tool discovery, namespacing, permission mapping, timeouts, untrusted-text handling.                                                                                                                            |
-| Tool-schema generation      | partial     | `SerializedContentType` has everything needed; a `registry → JsonSchema` mapper (and round-trip tests) does not exist.                                                                                                                |
-| Export                      | partial     | No content export exists. Streaming CSV/JSON writer, label resolution, row caps, audited download route.                                                                                                                              |
-| Long-running work           | partial     | **`OutboxDispatcher.drain()` runs every subscriber inside one transaction.** A multi-second model call in a subscriber would hold that transaction and its row locks open for the whole batch. Background AI must enqueue a job row and let a separate worker do the model call — or the dispatcher must learn to hand off outside the tx. |
-| Cost & quota                | none        | Token accounting, per-workspace caps, per-user rate limiting. `@nestjs/throttler` is already in the lockfile via identity.                                                                                                            |
-| Chat UI primitives          | partial     | Phase 1 shipped streaming text, message bubbles, tool-step disclosure and a small local markdown renderer (React elements only, never `dangerouslySetInnerHTML`). Still missing: the field-level proposal diff (`revisionDiff` is the starting point), needed at phase 3. |
-| Deterministic tests         | partial     | `server-e2e` now covers the whole loop over the fake provider — guards, the strict pipe, the stream, the tool loop, the capability profile, the content tools. `admin-e2e` still mocks `/api` with `page.route` and cannot yet fulfil an event-stream body, so **the panel has no browser-level coverage**. |
-| Prompt versioning & evals   | partial     | `SYSTEM_PROMPT_VERSION` exists and is bumped with the prompt text. The offline eval set that would give it teeth does not — a prompt edit is still reviewed by reading it.                                                             |
-| Localized output            | **done**    | The run DTO carries `uiLocale` (an app preference, not `Accept-Language`) and the system prompt instructs the model to answer in it regardless of the content's language. Translation targeting arrives with the phase-4 translation tool. |
+| Capability                | Today    | What's needed                                                                                                                                                                                                                                                                                                                              |
+| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Model port & adapters     | none     | No LLM dependency in `package.json`. The port copies `StorageProvider` + `buildRegistry`, so the shape is settled; the adapters and streaming normalisation are the work.                                                                                                                                                                  |
+| Streaming transport       | **done** | `SseStream` (Nest) + `streamRun` (admin). The `fetch` transport replicates `apiClient`'s credentials and `X-Workspace-Id` rather than changing it, as planned.                                                                                                                                                                             |
+| Runtime provider config   | none     | All config is env-only via `ortha.config.ts`. First DB-persisted settings and first encrypted-secret-at-rest in the codebase; needs a key in config and a rotation story.                                                                                                                                                                  |
+| MCP client                | none     | Connection lifecycle, tool discovery, namespacing, permission mapping, timeouts, untrusted-text handling.                                                                                                                                                                                                                                  |
+| Tool-schema generation    | partial  | `SerializedContentType` has everything needed; a `registry → JsonSchema` mapper (and round-trip tests) does not exist.                                                                                                                                                                                                                     |
+| Export                    | partial  | No content export exists. Streaming CSV/JSON writer, label resolution, row caps, audited download route.                                                                                                                                                                                                                                   |
+| Long-running work         | partial  | **`OutboxDispatcher.drain()` runs every subscriber inside one transaction.** A multi-second model call in a subscriber would hold that transaction and its row locks open for the whole batch. Background AI must enqueue a job row and let a separate worker do the model call — or the dispatcher must learn to hand off outside the tx. |
+| Cost & quota              | none     | Token accounting, per-workspace caps, per-user rate limiting. `@nestjs/throttler` is already in the lockfile via identity.                                                                                                                                                                                                                 |
+| Chat UI primitives        | partial  | Phase 1 shipped streaming text, message bubbles, tool-step disclosure and a small local markdown renderer (React elements only, never `dangerouslySetInnerHTML`). Still missing: the field-level proposal diff (`revisionDiff` is the starting point), needed at phase 3.                                                                  |
+| Deterministic tests       | partial  | `server-e2e` now covers the whole loop over the fake provider — guards, the strict pipe, the stream, the tool loop, the capability profile, the content tools. `admin-e2e` still mocks `/api` with `page.route` and cannot yet fulfil an event-stream body, so **the panel has no browser-level coverage**.                                |
+| Prompt versioning & evals | partial  | `SYSTEM_PROMPT_VERSION` exists and is bumped with the prompt text. The offline eval set that would give it teeth does not — a prompt edit is still reviewed by reading it.                                                                                                                                                                 |
+| Localized output          | **done** | The run DTO carries `uiLocale` (an app preference, not `Accept-Language`) and the system prompt instructs the model to answer in it regardless of the content's language. Translation targeting arrives with the phase-4 translation tool.                                                                                                 |
 
 ## 9. Roadmap
 
@@ -281,7 +300,7 @@ Six phases; each after phase 1 is independently shippable.
 
 **Phase 0 — Foundations. ✅ Shipped.** `ModelProvider` port + registry, the three
 adapters, `plugins.copilot` config, `copilot:use` / `copilot:configure`, empty
-plugin registered in both hosts. *Ships nothing visible; unblocks everything.*
+plugin registered in both hosts. _Ships nothing visible; unblocks everything._
 Four things landed differently from the sketch above, all deliberate and all
 detailed in the package `AGENTS.md` files:
 
@@ -303,7 +322,7 @@ detailed in the package `AGENTS.md` files:
 **Phase 1 — Chat (the vertical slice). ✅ Shipped.** SSE endpoint, run engine,
 capability profile, conversation persistence, the read-only content tools, the
 chat panel. Server-e2e over the fake provider, including the viewer-can't-write
-case. *Ships: conversational search over your own content.*
+case. _Ships: conversational search over your own content._
 
 Five things landed differently from the sketch above, all deliberate:
 
@@ -330,7 +349,7 @@ Five things landed differently from the sketch above, all deliberate:
 - **The panel reads its workspace from the route, not from
   `useCurrentWorkspace()`.** `CurrentWorkspaceProvider` wraps only the workspace
   shell's inset; the app sidebar — where the launcher lives — renders outside
-  it, and the hook *throws* there rather than returning null.
+  it, and the hook _throws_ there rather than returning null.
 
 Two dependencies the readiness table did not budget for were **not** taken:
 markdown rendering is a small local renderer building React elements (never
@@ -350,25 +369,25 @@ natural language → filters; translation tool.
 
 **Phase 5 — Background & retrieval.** Job runner outside the outbox transaction,
 background alt text and translation drafts, `pgvector` embeddings with backfill,
-cost dashboard and quotas. *Requires a deployment change; deferrable
-indefinitely.*
+cost dashboard and quotas. _Requires a deployment change; deferrable
+indefinitely._
 
 Phases 0–4 deliver the whole product statement. Phase 5 is optional.
 
 ### Readiness — verified, nothing blocks a start
 
-| Needed for phase 0–1              | State      | Evidence                                                                                                                                                          |
-| --------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Register a new plugin             | ready      | `ServerModule.forRoot` imports whatever the plugin list holds — one line in `plugins.ts`, one in `main.tsx`.                                                       |
-| Call content logic in-process     | ready      | Logic already lives in injectable services: `EntriesService.list(type, query, workspaceId)`, `EntryWriterService.update(type, id, values, workspaceId, relations, userId)`. Tools are thin wrappers; no refactor. |
-| Resolve permissions in code       | ready      | `PermissionsService.forRole(roleId)` + the pure `AccessPolicy.canAll(actor, …)`. The capability profile is ~20 lines on top.                                        |
-| Add the new permission keys       | ready      | **No migration** — `seedSystemRoles` is idempotent and runs each boot from `PERMISSIONS` / `SYSTEM_ROLES` (`ON CONFLICT DO NOTHING`).                              |
-| Own tables & migrations           | ready      | `@ortha-cms/nx` infers `db:generate` from a `drizzle.config.ts`; the host's `db:migrate` reads `plugins.ts`.                                                        |
-| Stream a response                 | clear path | `createServer` adds only a global prefix and `ValidationPipe` — no compression or global interceptor to buffer a stream. Node 22 gives native `fetch` server-side.  |
-| Export `AccessPolicy` / `Actor`   | not needed | Superseded in phase 1 — the profile rule is a pure function in `copilot/domain`, which imports nothing and so cannot reach a class behind a Nest barrel. See the phase-1 notes above. |
-| New npm dependencies              | two        | `@anthropic-ai/sdk` now; `@modelcontextprotocol/sdk` at phase 4. **Still two after phase 1** — markdown rendering and JSON Schema validation were written locally rather than pulled in. |
+| Needed for phase 0–1            | State      | Evidence                                                                                                                                                                                                          |
+| ------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Register a new plugin           | ready      | `ServerModule.forRoot` imports whatever the plugin list holds — one line in `plugins.ts`, one in `main.tsx`.                                                                                                      |
+| Call content logic in-process   | ready      | Logic already lives in injectable services: `EntriesService.list(type, query, workspaceId)`, `EntryWriterService.update(type, id, values, workspaceId, relations, userId)`. Tools are thin wrappers; no refactor. |
+| Resolve permissions in code     | ready      | `PermissionsService.forRole(roleId)` + the pure `AccessPolicy.canAll(actor, …)`. The capability profile is ~20 lines on top.                                                                                      |
+| Add the new permission keys     | ready      | **No migration** — `seedSystemRoles` is idempotent and runs each boot from `PERMISSIONS` / `SYSTEM_ROLES` (`ON CONFLICT DO NOTHING`).                                                                             |
+| Own tables & migrations         | ready      | `@ortha-cms/nx` infers `db:generate` from a `drizzle.config.ts`; the host's `db:migrate` reads `plugins.ts`.                                                                                                      |
+| Stream a response               | clear path | `createServer` adds only a global prefix and `ValidationPipe` — no compression or global interceptor to buffer a stream. Node 22 gives native `fetch` server-side.                                                |
+| Export `AccessPolicy` / `Actor` | not needed | Superseded in phase 1 — the profile rule is a pure function in `copilot/domain`, which imports nothing and so cannot reach a class behind a Nest barrel. See the phase-1 notes above.                             |
+| New npm dependencies            | two        | `@anthropic-ai/sdk` now; `@modelcontextprotocol/sdk` at phase 4. **Still two after phase 1** — markdown rendering and JSON Schema validation were written locally rather than pulled in.                          |
 
-**MCP is an output, not an input.** It exists in this design so *operators* can
+**MCP is an output, not an input.** It exists in this design so _operators_ can
 attach their own systems (§4). Phases 0–3 ship with no MCP involved.
 
 **Three things to confirm with a short spike before the engine is written.**
@@ -382,20 +401,20 @@ test rather than a throwaway script.
    has a body and `EventSource` cannot send one. The same question still applies
    to whatever reverse proxy fronts production; `Cache-Control: no-transform`
    and `X-Accel-Buffering: no` are set for it.
-   - **The spike's own bug is the durable lesson:** `req.on('close')` fires the
-     moment the request body is fully consumed — which is *always* true by the
-     time a Nest handler runs — while the client is still connected and waiting.
-     Wiring the abort to it cancels every run instantly, and because
-     `writeHead` hasn't flushed, it presents as a request that hangs with no
-     response rather than as an error. Client-disconnect detection must hang off
-     `res`. See `SseStream.onClientDisconnect`.
+    - **The spike's own bug is the durable lesson:** `req.on('close')` fires the
+      moment the request body is fully consumed — which is _always_ true by the
+      time a Nest handler runs — while the client is still connected and waiting.
+      Wiring the abort to it cancels every run instantly, and because
+      `writeHead` hasn't flushed, it presents as a request that hangs with no
+      response rather than as an error. Client-disconnect detection must hang off
+      `res`. See `SseStream.onClientDisconnect`.
 2. **The strict global pipe. — Confirmed, with a sharper edge than expected.**
    `forbidNonWhitelisted: true` 400s an undeclared key by name, which is the
    behaviour we want. The trap is **nested** objects: without `@ValidateNested()`
-   + `@Type()`, `context` is not traversed as a DTO at all — its properties are
-   stripped by the whitelist and the handler silently receives `{}`, with no
-   error anywhere. Covered by two e2e cases, one of which asserts the nested
-   context reaches the system prompt intact.
+    - `@Type()`, `context` is not traversed as a DTO at all — its properties are
+      stripped by the whitelist and the handler silently receives `{}`, with no
+      error anywhere. Covered by two e2e cases, one of which asserts the nested
+      context reaches the system prompt intact.
 3. **Guard composition. — Confirmed.** Only `AuthGuard` is global (`APP_GUARD`);
    `PermissionsGuard`, `OriginGuard` and `WorkspaceGuard` are per-controller
    decorators, applied explicitly on every copilot route. Each is covered by its
@@ -421,7 +440,7 @@ Settled enough to start phase 0; decide before the phase that needs them.
   streaming. Websockets only earn their cost if presence or server-initiated
   notifications follow. Revisit at phase 5.
 - **Who owns proposals — copilot or content?** Current plan: copilot owns the
-  table, content exposes an *apply* use-case, so content stays ignorant of where
+  table, content exposes an _apply_ use-case, so content stays ignorant of where
   a patch came from — which also lets a future human-authored suggestion reuse
   it.
 - **Is there a headless surface?** `api-tokens` already mints workspace-scoped

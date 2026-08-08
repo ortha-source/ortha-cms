@@ -88,7 +88,7 @@ The extension owns all locale _behavior_:
   (so a newly-created sibling lands consistent with its group, not just later
   edits). Syncs every **non-`localized`** column-backed field to the group's
   sibling rows, **moves a rewritten published sibling back to `draft`** (keeping
-  `published_at`, exactly as a direct edit does — so it reads as *Modified*, not
+  `published_at`, exactly as a direct edit does — so it reads as _Modified_, not
   as a never-published draft), then **re-validates any sibling that was
   published** via content-server's `EntryValidationService` — a failure throws
   422 and rolls the whole save back (a draft edit can't silently invalidate a
@@ -144,6 +144,36 @@ the extension validates + stamps the group, and the row lands as a fresh draft.
 A duplicate locale in the group is a **409** (the `(locale_group_id, locale)`
 unique index is the arbiter); an unknown group is a **404**. Many-relation
 join-copy is **not** performed (relations are per-locale in v1).
+
+## The copilot tools (`src/lib/copilot/`)
+
+`I18nCopilotToolProvider` binds two read tools, registered by
+`copilotToolsRegistrar('i18n', …)` in `I18nModule.forRoot` (the registry is
+injected **optionally** — a deployment without `CopilotPlugin` is normal).
+
+- **`i18n.listLocales`** is what makes `content.searchEntries`'s `locale`
+  parameter usable at all. Locale slugs are deployment configuration, not
+  content, so nothing else tells the model they exist: without this it either
+  omits `locale` and silently searches the default language, or guesses a slug
+  and gets a tool error. One cheap call replaces both failure modes.
+- **`i18n.getTranslations`** answers "which languages is this in, and which is
+  missing?" from the same `LocaleGroupService.entryLocales` the admin's locale
+  panel reads, so the copilot's answer cannot drift from what the editor shows.
+  It returns one item per **configured** locale, so a missing translation is
+  `entry: null` rather than an absent key.
+
+Two rules the tools apply that the HTTP path does not:
+
+- **They re-check the workspace's content grants** (via content-server's
+  exported `WorkspaceGrantsQuery`). `resolveI18nType` deliberately does not —
+  its callers are already behind a workspace-scoped controller reached from the
+  admin's own UI — but a tool's type name arrives from the _model_, which is
+  steerable by content it has read. "Not granted" and "does not exist" are the
+  same message, so a run cannot enumerate the deployment's other types.
+- **"Not localized" is an explicit error**, not an empty answer. `[]` would read
+  as "this entry has no other languages" when the truth is "this content is not
+  translated at all" — the same distinction the public API draws by 400-ing
+  `?translations=preview` on a plain type.
 
 ## Architecture / conventions
 

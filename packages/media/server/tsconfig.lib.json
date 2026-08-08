@@ -23,6 +23,12 @@
             "path": "../../database/tsconfig.lib.json"
         },
         {
+            "path": "../../copilot/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../copilot/domain/tsconfig.lib.json"
+        },
+        {
             "path": "../../content/server/tsconfig.lib.json"
         },
         {

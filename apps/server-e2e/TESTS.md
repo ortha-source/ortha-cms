@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_578 test cases across 39 spec files._
+_597 test cases across 40 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -819,6 +819,60 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | offers the phase-1 read tools and searches real entries |
 | names the workspace’s granted types in the system prompt, without fields |
 | refuses a content type the workspace was not granted |
+
+<!-- source: apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts -->
+_<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
+
+## Copilot read catalogue
+
+### the offer
+
+| Test case |
+| --- |
+| offers every read tool in the catalogue to an admin |
+| withholds the audit log from a contributor, who lacks activity:read |
+| offers a viewer the whole read catalogue except the audit log |
+
+### content.listRevisions / content.diffRevisions
+
+| Test case |
+| --- |
+| lists an entry’s versions, newest first |
+| reports only the fields that changed between two versions |
+| names the missing version rather than failing opaquely |
+| refuses a content type the workspace was not granted |
+
+### i18n.listLocales / i18n.getTranslations
+
+| Test case |
+| --- |
+| lists the configured locales, marking the default |
+| reports which locales an entry has been translated into |
+| says a type is not localized rather than answering “no translations” |
+| refuses a content type the workspace was not granted |
+
+### media.searchAssets
+
+| Test case |
+| --- |
+| searches every folder, not just the workspace root |
+| filters by kind |
+| does not see another workspace’s assets |
+| omits the storage URL, which a model cannot fetch anyway |
+
+### activity.recent
+
+| Test case |
+| --- |
+| reads the audit trail for an admin |
+| is not callable by a contributor even if the model names it |
+
+### workspace.members
+
+| Test case |
+| --- |
+| lists this workspace’s members with their roles |
+| does not list accounts that are not members of this workspace |
 
 <!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_

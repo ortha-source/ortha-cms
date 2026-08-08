@@ -12,6 +12,13 @@ export { field } from './lib/fields';
 export { ContentModule } from './lib/content.module';
 export { CONTENT_REGISTRY, InjectContentRegistry } from './lib/content.tokens';
 
+// The workspace's content grants. Exported (and exported from the global
+// module) for plugins that bind their own copilot tools over content-scoped
+// data — i18n's translations, media's assets. Every such tool takes its type
+// name from the *model*, so each has to re-check the grants, and that check
+// needs exactly one implementation rather than one per binder.
+export { WorkspaceGrantsQuery } from './lib/content-types/queries/workspace-grants.query';
+
 export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
 export type {
     ContentEntryExtension,

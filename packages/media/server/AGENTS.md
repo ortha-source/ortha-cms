@@ -154,6 +154,30 @@ the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's
 `EntryWriterService` resolves the binding regardless of registration order.
 
+## The copilot tool (`src/lib/copilot/`)
+
+This package binds the copilot's tool port — `copilot/server` declares
+`COPILOT_TOOL_PROVIDER` (in `copilot-domain`) and never imports media.
+`MediaCopilotToolProvider` ships one read tool, `media.searchAssets`, wrapping
+the same `ListAssetsQuery` the library route calls. Registration is the
+`copilotToolsRegistrar('media', …)` one-liner in `MediaModule.forRoot`, which
+injects the registry **optionally** — a deployment without `CopilotPlugin` is
+normal, and media must boot without it.
+
+Two departures from the library's own list, each answering something a model
+needs and a person browsing does not:
+
+- **It searches every folder.** `ListAssetsParams.folderId` gained a third
+  state: an **absent key** spans the workspace, `null` is the root folder, a
+  string is one folder. The admin browses one folder at a time, so `null` had to
+  keep meaning root; a model asked "do we have a logo?" doesn't know which
+  folder to look in and would get "no" for an asset that exists. The query tests
+  the key with `in`, not truthiness, so the two stay distinguishable.
+- **It returns a narrowed projection** — id, name, kind, MIME type, size, alt,
+  tags, folder, created — dropping `url`, `variants` and the intrinsic
+  dimensions. `url` in particular is a session-gated route a model cannot fetch,
+  so it costs prompt tokens and answers nothing.
+
 ## Register with the host
 
 After `WorkspacesPlugin` (routes use `WorkspaceGuard`) and `IdentityPlugin`
