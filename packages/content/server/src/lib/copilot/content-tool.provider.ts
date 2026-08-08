@@ -11,6 +11,9 @@ import { EntriesService } from '../entries/infrastructure/queries/entries.servic
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { MAX_PAGE_SIZE } from '../entries/entries.constants';
+import { buildEntryFilterSurface } from '../entries/infrastructure/queries/entry-filter-surface';
+import { describeFilterFields, filterTreeSchema } from './filter-schema';
+import { projectEntry } from './project-entry';
 
 /** Rows a single `content.searchEntries` call may return. */
 const MAX_TOOL_PAGE_SIZE = 25;
@@ -80,8 +83,8 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
             description:
                 'List the content types available in this workspace. Pass a typeName to get ' +
                 'that type’s full field schema (field names, types, required flags, relation ' +
-                'targets) — the schema is not in your system prompt, so call this before ' +
-                'reasoning about a type’s fields.',
+                'targets) AND the paths you may filter and sort on — neither is in your system ' +
+                'prompt, so call this before reasoning about a type’s fields or building a filter.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -104,7 +107,19 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                         typeName,
                         ctx.workspaceId
                     );
-                    return { type: this.registry.serialize(type.name) };
+                    // The filterable surface is built with `grantedTypes`, so a
+                    // relation hop into a type this workspace was never granted
+                    // is never advertised. The list query itself enforces a
+                    // wider (unpruned) schema, so advertising less is safe —
+                    // the reverse would offer paths the engine then rejects.
+                    const { fields } = buildEntryFilterSurface(type, {
+                        workspaceId: ctx.workspaceId,
+                        grantedTypes: granted
+                    });
+                    return {
+                        type: this.registry.serialize(type.name),
+                        filterableFields: describeFilterFields(fields)
+                    };
                 }
 
                 return {
@@ -121,15 +136,20 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
         return {
             name: 'content.searchEntries',
             description:
-                'Search a content type’s entries in this workspace. Free-text search runs across ' +
-                'the type’s text-like fields. Results are paginated; the response reports the ' +
-                'total so you can tell the user how many matched.',
+                'Search a content type’s entries in this workspace. Combine free-text `search` ' +
+                '(across text-like fields) with a structured `filter` for precise queries, and ' +
+                '`fields` to return only the columns you need — a full entry includes rich-text ' +
+                'bodies and a page of them is very large. Results are paginated and the response ' +
+                'reports the true total, so you can state how many matched even when you have ' +
+                'only read the first page. On a localized type, pass `locale` — omitting it ' +
+                'searches the default locale, which is rarely what the user meant.',
             inputSchema: {
                 type: 'object',
                 properties: {
                     typeName: {
                         type: 'string',
-                        description: 'The content type to search, e.g. "article".'
+                        description:
+                            'The content type to search, e.g. "article".'
                     },
                     search: {
                         type: 'string',
@@ -152,6 +172,29 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                         minimum: 1,
                         maximum: MAX_TOOL_PAGE_SIZE,
                         description: `Rows per page (max ${MAX_TOOL_PAGE_SIZE}).`
+                    },
+                    filter: filterTreeSchema(),
+                    fields: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description:
+                            'Field names to return in `values`. Strongly recommended: omitting ' +
+                            'this returns every field including rich text. The envelope ' +
+                            '(id, status, locale, timestamps) is always returned.'
+                    },
+                    locale: {
+                        type: 'string',
+                        maxLength: 35,
+                        description:
+                            'Locale slug to search, e.g. "de". Only meaningful on a localized ' +
+                            'type; omitted, the default locale is searched.'
+                    },
+                    localeFallback: {
+                        type: 'string',
+                        enum: ['default'],
+                        description:
+                            'Set to "default" to include the default locale where the requested ' +
+                            'one has no row.'
                     }
                 },
                 required: ['typeName'],
@@ -166,6 +209,10 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                     sort?: string;
                     page?: number;
                     pageSize?: number;
+                    filter?: unknown;
+                    fields?: string[];
+                    locale?: string;
+                    localeFallback?: string;
                 };
                 const type = await this.resolveGranted(
                     args.typeName,
@@ -186,6 +233,22 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                     {
                         ...(args.search ? { search: args.search } : {}),
                         ...(args.sort ? { sort: args.sort } : {}),
+                        // The engine's `?filter=` is a JSON string on the wire;
+                        // the model gets an object, which is far easier for it
+                        // to build correctly. `parseFilterTree` accepts either,
+                        // and validates every path against the type's schema —
+                        // a bad path is a 400 turned into a tool error, never a
+                        // query.
+                        ...(args.filter
+                            ? { filter: JSON.stringify(args.filter) }
+                            : {}),
+                        // Forwarded verbatim to the bound entry extension,
+                        // which validates the slug (unknown → error) and scopes
+                        // the rows. Content-server stays locale-agnostic.
+                        ...(args.locale ? { locale: args.locale } : {}),
+                        ...(args.localeFallback === 'default'
+                            ? { localeFallback: 'default' }
+                            : {}),
                         page: Math.max(args.page ?? 1, 1),
                         pageSize
                     },
@@ -197,7 +260,9 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                     total: result.total,
                     page: result.page,
                     pageSize: result.pageSize,
-                    items: result.items
+                    items: result.items.map((item) =>
+                        projectEntry(item, args.fields)
+                    )
                 };
             }
         };
@@ -219,7 +284,15 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                     },
                     id: {
                         type: 'string',
-                        description: 'The entry’s id, as returned by content.searchEntries.'
+                        description:
+                            'The entry’s id, as returned by content.searchEntries.'
+                    },
+                    fields: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description:
+                            'Field names to return in `values`. Omitted, every field is ' +
+                            'returned including rich text.'
                     }
                 },
                 required: ['typeName', 'id'],
@@ -228,14 +301,26 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
             permissions: [PERMISSIONS.CONTENT_READ],
             effect: 'read',
             run: async (input, ctx: ToolContext) => {
-                const args = (input ?? {}) as { typeName: string; id: string };
+                const args = (input ?? {}) as {
+                    typeName: string;
+                    id: string;
+                    fields?: string[];
+                };
                 const type = await this.resolveGranted(
                     args.typeName,
                     ctx.workspaceId
                 );
                 // `getOne` is workspace-scoped and 404s a soft-deleted row, so
-                // the tool inherits both without restating either.
-                return this.writer.getOne(type, args.id, ctx.workspaceId);
+                // the tool inherits both without restating either. An entry id
+                // already names one row, including its locale, so there is no
+                // `locale` parameter here — ask for a sibling by searching the
+                // type with a `localeGroupId` filter.
+                const entry = await this.writer.getOne(
+                    type,
+                    args.id,
+                    ctx.workspaceId
+                );
+                return projectEntry(entry, args.fields);
             }
         };
     }

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_569 test cases across 39 spec files._
+_578 test cases across 39 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -797,6 +797,20 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | records the default model when the run names none |
 | refuses an unregistered provider with an error frame |
 | refuses a model the provider does not offer |
+
+### the content tools — filter, locale, projection
+
+| Test case |
+| --- |
+| filters on a scalar field with the query-builder grammar |
+| combines free-text search with a filter |
+| turns an unknown filter path into a tool error |
+| searches the requested locale, not the default one |
+| rejects an unknown locale rather than silently using the default |
+| narrows values to the requested fields, keeping the envelope |
+| reports filterable paths from listTypes |
+| advertises a relation hop once its target type is granted |
+| projects getEntry too |
 
 ### the content tools
 

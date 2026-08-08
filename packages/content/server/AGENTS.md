@@ -163,7 +163,37 @@ the roles swapped back: `copilot/server` declares `COPILOT_TOOL_PROVIDER` (in
 thin wrappers over them. No query logic is duplicated and no refactor was needed.
 
 - `ContentCopilotToolProvider` ships phase 1's three **read-only** tools:
-  `content.listTypes`, `content.searchEntries`, `content.getEntry`.
+  `content.listTypes`, `content.searchEntries`, `content.getEntry`. Between
+  them they reach the same query surface the admin's records table does —
+  free-text search, the structured `?filter=` tree, sorting, paging, locales,
+  and sparse fieldsets — so "which German articles has Ada not published?" is
+  one tool call rather than a page-by-page crawl the run's step limit ends
+  first.
+- **`filter` is the query builder's own grammar** (`copilot/filter-schema.ts`):
+  a node is a group (`{and: […]}` / `{or: […]}`) or a rule
+  (`{field, op, value}`), so the model emits exactly what the admin's UI emits
+  and `parseFilterTree` validates both. The model gets an **object** and the
+  tool stringifies it — the wire wants JSON in a query param, but an object is
+  far easier for a model to build correctly. It never writes SQL: every path is
+  checked against the type's schema, so an unknown field or an ungranted
+  relation hop is a rejected filter. The paths on offer come from
+  `content.listTypes`, which returns `filterableFields` built with
+  `grantedTypes` — the same grant-pruning the public API applies, so a hop into
+  a type the workspace was never granted is never advertised.
+- **`fields` projects `values`** (`copilot/project-entry.ts`) and is what makes
+  "list all the articles" possible at all: a full `EntryRecord` carries every
+  richtext body, so a page of 25 exhausts the run's token ceiling long before
+  its row cap. The envelope — `id` above all — is always kept, since a
+  projection that could drop it would break the follow-up `content.getEntry`.
+  An unknown name is **ignored**, not a 400 as on the public API: there a typo
+  is a developer's bug worth surfacing, here the name came from a model that
+  may have mis-remembered a field, and the returned `values` already say what
+  was found.
+- **`locale` / `localeFallback`** are forwarded verbatim to the bound
+  `CONTENT_ENTRY_EXTENSION`, which validates the slug and scopes the rows —
+  content-server stays locale-agnostic here as everywhere. An unknown locale is
+  a tool error, never a silent read of the default. `content.getEntry` takes no
+  `locale`: an entry id already names one row including its locale.
 - `ContentCopilotToolsRegistrar` registers them from `OnApplicationBootstrap`.
   Registration is a **runtime `register(...)` call**, not a multi-provider
   binding: Nest cannot merge a multi-provider token across independent dynamic
@@ -175,7 +205,7 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
 - **Every tool re-checks the workspace's content grants** via
   `WorkspaceGrantsQuery`. `WorkspaceGuard` proved the caller belongs to the
   workspace, not that the workspace may reach a given type — and the type name
-  arrives from the *model*, which is steerable by content it has read. "Not
+  arrives from the _model_, which is steerable by content it has read. "Not
   granted" and "does not exist" return the **same** message, so a run in one
   workspace cannot enumerate the deployment's other content types.
 - Page size is clamped in `run` as well as declared in the input schema: the

@@ -75,7 +75,10 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
     }
 
     /** Seed a user of `role`, join them to the workspace, and sign them in. */
-    async function signIn(email: string, role: 'admin' | 'contributor' | 'viewer') {
+    async function signIn(
+        email: string,
+        role: 'admin' | 'contributor' | 'viewer'
+    ) {
         const user = await seedActiveUser(harness.app, {
             email,
             password: PASSWORD,
@@ -310,13 +313,13 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const first = await run(agent, { message: 'one' });
-            const conversationId =
-                framesOfType(first, 'run-started')[0].conversationId;
+            const conversationId = framesOfType(first, 'run-started')[0]
+                .conversationId;
 
             const second = await run(agent, { message: 'two', conversationId });
-            expect(
-                framesOfType(second, 'run-started')[0].conversationId
-            ).toBe(conversationId);
+            expect(framesOfType(second, 'run-started')[0].conversationId).toBe(
+                conversationId
+            );
 
             // The second model call must see the first exchange as history.
             const historyRoles = copilotCalls()[1].messages.map((m) => m.role);
@@ -333,8 +336,8 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             scriptCopilot({ text: 'mine' });
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             const events = await run(agent, { message: 'private' });
-            const conversationId =
-                framesOfType(events, 'run-started')[0].conversationId;
+            const conversationId = framesOfType(events, 'run-started')[0]
+                .conversationId;
 
             const { agent: other } = await signIn(VIEWER_EMAIL, 'viewer');
             await other
@@ -397,7 +400,9 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 .find((block) => block.type === 'tool_result');
 
             const content = (toolResult as { content: string }).content;
-            expect(content).toContain('<untrusted-data source="fixture.readThing">');
+            expect(content).toContain(
+                '<untrusted-data source="fixture.readThing">'
+            );
             // Exactly one closing fence: the payload could not spell another.
             expect(content.match(/<\/untrusted-data>/g)).toHaveLength(1);
             expect(content).toContain('\\u003c/untrusted-data>');
@@ -422,7 +427,9 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
         it('refuses a tool the model invented, without failing the run', async () => {
             scriptCopilot(
-                { toolCalls: [{ name: 'content.deleteEverything', input: {} }] },
+                {
+                    toolCalls: [{ name: 'content.deleteEverything', input: {} }]
+                },
                 { text: 'I cannot do that.' }
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
@@ -438,7 +445,9 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
         it('rejects arguments that do not match the tool schema', async () => {
             scriptCopilot(
                 // `q` is required and must be a string.
-                { toolCalls: [{ name: 'fixture.readThing', input: { q: 42 } }] },
+                {
+                    toolCalls: [{ name: 'fixture.readThing', input: { q: 42 } }]
+                },
                 { text: 'retrying' }
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
@@ -485,8 +494,16 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
         it('treats a call with different arguments as a new call', async () => {
             scriptCopilot(
-                { toolCalls: [{ name: 'fixture.readThing', input: { q: 'a' } }] },
-                { toolCalls: [{ name: 'fixture.readThing', input: { q: 'b' } }] },
+                {
+                    toolCalls: [
+                        { name: 'fixture.readThing', input: { q: 'a' } }
+                    ]
+                },
+                {
+                    toolCalls: [
+                        { name: 'fixture.readThing', input: { q: 'b' } }
+                    ]
+                },
                 { text: 'done' }
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
@@ -519,7 +536,9 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
             const events = await run(agent, { message: 'go' });
 
-            expect(framesOfType(events, 'done')[0].stopReason).toBe('max-steps');
+            expect(framesOfType(events, 'done')[0].stopReason).toBe(
+                'max-steps'
+            );
         });
 
         it('audits every attempted call, successful or not', async () => {
@@ -650,8 +669,8 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
             expect(copilotCalls()[0].model).toBe('fake-1');
 
-            const conversationId =
-                framesOfType(events, 'run-started')[0].conversationId;
+            const conversationId = framesOfType(events, 'run-started')[0]
+                .conversationId;
             const detail = await agent
                 .get(`/api/copilot/conversations/${conversationId}`)
                 .set('X-Workspace-Id', workspace.id)
@@ -669,8 +688,8 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const events = await run(agent, { message: 'hi' });
-            const conversationId =
-                framesOfType(events, 'run-started')[0].conversationId;
+            const conversationId = framesOfType(events, 'run-started')[0]
+                .conversationId;
 
             const detail = await agent
                 .get(`/api/copilot/conversations/${conversationId}`)
@@ -712,6 +731,252 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
     });
 
     // ------------------------------------------------------ the real tools
+    // The three capabilities that turn "search" into something usable: a
+    // structured filter, a locale, and a field projection.
+    describe('the content tools — filter, locale, projection', () => {
+        /**
+         * Runs one scripted `content.searchEntries` call and returns its
+         * result frame. Takes an already-signed-in agent so a test can make
+         * several calls — `signIn` seeds a user, and seeding the same email
+         * twice is a unique-constraint violation, not a second session.
+         */
+        async function search(
+            agent: request.Agent,
+            input: Record<string, unknown>
+        ) {
+            scriptCopilot(
+                { toolCalls: [{ name: 'content.searchEntries', input }] },
+                { text: 'done' }
+            );
+            const events = await run(agent, { message: 'search' });
+            return framesOfType(events, 'tool-result')[0];
+        }
+
+        it('filters on a scalar field with the query-builder grammar', async () => {
+            await seedArticles(
+                [
+                    {
+                        text: 'Live one',
+                        select: 'article',
+                        status: 'published'
+                    },
+                    { text: 'Draft one', select: 'article', status: 'draft' }
+                ],
+                workspace.id
+            );
+
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const result = await search(agent, {
+                typeName: 'test_article',
+                filter: {
+                    and: [{ field: 'status', op: 'eq', value: 'published' }]
+                }
+            });
+
+            expect(result.ok).toBe(true);
+            const output = result.output as {
+                total: number;
+                items: { values: { text: string } }[];
+            };
+            expect(output.total).toBe(1);
+            expect(output.items[0].values.text).toBe('Live one');
+        });
+
+        it('combines free-text search with a filter', async () => {
+            await seedArticles(
+                [
+                    {
+                        text: 'Spring launch',
+                        select: 'article',
+                        status: 'published'
+                    },
+                    {
+                        text: 'Spring notes',
+                        select: 'article',
+                        status: 'draft'
+                    },
+                    {
+                        text: 'Autumn launch',
+                        select: 'article',
+                        status: 'published'
+                    }
+                ],
+                workspace.id
+            );
+
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const result = await search(agent, {
+                typeName: 'test_article',
+                search: 'Spring',
+                filter: {
+                    and: [{ field: 'status', op: 'eq', value: 'published' }]
+                }
+            });
+
+            const output = result.output as { total: number };
+            expect(output.total).toBe(1);
+        });
+
+        // A rejected path must reach the model as a recoverable tool error, not
+        // a 500 and not a silently-ignored filter.
+        it('turns an unknown filter path into a tool error', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const result = await search(agent, {
+                typeName: 'test_article',
+                filter: { and: [{ field: 'nope', op: 'eq', value: 'x' }] }
+            });
+
+            expect(result.ok).toBe(false);
+            expect(result.error).toBeTruthy();
+        });
+
+        // The silent-wrongness bug: without a locale the search ran against the
+        // default locale and answered confidently about the wrong rows.
+        it('searches the requested locale, not the default one', async () => {
+            await seedArticles(
+                [{ text: 'English article', select: 'article', locale: 'en' }],
+                workspace.id
+            );
+            await seedArticles(
+                [
+                    {
+                        text: 'Deutscher Artikel',
+                        select: 'article',
+                        locale: 'de'
+                    }
+                ],
+                workspace.id
+            );
+
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const german = await search(agent, {
+                typeName: 'test_article',
+                locale: 'de'
+            });
+            const germanOut = german.output as {
+                items: { values: { text: string } }[];
+            };
+            expect(germanOut.items.map((i) => i.values.text)).toEqual([
+                'Deutscher Artikel'
+            ]);
+
+            const fallback = await search(agent, { typeName: 'test_article' });
+            const defaultOut = fallback.output as {
+                items: { values: { text: string } }[];
+            };
+            expect(defaultOut.items.map((i) => i.values.text)).toEqual([
+                'English article'
+            ]);
+        });
+
+        it('rejects an unknown locale rather than silently using the default', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const result = await search(agent, {
+                typeName: 'test_article',
+                locale: 'zz'
+            });
+
+            expect(result.ok).toBe(false);
+        });
+
+        it('narrows values to the requested fields, keeping the envelope', async () => {
+            await seedArticles(
+                [
+                    {
+                        text: 'Has a body',
+                        richtext: 'a very long body '.repeat(50),
+                        select: 'article'
+                    }
+                ],
+                workspace.id
+            );
+
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const result = await search(agent, {
+                typeName: 'test_article',
+                fields: ['text']
+            });
+
+            const item = (result.output as { items: Record<string, unknown>[] })
+                .items[0];
+            expect(Object.keys(item.values as object)).toEqual(['text']);
+            // The envelope survives — `id` is what makes a follow-up getEntry
+            // possible, so a projection must never be able to drop it.
+            expect(item.id).toEqual(expect.any(String));
+        });
+
+        /** The paths `content.listTypes` advertises for `test_article`. */
+        async function filterablePaths(agent: request.Agent) {
+            scriptCopilot(
+                {
+                    toolCalls: [
+                        {
+                            name: 'content.listTypes',
+                            input: { typeName: 'test_article' }
+                        }
+                    ]
+                },
+                { text: 'done' }
+            );
+            const events = await run(agent, { message: 'describe' });
+            const output = framesOfType(events, 'tool-result')[0].output as {
+                filterableFields: { path: string; type: string }[];
+            };
+            return output.filterableFields.map((f) => f.path);
+        }
+
+        it('reports filterable paths from listTypes', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const paths = await filterablePaths(agent);
+            expect(paths).toContain('status');
+            expect(paths).toContain('text');
+            // `beforeEach` grants `test_article` alone, so the hop into
+            // `test_author` is pruned — the model is never offered a path the
+            // workspace cannot reach.
+            expect(paths.filter((p) => p.startsWith('author.'))).toEqual([]);
+        });
+
+        it('advertises a relation hop once its target type is granted', async () => {
+            await seedContentGrants(workspace.id, ['test_author']);
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const paths = await filterablePaths(agent);
+            // The same surface the admin's filter picker renders, so a filter
+            // the model builds from it is one the list query already accepts.
+            expect(paths).toContain('author.name');
+        });
+
+        it('projects getEntry too', async () => {
+            const [id] = await seedArticles(
+                [{ text: 'One entry', richtext: 'body', select: 'article' }],
+                workspace.id
+            );
+            scriptCopilot(
+                {
+                    toolCalls: [
+                        {
+                            name: 'content.getEntry',
+                            input: {
+                                typeName: 'test_article',
+                                id,
+                                fields: ['text']
+                            }
+                        }
+                    ]
+                },
+                { text: 'done' }
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const events = await run(agent, { message: 'get' });
+
+            const output = framesOfType(events, 'tool-result')[0].output as {
+                values: Record<string, unknown>;
+            };
+            expect(Object.keys(output.values)).toEqual(['text']);
+        });
+    });
+
     describe('the content tools', () => {
         it('offers the phase-1 read tools and searches real entries', async () => {
             await seedArticles(
@@ -726,7 +991,10 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                     toolCalls: [
                         {
                             name: 'content.searchEntries',
-                            input: { typeName: 'test_article', search: 'launch' }
+                            input: {
+                                typeName: 'test_article',
+                                search: 'launch'
+                            }
                         }
                     ]
                 },
