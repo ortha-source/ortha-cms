@@ -10,7 +10,10 @@ const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** The only keys a per-field delta may carry. */
-const DELTA_KEYS = ['link', 'unlink', 'order', 'by'] as const;
+const DELTA_KEYS = ['link', 'unlink', 'order', 'set', 'by'] as const;
+
+/** The array keys — a join-backed relation's change set. */
+const LINK_KEYS = ['link', 'unlink', 'order'] as const;
 
 /** Accepted values of the delta's `by` key. @see RelationDelta.by */
 const ADDRESSING = ['id', 'localeGroup'] as const;
@@ -77,6 +80,22 @@ export class RelationDeltaMapConstraint
                 !(ADDRESSING as readonly unknown[]).includes(by)
             )
                 return false;
+            // `set` targets an owning single relation; the arrays target a
+            // join-backed one. A field is one or the other, so mixing them is a
+            // contradiction rather than a merge — reject it here instead of
+            // silently honouring one.
+            const hasSet = record['set'] !== undefined;
+            const hasLinks = LINK_KEYS.some((key) => record[key] !== undefined);
+            if (hasSet && hasLinks) return false;
+            if (
+                hasSet &&
+                record['set'] !== null &&
+                !(
+                    typeof record['set'] === 'string' &&
+                    UUID_RE.test(record['set'])
+                )
+            )
+                return false;
             return (
                 isUuidArray(record['link']) &&
                 isUuidArray(record['unlink']) &&
@@ -87,8 +106,9 @@ export class RelationDeltaMapConstraint
 
     defaultMessage(): string {
         return (
-            'relations must map each field to { link?, unlink?, order? } arrays of uuids, ' +
-            `with an optional by: ${ADDRESSING.join(' | ')}`
+            'relations must map each field to { link?, unlink?, order? } arrays of uuids ' +
+            '(join-backed relations) or { set } with a uuid or null (a single relation), ' +
+            `each with an optional by: ${ADDRESSING.join(' | ')}`
         );
     }
 }

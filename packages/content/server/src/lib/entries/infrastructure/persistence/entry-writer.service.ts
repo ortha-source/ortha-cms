@@ -115,6 +115,78 @@ export class EntryWriterService {
     ) {}
 
     /**
+     * Fold any `relations: { <singleField>: { set } }` entries into the values
+     * bag, resolving `by: "localeGroup"` on the way, and return the deltas with
+     * those fields removed.
+     *
+     * Done **before** the write rather than alongside the link deltas, because a
+     * single relation is a column on the row itself: routing it through `values`
+     * means the row is written once, and the resolved id then passes through
+     * `assertRelationTargets` — existence, workspace, and the same-locale rule —
+     * with no second implementation of any of them.
+     *
+     * The field must not appear in both bags. One of the two would have to win
+     * silently, and a caller who set it twice does not know which they meant.
+     * Reads the **raw** submitted values for that test — `coerceValues` stamps
+     * every declared field, so after coercion every field is "present".
+     */
+    private async foldSingleRelationSets(
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        relations: Record<string, RelationDelta> | undefined,
+        workspaceId: string,
+        sourceLocale: string | undefined
+    ): Promise<{
+        values: Record<string, unknown>;
+        relations?: Record<string, RelationDelta>;
+    }> {
+        if (!relations) return { values, relations };
+        const singles = Object.entries(relations).filter(([field]) => {
+            const rel = type.fields[field]?.relation;
+            return !!rel && !rel.many && !rel.inverse;
+        });
+        if (!singles.length) return { values, relations };
+
+        const merged = { ...values };
+        const rest = { ...relations };
+        for (const [field, delta] of singles) {
+            if (delta.set === undefined) {
+                // Left to the caller's own error below: the arrays are
+                // meaningless on a single relation, and saying so beats a
+                // silent no-op.
+                continue;
+            }
+            if (Object.hasOwn(values, field)) {
+                throw new BadRequestException(
+                    `Relation "${type.name}.${field}" was set in both \`values\` and \`relations\` — ` +
+                        'send it in one of them.'
+                );
+            }
+            const target = type.fields[field].relation?.to();
+            if (delta.set === null || !target) {
+                merged[field] = null;
+            } else if (delta.by === 'localeGroup') {
+                const byGroup = await this.relations.resolveLocaleGroups(
+                    this.db,
+                    target,
+                    [delta.set],
+                    workspaceId,
+                    field,
+                    sourceLocale
+                );
+                merged[field] = byGroup.get(delta.set) ?? null;
+            } else {
+                merged[field] = delta.set;
+            }
+            delete rest[field];
+        }
+        return {
+            values: merged,
+            relations: Object.keys(rest).length ? rest : undefined
+        };
+    }
+
+    /**
      * The locale of one live row, or `undefined` on a type that has none.
      *
      * A relation link may not cross locales, and an update's target checks run
@@ -231,7 +303,10 @@ export class EntryWriterService {
         localeGroupId?: string,
         actorId?: string | null
     ): Promise<EntryRecord> {
-        const coerced = coerceValues(type, values);
+        // `coerceValues` stamps every declared field onto the bag, so the
+        // "sent in both places" check below has to read the RAW body — after
+        // coercion every field looks present.
+        let coerced = coerceValues(type, values);
         // Extension-stamped envelope columns (e.g. the validated locale + group
         // id). Resolved before the transaction so an invalid param — unknown
         // locale, or a group id that names no group in the workspace — fails
@@ -247,6 +322,18 @@ export class EntryWriterService {
                 localeGroupId
             })) ?? {};
         const rowLocale = extensionColumns['locale'] as string | undefined;
+        // A `{ set }` on an owning single relation becomes a plain value here, so
+        // everything below — existence, workspace, the same-locale rule — sees
+        // one shape and needs no second implementation.
+        const folded = await this.foldSingleRelationSets(
+            type,
+            values,
+            relations,
+            workspaceId,
+            rowLocale
+        );
+        coerced = coerceValues(type, folded.values);
+        relations = folded.relations;
         await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
         await this.assertMediaTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
@@ -470,11 +557,20 @@ export class EntryWriterService {
             appendRevision?: boolean;
         }
     ): Promise<EntryRecord> {
-        const coerced = coerceValues(type, values);
+        let coerced = coerceValues(type, values);
         // The row's own locale is what a relation link must match. Read up front
         // (one indexed lookup, and only on localized types) so the pre-transaction
         // target checks can apply the same rule the in-transaction link writes do.
         const rowLocale = await this.localeOf(type, id, workspaceId);
+        const folded = await this.foldSingleRelationSets(
+            type,
+            values,
+            relations,
+            workspaceId,
+            rowLocale
+        );
+        coerced = coerceValues(type, folded.values);
+        relations = folded.relations;
         await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
         await this.assertMediaTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its

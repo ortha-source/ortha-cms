@@ -126,12 +126,44 @@ export class PublicEntryWritesService {
             // column and are absent from it, which is correct: those move only
             // through `relations` deltas, and a delta left unsent changes
             // nothing by construction.
-            { ...toRecord(type, row).values, ...body.values },
+            this.mergedValues(type, row, body),
             workspaceId,
             body.relations,
             null
         );
         return this.readBack(type, id, workspaceId, grantedTypes, { locale });
+    }
+
+    /**
+     * The values bag an update submits: the stored values with the caller's
+     * merged over them (see {@link update}), minus any single relation the
+     * caller is setting through `relations`.
+     *
+     * That subtraction is what makes the two channels coexist. `toRecord`
+     * re-supplies every column-backed field including single-relation FKs, so
+     * without it a `relations: { author: { set } }` would always arrive
+     * alongside a stored `values.author` and be rejected as "sent in both
+     * places" — a collision this method created rather than the caller.
+     */
+    private mergedValues(
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        body: PublicSaveEntryDto
+    ): Record<string, unknown> {
+        const merged = { ...toRecord(type, row).values, ...body.values };
+        for (const [field, delta] of Object.entries(body.relations ?? {})) {
+            // Only the STORED value is dropped. A field the caller put in both
+            // bags themselves stays, so the writer still sees the contradiction
+            // and rejects it — the point is to hide this method's own
+            // re-supplied value, not to paper over an ambiguous request.
+            if (
+                delta.set !== undefined &&
+                !Object.hasOwn(body.values ?? {}, field)
+            ) {
+                delete merged[field];
+            }
+        }
+        return merged;
     }
 
     /** Take an entry live. 422 when the stored draft no longer validates. */

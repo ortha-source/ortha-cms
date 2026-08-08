@@ -16,6 +16,10 @@ import {
 } from '../../support/seed';
 
 const ADMIN_EMAIL = 'public-writes-admin@example.com';
+
+/** A fixed translation group for the seeded authors, so `by: localeGroup` has
+ * something stable to resolve. */
+const AUTHOR_GROUP = '3f7c1d20-9a4e-4b8f-8c1d-2e5a6b7c8d90';
 const PASSWORD = 'SecurePass123!';
 
 /** One byte-accurate 1×1 PNG, so an upload exercises the image path. */
@@ -523,6 +527,143 @@ describe('Public content API — writes (/api/v1)', () => {
                     .send({ values: {}, relations: { tags: { link: [tag] } } })
                     .expect(200);
             }
+        });
+
+        it('sets a single relation by translation group, per locale', async () => {
+            const secret = await mintToken();
+            // One author translated into two locales — one group, two rows.
+            const [authorEn, authorDe] = await seedAuthors(
+                [
+                    { name: 'Ada', locale: 'en', localeGroupId: AUTHOR_GROUP },
+                    {
+                        name: 'Ada (de)',
+                        locale: 'de',
+                        localeGroupId: AUTHOR_GROUP
+                    }
+                ],
+                workspaceId
+            );
+            const en = await create(secret, { values: publishable('EN') });
+            const de = await create(secret, {
+                locale: 'de',
+                localeGroupId: en.localeGroupId,
+                values: publishable('DE')
+            });
+
+            // The SAME payload from both articles, resolving to a different
+            // author each time — which is the whole point: the client holds one
+            // id per person, not one per language.
+            for (const [entry, expected] of [
+                [en, authorEn],
+                [de, authorDe]
+            ] as const) {
+                const res = await request(harness.server)
+                    .patch(`/api/v1/content/test_article/${entry.id}`)
+                    .set('Authorization', `Bearer ${secret}`)
+                    .send({
+                        values: {},
+                        relations: {
+                            author: { set: AUTHOR_GROUP, by: 'localeGroup' }
+                        }
+                    })
+                    .expect(200);
+                expect(res.body.id).toBe(entry.id);
+                // `values` omits relation fields, so read the link back through
+                // the expansion rather than the bag.
+                const links = await request(harness.server)
+                    .get(`/api/v1/content/test_article/${entry.id}`)
+                    .query({
+                        status: 'any',
+                        relations: 'preview',
+                        relationFields: 'author'
+                    })
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(200);
+                expect(links.body.relations.author.items[0]?.id ?? null).toBe(
+                    expected
+                );
+            }
+        });
+
+        it('clears a single relation with set: null, and refuses an ambiguous one', async () => {
+            const secret = await mintToken();
+            const [author] = await seedAuthors(
+                [{ name: 'Ada', locale: 'en' }],
+                workspaceId
+            );
+            const entry = await create(secret, {
+                values: { ...publishable('EN'), author }
+            });
+
+            await request(harness.server)
+                .patch(`/api/v1/content/test_article/${entry.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({ values: {}, relations: { author: { set: null } } })
+                .expect(200);
+
+            // Same field in both bags: one would have to win silently, and the
+            // caller who sent it twice does not know which they meant.
+            await request(harness.server)
+                .patch(`/api/v1/content/test_article/${entry.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({
+                    values: { author },
+                    relations: { author: { set: author } }
+                })
+                .expect(400);
+
+            // `set` is for a single relation and the arrays are for a join —
+            // a field is one or the other, so mixing them is a contradiction.
+            await request(harness.server)
+                .patch(`/api/v1/content/test_article/${entry.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({
+                    values: {},
+                    relations: { author: { set: author, link: [author] } }
+                })
+                .expect(400);
+
+            // …and the arrays alone on a single relation stay the 400 they were.
+            await request(harness.server)
+                .patch(`/api/v1/content/test_article/${entry.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({ values: {}, relations: { author: { link: [author] } } })
+                .expect(400);
+        });
+
+        it('422s a translation group with no row in this locale', async () => {
+            const secret = await mintToken();
+            await seedAuthors(
+                [
+                    {
+                        name: 'English only',
+                        locale: 'en',
+                        localeGroupId: AUTHOR_GROUP
+                    }
+                ],
+                workspaceId
+            );
+            const en = await create(secret, { values: publishable('EN') });
+            const de = await create(secret, {
+                locale: 'de',
+                localeGroupId: en.localeGroupId,
+                values: publishable('DE')
+            });
+
+            const res = await request(harness.server)
+                .patch(`/api/v1/content/test_article/${de.id}`)
+                .query({ locale: 'de' })
+                .set('Authorization', `Bearer ${secret}`)
+                .send({
+                    values: {},
+                    relations: {
+                        author: { set: AUTHOR_GROUP, by: 'localeGroup' }
+                    }
+                })
+                .expect(422);
+            // A real content gap, not a malformed request — so the message says
+            // which locale is missing rather than "invalid relation".
+            expect(res.body.issues[0].message).toContain('"de"');
         });
 
         it('422s a malformed relation id instead of 500ing', async () => {

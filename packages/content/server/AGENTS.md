@@ -460,10 +460,20 @@ to that group's row in the source entry's locale. A client that thinks in
 stories then holds one id per story instead of one per language, and the server
 — the only party that knows the source row's locale for certain — does the
 picking. A group with no row in this locale is a 422 saying so; the mode on a
-non-localized target, or from a non-localized owner, is a 400. Deliberately NOT
-extended to `values` (single relations): that bag is the content type's own
-contract, where a relation field means "an entry id", and overloading it would
-need a per-field switch it has no room for.
+non-localized target, or from a non-localized owner, is a 400.
+
+An owning **single** relation is addressed the same way through the delta's
+`set` key — `relations: { author: { set: "<gid>", by: "localeGroup" } }`, with
+`set: null` clearing it. It lives there rather than in `values` because that bag
+is the content type's own contract, where a relation field means _an entry id_
+and there is no room for a `by`; without `set`, a single relation would be the
+one relation that could not be addressed by group. The resolved id is folded
+into `values` **before** the write, so it passes through the same existence,
+workspace, and same-locale checks as any other — no second implementation. A
+field sent in both bags is a 400 (one would have to win silently), as is mixing
+`set` with the arrays (a field is a single or a join, not both). The public
+API's partial-update merge drops only its **own** re-supplied value for a
+`set` field, so a genuinely ambiguous request still reaches that 400.
 
 A **malformed** relation id is now a uniform 422 rather than a 500. A single
 relation's FK arrives inside the free-form `values` bag where no DTO decorator

@@ -128,6 +128,13 @@ export type DbTransaction = Parameters<
 >[0];
 
 /**
+ * Anything that can run a SELECT — the pooled client or a transaction handle.
+ * Lets the locale-group resolver serve both the in-transaction link writes and
+ * the pre-transaction single-relation resolution without duplicating itself.
+ */
+export type QueryRunner = Pick<Database, 'select'>;
+
+/**
  * Where a join-backed relation field's links physically live, normalized so the
  * read and write paths treat every one the same. `table` is the join table;
  * `ownCol` holds the editing record's id, `refCol` the linked target's — swapped
@@ -1098,14 +1105,14 @@ export class RelationLinkService {
      * caller asked to link a story that has not been translated into this
      * language yet, which is a real content gap rather than a bad request.
      */
-    private async resolveByLocaleGroup(
-        tx: DbTransaction,
+    async resolveLocaleGroups(
+        runner: QueryRunner,
         target: AnyContentType,
-        delta: RelationDelta,
+        groupIds: string[],
         workspaceId: string,
         field: string,
         sourceLocale: string | undefined
-    ): Promise<RelationDelta> {
+    ): Promise<Map<string, string>> {
         if (!target.i18n || !sourceLocale) {
             throw new BadRequestException(
                 `Relation "${field}" cannot be addressed by locale group — ` +
@@ -1114,24 +1121,16 @@ export class RelationLinkService {
                         : `"${target.name}" is not a localized content type.`)
             );
         }
-        const groupIds = [
-            ...new Set(
-                [
-                    ...(delta.link ?? []),
-                    ...(delta.unlink ?? []),
-                    ...(delta.order ?? [])
-                ].filter(Boolean)
-            )
-        ];
-        if (!groupIds.length) return delta;
+        const unique = [...new Set(groupIds.filter(Boolean))];
+        if (!unique.length) return new Map();
 
         const cols = target.table as unknown as Columns;
-        const rows = (await tx
+        const rows = (await runner
             .select()
             .from(target.table)
             .where(
                 and(
-                    inArray(cols['localeGroupId'], groupIds),
+                    inArray(cols['localeGroupId'], unique),
                     eq(cols['workspaceId'], workspaceId),
                     eq(cols['locale'], sourceLocale),
                     target.paranoid ? isNull(cols['deletedAt']) : undefined
@@ -1144,7 +1143,7 @@ export class RelationLinkService {
             ])
         );
 
-        const missing = groupIds.filter((id) => !byGroup.has(id));
+        const missing = unique.filter((id) => !byGroup.has(id));
         if (missing.length) {
             throw new UnprocessableEntityException({
                 message: 'Entry validation failed',
@@ -1157,6 +1156,30 @@ export class RelationLinkService {
                 }))
             });
         }
+        return byGroup;
+    }
+
+    /** {@link resolveLocaleGroups} applied to a delta's three id arrays. */
+    private async resolveByLocaleGroup(
+        tx: DbTransaction,
+        target: AnyContentType,
+        delta: RelationDelta,
+        workspaceId: string,
+        field: string,
+        sourceLocale: string | undefined
+    ): Promise<RelationDelta> {
+        const byGroup = await this.resolveLocaleGroups(
+            tx,
+            target,
+            [
+                ...(delta.link ?? []),
+                ...(delta.unlink ?? []),
+                ...(delta.order ?? [])
+            ],
+            workspaceId,
+            field,
+            sourceLocale
+        );
         // `unlink` maps through the same table: a group that resolves to a row
         // which was never linked is simply a no-op delete, as it is by id.
         const map = (ids?: string[]) =>
