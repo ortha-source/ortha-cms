@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
-import type { AnyContentType } from '../../types/content-type';
+import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
+import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 import {
     InjectMediaAssetResolver,
@@ -14,9 +16,14 @@ import type {
     PublicMediaRef,
     PublicRelationFieldView
 } from '../types/public-expansion';
+import type { PublicEntry } from '../types/public-entry';
+import { toPublicEntry } from './public-entry-row';
 
 /** A generated content row seen as a bag of values by property name. */
 type Row = Record<string, unknown>;
+
+/** A generated content table seen as a bag of columns by property name. */
+type ContentTable = Record<string, AnyColumn>;
 
 /**
  * Upper bound on how many fields one request may expand, per kind. The cost of
@@ -44,6 +51,7 @@ export const MAX_EXPANDED_FIELDS = 10;
 @Injectable()
 export class PublicExpansionQuery {
     constructor(
+        @InjectDatabase() private readonly db: Database,
         private readonly relationLinks: RelationLinkService,
         @Optional()
         @InjectMediaAssetResolver()
@@ -63,6 +71,20 @@ export class PublicExpansionQuery {
         raw: string | undefined,
         granted: ReadonlySet<string>
     ): string[] {
+        if (!raw?.trim()) {
+            // No list given: expand everything expandable. An ungranted target
+            // is skipped rather than refused — the caller didn't name it, so
+            // there is nothing to correct them about, and this matches what the
+            // `/relations` sibling route returns.
+            return this.allFieldsOfKind(
+                type,
+                'relationFields',
+                (spec) =>
+                    spec.type === CONTENT_FIELD_TYPE.Relation &&
+                    !!spec.relation &&
+                    granted.has(spec.relation.to().name)
+            );
+        }
         return this.parseFields(type, raw, 'relationFields', (name, spec) => {
             if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation) {
                 throw new BadRequestException(
@@ -80,6 +102,13 @@ export class PublicExpansionQuery {
 
     /** Validate a `?mediaFields=` list: every name must be a media field. */
     parseMediaFields(type: AnyContentType, raw: string | undefined): string[] {
+        if (!raw?.trim()) {
+            return this.allFieldsOfKind(
+                type,
+                'mediaFields',
+                (spec) => spec.type === CONTENT_FIELD_TYPE.Media
+            );
+        }
         return this.parseFields(type, raw, 'mediaFields', (name, spec) => {
             if (spec.type !== CONTENT_FIELD_TYPE.Media) {
                 throw new BadRequestException(
@@ -115,23 +144,124 @@ export class PublicExpansionQuery {
             RELATION_PAGE_SIZE,
             { publishedOnly: true }
         );
+        // The preview yields ordered link ids; hydrate them into full entries
+        // with one batched read per distinct TARGET TYPE, so a page costs a
+        // query per type rather than per link.
+        const entriesById = await this.linkedEntriesById(
+            type,
+            fields,
+            previews,
+            workspaceId
+        );
         for (const [entryId, byField] of previews) {
             const view: Record<string, PublicRelationFieldView> = {};
             for (const [field, value] of Object.entries(byField)) {
+                const linked = entriesById.get(field);
                 view[field] = {
-                    // Drop the admin-only bits: `status` would be a constant
-                    // here, and a `missing` ref is never produced under a
-                    // published-only read (the link is omitted instead).
-                    items: value.items.map((ref) => ({
-                        id: ref.id,
-                        title: ref.title,
-                        ...(ref.slug ? { slug: ref.slug } : {})
-                    })),
+                    // Preserve the preview's link order, and drop any id the
+                    // hydration didn't return (it named a target the caller
+                    // can't see — already excluded from `total` upstream).
+                    items: value.items
+                        .map((ref) => linked?.get(ref.id))
+                        .filter((entry): entry is PublicEntry => !!entry),
                     total: value.total
                 };
             }
             out.set(entryId, view);
         }
+        return out;
+    }
+
+    /**
+     * Hydrate already-read link views (the `/relations` sibling routes' output
+     * from `readAll` / `readField`) into the same full-entry shape the list
+     * preview returns, so both surfaces speak one contract.
+     */
+    async hydrateRelationViews(
+        type: AnyContentType,
+        views: Record<string, { items: { id: string }[]; total: number }>,
+        workspaceId: string
+    ): Promise<Record<string, PublicRelationFieldView>> {
+        const fields = Object.keys(views);
+        const linked = await this.linkedEntriesById(
+            type,
+            fields,
+            new Map([['one', views]]),
+            workspaceId
+        );
+        const out: Record<string, PublicRelationFieldView> = {};
+        for (const [field, view] of Object.entries(views)) {
+            const byId = linked.get(field);
+            out[field] = {
+                items: view.items
+                    .map((ref) => byId?.get(ref.id))
+                    .filter((entry): entry is PublicEntry => !!entry),
+                total: view.total
+            };
+        }
+        return out;
+    }
+
+    /**
+     * Load every linked entry named by a preview, keyed by field and then by
+     * id. One `IN (…)` read per relation field's target type, projected through
+     * the same {@link toPublicEntry} the entry routes use — so a linked record
+     * has exactly the shape a consumer already handles.
+     *
+     * Linked entries are returned **unexpanded**: nothing here recurses, which
+     * is what bounds a request to one level of the graph.
+     */
+    private async linkedEntriesById(
+        type: AnyContentType,
+        fields: string[],
+        previews: Map<string, Record<string, { items: { id: string }[] }>>,
+        workspaceId: string
+    ): Promise<Map<string, Map<string, PublicEntry>>> {
+        const idsByField = new Map<string, Set<string>>();
+        for (const byField of previews.values()) {
+            for (const [field, value] of Object.entries(byField)) {
+                let ids = idsByField.get(field);
+                if (!ids) {
+                    ids = new Set<string>();
+                    idsByField.set(field, ids);
+                }
+                for (const ref of value.items) ids.add(ref.id);
+            }
+        }
+
+        const out = new Map<string, Map<string, PublicEntry>>();
+        await Promise.all(
+            fields.map(async (field) => {
+                const ids = idsByField.get(field);
+                const target = type.fields[field]?.relation?.to();
+                if (!target || !ids?.size) return;
+                const cols = target.table as unknown as ContentTable;
+                const rows = (await this.db
+                    .select()
+                    .from(target.table)
+                    .where(
+                        and(
+                            inArray(cols['id'], [...ids]),
+                            eq(cols['workspaceId'], workspaceId),
+                            target.publishable
+                                ? eq(cols['status'], ENTRY_STATUS.Published)
+                                : undefined,
+                            target.paranoid
+                                ? isNull(cols['deletedAt'])
+                                : undefined
+                        )
+                    )) as Row[];
+                out.set(
+                    field,
+                    new Map(
+                        rows.map((row) => [
+                            row['id'] as string,
+                            toPublicEntry(target, row)
+                        ])
+                    )
+                );
+            })
+        );
         return out;
     }
 
@@ -207,6 +337,31 @@ export class PublicExpansionQuery {
             out.set(entryId, view);
         }
         return out;
+    }
+
+    /**
+     * Every field of one kind — what `?relations=preview` / `?media=preview`
+     * expand when the caller names no fields.
+     *
+     * A type with more expandable fields than the cap is a **400** telling the
+     * caller to name the ones they want, rather than a silently truncated
+     * response: quietly dropping fields would read as "this entry has no
+     * links" and be near-impossible to notice.
+     */
+    private allFieldsOfKind(
+        type: AnyContentType,
+        param: string,
+        matches: (spec: AnyFieldSpec) => boolean
+    ): string[] {
+        const names = Object.entries(type.fields)
+            .filter(([, spec]) => matches(spec))
+            .map(([name]) => name);
+        if (names.length > MAX_EXPANDED_FIELDS) {
+            throw new BadRequestException(
+                `${param}: "${type.name}" has ${names.length} expandable fields, more than the ${MAX_EXPANDED_FIELDS} a single request may expand — name the ones you need with \`${param}\`.`
+            );
+        }
+        return names;
     }
 
     /** Shared parse: split, trim, de-duplicate, bound, then per-kind checks. */

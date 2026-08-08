@@ -470,7 +470,19 @@ to guess.
 **Relation + media expansion** (opt-in, `public-expansion.query.ts`):
 `?relations=preview&relationFields=author,tags` and
 `?media=preview&mediaFields=coverImage` add `relations` / `media` maps to each
-entry. Both are **batched across the page** — verified against a live server:
+entry — on the **list** and the single-entry route alike. Naming fields is
+optional: `?relations=preview` on its own expands **every** relation field whose
+target the workspace was granted (ungranted ones are skipped, not refused, since
+the caller named nothing to correct), and `?media=preview` every media field. A
+type with more expandable fields than `MAX_EXPANDED_FIELDS` is a 400 asking the
+caller to name them, never a silent truncation.
+
+A linked entry is returned as a **full `PublicEntry`** — the same envelope +
+`values` shape as a base record — so a consumer renders it with the model it
+already has. Linked entries are **not themselves expanded** (no `relations` /
+`media` on them), which is what bounds a request to one level of the graph.
+Hydration is one batched `IN (…)` read per target *type*, so the count stays
+flat: measured at 7 content queries for both `pageSize=1` and `pageSize=50`. Both are **batched across the page** — verified against a live server:
 `pageSize=1` and `pageSize=50` each issue the same 6 content queries (count,
 page, one `refsFor` per single relation, a windowed pass + titles per join-backed
 one, and **one** media resolve). Notes:

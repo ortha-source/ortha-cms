@@ -1,3 +1,5 @@
+import type { PublicEntry } from './public-entry';
+
 /**
  * Wire contracts for the public API's **relation** and **media** expansions.
  * Separate from the admin's `RelationRef` / `MediaRef` for the same reason
@@ -5,31 +7,22 @@
  * and it deliberately carries less.
  */
 
-/** One linked entry, as the public API describes it. */
-export interface PublicRelationRef {
-    /** The linked entry's id — read it in full at `/v1/content/<type>/<id>`. */
-    id: string;
-    /** Display title: the target's first text/select field, else its id. */
-    title: string;
-    /**
-     * The target's slug-field value, when it has one and it is non-empty.
-     * Absent otherwise.
-     */
-    slug?: string;
-}
-
 /**
- * One relation field's links: a capped page plus the true total.
+ * One relation field's links: a capped page of the linked entries, plus the
+ * true total.
  *
- * `status` is not carried (the public API resolves published targets only, so
- * it would be a constant) and neither is the admin's `missing` flag: a target
- * a public caller may not see is **omitted and not counted**, rather than
- * advertised as an unavailable record. So unlike the admin's view, `items` may
- * legitimately be shorter than the stored link count — `total` is the number of
- * *visible* links.
+ * Each item is a **full {@link PublicEntry}** — the same shape the entry routes
+ * return, envelope and `values` alike — so a consumer renders a linked record
+ * with the code it already has instead of a second, ref-shaped model. Linked
+ * entries are **not themselves expanded**: their `relations` and `media` are
+ * absent, which is what stops one request walking the whole graph.
+ *
+ * Only published, non-deleted targets in the workspace appear. A target the
+ * caller may not see is **omitted and not counted**, rather than advertised as
+ * an unavailable record, so `total` is the number of links actually reachable.
  */
 export interface PublicRelationFieldView {
-    items: PublicRelationRef[];
+    items: PublicEntry[];
     /** Visible links for this field, ignoring the page cap. */
     total: number;
 }

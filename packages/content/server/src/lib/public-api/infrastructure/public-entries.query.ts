@@ -337,15 +337,19 @@ export class PublicEntriesQuery {
             RELATION_PAGE_SIZE,
             { publishedOnly: true }
         );
-        const out: Record<string, PublicRelationFieldView> = {};
+        // Skip a relation whose target type this workspace can't reach, so the
+        // route agrees with what `relationFields` would allow.
+        const reachable: Record<string, RelationFieldView> = {};
         for (const [field, view] of Object.entries(views)) {
-            // Skip a relation whose target type this workspace can't reach, so
-            // the route agrees with what `relationFields` would allow.
             const target = type.fields[field]?.relation?.to();
-            if (!target || !grantedTypes.has(target.name)) continue;
-            out[field] = toPublicRelationView(view);
+            if (target && grantedTypes.has(target.name))
+                reachable[field] = view;
         }
-        return out;
+        return this.expansion.hydrateRelationViews(
+            type,
+            reachable,
+            workspaceId
+        );
     }
 
     /** One page of a single relation field's links. */
@@ -385,7 +389,12 @@ export class PublicEntriesQuery {
             workspaceId,
             { publishedOnly: true }
         );
-        return toPublicRelationView(view);
+        const hydrated = await this.expansion.hydrateRelationViews(
+            type,
+            { [field]: view },
+            workspaceId
+        );
+        return hydrated[field];
     }
 
     /** Every media field of one entry, resolved to asset metadata + URLs. */
@@ -531,22 +540,4 @@ export class PublicEntriesQuery {
         }
         return [desc(table['updatedAt']), asc(table['id'])];
     }
-}
-
-/**
- * Narrow an admin relation view to the public one: drop `status` (a constant
- * under a published-only read) and the `missing` flag (such a link is omitted
- * rather than advertised).
- */
-function toPublicRelationView(
-    view: RelationFieldView
-): PublicRelationFieldView {
-    return {
-        items: view.items.map((ref) => ({
-            id: ref.id,
-            title: ref.title,
-            ...(ref.slug ? { slug: ref.slug } : {})
-        })),
-        total: view.total
-    };
 }
