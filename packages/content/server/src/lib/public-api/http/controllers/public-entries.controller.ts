@@ -109,6 +109,12 @@ export class PublicEntriesController {
             typeName,
             workspaceId
         );
-        return this.entries.getOne(type, id, workspaceId, query.locale);
+        return this.entries.getOne(
+            type,
+            id,
+            workspaceId,
+            query.locale,
+            query.fields
+        );
     }
 }

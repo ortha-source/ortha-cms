@@ -382,10 +382,10 @@ token is the only way in, and a session cookie is *not* accepted):
 - `GET /v1/content-types` — summaries of every type the workspace was granted.
 - `GET /v1/content-types/:name` — one type's full field schema.
 - `GET /v1/content/:typeName` — one page of published entries
-  (`?search=&filter=&sort=&page=&pageSize=&locale=`). Serves **singles too** —
-  with i18n a single still has one row per locale, so the list envelope is
-  honest for both; take `items[0]`.
-- `GET /v1/content/:typeName/:id` — one published entry (`?locale=`).
+  (`?search=&filter=&sort=&page=&pageSize=&fields=&locale=`). Serves **singles
+  too** — with i18n a single still has one row per locale, so the list envelope
+  is honest for both; take `items[0]`.
+- `GET /v1/content/:typeName/:id` — one published entry (`?fields=&locale=`).
 
 **Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
 resolves it through identity's `ApiTokenService.verify` (unknown / revoked /
@@ -437,6 +437,22 @@ deliberate departures from the admin's list:
 
 The surface is built **lazily**, only when `?filter=` is present, since it walks
 the whole relation graph to the hop budget.
+
+**Sparse fieldsets** (`?fields=title,slug`, `field-selection.ts`) narrow `values`
+to the named fields — and narrow the **SQL projection** with them, so an
+unselected richtext column is never read (proven against a live server: the
+SELECT drops from every column to the envelope plus the named ones). Notes:
+
+- Selection covers `values` **only**; the envelope is always returned. `id` in
+  particular is what makes an entry addressable, so letting a selection drop it
+  would be a foot-gun for no real payload saving.
+- An unknown name is a **400**, not a silent drop — a sparse fieldset is an
+  explicit request, so a typo should say so. A relation or media name gets a
+  *different* message ("cannot be selected"), because "not selectable yet" is a
+  different fact from "no such field".
+- `?fields=` present but empty reads as "no preference", not "no fields".
+- WHERE and ORDER BY may reference unselected columns, so filtering and sorting
+  stay unrestricted by the selection.
 
 **Grant-pruned.** `:typeName` must be registered **and** in the workspace's
 `workspace_content` grants; anything else is the same 404

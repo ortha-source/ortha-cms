@@ -20,11 +20,31 @@ const LOCALE_MAX_LENGTH = 35;
 /** Longest accepted free-text search needle — matches the admin list's cap. */
 const SEARCH_MAX_LENGTH = 255;
 
+/** Upper bound on the raw `?fields=` list (a comma-separated field list). */
+const FIELDS_MAX_LENGTH = 1024;
+
 /**
  * The one parameter every public read accepts: which locale to read. Shared by
  * the list and the single-entry route so the slug is declared once.
  */
 export class PublicEntryQueryDto {
+    /**
+     * Comma-separated field names to return in `values` — a sparse fieldset.
+     * Absent returns every value field. Selection narrows the SQL projection
+     * too, so an unselected richtext column is never read, let alone sent.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: FIELDS_MAX_LENGTH,
+        example: 'title,slug,publishedAt',
+        description:
+            'Comma-separated field names to return in `values`. Absent returns every value field. The envelope (`id`, `createdAt`, `updatedAt`, `publishedAt`, `locale`, `localeGroupId`) is always returned and is not selectable. An unknown name is a 400; so is a relation or media field, which this API cannot return yet.'
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(FIELDS_MAX_LENGTH)
+    fields?: string;
+
     /**
      * Locale slug the read targets, on a localized type. Extension-owned:
      * forwarded verbatim to the bound `CONTENT_ENTRY_EXTENSION`, which

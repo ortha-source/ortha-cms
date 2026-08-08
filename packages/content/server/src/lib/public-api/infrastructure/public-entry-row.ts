@@ -36,7 +36,9 @@ const REFERENCE_FIELD_TYPES: ReadonlySet<string> = new Set([
  * `multiselect` bag, anything stored in the row and meaningful on its own.
  * See {@link REFERENCE_FIELD_TYPES} for what this excludes and why.
  */
-function isPureValueField(spec: AnyContentType['fields'][string]): boolean {
+export function isPureValueField(
+    spec: AnyContentType['fields'][string]
+): boolean {
     return !REFERENCE_FIELD_TYPES.has(spec.type);
 }
 
@@ -47,11 +49,21 @@ function isPureValueField(spec: AnyContentType['fields'][string]): boolean {
  * reference kinds (see {@link REFERENCE_FIELD_TYPES}). An unset field reads
  * back as `null`, never as a missing key, so the key set is stable across
  * entries of a type.
+ *
+ * `selected` narrows `values` to a `?fields=` sparse fieldset. It must be
+ * passed whenever the row was read with a narrowed projection: without it the
+ * loop would emit `title: null` for a column the query never selected, which
+ * reads as "this entry has no title" rather than "you didn't ask for it".
  */
-export function toPublicEntry(type: AnyContentType, row: Row): PublicEntry {
+export function toPublicEntry(
+    type: AnyContentType,
+    row: Row,
+    selected?: ReadonlySet<string>
+): PublicEntry {
     const values: Record<string, unknown> = {};
     for (const [name, spec] of Object.entries(type.fields)) {
         if (!isPureValueField(spec)) continue;
+        if (selected && !selected.has(name)) continue;
         values[name] = row[name] ?? null;
     }
 

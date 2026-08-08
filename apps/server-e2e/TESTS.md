@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_458 test cases across 37 spec files._
+_462 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -128,6 +128,10 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | never lets a filter widen the published-only scope |
 | 400s a malformed filter and an unknown filter field |
 | 400s a filter traversing into an ungranted relation |
+| returns only the selected fields |
+| applies a field selection to the single-entry route too |
+| 400s an unknown or unselectable field name |
+| still filters and sorts on fields it was not asked to return |
 | rejects an undeclared query parameter |
 
 ### schema discovery

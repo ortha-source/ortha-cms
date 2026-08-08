@@ -14,6 +14,7 @@ import {
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
+import type { PgColumn, SelectedFields } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import {
@@ -24,6 +25,7 @@ import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { isScalarField } from '../../entries/infrastructure/queries/entry-scalar-fields';
 import { buildEntryFilterSurface } from '../../entries/infrastructure/queries/entry-filter-surface';
 import { buildSearchPredicate } from '../../entries/infrastructure/queries/entry-search';
+import { parseFieldSelection } from './field-selection';
 import { DEFAULT_PAGE_SIZE } from '../../entries/entries.constants';
 import type { PublicListEntriesQueryDto } from '../http/dto/public-list-entries-query.dto';
 import type { PublicEntry, PublicEntryListView } from '../types/public-entry';
@@ -31,6 +33,14 @@ import { toPublicEntry } from './public-entry-row';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
+
+/**
+ * The same table seen as `PgColumn`s — what drizzle's `.select({...})` requires.
+ * Generated tables carry no static column types, so both views are casts; this
+ * one is kept separate rather than widening {@link ContentTable}, which the
+ * predicate helpers use against the looser `AnyColumn` operators.
+ */
+type ContentColumns = Record<string, PgColumn>;
 
 /**
  * The read side of the public content API. Generic over the content type like
@@ -80,6 +90,7 @@ export class PublicEntriesQuery {
     ): Promise<PublicEntryListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
+        const selected = parseFieldSelection(type, query.fields);
         const where = and(
             this.readableWhere(type, workspaceId, query.locale),
             buildSearchPredicate(type, query.search),
@@ -90,12 +101,14 @@ export class PublicEntriesQuery {
                 grantedTypes
             )
         );
+        const projection = this.projection(type, selected);
+        const rowsQuery = projection
+            ? this.db.select(projection).from(type.table)
+            : this.db.select().from(type.table);
 
         const [[{ total }], rows] = await Promise.all([
             this.db.select({ total: count() }).from(type.table).where(where),
-            this.db
-                .select()
-                .from(type.table)
+            rowsQuery
                 .where(where)
                 .orderBy(...this.orderBy(type, query.sort))
                 .limit(pageSize)
@@ -104,12 +117,49 @@ export class PublicEntriesQuery {
 
         return {
             items: rows.map((row) =>
-                toPublicEntry(type, row as Record<string, unknown>)
+                toPublicEntry(type, row as Record<string, unknown>, selected)
             ),
             total,
             page,
             pageSize
         };
+    }
+
+    /**
+     * The SELECT list for a `?fields=` selection, or `undefined` to select the
+     * whole row. Narrowing this is the point of a sparse fieldset: without it
+     * the query still reads (and Postgres still detoasts) a richtext column the
+     * caller asked to leave out, and only the serializer saves any bytes.
+     *
+     * The envelope is always included — `toPublicEntry` reads those columns
+     * unconditionally, and they are what make an entry addressable. The WHERE
+     * and ORDER BY may reference columns outside this list; SQL allows that, so
+     * filtering and sorting stay unrestricted by the selection.
+     */
+    private projection(
+        type: AnyContentType,
+        selected: ReadonlySet<string> | undefined
+    ): SelectedFields | undefined {
+        if (!selected) {
+            return undefined;
+        }
+        const table = type.table as unknown as ContentColumns;
+        const columns: ContentColumns = {
+            id: table['id'],
+            createdAt: table['createdAt'],
+            updatedAt: table['updatedAt']
+        };
+        if (type.publishable) {
+            columns['publishedAt'] = table['publishedAt'];
+        }
+        if (type.i18n) {
+            columns['locale'] = table['locale'];
+            columns['localeGroupId'] = table['localeGroupId'];
+        }
+        for (const name of selected) {
+            columns[name] = table[name];
+        }
+        return columns;
     }
 
     /**
@@ -121,12 +171,16 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         id: string,
         workspaceId: string,
-        locale?: string
+        locale?: string,
+        fields?: string
     ): Promise<PublicEntry> {
         const table = type.table as unknown as ContentTable;
-        const [row] = await this.db
-            .select()
-            .from(type.table)
+        const selected = parseFieldSelection(type, fields);
+        const projection = this.projection(type, selected);
+        const rowQuery = projection
+            ? this.db.select(projection).from(type.table)
+            : this.db.select().from(type.table);
+        const [row] = await rowQuery
             .where(
                 and(
                     eq(table['id'], id),
@@ -139,7 +193,7 @@ export class PublicEntriesQuery {
                 `No published "${type.name}" entry with id "${id}".`
             );
         }
-        return toPublicEntry(type, row as Record<string, unknown>);
+        return toPublicEntry(type, row as Record<string, unknown>, selected);
     }
 
     /**

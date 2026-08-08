@@ -135,6 +135,44 @@ describe('toPublicEntry', () => {
         });
     });
 
+    it('narrows values to a field selection, keeping the whole envelope', () => {
+        const entry = toPublicEntry(
+            post,
+            {
+                ...envelope,
+                status: 'published',
+                publishedAt: PUBLISHED,
+                title: 'Hello',
+                views: 12
+            },
+            new Set(['title'])
+        );
+
+        expect(entry.values).toEqual({ title: 'Hello' });
+        // The envelope is not selectable — `id` in particular is what makes an
+        // entry addressable, so a selection can never drop it.
+        expect(entry.id).toBe('entry-1');
+        expect(entry.publishedAt).toBe(PUBLISHED.toISOString());
+    });
+
+    it('omits an unselected field rather than reporting it as null', () => {
+        // The row genuinely lacks the column (the query never selected it).
+        // Emitting `views: null` would read as "this entry has no views"
+        // instead of "you didn't ask for it".
+        const entry = toPublicEntry(
+            post,
+            {
+                ...envelope,
+                status: 'published',
+                publishedAt: PUBLISHED,
+                title: 'Hello'
+            },
+            new Set(['title'])
+        );
+
+        expect(entry.values).not.toHaveProperty('views');
+    });
+
     it('omits publishedAt on a non-publishable type', () => {
         const entry = toPublicEntry(homePage, {
             ...envelope,

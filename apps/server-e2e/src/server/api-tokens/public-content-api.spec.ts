@@ -581,6 +581,110 @@ describe('Public content API (/api/v1)', () => {
                 .expect(400);
         });
 
+        it('returns only the selected fields', async () => {
+            await seedPublished('Sparse');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ fields: 'text,select' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const [item] = res.body.items as PublicItem[];
+            expect(Object.keys(item.values).sort()).toEqual(['select', 'text']);
+            // The envelope is never selectable away — `id` is what makes the
+            // entry addressable for a follow-up read.
+            expect(item.id).toEqual(expect.any(String));
+            expect(item).toHaveProperty('publishedAt');
+        });
+
+        it('applies a field selection to the single-entry route too', async () => {
+            const id = await seedPublished('Sparse by id');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${id}`)
+                .query({ fields: 'text' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(Object.keys(res.body.values)).toEqual(['text']);
+            expect(res.body.id).toBe(id);
+        });
+
+        it('400s an unknown or unselectable field name', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // A typo is a 400, not a silently missing key.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ fields: 'text,nope' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+
+            // A real field this API can't return yet gets its own message.
+            const relation = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ fields: 'author' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+            expect(relation.body.message).toMatch(/cannot be selected/);
+
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ fields: 'image' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
+        it('still filters and sorts on fields it was not asked to return', async () => {
+            await seedArticles(
+                [
+                    {
+                        text: 'Keep',
+                        select: 'tutorial',
+                        status: 'published',
+                        publishedAt: new Date()
+                    },
+                    {
+                        text: 'Drop',
+                        select: 'article',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // `select` drives the filter but is absent from the projection —
+            // SQL allows a WHERE over unselected columns, so a sparse fieldset
+            // never narrows what can be filtered or sorted on.
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    fields: 'text',
+                    filter: JSON.stringify({
+                        and: [{ field: 'select', op: 'eq', value: 'tutorial' }]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(res.body.total).toBe(1);
+            const [item] = res.body.items as PublicItem[];
+            expect(item.values).toEqual({ text: 'Keep' });
+        });
+
         it('rejects an undeclared query parameter', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
