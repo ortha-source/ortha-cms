@@ -8,9 +8,11 @@ import {
     resetDb,
     seedActiveUser,
     seedArticles,
+    seedArticleTags,
     seedContentGrants,
     seedLanding,
     seedPages,
+    seedTags,
     seedWorkspace
 } from '../../support/seed';
 
@@ -22,6 +24,11 @@ interface PublicItem {
     id: string;
     publishedAt?: string | null;
     values: Record<string, unknown>;
+    relations?: Record<
+        string,
+        { items: { id: string; title: string }[]; total: number }
+    >;
+    media?: Record<string, { items: { id: string }[]; total: number }>;
 }
 
 /** Shape of one summary in the public content-type list. */
@@ -683,6 +690,178 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.total).toBe(1);
             const [item] = res.body.items as PublicItem[];
             expect(item.values).toEqual({ text: 'Keep' });
+        });
+
+        it('expands a relation only when asked, and only to published targets', async () => {
+            // `test_tag` is publishable, so a draft tag is the case that must
+            // stay invisible. Grant it — expansion into an ungranted type is
+            // refused (covered below).
+            await seedContentGrants(workspaceId, ['test_tag']);
+            const tagIds = await seedTags(
+                [
+                    {
+                        name: 'Live tag',
+                        status: 'published',
+                        publishedAt: new Date()
+                    },
+                    { name: 'Draft tag' }
+                ],
+                workspaceId
+            );
+            const source = await seedPublished('Source');
+            await seedArticleTags(source, tagIds);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // Off by default.
+            const plain = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(
+                (plain.body.items as PublicItem[]).every(
+                    (item) => item.relations === undefined
+                )
+            ).toBe(true);
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ relations: 'preview', relationFields: 'tags' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const item = (res.body.items as PublicItem[]).find(
+                (row) => row.id === source
+            );
+            // The draft link is neither shown nor counted — `total` must not
+            // advertise a link the caller can never reach.
+            expect(item?.relations?.['tags'].total).toBe(1);
+            expect(
+                item?.relations?.['tags'].items.map((ref) => ref.title)
+            ).toEqual(['Live tag']);
+        });
+
+        it('400s expanding a relation into an ungranted type', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // `test_author` is not granted to this workspace, so expanding
+            // `author` would reach content the workspace doesn't expose.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ relations: 'preview', relationFields: 'author' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
+        it('400s a relationFields name that is not a relation', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ relations: 'preview', relationFields: 'text' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
+        it('reads relations from the sibling routes', async () => {
+            await seedContentGrants(workspaceId, ['test_tag']);
+            const tagIds = await seedTags(
+                [
+                    {
+                        name: 'Sibling tag',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            const source = await seedPublished('Sibling source');
+            await seedArticleTags(source, tagIds);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const all = await request(harness.server)
+                .get(`/api/v1/content/test_article/${source}/relations`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(all.body.relations.tags.total).toBe(1);
+            // An ungranted target is omitted from the map entirely, matching
+            // what `relationFields` would refuse.
+            expect(all.body.relations).not.toHaveProperty('author');
+
+            const one = await request(harness.server)
+                .get(`/api/v1/content/test_article/${source}/relations/tags`)
+                .query({ page: 1, pageSize: 1 })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(one.body.items).toHaveLength(1);
+            expect(one.body.items[0].title).toBe('Sibling tag');
+
+            // A non-relation field is a 400, not an empty page.
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${source}/relations/text`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
+        it('404s the relation and media routes for an entry it cannot read', async () => {
+            const [draft] = await seedArticles(
+                [{ text: 'Hidden', select: 'article' }],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // The sibling routes must be exactly as invisible as the entry.
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${draft}/relations`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${draft}/media`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+        });
+
+        it('exposes media fields as empty views when nothing is attached', async () => {
+            await seedPublished('No media');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ media: 'preview', mediaFields: 'image,attachments' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            // The keys are present even with no assets, so a consumer can read
+            // `media.image.items` without testing for the map first.
+            const [item] = res.body.items as PublicItem[];
+            expect(item.media?.['image']).toEqual({ items: [], total: 0 });
+            expect(item.media?.['attachments']).toEqual({
+                items: [],
+                total: 0
+            });
+        });
+
+        it('400s a mediaFields name that is not a media field', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ media: 'preview', mediaFields: 'text' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
         });
 
         it('rejects an undeclared query parameter', async () => {

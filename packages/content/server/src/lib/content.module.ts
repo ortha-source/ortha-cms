@@ -42,6 +42,7 @@ import { PublicEntriesController } from './public-api/http/controllers/public-en
 import { ApiTokenGuard } from './public-api/http/guards/api-token.guard';
 import { ApiTokenWorkspaceGuard } from './public-api/http/guards/api-token-workspace.guard';
 import { PublicEntriesQuery } from './public-api/infrastructure/public-entries.query';
+import { PublicExpansionQuery } from './public-api/infrastructure/public-expansion.query';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -151,6 +152,8 @@ export class ContentModule {
                 ApiTokenGuard,
                 ApiTokenWorkspaceGuard,
                 PublicEntriesQuery,
+                // Batched relation + media expansion for the public reads.
+                PublicExpansionQuery,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
                 // bound (nothing would stamp the NOT NULL locale column).
                 EntryExtensionBootCheck

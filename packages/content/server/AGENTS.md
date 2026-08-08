@@ -385,7 +385,12 @@ token is the only way in, and a session cookie is *not* accepted):
   (`?search=&filter=&sort=&page=&pageSize=&fields=&locale=`). Serves **singles
   too** — with i18n a single still has one row per locale, so the list envelope
   is honest for both; take `items[0]`.
-- `GET /v1/content/:typeName/:id` — one published entry (`?fields=&locale=`).
+- `GET /v1/content/:typeName/:id` — one published entry (`?fields=&locale=`,
+  plus the same expansion params as the list).
+- `GET /v1/content/:typeName/:id/relations` — every relation field, first page
+  each; `/relations/:field?page=&pageSize=` pages one field past the cap.
+- `GET /v1/content/:typeName/:id/media` — every media field, resolved to asset
+  metadata + URLs.
 
 **Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
 resolves it through identity's `ApiTokenService.verify` (unknown / revoked /
@@ -461,6 +466,38 @@ an admin caller is a member looking at their own CMS, a token is an external
 credential, and the grant set is the workspace's declared content surface.
 `/v1/content-types` lists exactly the names that won't 404, so nothing is left
 to guess.
+
+**Relation + media expansion** (opt-in, `public-expansion.query.ts`):
+`?relations=preview&relationFields=author,tags` and
+`?media=preview&mediaFields=coverImage` add `relations` / `media` maps to each
+entry. Both are **batched across the page** — verified against a live server:
+`pageSize=1` and `pageSize=50` each issue the same 6 content queries (count,
+page, one `refsFor` per single relation, a windowed pass + titles per join-backed
+one, and **one** media resolve). Notes:
+
+- **Published-only targets.** `RelationLinkService` gained an optional
+  `RelationTargetVisibility` (`{ publishedOnly }`) that the public reads pass and
+  the admin never does. A draft target is neither shown **nor counted** — the
+  restriction goes *inside* the window (`count(*) over`), so `total` can't
+  advertise links a caller cannot reach. Confirmed live: the same entry reads
+  `total: 2` for the admin and `total: 1` publicly.
+- **Grant-pruned.** Expanding into a type the workspace wasn't granted is a
+  **400** on the query params, and such a field is simply absent from the
+  `/relations` route — matching how `?filter=` treats a traversal into one.
+- **Media is batched by hand**, deliberately *not* through
+  `MediaRefsQuery.forValues`: that takes one entry's values, so a page would call
+  it per row — exactly the N+1 the relation preview exists to avoid.
+- **`MAX_EXPANDED_FIELDS = 10`** per kind. Cost scales with *fields*, not rows,
+  and the admin bounds only the raw string length — too loose for a public
+  endpoint.
+- A `?fields=` selection still carries the columns an expansion needs (a single
+  relation's FK, a media field's ids), even though they never appear in `values`.
+- **Media URLs require a session.** The returned `url`/`thumbUrl` are the CMS's
+  own media routes, which are `media:read` + membership gated; a bearer token
+  gets **401** (verified). They identify the asset and work for a session-holding
+  server-side caller, but a browser `<img src>` will not load one. A
+  token-fetchable URL needs either a token-authenticated media route or signed
+  URLs — neither exists yet.
 
 **The wire shape** (`types/public-entry.ts`) is its own contract, not the
 admin's `EntryRecord` — a published API must be free to stay still while the

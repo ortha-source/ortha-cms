@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_462 test cases across 37 spec files._
+_469 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -132,6 +132,13 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | applies a field selection to the single-entry route too |
 | 400s an unknown or unselectable field name |
 | still filters and sorts on fields it was not asked to return |
+| expands a relation only when asked, and only to published targets |
+| 400s expanding a relation into an ungranted type |
+| 400s a relationFields name that is not a relation |
+| reads relations from the sibling routes |
+| 404s the relation and media routes for an entry it cannot read |
+| exposes media fields as empty views when nothing is attached |
+| 400s a mediaFields name that is not a media field |
 | rejects an undeclared query parameter |
 
 ### schema discovery

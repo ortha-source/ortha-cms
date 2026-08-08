@@ -5,6 +5,11 @@
  * the admin's internal shape evolves.
  */
 
+import type {
+    PublicMediaFieldView,
+    PublicRelationFieldView
+} from './public-expansion';
+
 /**
  * One entry as the public API serves it: the storage envelope plus a flat
  * `values` bag keyed by field name.
@@ -45,6 +50,18 @@ export interface PublicEntry {
     /** The entry's own field values, keyed by field name (see the note above
      * on which kinds are omitted). */
     values: Record<string, unknown>;
+    /**
+     * Relation links, keyed by field name — present only when the caller opts
+     * in with `?relations=preview&relationFields=…`. Each field carries at most
+     * one page of refs plus the true count of *visible* links.
+     */
+    relations?: Record<string, PublicRelationFieldView>;
+    /**
+     * Media assets, keyed by field name — present only when the caller opts in
+     * with `?media=preview&mediaFields=…`. Read the URL caveat on
+     * {@link PublicMediaRef} before pointing a browser at one.
+     */
+    media?: Record<string, PublicMediaFieldView>;
 }
 
 /** One page of public entries. */

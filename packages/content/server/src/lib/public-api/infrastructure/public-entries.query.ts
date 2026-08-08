@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Inject,
     Injectable,
     NotFoundException,
@@ -22,12 +23,27 @@ import {
     type ContentEntryExtension
 } from '../../extension/entry-extension';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
+import { CONTENT_FIELD_TYPE } from '../../types/fields';
+import {
+    RelationLinkService,
+    RELATION_PAGE_SIZE
+} from '../../entries/infrastructure/persistence/relation-link.service';
+import type { RelationFieldView } from '../../entries/types/entry-list-view';
+import type {
+    PublicMediaFieldView,
+    PublicRelationFieldView
+} from '../types/public-expansion';
 import { isScalarField } from '../../entries/infrastructure/queries/entry-scalar-fields';
 import { buildEntryFilterSurface } from '../../entries/infrastructure/queries/entry-filter-surface';
 import { buildSearchPredicate } from '../../entries/infrastructure/queries/entry-search';
 import { parseFieldSelection } from './field-selection';
+import { PublicExpansionQuery } from './public-expansion.query';
 import { DEFAULT_PAGE_SIZE } from '../../entries/entries.constants';
-import type { PublicListEntriesQueryDto } from '../http/dto/public-list-entries-query.dto';
+import {
+    PREVIEW,
+    type PublicEntryQueryDto,
+    type PublicListEntriesQueryDto
+} from '../http/dto/public-list-entries-query.dto';
 import type { PublicEntry, PublicEntryListView } from '../types/public-entry';
 import { toPublicEntry } from './public-entry-row';
 
@@ -71,6 +87,8 @@ type ContentColumns = Record<string, PgColumn>;
 export class PublicEntriesQuery {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        private readonly expansion: PublicExpansionQuery,
+        private readonly relationLinks: RelationLinkService,
         // The entries extension port (e.g. i18n's locale scoping) — absent
         // unless a downstream plugin binds it, hence optional.
         @Optional()
@@ -91,6 +109,18 @@ export class PublicEntriesQuery {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
         const selected = parseFieldSelection(type, query.fields);
+        const relationFields =
+            query.relations === PREVIEW
+                ? this.expansion.parseRelationFields(
+                      type,
+                      query.relationFields,
+                      grantedTypes
+                  )
+                : [];
+        const mediaFields =
+            query.media === PREVIEW
+                ? this.expansion.parseMediaFields(type, query.mediaFields)
+                : [];
         const where = and(
             this.readableWhere(type, workspaceId, query.locale),
             buildSearchPredicate(type, query.search),
@@ -101,7 +131,13 @@ export class PublicEntriesQuery {
                 grantedTypes
             )
         );
-        const projection = this.projection(type, selected);
+        // An expansion reads columns that never appear in `values` — an owning
+        // single relation's FK, a media field's ids — so a `?fields=` selection
+        // must still carry them or the preview would find nothing to resolve.
+        const projection = this.projection(type, selected, [
+            ...relationFields,
+            ...mediaFields
+        ]);
         const rowsQuery = projection
             ? this.db.select(projection).from(type.table)
             : this.db.select().from(type.table);
@@ -115,14 +151,62 @@ export class PublicEntriesQuery {
                 .offset((page - 1) * pageSize)
         ]);
 
-        return {
-            items: rows.map((row) =>
-                toPublicEntry(type, row as Record<string, unknown>, selected)
+        const items = rows.map((row) =>
+            toPublicEntry(type, row as Record<string, unknown>, selected)
+        );
+        await this.attachExpansions(
+            type,
+            items,
+            rows as Record<string, unknown>[],
+            workspaceId,
+            relationFields,
+            mediaFields
+        );
+        return { items, total, page, pageSize };
+    }
+
+    /**
+     * Attach the opt-in relation / media previews to an already-projected page.
+     * Both resolvers are batched across the whole page, so this adds a bounded
+     * number of queries per requested field and none per row.
+     */
+    private async attachExpansions(
+        type: AnyContentType,
+        items: PublicEntry[],
+        rows: Record<string, unknown>[],
+        workspaceId: string,
+        relationFields: string[],
+        mediaFields: string[]
+    ): Promise<void> {
+        if (!relationFields.length && !mediaFields.length) {
+            return;
+        }
+        const [relations, media] = await Promise.all([
+            this.expansion.relationsForRows(
+                type,
+                relationFields,
+                rows,
+                workspaceId
             ),
-            total,
-            page,
-            pageSize
-        };
+            this.expansion.mediaForRows(type, mediaFields, rows, workspaceId)
+        ]);
+        for (const item of items) {
+            // Keys are present-but-empty when the caller asked for a field the
+            // entry has no links in, so a consumer can read `relations.author`
+            // without testing for the map itself.
+            if (relationFields.length) {
+                item.relations = relations.get(item.id) ?? {};
+                for (const field of relationFields) {
+                    item.relations[field] ??= { items: [], total: 0 };
+                }
+            }
+            if (mediaFields.length) {
+                item.media = media.get(item.id) ?? {};
+                for (const field of mediaFields) {
+                    item.media[field] ??= { items: [], total: 0 };
+                }
+            }
+        }
     }
 
     /**
@@ -138,7 +222,8 @@ export class PublicEntriesQuery {
      */
     private projection(
         type: AnyContentType,
-        selected: ReadonlySet<string> | undefined
+        selected: ReadonlySet<string> | undefined,
+        alsoNeeded: readonly string[] = []
     ): SelectedFields | undefined {
         if (!selected) {
             return undefined;
@@ -159,6 +244,11 @@ export class PublicEntriesQuery {
         for (const name of selected) {
             columns[name] = table[name];
         }
+        for (const name of alsoNeeded) {
+            // Join-backed relations own no column on this table; skip them
+            // rather than putting `undefined` in the SELECT list.
+            if (table[name]) columns[name] = table[name];
+        }
         return columns;
     }
 
@@ -171,16 +261,170 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         id: string,
         workspaceId: string,
-        locale?: string,
-        fields?: string
+        query: PublicEntryQueryDto,
+        grantedTypes: ReadonlySet<string>
     ): Promise<PublicEntry> {
         const table = type.table as unknown as ContentTable;
-        const selected = parseFieldSelection(type, fields);
-        const projection = this.projection(type, selected);
+        const selected = parseFieldSelection(type, query.fields);
+        const relationFields =
+            query.relations === PREVIEW
+                ? this.expansion.parseRelationFields(
+                      type,
+                      query.relationFields,
+                      grantedTypes
+                  )
+                : [];
+        const mediaFields =
+            query.media === PREVIEW
+                ? this.expansion.parseMediaFields(type, query.mediaFields)
+                : [];
+        const projection = this.projection(type, selected, [
+            ...relationFields,
+            ...mediaFields
+        ]);
         const rowQuery = projection
             ? this.db.select(projection).from(type.table)
             : this.db.select().from(type.table);
         const [row] = await rowQuery
+            .where(
+                and(
+                    eq(table['id'], id),
+                    this.readableWhere(type, workspaceId, query.locale)
+                )
+            )
+            .limit(1);
+        if (!row) {
+            throw new NotFoundException(
+                `No published "${type.name}" entry with id "${id}".`
+            );
+        }
+        const entry = toPublicEntry(
+            type,
+            row as Record<string, unknown>,
+            selected
+        );
+        // One row is still a "page" as far as the batched resolvers care, so
+        // the single read reuses exactly the list's expansion path.
+        await this.attachExpansions(
+            type,
+            [entry],
+            [row as Record<string, unknown>],
+            workspaceId,
+            relationFields,
+            mediaFields
+        );
+        return entry;
+    }
+
+    /**
+     * Every relation field of one entry, first page each — the sibling route
+     * for a consumer that wants links without re-reading the entry, and the way
+     * past the preview's per-field cap in combination with
+     * {@link relationField}. Published-only, like every public read.
+     */
+    async relationsOf(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string,
+        grantedTypes: ReadonlySet<string>,
+        locale?: string
+    ): Promise<Record<string, PublicRelationFieldView>> {
+        const row = await this.readableRow(type, id, workspaceId, locale);
+        const views = await this.relationLinks.readAll(
+            type,
+            row,
+            workspaceId,
+            RELATION_PAGE_SIZE,
+            { publishedOnly: true }
+        );
+        const out: Record<string, PublicRelationFieldView> = {};
+        for (const [field, view] of Object.entries(views)) {
+            // Skip a relation whose target type this workspace can't reach, so
+            // the route agrees with what `relationFields` would allow.
+            const target = type.fields[field]?.relation?.to();
+            if (!target || !grantedTypes.has(target.name)) continue;
+            out[field] = toPublicRelationView(view);
+        }
+        return out;
+    }
+
+    /** One page of a single relation field's links. */
+    async relationField(
+        type: AnyContentType,
+        id: string,
+        field: string,
+        page: number,
+        pageSize: number,
+        workspaceId: string,
+        grantedTypes: ReadonlySet<string>,
+        locale?: string
+    ): Promise<PublicRelationFieldView> {
+        const spec = type.fields[field];
+        if (
+            !spec ||
+            spec.type !== CONTENT_FIELD_TYPE.Relation ||
+            !spec.relation
+        ) {
+            throw new BadRequestException(
+                `"${field}" is not a relation field on "${type.name}".`
+            );
+        }
+        if (!grantedTypes.has(spec.relation.to().name)) {
+            throw new BadRequestException(
+                `"${field}" cannot be expanded — this workspace has no access to "${spec.relation.to().name}".`
+            );
+        }
+        const row = await this.readableRow(type, id, workspaceId, locale);
+        const view = await this.relationLinks.readField(
+            type,
+            row,
+            field,
+            spec,
+            page,
+            pageSize,
+            workspaceId,
+            { publishedOnly: true }
+        );
+        return toPublicRelationView(view);
+    }
+
+    /** Every media field of one entry, resolved to asset metadata + URLs. */
+    async mediaOf(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string,
+        locale?: string
+    ): Promise<Record<string, PublicMediaFieldView>> {
+        const row = await this.readableRow(type, id, workspaceId, locale);
+        const fields = Object.entries(type.fields)
+            .filter(([, spec]) => spec.type === CONTENT_FIELD_TYPE.Media)
+            .map(([name]) => name);
+        const media = await this.expansion.mediaForRows(
+            type,
+            fields,
+            [row],
+            workspaceId
+        );
+        const out = media.get(id) ?? {};
+        for (const field of fields) out[field] ??= { items: [], total: 0 };
+        return out;
+    }
+
+    /**
+     * The full row of one publicly readable entry, or a 404 — the shared
+     * pre-step of the sibling routes, so `/relations` and `/media` are exactly
+     * as invisible for a draft or foreign entry as the entry read itself.
+     */
+    private async readableRow(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string,
+        locale?: string
+    ): Promise<Record<string, unknown>> {
+        const table = type.table as unknown as ContentTable;
+        const [row] = await this.db
+            .select()
+            .from(type.table)
             .where(
                 and(
                     eq(table['id'], id),
@@ -193,7 +437,7 @@ export class PublicEntriesQuery {
                 `No published "${type.name}" entry with id "${id}".`
             );
         }
-        return toPublicEntry(type, row as Record<string, unknown>, selected);
+        return row as Record<string, unknown>;
     }
 
     /**
@@ -287,4 +531,22 @@ export class PublicEntriesQuery {
         }
         return [desc(table['updatedAt']), asc(table['id'])];
     }
+}
+
+/**
+ * Narrow an admin relation view to the public one: drop `status` (a constant
+ * under a published-only read) and the `missing` flag (such a link is omitted
+ * rather than advertised).
+ */
+function toPublicRelationView(
+    view: RelationFieldView
+): PublicRelationFieldView {
+    return {
+        items: view.items.map((ref) => ({
+            id: ref.id,
+            title: ref.title,
+            ...(ref.slug ? { slug: ref.slug } : {})
+        })),
+        total: view.total
+    };
 }

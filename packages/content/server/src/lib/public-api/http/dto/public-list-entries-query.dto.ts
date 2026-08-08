@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+    IsIn,
     IsInt,
     IsOptional,
     IsString,
@@ -24,10 +25,66 @@ const SEARCH_MAX_LENGTH = 255;
 const FIELDS_MAX_LENGTH = 1024;
 
 /**
+ * `?relations=preview` / `?media=preview` opt an entry read into expanding the
+ * named fields. Opt-in because the cost scales with the number of expanded
+ * fields, and most reads want neither.
+ */
+export const PREVIEW = 'preview';
+
+/**
  * The one parameter every public read accepts: which locale to read. Shared by
  * the list and the single-entry route so the slug is declared once.
  */
 export class PublicEntryQueryDto {
+    /** `preview` expands the relation fields named by `relationFields`. */
+    @ApiPropertyOptional({
+        enum: [PREVIEW],
+        description:
+            '`preview` expands the relation fields named by `relationFields`. Absent returns no relation data.'
+    })
+    @IsOptional()
+    @IsIn([PREVIEW])
+    relations?: typeof PREVIEW;
+
+    /**
+     * Comma-separated relation field names to expand. Each yields one capped
+     * page of links plus the count of visible ones.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: FIELDS_MAX_LENGTH,
+        example: 'author,tags',
+        description:
+            'Comma-separated relation fields to expand (ignored without `relations=preview`). Only published targets are shown or counted. A name that is not a relation field, or whose target type the workspace was not granted, is a 400.'
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(FIELDS_MAX_LENGTH)
+    relationFields?: string;
+
+    /** `preview` expands the media fields named by `mediaFields`. */
+    @ApiPropertyOptional({
+        enum: [PREVIEW],
+        description:
+            '`preview` expands the media fields named by `mediaFields`. Absent returns no media data.'
+    })
+    @IsOptional()
+    @IsIn([PREVIEW])
+    media?: typeof PREVIEW;
+
+    /** Comma-separated media field names to expand. */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: FIELDS_MAX_LENGTH,
+        example: 'coverImage,gallery',
+        description:
+            'Comma-separated media fields to expand (ignored without `media=preview`). Returns asset metadata and URLs — note the URLs are the CMS media routes, which require a session, so a bearer token cannot fetch them.'
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(FIELDS_MAX_LENGTH)
+    mediaFields?: string;
+
     /**
      * Comma-separated field names to return in `values` — a sparse fieldset.
      * Absent returns every value field. Selection narrows the SQL projection

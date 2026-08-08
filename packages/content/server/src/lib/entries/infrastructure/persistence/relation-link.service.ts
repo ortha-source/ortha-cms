@@ -14,7 +14,11 @@ import {
 } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import type { AnyContentType, EntryStatus } from '../../../types/content-type';
+import {
+    ENTRY_STATUS,
+    type AnyContentType,
+    type EntryStatus
+} from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import type {
     RelationDelta,
@@ -38,6 +42,21 @@ type Row = Record<string, unknown>;
 
 /** Default links per page when the caller doesn't specify one. */
 export const RELATION_PAGE_SIZE = 20;
+
+/**
+ * Extra visibility applied to a relation's **targets**, on top of the workspace
+ * scope and soft-delete guard every read already applies.
+ *
+ * Exists for the public content API, which serves published entries only: a
+ * relation preview there must not surface a draft target's title, and must not
+ * *count* it either, or `total` would advertise links the caller can never see.
+ * Absent (the admin's every call site) nothing changes — an editor legitimately
+ * links to drafts and needs to see them.
+ */
+export interface RelationTargetVisibility {
+    /** Restrict targets to entries that are currently published. */
+    publishedOnly?: boolean;
+}
 
 /**
  * How many relation fields a page preview resolves at once. `relationFields` is
@@ -119,7 +138,8 @@ export class RelationLinkService {
         type: AnyContentType,
         row: Row,
         workspaceId: string,
-        pageSize = RELATION_PAGE_SIZE
+        pageSize = RELATION_PAGE_SIZE,
+        visibility?: RelationTargetVisibility
     ): Promise<Record<string, RelationFieldView>> {
         // Each relation field is an independent read, so fan them out
         // concurrently rather than awaiting one before starting the next — a
@@ -130,7 +150,16 @@ export class RelationLinkService {
         );
         const views = await Promise.all(
             fields.map(([name, spec]) =>
-                this.readField(type, row, name, spec, 1, pageSize, workspaceId)
+                this.readField(
+                    type,
+                    row,
+                    name,
+                    spec,
+                    1,
+                    pageSize,
+                    workspaceId,
+                    visibility
+                )
             )
         );
         const out: Record<string, RelationFieldView> = {};
@@ -163,7 +192,8 @@ export class RelationLinkService {
         fields: string[],
         rows: Row[],
         workspaceId: string,
-        pageSize = RELATION_PAGE_SIZE
+        pageSize = RELATION_PAGE_SIZE,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, Record<string, RelationFieldView>>> {
         const out = new Map<string, Record<string, RelationFieldView>>();
         const sourceIds = rows
@@ -202,7 +232,8 @@ export class RelationLinkService {
                             rows,
                             sourceIds,
                             workspaceId,
-                            pageSize
+                            pageSize,
+                            visibility
                         )
                     )
                 ))
@@ -230,16 +261,29 @@ export class RelationLinkService {
         rows: Row[],
         sourceIds: string[],
         workspaceId: string,
-        pageSize: number
+        pageSize: number,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const relation = spec.relation;
         if (!relation) return Promise.resolve(new Map());
         if (!relation.many && !relation.inverse)
-            return this.previewSingle(relation.to(), field, rows, workspaceId);
+            return this.previewSingle(
+                relation.to(),
+                field,
+                rows,
+                workspaceId,
+                visibility
+            );
 
         const join = this.joinPlanFor(type, field, spec);
         if (join)
-            return this.previewJoin(join, sourceIds, workspaceId, pageSize);
+            return this.previewJoin(
+                join,
+                sourceIds,
+                workspaceId,
+                pageSize,
+                visibility
+            );
 
         const inverse = this.inversePlanFor(spec);
         if (inverse)
@@ -247,7 +291,8 @@ export class RelationLinkService {
                 inverse,
                 sourceIds,
                 workspaceId,
-                pageSize
+                pageSize,
+                visibility
             );
         return Promise.resolve(new Map());
     }
@@ -262,7 +307,8 @@ export class RelationLinkService {
         target: AnyContentType,
         field: string,
         rows: Row[],
-        workspaceId: string
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const fkBySource = new Map<string, string>();
         for (const row of rows) {
@@ -277,10 +323,19 @@ export class RelationLinkService {
         const refs = await this.refsFor(
             target,
             [...fkBySource.values()],
-            workspaceId
+            workspaceId,
+            visibility
         );
         const refById = new Map(refs.map((ref) => [ref.id, ref]));
         for (const [sourceId, fk] of fkBySource) {
+            // Under a visibility restriction an unresolvable target is one the
+            // caller may not see, so the link is reported as absent rather than
+            // as a `missing` ref — a public consumer must not learn that a
+            // hidden record is linked here, and `total` must not count it.
+            if (visibility?.publishedOnly && !refById.has(fk)) {
+                out.set(sourceId, { items: [], total: 0 });
+                continue;
+            }
             // `refsFor` is total — it yields a ref for every id, id-only and
             // flagged `missing` when the target is gone. So the link is always
             // represented (`total` counts the link, not whether its target
@@ -306,7 +361,8 @@ export class RelationLinkService {
         join: JoinPlan,
         sourceIds: string[],
         workspaceId: string,
-        pageSize: number
+        pageSize: number,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const cols = join.table as unknown as SelectableColumns;
         const own = cols[join.ownCol];
@@ -325,7 +381,20 @@ export class RelationLinkService {
                 )
             })
             .from(join.table)
-            .where(inArray(own, sourceIds))
+            .where(
+                and(
+                    inArray(own, sourceIds),
+                    // Applied INSIDE the window, not after it: `count(*) over`
+                    // is computed here, so filtering later would page over
+                    // hidden links and report a total the caller can't reach.
+                    this.visibleTargetIdsPredicate(
+                        ref,
+                        join.target,
+                        workspaceId,
+                        visibility
+                    )
+                )
+            )
             .as('ranked');
 
         // The window aliases (`rn`/`own`) carry no column type through the
@@ -343,7 +412,8 @@ export class RelationLinkService {
             await this.refsFor(
                 join.target,
                 rows.map((row) => row['ref'] as string),
-                workspaceId
+                workspaceId,
+                visibility
             )
         );
     }
@@ -357,7 +427,8 @@ export class RelationLinkService {
         inverse: InversePlan,
         sourceIds: string[],
         workspaceId: string,
-        pageSize: number
+        pageSize: number,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const cols = inverse.table as unknown as SelectableColumns;
         const fk = cols[inverse.fkCol];
@@ -376,8 +447,14 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(fk, sourceIds),
-                    eq(cols['workspaceId'], workspaceId),
-                    cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                    // The window reads the TARGET table here (the owners whose
+                    // FK points back), so the restriction is a plain column
+                    // predicate rather than a sub-select.
+                    this.targetVisibleWhere(
+                        inverse.target,
+                        workspaceId,
+                        visibility
+                    )
                 )
             )
             .as('ranked');
@@ -394,7 +471,8 @@ export class RelationLinkService {
             await this.refsFor(
                 inverse.target,
                 rows.map((row) => row['ref'] as string),
-                workspaceId
+                workspaceId,
+                visibility
             )
         );
     }
@@ -443,7 +521,8 @@ export class RelationLinkService {
         spec: AnyFieldSpec,
         page: number,
         pageSize: number,
-        workspaceId: string
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
     ): Promise<RelationFieldView> {
         if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
             return { items: [], total: 0 };
@@ -455,30 +534,57 @@ export class RelationLinkService {
             const ids = typeof fk === 'string' && fk ? [fk] : [];
             const items =
                 page === 1
-                    ? await this.refsFor(spec.relation.to(), ids, workspaceId)
+                    ? await this.refsFor(
+                          spec.relation.to(),
+                          ids,
+                          workspaceId,
+                          visibility
+                      )
                     : [];
+            // Under a visibility restriction an unresolved target is hidden,
+            // not `missing` — the link is reported as absent (see
+            // `previewSingle` for why `total` must not count it).
+            if (visibility?.publishedOnly && !items.some((ref) => !ref.missing))
+                return { items: [], total: 0 };
             return { items, total: ids.length };
         }
 
         const join = this.joinPlanFor(type, field, spec);
         if (join) {
             const cols = join.table as unknown as Columns;
+            const selectable = join.table as unknown as SelectableColumns;
+            // One predicate for the page and the count, so a restricted read
+            // can't report a total its pages never reach.
+            const linkWhere = and(
+                eq(cols[join.ownCol], row['id']),
+                this.visibleTargetIdsPredicate(
+                    selectable[join.refCol],
+                    join.target,
+                    workspaceId,
+                    visibility
+                )
+            );
             const [rows, [{ total }]] = await Promise.all([
                 this.db
                     .select()
                     .from(join.table)
-                    .where(eq(cols[join.ownCol], row['id']))
+                    .where(linkWhere)
                     .orderBy(asc(cols['position']), asc(cols[join.refCol]))
                     .limit(pageSize)
                     .offset(offset),
                 this.db
                     .select({ total: count() })
                     .from(join.table)
-                    .where(eq(cols[join.ownCol], row['id']))
+                    .where(linkWhere)
             ]);
             const ids = (rows as Row[]).map((r) => r[join.refCol] as string);
             return {
-                items: await this.refsFor(join.target, ids, workspaceId),
+                items: await this.refsFor(
+                    join.target,
+                    ids,
+                    workspaceId,
+                    visibility
+                ),
                 total: Number(total)
             };
         }
@@ -488,8 +594,7 @@ export class RelationLinkService {
             const cols = inverse.table as unknown as Columns;
             const where = and(
                 eq(cols[inverse.fkCol], row['id']),
-                eq(cols['workspaceId'], workspaceId),
-                cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                this.targetVisibleWhere(inverse.target, workspaceId, visibility)
             );
             const [rows, [{ total }]] = await Promise.all([
                 this.db
@@ -824,7 +929,8 @@ export class RelationLinkService {
     private async refsFor(
         target: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
     ): Promise<RelationRef[]> {
         if (!ids.length) return [];
         const cols = target.table as unknown as Columns;
@@ -834,8 +940,7 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(cols['id'], [...new Set(ids)]),
-                    eq(cols['workspaceId'], workspaceId),
-                    cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                    this.targetVisibleWhere(target, workspaceId, visibility)
                 )
             )) as Row[];
         const byId = new Map(
@@ -848,6 +953,62 @@ export class RelationLinkService {
         return ids.map(
             (id) => byId.get(id) ?? { id, title: id, missing: true as const }
         );
+    }
+
+    /**
+     * The visibility predicate applied to a relation's target rows: the
+     * workspace scope, the soft-delete guard, and — only when the caller asks
+     * for it — the published-only restriction. One definition, so the row read
+     * (`refsFor`) and the windowed link reads that must *count* correctly can't
+     * disagree on what a visible target is.
+     */
+    private targetVisibleWhere(
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ) {
+        const cols = target.table as unknown as Columns;
+        return and(
+            eq(cols['workspaceId'], workspaceId),
+            cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined,
+            visibility?.publishedOnly && target.publishable
+                ? eq(cols['status'], ENTRY_STATUS.Published)
+                : undefined
+        );
+    }
+
+    /**
+     * The id sub-select of a target's visible rows — how a link read that reads
+     * only the JOIN table (so has no target columns of its own) restricts to
+     * visible targets *inside* its window, keeping `total` honest. `undefined`
+     * when no extra restriction applies, so the predicate collapses away.
+     */
+    private visibleTargetIds(
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ) {
+        if (!visibility?.publishedOnly) return undefined;
+        const cols = target.table as unknown as SelectableColumns;
+        return this.db
+            .select({ id: cols['id'] })
+            .from(target.table)
+            .where(this.targetVisibleWhere(target, workspaceId, visibility));
+    }
+
+    /**
+     * `ref IN (visible target ids)`, or `undefined` when no restriction
+     * applies. Wraps {@link visibleTargetIds} for the join-table reads, whose
+     * only handle on the target is the id column in the join row.
+     */
+    private visibleTargetIdsPredicate(
+        refColumn: PgColumn,
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ) {
+        const visible = this.visibleTargetIds(target, workspaceId, visibility);
+        return visible ? inArray(refColumn, visible) : undefined;
     }
 
     /** Build a display ref from a full target row. */

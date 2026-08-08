@@ -21,6 +21,11 @@ import type {
     PublicEntry,
     PublicEntryListView
 } from '../../types/public-entry';
+import type {
+    PublicMediaFieldView,
+    PublicRelationFieldView
+} from '../../types/public-expansion';
+import { RELATION_PAGE_SIZE } from '../../../entries/infrastructure/persistence/relation-link.service';
 import { ApiTokenGuard } from '../guards/api-token.guard';
 import { ApiTokenWorkspaceGuard } from '../guards/api-token-workspace.guard';
 import {
@@ -28,6 +33,16 @@ import {
     PublicListEntriesQueryDto
 } from '../dto/public-list-entries-query.dto';
 import { resolveGrantedType } from './resolve-granted-type';
+
+/** One entry's relation links, keyed by field name. */
+export interface PublicEntryRelationsView {
+    relations: Record<string, PublicRelationFieldView>;
+}
+
+/** One entry's media assets, keyed by field name. */
+export interface PublicEntryMediaView {
+    media: Record<string, PublicMediaFieldView>;
+}
 
 /**
  * `GET /api/v1/content/...` — the **public, token-authenticated read API** an
@@ -103,18 +118,114 @@ export class PublicEntriesController {
         @Query() query: PublicEntryQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntry> {
+        const { type, granted } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.entries.getOne(type, id, workspaceId, query, granted);
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/:id/relations` — every relation field of
+     * one entry, first page each. The sibling of the list's `?relations=preview`
+     * for a consumer that already has the entry, and — with the per-field route
+     * below — the way past the preview's cap.
+     */
+    @Get(':typeName/:id/relations')
+    @ApiOperation({
+        summary: 'Read one entry’s relation links',
+        description:
+            'Every relation field of the entry, keyed by field name, each with one capped page of links plus the count of visible ones. Only published targets are shown or counted; a field whose target type the workspace was not granted is omitted.'
+    })
+    async getRelations(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntryRelationsView> {
+        const { type, granted } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return {
+            relations: await this.entries.relationsOf(
+                type,
+                id,
+                workspaceId,
+                granted,
+                query.locale
+            )
+        };
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/:id/relations/:field` — one page of a
+     * single relation field's links, for paging past the preview cap.
+     */
+    @Get(':typeName/:id/relations/:field')
+    @ApiOperation({
+        summary: 'Page one relation field’s links',
+        description:
+            'One ordered page of a single relation field’s visible links. 400 when the field is not a relation, or its target type is not granted to the workspace.'
+    })
+    async getRelationField(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Param('field') field: string,
+        @Query() query: PublicListEntriesQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicRelationFieldView> {
+        const { type, granted } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.entries.relationField(
+            type,
+            id,
+            field,
+            query.page ?? 1,
+            query.pageSize ?? RELATION_PAGE_SIZE,
+            workspaceId,
+            granted,
+            query.locale
+        );
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/:id/media` — every media field of one
+     * entry, resolved to asset metadata and URLs.
+     */
+    @Get(':typeName/:id/media')
+    @ApiOperation({
+        summary: 'Read one entry’s media assets',
+        description:
+            'Every media field of the entry, keyed by field name, resolved to asset metadata (name, kind, MIME type, alt) and URLs. The URLs are the CMS media routes, which require an authenticated session — a bearer token cannot fetch them.'
+    })
+    async getMedia(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntryMediaView> {
         const { type } = await resolveGrantedType(
             this.registry,
             this.grants,
             typeName,
             workspaceId
         );
-        return this.entries.getOne(
-            type,
-            id,
-            workspaceId,
-            query.locale,
-            query.fields
-        );
+        return {
+            media: await this.entries.mediaOf(
+                type,
+                id,
+                workspaceId,
+                query.locale
+            )
+        };
     }
 }
