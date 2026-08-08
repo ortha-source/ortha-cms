@@ -26,7 +26,7 @@ const messages = defineMessages({
     name: { id: 'apiTokens.table.name', defaultMessage: 'Name' },
     workspace: {
         id: 'apiTokens.table.workspace',
-        defaultMessage: 'Workspace'
+        defaultMessage: 'Workspaces'
     },
     token: { id: 'apiTokens.table.token', defaultMessage: 'Token' },
     scope: { id: 'apiTokens.table.scope', defaultMessage: 'Access' },
@@ -179,7 +179,21 @@ export function ApiTokensTable({
                                     {token.name}
                                 </TableCell>
                                 <TableCell>
-                                    {resolveWorkspaceName(token.workspaceId)}
+                                    <span className="flex flex-wrap gap-1">
+                                        {token.workspaceIds.map(
+                                            (workspaceId) => (
+                                                <Badge
+                                                    key={workspaceId}
+                                                    variant="outline"
+                                                    className="font-normal"
+                                                >
+                                                    {resolveWorkspaceName(
+                                                        workspaceId
+                                                    )}
+                                                </Badge>
+                                            )
+                                        )}
+                                    </span>
                                 </TableCell>
                                 <TableCell>
                                     <code className="font-mono text-xs text-muted-foreground">

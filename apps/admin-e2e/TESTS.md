@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_305 test cases across 33 spec files._
+_306 test cases across 33 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -663,6 +663,7 @@ _<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_
 | Test case |
 | --- |
 | renders the section nav and the current general values |
+| copies the workspace id from the general tab |
 | saves an edited name (save enables only when dirty) |
 | assigns an unassigned member and removes an existing one |
 | grants a content type and revokes an empty one |

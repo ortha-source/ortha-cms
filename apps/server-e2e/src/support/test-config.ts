@@ -91,6 +91,20 @@ export function buildTestConfig(
                 },
                 s3: { bucket: '', region: '' },
                 maxUploadBytes: 52_428_800
+            },
+            // `buildTestPlugins` registers no copilot plugin, so this exists
+            // only to satisfy the `OrthaConfig` contract — same reason as
+            // `docs` above. Disabled and pointed at no real backend: a suite
+            // must never reach a model provider, and empty credentials make
+            // that a connection error rather than a silent live call.
+            copilot: {
+                enabled: false,
+                defaultProvider: 'fake',
+                maxOutputTokens: 1024,
+                providers: {
+                    claude: { apiKey: '', models: [] },
+                    ollama: { baseUrl: '', models: [] }
+                }
             }
         }
     };

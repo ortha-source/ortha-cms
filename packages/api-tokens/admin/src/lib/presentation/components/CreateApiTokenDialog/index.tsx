@@ -10,6 +10,7 @@ import {
     DialogTitle,
     Input,
     Label,
+    MultiSelect,
     Select,
     SelectContent,
     SelectItem,
@@ -29,7 +30,7 @@ const messages = defineMessages({
     description: {
         id: 'apiTokens.create.description',
         defaultMessage:
-            'The token grants API access to a single workspace’s content.'
+            'The token grants API access to the content of every workspace you pick.'
     },
     nameLabel: { id: 'apiTokens.create.name', defaultMessage: 'Name' },
     namePlaceholder: {
@@ -38,11 +39,24 @@ const messages = defineMessages({
     },
     workspaceLabel: {
         id: 'apiTokens.create.workspace',
-        defaultMessage: 'Workspace'
+        defaultMessage: 'Workspaces'
     },
     workspacePlaceholder: {
         id: 'apiTokens.create.workspacePlaceholder',
-        defaultMessage: 'Select a workspace'
+        defaultMessage: 'Select workspaces'
+    },
+    workspaceSearch: {
+        id: 'apiTokens.create.workspaceSearch',
+        defaultMessage: 'Search workspaces…'
+    },
+    workspaceEmpty: {
+        id: 'apiTokens.create.workspaceEmpty',
+        defaultMessage: 'No workspaces found.'
+    },
+    workspaceHint: {
+        id: 'apiTokens.create.workspaceHint',
+        defaultMessage:
+            'Pick one or more. A request names the workspace it targets with the X-Workspace-Id header.'
     },
     scopeLabel: { id: 'apiTokens.create.scope', defaultMessage: 'Access' },
     scopeRead: {
@@ -99,21 +113,24 @@ export function CreateApiTokenDialog({
 }) {
     const intl = useIntl();
     const nameId = useId();
+    const workspacesId = useId();
+    const workspacesHintId = useId();
     const { data: workspaces = [] } = useWorkspaceOptions(open);
 
     const [name, setName] = useState('');
-    const [workspaceId, setWorkspaceId] = useState('');
+    const [workspaceIds, setWorkspaceIds] = useState<string[]>([]);
     const [scope, setScope] = useState<ApiTokenScope>('read');
     const [expiry, setExpiry] = useState<ExpiryPreset>('never');
 
     const reset = () => {
         setName('');
-        setWorkspaceId('');
+        setWorkspaceIds([]);
         setScope('read');
         setExpiry('never');
     };
 
-    const canSubmit = name.trim().length > 0 && workspaceId.length > 0;
+    // The server rejects an empty bucket (400), so the form does too.
+    const canSubmit = name.trim().length > 0 && workspaceIds.length > 0;
 
     const submit = () => {
         if (!canSubmit) {
@@ -121,7 +138,7 @@ export function CreateApiTokenDialog({
         }
         onSubmit({
             name: name.trim(),
-            workspaceId,
+            workspaceIds,
             scope,
             expiresAt: expiryToIso(expiry)
         });
@@ -164,31 +181,35 @@ export function CreateApiTokenDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>
+                        <Label htmlFor={workspacesId}>
                             {intl.formatMessage(messages.workspaceLabel)}
                         </Label>
-                        <Select
-                            value={workspaceId}
-                            onValueChange={setWorkspaceId}
+                        <MultiSelect
+                            id={workspacesId}
+                            options={workspaces.map((workspace) => ({
+                                value: workspace.id,
+                                label: workspace.name
+                            }))}
+                            value={workspaceIds}
+                            onChange={setWorkspaceIds}
+                            placeholder={intl.formatMessage(
+                                messages.workspacePlaceholder
+                            )}
+                            searchPlaceholder={intl.formatMessage(
+                                messages.workspaceSearch
+                            )}
+                            emptyText={intl.formatMessage(
+                                messages.workspaceEmpty
+                            )}
+                            aria-describedby={workspacesHintId}
+                            className="w-full"
+                        />
+                        <p
+                            id={workspacesHintId}
+                            className="text-xs text-muted-foreground"
                         >
-                            <SelectTrigger className="w-full">
-                                <SelectValue
-                                    placeholder={intl.formatMessage(
-                                        messages.workspacePlaceholder
-                                    )}
-                                />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {workspaces.map((workspace) => (
-                                    <SelectItem
-                                        key={workspace.id}
-                                        value={workspace.id}
-                                    >
-                                        {workspace.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            {intl.formatMessage(messages.workspaceHint)}
+                        </p>
                     </div>
 
                     <div className="space-y-2">

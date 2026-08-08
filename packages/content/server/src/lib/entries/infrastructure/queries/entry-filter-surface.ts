@@ -1,10 +1,4 @@
-import {
-    and,
-    eq,
-    getTableColumns,
-    isNull,
-    type AnyColumn
-} from 'drizzle-orm';
+import { and, eq, getTableColumns, isNull, type AnyColumn } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import {
     RelationKind,
@@ -113,7 +107,15 @@ function scalarFieldsOf(type: AnyContentType): FieldSchema {
         };
         fields['publishedAt'] = { type: ScalarFieldType.Date };
     }
-    if (type.i18n) fields['locale'] = { type: ScalarFieldType.String };
+    if (type.i18n) {
+        fields['locale'] = { type: ScalarFieldType.String };
+        // The translation-group key, so a caller holding one row's group can
+        // ask for the group's row in another locale (`localeGroupId eq X` +
+        // `?locale=de`). Whitelisted for SQL only — `scalarWireOf` below builds
+        // the admin's filter *picker*, and this envelope column stays out of
+        // it, so the UI is unchanged.
+        fields['localeGroupId'] = { type: ScalarFieldType.Uuid };
+    }
     for (const [name, spec] of Object.entries(type.fields)) {
         const scalar = scalarTypeFor(spec);
         if (scalar) fields[name] = scalar;
@@ -205,7 +207,14 @@ function relationFor(
     // The target's own scalar fields + (if hops remain) its relations. This
     // is the SAME walk that emits the wire fields, so the SQL whitelist and
     // the picker's field list are one traversal and cannot drift.
-    const nested = walk(target, nextPath, nextGroup, hopsLeft - 1, visited, ctx);
+    const nested = walk(
+        target,
+        nextPath,
+        nextGroup,
+        hopsLeft - 1,
+        visited,
+        ctx
+    );
     const common = {
         fields: nested.fields,
         relations: nested.relations,

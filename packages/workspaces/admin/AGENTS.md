@@ -118,7 +118,13 @@ exist", mirroring the API's flat 403.
   routes (same shape as the content library's `content/*`).
 - The sections: **General** (name / description / avatar color; TanStack Form +
   the `useWorkspaceProfileSchema` Zod hook, the slug shown read-only since it's
-  immutable), **Members** (a directory typeahead that assigns **existing** users
+  immutable, plus a **copyable workspace id** — `WorkspaceIdField`, an
+  `InputGroup` with a copy button, since the id is what the public content API's
+  `X-Workspace-Id` header takes and was otherwise only readable off the address
+  bar. Unlike the slug it is `readOnly` but **not** `disabled`: a disabled input
+  can't be focused, so it could be neither selected nor copied by keyboard.
+  Clipboard failure — insecure origin, denied permission — falls back to an
+  error toast telling the user to select the id manually), **Members** (a directory typeahead that assigns **existing** users
   — no invite-by-email, since the add endpoint links a real id — plus a roster
   where every member is removable behind a `ConfirmDialog` (access is purely
   permission-based; no member is special),

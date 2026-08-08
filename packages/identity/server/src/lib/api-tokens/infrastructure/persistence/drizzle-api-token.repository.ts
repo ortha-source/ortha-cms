@@ -1,15 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { apiTokens } from '../../../schema';
+import { apiTokens, apiTokenWorkspaces } from '../../../schema';
 import type { ApiTokenScope } from '../../domain/api-token-scope';
 
 /** A stored `api_tokens` row. */
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
 
+/**
+ * A token row plus its **workspace bucket** — the `api_token_workspaces` rows
+ * joined in. Every read returns this shape: the bucket is part of a token's
+ * identity (it is what the token may act on), not an optional expansion.
+ */
+export interface ApiTokenRecord extends ApiTokenRow {
+    /** Every workspace the token may act in — always at least one. */
+    workspaceIds: string[];
+}
+
 /** The fields required to insert a freshly minted token. */
 export interface NewApiToken {
-    workspaceId: string;
+    /** The workspaces the token may act in — at least one, already deduped. */
+    workspaceIds: readonly string[];
     name: string;
     tokenHash: string;
     lookupPrefix: string;
@@ -20,60 +31,102 @@ export interface NewApiToken {
 
 /** Filter/paginate options for the management list. */
 export interface ListApiTokensOptions {
-    /** Restrict to a single workspace's tokens; omit for all workspaces. */
+    /**
+     * Restrict to tokens whose bucket **contains** this workspace; omit for
+     * every token. A multi-workspace token matches each of its workspaces.
+     */
     workspaceId?: string;
     limit: number;
     offset: number;
 }
 
 /**
- * Drizzle-backed store for `api_tokens`. Runs against the base connection
- * (`@InjectDatabase()`), not the request unit of work — minting and revoking a
- * token are standalone writes, not part of another aggregate's transaction.
- * Only the SHA-256 hash is ever persisted; the raw token is minted and returned
- * once by {@link ApiTokenService}, never stored.
+ * Drizzle-backed store for `api_tokens` and its `api_token_workspaces` bucket.
+ * Runs against the base connection (`@InjectDatabase()`), not the request unit
+ * of work — minting and revoking a token are standalone writes, not part of
+ * another aggregate's transaction. Only the SHA-256 hash is ever persisted; the
+ * raw token is minted and returned once by {@link ApiTokenService}, never
+ * stored.
+ *
+ * A token and its bucket are written in **one transaction**, and every read
+ * returns them together as an {@link ApiTokenRecord} — so no caller can observe
+ * a token with an empty bucket (which would read as "scoped to nothing").
  */
 @Injectable()
 export class DrizzleApiTokenRepository {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
-    /** Inserts a minted token; returns the created row. */
-    async insert(token: NewApiToken): Promise<ApiTokenRow> {
-        const [row] = await this.db.insert(apiTokens).values(token).returning();
-        return row;
+    /** Inserts a minted token and its bucket; returns the created record. */
+    async insert(token: NewApiToken): Promise<ApiTokenRecord> {
+        const { workspaceIds, ...columns } = token;
+        return this.db.transaction(async (tx) => {
+            const [row] = await tx
+                .insert(apiTokens)
+                .values(columns)
+                .returning();
+            await tx.insert(apiTokenWorkspaces).values(
+                workspaceIds.map((workspaceId) => ({
+                    tokenId: row.id,
+                    workspaceId
+                }))
+            );
+            return { ...row, workspaceIds: [...workspaceIds] };
+        });
     }
 
     /**
-     * Looks a token up by its hash — the verification path. Returns the row
+     * Looks a token up by its hash — the verification path. Returns the record
      * regardless of revoked/expired state; the service decides validity so it
      * can treat "no such token", "revoked", and "expired" identically (a flat
      * 401, no enumeration signal).
      */
-    async findByHash(tokenHash: string): Promise<ApiTokenRow | null> {
+    async findByHash(tokenHash: string): Promise<ApiTokenRecord | null> {
         const [row] = await this.db
             .select()
             .from(apiTokens)
             .where(eq(apiTokens.tokenHash, tokenHash));
-        return row ?? null;
+        if (!row) {
+            return null;
+        }
+        const buckets = await this.bucketsFor([row.id]);
+        return { ...row, workspaceIds: buckets.get(row.id) ?? [] };
     }
 
-    /** One token by id, or null. */
-    async findById(id: string): Promise<ApiTokenRow | null> {
+    /** One token by id (with its bucket), or null. */
+    async findById(id: string): Promise<ApiTokenRecord | null> {
         const [row] = await this.db
             .select()
             .from(apiTokens)
             .where(eq(apiTokens.id, id));
-        return row ?? null;
+        if (!row) {
+            return null;
+        }
+        const buckets = await this.bucketsFor([row.id]);
+        return { ...row, workspaceIds: buckets.get(row.id) ?? [] };
     }
 
     /** One page of tokens (newest first) plus the total, sharing the filter. */
     async list(
         options: ListApiTokensOptions
-    ): Promise<{ items: ApiTokenRow[]; total: number }> {
+    ): Promise<{ items: ApiTokenRecord[]; total: number }> {
+        // "Covers this workspace" is a bucket-membership test, so the filter is
+        // an `id IN (…)` over the join table rather than a join — a token with
+        // three workspaces must still appear exactly once in the page.
         const where = options.workspaceId
-            ? eq(apiTokens.workspaceId, options.workspaceId)
+            ? inArray(
+                  apiTokens.id,
+                  this.db
+                      .select({ tokenId: apiTokenWorkspaces.tokenId })
+                      .from(apiTokenWorkspaces)
+                      .where(
+                          eq(
+                              apiTokenWorkspaces.workspaceId,
+                              options.workspaceId
+                          )
+                      )
+              )
             : undefined;
-        const [[{ total }], items] = await Promise.all([
+        const [[{ total }], rows] = await Promise.all([
             this.db.select({ total: count() }).from(apiTokens).where(where),
             this.db
                 .select()
@@ -83,7 +136,15 @@ export class DrizzleApiTokenRepository {
                 .limit(options.limit)
                 .offset(options.offset)
         ]);
-        return { items, total };
+        // One batched bucket read for the whole page, never one per row.
+        const buckets = await this.bucketsFor(rows.map((row) => row.id));
+        return {
+            items: rows.map((row) => ({
+                ...row,
+                workspaceIds: buckets.get(row.id) ?? []
+            })),
+            total
+        };
     }
 
     /**
@@ -105,5 +166,31 @@ export class DrizzleApiTokenRepository {
             .update(apiTokens)
             .set({ lastUsedAt: at })
             .where(eq(apiTokens.id, id));
+    }
+
+    /**
+     * The workspace bucket of each of `tokenIds`, keyed by token id. One query
+     * for the whole set, so a page of tokens costs a constant two reads.
+     */
+    private async bucketsFor(
+        tokenIds: readonly string[]
+    ): Promise<Map<string, string[]>> {
+        const buckets = new Map<string, string[]>();
+        if (tokenIds.length === 0) {
+            return buckets;
+        }
+        const rows = await this.db
+            .select()
+            .from(apiTokenWorkspaces)
+            .where(inArray(apiTokenWorkspaces.tokenId, [...tokenIds]));
+        for (const row of rows) {
+            const bucket = buckets.get(row.tokenId);
+            if (bucket) {
+                bucket.push(row.workspaceId);
+            } else {
+                buckets.set(row.tokenId, [row.workspaceId]);
+            }
+        }
+        return buckets;
     }
 }

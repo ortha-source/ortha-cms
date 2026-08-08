@@ -80,9 +80,9 @@ allowed assets by coarse `kinds` (image/video/audio/document/archive) and/or
 
 **The `MEDIA_ASSET_RESOLVER` port.** The pure kernel only shape-checks a media
 id (uuid / uuid[]). Verifying an asset **exists in the workspace** and **matches
-`accept`** needs the media table, so content-server *declares* a DI port
+`accept`** needs the media table, so content-server _declares_ a DI port
 (`extension/media-asset-resolver.ts`: `MEDIA_ASSET_RESOLVER` symbol +
-`MediaAssetResolver` interface) that the media plugin *binds* — the same
+`MediaAssetResolver` interface) that the media plugin _binds_ — the same
 inversion as `CONTENT_ENTRY_EXTENSION`. `EntryWriterService.assertMediaTargets`
 injects it `@Optional()` and runs alongside `assertRelationTargets`: a missing,
 cross-workspace, or disallowed asset is a uniform **422** (no
@@ -355,6 +355,259 @@ order? } }`): inside the create/update transaction `applyDelta` unlinks the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
   contributor create/update/publish, viewer read-only).
 
+## Public content API (`/api/v1`, `src/lib/public-api/`)
+
+The **token-authenticated read surface** an external site or app fetches content
+with — the consumer side of the bearer tokens `identity-server` mints and the
+admin's API Tokens page manages. Layered per ADR-0003, sibling to `entries/`:
+
+```
+public-api/
+  http/
+    api-token-request.ts          # PublicApiToken + the request it rides on
+    guards/api-token.guard.ts     # Authorization: Bearer → verified token + scope check
+    guards/api-token-workspace.guard.ts  # which of the token's workspaces this request targets
+    decorators/current-api-token.decorator.ts
+    controllers/                  # public-entries, public-content-types, resolve-granted-type
+    dto/                          # the narrow published query contract
+  infrastructure/
+    public-entries.query.ts       # the published-only read
+    public-entry-row.ts           # row → PublicEntry projection (pure, unit-tested)
+  types/public-entry.ts           # the WIRE CONTRACT — a published API, kept still
+```
+
+**Routes** (all `@Public()`, so the session `AuthGuard` skips them — a bearer
+token is the only way in, and a session cookie is _not_ accepted):
+
+- `GET /v1/content-types` — summaries of every type the workspace was granted.
+- `GET /v1/content-types/:name` — one type's full field schema.
+- `GET /v1/content/:typeName` — one page of published entries
+  (`?search=&filter=&sort=&page=&pageSize=&fields=&locale=`). Serves **singles
+  too** — with i18n a single still has one row per locale, so the list envelope
+  is honest for both; take `items[0]`.
+- `GET /v1/content/:typeName/:id` — one published entry (`?fields=&locale=`,
+  plus the same expansion params as the list).
+- `GET /v1/content/:typeName/:id/relations/:field?page=&pageSize=` — one page of
+  one relation field's links.
+- `GET /v1/content/:typeName/:id/media` — every media field, resolved to asset
+  metadata + URLs.
+- `GET /v1/content/:typeName/:id/translations` — the entry's other locale rows.
+
+**Every single-entry route exists twice**: once under `:id` and once under
+`group/:localeGroupId` (`…/group/:gid`, `…/group/:gid/relations/:field`,
+`…/group/:gid/media`, `…/group/:gid/translations`). Anything a consumer can do
+holding an entry id, it can do holding the group id plus a `?locale=` — the
+identity a localized front-end actually carries, since a group is stable across
+languages and each locale's `id` is not. Both spellings funnel into one
+`EntryLocator` in `PublicEntriesQuery`, so the pair is a routing detail and never
+a behavioural fork; each of the four reads has exactly one implementation and one
+shared controller handler. Only the **list** has no group form — a group names
+one entry, which is what the entry routes are for.
+
+The `group/…` routes are declared **first**. They cannot be shadowed on segment
+count alone (`:typeName/:id/relations/:field` needs a literal `relations` where a
+group route carries the group id), but Express matches in declaration order, so
+literal-prefixed routes go ahead of the wildcards to keep that true as the
+pattern set grows.
+
+**There is deliberately no `/:id/relations`.** An all-fields relation route
+existed and returned exactly what `GET /:id?relations=preview` already returns
+minus the entry — a second spelling of one read, on a contract that has to stay
+still. Paging one field past the preview's cap is the one thing a query parameter
+cannot express, so `/relations/:field` is the one relation route that survives.
+(The same argument applies to `/:id/media` and `/:id/translations`, which are
+also pure duplicates of their preview params; they are kept for now because a
+media field has no per-field pager to fall back on.)
+
+**Reading a non-default-locale row by id needs `?locale=`.** The locale scope is
+AND-ed into every read including the id ones, so `GET /:type/<de-row-id>` is a
+404 unless `?locale=de` comes with it. This is not new and is self-consistent
+(every payload that hands a consumer a foreign-locale id — a translations preview,
+a locale-scoped list — carries that row's `locale` right beside it), and the group
+routes remove the need to carry foreign ids at all. It is still a sharp edge: the
+fix would be to skip the extension's `listScope` for id-addressed reads, which is
+a deliberate narrowing of a **visibility hook** and wants its own decision rather
+than a drive-by.
+
+**Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
+resolves it through identity's `ApiTokenService.verify` (unknown / revoked /
+expired are one flat 401), and attaches it as `request.apiToken`. Authorization
+reuses the **same** machinery as the session routes — `scopePermissions` turns
+the token's `read`/`full` scope into a permission set and the route's
+`@RequirePermissions(...)` is evaluated by identity's pure `AccessPolicy` — so
+a requirement means the same thing for a token and a logged-in user, and adding
+a write route later needs no guard change. A token acts as **itself**: the
+minting user's role grants are deliberately not consulted, so revoking the token
+is enough to revoke its access.
+
+**Workspace resolution** (`ApiTokenWorkspaceGuard`, the token-authenticated
+counterpart of workspaces' membership-based `WorkspaceGuard`): a token now
+carries a **bucket** of workspaces. `X-Workspace-Id` picks one — malformed is a
+400, outside the bucket a 403 (same as no-such-workspace, so ids can't be
+probed). With the header absent, a token covering exactly one workspace uses it
+(the common case needs no header); a token covering several 400s rather than
+guessing. The resolved id lands on `request.workspaceId`, so `@CurrentWorkspace()`
+works unchanged.
+
+**What a token can see** — one predicate, in `PublicEntriesQuery.readableWhere`:
+the resolved workspace, **published only** on publishable types, **not
+soft-deleted** on paranoid types (that trio is `liveWhere`), plus the bound
+`CONTENT_ENTRY_EXTENSION`'s scope (so i18n locale handling comes for free — the
+one read that must span locales, the translation lookup, drops exactly that
+clause by building on `liveWhere` instead). It is deliberately **not** built
+on `EntriesService`: that service's knobs are the admin's, and `?deleted=only`
+alone selects rows this API must never serve — stating a narrow WHERE beats
+reaching through a wide one and subtracting.
+
+**Search + filter** reuse the admin's machinery, so one query language covers
+both surfaces: `?search=` is the shared `buildSearchPredicate` (ILIKE over
+text-like columns, metacharacters escaped — extracted to
+`entries/infrastructure/queries/entry-search.ts` so the two callers can't drift
+on the escaping), and `?filter=` is the same query-builder tree, parsed against
+a surface from `buildEntryFilterSurface`. Both are **AND-ed onto**
+`readableWhere`, so neither can widen what a token sees — only narrow it. Two
+deliberate departures from the admin's list:
+
+- **Grant-pruned.** The surface is built with `grantedTypes`, so a hop into a
+  content type the workspace was never granted 400s (`FILTER_UNKNOWN_RELATION`)
+  instead of resolving. Without it, `author.name eq "Ada"` would let a token
+  infer relation data by watching which entries match — data the entry read
+  deliberately omits. The admin's list leaves `grantedTypes` unset on purpose
+  (there the schema is a SQL whitelist, not a visibility boundary); here it is
+  exactly a visibility boundary.
+- **`status` is removed from the schema.** The read already forces
+  `status = published`, so a `status` rule could only be a no-op or match
+  nothing; a 400 (`FILTER_UNKNOWN_FIELD`) beats a confusingly empty page.
+
+The surface is built **lazily**, only when `?filter=` is present, since it walks
+the whole relation graph to the hop budget.
+
+**Sparse fieldsets** (`?fields=title,slug`, `field-selection.ts`) narrow `values`
+to the named fields — and narrow the **SQL projection** with them, so an
+unselected richtext column is never read (proven against a live server: the
+SELECT drops from every column to the envelope plus the named ones). Notes:
+
+- Selection covers `values` **only**; the envelope is always returned. `id` in
+  particular is what makes an entry addressable, so letting a selection drop it
+  would be a foot-gun for no real payload saving.
+- An unknown name is a **400**, not a silent drop — a sparse fieldset is an
+  explicit request, so a typo should say so. A relation or media name gets a
+  _different_ message ("cannot be selected"), because "not selectable yet" is a
+  different fact from "no such field".
+- `?fields=` present but empty reads as "no preference", not "no fields".
+- WHERE and ORDER BY may reference unselected columns, so filtering and sorting
+  stay unrestricted by the selection.
+
+**Grant-pruned.** `:typeName` must be registered **and** in the workspace's
+`workspace_content` grants; anything else is the same 404
+(`resolveGrantedType`). Stricter than the admin's own entries list, on purpose:
+an admin caller is a member looking at their own CMS, a token is an external
+credential, and the grant set is the workspace's declared content surface.
+`/v1/content-types` lists exactly the names that won't 404, so nothing is left
+to guess.
+
+**Relation + media expansion** (opt-in, `public-expansion.query.ts`):
+`?relations=preview&relationFields=author,tags` and
+`?media=preview&mediaFields=coverImage` add `relations` / `media` maps to each
+entry — on the **list** and the single-entry route alike. Naming fields is
+optional: `?relations=preview` on its own expands **every** relation field whose
+target the workspace was granted (ungranted ones are skipped, not refused, since
+the caller named nothing to correct), and `?media=preview` every media field. A
+type with more expandable fields than `MAX_EXPANDED_FIELDS` is a 400 asking the
+caller to name them, never a silent truncation.
+
+A linked entry is returned as a **full `PublicEntry`** — the same envelope +
+`values` shape as a base record — so a consumer renders it with the model it
+already has. Linked entries are **not themselves expanded** (no `relations` /
+`media` on them), which is what bounds a request to one level of the graph.
+Hydration is one batched `IN (…)` read per target _type_, so the count stays
+flat: measured at 7 content queries for both `pageSize=1` and `pageSize=50`.
+
+**Per-field item limits.** `?relationLimit=` / `?mediaLimit=` set how many
+links / assets each expanded field returns (1…`MAX_PAGE_SIZE`, default
+`DEFAULT_EXPANSION_LIMIT` = 20); `relationLimit` is also the default page size
+for `/relations/:field`. The field's `total` always reports the **true** visible count, so
+a low limit is observable as `items.length < total` and never passes a slice off
+as the whole set — page the rest via `/relations/<field>`. Worth knowing that
+these are per field _per entry_, so a large page multiplies: `pageSize` × fields
+× limit is the real bound on a response, and the limit is the knob for it. Both are **batched across the page** — verified against a live server:
+`pageSize=1` and `pageSize=50` each issue the same 6 content queries (count,
+page, one `refsFor` per single relation, a windowed pass + titles per join-backed
+one, and **one** media resolve). Notes:
+
+- **Published-only targets.** `RelationLinkService` gained an optional
+  `RelationTargetVisibility` (`{ publishedOnly }`) that the public reads pass and
+  the admin never does. A draft target is neither shown **nor counted** — the
+  restriction goes _inside_ the window (`count(*) over`), so `total` can't
+  advertise links a caller cannot reach. Confirmed live: the same entry reads
+  `total: 2` for the admin and `total: 1` publicly.
+- **Grant-pruned.** Expanding into a type the workspace wasn't granted is a
+  **400**, on the query params and on `/relations/:field` alike — matching how
+  `?filter=` treats a traversal into one.
+- **Media is batched by hand**, deliberately _not_ through
+  `MediaRefsQuery.forValues`: that takes one entry's values, so a page would call
+  it per row — exactly the N+1 the relation preview exists to avoid.
+- **`MAX_EXPANDED_FIELDS = 10`** per kind. Cost scales with _fields_, not rows,
+  and the admin bounds only the raw string length — too loose for a public
+  endpoint.
+- A `?fields=` selection still carries the columns an expansion needs (a single
+  relation's FK, a media field's ids), even though they never appear in `values`.
+- **Media URLs require a session.** The returned `url`/`thumbUrl` are the CMS's
+  own media routes, which are `media:read` + membership gated; a bearer token
+  gets **401** (verified). They identify the asset and work for a session-holding
+  server-side caller, but a browser `<img src>` will not load one. A
+  token-fetchable URL needs either a token-authenticated media route or signed
+  URLs — neither exists yet.
+
+**Localization.** A localized type stores one row per locale, siblings sharing a
+`locale_group_id`. Every public read already scopes to a single locale through
+the extension's `listScope` (`?locale=`, defaulting to the configured default,
+unknown → 400). Three additions make the _group_ addressable:
+
+- **`localeGroupId` is filterable.** `scalarFieldsOf` whitelists it alongside
+  `locale` on i18n types, so `?filter={"and":[{"field":"localeGroupId","op":"eq",
+"value":"…"}]}&locale=de` returns that group's German row. It is whitelisted
+  for **SQL only** — `scalarWireOf`, which builds the admin's filter _picker_,
+  deliberately does not list it, so the admin UI is unchanged.
+- **`GET /v1/content/:typeName/group/:localeGroupId`** is the single-record form
+  of the same idea, and the one a localized front-end actually wants: the group
+  id is the stable identity of "this story" across languages, while each
+  locale's `id` is not — so a page renders in the visitor's language by varying
+  `?locale=` alone, with no per-locale id map. A group with no **published** row
+  in the requested locale is the same 404 as an unknown group.
+- **`?translations=preview`** attaches the entry's **other** published locale
+  rows as `translations`, on the list and both single-entry routes, with
+  `/:id/translations` as the sibling route. Each is a full `PublicEntry`
+  honouring the root's `?fields=`, ordered by locale slug; the entry itself is
+  never repeated (`[entry, ...entry.translations]` is the full set). An entry
+  that is the only published row in its group reports `[]`, not a missing key.
+
+Implementation notes: the sibling read is the one place that must span locales,
+so `readableWhere` was split — `liveWhere` (workspace + published + not deleted)
+is what the translation query uses, and `readableWhere` is `liveWhere` AND the
+extension's locale scope. It stays **one** query for a whole page (`locale_group_id
+IN (…)`, ridden by the `(locale_group_id, locale)` index), verified live: a list
+with `translations=preview` issues the same 3 content queries at `pageSize=1` and
+`pageSize=25`. No cap is applied — a group holds at most one row per configured
+locale, so its size is bounded by host config, not user data. Asking for any of
+these on a type that is **not** localized is a **400**, not an empty result:
+`[]` would read as "this entry has no other locales" when the truth is "this
+content is not localized".
+
+**The wire shape** (`types/public-entry.ts`) is its own contract, not the
+admin's `EntryRecord` — a published API must be free to stay still while the
+admin's internals move. `values` carries the entry's **own** data only: text,
+richtext, number, money, boolean, date, datetime, select, multiselect, json.
+Every **reference** field is omitted — `relation` in all four cardinalities
+(including an owning single, whose FK _is_ a column on the row) and `media`.
+Neither is resolvable through this API yet, so a bare uuid would be an
+identifier with no route to follow. That omission is **provisional**: the
+schema endpoint still describes those fields because they are part of the real
+model, and when relation/media reads land they start appearing in `values`,
+which only ever adds keys. `status` is not exposed (it would be a constant
+"published"); `publishedAt` is, along with `locale`/`localeGroupId` on i18n
+types.
+
 ## OpenAPI — the types describe themselves (`src/lib/docs/`)
 
 The host generates an OpenAPI document at boot and serves it as a Scalar
@@ -386,8 +639,8 @@ Three rules the mapping follows, each mirroring real behavior:
 - **Join-backed relations are absent from `Values`** — a many-relation and an
   inverse own no column, exactly as `toRecord` builds a record. The schema
   description names them and points at `/relations`.
-- **A publishable type lists no `required`** — required means "required *to
-  publish*", so a draft may legitimately omit a field; a non-publishable type
+- **A publishable type lists no `required`** — required means "required _to
+  publish_", so a draft may legitimately omit a field; a non-publishable type
   (always live) does list them.
 - **Every property is `nullable`** — an unset field reads back as `null`.
 

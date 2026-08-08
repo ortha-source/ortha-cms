@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_425 test cases across 36 spec files._
+_499 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -75,10 +75,114 @@ _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
 | Test case |
 | --- |
 | mints a token and returns the plaintext exactly once |
+| mints a token spanning several workspaces |
+| collapses duplicate workspace ids |
+| rejects an empty workspace bucket |
+| lists a multi-workspace token under each of its workspaces |
 | rejects an expiry in the past |
 | revokes a token |
 | gates management on the tokens permissions |
 | requires authentication |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
+
+## Public content API (/api/v1)
+
+### authentication
+
+| Test case |
+| --- |
+| 401s without an Authorization header |
+| 401s on an unknown bearer token |
+| 401s on a non-bearer Authorization scheme |
+| does not accept a session cookie in place of a token |
+| 401s once the token is revoked |
+| 401s once the token has expired |
+| does not open the management API to a bearer token |
+
+### workspace resolution
+
+| Test case |
+| --- |
+| defaults to the only workspace of a single-workspace token |
+| requires X-Workspace-Id when the token covers several |
+| reads each workspace of a multi-workspace token |
+| 403s a workspace outside the token’s bucket |
+| 403s a foreign X-Workspace-Id even on a single-workspace token |
+| 400s a malformed X-Workspace-Id |
+
+### entry reads
+
+| Test case |
+| --- |
+| serves only published, non-deleted entries |
+| returns a flat entry: no relations, no media, no workspace, no status |
+| reads one entry by id |
+| 404s a draft entry by id |
+| 404s an entry that lives in another workspace |
+| 404s a content type the workspace was not granted |
+| 404s an unknown content type |
+| serves a single (page) type through the same list route |
+| paginates |
+| sorts by a whitelisted column, ascending and descending |
+| falls back to newest-updated for a sort key it does not allow |
+| rejects a page or pageSize outside its bounds |
+| searches across the type’s text columns |
+| matches LIKE metacharacters in a search literally |
+| filters on a scalar field with the query-builder tree |
+| never lets a filter widen the published-only scope |
+| 400s a malformed filter and an unknown filter field |
+| 400s a filter traversing into an ungranted relation |
+| returns only the selected fields |
+| applies a field selection to the single-entry route too |
+| 400s an unknown or unselectable field name |
+| reads an empty ?fields= as "no preference", not "no fields" |
+| 400s a fields list longer than the cap |
+| still filters and sorts on fields it was not asked to return |
+| expands a relation only when asked, and only to published targets |
+| caps preview items with relationLimit, keeping total truthful |
+| rejects a relationLimit outside 1…100 |
+| 400s expanding a relation into an ungranted type |
+| expands every granted relation field when none are named |
+| 400s naming more expandable fields than the cap allows |
+| 400s a relationFields name that is not a relation |
+| pages one relation field from the sibling route |
+| 404s the relation and media routes for an entry it cannot read |
+| exposes media fields as empty views when nothing is attached |
+| resolves attached media to metadata and URLs, capped by mediaLimit |
+| omits a media id that names an asset in another workspace |
+| 400s a mediaFields name that is not a media field |
+| rejects an undeclared query parameter |
+
+### localization
+
+| Test case |
+| --- |
+| 400s an unknown locale on every route that takes one |
+| reads a localized entry by id only when the locale agrees |
+| filters a list by localeGroupId, scoped to the requested locale |
+| reads a group’s row in the requested locale |
+| 404s a group whose row in the requested locale is not published |
+| 404s a group in another workspace |
+| previews an entry’s sibling translations, published only |
+| previews translations across a whole list page |
+| serves the same siblings from the /translations route |
+| orders translations by locale slug |
+| hides a soft-deleted or cross-workspace sibling |
+| previews translations on the group-addressed entry read |
+| 404s /translations for an entry it cannot read |
+| serves every single-entry route by translation group too |
+| 404s the group sibling routes when the locale has no published row |
+| 400s every locale feature on a type that is not localized |
+
+### schema discovery
+
+| Test case |
+| --- |
+| lists only the types the workspace was granted |
+| serves one type’s field schema |
+| 404s the schema of an ungranted type |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_

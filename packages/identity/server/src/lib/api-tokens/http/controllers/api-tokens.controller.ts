@@ -48,8 +48,9 @@ export interface ListApiTokensResponse {
  * minted tokens are used against. Gated on the `tokens:*` permissions, which
  * only the `admin` role holds.
  *
- * The workspace a token is scoped to is chosen in the request body, so the page
- * itself is workspace-agnostic (it lives in the global admin sidebar).
+ * The workspaces a token is scoped to are chosen in the request body (one or
+ * many), so the page itself is workspace-agnostic (it lives in the global admin
+ * sidebar).
  */
 @UseGuards(PermissionsGuard)
 @Controller('api-tokens')
@@ -70,7 +71,7 @@ export class ApiTokensController {
         const expiresAt = parseExpiry(body.expiresAt);
         const { token, secret } = await this.tokens.mint({
             name: body.name,
-            workspaceId: body.workspaceId,
+            workspaceIds: body.workspaceIds,
             scope: body.scope,
             expiresAt,
             createdBy: user.id

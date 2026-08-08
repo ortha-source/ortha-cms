@@ -42,6 +42,12 @@ const article: AnyContentType = collection('article', {
     }
 });
 
+/** A localized type — the only shape that carries the locale envelope columns. */
+const localized: AnyContentType = collection('localized', {
+    i18n: true,
+    fields: { title: field.text() }
+});
+
 /**
  * A self-referencing type (a page tree). Its `parent` hop is the one
  * cardinality that has to alias the target, and the one under which every
@@ -69,12 +75,7 @@ async function sqlFor(
 ): Promise<string> {
     const { schema } = buildEntryFilterSurface(type, { workspaceId: WS });
     const tree = parseFilterTree(JSON.stringify({ and: [rule] }), schema);
-    const sql = await applyFilterTree(
-        tree,
-        schema,
-        type.table,
-        qb as never
-    );
+    const sql = await applyFilterTree(tree, schema, type.table, qb as never);
     return dialect
         .sqlToQuery(sql as SQL)
         .sql.replace(/\s+/g, ' ')
@@ -234,6 +235,28 @@ describe('buildEntryFilterSurface', () => {
         expect(status?.enumValues).toEqual(['draft', 'published']);
     });
 
+    it('whitelists the locale envelope columns on an i18n type, SQL-only', () => {
+        const { schema, fields } = buildEntryFilterSurface(localized, {
+            workspaceId: WS
+        });
+        // Filterable in SQL: `localeGroupId` is what lets a caller holding one
+        // row's group ask for the group's row in another locale.
+        expect(schema.fields?.['locale']?.type).toBe('string');
+        expect(schema.fields?.['localeGroupId']?.type).toBe('uuid');
+        // …but NOT offered by the picker. The admin filters locales through
+        // i18n's own virtual fields (`hasLocale` / `missingLocale`), and a raw
+        // group-uuid input is not a control a user has any use for.
+        expect(fields.some((f) => f.path === 'localeGroupId')).toBe(false);
+    });
+
+    it('omits the locale columns on a type that is not localized', () => {
+        const { schema } = buildEntryFilterSurface(article, {
+            workspaceId: WS
+        });
+        expect(schema.fields?.['locale']).toBeUndefined();
+        expect(schema.fields?.['localeGroupId']).toBeUndefined();
+    });
+
     it('prunes a relation whose target is not granted', () => {
         const { schema, fields } = buildEntryFilterSurface(article, {
             workspaceId: WS,
@@ -314,30 +337,30 @@ describe('buildEntryFilterSurface', () => {
         // The self-referencing shape produces the deepest paths, so it is the
         // one most likely to outrun `maxDepth`.
         ['page', page]
-    ])('every offered %s path parses against its schema (no drift)', (
-        _name,
-        type
-    ) => {
-        const { schema, fields } = buildEntryFilterSurface(type, {
-            workspaceId: WS
-        });
-        for (const f of fields) {
-            const value =
-                f.type === 'uuid'
-                    ? UUID
-                    : f.type === 'number'
-                      ? '1'
-                      : f.type === 'boolean'
-                        ? 'true'
-                        : f.type === 'date'
-                          ? '2020-01-01T00:00:00.000Z'
-                          : f.type === 'enum'
-                            ? f.enumValues![0]
-                            : 'x';
-            const json = JSON.stringify({
-                and: [{ field: f.path, op: 'eq', value }]
+    ])(
+        'every offered %s path parses against its schema (no drift)',
+        (_name, type) => {
+            const { schema, fields } = buildEntryFilterSurface(type, {
+                workspaceId: WS
             });
-            expect(() => parseFilterTree(json, schema)).not.toThrow();
+            for (const f of fields) {
+                const value =
+                    f.type === 'uuid'
+                        ? UUID
+                        : f.type === 'number'
+                          ? '1'
+                          : f.type === 'boolean'
+                            ? 'true'
+                            : f.type === 'date'
+                              ? '2020-01-01T00:00:00.000Z'
+                              : f.type === 'enum'
+                                ? f.enumValues![0]
+                                : 'x';
+                const json = JSON.stringify({
+                    and: [{ field: f.path, op: 'eq', value }]
+                });
+                expect(() => parseFilterTree(json, schema)).not.toThrow();
+            }
         }
-    });
+    );
 });

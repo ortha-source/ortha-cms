@@ -48,9 +48,15 @@ test.describe('Workspace settings page', () => {
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
 
-            await expect(workspaceSettingsPage.navItem('General')).toBeVisible();
-            await expect(workspaceSettingsPage.navItem('Members')).toBeVisible();
-            await expect(workspaceSettingsPage.navItem('Content')).toBeVisible();
+            await expect(
+                workspaceSettingsPage.navItem('General')
+            ).toBeVisible();
+            await expect(
+                workspaceSettingsPage.navItem('Members')
+            ).toBeVisible();
+            await expect(
+                workspaceSettingsPage.navItem('Content')
+            ).toBeVisible();
             await expect(
                 workspaceSettingsPage.navItem('Danger zone')
             ).toBeVisible();
@@ -62,9 +68,47 @@ test.describe('Workspace settings page', () => {
                 'marketing-site'
             );
             // Active workspace — no archived badge.
+            await expect(workspaceSettingsPage.archivedBadge()).toBeHidden();
+        });
+
+        test('copies the workspace id from the general tab', async ({
+            workspaceSettingsPage,
+            context,
+            page
+        }) => {
+            // The copy button writes to the real clipboard, which Chromium
+            // gates behind a permission even on localhost.
+            await context.grantPermissions([
+                'clipboard-read',
+                'clipboard-write'
+            ]);
+            await workspaceSettingsPage.goto(WORKSPACE_ID);
+
+            const field = workspaceSettingsPage.workspaceIdInput;
+            await expect(field).toHaveValue(WORKSPACE_ID);
+            // Read-only but NOT disabled — a disabled input can't be focused,
+            // so the id could be neither selected nor copied by keyboard.
+            await expect(field).toHaveAttribute('readonly', '');
+            await expect(field).toBeEnabled();
+
+            await workspaceSettingsPage.copyWorkspaceIdButton.click();
             await expect(
-                workspaceSettingsPage.archivedBadge()
-            ).toBeHidden();
+                workspaceSettingsPage.toast(/Workspace ID copied/)
+            ).toBeVisible();
+
+            // Typed inline: this project's tsconfig ships no DOM lib, so the
+            // global `navigator` isn't declared (same reason as the computed
+            // -style read in `relation-cells.spec.ts`).
+            const clipboard = await page.evaluate(() =>
+                (
+                    globalThis as unknown as {
+                        navigator: {
+                            clipboard: { readText: () => Promise<string> };
+                        };
+                    }
+                ).navigator.clipboard.readText()
+            );
+            expect(clipboard).toBe(WORKSPACE_ID);
         });
 
         test('saves an edited name (save enables only when dirty)', async ({
@@ -131,7 +175,9 @@ test.describe('Workspace settings page', () => {
 
             // Revoke an empty type (blog_post is not locked): once the entry
             // count resolves to zero, Remove enables.
-            await workspaceSettingsPage.contentRemoveButton('Blog posts').click();
+            await workspaceSettingsPage
+                .contentRemoveButton('Blog posts')
+                .click();
             await expect(
                 workspaceSettingsPage.removeContentConfirm
             ).toBeEnabled();
@@ -172,9 +218,7 @@ test.describe('Workspace settings page', () => {
                 workspaceSettingsPage.toast(/Workspace archived/)
             ).toBeVisible();
             // The header now badges the archived state.
-            await expect(
-                workspaceSettingsPage.archivedBadge()
-            ).toBeVisible();
+            await expect(workspaceSettingsPage.archivedBadge()).toBeVisible();
         });
 
         test('deletes the workspace and returns to the grid', async ({
@@ -214,9 +258,7 @@ test.describe('Workspace settings page', () => {
             await expect(
                 workspaceSettingsPage.deleteBlockedAlert
             ).toContainText(/still has/);
-            await expect(
-                workspaceSettingsPage.deleteConfirm
-            ).toBeDisabled();
+            await expect(workspaceSettingsPage.deleteConfirm).toBeDisabled();
         });
     });
 
@@ -249,9 +291,7 @@ test.describe('Workspace settings page', () => {
             await expect(
                 workspaceSettingsPage.addCollectionsButton
             ).toBeHidden();
-            await expect(
-                workspaceSettingsPage.addPagesButton
-            ).toBeHidden();
+            await expect(workspaceSettingsPage.addPagesButton).toBeHidden();
         });
     });
 

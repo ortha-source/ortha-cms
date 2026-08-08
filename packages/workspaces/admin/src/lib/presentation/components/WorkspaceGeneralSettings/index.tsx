@@ -26,6 +26,7 @@ import { useWorkspaceProfileSchema } from '../../hooks/useWorkspaceProfileSchema
 import { useUpdateWorkspace } from '../../../application/useUpdateWorkspace';
 import { ColorSwatchRow } from '../ColorSwatchRow';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
+import { WorkspaceIdField } from './WorkspaceIdField';
 
 const NAME_MAX = 100;
 const DESCRIPTION_MAX = 500;
@@ -284,6 +285,8 @@ export function WorkspaceGeneralSettings({
                                     {intl.formatMessage(messages.slugHint)}
                                 </FieldDescription>
                             </Field>
+
+                            <WorkspaceIdField workspaceId={workspace.id} />
                         </FieldGroup>
                     </div>
                 </CardContent>

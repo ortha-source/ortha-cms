@@ -10,8 +10,8 @@ export type ApiToken = {
     id: string;
     /** Human label. */
     name: string;
-    /** The workspace this token can read. */
-    workspaceId: string;
+    /** Every workspace this token can read — always at least one. */
+    workspaceIds: string[];
     /** Read-only or full content access. */
     scope: ApiTokenScope;
     /** Non-secret leading characters, shown so a token is recognisable. */
