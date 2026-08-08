@@ -30,7 +30,8 @@ settled in ADRs and are not re-argued here:
 - [ADR-0005](../adr/0005-copilot-authority-model.md) — what the copilot may do
   (capability profile, propose-then-apply, untrusted content).
 
-**Status:** in progress. **Phases 0 and 1 have shipped** (§9). Phase 0 landed the
+**Status:** in progress. **Phases 0 and 1 have shipped, and phase 3's server
+half with them** (§9). Phase 0 landed the
 `ModelProvider` port and registry, the three adapters, `plugins.copilot`, the two
 permission keys, and an empty plugin in both hosts. Phase 1 landed the chat
 vertical slice: the SSE run route, the bounded run engine, the capability
@@ -359,9 +360,27 @@ Both are documented at their call sites with the upgrade path.
 **Phase 2 — Export.** Streaming CSV/JSON/Markdown with label resolution, row
 caps and audit; `content.exportEntries`; the records-toolbar entry point.
 
-**Phase 3 — Create & edit.** `copilot_proposals`, field-level diff UI,
-propose-entry / propose-edit, apply-as-revision, per-workspace auto-apply
-policy, entry-editor entry points.
+**Phase 3 — Create & edit. Server shipped.** `copilot_proposals` +
+`copilot_workspace_policies`, the four propose tools, the applier port, the
+accept/reject routes and the per-workspace auto-apply policy are in. The
+field-level diff UI and the entry-editor entry points are the remaining half.
+
+Three things landed differently from the sketch above:
+
+- **A propose tool's return value IS the change**, and the _engine_ persists it
+  — not the tool. So ADR-0005 §5's guarantees live in one place instead of once
+  per binder: every proposal is recorded whether or not a human clicks, which is
+  what makes an auto-applied change "undoable, never invisible".
+- **Applying is a second inverted port** (`ProposalApplier`, bound by the plugin
+  that owns the data), because `copilot/server` cannot know how to write a
+  content entry any more than it can know how to read one. Its whole contract is
+  "run the ordinary use-case".
+- **Auto-apply is not a separate `effect: 'apply'` tool.** One tool declares
+  `propose`, and the workspace policy decides whether a human must accept — so a
+  team opting alt text in gets the same code path, the same row, and the same
+  audit trail, with the click removed. `effect: 'apply'` stays in the vocabulary
+  for a hypothetical tool that is only meaningful as a direct write; nothing
+  declares it today.
 
 **Phase 4 — Configure & connect.** Runtime model settings with encrypted secrets
 and connection testing; MCP connector registration with permission mapping; ⌘K

@@ -162,6 +162,22 @@ injected **optionally** — a deployment without `CopilotPlugin` is normal).
   It returns one item per **configured** locale, so a missing translation is
   `entry: null` rather than an absent key.
 
+It also binds **`i18n.proposeTranslation`** (`effect: 'propose'`), which drafts
+an entry's translation into another locale for a human to accept. It writes
+nothing; what it does do is the part a model cannot be trusted with: resolve the
+slug against the configured set, confirm the target locale does not already exist
+in the group (a duplicate would be a 409 long after approval), and refuse a
+**shared** field — one value across the whole group by definition, so a
+per-locale version of it would either be ignored or silently overwrite every
+sibling.
+
+`TranslationProposalApplier` creates the sibling through
+`EntryWriterService.create` with a `localeGroupId`. There is deliberately no
+"create translation" write path to reuse — joining a group is what that argument
+already means, and the bound extension stamps and validates it inside the write
+transaction, which is also what makes a duplicate `(group, locale)` a clean 409
+instead of a corrupt group.
+
 Two rules the tools apply that the HTTP path does not:
 
 - **They re-check the workspace's content grants** (via content-server's

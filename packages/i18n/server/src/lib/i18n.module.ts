@@ -1,6 +1,9 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CONTENT_ENTRY_EXTENSION } from '@ortha-cms/content-server';
-import { copilotToolsRegistrar } from '@ortha-cms/copilot-server';
+import {
+    copilotAppliersRegistrar,
+    copilotToolsRegistrar
+} from '@ortha-cms/copilot-server';
 import { I18N_CONFIG } from './i18n.constants';
 import type { I18nPluginConfig } from './types/locale';
 import { LocaleRegistryService } from './locales/services/locale-registry.service';
@@ -10,6 +13,8 @@ import { LocaleGroupService } from './content/services/locale-group.service';
 import { GetEntryLocalesController } from './content/controllers/get-entry-locales.controller';
 import { LocaleSummaryController } from './content/controllers/locale-summary.controller';
 import { I18nCopilotToolProvider } from './copilot/i18n-tool.provider';
+import { TranslationProposalToolProvider } from './copilot/translation-proposal.provider';
+import { TranslationProposalApplier } from './copilot/translation-proposal.applier';
 
 /**
  * NestJS module of the i18n plugin. Registered **global** so its binding of
@@ -48,7 +53,17 @@ export class I18nModule {
                 // plugin is registered — the registrar injects the registry
                 // optionally.
                 I18nCopilotToolProvider,
-                copilotToolsRegistrar('i18n', I18nCopilotToolProvider)
+                TranslationProposalToolProvider,
+                copilotToolsRegistrar(
+                    'i18n',
+                    I18nCopilotToolProvider,
+                    TranslationProposalToolProvider
+                ),
+                // The applier for the kind that propose tool produces. Next to
+                // it on purpose: a missing applier surfaces only when a human
+                // clicks Accept.
+                TranslationProposalApplier,
+                copilotAppliersRegistrar('i18n', TranslationProposalApplier)
             ],
             exports: [CONTENT_ENTRY_EXTENSION, LocaleRegistryService]
         };

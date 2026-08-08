@@ -96,15 +96,38 @@ nothing.
   know. Sound because it is defence in depth behind the profile, not the
   boundary: its job is stopping a malformed model call from becoming a 500.
 
+### Proposals (phase 3)
+
+- `ProposalDraft` / `ProposalTarget` / `ProposalChange` / `ProposalStatus` —
+  what a `propose` tool returns. `target` and `patch` are deliberately opaque
+  JSON: their shape belongs to the applier that declared the `kind`, and
+  teaching the copilot every plugin's addressing would make it the thing that
+  changes whenever one of them does.
+- `isProposalDraft(value)` — the runtime guard. `effect: 'propose'` is a promise
+  a binder makes about its return value; without this, a binder that broke it
+  would write a malformed row into an append-only table instead of producing an
+  ordinary tool error.
+- `ProposalApplier` + `COPILOT_PROPOSAL_APPLIER` + `ProposalActor` /
+  `ProposalApplyResult` — the write half, inverted exactly like the tool port so
+  `copilot/server` still never imports a feature plugin. The interface's
+  contract is one sentence: **an applier runs the ordinary use-case**, with the
+  human as actor. `ProposalActor` carries the actor's email as well as their id,
+  because the audit trail freezes an email snapshot on every event and an
+  applier holding only an id would have to look it up — a query per apply, in
+  the one path where getting the actor wrong is least acceptable.
+
 ### The run (phase 1)
 
 - `CopilotRunEvent` — the engine's output vocabulary and exactly what the SSE
-  controller serializes. A client reducer written against this union turns a new
+  controller serializes. `RunProposalEvent` follows a `propose` tool's own
+  result rather than replacing it: the tool result is what the _model_ was told,
+  the proposal is what the _human_ is being asked to decide, and a client
+  renders the step list from one and the card from the other. A client reducer written against this union turns a new
   event kind into a compile error rather than a silently ignored frame.
 - `RunLimits` / `DEFAULT_RUN_LIMITS` / `RunStopReason` — the three ceilings
   (steps, wall clock, tokens) and why a run ended. `RunStopReason` is a superset
-  of `ModelStopReason`: the model reports why *it* stopped, this reports why the
-  *run* did, including limits the model never sees.
+  of `ModelStopReason`: the model reports why _it_ stopped, this reports why the
+  _run_ did, including limits the model never sees.
 - `fenceUntrusted(source, payload)` + `UNTRUSTED_DATA_RULE` — ADR-0005 §8's
   structural defence. Two properties carry it: the payload is JSON (so no field
   can introduce a line that reads as a new turn) and `<` is escaped (so the

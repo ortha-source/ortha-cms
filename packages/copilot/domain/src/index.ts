@@ -64,7 +64,23 @@ export type {
     RunTextDeltaEvent,
     RunToolCallEvent,
     RunToolResultEvent,
+    RunProposalEvent,
     RunDoneEvent,
     RunErrorEvent
 } from './lib/run/run-event';
 export { fenceUntrusted, UNTRUSTED_DATA_RULE } from './lib/run/untrusted';
+
+// --- proposals (phase 3) ---
+export { isProposalDraft } from './lib/proposals/proposal';
+export type {
+    ProposalChange,
+    ProposalDraft,
+    ProposalStatus,
+    ProposalTarget
+} from './lib/proposals/proposal';
+export { COPILOT_PROPOSAL_APPLIER } from './lib/proposals/proposal-applier';
+export type {
+    ProposalActor,
+    ProposalApplier,
+    ProposalApplyResult
+} from './lib/proposals/proposal-applier';

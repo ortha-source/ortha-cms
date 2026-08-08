@@ -19,6 +19,13 @@ export { CONTENT_REGISTRY, InjectContentRegistry } from './lib/content.tokens';
 // needs exactly one implementation rather than one per binder.
 export { WorkspaceGrantsQuery } from './lib/content-types/queries/workspace-grants.query';
 
+// The entry write engine, exported for the plugins that apply the copilot's
+// proposals over content. Deliberately the *same* service the HTTP controllers
+// call — ADR-0005 §5 requires an applied proposal to run the ordinary
+// use-case, so an applier reaching for anything else is the bug the port
+// exists to prevent.
+export { EntryWriterService } from './lib/entries/infrastructure/persistence/entry-writer.service';
+
 export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
 export type {
     ContentEntryExtension,

@@ -18,9 +18,17 @@ import { UpdateEntryController } from './entries/http/controllers/update-entry.c
 import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
-import { copilotToolsRegistrar } from '@ortha-cms/copilot-server';
+import {
+    copilotAppliersRegistrar,
+    copilotToolsRegistrar
+} from '@ortha-cms/copilot-server';
 import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
 import { RevisionCopilotToolProvider } from './copilot/revision-tool.provider';
+import { EntryProposalToolProvider } from './copilot/entry-proposal.provider';
+import {
+    CreateEntryProposalApplier,
+    UpdateEntryProposalApplier
+} from './copilot/entry-proposal.applier';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
 import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
@@ -180,10 +188,22 @@ export class ContentModule {
                 // registered — the registrar injects the registry optionally.
                 ContentCopilotToolProvider,
                 RevisionCopilotToolProvider,
+                EntryProposalToolProvider,
                 copilotToolsRegistrar(
                     'content',
                     ContentCopilotToolProvider,
-                    RevisionCopilotToolProvider
+                    RevisionCopilotToolProvider,
+                    EntryProposalToolProvider
+                ),
+                // The appliers for the kinds those propose tools produce.
+                // Next to the tools on purpose: a missing applier surfaces only
+                // when a human clicks Accept.
+                CreateEntryProposalApplier,
+                UpdateEntryProposalApplier,
+                copilotAppliersRegistrar(
+                    'content',
+                    CreateEntryProposalApplier,
+                    UpdateEntryProposalApplier
                 )
             ],
             exports: [
@@ -196,7 +216,12 @@ export class ContentModule {
                 // arrives from the model, so every one of them has to re-check
                 // the workspace's grants — and there must be exactly one
                 // implementation of that check, not one per binder.
-                WorkspaceGrantsQuery
+                WorkspaceGrantsQuery,
+                // The write engine, for the proposal appliers those plugins
+                // also bind. ADR-0005 §5 requires an applied proposal to run
+                // the ordinary use-case, so they must reach *this* service
+                // rather than write their own insert.
+                EntryWriterService
             ]
         };
     }

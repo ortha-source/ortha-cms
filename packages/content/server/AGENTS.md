@@ -215,6 +215,31 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
   for `design:paramtypes` — Nest then injects `undefined` silently, producing a
   copilot with no content tools and no error anywhere. A factory's `inject` list
   names its dependencies as values, so there is no reflected type to get wrong.
+- `EntryProposalToolProvider` ships the **write** pair,
+  `content.proposeEntry` and `content.proposeEdit` (`effect: 'propose'`).
+  Neither writes anything: they compute a change and hand it back, and the run
+  engine records it for a human to accept. That is the whole point of the split
+  — the tool is a pure function of the model's arguments plus the current
+  entry, so a prompt-injected "just save it" has nowhere to land. `proposeEdit`
+  reads the live entry so the proposal carries a real before/after diff, drops
+  fields that would not actually change, and refuses an edit that changes
+  nothing. An unknown field name is an **error** here, unlike the reads'
+  `fields`: the cost is a human approving a change they believe writes a field
+  that does not exist. Join-backed relations are refused for the same reason —
+  their links never travel in the values bag, so a value for one would be
+  silently dropped. **No `status` parameter exists at any role** (ADR-0005 §7):
+  the copilot may prepare a publishable draft; a person presses publish.
+- `CreateEntryProposalApplier` / `UpdateEntryProposalApplier` carry those
+  changes out, through **`EntryWriterService.create` / `.update` — the same
+  methods the HTTP routes call**. Not "similar to": the same, which is what
+  makes an accepted proposal validated, advisory-locked, snapshotted as a
+  revision and passed through the i18n extension exactly as a hand-typed entry
+  is. The update **merges** rather than replacing (the admin's `PATCH` replaces
+  because the editor submits the whole document; a proposal carries only what a
+  reviewer approved), and it reads the entry **now**, so a proposal accepted an
+  hour later writes the approved fields onto whatever the entry has become
+  instead of rewinding it. Grants are re-checked at apply time, not trusted from
+  the row — a stored `typeName` is an argument like any other.
 - **Every tool re-checks the workspace's content grants** via
   `WorkspaceGrantsQuery` — which is **exported from this package and from the
   global module** for the same reason: i18n and media bind their own

@@ -6,6 +6,7 @@ import {
     MODEL_RESOLVER,
     fenceUntrusted,
     isAbortError,
+    isProposalDraft,
     resolveModel,
     validateToolInput,
     type CapabilityProfile,
@@ -17,6 +18,7 @@ import {
     type ModelStreamEvent,
     type ModelTool,
     type ModelUsage,
+    type ProposalDraft,
     type RunLimits,
     type RunStopReason,
     type ToolContext,
@@ -27,7 +29,10 @@ import {
 import { COPILOT_RUN_LIMITS, InjectCopilotConfig } from '../../copilot.tokens';
 import type { CopilotPluginConfig } from '../../types/copilot-config';
 import { ConversationRepository } from '../infrastructure/persistence/conversation.repository';
+import { ProposalRepository } from '../infrastructure/persistence/proposal.repository';
 import { CapabilityProfileService } from './capability-profile.service';
+import { DecideProposalService } from './decide-proposal.service';
+import { CopilotPolicyService } from './copilot-policy.service';
 import { summarizeToolOutput } from './summarize-tool-output';
 import {
     buildSystemPrompt,
@@ -39,6 +44,13 @@ import {
 export interface StartRunInput {
     /** The user the run acts as. */
     userId: string;
+    /**
+     * That user's email. Carried so an auto-applied proposal can freeze the
+     * same actor snapshot onto its audit event that a hand-made edit would —
+     * without a lookup in the one path where getting the actor wrong is least
+     * acceptable.
+     */
+    userEmail: string;
     /** The user's role, for resolving the capability profile. */
     roleId: string;
     /** The workspace the run is scoped to; membership already proven. */
@@ -107,6 +119,9 @@ export class RunEngine {
         @InjectCopilotConfig() private readonly config: CopilotPluginConfig,
         private readonly profiles: CapabilityProfileService,
         private readonly conversations: ConversationRepository,
+        private readonly proposals: ProposalRepository,
+        private readonly decisions: DecideProposalService,
+        private readonly policies: CopilotPolicyService,
         @Optional()
         @Inject(COPILOT_RUN_LIMITS)
         limits: RunLimits | null = null
@@ -191,7 +206,8 @@ export class RunEngine {
             uiLocale: input.uiLocale,
             context: input.context,
             typeSummaries: input.typeSummaries,
-            hasTools: profile.tools.length > 0
+            hasTools: profile.tools.length > 0,
+            hasWriteTools: profile.tools.some((tool) => tool.effect !== 'read')
         });
 
         // The thread so far, plus this turn. Read from the transcript rather
@@ -331,9 +347,18 @@ export class RunEngine {
                     name: call.name,
                     input: call.input
                 };
-                const outcome = await this.executeTool(ctx, call, alreadyCalled);
+                const outcome = await this.executeTool(
+                    ctx,
+                    call,
+                    alreadyCalled
+                );
                 results.push(outcome.block);
-                yield outcome.event;
+                // More than one event when the call produced a proposal: the
+                // tool result is what the model was told, the proposal is what
+                // the human is being asked to decide.
+                for (const event of outcome.events) {
+                    yield event;
+                }
             }
 
             ctx.assistantBlocks.push(...results);
@@ -349,7 +374,10 @@ export class RunEngine {
             input: StartRunInput;
             system: string;
             model: string;
-            provider: { name: string; provider: ReturnType<ModelRegistry['get']> };
+            provider: {
+                name: string;
+                provider: ReturnType<ModelRegistry['get']>;
+            };
         },
         messages: ModelMessage[],
         tools: ModelTool[]
@@ -419,7 +447,7 @@ export class RunEngine {
         },
         call: ToolUseBlock,
         alreadyCalled: Set<string>
-    ): Promise<{ block: ToolResultBlock; event: CopilotRunEvent }> {
+    ): Promise<{ block: ToolResultBlock; events: CopilotRunEvent[] }> {
         const startedAt = Date.now();
         const fail = async (message: string) => {
             const durationMs = Date.now() - startedAt;
@@ -436,19 +464,23 @@ export class RunEngine {
                     content: message,
                     isError: true
                 },
-                event: {
-                    type: 'tool-result' as const,
-                    id: call.id,
-                    name: call.name,
-                    ok: false,
-                    durationMs,
-                    summary: 'failed',
-                    error: message
-                }
+                events: [
+                    {
+                        type: 'tool-result' as const,
+                        id: call.id,
+                        name: call.name,
+                        ok: false,
+                        durationMs,
+                        summary: 'failed',
+                        error: message
+                    }
+                ]
             };
         };
 
-        const tool = ctx.profile.tools.find((entry) => entry.name === call.name);
+        const tool = ctx.profile.tools.find(
+            (entry) => entry.name === call.name
+        );
         if (!tool) {
             // Either a hallucinated name or a tool that was withheld. Both get
             // the same answer: the model is never told which, because "that
@@ -486,7 +518,7 @@ export class RunEngine {
         // re-running, or refusing without saying why, both just repeat. Checked
         // AFTER authorization so a repeat can never reveal more than a first
         // call would.
-        const signature = `${call.name} ${stableStringify(call.input)}`;
+        const signature = `${call.name} ${stableStringify(call.input)}`;
         if (alreadyCalled.has(signature)) {
             this.logger.warn(
                 `Run ${ctx.runId}: "${call.name}" repeated with identical arguments; refusing.`
@@ -509,6 +541,17 @@ export class RunEngine {
 
         try {
             const output = await tool.run(call.input, toolContext);
+
+            // A `propose` tool's return value IS the change. The engine
+            // persists it and (when the workspace opted this tool in) applies
+            // it, so ADR-0005 §5's guarantees live in one place instead of
+            // once per binder — every proposal is recorded whether or not a
+            // human clicks, which is what makes an auto-applied change
+            // "undoable, never invisible".
+            if (tool.effect === 'propose') {
+                return await this.recordProposal(ctx, call, output, startedAt);
+            }
+
             const durationMs = Date.now() - startedAt;
             const summary = summarizeToolOutput(output);
 
@@ -527,15 +570,17 @@ export class RunEngine {
                     // and must enter the model as material, never instructions.
                     content: fenceUntrusted(call.name, output)
                 },
-                event: {
-                    type: 'tool-result',
-                    id: call.id,
-                    name: call.name,
-                    ok: true,
-                    durationMs,
-                    summary,
-                    output
-                }
+                events: [
+                    {
+                        type: 'tool-result',
+                        id: call.id,
+                        name: call.name,
+                        ok: true,
+                        durationMs,
+                        summary,
+                        output
+                    }
+                ]
             };
         } catch (error) {
             this.logger.warn(
@@ -544,6 +589,161 @@ export class RunEngine {
             );
             return fail(userFacingMessage(error));
         }
+    }
+
+    /**
+     * Persists a `propose` tool's draft, applies it if the workspace opted the
+     * tool into auto-apply, and produces both the model's receipt and the
+     * client's proposal card.
+     *
+     * **The model is told about the proposal, not handed the patch back.** It
+     * already knows what it asked for; echoing the whole change would spend the
+     * tokens twice and invite the model to "confirm" by proposing again. What it
+     * needs is the id, the summary, and whether a human still has to accept —
+     * which is exactly what makes it say "I've drafted this, accept it below"
+     * rather than claiming the edit is done.
+     */
+    private async recordProposal(
+        ctx: {
+            input: StartRunInput;
+            runId: string;
+            conversationId: string;
+        },
+        call: ToolUseBlock,
+        output: unknown,
+        startedAt: number
+    ): Promise<{ block: ToolResultBlock; events: CopilotRunEvent[] }> {
+        // A binder that declared `effect: 'propose'` and returned something
+        // else would otherwise write a malformed row into an append-only
+        // table. This turns that into an ordinary tool error — the same
+        // treatment every other binder bug gets.
+        if (!isProposalDraft(output)) {
+            const message = `"${call.name}" did not return a valid change.`;
+            this.logger.error(
+                `Run ${ctx.runId}: propose tool "${call.name}" returned a value ` +
+                    'that is not a ProposalDraft; nothing was recorded.'
+            );
+            const durationMs = Date.now() - startedAt;
+            await this.audit(ctx, call, {
+                ok: false,
+                error: message,
+                durationMs,
+                outputSummary: null
+            });
+            return {
+                block: {
+                    type: 'tool_result',
+                    toolUseId: call.id,
+                    content: message,
+                    isError: true
+                },
+                events: [
+                    {
+                        type: 'tool-result',
+                        id: call.id,
+                        name: call.name,
+                        ok: false,
+                        durationMs,
+                        summary: 'failed',
+                        error: message
+                    }
+                ]
+            };
+        }
+
+        const draft: ProposalDraft = output;
+        let proposal = await this.proposals.create({
+            conversationId: ctx.conversationId,
+            runId: ctx.runId,
+            toolCallId: call.id,
+            toolName: call.name,
+            kind: draft.kind,
+            workspaceId: ctx.input.workspaceId,
+            createdBy: ctx.input.userId,
+            target: draft.target,
+            patch: draft.patch,
+            summary: draft.summary,
+            ...(draft.changes ? { changes: draft.changes } : {})
+        });
+
+        // Auto-apply is a per-workspace, per-tool opt-in (ADR-0005 §6). The row
+        // is written first either way, so a direct apply still leaves the same
+        // record a reviewed one does.
+        const policy = await this.policies.forWorkspace(ctx.input.workspaceId);
+        let applyError: string | undefined;
+        if ((policy.autoApplyTools ?? []).includes(call.name)) {
+            const outcome = await this.decisions.autoApply(proposal, {
+                userId: ctx.input.userId,
+                email: ctx.input.userEmail,
+                workspaceId: ctx.input.workspaceId
+            });
+            if (outcome.ok) {
+                proposal = outcome.proposal;
+            } else {
+                // The proposal survives as pending with its error recorded, so
+                // a failed auto-apply degrades to the ordinary review flow
+                // rather than losing the change.
+                applyError = outcome.message;
+            }
+        }
+
+        const durationMs = Date.now() - startedAt;
+        const applied = proposal.status === 'accepted';
+        const receipt = applied
+            ? `Applied: ${draft.summary}`
+            : `Proposed: ${draft.summary}. Awaiting the user's approval — do not ` +
+              'call this tool again for the same change, and do not claim it has ' +
+              'been applied.';
+        const summary = applied ? 'applied' : 'awaiting approval';
+
+        await this.audit(ctx, call, {
+            ok: true,
+            error: applyError ?? null,
+            durationMs,
+            outputSummary: `${summary}: ${draft.summary}`
+        });
+
+        return {
+            block: {
+                type: 'tool_result',
+                toolUseId: call.id,
+                content: fenceUntrusted(call.name, {
+                    proposalId: proposal.id,
+                    status: proposal.status,
+                    message: receipt,
+                    ...(applyError ? { applyError } : {})
+                })
+            },
+            events: [
+                {
+                    type: 'tool-result',
+                    id: call.id,
+                    name: call.name,
+                    ok: true,
+                    durationMs,
+                    summary,
+                    output: {
+                        proposalId: proposal.id,
+                        status: proposal.status,
+                        ...(applyError ? { applyError } : {})
+                    }
+                },
+                {
+                    type: 'proposal',
+                    id: proposal.id,
+                    toolCallId: call.id,
+                    toolName: call.name,
+                    kind: proposal.kind,
+                    summary: proposal.summary,
+                    target: proposal.target,
+                    ...(proposal.changes ? { changes: proposal.changes } : {}),
+                    status: proposal.status,
+                    ...(typeof proposal.result?.['entityId'] === 'string'
+                        ? { entityId: proposal.result['entityId'] }
+                        : {})
+                }
+            ]
+        };
     }
 
     /** Writes one `copilot_tool_calls` row. Never fails the run. */

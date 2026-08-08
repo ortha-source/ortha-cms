@@ -6,6 +6,7 @@ import {
     type CopilotActor
 } from '@ortha-cms/copilot-domain';
 import { CopilotToolRegistry } from './tool-registry.service';
+import { CopilotPolicyService } from './copilot-policy.service';
 
 /**
  * Resolves the tool set one run may use.
@@ -25,7 +26,8 @@ import { CopilotToolRegistry } from './tool-registry.service';
 export class CapabilityProfileService {
     constructor(
         private readonly permissions: PermissionsService,
-        private readonly tools: CopilotToolRegistry
+        private readonly tools: CopilotToolRegistry,
+        private readonly policies: CopilotPolicyService
     ) {}
 
     /** The profile for a run by `userId` (role `roleId`) in `workspaceId`. */
@@ -41,10 +43,12 @@ export class CapabilityProfileService {
 
         return resolveCapabilityProfile({
             tools: await this.tools.tools(workspaceId),
-            actor
-            // No `policy` yet: direct apply is a phase-3 surface, and until
-            // there is a way for an admin to opt a tool in, the safe default
-            // (`apply` withheld) is the only correct one.
+            actor,
+            // Read per run alongside the grants, and equally uncached: a policy
+            // revoked mid-thread has to take effect on the next tool call.
+            // Absent, it reads as closed — enabling the copilot never silently
+            // enables direct writes.
+            policy: await this.policies.forWorkspace(workspaceId)
         });
     }
 }

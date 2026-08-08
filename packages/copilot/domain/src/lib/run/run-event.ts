@@ -1,4 +1,9 @@
 import type { ModelUsage } from '../model/model-provider';
+import type {
+    ProposalChange,
+    ProposalStatus,
+    ProposalTarget
+} from '../proposals/proposal';
 import type { RunStopReason } from './run-limits';
 
 /**
@@ -58,6 +63,41 @@ export interface RunToolResultEvent {
     error?: string;
 }
 
+/**
+ * A `propose` tool produced a reviewable change, and it has been persisted.
+ *
+ * Emitted **after** the tool's own {@link RunToolResultEvent}, because the two
+ * answer different questions: the tool result is what the model was told, and
+ * this is what the human is being asked to decide. A client renders the step
+ * list from one and the proposal card from the other.
+ *
+ * {@link status} is `pending` normally and `accepted` when the workspace opted
+ * this tool into auto-apply — in which case the change is already live and the
+ * card is a receipt rather than a prompt. There is no third possibility here:
+ * a proposal is never born rejected.
+ */
+export interface RunProposalEvent {
+    type: 'proposal';
+    /** The persisted proposal's id — what accept/reject address. */
+    id: string;
+    /** The tool call that produced it, so the UI can attach it to the step. */
+    toolCallId: string;
+    /** The tool's name, e.g. `content.proposeEdit`. */
+    toolName: string;
+    /** Which applier would carry it out, e.g. `content.entry.update`. */
+    kind: string;
+    /** One line naming the change. */
+    summary: string;
+    /** Where the change lands — enough to render a link to it. */
+    target: ProposalTarget;
+    /** Per-field before/after, when the change is field-shaped. */
+    changes?: readonly ProposalChange[];
+    /** `pending`, or `accepted` when auto-apply carried it out already. */
+    status: ProposalStatus;
+    /** The entity the change landed on — present only once applied. */
+    entityId?: string;
+}
+
 /** The terminal event. Exactly one of these ends a well-behaved run. */
 export interface RunDoneEvent {
     type: 'done';
@@ -91,5 +131,6 @@ export type CopilotRunEvent =
     | RunTextDeltaEvent
     | RunToolCallEvent
     | RunToolResultEvent
+    | RunProposalEvent
     | RunDoneEvent
     | RunErrorEvent;

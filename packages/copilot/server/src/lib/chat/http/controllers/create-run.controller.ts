@@ -18,10 +18,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { CreateRunDto } from '../../application/dto/create-run.dto';
 import {
     CopilotDisabledError,
@@ -93,6 +90,7 @@ export class CreateRunController {
         try {
             const events = this.engine.run({
                 userId: user.id,
+                userEmail: user.email,
                 roleId: user.roleId,
                 workspaceId,
                 conversationId: body.conversationId,

@@ -16,9 +16,14 @@ import { AssetMapper } from './infrastructure/persistence/asset.mapper';
 import { FolderMapper } from './infrastructure/persistence/folder.mapper';
 import { DrizzleAssetRepository } from './infrastructure/persistence/drizzle-asset.repository';
 import { DrizzleFolderRepository } from './infrastructure/persistence/drizzle-folder.repository';
-import { copilotToolsRegistrar } from '@ortha-cms/copilot-server';
+import {
+    copilotAppliersRegistrar,
+    copilotToolsRegistrar
+} from '@ortha-cms/copilot-server';
 import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
 import { MediaCopilotToolProvider } from './copilot/media-tool.provider';
+import { AltTextProposalToolProvider } from './copilot/alt-text-proposal.provider';
+import { AltTextProposalApplier } from './copilot/alt-text-proposal.applier';
 import { ListFoldersQuery } from './infrastructure/queries/list-folders.query';
 import { AssetViewQuery } from './infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from './infrastructure/queries/download-asset.query';
@@ -117,7 +122,17 @@ export class MediaModule {
                 // copilot plugin is registered — the registrar injects the
                 // registry optionally.
                 MediaCopilotToolProvider,
-                copilotToolsRegistrar('media', MediaCopilotToolProvider),
+                AltTextProposalToolProvider,
+                copilotToolsRegistrar(
+                    'media',
+                    MediaCopilotToolProvider,
+                    AltTextProposalToolProvider
+                ),
+                // The applier for the kind that propose tool produces. Next to
+                // it on purpose: a missing applier surfaces only when a human
+                // clicks Accept.
+                AltTextProposalApplier,
+                copilotAppliersRegistrar('media', AltTextProposalApplier),
                 AssetViewQuery,
                 DownloadAssetQuery,
                 // Binds content-server's media-asset resolver port, so a content

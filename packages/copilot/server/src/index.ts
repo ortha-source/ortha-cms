@@ -23,6 +23,10 @@ export { CopilotToolRegistry } from './lib/chat/application/tool-registry.servic
 // its tools at bootstrap. Prefer it over a hand-written registrar class — see
 // its JSDoc for the `design:paramtypes` trap it exists to close.
 export { copilotToolsRegistrar } from './lib/chat/application/tools-registrar';
+export { ProposalApplierRegistry } from './lib/chat/application/proposal-applier.registry';
+// The sibling one-liner for the plugins that own writes. A plugin binding
+// propose tools must register the appliers for the kinds they produce.
+export { copilotAppliersRegistrar } from './lib/chat/application/appliers-registrar';
 
 // The run engine and its collaborators, exported for tests and for a future
 // non-HTTP surface (a job runner in phase 5) that needs the loop without the

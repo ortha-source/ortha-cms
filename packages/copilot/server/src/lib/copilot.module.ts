@@ -12,14 +12,20 @@ import {
 } from './infrastructure/model-registry';
 import type { CopilotPluginConfig } from './types/copilot-config';
 import { CapabilityProfileService } from './chat/application/capability-profile.service';
+import { CopilotPolicyService } from './chat/application/copilot-policy.service';
+import { DecideProposalService } from './chat/application/decide-proposal.service';
+import { ProposalApplierRegistry } from './chat/application/proposal-applier.registry';
 import { ContentTypeSummaryService } from './chat/application/content-type-summary.service';
 import { RunEngine } from './chat/application/run-engine.service';
 import { CopilotToolRegistry } from './chat/application/tool-registry.service';
 import { ConversationRepository } from './chat/infrastructure/persistence/conversation.repository';
+import { ProposalRepository } from './chat/infrastructure/persistence/proposal.repository';
 import { CreateRunController } from './chat/http/controllers/create-run.controller';
 import { GetConversationController } from './chat/http/controllers/get-conversation.controller';
 import { ListConversationsController } from './chat/http/controllers/list-conversations.controller';
 import { ListModelsController } from './chat/http/controllers/list-models.controller';
+import { ProposalsController } from './chat/http/controllers/proposals.controller';
+import { WorkspacePolicyController } from './chat/http/controllers/workspace-policy.controller';
 
 /** Options `CopilotModule.forRoot` binds into DI. */
 export interface CopilotModuleOptions {
@@ -61,6 +67,11 @@ export class CopilotModule {
                 // the read routes grouped after the run route.
                 ListModelsController,
                 ListConversationsController,
+                // Before `GetConversationController`, whose `conversations/:id`
+                // is the only wildcard here — Express matches in declaration
+                // order, so the literal-prefixed routes go first.
+                ProposalsController,
+                WorkspacePolicyController,
                 GetConversationController
             ],
             providers: [
@@ -74,6 +85,10 @@ export class CopilotModule {
                 CapabilityProfileService,
                 ContentTypeSummaryService,
                 ConversationRepository,
+                ProposalRepository,
+                ProposalApplierRegistry,
+                CopilotPolicyService,
+                DecideProposalService,
                 RunEngine
             ],
             exports: [
@@ -81,8 +96,10 @@ export class CopilotModule {
                 MODEL_REGISTRY,
                 MODEL_RESOLVER,
                 // Exported so a binding plugin can inject it from its own
-                // `OnApplicationBootstrap` and register its tools.
-                CopilotToolRegistry
+                // `OnApplicationBootstrap` and register its tools — and, for
+                // the plugins that own writes, its proposal appliers.
+                CopilotToolRegistry,
+                ProposalApplierRegistry
             ]
         };
     }

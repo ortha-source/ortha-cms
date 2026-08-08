@@ -26,6 +26,12 @@ export interface SystemPromptInput {
     typeSummaries: readonly string[];
     /** Whether any tools are on offer this run. */
     hasTools: boolean;
+    /**
+     * Whether any of them can propose a change. Drives whether the prompt
+     * spends words on the approval flow — a viewer's run has no write tools, so
+     * telling them about proposals would only invite offers it must then refuse.
+     */
+    hasWriteTools?: boolean;
 }
 
 /**
@@ -37,7 +43,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 2;
+export const SYSTEM_PROMPT_VERSION = 3;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -80,6 +86,28 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
             `- Write your reply in the language of the admin UI locale "${input.uiLocale}", ` +
             'regardless of the language of the content you read.'
     ];
+
+    if (input.hasWriteTools) {
+        // The one failure mode worth spending prompt on: a model that treats a
+        // proposal tool as a save will report "done", and the person will
+        // believe it. Everything below is stated because the tool result alone
+        // has been observed not to be enough.
+        sections.push(
+            'MAKING CHANGES\n' +
+                '- Any tool whose name starts with "propose" DRAFTS a change for the person ' +
+                'to approve. It does not save anything.\n' +
+                '- After calling one, tell them what you have drafted and that it is waiting ' +
+                'for their approval. Never say a change has been made, saved, created or ' +
+                'published — you cannot do any of those.\n' +
+                '- Propose a change once. If the tool result says the draft is awaiting ' +
+                'approval, that worked; calling it again just creates a duplicate for them ' +
+                'to reject.\n' +
+                '- Read before you write. Fetch the entry first so you change what actually ' +
+                'needs changing and leave the rest alone.\n' +
+                '- You cannot publish. If asked to, draft the change and say a person has to ' +
+                'publish it.'
+        );
+    }
 
     if (!input.hasTools) {
         sections.push(
@@ -127,7 +155,8 @@ function describeTypes(summaries: readonly string[]): string {
 function describeContext(context: SurfaceContext): string | null {
     const lines: string[] = [];
     if (context.surface) lines.push(`- Surface: ${context.surface}`);
-    if (context.contentType) lines.push(`- Content type in view: ${context.contentType}`);
+    if (context.contentType)
+        lines.push(`- Content type in view: ${context.contentType}`);
     if (context.entryId) lines.push(`- Entry in view: ${context.entryId}`);
     if (context.locale) lines.push(`- Locale in view: ${context.locale}`);
 
