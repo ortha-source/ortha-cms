@@ -11,8 +11,9 @@ The admin-side copilot plugin — the chat panel.
 
 **Phase 1 contributes one thing: an entry point.** `CopilotPlugin()` fills the
 shell's `SIDEBAR_FOOTER_SLOT` with a launcher that opens the panel (or `⌘J`) and
-contributes **no routes** — the panel is a sheet over whatever page you are on,
-which is the point of it being a persistent surface rather than a destination.
+contributes **no routes** — the panel is a docked window over whatever page you
+are on, which is the point of it being a persistent surface rather than a
+destination.
 
 ## Layout
 
@@ -24,16 +25,18 @@ application/
   useConversations.ts      # thread list (query)
   useConversation.ts       # open one thread (mutation) + block→UI mapping
   useCopilotModels.ts      # the model catalogue + choice-key helpers
-  useWorkspaceIdFromRoute.ts
+  readRouteContext.ts      # pure URL → surface context
+  useRouteContext.ts       # the hook over it
 presentation/
   copilotPlugin/           # the plugin object
-  CopilotLauncher/         # sidebar-footer button + ⌘J, permission-gated
-  CopilotPanel/            # the sheet
+  CopilotLauncher/         # sidebar row + floating button + ⌘J, permission-gated
+  CopilotPanel/            # the docked window
   MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
+  ContextChip/             # what context is attached to the next turn
   Markdown/                # small local renderer (see below)
 ```
 
-## Four decisions worth knowing
+## Decisions worth knowing
 
 - **The transport is `fetch`, not the shared `apiClient`.** Axios cannot stream a
   response in the browser. `streamRun` replicates the two behaviours that matter
@@ -45,7 +48,7 @@ presentation/
   `CurrentWorkspaceProvider` wraps only the workspace shell's *inset content*;
   the app sidebar — where the launcher lives — renders **outside** it, and the
   hook **throws** there rather than returning null, taking the whole admin down
-  on every page. `useWorkspaceIdFromRoute` reads the route param instead; the
+  on every page. `useRouteContext` reads the URL instead; the
   sidebar is still inside the router. The id only ever becomes
   `X-Workspace-Id`, which `WorkspaceGuard` validates for shape and membership,
   so a route-derived id is no more trusted than a context-derived one.
