@@ -62,6 +62,20 @@ export interface PublicEntry {
      * {@link PublicMediaRef} before pointing a browser at one.
      */
     media?: Record<string, PublicMediaFieldView>;
+    /**
+     * The entry's **other** locale rows — the rest of its translation group —
+     * present only when the caller opts in with `?translations=preview` on a
+     * localized type. Ordered by locale slug, and each is a full
+     * {@link PublicEntry} honouring the same `?fields=` selection as the root,
+     * so a language switcher reads `[entry, ...entry.translations]`.
+     *
+     * The entry itself is **not** repeated here: it is the row you asked for,
+     * in the locale you asked for. Only published, non-deleted siblings appear,
+     * so a locale that exists but is still a draft is absent — the same
+     * visibility rule as every other public read. Siblings are not themselves
+     * expanded: their `relations`, `media`, and `translations` are absent.
+     */
+    translations?: PublicEntry[];
 }
 
 /** One page of public entries. */

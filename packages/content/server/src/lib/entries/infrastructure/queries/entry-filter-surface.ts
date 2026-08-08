@@ -107,7 +107,15 @@ function scalarFieldsOf(type: AnyContentType): FieldSchema {
         };
         fields['publishedAt'] = { type: ScalarFieldType.Date };
     }
-    if (type.i18n) fields['locale'] = { type: ScalarFieldType.String };
+    if (type.i18n) {
+        fields['locale'] = { type: ScalarFieldType.String };
+        // The translation-group key, so a caller holding one row's group can
+        // ask for the group's row in another locale (`localeGroupId eq X` +
+        // `?locale=de`). Whitelisted for SQL only — `scalarWireOf` below builds
+        // the admin's filter *picker*, and this envelope column stays out of
+        // it, so the UI is unchanged.
+        fields['localeGroupId'] = { type: ScalarFieldType.Uuid };
+    }
     for (const [name, spec] of Object.entries(type.fields)) {
         const scalar = scalarTypeFor(spec);
         if (scalar) fields[name] = scalar;

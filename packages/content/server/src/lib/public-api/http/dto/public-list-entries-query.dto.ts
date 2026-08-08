@@ -146,6 +146,20 @@ export class PublicEntryQueryDto {
     fields?: string;
 
     /**
+     * `preview` attaches the entry's other locale rows — the rest of its
+     * translation group. Opt-in like the other expansions, and a 400 on a type
+     * that isn't localized.
+     */
+    @ApiPropertyOptional({
+        enum: [PREVIEW],
+        description:
+            '`preview` attaches the entry’s sibling translations (the rest of its `localeGroupId` group) as `translations`. 400 on a type that is not localized.'
+    })
+    @IsOptional()
+    @IsIn([PREVIEW])
+    translations?: typeof PREVIEW;
+
+    /**
      * Locale slug the read targets, on a localized type. Extension-owned:
      * forwarded verbatim to the bound `CONTENT_ENTRY_EXTENSION`, which
      * validates it; absent means the configured default locale.
@@ -196,7 +210,7 @@ export class PublicListEntriesQueryDto extends PublicEntryQueryDto {
         example:
             '{"and":[{"field":"featured","op":"eq","value":true},{"field":"publishedAt","op":"gte","value":"2026-01-01"}]}',
         description:
-            'Structured filter tree as a JSON string, validated against the type’s derived filter schema. Filterable: the type’s own scalar fields plus `id`, `createdAt`, `updatedAt`, `publishedAt`, and `locale`. `status` is NOT filterable — this API serves published entries only, so the rule could only ever be a no-op or match nothing. Malformed or unknown fields → 400.'
+            'Structured filter tree as a JSON string, validated against the type’s derived filter schema. Filterable: the type’s own scalar fields plus `id`, `createdAt`, `updatedAt`, `publishedAt`, and — on localized types — `locale` and `localeGroupId`. `status` is NOT filterable — this API serves published entries only, so the rule could only ever be a no-op or match nothing. Malformed or unknown fields → 400.'
     })
     @IsOptional()
     @IsString()

@@ -44,6 +44,11 @@ export interface PublicEntryMediaView {
     media: Record<string, PublicMediaFieldView>;
 }
 
+/** One entry's sibling translations. */
+export interface PublicEntryTranslationsView {
+    translations: PublicEntry[];
+}
+
 /**
  * `GET /api/v1/content/...` — the **public, token-authenticated read API** an
  * external site or app fetches content with. One route pair serves every
@@ -103,6 +108,42 @@ export class PublicEntriesController {
             workspaceId
         );
         return this.entries.list(type, query, workspaceId, granted);
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/group/:localeGroupId` — one published
+     * entry addressed by its translation group and the requested locale.
+     *
+     * Declared **before** `:typeName/:id` so the literal `group` segment is not
+     * a concern either way: that route is two segments and this one is three,
+     * so they cannot collide. The ordering is kept for readability and to stay
+     * safe if a three-segment wildcard route is ever added below.
+     */
+    @Get(':typeName/group/:localeGroupId')
+    @ApiOperation({
+        summary: 'Read one published entry by translation group + locale',
+        description:
+            'The group’s published row in the requested `?locale=` (the default locale when none is given) — so a localized front-end renders “this story” by varying the locale alone, instead of keeping a per-locale id map. 404 when the group has no published row in that locale, or does not exist. 400 when the type is not localized.'
+    })
+    async getByLocaleGroup(
+        @Param('typeName') typeName: string,
+        @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntry> {
+        const { type, granted } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.entries.getByLocaleGroup(
+            type,
+            localeGroupId,
+            workspaceId,
+            query,
+            granted
+        );
     }
 
     /** `GET /api/v1/content/:typeName/:id` — one published entry. */
@@ -196,6 +237,39 @@ export class PublicEntriesController {
             granted,
             query.locale
         );
+    }
+
+    /**
+     * `GET /api/v1/content/:typeName/:id/translations` — the entry's other
+     * locale rows. The sibling of `?translations=preview`, for a consumer that
+     * already holds the entry.
+     */
+    @Get(':typeName/:id/translations')
+    @ApiOperation({
+        summary: 'Read one entry’s sibling translations',
+        description:
+            'The entry’s other published locale rows — the rest of its translation group — ordered by locale slug, each a full entry honouring the same `?fields=` selection. The entry itself is not repeated. 400 when the type is not localized.'
+    })
+    async getTranslations(
+        @Param('typeName') typeName: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Query() query: PublicEntryQueryDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicEntryTranslationsView> {
+        const { type } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return {
+            translations: await this.entries.translationsOf(
+                type,
+                id,
+                workspaceId,
+                query
+            )
+        };
     }
 
     /**

@@ -42,6 +42,12 @@ const article: AnyContentType = collection('article', {
     }
 });
 
+/** A localized type — the only shape that carries the locale envelope columns. */
+const localized: AnyContentType = collection('localized', {
+    i18n: true,
+    fields: { title: field.text() }
+});
+
 /**
  * A self-referencing type (a page tree). Its `parent` hop is the one
  * cardinality that has to alias the target, and the one under which every
@@ -227,6 +233,28 @@ describe('buildEntryFilterSurface', () => {
         const status = fields.find((f) => f.path === 'status');
         expect(status?.type).toBe('enum');
         expect(status?.enumValues).toEqual(['draft', 'published']);
+    });
+
+    it('whitelists the locale envelope columns on an i18n type, SQL-only', () => {
+        const { schema, fields } = buildEntryFilterSurface(localized, {
+            workspaceId: WS
+        });
+        // Filterable in SQL: `localeGroupId` is what lets a caller holding one
+        // row's group ask for the group's row in another locale.
+        expect(schema.fields?.['locale']?.type).toBe('string');
+        expect(schema.fields?.['localeGroupId']?.type).toBe('uuid');
+        // …but NOT offered by the picker. The admin filters locales through
+        // i18n's own virtual fields (`hasLocale` / `missingLocale`), and a raw
+        // group-uuid input is not a control a user has any use for.
+        expect(fields.some((f) => f.path === 'localeGroupId')).toBe(false);
+    });
+
+    it('omits the locale columns on a type that is not localized', () => {
+        const { schema } = buildEntryFilterSurface(article, {
+            workspaceId: WS
+        });
+        expect(schema.fields?.['locale']).toBeUndefined();
+        expect(schema.fields?.['localeGroupId']).toBeUndefined();
     });
 
     it('prunes a relation whose target is not granted', () => {

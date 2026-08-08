@@ -11,6 +11,7 @@ import {
     count,
     desc,
     eq,
+    inArray,
     isNull,
     type AnyColumn,
     type SQL
@@ -119,6 +120,7 @@ export class PublicEntriesQuery {
             query.media === PREVIEW
                 ? this.expansion.parseMediaFields(type, query.mediaFields)
                 : [];
+        const translations = this.wantsTranslations(type, query);
         const where = and(
             this.readableWhere(type, workspaceId, query.locale),
             buildSearchPredicate(type, query.search),
@@ -157,63 +159,211 @@ export class PublicEntriesQuery {
             items,
             rows as Record<string, unknown>[],
             workspaceId,
-            relationFields,
-            mediaFields,
-            { relation: query.relationLimit, media: query.mediaLimit }
+            { relations: relationFields, media: mediaFields, translations },
+            {
+                relation: query.relationLimit,
+                media: query.mediaLimit
+            },
+            selected
         );
         return { items, total, page, pageSize };
     }
 
     /**
-     * Attach the opt-in relation / media previews to an already-projected page.
-     * Both resolvers are batched across the whole page, so this adds a bounded
-     * number of queries per requested field and none per row.
+     * Attach the opt-in relation / media / translation previews to an
+     * already-projected page. Every resolver is batched across the whole page,
+     * so this adds a bounded number of queries per requested field (and one for
+     * translations) — never one per row.
      */
     private async attachExpansions(
         type: AnyContentType,
         items: PublicEntry[],
         rows: Record<string, unknown>[],
         workspaceId: string,
-        relationFields: string[],
-        mediaFields: string[],
-        limits: { relation?: number; media?: number }
+        want: {
+            relations: string[];
+            media: string[];
+            translations: boolean;
+        },
+        limits: { relation?: number; media?: number },
+        selected: ReadonlySet<string> | undefined
     ): Promise<void> {
-        if (!relationFields.length && !mediaFields.length) {
+        if (
+            !want.relations.length &&
+            !want.media.length &&
+            !want.translations
+        ) {
             return;
         }
-        const [relations, media] = await Promise.all([
+        const [relations, media, translations] = await Promise.all([
             this.expansion.relationsForRows(
                 type,
-                relationFields,
+                want.relations,
                 rows,
                 workspaceId,
                 limits.relation
             ),
             this.expansion.mediaForRows(
                 type,
-                mediaFields,
+                want.media,
                 rows,
                 workspaceId,
                 limits.media
-            )
+            ),
+            want.translations
+                ? this.translationsForEntries(
+                      type,
+                      items,
+                      workspaceId,
+                      selected
+                  )
+                : undefined
         ]);
         for (const item of items) {
             // Keys are present-but-empty when the caller asked for a field the
             // entry has no links in, so a consumer can read `relations.author`
             // without testing for the map itself.
-            if (relationFields.length) {
+            if (want.relations.length) {
                 item.relations = relations.get(item.id) ?? {};
-                for (const field of relationFields) {
+                for (const field of want.relations) {
                     item.relations[field] ??= { items: [], total: 0 };
                 }
             }
-            if (mediaFields.length) {
+            if (want.media.length) {
                 item.media = media.get(item.id) ?? {};
-                for (const field of mediaFields) {
+                for (const field of want.media) {
                     item.media[field] ??= { items: [], total: 0 };
                 }
             }
+            // Likewise present-but-empty: an entry that is the only published
+            // row in its group reports `[]`, not a missing key, so "no other
+            // translations" and "you didn't ask" stay distinguishable.
+            if (want.translations) {
+                item.translations = translations?.get(item.id) ?? [];
+            }
         }
+    }
+
+    /**
+     * Whether this request wants sibling translations — and a **400** when it
+     * asks for them on a type that isn't localized.
+     *
+     * Refusing rather than returning an empty list is the same call
+     * `relationFields` makes for a non-relation field: the type has no
+     * translation group at all, so `[]` would read as "this entry has no other
+     * locales" when the truth is "this content is not localized".
+     */
+    private wantsTranslations(
+        type: AnyContentType,
+        query: PublicEntryQueryDto
+    ): boolean {
+        if (query.translations !== PREVIEW) {
+            return false;
+        }
+        this.assertLocalized(type, 'translations');
+        return true;
+    }
+
+    /** Guard a locale-only feature against a type that has no locale rows. */
+    private assertLocalized(type: AnyContentType, param: string): void {
+        if (!type.i18n) {
+            throw new BadRequestException(
+                `${param}: "${type.name}" is not a localized content type.`
+            );
+        }
+    }
+
+    /**
+     * The sibling translations of every entry on a page, keyed by entry id.
+     *
+     * **One** query for the whole page: the group ids are collected and read
+     * with a single `locale_group_id IN (…)`, which the
+     * `(locale_group_id, locale)` index serves. No cap is applied — a group
+     * holds at most one row per configured locale, so its size is bounded by
+     * the host's own config rather than by user data.
+     *
+     * Deliberately built on {@link liveWhere} and not `readableWhere`: the
+     * extension's `listScope` pins the read to a **single** locale, which is
+     * exactly what a translation lookup must not do. Everything else about
+     * visibility is unchanged — workspace, published-only, not soft-deleted —
+     * so a locale that exists only as a draft stays invisible here too.
+     */
+    private async translationsForEntries(
+        type: AnyContentType,
+        items: PublicEntry[],
+        workspaceId: string,
+        selected: ReadonlySet<string> | undefined
+    ): Promise<Map<string, PublicEntry[]>> {
+        const out = new Map<string, PublicEntry[]>();
+        const groupIds = [
+            ...new Set(
+                items
+                    .map((item) => item.localeGroupId)
+                    .filter((id): id is string => !!id)
+            )
+        ];
+        if (!groupIds.length) {
+            return out;
+        }
+        const table = type.table as unknown as ContentTable;
+        const projection = this.projection(type, selected);
+        const rowsQuery = projection
+            ? this.db.select(projection).from(type.table)
+            : this.db.select().from(type.table);
+        const rows = (await rowsQuery
+            .where(
+                and(
+                    inArray(table['localeGroupId'], groupIds),
+                    this.liveWhere(type, workspaceId)
+                )
+            )
+            .orderBy(asc(table['locale']))) as Record<string, unknown>[];
+
+        const byGroup = new Map<string, Record<string, unknown>[]>();
+        for (const row of rows) {
+            const group = row['localeGroupId'] as string;
+            const bucket = byGroup.get(group);
+            if (bucket) bucket.push(row);
+            else byGroup.set(group, [row]);
+        }
+        for (const item of items) {
+            const siblings = byGroup.get(item.localeGroupId ?? '') ?? [];
+            out.set(
+                item.id,
+                siblings
+                    // The entry itself is the row the caller already holds;
+                    // repeating it inside its own `translations` would double
+                    // every payload for nothing.
+                    .filter((row) => row['id'] !== item.id)
+                    .map((row) => toPublicEntry(type, row, selected))
+            );
+        }
+        return out;
+    }
+
+    /**
+     * The sibling translations of one entry — the `/translations` sibling route,
+     * for a consumer that has the entry and wants its other locales without
+     * re-reading it. 404 for an entry that isn't publicly readable, exactly like
+     * the entry route; 400 on a type that isn't localized.
+     */
+    async translationsOf(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string,
+        query: PublicEntryQueryDto
+    ): Promise<PublicEntry[]> {
+        this.assertLocalized(type, 'translations');
+        const selected = parseFieldSelection(type, query.fields);
+        const row = await this.readableRow(type, id, workspaceId, query.locale);
+        const entry = toPublicEntry(type, row, selected);
+        const byEntry = await this.translationsForEntries(
+            type,
+            [entry],
+            workspaceId,
+            selected
+        );
+        return byEntry.get(id) ?? [];
     }
 
     /**
@@ -272,6 +422,63 @@ export class PublicEntriesQuery {
         grantedTypes: ReadonlySet<string>
     ): Promise<PublicEntry> {
         const table = type.table as unknown as ContentTable;
+        return this.readOne(
+            type,
+            eq(table['id'], id),
+            workspaceId,
+            query,
+            grantedTypes,
+            `No published "${type.name}" entry with id "${id}".`
+        );
+    }
+
+    /**
+     * One publicly readable entry addressed by its **translation group** plus
+     * the requested locale — `GET /v1/content/:type/group/:localeGroupId`.
+     *
+     * This is the route a localized front-end actually wants. A consumer that
+     * knows an article by its group id ("this story") renders it in whatever
+     * locale the visitor is in by varying `?locale=` alone, instead of keeping
+     * a per-locale id map: the group id is the stable identity of the story
+     * across languages, while each locale's `id` is not.
+     *
+     * A group with no **published** row in the requested locale is a 404, the
+     * same as an unknown group — the caller asked for content that isn't live
+     * in that language, and which of the two it is isn't theirs to learn.
+     */
+    async getByLocaleGroup(
+        type: AnyContentType,
+        localeGroupId: string,
+        workspaceId: string,
+        query: PublicEntryQueryDto,
+        grantedTypes: ReadonlySet<string>
+    ): Promise<PublicEntry> {
+        this.assertLocalized(type, 'localeGroupId');
+        const table = type.table as unknown as ContentTable;
+        return this.readOne(
+            type,
+            eq(table['localeGroupId'], localeGroupId),
+            workspaceId,
+            query,
+            grantedTypes,
+            `No published "${type.name}" entry in translation group "${localeGroupId}" for the requested locale.`
+        );
+    }
+
+    /**
+     * Read exactly one publicly readable entry matching `match`, with the same
+     * projection, expansions, and 404 as every single-entry route — shared so
+     * "by id" and "by translation group" cannot drift on what they return or
+     * what they hide.
+     */
+    private async readOne(
+        type: AnyContentType,
+        match: SQL | undefined,
+        workspaceId: string,
+        query: PublicEntryQueryDto,
+        grantedTypes: ReadonlySet<string>,
+        notFound: string
+    ): Promise<PublicEntry> {
         const selected = parseFieldSelection(type, query.fields);
         const relationFields =
             query.relations === PREVIEW
@@ -294,16 +501,11 @@ export class PublicEntriesQuery {
             : this.db.select().from(type.table);
         const [row] = await rowQuery
             .where(
-                and(
-                    eq(table['id'], id),
-                    this.readableWhere(type, workspaceId, query.locale)
-                )
+                and(match, this.readableWhere(type, workspaceId, query.locale))
             )
             .limit(1);
         if (!row) {
-            throw new NotFoundException(
-                `No published "${type.name}" entry with id "${id}".`
-            );
+            throw new NotFoundException(notFound);
         }
         const entry = toPublicEntry(
             type,
@@ -317,9 +519,13 @@ export class PublicEntriesQuery {
             [entry],
             [row as Record<string, unknown>],
             workspaceId,
-            relationFields,
-            mediaFields,
-            { relation: query.relationLimit, media: query.mediaLimit }
+            {
+                relations: relationFields,
+                media: mediaFields,
+                translations: this.wantsTranslations(type, query)
+            },
+            { relation: query.relationLimit, media: query.mediaLimit },
+            selected
         );
         return entry;
     }
@@ -511,16 +717,32 @@ export class PublicEntriesQuery {
         workspaceId: string,
         locale: string | undefined
     ): SQL | undefined {
+        return and(
+            this.liveWhere(type, workspaceId),
+            // No-op for types the extension doesn't apply to; for an i18n type
+            // it scopes to the requested locale (rejecting an unknown one).
+            this.extension?.listScope(type, workspaceId, { locale })
+        );
+    }
+
+    /**
+     * The locale-**independent** half of {@link readableWhere}: workspace,
+     * published-only, not soft-deleted. Split out for the one read that must
+     * span locales — a translation lookup, whose whole job is to find the rows
+     * `listScope` would have filtered away — so that read narrows the entry
+     * visibility rule in exactly one respect and inherits the rest verbatim.
+     */
+    private liveWhere(
+        type: AnyContentType,
+        workspaceId: string
+    ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
         return and(
             eq(table['workspaceId'], workspaceId),
             type.publishable
                 ? eq(table['status'], ENTRY_STATUS.Published)
                 : undefined,
-            type.paranoid ? isNull(table['deletedAt']) : undefined,
-            // No-op for types the extension doesn't apply to; for an i18n type
-            // it scopes to the requested locale (rejecting an unknown one).
-            this.extension?.listScope(type, workspaceId, { locale })
+            type.paranoid ? isNull(table['deletedAt']) : undefined
         );
     }
 

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_471 test cases across 37 spec files._
+_480 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -142,6 +142,20 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | exposes media fields as empty views when nothing is attached |
 | 400s a mediaFields name that is not a media field |
 | rejects an undeclared query parameter |
+
+### localization
+
+| Test case |
+| --- |
+| filters a list by localeGroupId, scoped to the requested locale |
+| reads a group’s row in the requested locale |
+| 404s a group whose row in the requested locale is not published |
+| 404s a group in another workspace |
+| previews an entry’s sibling translations, published only |
+| previews translations across a whole list page |
+| serves the same siblings from the /translations route |
+| 404s /translations for an entry it cannot read |
+| 400s every locale feature on a type that is not localized |
 
 ### schema discovery
 

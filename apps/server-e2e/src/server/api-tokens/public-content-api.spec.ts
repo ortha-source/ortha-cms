@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -23,7 +24,10 @@ const PASSWORD = 'SecurePass123!';
 interface PublicItem {
     id: string;
     publishedAt?: string | null;
+    locale?: string;
+    localeGroupId?: string;
     values: Record<string, unknown>;
+    translations?: PublicItem[];
     relations?: Record<
         string,
         {
@@ -936,6 +940,263 @@ describe('Public content API (/api/v1)', () => {
             await request(harness.server)
                 .get('/api/v1/content/test_article')
                 .query({ deleted: 'only' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+    });
+
+    describe('localization', () => {
+        /**
+         * Seed one translation group: an `en` row plus every extra locale
+         * given, all sharing a `localeGroupId`. Returns the ids by locale.
+         *
+         * `seedArticles` takes raw column values, so the group id is set
+         * explicitly here rather than relying on the column default — that
+         * default mints a *fresh* group per row, which is exactly what a
+         * sibling must not do.
+         */
+        async function seedGroup(
+            rows: { locale: string; text: string; status?: string }[],
+            ws = workspaceId
+        ): Promise<{ groupId: string; byLocale: Record<string, string> }> {
+            const groupId = randomUUID();
+            const ids = await seedArticles(
+                rows.map((row) => ({
+                    text: row.text,
+                    select: 'article',
+                    locale: row.locale,
+                    localeGroupId: groupId,
+                    status: row.status ?? 'published',
+                    publishedAt:
+                        (row.status ?? 'published') === 'published'
+                            ? new Date()
+                            : null
+                })),
+                ws
+            );
+            const byLocale: Record<string, string> = {};
+            rows.forEach((row, index) => (byLocale[row.locale] = ids[index]));
+            return { groupId, byLocale };
+        }
+
+        it('filters a list by localeGroupId, scoped to the requested locale', async () => {
+            const { groupId, byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            // A second group, so the filter has something to exclude.
+            await seedGroup([{ locale: 'de', text: 'Other DE' }]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    locale: 'de',
+                    filter: JSON.stringify({
+                        and: [
+                            {
+                                field: 'localeGroupId',
+                                op: 'eq',
+                                value: groupId
+                            }
+                        ]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const items = res.body.items as PublicItem[];
+            expect(items).toHaveLength(1);
+            expect(items[0].id).toBe(byLocale['de']);
+        });
+
+        it('reads a group’s row in the requested locale', async () => {
+            const { groupId, byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // The whole point of the route: same group id, different locale,
+            // different row — no per-locale id map on the consumer's side.
+            const de = await request(harness.server)
+                .get(`/api/v1/content/test_article/group/${groupId}`)
+                .query({ locale: 'de' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(de.body.id).toBe(byLocale['de']);
+            expect(de.body.locale).toBe('de');
+
+            // No `?locale=` falls back to the configured default (`en`).
+            const fallback = await request(harness.server)
+                .get(`/api/v1/content/test_article/group/${groupId}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(fallback.body.id).toBe(byLocale['en']);
+        });
+
+        it('404s a group whose row in the requested locale is not published', async () => {
+            const { groupId } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'fr', text: 'Story FR', status: 'draft' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // A draft translation and a missing one are the same 404 — which of
+            // the two it is isn't the caller's to learn.
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/group/${groupId}`)
+                .query({ locale: 'fr' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/group/${randomUUID()}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+        });
+
+        it('404s a group in another workspace', async () => {
+            const { groupId } = await seedGroup(
+                [{ locale: 'en', text: 'Theirs' }],
+                otherWorkspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/group/${groupId}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+        });
+
+        it('previews an entry’s sibling translations, published only', async () => {
+            const { byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' },
+                { locale: 'fr', text: 'Story FR', status: 'draft' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${byLocale['en']}`)
+                .query({ translations: 'preview', fields: 'text' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const translations = res.body.translations as PublicItem[];
+            // The `de` sibling only: `fr` is a draft, and the entry itself is
+            // never repeated inside its own translations.
+            expect(translations).toHaveLength(1);
+            expect(translations[0].id).toBe(byLocale['de']);
+            expect(translations[0].locale).toBe('de');
+            // Siblings are full entries honouring the root's `?fields=`.
+            expect(translations[0].values).toEqual({ text: 'Story DE' });
+            expect(translations[0].publishedAt).toBeTruthy();
+        });
+
+        it('previews translations across a whole list page', async () => {
+            const a = await seedGroup([
+                { locale: 'en', text: 'A EN' },
+                { locale: 'de', text: 'A DE' }
+            ]);
+            const b = await seedGroup([{ locale: 'en', text: 'B EN' }]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ translations: 'preview' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const byId = new Map(
+                (res.body.items as PublicItem[]).map((item) => [item.id, item])
+            );
+            expect(
+                byId.get(a.byLocale['en'])?.translations?.map((t) => t.id)
+            ).toEqual([a.byLocale['de']]);
+            // An untranslated group reports `[]`, not a missing key, so "no
+            // other locales" stays distinguishable from "you didn't ask".
+            expect(byId.get(b.byLocale['en'])?.translations).toEqual([]);
+        });
+
+        it('serves the same siblings from the /translations route', async () => {
+            const { byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(
+                    `/api/v1/content/test_article/${byLocale['en']}/translations`
+                )
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(
+                (res.body.translations as PublicItem[]).map((t) => t.id)
+            ).toEqual([byLocale['de']]);
+        });
+
+        it('404s /translations for an entry it cannot read', async () => {
+            const { byLocale } = await seedGroup([
+                { locale: 'en', text: 'Hidden', status: 'draft' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .get(
+                    `/api/v1/content/test_article/${byLocale['en']}/translations`
+                )
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+        });
+
+        it('400s every locale feature on a type that is not localized', async () => {
+            // `test_tag` is a granted, non-i18n collection — the case where a
+            // silent empty list would read as "no other locales" when the truth
+            // is "this content has none to have".
+            await seedContentGrants(workspaceId, ['test_tag']);
+            const [tagId] = await seedTags(
+                [
+                    {
+                        name: 'Flat',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .get('/api/v1/content/test_tag')
+                .query({ translations: 'preview' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+            await request(harness.server)
+                .get(`/api/v1/content/test_tag/${tagId}/translations`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+            await request(harness.server)
+                .get(`/api/v1/content/test_tag/group/${randomUUID()}`)
                 .set('Authorization', `Bearer ${secret}`)
                 .expect(400);
         });
