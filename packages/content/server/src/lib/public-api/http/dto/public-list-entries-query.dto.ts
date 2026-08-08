@@ -10,11 +10,15 @@ import {
 } from 'class-validator';
 import {
     DEFAULT_PAGE_SIZE,
+    FILTER_MAX_LENGTH,
     MAX_PAGE_SIZE
 } from '../../../entries/entries.constants';
 
 /** Longest accepted locale slug (BCP-47's practical bound). */
 const LOCALE_MAX_LENGTH = 35;
+
+/** Longest accepted free-text search needle — matches the admin list's cap. */
+const SEARCH_MAX_LENGTH = 255;
 
 /**
  * The one parameter every public read accepts: which locale to read. Shared by
@@ -40,16 +44,44 @@ export class PublicEntryQueryDto {
 }
 
 /**
- * Query parameters for `GET /api/v1/content/:typeName`. Deliberately small —
- * page, sort, locale — because this is a published contract: every knob here is
- * one the API promises to keep. Free-text search and the structured `?filter=`
- * tree stay on the admin list until the public surface genuinely needs them.
+ * Query parameters for `GET /api/v1/content/:typeName` — search, filter, sort,
+ * paginate, locale. `search` and `filter` use the **same** shapes as the admin
+ * records list, so one query language covers both surfaces.
  *
  * `@Type` coerces the raw query strings; the host's global `ValidationPipe`
  * transforms but does not implicitly convert, and rejects any key not declared
  * here.
  */
 export class PublicListEntriesQueryDto extends PublicEntryQueryDto {
+    /** Free-text search across the type's text-like columns. */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: SEARCH_MAX_LENGTH,
+        description:
+            "Free-text, case-insensitive search across the type's text-like columns (text / richtext / select). LIKE metacharacters are matched literally."
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(SEARCH_MAX_LENGTH)
+    search?: string;
+
+    /**
+     * Structured filter tree as a JSON string, the same shape the admin's
+     * query builder emits. Length-capped here as a first line of defence; the
+     * engine's own node/depth caps bound the parsed shape.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: FILTER_MAX_LENGTH,
+        example:
+            '{"and":[{"field":"featured","op":"eq","value":true},{"field":"publishedAt","op":"gte","value":"2026-01-01"}]}',
+        description:
+            'Structured filter tree as a JSON string, validated against the type’s derived filter schema. Filterable: the type’s own scalar fields plus `id`, `createdAt`, `updatedAt`, `publishedAt`, and `locale`. `status` is NOT filterable — this API serves published entries only, so the rule could only ever be a no-op or match nothing. Malformed or unknown fields → 400.'
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(FILTER_MAX_LENGTH)
+    filter?: string;
     /** 1-based page number. */
     @ApiPropertyOptional({
         type: 'integer',

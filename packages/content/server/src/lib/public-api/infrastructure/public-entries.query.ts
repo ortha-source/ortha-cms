@@ -15,12 +15,15 @@ import {
     type SQL
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
 } from '../../extension/entry-extension';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { isScalarField } from '../../entries/infrastructure/queries/entry-scalar-fields';
+import { buildEntryFilterSurface } from '../../entries/infrastructure/queries/entry-filter-surface';
+import { buildSearchPredicate } from '../../entries/infrastructure/queries/entry-search';
 import { DEFAULT_PAGE_SIZE } from '../../entries/entries.constants';
 import type { PublicListEntriesQueryDto } from '../http/dto/public-list-entries-query.dto';
 import type { PublicEntry, PublicEntryListView } from '../types/public-entry';
@@ -35,12 +38,14 @@ type ContentTable = Record<string, AnyColumn>;
  * are derived from `type` per request, so one service serves every code-defined
  * collection and single.
  *
- * It is deliberately **not** built on `EntriesService`. That service's surface
- * (free-text search, the `?filter=` tree, `?deleted=only`, relation preview) is
- * the admin's, and several of its knobs — `deleted=only` most obviously —
- * select rows this API must never serve. Rather than reach through it and
- * subtract, the public read states its own narrow WHERE, so "what can a token
- * see?" is answerable by reading one method:
+ * It **reuses** the admin's query machinery where the semantics are identical —
+ * the same ILIKE search predicate and the same query-builder filter engine, so
+ * one query language covers both surfaces — but it is deliberately **not** built
+ * on `EntriesService` itself. Several of that service's knobs (`?deleted=only`
+ * most obviously) select rows this API must never serve, and reaching through it
+ * to subtract them would make the visibility rule an argument about what was
+ * *not* passed. Instead the public read states its own WHERE, so "what can a
+ * token see?" is answerable by reading one method:
  *
  * - the **workspace** the request resolved to, always;
  * - **published only**, on publishable types — a draft is unfinished work and
@@ -48,6 +53,9 @@ type ContentTable = Record<string, AnyColumn>;
  * - **not soft-deleted**, on paranoid types;
  * - the bound `CONTENT_ENTRY_EXTENSION`'s scope, so a localized type reads the
  *   requested locale (and the same rules the admin gets) for free.
+ *
+ * `?search=` and `?filter=` narrow that set further; neither can widen it, since
+ * both are AND-ed onto the predicate above.
  */
 @Injectable()
 export class PublicEntriesQuery {
@@ -67,11 +75,21 @@ export class PublicEntriesQuery {
     async list(
         type: AnyContentType,
         query: PublicListEntriesQueryDto,
-        workspaceId: string
+        workspaceId: string,
+        grantedTypes: ReadonlySet<string>
     ): Promise<PublicEntryListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-        const where = this.readableWhere(type, workspaceId, query.locale);
+        const where = and(
+            this.readableWhere(type, workspaceId, query.locale),
+            buildSearchPredicate(type, query.search),
+            await this.filterPredicate(
+                type,
+                query.filter,
+                workspaceId,
+                grantedTypes
+            )
+        );
 
         const [[{ total }], rows] = await Promise.all([
             this.db.select({ total: count() }).from(type.table).where(where),
@@ -122,6 +140,47 @@ export class PublicEntriesQuery {
             );
         }
         return toPublicEntry(type, row as Record<string, unknown>);
+    }
+
+    /**
+     * Translate one `?filter=` payload — the same query-builder tree the admin
+     * records list takes — against a surface derived from the type.
+     *
+     * Two departures from the admin's version, both deliberate:
+     *
+     * - **Grant-pruned.** `grantedTypes` is passed, so a relation whose target
+     *   the workspace was never granted is omitted from the surface and a rule
+     *   naming it 400s. Without it, `author.name eq "Ada"` would let a token
+     *   infer relation data by watching which entries come back — data this API
+     *   deliberately does not return. The admin's list leaves this unset on
+     *   purpose (there it is a SQL whitelist, not a visibility boundary); here
+     *   it is exactly a visibility boundary.
+     * - **No `status`.** The read already forces `status = published`, so a
+     *   `status` rule could only be a no-op or match nothing. Dropping it from
+     *   the schema turns a confusingly empty page into a clear 400.
+     *
+     * Built lazily — the surface walks the type's whole relation graph to the
+     * hop budget, so an unfiltered list (the common case) never pays for it.
+     * A malformed filter throws `FilterException`, which is a 400.
+     */
+    private async filterPredicate(
+        type: AnyContentType,
+        filter: string | undefined,
+        workspaceId: string,
+        grantedTypes: ReadonlySet<string>
+    ): Promise<SQL | undefined> {
+        if (!filter) {
+            return undefined;
+        }
+        const { schema } = buildEntryFilterSurface(type, {
+            workspaceId,
+            grantedTypes
+        });
+        if (schema.fields) {
+            delete schema.fields['status'];
+        }
+        const tree = parseFilterTree(filter, schema);
+        return applyFilterTree(tree, schema, type.table, this.db);
     }
 
     /**

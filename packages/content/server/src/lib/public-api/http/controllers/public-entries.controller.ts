@@ -74,20 +74,20 @@ export class PublicEntriesController {
     @ApiOperation({
         summary: 'List published entries of a content type',
         description:
-            'One page of the type’s published, non-deleted entries in the requested workspace, newest-updated first by default. 404 when the type is unknown or the workspace was not granted it.'
+            'One page of the type’s published, non-deleted entries in the requested workspace, newest-updated first by default. Supports free-text `?search=` and the structured `?filter=` tree (the same shape the admin query builder emits). 404 when the type is unknown or the workspace was not granted it.'
     })
     async list(
         @Param('typeName') typeName: string,
         @Query() query: PublicListEntriesQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntryListView> {
-        const type = await resolveGrantedType(
+        const { type, granted } = await resolveGrantedType(
             this.registry,
             this.grants,
             typeName,
             workspaceId
         );
-        return this.entries.list(type, query, workspaceId);
+        return this.entries.list(type, query, workspaceId, granted);
     }
 
     /** `GET /api/v1/content/:typeName/:id` — one published entry. */
@@ -103,7 +103,7 @@ export class PublicEntriesController {
         @Query() query: PublicEntryQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntry> {
-        const type = await resolveGrantedType(
+        const { type } = await resolveGrantedType(
             this.registry,
             this.grants,
             typeName,

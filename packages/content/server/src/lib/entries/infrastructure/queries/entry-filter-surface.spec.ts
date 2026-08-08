@@ -69,12 +69,7 @@ async function sqlFor(
 ): Promise<string> {
     const { schema } = buildEntryFilterSurface(type, { workspaceId: WS });
     const tree = parseFilterTree(JSON.stringify({ and: [rule] }), schema);
-    const sql = await applyFilterTree(
-        tree,
-        schema,
-        type.table,
-        qb as never
-    );
+    const sql = await applyFilterTree(tree, schema, type.table, qb as never);
     return dialect
         .sqlToQuery(sql as SQL)
         .sql.replace(/\s+/g, ' ')
@@ -314,30 +309,30 @@ describe('buildEntryFilterSurface', () => {
         // The self-referencing shape produces the deepest paths, so it is the
         // one most likely to outrun `maxDepth`.
         ['page', page]
-    ])('every offered %s path parses against its schema (no drift)', (
-        _name,
-        type
-    ) => {
-        const { schema, fields } = buildEntryFilterSurface(type, {
-            workspaceId: WS
-        });
-        for (const f of fields) {
-            const value =
-                f.type === 'uuid'
-                    ? UUID
-                    : f.type === 'number'
-                      ? '1'
-                      : f.type === 'boolean'
-                        ? 'true'
-                        : f.type === 'date'
-                          ? '2020-01-01T00:00:00.000Z'
-                          : f.type === 'enum'
-                            ? f.enumValues![0]
-                            : 'x';
-            const json = JSON.stringify({
-                and: [{ field: f.path, op: 'eq', value }]
+    ])(
+        'every offered %s path parses against its schema (no drift)',
+        (_name, type) => {
+            const { schema, fields } = buildEntryFilterSurface(type, {
+                workspaceId: WS
             });
-            expect(() => parseFilterTree(json, schema)).not.toThrow();
+            for (const f of fields) {
+                const value =
+                    f.type === 'uuid'
+                        ? UUID
+                        : f.type === 'number'
+                          ? '1'
+                          : f.type === 'boolean'
+                            ? 'true'
+                            : f.type === 'date'
+                              ? '2020-01-01T00:00:00.000Z'
+                              : f.type === 'enum'
+                                ? f.enumValues![0]
+                                : 'x';
+                const json = JSON.stringify({
+                    and: [{ field: f.path, op: 'eq', value }]
+                });
+                expect(() => parseFilterTree(json, schema)).not.toThrow();
+            }
         }
-    });
+    );
 });

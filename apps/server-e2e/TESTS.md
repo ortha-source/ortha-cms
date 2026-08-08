@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_453 test cases across 37 spec files._
+_458 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -123,6 +123,11 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | 404s an unknown content type |
 | serves a single (page) type through the same list route |
 | paginates |
+| searches across the type’s text columns |
+| filters on a scalar field with the query-builder tree |
+| never lets a filter widen the published-only scope |
+| 400s a malformed filter and an unknown filter field |
+| 400s a filter traversing into an ungranted relation |
 | rejects an undeclared query parameter |
 
 ### schema discovery

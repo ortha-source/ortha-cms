@@ -382,9 +382,9 @@ token is the only way in, and a session cookie is *not* accepted):
 - `GET /v1/content-types` — summaries of every type the workspace was granted.
 - `GET /v1/content-types/:name` — one type's full field schema.
 - `GET /v1/content/:typeName` — one page of published entries
-  (`?page=&pageSize=&sort=&locale=`). Serves **singles too** — with i18n a
-  single still has one row per locale, so the list envelope is honest for both;
-  take `items[0]`.
+  (`?search=&filter=&sort=&page=&pageSize=&locale=`). Serves **singles too** —
+  with i18n a single still has one row per locale, so the list envelope is
+  honest for both; take `items[0]`.
 - `GET /v1/content/:typeName/:id` — one published entry (`?locale=`).
 
 **Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
@@ -414,6 +414,29 @@ scope (so i18n locale handling comes for free). It is deliberately **not** built
 on `EntriesService`: that service's knobs are the admin's, and `?deleted=only`
 alone selects rows this API must never serve — stating a narrow WHERE beats
 reaching through a wide one and subtracting.
+
+**Search + filter** reuse the admin's machinery, so one query language covers
+both surfaces: `?search=` is the shared `buildSearchPredicate` (ILIKE over
+text-like columns, metacharacters escaped — extracted to
+`entries/infrastructure/queries/entry-search.ts` so the two callers can't drift
+on the escaping), and `?filter=` is the same query-builder tree, parsed against
+a surface from `buildEntryFilterSurface`. Both are **AND-ed onto**
+`readableWhere`, so neither can widen what a token sees — only narrow it. Two
+deliberate departures from the admin's list:
+
+- **Grant-pruned.** The surface is built with `grantedTypes`, so a hop into a
+  content type the workspace was never granted 400s (`FILTER_UNKNOWN_RELATION`)
+  instead of resolving. Without it, `author.name eq "Ada"` would let a token
+  infer relation data by watching which entries match — data the entry read
+  deliberately omits. The admin's list leaves `grantedTypes` unset on purpose
+  (there the schema is a SQL whitelist, not a visibility boundary); here it is
+  exactly a visibility boundary.
+- **`status` is removed from the schema.** The read already forces
+  `status = published`, so a `status` rule could only be a no-op or match
+  nothing; a 400 (`FILTER_UNKNOWN_FIELD`) beats a confusingly empty page.
+
+The surface is built **lazily**, only when `?filter=` is present, since it walks
+the whole relation graph to the hop budget.
 
 **Grant-pruned.** `:typeName` must be registered **and** in the workspace's
 `workspace_content` grants; anything else is the same 404

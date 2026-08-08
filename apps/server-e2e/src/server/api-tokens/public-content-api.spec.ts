@@ -432,6 +432,155 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.items).toHaveLength(1);
         });
 
+        it('searches across the type’s text columns', async () => {
+            await seedPublished('Alpha release notes');
+            await seedPublished('Beta announcement');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ search: 'release' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(res.body.total).toBe(1);
+            expect((res.body.items as PublicItem[])[0].values['text']).toBe(
+                'Alpha release notes'
+            );
+        });
+
+        it('filters on a scalar field with the query-builder tree', async () => {
+            await seedArticles(
+                [
+                    {
+                        text: 'A tutorial',
+                        select: 'tutorial',
+                        status: 'published',
+                        publishedAt: new Date()
+                    },
+                    {
+                        text: 'An article',
+                        select: 'article',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    filter: JSON.stringify({
+                        and: [{ field: 'select', op: 'eq', value: 'tutorial' }]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(res.body.total).toBe(1);
+            expect((res.body.items as PublicItem[])[0].values['text']).toBe(
+                'A tutorial'
+            );
+        });
+
+        it('never lets a filter widen the published-only scope', async () => {
+            await seedPublished('Live');
+            await seedArticles(
+                [{ text: 'Draft', select: 'article' }],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // `status` is not in the public filter schema — it could only ever
+            // be a no-op or match nothing, so it is a clear 400 rather than a
+            // confusingly empty page.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    filter: JSON.stringify({
+                        and: [{ field: 'status', op: 'eq', value: 'draft' }]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+
+            // And a filter that matches every row — both entries were created
+            // just now, so this is deliberately satisfied by the draft too —
+            // still cannot surface it: the filter is AND-ed onto the
+            // published-only predicate, so it can only ever narrow.
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    filter: JSON.stringify({
+                        and: [
+                            {
+                                field: 'createdAt',
+                                op: 'gte',
+                                value: '2000-01-01'
+                            }
+                        ]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            expect(res.body.total).toBe(1);
+            expect(
+                (res.body.items as PublicItem[]).map(
+                    (item) => item.values['text']
+                )
+            ).toEqual(['Live']);
+        });
+
+        it('400s a malformed filter and an unknown filter field', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ filter: 'not json' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    filter: JSON.stringify({
+                        and: [{ field: 'nope', op: 'eq', value: 'x' }]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
+        it('400s a filter traversing into an ungranted relation', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // `test_author` is not granted to this workspace, so the surface
+            // omits the traversal — a token can't infer relation data it isn't
+            // allowed to read by watching which entries match.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    filter: JSON.stringify({
+                        and: [{ field: 'author.name', op: 'eq', value: 'Ada' }]
+                    })
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
         it('rejects an undeclared query parameter', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]

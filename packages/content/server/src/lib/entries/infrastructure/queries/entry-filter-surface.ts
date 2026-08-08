@@ -1,10 +1,4 @@
-import {
-    and,
-    eq,
-    getTableColumns,
-    isNull,
-    type AnyColumn
-} from 'drizzle-orm';
+import { and, eq, getTableColumns, isNull, type AnyColumn } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import {
     RelationKind,
@@ -205,7 +199,14 @@ function relationFor(
     // The target's own scalar fields + (if hops remain) its relations. This
     // is the SAME walk that emits the wire fields, so the SQL whitelist and
     // the picker's field list are one traversal and cannot drift.
-    const nested = walk(target, nextPath, nextGroup, hopsLeft - 1, visited, ctx);
+    const nested = walk(
+        target,
+        nextPath,
+        nextGroup,
+        hopsLeft - 1,
+        visited,
+        ctx
+    );
     const common = {
         fields: nested.fields,
         relations: nested.relations,

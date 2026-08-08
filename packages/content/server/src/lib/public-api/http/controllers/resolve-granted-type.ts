@@ -4,6 +4,18 @@ import type { ContentTypeRegistry } from '../../../registry/content-type-registr
 import type { AnyContentType } from '../../../types/content-type';
 
 /**
+ * A resolved type plus the workspace's full grant set. The grants are returned
+ * alongside because the filter surface needs them to prune relation traversals
+ * into ungranted types — reading them once per request rather than twice.
+ */
+export interface GrantedType {
+    /** The registered, granted content type the route targets. */
+    type: AnyContentType;
+    /** Every content slug the workspace was granted. */
+    granted: ReadonlySet<string>;
+}
+
+/**
  * Resolve a `:typeName` for a public-API request: it must be a registered
  * content type **and** one the target workspace has been granted
  * (`workspace_content`). Anything else — unknown name, or a real type this
@@ -21,11 +33,11 @@ export async function resolveGrantedType(
     grants: WorkspaceGrantsQuery,
     typeName: string,
     workspaceId: string
-): Promise<AnyContentType> {
+): Promise<GrantedType> {
     const type = registry.get(typeName);
     const granted = await grants.grantedSlugs(workspaceId);
     if (!type || !granted.has(typeName)) {
         throw new NotFoundException(`Unknown content type "${typeName}".`);
     }
-    return type;
+    return { type, granted };
 }

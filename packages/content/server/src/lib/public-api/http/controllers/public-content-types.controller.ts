@@ -87,7 +87,7 @@ export class PublicContentTypesController {
         // Resolve through the same grant gate as the entry routes, so an
         // ungranted type reads identically here and there (one 404, no
         // enumeration signal). The registry then serializes the resolved type.
-        const type = await resolveGrantedType(
+        const { type } = await resolveGrantedType(
             this.registry,
             this.grants,
             name,
