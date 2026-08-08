@@ -30,7 +30,28 @@ export type {
     CopilotModelCatalogue
 } from './lib/application/useCopilotModels';
 export { ModelPicker } from './lib/presentation/ModelPicker';
-export type { ChatMessage, ChatToolStep } from './lib/domain/types/chat';
+export type {
+    ChatMessage,
+    ChatProposal,
+    ChatToolStep
+} from './lib/domain/types/chat';
+
+// The proposal surface. Exported for the same reason the chat state is: a
+// future inline surface (the entry editor's "suggest alt text") renders the
+// same card and decides through the same mutation rather than building a
+// second accept boundary.
+export { ProposalCard } from './lib/presentation/ProposalCard';
+export { useDecideProposal } from './lib/application/useDecideProposal';
+export type { DecideProposalInput } from './lib/application/useDecideProposal';
+export {
+    useCopilotPolicy,
+    useSetCopilotPolicy,
+    copilotPolicyKey
+} from './lib/application/useCopilotPolicy';
+export type {
+    CopilotPolicy,
+    CopilotOptInCandidate
+} from './lib/application/useCopilotPolicy';
 // Where the user is, derived from the URL. Exported so a future inline surface
 // (the ⌘K palette, an entry-editor widget) reports the same context rather than
 // inventing its own.

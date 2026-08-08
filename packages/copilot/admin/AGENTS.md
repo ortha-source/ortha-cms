@@ -9,11 +9,17 @@ The admin-side copilot plugin — the chat panel.
 > [`docs/design/copilot.md`](../../../docs/design/copilot.md). When you add a
 > string, follow the same split.
 
-**Phase 1 contributes one thing: an entry point.** `CopilotPlugin()` fills the
-shell's `SIDEBAR_FOOTER_SLOT` with a launcher that opens the panel (or `⌘J`) and
-contributes **no routes** — the panel is a docked window over whatever page you
+`CopilotPlugin()` fills the shell's `SIDEBAR_FOOTER_SLOT` with a launcher that
+opens the panel (or `⌘J`) — the panel is a docked window over whatever page you
 are on, which is the point of it being a persistent surface rather than a
 destination.
+
+It contributes exactly **one route**, and the exception proves the rule: the
+workspace's auto-apply policy (ADR-0005 §6) _is_ a destination — configuration,
+per workspace, read rarely by one person rather than constantly by everyone. Its
+nav entry carries `permission: 'copilot:configure'`, so an editor never sees a
+link to a page that would 403; the page gates itself too, because a nav entry is
+a courtesy and not a boundary.
 
 ## Layout
 
@@ -25,6 +31,8 @@ application/
   useConversations.ts      # thread list (query)
   useConversation.ts       # open one thread (mutation) + block→UI mapping
   useCopilotModels.ts      # the model catalogue + choice-key helpers
+  useDecideProposal.ts     # accept / reject one proposal (mutation)
+  useCopilotPolicy.ts      # the workspace's auto-apply opt-ins (query + mutation)
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
 presentation/
@@ -33,7 +41,10 @@ presentation/
   CopilotPanel/            # the docked window
   MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
   ContextChip/             # what context is attached to the next turn
+  ProposalCard/            # a proposed change, its diff, and the two buttons
   Markdown/                # small local renderer (see below)
+pages/
+  CopilotSettingsPage/     # the auto-apply policy, `copilot:configure`
 ```
 
 ## Decisions worth knowing
@@ -45,7 +56,7 @@ presentation/
   **POST**, because the turn has a body and `EventSource` can only issue a
   bodyless GET. (Verified to stream unbuffered through the Vite dev proxy.)
 - **`useCurrentWorkspace()` is unusable here, and fails loudly.**
-  `CurrentWorkspaceProvider` wraps only the workspace shell's *inset content*;
+  `CurrentWorkspaceProvider` wraps only the workspace shell's _inset content_;
   the app sidebar — where the launcher lives — renders **outside** it, and the
   hook **throws** there rather than returning null, taking the whole admin down
   on every page. `useRouteContext` reads the URL instead; the
@@ -53,7 +64,7 @@ presentation/
   `X-Workspace-Id`, which `WorkspaceGuard` validates for shape and membership,
   so a route-derived id is no more trusted than a context-derived one.
 - **A pure reducer, not `setState` in the stream loop.** A `text-delta` arrives
-  dozens of times per answer and must append to the *current* last message, not
+  dozens of times per answer and must append to the _current_ last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
 - **Two triggers, one panel.** A sidebar-footer row (which carries the `⌘J`
@@ -67,7 +78,7 @@ presentation/
   dims the page, traps focus and blocks every control behind it — but the useful
   thing to do with an answer is act on it, which would mean closing the
   conversation first. Consequences, all deliberate: no focus trap (Tab leaves
-  the panel, because the page is live), no overlay, focus still *managed*
+  the panel, because the page is live), no overlay, focus still _managed_
   (composer on open, `returnFocusRef` on close), Escape closes. Minimizing hides
   the body but keeps it **mounted**, so a run in flight keeps streaming rather
   than being silently cancelled.
@@ -85,10 +96,43 @@ presentation/
   like the table one turns up, stop growing this and take `react-markdown`** —
   it is a drop-in replacement for the component.
 
+## Proposals
+
+A `propose` tool's change arrives as its **own** run event, after the tool
+result the same call produced. The two answer different questions — the tool
+result is what the _model_ was told, the proposal is what the _human_ is being
+asked to decide — so the step list renders from one and the card from the other.
+
+- **The card lives in the transcript**, attached to the turn that produced it and
+  rendered _after_ the prose. A proposal is part of an answer ("here is what I
+  would change"), and a card asking for a decision above its own reasoning asks
+  the user to decide first and read second. A separate review queue elsewhere
+  would make the reply refer to something off-screen.
+- **Its most important job is being unmistakable about what has not happened.** A
+  pending card says "Nothing has been saved yet" in words, not only by having
+  buttons; an applied one says so and drops them.
+- **"You applied this" and "this was applied for you" are different sentences**,
+  so the card distinguishes them. The server records the same `decidedBy` either
+  way — auto-apply acts as the user whose run produced the change — so the only
+  signal is that an auto-applied proposal _arrives already accepted_, which the
+  reducer stamps as `autoApplied` at that moment.
+- **Decisions are found by id across the whole transcript**, not assumed onto the
+  last turn: deciding a card three answers up is the ordinary case.
+- **A failed decision keeps the card decidable** and shows the server's own
+  message. The four statuses mean different things to the person clicking — 409
+  someone got there first, 403 you may not, 422 it could not be applied and is
+  still pending, 404 it is gone — and collapsing them into "failed" loses exactly
+  what tells them whether to retry, refresh, or ask a colleague.
+- **Reopening a thread reattaches the cards.** `useOpenConversation` fetches the
+  transcript and `GET /copilot/proposals?conversationId=` concurrently and joins
+  them on `toolCallId`, which is why the server stores it.
+- Proposed values render as **text**, never markup — same rule as the tool step's
+  payload, and for a stronger reason: this card is where a human approves them.
+
 ## The panel is portalled to `<body>` — and must stay that way
 
 This component is contributed to the **sidebar's footer slot**, so without a
-portal the fixed-position chrome is a DOM *descendant of the sidebar* and
+portal the fixed-position chrome is a DOM _descendant of the sidebar_ and
 inherits its styling. That is not hypothetical: the sidebar sets
 `text-sidebar-foreground` (a near-white, for its dark background), so the panel
 rendered near-white text on its own white surface at **2.86:1** — well under the
@@ -148,7 +192,7 @@ Three presentations, chosen by what the user can actually see and do:
   deliberate cancel is neither, and gets a quiet line instead of a banner
   telling the user about their own action.
 - **A system condition → `toast.error`, but only while minimized.** The toast
-  exists to reach someone who *cannot see* the alert, and the only such state is
+  exists to reach someone who _cannot see_ the alert, and the only such state is
   a minimized panel (a run keeps streaming while it is). Toasting with the panel
   open is worse than useless: the host mounts `Toaster` bottom-right, exactly
   where the panel sits, so it covers the composer to announce something already

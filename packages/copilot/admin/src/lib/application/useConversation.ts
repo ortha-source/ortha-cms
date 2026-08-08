@@ -1,7 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '@ortha-cms/utils-admin';
 import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
-import type { ChatMessage, ChatToolStep } from '../domain/types/chat';
+import type {
+    ChatMessage,
+    ChatProposal,
+    ChatToolStep
+} from '../domain/types/chat';
 import type { CopilotConversation } from './useConversations';
 
 /** One persisted turn, as the transcript route serves it. */
@@ -30,15 +34,40 @@ interface ConversationDetail {
 export function useOpenConversation() {
     return useMutation({
         mutationFn: async (conversationId: string) => {
-            const response = await apiClient.get<ConversationDetail>(
-                `/copilot/conversations/${conversationId}`
-            );
+            // Two reads, concurrently. The proposals are a separate table and a
+            // separate route, and a thread with no changes in it must not pay
+            // for a serial round trip to learn that.
+            const [detail, proposals] = await Promise.all([
+                apiClient.get<ConversationDetail>(
+                    `/copilot/conversations/${conversationId}`
+                ),
+                apiClient.get<{ items: PersistedProposal[] }>(
+                    '/copilot/proposals',
+                    { params: { conversationId } }
+                )
+            ]);
             return {
-                conversation: response.data.conversation,
-                messages: toChatMessages(response.data.messages)
+                conversation: detail.data.conversation,
+                messages: toChatMessages(
+                    detail.data.messages,
+                    proposals.data.items
+                )
             };
         }
     });
+}
+
+/** One proposal as the queue route serves it. */
+interface PersistedProposal {
+    id: string;
+    toolCallId: string;
+    toolName: string;
+    kind: string;
+    summary: string;
+    target: Record<string, unknown>;
+    changes: ChatProposal['changes'] | null;
+    status: ChatProposal['status'];
+    result: { entityId?: string } | null;
 }
 
 /**
@@ -50,7 +79,33 @@ export function useOpenConversation() {
  * the `tool_use` step they answer, so a reopened thread renders the same
  * collapsed steps a live run does.
  */
-function toChatMessages(messages: PersistedMessage[]): ChatMessage[] {
+function toChatMessages(
+    messages: PersistedMessage[],
+    proposals: PersistedProposal[] = []
+): ChatMessage[] {
+    // Proposals attach by the tool call that produced them, so a reopened
+    // thread puts each card back on the turn it belongs to instead of
+    // collecting them all at the bottom. `toolCallId` is exactly why the server
+    // stores it.
+    const proposalsByCall = new Map<string, ChatProposal[]>();
+    for (const proposal of proposals) {
+        const list = proposalsByCall.get(proposal.toolCallId) ?? [];
+        list.push({
+            id: proposal.id,
+            toolCallId: proposal.toolCallId,
+            toolName: proposal.toolName,
+            kind: proposal.kind,
+            summary: proposal.summary,
+            target: proposal.target,
+            ...(proposal.changes ? { changes: proposal.changes } : {}),
+            status: proposal.status,
+            ...(proposal.result?.entityId
+                ? { entityId: proposal.result.entityId }
+                : {})
+        });
+        proposalsByCall.set(proposal.toolCallId, list);
+    }
+
     // Tool results ride on the *following* user turn, so collect them all first
     // and attach by id rather than trying to pair them positionally.
     const resultsById = new Map<
@@ -89,6 +144,10 @@ function toChatMessages(messages: PersistedMessage[]): ChatMessage[] {
                 };
             });
 
+        const turnProposals = steps.flatMap(
+            (step) => proposalsByCall.get(step.id) ?? []
+        );
+
         // A turn that carried only tool results (no prose, no calls) is
         // plumbing, not something a reader should see as an empty bubble.
         if (!text && steps.length === 0) {
@@ -101,6 +160,9 @@ function toChatMessages(messages: PersistedMessage[]): ChatMessage[] {
                 role: message.role,
                 text,
                 steps,
+                ...(turnProposals.length > 0
+                    ? { proposals: turnProposals }
+                    : {}),
                 ...(message.stopReason
                     ? { stopReason: message.stopReason }
                     : {})

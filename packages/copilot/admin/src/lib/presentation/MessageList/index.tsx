@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
 import type { ChatMessage } from '../../domain/types/chat';
 import { Markdown } from '../Markdown';
 import { ToolStep } from '../ToolStep';
+import { ProposalCard } from '../ProposalCard';
 
 const messages = defineMessages({
     empty: {
@@ -14,7 +15,7 @@ const messages = defineMessages({
     emptyHint: {
         id: 'copilot.chat.emptyHint',
         defaultMessage:
-            'Ortha AI can only see what you can see, and it can’t change anything yet.'
+            'Ortha AI can only see what you can see, and every change it makes needs your approval.'
     },
     thinking: {
         id: 'copilot.chat.thinking',
@@ -60,7 +61,14 @@ const TRUNCATING_STOP_REASONS: Record<string, string> = {
  * when the run ended for a reason other than a finished answer — a line saying
  * so, because a truncated answer that looks complete is worse than a short one.
  */
-export function MessageList({ messages: turns }: { messages: ChatMessage[] }) {
+export function MessageList({
+    messages: turns,
+    onDecideProposal
+}: {
+    messages: ChatMessage[];
+    /** Decides one proposal. Omitted, the cards render read-only. */
+    onDecideProposal?(proposalId: string, decision: 'accept' | 'reject'): void;
+}) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
 
@@ -89,14 +97,24 @@ export function MessageList({ messages: turns }: { messages: ChatMessage[] }) {
             aria-live="polite"
         >
             {turns.map((turn) => (
-                <Turn key={turn.id} turn={turn} />
+                <Turn
+                    key={turn.id}
+                    turn={turn}
+                    {...(onDecideProposal ? { onDecideProposal } : {})}
+                />
             ))}
             <div ref={endRef} />
         </div>
     );
 }
 
-function Turn({ turn }: { turn: ChatMessage }) {
+function Turn({
+    turn,
+    onDecideProposal
+}: {
+    turn: ChatMessage;
+    onDecideProposal?(proposalId: string, decision: 'accept' | 'reject'): void;
+}) {
     const intl = useIntl();
     const reason = turn.stopReason
         ? TRUNCATING_STOP_REASONS[turn.stopReason]
@@ -126,6 +144,23 @@ function Turn({ turn }: { turn: ChatMessage }) {
             )}
 
             {turn.text && <Markdown text={turn.text} />}
+
+            {/* After the answer, not before it: the prose is where the model
+                explains why, and a card asking for a decision above its own
+                reasoning asks the user to decide first and read second. */}
+            {turn.proposals && turn.proposals.length > 0 && (
+                <div className="space-y-2">
+                    {turn.proposals.map((proposal) => (
+                        <ProposalCard
+                            key={proposal.id}
+                            proposal={proposal}
+                            onDecide={(decision) =>
+                                onDecideProposal?.(proposal.id, decision)
+                            }
+                        />
+                    ))}
+                </div>
+            )}
 
             {turn.streaming && !turn.text && turn.steps.length === 0 && (
                 <p className="text-muted-foreground animate-pulse text-sm">

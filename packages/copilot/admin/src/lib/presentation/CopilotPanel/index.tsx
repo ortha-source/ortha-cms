@@ -187,7 +187,8 @@ export function CopilotPanel({
                 'max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)]',
                 minimized && 'w-[380px]',
                 !minimized && !expanded && 'h-[620px] w-[420px]',
-                expanded && 'h-[calc(100vh-2rem)] w-[min(820px,calc(100vw-2rem))]',
+                expanded &&
+                    'h-[calc(100vh-2rem)] w-[min(820px,calc(100vw-2rem))]',
                 // A **transition**, not an `animate-in` utility: those come from
                 // tailwindcss-animate, which this workspace deliberately does
                 // not install — the classes shadcn ships generate no CSS here
@@ -334,7 +335,10 @@ function PanelBody({
                 </Button>
             </div>
 
-            <MessageList messages={chat.messages} />
+            <MessageList
+                messages={chat.messages}
+                onDecideProposal={chat.decide}
+            />
 
             {/* "Your message, plus where you are" (design §2) — but only when
                 the user asked for it. See ContextChip for why this is opt-in. */}

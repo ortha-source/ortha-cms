@@ -2,13 +2,10 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { defineMessages, useIntl, type IntlShape } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@ortha-cms/design-system';
-import {
-    chatReducer,
-    initialChatState,
-    type ChatAction
-} from './chatReducer';
+import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
 import { conversationsKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
+import { useDecideProposal } from './useDecideProposal';
 import type { ChatMessage } from '../domain/types/chat';
 
 const messages = defineMessages({
@@ -27,6 +24,10 @@ const messages = defineMessages({
     offline: {
         id: 'copilot.chat.error.offline',
         defaultMessage: 'Could not reach the server. Check your connection.'
+    },
+    decideFailed: {
+        id: 'copilot.chat.error.decideFailed',
+        defaultMessage: 'That change could not be decided. Please try again.'
     }
 });
 
@@ -58,6 +59,8 @@ export interface CopilotChat {
     reset(): void;
     /** Shows a persisted thread. */
     load(conversationId: string, messages: ChatMessage[]): void;
+    /** Accepts or rejects one proposed change. */
+    decide(proposalId: string, decision: 'accept' | 'reject'): void;
 }
 
 /**
@@ -81,6 +84,7 @@ export function useCopilotChat(
 ): CopilotChat {
     const [state, dispatch] = useReducer(chatReducer, initialChatState);
     const intl = useIntl();
+    const decideProposal = useDecideProposal();
     const queryClient = useQueryClient();
     const abortRef = useRef<AbortController | null>(null);
     // Read through a ref, never the captured value: `send`'s async closure is
@@ -154,9 +158,12 @@ export function useCopilotChat(
                     // cover the composer to announce something already on
                     // screen a few pixels above.
                     if (hiddenRef.current && failure.systemic) {
-                        toast.error(intl.formatMessage(messages.rejectedTitle), {
-                            description: failure.message
-                        });
+                        toast.error(
+                            intl.formatMessage(messages.rejectedTitle),
+                            {
+                                description: failure.message
+                            }
+                        );
                     }
                 } finally {
                     abortRef.current = null;
@@ -176,6 +183,40 @@ export function useCopilotChat(
         abortRef.current?.abort();
     }, []);
 
+    const decide = useCallback(
+        (proposalId: string, decision: 'accept' | 'reject') => {
+            dispatch({ type: 'deciding', proposalId });
+            decideProposal.mutate(
+                { proposalId, decision, workspaceId },
+                {
+                    onSuccess: (proposal) =>
+                        dispatch({
+                            type: 'decided',
+                            proposalId,
+                            status: proposal.status,
+                            ...(proposal.result?.entityId
+                                ? { entityId: proposal.result.entityId }
+                                : {})
+                        }),
+                    // The card keeps its buttons and shows why. The four
+                    // statuses the server can return mean different things to
+                    // the person clicking — someone got there first, you may
+                    // not, it could not be applied and is still pending — and
+                    // the server's own message says which. Collapsing them into
+                    // "failed" would lose exactly what tells them whether to
+                    // retry, refresh, or ask a colleague.
+                    onError: (error) =>
+                        dispatch({
+                            type: 'decided',
+                            proposalId,
+                            error: decisionMessage(error, intl)
+                        })
+                }
+            );
+        },
+        [decideProposal, intl, workspaceId]
+    );
+
     const dispatchAction = useCallback(
         (action: ChatAction) => dispatch(action),
         []
@@ -187,10 +228,36 @@ export function useCopilotChat(
         busy: state.busy,
         send,
         stop,
+        decide,
         reset: () => dispatchAction({ type: 'reset' }),
         load: (conversationId, messages) =>
             dispatchAction({ type: 'load', conversationId, messages })
     };
+}
+
+/**
+ * A failed accept/reject, in words the person clicking can act on.
+ *
+ * The server's own message is preferred wherever it has one: for a 409 it says
+ * the proposal was already decided, for a 403 that they may not apply it, for a
+ * 422 why the change could not be carried out. Those are more useful than
+ * anything restated here, and they are the difference between "refresh" and
+ * "try again".
+ */
+function decisionMessage(error: unknown, intl: IntlShape): string {
+    const response = (
+        error as {
+            response?: { data?: { message?: string | string[] } };
+        }
+    )?.response;
+    const message = response?.data?.message;
+    if (typeof message === 'string' && message) {
+        return message;
+    }
+    if (Array.isArray(message) && message.length > 0) {
+        return message.join(' ');
+    }
+    return intl.formatMessage(messages.decideFailed);
 }
 
 /** What to show, and whether it is worth interrupting the user for. */
@@ -234,7 +301,10 @@ function describe(error: unknown, intl: IntlShape): Failure {
     if (error instanceof TypeError) {
         // `fetch` rejects with a TypeError when it cannot reach the host at
         // all — DNS, offline, CORS, connection refused.
-        return { message: intl.formatMessage(messages.offline), systemic: true };
+        return {
+            message: intl.formatMessage(messages.offline),
+            systemic: true
+        };
     }
     return { message: intl.formatMessage(messages.generic), systemic: false };
 }

@@ -20,6 +20,9 @@
     ],
     "references": [
         {
+            "path": "../../workspaces/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../utils/admin/tsconfig.lib.json"
         },
         {

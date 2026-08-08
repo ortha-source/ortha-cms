@@ -30,8 +30,8 @@ settled in ADRs and are not re-argued here:
 - [ADR-0005](../adr/0005-copilot-authority-model.md) — what the copilot may do
   (capability profile, propose-then-apply, untrusted content).
 
-**Status:** in progress. **Phases 0 and 1 have shipped, and phase 3's server
-half with them** (§9). Phase 0 landed the
+**Status:** in progress. **Phases 0, 1 and 3 have shipped** (§9); phase 2
+(export) is the next buildable slice. Phase 0 landed the
 `ModelProvider` port and registry, the three adapters, `plugins.copilot`, the two
 permission keys, and an empty plugin in both hosts. Phase 1 landed the chat
 vertical slice: the SSE run route, the bounded run engine, the capability
@@ -360,10 +360,12 @@ Both are documented at their call sites with the upgrade path.
 **Phase 2 — Export.** Streaming CSV/JSON/Markdown with label resolution, row
 caps and audit; `content.exportEntries`; the records-toolbar entry point.
 
-**Phase 3 — Create & edit. Server shipped.** `copilot_proposals` +
+**Phase 3 — Create & edit. ✅ Shipped.** `copilot_proposals` +
 `copilot_workspace_policies`, the four propose tools, the applier port, the
-accept/reject routes and the per-workspace auto-apply policy are in. The
-field-level diff UI and the entry-editor entry points are the remaining half.
+accept/reject routes and the per-workspace auto-apply policy are in, and so is
+the admin half: the field-level diff card in the transcript and the workspace's
+auto-apply settings page. The entry-editor entry points are the one piece left,
+and they are an entry point rather than a capability.
 
 Three things landed differently from the sketch above:
 
