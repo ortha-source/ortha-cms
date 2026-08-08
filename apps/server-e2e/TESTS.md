@@ -115,7 +115,7 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | Test case |
 | --- |
 | serves only published, non-deleted entries |
-| returns a flat entry: no relations, no workspace, no status |
+| returns a flat entry: no relations, no media, no workspace, no status |
 | reads one entry by id |
 | 404s a draft entry by id |
 | 404s an entry that lives in another workspace |

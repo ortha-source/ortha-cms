@@ -43,7 +43,7 @@ const homePage = single('pub_home', {
 });
 
 describe('toPublicEntry', () => {
-    it('projects the envelope and every column-backed field', () => {
+    it('projects the envelope and every pure-value field', () => {
         const entry = toPublicEntry(post, {
             ...envelope,
             status: 'published',
@@ -56,6 +56,7 @@ describe('toPublicEntry', () => {
             author: 'author-1'
         });
 
+        // Exact equality, so a reference field leaking back in fails here.
         expect(entry).toEqual({
             id: 'entry-1',
             createdAt: CREATED.toISOString(),
@@ -64,25 +65,40 @@ describe('toPublicEntry', () => {
             values: {
                 title: 'Hello',
                 views: 12,
-                labels: ['a'],
-                cover: 'asset-1',
-                // The FK id passes through — a consumer can follow it with a
-                // second read of the target type.
-                author: 'author-1'
+                // `multiselect` is a plain jsonb bag of the entry's own data,
+                // not a reference — it stays.
+                labels: ['a']
             }
         });
     });
 
-    it('omits join-backed and inverse relations from values', () => {
+    it('omits every relation, whatever its cardinality', () => {
         const entry = toPublicEntry(post, {
             ...envelope,
             status: 'published',
             publishedAt: PUBLISHED,
-            title: 'Hello'
+            title: 'Hello',
+            author: 'author-1'
         });
 
+        // Owning single (an FK column that *is* on the row), owning many (a
+        // join table), and inverse (the owning side's storage) alike.
+        expect(entry.values).not.toHaveProperty('author');
         expect(entry.values).not.toHaveProperty('tags');
         expect(entry.values).not.toHaveProperty('related');
+    });
+
+    it('omits media fields', () => {
+        const entry = toPublicEntry(post, {
+            ...envelope,
+            status: 'published',
+            publishedAt: PUBLISHED,
+            title: 'Hello',
+            cover: 'asset-1'
+        });
+
+        // An asset id in the media plugin's store — nothing here resolves it.
+        expect(entry.values).not.toHaveProperty('cover');
     });
 
     it('never exposes the workspace, the status, or the tombstone', () => {
@@ -115,9 +131,7 @@ describe('toPublicEntry', () => {
         expect(entry.values).toEqual({
             title: null,
             views: null,
-            labels: null,
-            cover: null,
-            author: null
+            labels: null
         });
     });
 

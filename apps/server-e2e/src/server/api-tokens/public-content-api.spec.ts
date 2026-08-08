@@ -286,7 +286,7 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.items[0].values.text).toBe('Live');
         });
 
-        it('returns a flat entry: no relations, no workspace, no status', async () => {
+        it('returns a flat entry: no relations, no media, no workspace, no status', async () => {
             await seedPublished('Flat');
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -301,11 +301,28 @@ describe('Public content API (/api/v1)', () => {
             expect(item).toHaveProperty('publishedAt');
             expect(item).not.toHaveProperty('status');
             expect(item).not.toHaveProperty('workspaceId');
-            // Column-backed fields ride `values`, including a single relation's
-            // raw FK; join-backed ones (`tags`) are absent.
+
+            // The entry's own data rides `values` — scalars plus the jsonb
+            // bags (`multiselect`, `json`), which are values, not references.
             expect(item.values).toHaveProperty('text');
-            expect(item.values).toHaveProperty('author');
-            expect(item.values).not.toHaveProperty('tags');
+            expect(item.values).toHaveProperty('multiselect');
+            expect(item.values).toHaveProperty('json');
+
+            // Every reference field is omitted: many-to-one (`author`, an FK
+            // column that IS on the row), one-to-one (`seo`), many-to-many
+            // (`tags`), and media both single and multiple. `test_article`
+            // declares no inverse relation, so that cardinality is covered by
+            // `public-entry-row.spec.ts` rather than asserted vacuously here.
+            for (const omitted of [
+                'author',
+                'seo',
+                'tags',
+                'image',
+                'heroImage',
+                'attachments'
+            ]) {
+                expect(item.values).not.toHaveProperty(omitted);
+            }
         });
 
         it('reads one entry by id', async () => {

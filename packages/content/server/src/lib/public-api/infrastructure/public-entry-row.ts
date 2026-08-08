@@ -12,29 +12,46 @@ import type { PublicEntry } from '../types/public-entry';
 type Row = Record<string, unknown>;
 
 /**
- * Whether a field has a column on the entry's own table. An owning
- * many-relation stores its links in a join table and an inverse relation reuses
- * the owning side's storage, so neither has a value to project — the public
- * read is flat and omits them.
+ * Field types the public read omits entirely — every kind whose value is a
+ * **reference to something else** rather than the entry's own data.
+ *
+ * `relation` covers all four cardinalities: an owning many-relation and an
+ * inverse have no column to read anyway, and an owning single one does (a
+ * `<field>_id` FK) but is dropped too, so the rule is one line rather than a
+ * per-cardinality carve-out. `media` is an asset id (or a list of them) in the
+ * media plugin's own store.
+ *
+ * The public API resolves neither today, so emitting a bare uuid would hand a
+ * consumer an identifier with nothing to do with it. **This is deliberately
+ * provisional** — when relation and media reads land, this set shrinks and the
+ * omitted fields start appearing in `values`, which is an additive change.
  */
-function isColumnBacked(spec: AnyContentType['fields'][string]): boolean {
-    return !(
-        spec.type === CONTENT_FIELD_TYPE.Relation &&
-        (spec.relation?.many || spec.relation?.inverse)
-    );
+const REFERENCE_FIELD_TYPES: ReadonlySet<string> = new Set([
+    CONTENT_FIELD_TYPE.Relation,
+    CONTENT_FIELD_TYPE.Media
+]);
+
+/**
+ * Whether a field carries the entry's **own** value — a scalar, a `json` or
+ * `multiselect` bag, anything stored in the row and meaningful on its own.
+ * See {@link REFERENCE_FIELD_TYPES} for what this excludes and why.
+ */
+function isPureValueField(spec: AnyContentType['fields'][string]): boolean {
+    return !REFERENCE_FIELD_TYPES.has(spec.type);
 }
 
 /**
  * Projects a raw DB row onto the public wire shape: the envelope (`id`,
  * timestamps, plus `publishedAt` / locale columns where the type has them) and
- * a `values` bag of every column-backed field. An unset field reads back as
- * `null`, never as a missing key, so a consumer can rely on the schema's field
- * list matching the keys it gets.
+ * a `values` bag of the entry's **own** field values — every field except the
+ * reference kinds (see {@link REFERENCE_FIELD_TYPES}). An unset field reads
+ * back as `null`, never as a missing key, so the key set is stable across
+ * entries of a type.
  */
 export function toPublicEntry(type: AnyContentType, row: Row): PublicEntry {
     const values: Record<string, unknown> = {};
     for (const [name, spec] of Object.entries(type.fields)) {
-        if (!isColumnBacked(spec)) continue;
+        if (!isPureValueField(spec)) continue;
         values[name] = row[name] ?? null;
     }
 

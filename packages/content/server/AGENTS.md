@@ -425,12 +425,17 @@ to guess.
 
 **The wire shape** (`types/public-entry.ts`) is its own contract, not the
 admin's `EntryRecord` — a published API must be free to stay still while the
-admin's internals move. `values` carries every **column-backed** field, including
-an owning single relation's raw target id (follow it with a second read); a
-many-relation and an inverse carry no column and are **absent** — this API reads
-flat records and expands nothing. `status` is not exposed (it would be a
-constant "published"); `publishedAt` is, along with `locale`/`localeGroupId` on
-i18n types.
+admin's internals move. `values` carries the entry's **own** data only: text,
+richtext, number, money, boolean, date, datetime, select, multiselect, json.
+Every **reference** field is omitted — `relation` in all four cardinalities
+(including an owning single, whose FK *is* a column on the row) and `media`.
+Neither is resolvable through this API yet, so a bare uuid would be an
+identifier with no route to follow. That omission is **provisional**: the
+schema endpoint still describes those fields because they are part of the real
+model, and when relation/media reads land they start appearing in `values`,
+which only ever adds keys. `status` is not exposed (it would be a constant
+"published"); `publishedAt` is, along with `locale`/`localeGroupId` on i18n
+types.
 
 ## OpenAPI — the types describe themselves (`src/lib/docs/`)
 

@@ -42,7 +42,8 @@ import { resolveGrantedType } from './resolve-granted-type';
  * or the only one when the token covers a single workspace).
  *
  * Reads are flat and live-only — published entries, no drafts, no soft-deleted
- * rows, no relation expansion. See {@link PublicEntriesQuery} for the exact
+ * rows, and `values` carries the entry's own data only (no relation or media
+ * fields, in either direction). See {@link PublicEntriesQuery} for the exact
  * visibility rule and `types/public-entry.ts` for the wire shape.
  *
  * A `single` (page) type is served by the same list route as a collection: with
