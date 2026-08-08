@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsObject, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+    IsObject,
+    IsOptional,
+    IsString,
+    IsUUID,
+    MaxLength
+} from 'class-validator';
 import type { RelationDelta } from '../../../entries/types/entry-list-view';
 import {
     IsRelationDeltaMap,
@@ -59,7 +65,8 @@ export class PublicSaveEntryDto {
             properties: {
                 link: UUID_ARRAY_SCHEMA,
                 unlink: UUID_ARRAY_SCHEMA,
-                order: UUID_ARRAY_SCHEMA
+                order: UUID_ARRAY_SCHEMA,
+                by: { type: 'string', enum: ['id', 'localeGroup'] }
             },
             additionalProperties: false
         },
@@ -69,7 +76,7 @@ export class PublicSaveEntryDto {
                 unlink: ['1f9a3c55-7b21-4e08-9d4a-6c2e8b1f0a37']
             }
         },
-        description: `Relation changes, keyed by relation field: \`link\` assigns, \`unlink\` unassigns, \`order\` reorders. A **delta**, not a replacement — ids you do not mention are left alone, so a record with thousands of links never has to be sent whole. Many-to-many and inverse relations only; naming an owning single relation here is a 400 (set it through \`values\`). At most ${MAX_DELTA_FIELDS} fields per save and ${MAX_DELTA_IDS} ids per array; \`order\` is accepted on the owning side only. Every id must name an entry in the same workspace, or the save is a 422.`
+        description: `Relation changes, keyed by relation field: \`link\` assigns, \`unlink\` unassigns, \`order\` reorders. A **delta**, not a replacement — ids you do not mention are left alone, so a record with thousands of links never has to be sent whole. Many-to-many and inverse relations only; naming an owning single relation here is a 400 (set it through \`values\`). At most ${MAX_DELTA_FIELDS} fields per save and ${MAX_DELTA_IDS} ids per array; \`order\` is accepted on the owning side only. Every id must name an entry in the same workspace, or the save is a 422.\n\n**Locales.** When both this type and the target are localized, a link may not cross locales — the English article links the English tag — and a target in another locale is a 422. Set \`by: "localeGroup"\` to pass **translation group** ids instead of entry ids: each is resolved to that group's row in this entry's own locale, so a client that thinks in stories never has to keep a per-locale id map. A group with no row in this locale is a 422 telling you to translate it first.`
     })
     @IsOptional()
     @IsObject()

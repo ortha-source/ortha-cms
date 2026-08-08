@@ -1,4 +1,8 @@
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    UnprocessableEntityException
+} from '@nestjs/common';
 import {
     and,
     asc,
@@ -29,6 +33,44 @@ import { entrySlug, entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */
 type Columns = Record<string, AnyColumn>;
+
+/**
+ * Reject any target row that lives in a different locale from the source.
+ *
+ * Two **i18n** types must link inside one locale. A cross-locale link is a
+ * broken model rather than a preference: the English article would render the
+ * German tag, and since links are per-row rather than synced across a
+ * translation group, nothing later repairs it. The admin has always enforced
+ * this by only offering same-locale candidates in its relation picker; this is
+ * the same rule at the layer a direct API call cannot skip.
+ *
+ * A no-op unless BOTH sides are localized — `sourceLocale` is `undefined` for a
+ * non-i18n owner, and a non-i18n target has no locale to disagree about.
+ *
+ * Exported so `EntryWriterService` applies the identical rule to the owning
+ * **single** relations it validates itself (a `<field>_id` FK never reaches the
+ * join-table paths), instead of the two growing their own versions of it.
+ */
+export function assertSameLocale(
+    rows: Row[],
+    target: AnyContentType,
+    field: string,
+    sourceLocale: string | undefined
+): void {
+    if (!sourceLocale || !target.i18n) return;
+    const foreign = rows.filter((row) => row['locale'] !== sourceLocale);
+    if (!foreign.length) return;
+    throw new UnprocessableEntityException({
+        message: 'Entry validation failed',
+        issues: foreign.map((row) => ({
+            field,
+            message:
+                `must reference a "${sourceLocale}" entry — ` +
+                `"${row['id'] as string}" is "${row['locale'] as string}". ` +
+                'Link the translation of that record in this entry’s locale.'
+        }))
+    });
+}
 
 /**
  * The same bag typed as `PgColumn` rather than `AnyColumn` — needed where a
@@ -664,31 +706,47 @@ export class RelationLinkService {
         sourceId: string,
         field: string,
         delta: RelationDelta,
-        workspaceId: string
+        workspaceId: string,
+        sourceLocale?: string
     ): Promise<void> {
         const spec = type.fields[field];
         const join = spec ? this.joinPlanFor(type, field, spec) : null;
         if (!join) return; // single / inverse-of-single: nothing to write here
 
+        // `by: 'localeGroup'` names translation groups rather than rows; resolve
+        // them to this source's own locale before anything touches the join.
+        const resolved =
+            delta.by === 'localeGroup'
+                ? await this.resolveByLocaleGroup(
+                      tx,
+                      join.target,
+                      delta,
+                      workspaceId,
+                      field,
+                      sourceLocale
+                  )
+                : delta;
+
         await this.assertTargets(
             tx,
             join.target,
-            delta.link ?? [],
+            resolved.link ?? [],
             workspaceId,
-            field
+            field,
+            sourceLocale
         );
         const cols = join.table as unknown as Columns;
         const own = cols[join.ownCol];
         const ref = cols[join.refCol];
 
-        if (delta.unlink?.length) {
+        if (resolved.unlink?.length) {
             await tx
                 .delete(join.table)
-                .where(and(eq(own, sourceId), inArray(ref, delta.unlink)));
+                .where(and(eq(own, sourceId), inArray(ref, resolved.unlink)));
         }
 
         // Append each new link at the end of its **source's** ordered list.
-        const links = dedupe(delta.link);
+        const links = dedupe(resolved.link);
         if (links.length && join.ownCol === 'sourceId') {
             // Owning relation: every new link shares this entry as its source, so
             // read the append base once and insert them all in a single
@@ -741,13 +799,13 @@ export class RelationLinkService {
         // inverse reuses the same rows and can't renumber them without corrupting
         // the owner's order, so `order` is ignored there. One `CASE` update
         // renumbers every listed target instead of a statement per id.
-        if (delta.order?.length && join.ownCol === 'sourceId') {
+        if (resolved.order?.length && join.ownCol === 'sourceId') {
             // Renumber the whole list in one UPDATE — position = its index in
             // `order`, via a CASE keyed on the ref id — instead of an UPDATE per
             // id inside the locked transaction. The WHERE bounds it to this
             // source's rows named in `order`; the `else` keeps any unmatched row
             // untouched.
-            const order = delta.order;
+            const order = resolved.order;
             const cases = order.map(
                 (targetId, i) => sql`when ${ref} = ${targetId} then ${i}`
             );
@@ -775,7 +833,8 @@ export class RelationLinkService {
         type: AnyContentType,
         sourceId: string,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        sourceLocale?: string
     ): Promise<void> {
         for (const [name, spec] of Object.entries(type.fields)) {
             // Only a genuinely submitted **array** is a whole-set write. Anything
@@ -787,7 +846,14 @@ export class RelationLinkService {
             const join = this.joinPlanFor(type, name, spec);
             if (!join || join.ownCol !== 'sourceId') continue; // owning many only
             const ids = dedupe(values[name] as unknown[]);
-            await this.assertTargets(tx, join.target, ids, workspaceId, name);
+            await this.assertTargets(
+                tx,
+                join.target,
+                ids,
+                workspaceId,
+                name,
+                sourceLocale
+            );
             const cols = join.table as unknown as Columns;
             const own = cols[join.ownCol];
             const ref = cols[join.refCol];
@@ -1018,17 +1084,116 @@ export class RelationLinkService {
     }
 
     /**
+     * Rewrite a delta's translation-group ids into entry ids, picking each
+     * group's row in the **source entry's own locale**.
+     *
+     * This is the half of the cross-locale rule that makes it usable rather than
+     * merely strict. A client that thinks in stories holds one group id per
+     * story, not one entry id per language; without this it would have to keep a
+     * per-locale id map and pick the right entry for every write — and picking
+     * wrong is exactly what the rule then rejects. Here the server picks, and it
+     * is the only party that knows the source row's locale for certain.
+     *
+     * A group with no row in this locale is a **422** naming the field: the
+     * caller asked to link a story that has not been translated into this
+     * language yet, which is a real content gap rather than a bad request.
+     */
+    private async resolveByLocaleGroup(
+        tx: DbTransaction,
+        target: AnyContentType,
+        delta: RelationDelta,
+        workspaceId: string,
+        field: string,
+        sourceLocale: string | undefined
+    ): Promise<RelationDelta> {
+        if (!target.i18n || !sourceLocale) {
+            throw new BadRequestException(
+                `Relation "${field}" cannot be addressed by locale group — ` +
+                    (target.i18n
+                        ? 'this entry is not localized, so there is no locale to resolve into.'
+                        : `"${target.name}" is not a localized content type.`)
+            );
+        }
+        const groupIds = [
+            ...new Set(
+                [
+                    ...(delta.link ?? []),
+                    ...(delta.unlink ?? []),
+                    ...(delta.order ?? [])
+                ].filter(Boolean)
+            )
+        ];
+        if (!groupIds.length) return delta;
+
+        const cols = target.table as unknown as Columns;
+        const rows = (await tx
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['localeGroupId'], groupIds),
+                    eq(cols['workspaceId'], workspaceId),
+                    eq(cols['locale'], sourceLocale),
+                    target.paranoid ? isNull(cols['deletedAt']) : undefined
+                )
+            )) as Row[];
+        const byGroup = new Map(
+            rows.map((row) => [
+                row['localeGroupId'] as string,
+                row['id'] as string
+            ])
+        );
+
+        const missing = groupIds.filter((id) => !byGroup.has(id));
+        if (missing.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues: missing.map((groupId) => ({
+                    field,
+                    message:
+                        `no "${sourceLocale}" entry exists in translation group ` +
+                        `"${groupId}" on "${target.name}" — translate that record ` +
+                        'into this locale before linking it.'
+                }))
+            });
+        }
+        // `unlink` maps through the same table: a group that resolves to a row
+        // which was never linked is simply a no-op delete, as it is by id.
+        const map = (ids?: string[]) =>
+            ids?.map((groupId) => byGroup.get(groupId) as string);
+        return {
+            ...(map(delta.link) ? { link: map(delta.link) } : {}),
+            ...(map(delta.unlink) ? { unlink: map(delta.unlink) } : {}),
+            ...(map(delta.order) ? { order: map(delta.order) } : {})
+        };
+    }
+
+    /**
      * Verify every id to be linked exists **in the same workspace** (the join FK
      * has no workspace constraint of its own). A missing or cross-workspace id is
      * a uniform 422 — indistinguishable from an invalid id, so no enumeration
      * signal.
+     *
+     * When `sourceLocale` is given and the target type is localized, the link is
+     * additionally required to stay **inside one locale**. Two i18n types linked
+     * across locales is a broken model, not a preference: the English article
+     * would render the German tag, and because join links are per-row rather
+     * than synced across a translation group, nothing would ever repair it. The
+     * admin has always enforced this in its picker (which offers same-locale
+     * candidates only) — this is the same rule where it cannot be bypassed by
+     * talking to the API directly.
+     *
+     * The caller passes the **source row's own** locale, so the rule reads off
+     * the row being written rather than off a request parameter that may name a
+     * different one. `undefined` (a non-i18n owner) disables the check.
      */
     private async assertTargets(
         tx: DbTransaction,
         target: AnyContentType,
         ids: string[],
         workspaceId: string,
-        field: string
+        field: string,
+        sourceLocale?: string
     ): Promise<void> {
         const unique = [...new Set(ids)].filter((id) => !!id);
         if (!unique.length) return;
@@ -1056,6 +1221,7 @@ export class RelationLinkService {
                 }))
             });
         }
+        assertSameLocale(rows, target, field, sourceLocale);
     }
 
     /**

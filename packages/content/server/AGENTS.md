@@ -438,6 +438,38 @@ Five decisions worth knowing before touching this:
   a browser, and demanding an `Origin` header would break every non-browser
   client.
 
+**Relations may not cross locales.** When both the owner and the target type
+are `i18n`, a link must stay inside one locale — the English article links the
+English tag. The admin has always enforced this in its **picker** (same-locale
+candidates only); it is now enforced in the **writer**, so a direct API call
+cannot bypass it. `assertSameLocale` (exported from `relation-link.service.ts`)
+is the single implementation, reached from all three write paths: the join-table
+ones via `RelationLinkService.assertTargets` (deltas + whole-set arrays) and the
+owning single FK via `EntryWriterService.assertRelationTargets`. It compares
+against the **source row's own** locale, read from the row being written rather
+than from a request parameter — on create from the extension's stamped columns
+(resolved before the target checks for exactly this reason), on update from a
+one-off `localeOf` lookup. A target type that is _not_ localized is untouched: a
+shared author or SEO record is legitimately linked from every translation, and
+breaking that is the real risk in tightening the rule.
+
+**Linking by translation group (`by: "localeGroup"`).** The rule above is only
+usable if a client can name a target without knowing its per-locale id, so a
+relation delta may set `by: "localeGroup"` and pass **group** ids: each resolves
+to that group's row in the source entry's locale. A client that thinks in
+stories then holds one id per story instead of one per language, and the server
+— the only party that knows the source row's locale for certain — does the
+picking. A group with no row in this locale is a 422 saying so; the mode on a
+non-localized target, or from a non-localized owner, is a 400. Deliberately NOT
+extended to `values` (single relations): that bag is the content type's own
+contract, where a relation field means "an entry id", and overloading it would
+need a per-field switch it has no room for.
+
+A **malformed** relation id is now a uniform 422 rather than a 500. A single
+relation's FK arrives inside the free-form `values` bag where no DTO decorator
+reaches it, and `inArray(<uuid column>, ['not-a-uuid'])` is a Postgres cast
+error.
+
 **Drafts and `?status=`.** Reads default to published-only. A write-scoped token
 may pass `?status=draft|any`, gated by `DraftVisibilityGuard` — a guard, so the
 rule has one home and covers every route including the ones that reach drafts

@@ -10,7 +10,10 @@ const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** The only keys a per-field delta may carry. */
-const DELTA_KEYS = ['link', 'unlink', 'order'] as const;
+const DELTA_KEYS = ['link', 'unlink', 'order', 'by'] as const;
+
+/** Accepted values of the delta's `by` key. @see RelationDelta.by */
+const ADDRESSING = ['id', 'localeGroup'] as const;
 
 /**
  * Max ids in any one `link`/`unlink`/`order` array. The read side is already
@@ -68,6 +71,12 @@ export class RelationDeltaMapConstraint
                 )
             )
                 return false;
+            const by = record['by'];
+            if (
+                by !== undefined &&
+                !(ADDRESSING as readonly unknown[]).includes(by)
+            )
+                return false;
             return (
                 isUuidArray(record['link']) &&
                 isUuidArray(record['unlink']) &&
@@ -77,7 +86,10 @@ export class RelationDeltaMapConstraint
     }
 
     defaultMessage(): string {
-        return 'relations must map each field to { link?, unlink?, order? } arrays of uuids';
+        return (
+            'relations must map each field to { link?, unlink?, order? } arrays of uuids, ' +
+            `with an optional by: ${ADDRESSING.join(' | ')}`
+        );
     }
 }
 

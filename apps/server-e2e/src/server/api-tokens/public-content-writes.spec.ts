@@ -9,6 +9,7 @@ import {
     resetDb,
     seedActiveUser,
     seedArticles,
+    seedAuthors,
     seedContentGrants,
     seedTags,
     seedWorkspace
@@ -434,6 +435,112 @@ describe('Public content API — writes (/api/v1)', () => {
                 .send({ values: {}, relations: { tags: { unlink: [tagA] } } })
                 .expect(200);
             expect(await tagNames(secret, entry.id)).toEqual(['Beta']);
+        });
+
+        it('refuses to link two localized types across locales', async () => {
+            const secret = await mintToken();
+            // `test_article` and `test_author` are both localized, and `author`
+            // is a single owning relation between them — a per-locale relation.
+            const [authorEn, authorDe] = await seedAuthors(
+                [
+                    { name: 'Ada', locale: 'en' },
+                    { name: 'Ada (de)', locale: 'de' }
+                ],
+                workspaceId
+            );
+            const article = await create(secret, {
+                values: publishable('English article')
+            });
+
+            const res = await request(harness.server)
+                .patch(`/api/v1/content/test_article/${article.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({ values: { author: authorDe } })
+                .expect(422);
+            // The message has to name the locale wanted and the offending id —
+            // a bare "invalid relation" leaves the caller guessing.
+            expect(res.body.issues[0].field).toBe('author');
+            expect(res.body.issues[0].message).toContain('"en"');
+            expect(res.body.issues[0].message).toContain('"de"');
+
+            // The same-locale sibling is accepted, so the rule is about the
+            // locale and not about the field.
+            await request(harness.server)
+                .patch(`/api/v1/content/test_article/${article.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({ values: { author: authorEn } })
+                .expect(200);
+        });
+
+        it('refuses a cross-locale relation at create too, not just update', async () => {
+            const secret = await mintToken();
+            const [, authorDe] = await seedAuthors(
+                [
+                    { name: 'Ada', locale: 'en' },
+                    { name: 'Ada (de)', locale: 'de' }
+                ],
+                workspaceId
+            );
+
+            // The create path resolves the row's locale from the extension
+            // before checking targets; an entry that lands cross-linked would be
+            // just as broken as one edited into that state.
+            await request(harness.server)
+                .post('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .send({
+                    values: { ...publishable('New'), author: authorDe }
+                })
+                .expect(422);
+        });
+
+        it('still links freely to a target type that is not localized', async () => {
+            const secret = await mintToken();
+            const [tag] = await seedTags(
+                [
+                    {
+                        name: 'Shared',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+            const en = await create(secret, { values: publishable('EN') });
+            const de = await create(secret, {
+                locale: 'de',
+                localeGroupId: en.localeGroupId,
+                values: publishable('DE')
+            });
+
+            // `test_tag` has no locale, so it is legitimately shared by every
+            // translation — the rule must not over-reach and break that, which
+            // is the real regression risk in tightening it.
+            for (const entry of [en, de]) {
+                await request(harness.server)
+                    .patch(`/api/v1/content/test_article/${entry.id}`)
+                    .set('Authorization', `Bearer ${secret}`)
+                    .send({ values: {}, relations: { tags: { link: [tag] } } })
+                    .expect(200);
+            }
+        });
+
+        it('422s a malformed relation id instead of 500ing', async () => {
+            const secret = await mintToken();
+            const article = await create(secret, {
+                values: publishable('Bad id')
+            });
+
+            // A single relation's FK rides inside the free-form `values` bag, so
+            // no DTO decorator reaches it — and a non-uuid string handed to
+            // `inArray(<uuid column>, …)` is a Postgres cast error, i.e. a 500 on
+            // ordinary bad input. It is the same uniform 422 as a missing id.
+            const res = await request(harness.server)
+                .patch(`/api/v1/content/test_article/${article.id}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .send({ values: { author: 'not-a-uuid' } })
+                .expect(422);
+            expect(res.body.issues[0].field).toBe('author');
         });
 
         it('422s a link to an entry outside the workspace', async () => {

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_526 test cases across 38 spec files._
+_530 test cases across 38 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -221,6 +221,10 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts</sub>_
 | Test case |
 | --- |
 | assigns and unassigns links without sending the whole set |
+| refuses to link two localized types across locales |
+| refuses a cross-locale relation at create too, not just update |
+| still links freely to a target type that is not localized |
+| 422s a malformed relation id instead of 500ing |
 | 422s a link to an entry outside the workspace |
 
 ### localization
