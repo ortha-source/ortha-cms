@@ -1,4 +1,8 @@
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    UnprocessableEntityException
+} from '@nestjs/common';
 import {
     and,
     asc,
@@ -14,7 +18,11 @@ import {
 } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import type { AnyContentType, EntryStatus } from '../../../types/content-type';
+import {
+    ENTRY_STATUS,
+    type AnyContentType,
+    type EntryStatus
+} from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import type {
     RelationDelta,
@@ -25,6 +33,44 @@ import { entrySlug, entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */
 type Columns = Record<string, AnyColumn>;
+
+/**
+ * Reject any target row that lives in a different locale from the source.
+ *
+ * Two **i18n** types must link inside one locale. A cross-locale link is a
+ * broken model rather than a preference: the English article would render the
+ * German tag, and since links are per-row rather than synced across a
+ * translation group, nothing later repairs it. The admin has always enforced
+ * this by only offering same-locale candidates in its relation picker; this is
+ * the same rule at the layer a direct API call cannot skip.
+ *
+ * A no-op unless BOTH sides are localized — `sourceLocale` is `undefined` for a
+ * non-i18n owner, and a non-i18n target has no locale to disagree about.
+ *
+ * Exported so `EntryWriterService` applies the identical rule to the owning
+ * **single** relations it validates itself (a `<field>_id` FK never reaches the
+ * join-table paths), instead of the two growing their own versions of it.
+ */
+export function assertSameLocale(
+    rows: Row[],
+    target: AnyContentType,
+    field: string,
+    sourceLocale: string | undefined
+): void {
+    if (!sourceLocale || !target.i18n) return;
+    const foreign = rows.filter((row) => row['locale'] !== sourceLocale);
+    if (!foreign.length) return;
+    throw new UnprocessableEntityException({
+        message: 'Entry validation failed',
+        issues: foreign.map((row) => ({
+            field,
+            message:
+                `must reference a "${sourceLocale}" entry — ` +
+                `"${row['id'] as string}" is "${row['locale'] as string}". ` +
+                'Link the translation of that record in this entry’s locale.'
+        }))
+    });
+}
 
 /**
  * The same bag typed as `PgColumn` rather than `AnyColumn` — needed where a
@@ -38,6 +84,21 @@ type Row = Record<string, unknown>;
 
 /** Default links per page when the caller doesn't specify one. */
 export const RELATION_PAGE_SIZE = 20;
+
+/**
+ * Extra visibility applied to a relation's **targets**, on top of the workspace
+ * scope and soft-delete guard every read already applies.
+ *
+ * Exists for the public content API, which serves published entries only: a
+ * relation preview there must not surface a draft target's title, and must not
+ * *count* it either, or `total` would advertise links the caller can never see.
+ * Absent (the admin's every call site) nothing changes — an editor legitimately
+ * links to drafts and needs to see them.
+ */
+export interface RelationTargetVisibility {
+    /** Restrict targets to entries that are currently published. */
+    publishedOnly?: boolean;
+}
 
 /**
  * How many relation fields a page preview resolves at once. `relationFields` is
@@ -65,6 +126,13 @@ const RELATION_APPEND_LOCK_CLASS = 0x524c; // 'RL'
 export type DbTransaction = Parameters<
     Parameters<Database['transaction']>[0]
 >[0];
+
+/**
+ * Anything that can run a SELECT — the pooled client or a transaction handle.
+ * Lets the locale-group resolver serve both the in-transaction link writes and
+ * the pre-transaction single-relation resolution without duplicating itself.
+ */
+export type QueryRunner = Pick<Database, 'select'>;
 
 /**
  * Where a join-backed relation field's links physically live, normalized so the
@@ -114,6 +182,10 @@ export class RelationLinkService {
      * keyed by field name — what the editor loads on open. Each field is read
      * independently (paginated), so a relation with many links contributes only
      * its first page, not every id.
+     *
+     * Admin-only, hence no {@link RelationTargetVisibility}: an editor must see
+     * the draft targets it may be about to publish. The public API reads links
+     * one field at a time through {@link readField}, which takes the flag.
      */
     async readAll(
         type: AnyContentType,
@@ -163,7 +235,8 @@ export class RelationLinkService {
         fields: string[],
         rows: Row[],
         workspaceId: string,
-        pageSize = RELATION_PAGE_SIZE
+        pageSize = RELATION_PAGE_SIZE,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, Record<string, RelationFieldView>>> {
         const out = new Map<string, Record<string, RelationFieldView>>();
         const sourceIds = rows
@@ -202,7 +275,8 @@ export class RelationLinkService {
                             rows,
                             sourceIds,
                             workspaceId,
-                            pageSize
+                            pageSize,
+                            visibility
                         )
                     )
                 ))
@@ -230,16 +304,29 @@ export class RelationLinkService {
         rows: Row[],
         sourceIds: string[],
         workspaceId: string,
-        pageSize: number
+        pageSize: number,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const relation = spec.relation;
         if (!relation) return Promise.resolve(new Map());
         if (!relation.many && !relation.inverse)
-            return this.previewSingle(relation.to(), field, rows, workspaceId);
+            return this.previewSingle(
+                relation.to(),
+                field,
+                rows,
+                workspaceId,
+                visibility
+            );
 
         const join = this.joinPlanFor(type, field, spec);
         if (join)
-            return this.previewJoin(join, sourceIds, workspaceId, pageSize);
+            return this.previewJoin(
+                join,
+                sourceIds,
+                workspaceId,
+                pageSize,
+                visibility
+            );
 
         const inverse = this.inversePlanFor(spec);
         if (inverse)
@@ -247,7 +334,8 @@ export class RelationLinkService {
                 inverse,
                 sourceIds,
                 workspaceId,
-                pageSize
+                pageSize,
+                visibility
             );
         return Promise.resolve(new Map());
     }
@@ -262,7 +350,8 @@ export class RelationLinkService {
         target: AnyContentType,
         field: string,
         rows: Row[],
-        workspaceId: string
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const fkBySource = new Map<string, string>();
         for (const row of rows) {
@@ -277,10 +366,19 @@ export class RelationLinkService {
         const refs = await this.refsFor(
             target,
             [...fkBySource.values()],
-            workspaceId
+            workspaceId,
+            visibility
         );
         const refById = new Map(refs.map((ref) => [ref.id, ref]));
         for (const [sourceId, fk] of fkBySource) {
+            // Under a visibility restriction an unresolvable target is one the
+            // caller may not see, so the link is reported as absent rather than
+            // as a `missing` ref — a public consumer must not learn that a
+            // hidden record is linked here, and `total` must not count it.
+            if (visibility?.publishedOnly && !refById.has(fk)) {
+                out.set(sourceId, { items: [], total: 0 });
+                continue;
+            }
             // `refsFor` is total — it yields a ref for every id, id-only and
             // flagged `missing` when the target is gone. So the link is always
             // represented (`total` counts the link, not whether its target
@@ -306,7 +404,8 @@ export class RelationLinkService {
         join: JoinPlan,
         sourceIds: string[],
         workspaceId: string,
-        pageSize: number
+        pageSize: number,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const cols = join.table as unknown as SelectableColumns;
         const own = cols[join.ownCol];
@@ -325,7 +424,20 @@ export class RelationLinkService {
                 )
             })
             .from(join.table)
-            .where(inArray(own, sourceIds))
+            .where(
+                and(
+                    inArray(own, sourceIds),
+                    // Applied INSIDE the window, not after it: `count(*) over`
+                    // is computed here, so filtering later would page over
+                    // hidden links and report a total the caller can't reach.
+                    this.visibleTargetIdsPredicate(
+                        ref,
+                        join.target,
+                        workspaceId,
+                        visibility
+                    )
+                )
+            )
             .as('ranked');
 
         // The window aliases (`rn`/`own`) carry no column type through the
@@ -343,7 +455,8 @@ export class RelationLinkService {
             await this.refsFor(
                 join.target,
                 rows.map((row) => row['ref'] as string),
-                workspaceId
+                workspaceId,
+                visibility
             )
         );
     }
@@ -357,7 +470,8 @@ export class RelationLinkService {
         inverse: InversePlan,
         sourceIds: string[],
         workspaceId: string,
-        pageSize: number
+        pageSize: number,
+        visibility?: RelationTargetVisibility
     ): Promise<Map<string, RelationFieldView>> {
         const cols = inverse.table as unknown as SelectableColumns;
         const fk = cols[inverse.fkCol];
@@ -376,8 +490,14 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(fk, sourceIds),
-                    eq(cols['workspaceId'], workspaceId),
-                    cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                    // The window reads the TARGET table here (the owners whose
+                    // FK points back), so the restriction is a plain column
+                    // predicate rather than a sub-select.
+                    this.targetVisibleWhere(
+                        inverse.target,
+                        workspaceId,
+                        visibility
+                    )
                 )
             )
             .as('ranked');
@@ -394,7 +514,8 @@ export class RelationLinkService {
             await this.refsFor(
                 inverse.target,
                 rows.map((row) => row['ref'] as string),
-                workspaceId
+                workspaceId,
+                visibility
             )
         );
     }
@@ -443,7 +564,8 @@ export class RelationLinkService {
         spec: AnyFieldSpec,
         page: number,
         pageSize: number,
-        workspaceId: string
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
     ): Promise<RelationFieldView> {
         if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
             return { items: [], total: 0 };
@@ -455,30 +577,57 @@ export class RelationLinkService {
             const ids = typeof fk === 'string' && fk ? [fk] : [];
             const items =
                 page === 1
-                    ? await this.refsFor(spec.relation.to(), ids, workspaceId)
+                    ? await this.refsFor(
+                          spec.relation.to(),
+                          ids,
+                          workspaceId,
+                          visibility
+                      )
                     : [];
+            // Under a visibility restriction an unresolved target is hidden,
+            // not `missing` — the link is reported as absent (see
+            // `previewSingle` for why `total` must not count it).
+            if (visibility?.publishedOnly && !items.some((ref) => !ref.missing))
+                return { items: [], total: 0 };
             return { items, total: ids.length };
         }
 
         const join = this.joinPlanFor(type, field, spec);
         if (join) {
             const cols = join.table as unknown as Columns;
+            const selectable = join.table as unknown as SelectableColumns;
+            // One predicate for the page and the count, so a restricted read
+            // can't report a total its pages never reach.
+            const linkWhere = and(
+                eq(cols[join.ownCol], row['id']),
+                this.visibleTargetIdsPredicate(
+                    selectable[join.refCol],
+                    join.target,
+                    workspaceId,
+                    visibility
+                )
+            );
             const [rows, [{ total }]] = await Promise.all([
                 this.db
                     .select()
                     .from(join.table)
-                    .where(eq(cols[join.ownCol], row['id']))
+                    .where(linkWhere)
                     .orderBy(asc(cols['position']), asc(cols[join.refCol]))
                     .limit(pageSize)
                     .offset(offset),
                 this.db
                     .select({ total: count() })
                     .from(join.table)
-                    .where(eq(cols[join.ownCol], row['id']))
+                    .where(linkWhere)
             ]);
             const ids = (rows as Row[]).map((r) => r[join.refCol] as string);
             return {
-                items: await this.refsFor(join.target, ids, workspaceId),
+                items: await this.refsFor(
+                    join.target,
+                    ids,
+                    workspaceId,
+                    visibility
+                ),
                 total: Number(total)
             };
         }
@@ -488,8 +637,7 @@ export class RelationLinkService {
             const cols = inverse.table as unknown as Columns;
             const where = and(
                 eq(cols[inverse.fkCol], row['id']),
-                eq(cols['workspaceId'], workspaceId),
-                cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                this.targetVisibleWhere(inverse.target, workspaceId, visibility)
             );
             const [rows, [{ total }]] = await Promise.all([
                 this.db
@@ -565,31 +713,47 @@ export class RelationLinkService {
         sourceId: string,
         field: string,
         delta: RelationDelta,
-        workspaceId: string
+        workspaceId: string,
+        sourceLocale?: string
     ): Promise<void> {
         const spec = type.fields[field];
         const join = spec ? this.joinPlanFor(type, field, spec) : null;
         if (!join) return; // single / inverse-of-single: nothing to write here
 
+        // `by: 'localeGroup'` names translation groups rather than rows; resolve
+        // them to this source's own locale before anything touches the join.
+        const resolved =
+            delta.by === 'localeGroup'
+                ? await this.resolveByLocaleGroup(
+                      tx,
+                      join.target,
+                      delta,
+                      workspaceId,
+                      field,
+                      sourceLocale
+                  )
+                : delta;
+
         await this.assertTargets(
             tx,
             join.target,
-            delta.link ?? [],
+            resolved.link ?? [],
             workspaceId,
-            field
+            field,
+            sourceLocale
         );
         const cols = join.table as unknown as Columns;
         const own = cols[join.ownCol];
         const ref = cols[join.refCol];
 
-        if (delta.unlink?.length) {
+        if (resolved.unlink?.length) {
             await tx
                 .delete(join.table)
-                .where(and(eq(own, sourceId), inArray(ref, delta.unlink)));
+                .where(and(eq(own, sourceId), inArray(ref, resolved.unlink)));
         }
 
         // Append each new link at the end of its **source's** ordered list.
-        const links = dedupe(delta.link);
+        const links = dedupe(resolved.link);
         if (links.length && join.ownCol === 'sourceId') {
             // Owning relation: every new link shares this entry as its source, so
             // read the append base once and insert them all in a single
@@ -642,13 +806,13 @@ export class RelationLinkService {
         // inverse reuses the same rows and can't renumber them without corrupting
         // the owner's order, so `order` is ignored there. One `CASE` update
         // renumbers every listed target instead of a statement per id.
-        if (delta.order?.length && join.ownCol === 'sourceId') {
+        if (resolved.order?.length && join.ownCol === 'sourceId') {
             // Renumber the whole list in one UPDATE — position = its index in
             // `order`, via a CASE keyed on the ref id — instead of an UPDATE per
             // id inside the locked transaction. The WHERE bounds it to this
             // source's rows named in `order`; the `else` keeps any unmatched row
             // untouched.
-            const order = delta.order;
+            const order = resolved.order;
             const cases = order.map(
                 (targetId, i) => sql`when ${ref} = ${targetId} then ${i}`
             );
@@ -676,7 +840,8 @@ export class RelationLinkService {
         type: AnyContentType,
         sourceId: string,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        sourceLocale?: string
     ): Promise<void> {
         for (const [name, spec] of Object.entries(type.fields)) {
             // Only a genuinely submitted **array** is a whole-set write. Anything
@@ -688,7 +853,14 @@ export class RelationLinkService {
             const join = this.joinPlanFor(type, name, spec);
             if (!join || join.ownCol !== 'sourceId') continue; // owning many only
             const ids = dedupe(values[name] as unknown[]);
-            await this.assertTargets(tx, join.target, ids, workspaceId, name);
+            await this.assertTargets(
+                tx,
+                join.target,
+                ids,
+                workspaceId,
+                name,
+                sourceLocale
+            );
             const cols = join.table as unknown as Columns;
             const own = cols[join.ownCol];
             const ref = cols[join.refCol];
@@ -824,7 +996,8 @@ export class RelationLinkService {
     private async refsFor(
         target: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
     ): Promise<RelationRef[]> {
         if (!ids.length) return [];
         const cols = target.table as unknown as Columns;
@@ -834,8 +1007,7 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(cols['id'], [...new Set(ids)]),
-                    eq(cols['workspaceId'], workspaceId),
-                    cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined
+                    this.targetVisibleWhere(target, workspaceId, visibility)
                 )
             )) as Row[];
         const byId = new Map(
@@ -848,6 +1020,62 @@ export class RelationLinkService {
         return ids.map(
             (id) => byId.get(id) ?? { id, title: id, missing: true as const }
         );
+    }
+
+    /**
+     * The visibility predicate applied to a relation's target rows: the
+     * workspace scope, the soft-delete guard, and — only when the caller asks
+     * for it — the published-only restriction. One definition, so the row read
+     * (`refsFor`) and the windowed link reads that must *count* correctly can't
+     * disagree on what a visible target is.
+     */
+    private targetVisibleWhere(
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ) {
+        const cols = target.table as unknown as Columns;
+        return and(
+            eq(cols['workspaceId'], workspaceId),
+            cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined,
+            visibility?.publishedOnly && target.publishable
+                ? eq(cols['status'], ENTRY_STATUS.Published)
+                : undefined
+        );
+    }
+
+    /**
+     * The id sub-select of a target's visible rows — how a link read that reads
+     * only the JOIN table (so has no target columns of its own) restricts to
+     * visible targets *inside* its window, keeping `total` honest. `undefined`
+     * when no extra restriction applies, so the predicate collapses away.
+     */
+    private visibleTargetIds(
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ) {
+        if (!visibility?.publishedOnly) return undefined;
+        const cols = target.table as unknown as SelectableColumns;
+        return this.db
+            .select({ id: cols['id'] })
+            .from(target.table)
+            .where(this.targetVisibleWhere(target, workspaceId, visibility));
+    }
+
+    /**
+     * `ref IN (visible target ids)`, or `undefined` when no restriction
+     * applies. Wraps {@link visibleTargetIds} for the join-table reads, whose
+     * only handle on the target is the id column in the join row.
+     */
+    private visibleTargetIdsPredicate(
+        refColumn: PgColumn,
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ) {
+        const visible = this.visibleTargetIds(target, workspaceId, visibility);
+        return visible ? inArray(refColumn, visible) : undefined;
     }
 
     /** Build a display ref from a full target row. */
@@ -863,17 +1091,132 @@ export class RelationLinkService {
     }
 
     /**
+     * Rewrite a delta's translation-group ids into entry ids, picking each
+     * group's row in the **source entry's own locale**.
+     *
+     * This is the half of the cross-locale rule that makes it usable rather than
+     * merely strict. A client that thinks in stories holds one group id per
+     * story, not one entry id per language; without this it would have to keep a
+     * per-locale id map and pick the right entry for every write — and picking
+     * wrong is exactly what the rule then rejects. Here the server picks, and it
+     * is the only party that knows the source row's locale for certain.
+     *
+     * A group with no row in this locale is a **422** naming the field: the
+     * caller asked to link a story that has not been translated into this
+     * language yet, which is a real content gap rather than a bad request.
+     */
+    async resolveLocaleGroups(
+        runner: QueryRunner,
+        target: AnyContentType,
+        groupIds: string[],
+        workspaceId: string,
+        field: string,
+        sourceLocale: string | undefined
+    ): Promise<Map<string, string>> {
+        if (!target.i18n || !sourceLocale) {
+            throw new BadRequestException(
+                `Relation "${field}" cannot be addressed by locale group — ` +
+                    (target.i18n
+                        ? 'this entry is not localized, so there is no locale to resolve into.'
+                        : `"${target.name}" is not a localized content type.`)
+            );
+        }
+        const unique = [...new Set(groupIds.filter(Boolean))];
+        if (!unique.length) return new Map();
+
+        const cols = target.table as unknown as Columns;
+        const rows = (await runner
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['localeGroupId'], unique),
+                    eq(cols['workspaceId'], workspaceId),
+                    eq(cols['locale'], sourceLocale),
+                    target.paranoid ? isNull(cols['deletedAt']) : undefined
+                )
+            )) as Row[];
+        const byGroup = new Map(
+            rows.map((row) => [
+                row['localeGroupId'] as string,
+                row['id'] as string
+            ])
+        );
+
+        const missing = unique.filter((id) => !byGroup.has(id));
+        if (missing.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues: missing.map((groupId) => ({
+                    field,
+                    message:
+                        `no "${sourceLocale}" entry exists in translation group ` +
+                        `"${groupId}" on "${target.name}" — translate that record ` +
+                        'into this locale before linking it.'
+                }))
+            });
+        }
+        return byGroup;
+    }
+
+    /** {@link resolveLocaleGroups} applied to a delta's three id arrays. */
+    private async resolveByLocaleGroup(
+        tx: DbTransaction,
+        target: AnyContentType,
+        delta: RelationDelta,
+        workspaceId: string,
+        field: string,
+        sourceLocale: string | undefined
+    ): Promise<RelationDelta> {
+        const byGroup = await this.resolveLocaleGroups(
+            tx,
+            target,
+            [
+                ...(delta.link ?? []),
+                ...(delta.unlink ?? []),
+                ...(delta.order ?? [])
+            ],
+            workspaceId,
+            field,
+            sourceLocale
+        );
+        // `unlink` maps through the same table: a group that resolves to a row
+        // which was never linked is simply a no-op delete, as it is by id.
+        const map = (ids?: string[]) =>
+            ids?.map((groupId) => byGroup.get(groupId) as string);
+        return {
+            ...(map(delta.link) ? { link: map(delta.link) } : {}),
+            ...(map(delta.unlink) ? { unlink: map(delta.unlink) } : {}),
+            ...(map(delta.order) ? { order: map(delta.order) } : {})
+        };
+    }
+
+    /**
      * Verify every id to be linked exists **in the same workspace** (the join FK
      * has no workspace constraint of its own). A missing or cross-workspace id is
      * a uniform 422 — indistinguishable from an invalid id, so no enumeration
      * signal.
+     *
+     * When `sourceLocale` is given and the target type is localized, the link is
+     * additionally required to stay **inside one locale**. Two i18n types linked
+     * across locales is a broken model, not a preference: the English article
+     * would render the German tag, and because join links are per-row rather
+     * than synced across a translation group, nothing would ever repair it. The
+     * admin has always enforced this in its picker (which offers same-locale
+     * candidates only) — this is the same rule where it cannot be bypassed by
+     * talking to the API directly.
+     *
+     * The caller passes the **source row's own** locale, so the rule reads off
+     * the row being written rather than off a request parameter that may name a
+     * different one. `undefined` (a non-i18n owner) disables the check.
      */
     private async assertTargets(
         tx: DbTransaction,
         target: AnyContentType,
         ids: string[],
         workspaceId: string,
-        field: string
+        field: string,
+        sourceLocale?: string
     ): Promise<void> {
         const unique = [...new Set(ids)].filter((id) => !!id);
         if (!unique.length) return;
@@ -901,6 +1244,7 @@ export class RelationLinkService {
                 }))
             });
         }
+        assertSameLocale(rows, target, field, sourceLocale);
     }
 
     /**

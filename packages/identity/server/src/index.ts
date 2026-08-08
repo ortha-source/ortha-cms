@@ -32,6 +32,15 @@ export { RolesService } from './lib/rbac/services/roles.service';
 export { PermissionsService } from './lib/rbac/services/permissions.service';
 export { PermissionsGuard } from './lib/rbac/guards/permissions.guard';
 export { RequirePermissions } from './lib/rbac/decorators/require-permissions.decorator';
+// The pieces a plugin needs to write its OWN permission-checking guard for a
+// non-session caller (the public content API's bearer guard is the one such
+// caller today): the metadata key `@RequirePermissions` writes, the permission
+// value object, and the pure RBAC decision every guard must delegate to — so
+// "may this actor do this?" has exactly one implementation in the codebase.
+export { PERMISSIONS_KEY } from './lib/rbac/decorators/require-permissions.decorator';
+export { Permission } from './lib/domain/value-objects/permission';
+export { AccessPolicy } from './lib/domain/access-policy';
+export type { Actor, PermissionScope } from './lib/domain/access-policy';
 export { RoleNotFoundError, SystemRoleProtectedError } from './lib/rbac/errors';
 export { RootAdminService } from './lib/root-admin/services/root-admin.service';
 export type {
@@ -45,9 +54,7 @@ export type {
     ActivityRecordInput,
     ActivityExecutor
 } from './lib/activity/activity-recorder';
-export {
-    IDENTITY_ACTIVITY_KINDS
-} from './lib/activity/activity-kinds';
+export { IDENTITY_ACTIVITY_KINDS } from './lib/activity/activity-kinds';
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export * from './lib/schema';
 // External-API bearer tokens. The service mints, lists, and revokes them; the
@@ -60,6 +67,12 @@ export type {
     MintApiTokenInput,
     MintedApiToken
 } from './lib/api-tokens/application/api-token.service';
+// The verified-token record (row + workspace bucket) — what `verify` returns,
+// and what the public content API's bearer guard scopes a request with.
+export type {
+    ApiTokenRecord,
+    ApiTokenRow
+} from './lib/api-tokens/infrastructure/persistence/drizzle-api-token.repository';
 export {
     API_TOKEN_SCOPES,
     scopePermissions

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_460 test cases across 37 spec files._
+_569 test cases across 39 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -75,10 +75,193 @@ _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
 | Test case |
 | --- |
 | mints a token and returns the plaintext exactly once |
+| mints a token spanning several workspaces |
+| collapses duplicate workspace ids |
+| rejects an empty workspace bucket |
+| lists a multi-workspace token under each of its workspaces |
 | rejects an expiry in the past |
 | revokes a token |
 | gates management on the tokens permissions |
 | requires authentication |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
+
+## Public content API (/api/v1)
+
+### authentication
+
+| Test case |
+| --- |
+| 401s without an Authorization header |
+| 401s on an unknown bearer token |
+| 401s on a non-bearer Authorization scheme |
+| does not accept a session cookie in place of a token |
+| 401s once the token is revoked |
+| 401s once the token has expired |
+| does not open the management API to a bearer token |
+
+### workspace resolution
+
+| Test case |
+| --- |
+| defaults to the only workspace of a single-workspace token |
+| requires X-Workspace-Id when the token covers several |
+| reads each workspace of a multi-workspace token |
+| 403s a workspace outside the token’s bucket |
+| 403s a foreign X-Workspace-Id even on a single-workspace token |
+| 400s a malformed X-Workspace-Id |
+
+### entry reads
+
+| Test case |
+| --- |
+| serves only published, non-deleted entries |
+| returns a flat entry: no relations, no media, no workspace, no status |
+| reads one entry by id |
+| 404s a draft entry by id |
+| 404s an entry that lives in another workspace |
+| 404s a content type the workspace was not granted |
+| 404s an unknown content type |
+| serves a single (page) type through the same list route |
+| paginates |
+| sorts by a whitelisted column, ascending and descending |
+| falls back to newest-updated for a sort key it does not allow |
+| rejects a page or pageSize outside its bounds |
+| searches across the type’s text columns |
+| matches LIKE metacharacters in a search literally |
+| filters on a scalar field with the query-builder tree |
+| never lets a filter widen the published-only scope |
+| 400s a malformed filter and an unknown filter field |
+| 400s a filter traversing into an ungranted relation |
+| returns only the selected fields |
+| applies a field selection to the single-entry route too |
+| 400s an unknown or unselectable field name |
+| reads an empty ?fields= as "no preference", not "no fields" |
+| 400s a fields list longer than the cap |
+| still filters and sorts on fields it was not asked to return |
+| expands a relation only when asked, and only to published targets |
+| caps preview items with relationLimit, keeping total truthful |
+| rejects a relationLimit outside 1…100 |
+| 400s expanding a relation into an ungranted type |
+| expands every granted relation field when none are named |
+| 400s naming more expandable fields than the cap allows |
+| 400s a relationFields name that is not a relation |
+| pages one relation field from the sibling route |
+| 404s the relation and media routes for an entry it cannot read |
+| exposes media fields as empty views when nothing is attached |
+| resolves attached media to metadata and URLs, capped by mediaLimit |
+| omits a media id that names an asset in another workspace |
+| 400s a mediaFields name that is not a media field |
+| rejects an undeclared query parameter |
+
+### localization
+
+| Test case |
+| --- |
+| 400s an unknown locale on every route that takes one |
+| reads a localized entry by id without naming its locale |
+| filters a list by localeGroupId, scoped to the requested locale |
+| reads a group’s row in the requested locale |
+| 404s a group whose row in the requested locale is not published |
+| 404s a group in another workspace |
+| previews an entry’s sibling translations, published only |
+| previews translations across a whole list page |
+| serves the same siblings from the /translations route |
+| orders translations by locale slug |
+| hides a soft-deleted or cross-workspace sibling |
+| previews translations on the group-addressed entry read |
+| 404s /translations for an entry it cannot read |
+| serves every single-entry route by translation group too |
+| 404s the group sibling routes when the locale has no published row |
+| 400s every locale feature on a type that is not localized |
+
+### schema discovery
+
+| Test case |
+| --- |
+| lists only the types the workspace was granted |
+| serves one type’s field schema |
+| 404s the schema of an ungranted type |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts</sub>_
+
+## Public content API — writes (/api/v1)
+
+### scope
+
+| Test case |
+| --- |
+| refuses every write to a read-only token |
+| refuses a write into a workspace outside the token’s bucket |
+| 404s a type the workspace was not granted |
+
+### create
+
+| Test case |
+| --- |
+| creates a draft, invisible to a read-only token until published |
+| lets a write-scoped token read its own draft back |
+| defers value validation to publish on a publishable type |
+| 422s a create on a NON-publishable type straight away |
+| 400s a malformed relation delta |
+
+### update
+
+| Test case |
+| --- |
+| merges the submitted values instead of replacing the bag |
+| still clears a field that is sent explicitly as null |
+| moves a published entry back to draft, keeping publishedAt |
+| 404s an entry in another workspace |
+
+### relations
+
+| Test case |
+| --- |
+| assigns and unassigns links without sending the whole set |
+| refuses to link two localized types across locales |
+| refuses a cross-locale relation at create too, not just update |
+| still links freely to a target type that is not localized |
+| sets a single relation by translation group, per locale |
+| clears a single relation with set: null, and refuses an ambiguous one |
+| 422s a translation group with no row in this locale |
+| 422s a malformed relation id instead of 500ing |
+| 422s a link to an entry outside the workspace |
+
+### localization
+
+| Test case |
+| --- |
+| adds a translation to an existing record’s group |
+| 409s a locale the group already holds |
+| 404s a translation group that does not exist |
+| addresses a write at the group’s row for the requested locale |
+| deletes one translation, leaving the group’s others live |
+
+### publish
+
+| Test case |
+| --- |
+| unpublishes back to a draft |
+
+### delete
+
+| Test case |
+| --- |
+| removes an entry from the public reads |
+| 404s an entry in another workspace |
+
+### media
+
+| Test case |
+| --- |
+| uploads an asset, attaches it, and serves it back to the same token |
+| lets a read-only token fetch bytes but never upload |
+| 404s an asset outside the request’s workspace |
+| 422s a media id the workspace does not own |
+| 400s an upload with no file part |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_
@@ -569,6 +752,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | 400s an undeclared top-level property, naming it |
 | 400s an undeclared property inside the nested context |
 | 400s an empty message |
+| tells the model it can resolve vague references from the context |
 | passes the nested context through to the prompt intact |
 
 ### the event stream

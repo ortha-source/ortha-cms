@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
+    apiTokens,
     roles,
     sessions,
     tokens,
@@ -211,6 +212,18 @@ export async function expireUserSessions(userId: string): Promise<void> {
         .update(sessions)
         .set({ expiresAt: new Date(Date.now() - 60_000) })
         .where(eq(sessions.userId, userId));
+}
+
+/**
+ * Back-date an API token's expiry — the out-of-band move the management API
+ * refuses to make (it rejects an `expiresAt` in the past), so an expired token
+ * can only be reached by editing the row. Mirrors {@link expireUserSessions}.
+ */
+export async function expireApiToken(tokenId: string): Promise<void> {
+    await getDatabase()
+        .update(apiTokens)
+        .set({ expiresAt: new Date(Date.now() - 60_000) })
+        .where(eq(apiTokens.id, tokenId));
 }
 
 /** Revoke every session of a user — simulates an explicit logout/kill. */

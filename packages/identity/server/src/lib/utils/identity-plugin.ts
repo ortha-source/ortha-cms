@@ -67,7 +67,7 @@ export function IdentityPlugin(
                     scheme: 'bearer',
                     bearerFormat: 'orthacms_<random>',
                     description:
-                        'External API token minted by `POST /api/api-tokens`. Scoped to one workspace and shown once, at mint time.'
+                        'External API token minted by `POST /api/api-tokens`, shown once at mint time. Scoped to one or more workspaces; a request picks which one it targets with the `X-Workspace-Id` header (optional when the token covers exactly one). Authenticates the public content API (`/api/v1/...`).'
                 }
             },
             defaultSecurity: ['session', 'apiToken']

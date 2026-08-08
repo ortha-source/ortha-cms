@@ -9,7 +9,7 @@ import type {
 export type ApiTokenResponse = {
     id: string;
     name: string;
-    workspaceId: string;
+    workspaceIds: string[];
     scope: ApiTokenScope;
     lookupPrefix: string;
     expiresAt: string | null;
@@ -37,7 +37,7 @@ export function toApiToken(dto: ApiTokenResponse): ApiToken {
     return {
         id: dto.id,
         name: dto.name,
-        workspaceId: dto.workspaceId,
+        workspaceIds: dto.workspaceIds,
         scope: dto.scope,
         lookupPrefix: dto.lookupPrefix,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,

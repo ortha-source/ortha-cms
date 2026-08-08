@@ -3,10 +3,11 @@
 The admin-side plugin for managing **external-API bearer tokens**. It contributes
 a single global page at `/api-tokens` — reachable from the main sidebar's
 `directory` group (next to Workspaces and Members), **not** a workspace-scoped
-page — where an admin lists, creates, and revokes the tokens that will
-authenticate the external content API (`/api/v1/...`). That public API — and the
-bearer guard that consumes a token — ships separately; this package and the
-`identity-server` endpoints behind it are the token lifecycle only.
+page — where an admin lists, creates, and revokes the tokens that authenticate
+the external content API (`/api/v1/...`). This package and the
+`identity-server` endpoints behind it are the token **lifecycle**; the public
+API those tokens are spent against lives in `@ortha-cms/content-server`
+(`public-api/`).
 
 Layered per ADR-0003, mirroring `@ortha-cms/users-admin`:
 
@@ -31,8 +32,13 @@ presentation/
 
 - **Global, not workspace-scoped.** The page lives in `SIDEBAR_NAV_SLOT`
   (`group: 'directory'`, `order: 30`), gated on `tokens:read`. The token's target
-  workspace is chosen in the **create dialog** (a selector fed by
+  workspaces are chosen in the **create dialog** (a `MultiSelect` fed by
   `GET /api/workspaces`), so the page needs no active workspace.
+- **A token spans one or more workspaces.** `workspaceIds` is a list, not a
+  scalar: the dialog requires at least one (matching the server's 400 on an
+  empty bucket) and the table renders the bucket as one badge per workspace. A
+  consumer names which workspace a request targets with `X-Workspace-Id`; a
+  single-workspace token needs no header.
 - **Reveal-once secret.** The create response carries the plaintext `secret`
   exactly once; `RevealSecretDialog` shows it with copy-to-clipboard and a
   "won't be shown again" warning. It is held only in page state and never
@@ -44,7 +50,8 @@ presentation/
 ## Server contract this plugin depends on
 
 - `GET /api/api-tokens?page=&pageSize=&workspaceId=` → `{ items, total, page, pageSize }`
-- `POST /api/api-tokens` `{ name, workspaceId, scope, expiresAt? }` → token + one-time `secret`
+  (`workspaceId` matches tokens whose bucket *contains* it)
+- `POST /api/api-tokens` `{ name, workspaceIds, scope, expiresAt? }` → token + one-time `secret`
 - `DELETE /api/api-tokens/:id` → 204
 - `GET /api/workspaces` → `{ id, name, description, color }[]`
 

@@ -5,10 +5,8 @@ import {
     count,
     desc,
     eq,
-    ilike,
     isNotNull,
     isNull,
-    or,
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
@@ -20,7 +18,7 @@ import {
     type EntryFilterExtension
 } from '../../../extension/entry-extension';
 import type { AnyContentType } from '../../../types/content-type';
-import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
+import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import {
     DELETED_ONLY,
     RELATIONS_PREVIEW,
@@ -30,6 +28,7 @@ import type { EntryListView } from '../../types/entry-list-view';
 import { DEFAULT_PAGE_SIZE } from '../../entries.constants';
 import { isScalarField } from './entry-scalar-fields';
 import { buildEntryFilterSurface } from './entry-filter-surface';
+import { buildSearchPredicate } from './entry-search';
 import { toRecord } from '../persistence/entry-row';
 import { RelationLinkService } from '../persistence/relation-link.service';
 
@@ -60,15 +59,6 @@ function previewFields(
                 !!spec.relation
         )
         .map(([name]) => name);
-}
-
-/** Columns the free-text `search` scans (have searchable textual content). */
-function isTextLike(spec: AnyFieldSpec): boolean {
-    return (
-        spec.type === CONTENT_FIELD_TYPE.Text ||
-        spec.type === CONTENT_FIELD_TYPE.RichText ||
-        spec.type === CONTENT_FIELD_TYPE.Select
-    );
 }
 
 /**
@@ -193,7 +183,7 @@ export class EntriesService {
                 locale: query.locale,
                 localeFallback: query.localeFallback
             }),
-            this.searchPredicate(type, query.search),
+            buildSearchPredicate(type, query.search),
             filterSql,
             this.deletedPredicate(type, query)
         );
@@ -247,25 +237,6 @@ export class EntriesService {
         return query.deleted === DELETED_ONLY
             ? isNotNull(table['deletedAt'])
             : isNull(table['deletedAt']);
-    }
-
-    /**
-     * Case-insensitive `ILIKE` across the type's text-like columns, OR-ed
-     * together; `undefined` when there's no search term. The needle's LIKE
-     * metacharacters are escaped so a literal `%`/`_` searches literally.
-     */
-    private searchPredicate(
-        type: AnyContentType,
-        search: string | undefined
-    ): SQL | undefined {
-        const needle = search?.trim();
-        if (!needle) return undefined;
-        const table = type.table as unknown as ContentTable;
-        const pattern = `%${needle.replace(/[\\%_]/g, '\\$&')}%`;
-        const clauses = Object.entries(type.fields)
-            .filter(([, spec]) => isTextLike(spec))
-            .map(([name]) => ilike(table[name], pattern));
-        return clauses.length ? or(...clauses) : undefined;
     }
 
     /**

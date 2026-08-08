@@ -10,8 +10,8 @@ import type { ApiTokensListParams } from '../apiTokensKeys';
 export type CreateApiTokenInput = {
     /** Human label. */
     name: string;
-    /** The workspace the token may read. */
-    workspaceId: string;
+    /** The workspaces the token may read — at least one. */
+    workspaceIds: string[];
     /** Read-only or full content access. */
     scope: ApiTokenScope;
     /** Absolute expiry as an ISO-8601 string; omit for a token that never expires. */

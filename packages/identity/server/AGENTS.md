@@ -215,17 +215,29 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       feature-then-kind): `domain/` (the `read`/`full` scope → permission-set
       map), `application/` (`ApiTokenService` — mint/verify/list/revoke),
       `infrastructure/persistence/` (`DrizzleApiTokenRepository` over
-      `api_tokens`), `http/` (`ApiTokensController` + `dto/`). Only the
+      `api_tokens` + `api_token_workspaces`), `http/` (`ApiTokensController` +
+      `dto/`). Only the
       **SHA-256 hash** of a token is stored (same `HashingService.hashToken`
       primitive as sessions) plus a non-secret `lookupPrefix` for display; the
-      plaintext is returned by `mint` **once** and never again. The management
+      plaintext is returned by `mint` **once** and never again. A token is
+      scoped to a **bucket of workspaces**, not one: `api_token_workspaces` is
+      the join (PK `(token_id, workspace_id)`, cascading on the token, no
+      cross-plugin FK on the workspace), the create body takes `workspaceIds`
+      (at least one; duplicates collapsed), and every read returns the row and
+      its bucket together as an `ApiTokenRecord` — so no caller can observe a
+      token scoped to nothing. `?workspaceId=` on the list is a bucket-membership
+      test, so a multi-workspace token appears under each of its workspaces
+      (once each). The management
       routes `POST`/`GET`/`DELETE /api/api-tokens` are **session**-authenticated
       and gated on `tokens:create|read|delete`, which only `admin` holds — they
       are not reachable with a bearer token. `verify` rejects unknown, revoked,
       and expired tokens identically (no enumeration signal) and refreshes
       `last_used_at` fire-and-forget on a 60s throttle. The guard that
-      authenticates `Authorization: Bearer` on the public content API is not
-      here yet; it ships with that API.
+      authenticates `Authorization: Bearer` ships with the public content API it
+      protects — `@ortha-cms/content-server`'s `public-api/`, which consumes
+      `ApiTokenService` plus the RBAC primitives this barrel exports
+      (`PERMISSIONS_KEY`, `Permission`, `AccessPolicy`, `Actor`) so its scope
+      check *is* the same decision the session `PermissionsGuard` makes.
     - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
       (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
     - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and

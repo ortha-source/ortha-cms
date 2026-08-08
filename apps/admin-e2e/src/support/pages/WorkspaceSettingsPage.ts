@@ -59,8 +59,27 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByLabel('URL slug');
     }
 
+    /**
+     * The read-only workspace id field (copyable, so focusable — not disabled).
+     * Scoped by role: `getByLabel` substring-matches, so "Workspace ID" would
+     * also resolve the "Copy workspace ID" button beside it.
+     */
+    get workspaceIdInput(): Locator {
+        return this.page.getByRole('textbox', {
+            name: 'Workspace ID',
+            exact: true
+        });
+    }
+
+    /** The icon-only button that copies the workspace id to the clipboard. */
+    get copyWorkspaceIdButton(): Locator {
+        return this.page.getByRole('button', { name: 'Copy workspace ID' });
+    }
+
     colorSwatch(color: string): Locator {
-        return this.page.getByRole('radio', { name: `Use the ${color} accent` });
+        return this.page.getByRole('radio', {
+            name: `Use the ${color} accent`
+        });
     }
 
     get saveButton(): Locator {
@@ -136,7 +155,10 @@ export class WorkspaceSettingsPage extends BasePage {
     }
 
     get unarchiveButton(): Locator {
-        return this.page.getByRole('button', { name: 'Unarchive', exact: true });
+        return this.page.getByRole('button', {
+            name: 'Unarchive',
+            exact: true
+        });
     }
 
     get deleteButton(): Locator {
