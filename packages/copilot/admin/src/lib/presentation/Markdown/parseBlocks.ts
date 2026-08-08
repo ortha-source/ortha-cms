@@ -119,10 +119,11 @@ export function parseBlocks(text: string): Block[] {
 
         const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
         const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line);
-        if (bullet || numbered) {
+        const listItem = bullet ?? numbered;
+        if (listItem) {
             flushParagraph();
             const ordered = !bullet;
-            const items: string[] = [(bullet ?? numbered)![1]];
+            const items: string[] = [listItem[1]];
             while (index + 1 < lines.length) {
                 const next = lines[index + 1];
                 const nextItem = ordered

@@ -220,6 +220,26 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 .expect(400);
         });
 
+        // The prompt has to tell the model it *may* resolve "this entry" —
+        // carrying the id without the instruction leaves it as unexplained
+        // metadata the model ignores.
+        it('tells the model it can resolve vague references from the context', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            await run(agent, {
+                message: 'summarise this',
+                context: {
+                    surface: 'entry',
+                    contentType: 'test_article',
+                    entryId: '11111111-1111-1111-1111-111111111111'
+                }
+            });
+
+            const system = copilotCalls()[0].system ?? '';
+            expect(system).toContain('WHERE THE USER IS');
+            expect(system).toContain('this entry');
+        });
+
         // The half that a whitelist failure would break silently: without
         // `@ValidateNested()` + `@Type()` the handler receives `{}` and the
         // prompt loses the user's location, with nothing reported.

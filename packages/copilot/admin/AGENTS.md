@@ -100,6 +100,30 @@ The panel additionally states `text-foreground` on its own root: it paints its
 own surface, so it should own the colour that goes on it rather than inheriting
 one. Measured after the fix: **17.67:1**.
 
+## Surface context
+
+Every turn carries where the user is — workspace, content type, entry, locale —
+so the model can resolve "this entry" and "here". It comes from the **URL**
+(`readRouteContext`, pure and unit-tested; `useRouteContext` feeds it
+`useLocation()`), for the same reason the workspace id does: the launcher lives
+in the sidebar, outside `CurrentWorkspaceProvider`, and anything the entry editor
+exposed through context would be equally out of reach.
+
+Two things that matter:
+
+- **`new` and `trash` are not entry ids.** They sit in the `:entryId` slot on
+  the create form and the trash view. Sending `entryId: "new"` would have the
+  model confidently discuss an entry that does not exist.
+- **The attached context is shown** (`ContextChip`, above the composer). Context
+  attached invisibly is context the user cannot correct when it is wrong, and a
+  URL is easily stale relative to what someone means. The design's turn anatomy
+  asks for it too: "Your message, plus where you are" (§2).
+
+None of it is an authority claim. `workspaceId` becomes `X-Workspace-Id`, which
+`WorkspaceGuard` validates; `contentType`/`entryId` reach the model as prompt
+text, and any tool call made with them is re-checked against the workspace's
+grants. A hand-typed URL gets a user nothing they didn't already have.
+
 ## Errors: alert, warning, toast
 
 Three presentations, chosen by what the user can actually see and do:

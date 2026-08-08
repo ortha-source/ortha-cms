@@ -31,3 +31,9 @@ export type {
 } from './lib/application/useCopilotModels';
 export { ModelPicker } from './lib/presentation/ModelPicker';
 export type { ChatMessage, ChatToolStep } from './lib/domain/types/chat';
+// Where the user is, derived from the URL. Exported so a future inline surface
+// (the ⌘K palette, an entry-editor widget) reports the same context rather than
+// inventing its own.
+export { useRouteContext } from './lib/application/useRouteContext';
+export { readRouteContext } from './lib/application/readRouteContext';
+export type { RouteContext } from './lib/application/readRouteContext';

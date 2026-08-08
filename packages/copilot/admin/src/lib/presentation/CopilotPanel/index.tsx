@@ -14,6 +14,8 @@ import { MessageList } from '../MessageList';
 import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
 import type { CopilotModelChoice } from '../../application/useCopilotModels';
+import type { RouteContext } from '../../application/readRouteContext';
+import { ContextChip } from '../ContextChip';
 
 // Product name is **Ortha AI**; the code keeps `copilot`. See the naming note
 // in `docs/design/copilot.md`.
@@ -70,6 +72,12 @@ export interface CopilotPanelProps {
      * a composer here could only produce a 400.
      */
     workspaceId: string | null;
+    /**
+     * Where the user is, from the URL. Sent with every turn so the model can
+     * resolve "this entry" and "here", and shown above the composer so the user
+     * can see what is being attached.
+     */
+    routeContext: RouteContext;
     /** Whether the panel is open. */
     open: boolean;
     /** Called when the panel should open or close. */
@@ -101,6 +109,7 @@ export interface CopilotPanelProps {
  */
 export function CopilotPanel({
     workspaceId,
+    routeContext,
     open,
     onOpenChange,
     returnFocusRef
@@ -240,6 +249,7 @@ export function CopilotPanel({
                     <PanelBody
                         key={workspaceId}
                         workspaceId={workspaceId}
+                        routeContext={routeContext}
                         hidden={minimized}
                     />
                 ) : (
@@ -278,9 +288,11 @@ function IconButton({
 
 function PanelBody({
     workspaceId,
+    routeContext,
     hidden
 }: {
     workspaceId: string;
+    routeContext: RouteContext;
     hidden: boolean;
 }) {
     const intl = useIntl();
@@ -321,13 +333,30 @@ function PanelBody({
 
             <MessageList messages={chat.messages} />
 
+            {/* "Your message, plus where you are" (design §2). Shown because
+                context that is attached invisibly is context the user cannot
+                correct when it is wrong — and the route can be stale relative to
+                what they mean. */}
+            <ContextChip context={routeContext} />
+
             <Composer
                 busy={chat.busy}
                 inputRef={composerRef}
                 onSend={(text) =>
                     chat.send(
                         text,
-                        { surface: 'chat' },
+                        {
+                            surface: routeContext.surface,
+                            ...(routeContext.contentType
+                                ? { contentType: routeContext.contentType }
+                                : {}),
+                            ...(routeContext.entryId
+                                ? { entryId: routeContext.entryId }
+                                : {}),
+                            ...(routeContext.locale
+                                ? { locale: routeContext.locale }
+                                : {})
+                        },
                         {
                             provider: choice?.provider ?? null,
                             model: choice?.model ?? null

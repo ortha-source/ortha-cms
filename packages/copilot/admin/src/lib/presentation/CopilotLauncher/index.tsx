@@ -4,7 +4,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Sparkles } from 'lucide-react';
 import { cn, Kbd } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useWorkspaceIdFromRoute } from '../../application/useWorkspaceIdFromRoute';
+import { useRouteContext } from '../../application/useRouteContext';
 import { CopilotPanel } from '../CopilotPanel';
 
 // The product is called **Ortha AI**; the code, packages, routes, permission
@@ -56,7 +56,8 @@ export function CopilotLauncher() {
     const returnFocusRef = useRef<HTMLElement | null>(null);
 
     const canUse = useHasPermission(COPILOT_USE);
-    const workspaceId = useWorkspaceIdFromRoute();
+    const routeContext = useRouteContext();
+    const { workspaceId } = routeContext;
     const available = canUse && !!workspaceId;
 
     // ⌘J / Ctrl+J toggles the panel (design §2). Registered only while the
@@ -163,6 +164,7 @@ export function CopilotLauncher() {
 
             <CopilotPanel
                 workspaceId={workspaceId}
+                routeContext={routeContext}
                 open={open}
                 onOpenChange={setOpen}
                 returnFocusRef={returnFocusRef}
