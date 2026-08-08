@@ -8,7 +8,7 @@ import {
     AccessPolicy,
     Permission,
     PERMISSIONS,
-    scopePermissions
+    tokenActor
 } from '@ortha-cms/identity-server';
 import type { ApiTokenRequest } from '../api-token-request';
 import { ENTRY_VISIBILITY } from '../dto/public-list-entries-query.dto';
@@ -38,9 +38,7 @@ export class DraftVisibilityGuard implements CanActivate {
     constructor(private readonly policy: AccessPolicy) {}
 
     canActivate(context: ExecutionContext): boolean {
-        const request = context
-            .switchToHttp()
-            .getRequest<ApiTokenRequest>();
+        const request = context.switchToHttp().getRequest<ApiTokenRequest>();
         const requested = request.query?.['status'];
         // Absent, or the default: nothing to authorize. An unrecognised value
         // is left alone deliberately — the DTO's `@IsIn` turns it into a 400,
@@ -57,10 +55,7 @@ export class DraftVisibilityGuard implements CanActivate {
         const allowed =
             !!token &&
             this.policy.can(
-                {
-                    userId: token.id,
-                    grantedPermissions: new Set(scopePermissions(token.scope))
-                },
+                tokenActor(token),
                 Permission.create(PERMISSIONS.CONTENT_UPDATE)
             );
         if (!allowed) {

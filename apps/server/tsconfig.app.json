@@ -52,6 +52,9 @@
             "path": "../../packages/identity/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/content/graphql/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/copilot/provider-openai/tsconfig.lib.json"
         },
         {

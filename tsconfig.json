@@ -119,6 +119,9 @@
         },
         {
             "path": "./packages/copilot/provider-openai"
+        },
+        {
+            "path": "./packages/content/graphql"
         }
     ]
 }

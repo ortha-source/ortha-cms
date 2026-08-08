@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 An **ADR** captures a single significant architectural decision: the context, the
-decision, and its consequences. It records *why*, so future readers (humans and
+decision, and its consequences. It records _why_, so future readers (humans and
 agents) don't re-litigate settled choices or accidentally undo them.
 
 We follow [Michael Nygard's format](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
@@ -19,7 +19,7 @@ routine, easily-reversed changes.
    the next zero-padded number.
 2. Fill it in. Keep it short — one decision per record.
 3. Set **Status** to `Proposed`, then `Accepted` once agreed. Never rewrite an
-   accepted ADR's history: to change a decision, add a *new* ADR and mark the
+   accepted ADR's history: to change a decision, add a _new_ ADR and mark the
    old one `Superseded by NNNN`.
 
 ## Index
@@ -29,5 +29,6 @@ routine, easily-reversed changes.
 - [0003 — Tactical DDD inside plugins](0003-tactical-ddd-inside-plugins.md)
 - [0004 — Model-agnostic copilot provider](0004-model-agnostic-copilot-provider.md)
 - [0005 — The copilot acts as its user, never as itself](0005-copilot-authority-model.md)
+- [0006 — GraphQL is a protocol adapter over the public content API](0006-graphql-as-a-protocol-adapter.md)
 
 <!-- Add new ADRs to this index. -->

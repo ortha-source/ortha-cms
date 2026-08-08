@@ -11,6 +11,7 @@ import type { ApiDocsOptions } from '@ortha-cms/bootstrap-server';
 import type { CopilotPluginConfig } from '@ortha-cms/copilot-server';
 import type { AnthropicProviderConfig } from '@ortha-cms/copilot-provider-anthropic';
 import type { OpenAiProviderConfig } from '@ortha-cms/copilot-provider-openai';
+import type { ContentGraphqlPluginConfig } from '@ortha-cms/content-graphql';
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
 import type { MediaPluginConfig } from '@ortha-cms/media-server';
@@ -65,6 +66,8 @@ export interface OrthaConfig {
         media: MediaPluginConfig;
         /** Copilot plugin settings — kill switch + model providers. */
         copilot: OrthaCopilotConfig;
+        /** Public GraphQL endpoint settings — the per-operation cost budget. */
+        contentGraphql: ContentGraphqlPluginConfig;
     };
 }
 
@@ -161,6 +164,26 @@ const config: OrthaConfig = {
             // Upload cap — 50 MB by default.
             maxUploadBytes:
                 Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800
+        },
+        contentGraphql: {
+            // The cost budget one GraphQL operation may spend. REST bounded a
+            // request structurally — one route, one page — and a GraphQL
+            // document does not, so these are the replacement bound. Stable
+            // tuning, hence literals, with env overrides for an operator who
+            // needs to loosen or tighten them without a redeploy.
+            limits: {
+                maxDepth: Number(process.env['GRAPHQL_MAX_DEPTH']) || 8,
+                maxComplexity:
+                    Number(process.env['GRAPHQL_MAX_COMPLEXITY']) || 1000,
+                maxAliases: Number(process.env['GRAPHQL_MAX_FIELDS']) || 30,
+                maxQueryLength:
+                    Number(process.env['GRAPHQL_MAX_QUERY_LENGTH']) || 16_384
+            },
+            // How long a built schema is reused before it is derived again from
+            // the workspace's content grants. Freshness only — every read is
+            // authorized against the live grants regardless.
+            schemaCacheTtlMs:
+                Number(process.env['GRAPHQL_SCHEMA_CACHE_TTL_MS']) || 60_000
         },
         copilot: {
             // Off by default (ADR-0005 §10). Enabling a hosted provider sends

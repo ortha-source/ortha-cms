@@ -1,3 +1,4 @@
+import type { ContentGraphqlLimits } from '@ortha-cms/content-graphql';
 import type {
     IdentityRateLimitConfig,
     IdentityRootAdminConfig
@@ -37,6 +38,11 @@ export interface TestConfigOverrides {
      * with no `ORTHA_ROOT_ADMIN_EMAIL` set).
      */
     rootAdmin?: IdentityRootAdminConfig;
+    /**
+     * Tighten the GraphQL cost budget, so a suite can prove a limit trips
+     * without having to author a genuinely enormous document.
+     */
+    graphqlLimits?: Partial<ContentGraphqlLimits>;
 }
 
 export function buildTestConfig(
@@ -105,6 +111,17 @@ export function buildTestConfig(
                     claude: { apiKey: '', models: [] },
                     ollama: { baseUrl: '', models: [] }
                 }
+            },
+            // The GraphQL endpoint's cost budget. Left at the shipped defaults
+            // so the limit suite asserts the real numbers rather than
+            // test-only ones — except the schema cache, pinned to 0 so a suite
+            // that changes a workspace's content grants sees the new schema on
+            // the very next request instead of racing a TTL.
+            contentGraphql: {
+                ...(overrides.graphqlLimits
+                    ? { limits: overrides.graphqlLimits }
+                    : {}),
+                schemaCacheTtlMs: 0
             }
         }
     };

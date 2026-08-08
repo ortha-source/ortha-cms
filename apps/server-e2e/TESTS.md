@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_533 test cases across 38 spec files._
+_573 test cases across 40 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -262,6 +262,104 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts</sub>_
 | 404s an asset outside the request’s workspace |
 | 422s a media id the workspace does not own |
 | 400s an upload with no file part |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts</sub>_
+
+## Public GraphQL API (/api/v1/graphql)
+
+### authentication
+
+| Test case |
+| --- |
+| 401s without an Authorization header |
+| 401s on an unknown bearer token |
+| does not accept a session cookie in place of a token |
+| 403s on a workspace outside the token’s bucket |
+| 400s when a multi-workspace token names no workspace |
+| needs no header when the token covers exactly one workspace |
+
+### grant pruning
+
+| Test case |
+| --- |
+| omits an ungranted content type from the schema entirely |
+| refuses a query naming an ungranted type before any resolver runs |
+| lists exactly the granted types for discovery |
+| gives two workspaces different schemas |
+
+### reads
+
+| Test case |
+| --- |
+| returns published entries and their values |
+| hides a draft from a read-only token |
+| hides entries from another workspace |
+| reads one entry by id |
+| serves a single-kind type as one record, not a list |
+| filters with the same tree the REST `?filter=` takes |
+| searches, sorts and paginates |
+
+### parity with the REST API
+
+| Test case |
+| --- |
+| returns the same record over both protocols |
+| agrees on which entries are visible |
+
+### expansions
+
+| Test case |
+| --- |
+| expands a many-to-many relation |
+| serves an owning single relation as the target itself |
+| respects a relation page size and still reports the true total |
+| attaches sibling translations |
+| reads a record by its translation group in a chosen locale |
+
+### draft visibility
+
+| Test case |
+| --- |
+| refuses `status: DRAFT` for a read-only token |
+| allows it for a write-scoped token |
+
+### mutations
+
+| Test case |
+| --- |
+| refuses every write for a read-scoped token |
+| runs the create → update → publish → delete lifecycle |
+| clears a field with an explicit null but not by omission |
+| reports a failed publish as a 422 with its per-field issues |
+| applies a relation delta |
+
+### cost limits
+
+| Test case |
+| --- |
+| refuses a multi-operation document with no operationName |
+
+### errors
+
+| Test case |
+| --- |
+| reports a field error as HTTP 200 with the REST status in extensions |
+| 400s a body that is not a GraphQL request |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-graphql-limits.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-graphql-limits.spec.ts</sub>_
+
+## Public GraphQL API cost limits (/api/v1/graphql)
+
+| Test case |
+| --- |
+| accepts a query inside every budget |
+| refuses a query nested past the depth limit |
+| refuses a document longer than the length limit |
+| refuses a document that aliases past the field limit |
+| refuses a shallow but expensive query on complexity |
+| refuses the query before executing it |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_

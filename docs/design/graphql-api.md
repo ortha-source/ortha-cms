@@ -5,10 +5,16 @@ bucket, same scopes, same visibility rules — a second **protocol** in front of
 the surface `content/server`'s `public-api/` already serves over REST, not a
 second API.
 
-This document is the working reference for building it. Nothing here has
-shipped.
+This document is the design write-up that preceded the build. **It has shipped**
+— see [`packages/content/graphql/AGENTS.md`](../../packages/content/graphql/AGENTS.md)
+for what the package actually does, and
+[ADR-0006](../adr/0006-graphql-as-a-protocol-adapter.md) for the decisions of
+record. Kept for the reasoning; where the two disagree, the package's own
+`AGENTS.md` wins.
 
-**Status:** proposed. Phase 0 (§10) is the next buildable slice.
+**Status:** implemented. Every phase in §10 landed, minus the two things §13
+records as deliberately deferred. Six things changed during the build; they are
+listed at the end.
 
 ---
 
@@ -79,9 +85,9 @@ Why its own package rather than a folder inside `content/server`:
   `public-api/` growing a second head.
 
 Why not a top-level `packages/graphql/*` group: it serves content and nothing
-else, and grouping it under `content` says so. (This makes `content` the first
-group with a third sibling next to `admin`/`server`. `AGENTS.md` §"Package
-layout" gets a sentence.)
+else, and grouping it under `content` says so. (`content` already had a third
+sibling — `domain`, the framework-free kernel — so this needed no new
+convention, only a clarifying sentence in `AGENTS.md` §"Package layout".)
 
 The package is small on purpose — schema builder, resolvers, executor, limits:
 
@@ -510,3 +516,46 @@ this is cheap.
 4. **Read-only first?** Phases 1–2 are useful on their own, and most consumers
    of a content API only read. Shipping reads and deciding on mutations
    afterwards is a legitimate stopping point.
+
+---
+
+## 14. What changed during the build
+
+Recorded because a design doc that quietly disagrees with the code is worse than
+no design doc.
+
+1. **An owning single relation resolves to the target, not a list.** §5 mapped
+   every relation to `TargetList!`. The generated SDL made the problem obvious:
+   a many-to-one holds at most one target, and `author { items { name } }` makes
+   a consumer unwrap a list that structurally cannot have a second element. Only
+   join-backed relations (owning many-to-many, and either inverse) keep the
+   paged envelope.
+
+2. **The list envelope dropped `page`/`pageSize`.** The caller passed them;
+   echoing them back is noise in a protocol where the arguments are in the
+   document. `{ items, total }` for both root lists and relations.
+
+3. **Complexity does not count `items`.** The first estimator squared every list
+   — a five-by-five query scored 10,605 against a budget of 1,000. `items` is
+   the page its parent field already sized, so it recurses without multiplying.
+   Caught by a unit test, not by review.
+
+4. **`money` is `Float`.** §13 left this open. Stored as integer minor units;
+   `Int` is 32-bit and overflows around $21.4M in cents, while `Float` is exact
+   for every integer to 2^53 and matches what REST already sends as JSON.
+
+5. **Enum sanitising is a documented rename, not a refusal.** §5 claimed we
+   "never silently rename a value on the wire". Not achievable — a GraphQL enum
+   _name_ is the wire spelling, so `in-progress` must become `in_progress`. What
+   the code actually guarantees is that the mapping is never **ambiguous**: an
+   option that cannot be a name at all, or two options colliding after
+   sanitising, falls the whole field back to `String`.
+
+6. **A relation into an ungranted type is pruned from writes too**, not only
+   reads — a settable field pointing at an invisible type would advertise that
+   type in the SDL, which is exactly the enumeration §2.1 exists to prevent. A
+   deliberate divergence from REST, which would allow the write.
+
+Not built, as §13 anticipated: GraphiQL (introspection plus the SDL endpoint
+covers codegen and client IDEs), typed per-type filter inputs, and the
+grant-change cache-invalidation hook (the TTL covers it).

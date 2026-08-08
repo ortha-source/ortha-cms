@@ -21,6 +21,9 @@
             "path": "../../packages/i18n/server"
         },
         {
+            "path": "../../packages/content/graphql"
+        },
+        {
             "path": "../../packages/activity/server"
         },
         {

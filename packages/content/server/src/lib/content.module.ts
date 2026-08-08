@@ -177,7 +177,20 @@ export class ContentModule {
                 CONTENT_REGISTRY,
                 CONTENT_CATALOG,
                 CONTENT_ENTRY_COUNTER,
-                EntryValidationService
+                EntryValidationService,
+                // The public API's collaborators, exported so another plugin can
+                // put a SECOND PROTOCOL in front of the same surface without
+                // re-implementing any of it — `@ortha-cms/content-graphql` does
+                // exactly that. The module is already `global: true`, so
+                // exporting is all that is needed for it to inject these.
+                // Everything a `/v1` request is authorized and answered by lives
+                // in this list, which is what keeps the two protocols honest:
+                // there is one visibility rule, one grant gate, one write path.
+                WorkspaceGrantsQuery,
+                PublicEntriesQuery,
+                PublicEntryWritesService,
+                ApiTokenGuard,
+                ApiTokenWorkspaceGuard
             ]
         };
     }

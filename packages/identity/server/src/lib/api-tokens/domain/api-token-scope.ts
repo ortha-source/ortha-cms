@@ -1,3 +1,4 @@
+import type { Actor } from '../../domain/access-policy';
 import { PERMISSIONS, type PermissionKey } from '../../rbac/system-roles';
 
 /** The two access levels a bearer API token can grant. */
@@ -46,4 +47,32 @@ export function scopePermissions(scope: ApiTokenScope): PermissionKey[] {
                 PERMISSIONS.MEDIA_CREATE
             ];
     }
+}
+
+/** The minimum of a verified token an access decision needs. */
+export interface ScopedToken {
+    /** Stable token id — the actor identity a decision is made for. */
+    id: string;
+    /** The token's access level. */
+    scope: ApiTokenScope;
+}
+
+/**
+ * A verified token as an {@link Actor}, so a permission check on a token goes
+ * through the **same** {@link AccessPolicy} a session's does.
+ *
+ * The token's own id is the actor identity, and the `createdBy` user's role
+ * grants are deliberately never consulted: revoking a token must be enough to
+ * revoke its access, whoever minted it and whatever they may still do.
+ *
+ * One function rather than four inline lines at each call site, because there
+ * are now several — the bearer guard on the REST routes, and every field
+ * resolver on the GraphQL endpoint, where a single request mixes operations and
+ * a route-level `@RequirePermissions` cannot decide for all of them.
+ */
+export function tokenActor(token: ScopedToken): Actor {
+    return {
+        userId: token.id,
+        grantedPermissions: new Set(scopePermissions(token.scope))
+    };
 }

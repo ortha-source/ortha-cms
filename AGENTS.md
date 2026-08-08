@@ -49,6 +49,14 @@
   ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Phase 0 of
   [`docs/design/copilot.md`](docs/design/copilot.md) — no routes, no engine, no
   tables yet.
+- `packages/content/graphql` — `@ortha-cms/content-graphql`, the public content
+  API over **GraphQL** (`POST /api/v1/graphql`). A protocol **adapter** over
+  `content/server`'s `public-api/`, not a second API: same bearer tokens, same
+  guards, same scopes, same visibility rules, and resolvers that assemble the
+  existing DTOs rather than reaching for the database
+  ([ADR-0006](docs/adr/0006-graphql-as-a-protocol-adapter.md)). Its schema is
+  built **per workspace content-grant set**, so introspection cannot enumerate
+  types the workspace was not granted.
 - `packages/nx` — `@ortha-cms/nx`, the workspace **Nx plugin**: infers and
   implements the `db:generate` / `db:migrate` targets (Drizzle migration
   tooling). Registered in `nx.json`.
@@ -61,6 +69,11 @@ Packages are either **flat** (`packages/<name>`, e.g. `design-system`) or
 stays hyphenated regardless of nesting: `packages/bootstrap/admin` is published
 as `@ortha-cms/bootstrap-admin`. The root `workspaces` globs (`packages/*` and
 `packages/*/*`) cover both shapes.
+
+A group is not limited to `admin`/`server`: it holds however many packages the
+domain needs, named for what they are. `content` has four — `domain` (the
+framework-free kernel), `server`, `admin`, and `graphql` (the public API's
+second protocol); `copilot` has six.
 
 ## How packages resolve
 

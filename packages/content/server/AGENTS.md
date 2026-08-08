@@ -405,6 +405,16 @@ token is the only way in, and a session cookie is _not_ accepted):
 Plus `/v1/media/assets` (upload) and `/v1/media/assets/:id/raw` (bytes), which
 live in **media-server** — see its AGENTS.md.
 
+**This same surface is also served over GraphQL** at `POST /api/v1/graphql`, by
+[`@ortha-cms/content-graphql`](../graphql/AGENTS.md). That package is an
+_adapter_, not a second API: its resolvers assemble the DTOs below and call
+`PublicEntriesQuery` / `PublicEntryWritesService`, so everything documented here
+— the bearer guards, the grant gate, `readableWhere`, the draft rule, the write
+invariants — applies identically to both protocols. Practical consequence when
+editing this folder: `ContentModule` **exports** those collaborators and the
+barrel re-exports them, so a change to a signature here changes two protocols.
+See [ADR-0006](../../../docs/adr/0006-graphql-as-a-protocol-adapter.md).
+
 Five decisions worth knowing before touching this:
 
 - **The write side reuses `EntryWriterService`; the read side deliberately did
