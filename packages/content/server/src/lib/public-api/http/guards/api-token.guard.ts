@@ -69,7 +69,8 @@ export class ApiTokenGuard implements CanActivate {
             id: token.id,
             name: token.name,
             scope: token.scope,
-            workspaceIds: token.workspaceIds
+            workspaceIds: token.workspaceIds,
+            createdBy: token.createdBy ?? null
         };
 
         const required = this.reflector.getAllAndOverride<PermissionKey[]>(

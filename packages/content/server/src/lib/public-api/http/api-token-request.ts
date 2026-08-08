@@ -18,6 +18,17 @@ export interface PublicApiToken {
     scope: ApiTokenScope;
     /** Every workspace this token may act in — always at least one. */
     workspaceIds: readonly string[];
+    /**
+     * The user who minted the token, when still known.
+     *
+     * Carried for **attribution on writes**, not for authorization — the token
+     * acts as itself, and this user's role grants are never consulted (revoking
+     * the token has to be enough). A media upload has a NOT NULL `uploaded_by`,
+     * so something must go there; the accountable human is the one who created
+     * the credential, and recording them keeps the Media Library's uploader
+     * column meaningful instead of blank.
+     */
+    createdBy: string | null;
 }
 
 /**

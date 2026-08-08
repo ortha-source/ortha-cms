@@ -71,7 +71,7 @@ library's thumbnails and detail drawer, download links), and those requests send
 cookies but **cannot** send a custom `X-Workspace-Id` header, so the guard 400'd
 every preview. The scope is **derived, not dropped**: `DownloadAssetQuery.locate`
 reads the asset's owning workspace, the controller requires the caller to be a
-member of *that* workspace (via workspaces-server's exported
+member of _that_ workspace (via workspaces-server's exported
 `MembershipCheckQuery`), and only then does `open` touch storage. A non-member
 gets the same 404 as a missing asset, so asset ids can't be probed. Any new route
 whose URL the browser loads directly needs this treatment, not the header guard.
@@ -80,6 +80,39 @@ whose URL the browser loads directly needs this treatment, not the header guard.
 - `GET /media/assets` (`?folderId=&search=&kind=&sort=&page=&pageSize=`) ·
   `POST /media/assets` (multipart) · `GET /media/assets/:id/raw` ·
   `PATCH /media/assets/:id` · `DELETE /media/assets` (bulk `{ ids }`)
+
+## The token-authenticated pair (`/api/v1/media`)
+
+`PublicMediaController` adds two **bearer-token** routes beside the session ones,
+guarded by content-server's `ApiTokenGuard` + `ApiTokenWorkspaceGuard` (media
+already depends on content for the `MEDIA_ASSET_RESOLVER` port, so this adds no
+package edge):
+
+- `POST /api/v1/media/assets` — multipart upload (`media:create`, so `full`
+  scope only). Returns the asset whose `id` goes straight into a content type's
+  `field.media`.
+- `GET /api/v1/media/assets/:id/raw` — the bytes (`media:read`, which **both**
+  scopes carry).
+
+They exist because a token that can author content but not create an asset can
+never populate a media field at all — the writer rejects an asset id the
+workspace does not own — and because the session `raw` route derives its scope
+from **membership**, which a token has none of, so a bearer 404'd on the very
+URLs the public content reads hand out. The `/v1` route derives the same scope
+from the token's resolved workspace instead: an asset outside it is the same 404
+as a missing one, and that holds even for another workspace _inside_ the token's
+bucket, so `X-Workspace-Id` stays binding rather than advisory.
+
+`uploaded_by` is NOT NULL and a token is not a user, so a token upload is
+attributed to the user who **minted** the token — the accountable human, and it
+keeps the library's uploader column meaningful. It is not an authorization step:
+that user's role grants are never consulted. `UploadAssetUseCase` now takes an
+`EventActor` (`{ id, email }`) rather than a `PublicUser`, which is all it ever
+read; the session route is unchanged.
+
+Renaming, moving, and deleting stay session-only — `scopePermissions` withholds
+`media:update` / `media:delete` from both token scopes. Attaching an asset to a
+record is content authoring; curating the library is administration.
 
 ## Folder delete cascades
 
@@ -98,7 +131,7 @@ and a concurrent upload/move/create-subfolder serializes against the delete
 instead of orphaning itself. (`FOR UPDATE` can't be attached to a recursive
 CTE's own SELECT — Postgres rejects it — hence the two statements.) It then
 **re-walks and loops** until the subtree stops changing: the CTE takes no locks,
-so a subfolder created under a *descendant* between the two statements would
+so a subfolder created under a _descendant_ between the two statements would
 otherwise survive its own parent's deletion. Once every known id is locked, a
 re-walk either agrees or reveals the new child — and further inserts under it
 now block on us — so it converges (bounded by `SUBTREE_WALK_ROUNDS`).
@@ -128,7 +161,9 @@ After `WorkspacesPlugin` (routes use `WorkspaceGuard`) and `IdentityPlugin`
 
 ```typescript
 MediaServerPlugin({
-    providers: { local: createLocalStorageProvider(config.plugins.media.local) },
+    providers: {
+        local: createLocalStorageProvider(config.plugins.media.local)
+    },
     config: config.plugins.media
 });
 ```

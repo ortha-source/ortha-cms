@@ -34,6 +34,29 @@ type ContentTable = Record<string, AnyColumn>;
 export const MAX_EXPANDED_FIELDS = 10;
 
 /**
+ * Route prefix the public API reports for an asset's bytes.
+ *
+ * The `MEDIA_ASSET_RESOLVER` hands back the **admin's** URLs, which derive their
+ * scope from the caller's workspace *membership* — something a token does not
+ * have, so a bearer got a 404 on every one of them. Media-server's
+ * `/api/v1/media` sibling derives the same scope from the token's resolved
+ * workspace instead, so these are the URLs a public consumer can actually fetch,
+ * with the very token it already holds.
+ *
+ * A literal rather than an import: content-server does not depend on
+ * media-server (the dependency runs the other way — media binds content's
+ * resolver port), so this package cannot ask for the route. It mirrors the
+ * default `publicBasePath` the media config already hardcodes.
+ */
+const PUBLIC_MEDIA_BASE_PATH = '/api/v1/media/assets';
+
+/** The public download URL for one asset, optionally a generated derivative. */
+function publicAssetUrl(id: string, variant?: 'thumb' | 'preview'): string {
+    const base = `${PUBLIC_MEDIA_BASE_PATH}/${id}/raw`;
+    return variant ? `${base}?variant=${variant}` : base;
+}
+
+/**
  * Resolves the public API's opt-in **relation** and **media** expansions for a
  * page of entries.
  *
@@ -323,10 +346,16 @@ export class PublicExpansionQuery {
                     (asset): PublicMediaRef => ({
                         id: asset.id,
                         name: asset.name,
-                        url: asset.url,
-                        ...(asset.thumbUrl ? { thumbUrl: asset.thumbUrl } : {}),
+                        // The resolver's own URLs are the admin's; rewrite to
+                        // the token-fetchable route. Presence of a derivative is
+                        // still read from the resolver — it is what knows
+                        // whether one was generated — but the address is ours.
+                        url: publicAssetUrl(asset.id),
+                        ...(asset.thumbUrl
+                            ? { thumbUrl: publicAssetUrl(asset.id, 'thumb') }
+                            : {}),
                         ...(asset.previewUrl
-                            ? { previewUrl: asset.previewUrl }
+                            ? { previewUrl: publicAssetUrl(asset.id, 'preview') }
                             : {}),
                         kind: asset.kind,
                         mimeType: asset.mimeType,

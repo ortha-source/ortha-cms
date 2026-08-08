@@ -61,6 +61,7 @@ describe('toPublicEntry', () => {
             id: 'entry-1',
             createdAt: CREATED.toISOString(),
             updatedAt: UPDATED.toISOString(),
+            status: 'published',
             publishedAt: PUBLISHED.toISOString(),
             values: {
                 title: 'Hello',
@@ -101,7 +102,7 @@ describe('toPublicEntry', () => {
         expect(entry.values).not.toHaveProperty('cover');
     });
 
-    it('never exposes the workspace, the status, or the tombstone', () => {
+    it('never exposes the workspace or the tombstone', () => {
         const entry = toPublicEntry(post, {
             ...envelope,
             status: 'published',
@@ -111,9 +112,34 @@ describe('toPublicEntry', () => {
         });
 
         expect(entry).not.toHaveProperty('workspaceId');
-        expect(entry).not.toHaveProperty('status');
         expect(entry).not.toHaveProperty('deletedAt');
         expect(entry.values).not.toHaveProperty('workspaceId');
+    });
+
+    it('carries the publish status, which is no longer a constant', () => {
+        // It used to be omitted: this API only ever served published rows, so
+        // the key would have said the same thing on every entry. A write-scoped
+        // token can now create a draft and read it back with `?status=`, which
+        // makes it real information — and the pair with `publishedAt` is what
+        // distinguishes a never-published draft from live content with
+        // unpublished edits on top.
+        const draft = toPublicEntry(post, {
+            ...envelope,
+            status: 'draft',
+            publishedAt: PUBLISHED,
+            title: 'Edited'
+        });
+        expect(draft.status).toBe('draft');
+        expect(draft.publishedAt).toBe(PUBLISHED.toISOString());
+
+        const fresh = toPublicEntry(post, {
+            ...envelope,
+            status: 'draft',
+            publishedAt: null,
+            title: 'New'
+        });
+        expect(fresh.status).toBe('draft');
+        expect(fresh.publishedAt).toBeNull();
     });
 
     it('reads an unset field back as null, not a missing key', () => {

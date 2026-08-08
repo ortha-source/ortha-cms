@@ -30,13 +30,13 @@ export interface PublicRelationFieldView {
 /**
  * One media asset attached to an entry.
  *
- * **The URLs are the CMS's own media routes, which require an authenticated
- * session** — a bearer token cannot fetch them, and a browser `<img src>`
- * pointing at one will not load for an anonymous visitor. They are returned
- * because they identify the asset and are correct for a server-side caller that
- * holds a session; a token-fetchable URL needs either a token-authenticated
- * media route or signed URLs, neither of which exists yet. Treat `url` as a
- * reference, not a guarantee of access.
+ * The URLs point at `/api/v1/media/assets/:id/raw`, which takes the **same
+ * bearer token** as the read that produced them — so a server-side consumer can
+ * fetch the bytes with the credential it already has. They are still not public:
+ * a browser `<img src>` sends no `Authorization` header, so an anonymous visitor
+ * will not load one. Proxy them, or fetch and re-serve them, from whatever is
+ * holding the token. (Genuinely public, unauthenticated URLs would need signed
+ * links with an expiry, which do not exist yet.)
  */
 export interface PublicMediaRef {
     /** Asset id. */

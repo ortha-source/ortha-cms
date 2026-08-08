@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_499 test cases across 37 spec files._
+_526 test cases across 38 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -160,7 +160,7 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | Test case |
 | --- |
 | 400s an unknown locale on every route that takes one |
-| reads a localized entry by id only when the locale agrees |
+| reads a localized entry by id without naming its locale |
 | filters a list by localeGroupId, scoped to the requested locale |
 | reads a group’s row in the requested locale |
 | 404s a group whose row in the requested locale is not published |
@@ -183,6 +183,78 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | lists only the types the workspace was granted |
 | serves one type’s field schema |
 | 404s the schema of an ungranted type |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts</sub>_
+
+## Public content API — writes (/api/v1)
+
+### scope
+
+| Test case |
+| --- |
+| refuses every write to a read-only token |
+| refuses a write into a workspace outside the token’s bucket |
+| 404s a type the workspace was not granted |
+
+### create
+
+| Test case |
+| --- |
+| creates a draft, invisible to a read-only token until published |
+| lets a write-scoped token read its own draft back |
+| defers value validation to publish on a publishable type |
+| 422s a create on a NON-publishable type straight away |
+| 400s a malformed relation delta |
+
+### update
+
+| Test case |
+| --- |
+| merges the submitted values instead of replacing the bag |
+| still clears a field that is sent explicitly as null |
+| moves a published entry back to draft, keeping publishedAt |
+| 404s an entry in another workspace |
+
+### relations
+
+| Test case |
+| --- |
+| assigns and unassigns links without sending the whole set |
+| 422s a link to an entry outside the workspace |
+
+### localization
+
+| Test case |
+| --- |
+| adds a translation to an existing record’s group |
+| 409s a locale the group already holds |
+| 404s a translation group that does not exist |
+| addresses a write at the group’s row for the requested locale |
+| deletes one translation, leaving the group’s others live |
+
+### publish
+
+| Test case |
+| --- |
+| unpublishes back to a draft |
+
+### delete
+
+| Test case |
+| --- |
+| removes an entry from the public reads |
+| 404s an entry in another workspace |
+
+### media
+
+| Test case |
+| --- |
+| uploads an asset, attaches it, and serves it back to the same token |
+| lets a read-only token fetch bytes but never upload |
+| 404s an asset outside the request’s workspace |
+| 422s a media id the workspace does not own |
+| 400s an upload with no file part |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_

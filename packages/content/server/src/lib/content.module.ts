@@ -39,9 +39,12 @@ import { RestoreRevisionController } from './revisions/http/controllers/restore-
 import { PublishRevisionController } from './revisions/http/controllers/publish-revision.controller';
 import { PublicContentTypesController } from './public-api/http/controllers/public-content-types.controller';
 import { PublicEntriesController } from './public-api/http/controllers/public-entries.controller';
+import { PublicEntryWritesController } from './public-api/http/controllers/public-entry-writes.controller';
 import { ApiTokenGuard } from './public-api/http/guards/api-token.guard';
 import { ApiTokenWorkspaceGuard } from './public-api/http/guards/api-token-workspace.guard';
 import { PublicEntriesQuery } from './public-api/infrastructure/public-entries.query';
+import { PublicEntryWritesService } from './public-api/infrastructure/public-entry-writes.service';
+import { DraftVisibilityGuard } from './public-api/http/guards/draft-visibility.guard';
 import { PublicExpansionQuery } from './public-api/infrastructure/public-expansion.query';
 
 /**
@@ -95,6 +98,12 @@ export class ContentModule {
                 // `v1/content-types` prefix likewise can't collide with
                 // `v1/content/:typeName` (different first segment).
                 PublicContentTypesController,
+                // The write routes go FIRST: `POST :typeName` (create) would
+                // otherwise be shadowed by nothing, but `PATCH`/`DELETE
+                // :typeName/group/:gid` and the reads' `GET :typeName/group/:gid`
+                // share a shape, and keeping the two controllers' orders
+                // consistent means the group-before-id rule holds across both.
+                PublicEntryWritesController,
                 PublicEntriesController
             ],
             providers: [
@@ -151,7 +160,13 @@ export class ContentModule {
                 // resolver, and the narrow published-only read.
                 ApiTokenGuard,
                 ApiTokenWorkspaceGuard,
+                // Gates `?status=draft|any` on write scope, so a read-only token
+                // can never see unpublished work.
+                DraftVisibilityGuard,
                 PublicEntriesQuery,
+                // The write half — a thin edge over EntryWriterService and the
+                // publish use-cases, which own all the write invariants.
+                PublicEntryWritesService,
                 // Batched relation + media expansion for the public reads.
                 PublicExpansionQuery,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION

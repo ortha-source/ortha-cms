@@ -39,6 +39,7 @@ import { DEFAULT_PAGE_SIZE } from '../../entries/entries.constants';
 import {
     DEFAULT_EXPANSION_LIMIT,
     PREVIEW,
+    type EntryVisibility,
     type PublicEntryQueryDto,
     type PublicListEntriesQueryDto
 } from '../http/dto/public-list-entries-query.dto';
@@ -133,7 +134,7 @@ export class PublicEntriesQuery {
                 : [];
         const translations = this.wantsTranslations(type, query);
         const where = and(
-            this.readableWhere(type, workspaceId, query.locale),
+            this.readableWhere(type, workspaceId, query.locale, query.status),
             buildSearchPredicate(type, query.search),
             await this.filterPredicate(
                 type,
@@ -370,7 +371,8 @@ export class PublicEntriesQuery {
             type,
             locator,
             workspaceId,
-            query.locale
+            query.locale,
+            query.status
         );
         const entry = toPublicEntry(type, row, selected);
         const byEntry = await this.translationsForEntries(
@@ -408,6 +410,7 @@ export class PublicEntriesQuery {
             updatedAt: table['updatedAt']
         };
         if (type.publishable) {
+            columns['status'] = table['status'];
             columns['publishedAt'] = table['publishedAt'];
         }
         if (type.i18n) {
@@ -471,9 +474,12 @@ export class PublicEntriesQuery {
             : this.db.select().from(type.table);
         const [row] = await rowQuery
             .where(
-                and(
-                    this.locate(type, locator),
-                    this.readableWhere(type, workspaceId, query.locale)
+                this.entryWhere(
+                    type,
+                    locator,
+                    workspaceId,
+                    query.locale,
+                    query.status
                 )
             )
             .limit(1);
@@ -504,22 +510,77 @@ export class PublicEntriesQuery {
     }
 
     /**
-     * The WHERE clause that pins a read to the one entry a locator names.
+     * The row a locator names, for a **write** — its id addresses the write, and
+     * its stored values are what a partial update merges onto.
      *
-     * A group locator is only meaningful on a localized type, and is a **400**
-     * elsewhere — the caller addressed the entry by something the type does not
-     * have, which is a different mistake from naming a group that doesn't exist
-     * (a 404). Note the group form matches the whole group; the locale scope in
-     * `readableWhere` is what narrows it to one row, so `?locale=` selects the
-     * translation and `LIMIT 1` never has to break a tie.
+     * Resolved with `status: 'any'`, because writes address rows in whatever
+     * state they are in — the overwhelmingly common case is editing a draft,
+     * which the published-only default would hide. Everything else about the
+     * lookup is the read rule verbatim (workspace, not soft-deleted, the
+     * requested locale), so a token can never reach across a workspace with a
+     * write that it could not reach with a read.
+     *
+     * Lives here rather than in the write service so there is exactly one
+     * implementation of "which row does this locator mean?" — a second one that
+     * forgot the workspace clause is the failure this avoids.
      */
-    private locate(type: AnyContentType, locator: EntryLocator): SQL {
+    async resolveWritableRow(
+        type: AnyContentType,
+        locator: EntryLocator,
+        workspaceId: string,
+        locale?: string
+    ): Promise<Record<string, unknown>> {
+        // An id locator is still a real lookup, not a pass-through: an id in
+        // another workspace or a soft-deleted one has to 404 here rather than
+        // reach the writer, which scopes by workspace but would report the
+        // mismatch as its own kind of failure.
+        return this.readableRow(type, locator, workspaceId, locale, 'any');
+    }
+
+    /**
+     * The full predicate for a **single-entry** read: the locator, the
+     * locale-independent visibility rule, and — for a group locator only — the
+     * extension's locale scope.
+     *
+     * That asymmetry is the point. A **group** id names a whole translation
+     * group, so the locale is what picks the row out of it; `LIMIT 1` never has
+     * to break a tie. An **entry id** already names exactly one row, so AND-ing
+     * the locale scope onto it can do nothing except turn a valid id into a 404
+     * whenever that row is not in the default locale. That used to be the
+     * behaviour, documented as a sharp edge; the write API made it untenable,
+     * since updating a German article by its own id would have needed
+     * `?locale=de` appended to a request that already named the row uniquely.
+     *
+     * The narrowing is safe because `liveWhere` still carries the whole of the
+     * *visibility* rule — workspace, publish state, soft delete. The extension's
+     * `listScope` is, per its own name and its one implementation, about
+     * choosing rows out of a *set*; a request that names one row has already
+     * chosen.
+     */
+    private entryWhere(
+        type: AnyContentType,
+        locator: EntryLocator,
+        workspaceId: string,
+        locale: string | undefined,
+        visibility: EntryVisibility | undefined
+    ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
         if ('id' in locator) {
-            return eq(table['id'], locator.id) as SQL;
+            return and(
+                eq(table['id'], locator.id),
+                this.liveWhere(type, workspaceId, visibility)
+            );
         }
+        // A group locator is only meaningful on a localized type, and is a 400
+        // elsewhere — the caller addressed the entry by something the type does
+        // not have, which is a different mistake from naming a group that does
+        // not exist (a 404).
         this.assertLocalized(type, 'localeGroupId');
-        return eq(table['localeGroupId'], locator.localeGroupId) as SQL;
+        return and(
+            eq(table['localeGroupId'], locator.localeGroupId),
+            this.liveWhere(type, workspaceId, visibility),
+            this.extension?.listScope(type, workspaceId, { locale })
+        );
     }
 
     /** The 404 message for a locator that matched nothing readable. */
@@ -542,7 +603,8 @@ export class PublicEntriesQuery {
         pageSize: number,
         workspaceId: string,
         grantedTypes: ReadonlySet<string>,
-        locale?: string
+        locale?: string,
+        visibility?: EntryVisibility
     ): Promise<PublicRelationFieldView> {
         const spec = type.fields[field];
         if (
@@ -559,7 +621,13 @@ export class PublicEntriesQuery {
                 `"${field}" cannot be expanded — this workspace has no access to "${spec.relation.to().name}".`
             );
         }
-        const row = await this.readableRow(type, locator, workspaceId, locale);
+        const row = await this.readableRow(
+            type,
+            locator,
+            workspaceId,
+            locale,
+            visibility
+        );
         const view = await this.relationLinks.readField(
             type,
             row,
@@ -584,9 +652,16 @@ export class PublicEntriesQuery {
         locator: EntryLocator,
         workspaceId: string,
         locale?: string,
-        limit = DEFAULT_EXPANSION_LIMIT
+        limit = DEFAULT_EXPANSION_LIMIT,
+        visibility?: EntryVisibility
     ): Promise<Record<string, PublicMediaFieldView>> {
-        const row = await this.readableRow(type, locator, workspaceId, locale);
+        const row = await this.readableRow(
+            type,
+            locator,
+            workspaceId,
+            locale,
+            visibility
+        );
         const fields = Object.entries(type.fields)
             .filter(([, spec]) => spec.type === CONTENT_FIELD_TYPE.Media)
             .map(([name]) => name);
@@ -614,16 +689,14 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         locator: EntryLocator,
         workspaceId: string,
-        locale?: string
+        locale?: string,
+        visibility?: EntryVisibility
     ): Promise<Record<string, unknown>> {
         const [row] = await this.db
             .select()
             .from(type.table)
             .where(
-                and(
-                    this.locate(type, locator),
-                    this.readableWhere(type, workspaceId, locale)
-                )
+                this.entryWhere(type, locator, workspaceId, locale, visibility)
             )
             .limit(1);
         if (!row) {
@@ -681,10 +754,11 @@ export class PublicEntriesQuery {
     private readableWhere(
         type: AnyContentType,
         workspaceId: string,
-        locale: string | undefined
+        locale: string | undefined,
+        visibility: EntryVisibility = 'published'
     ): SQL | undefined {
         return and(
-            this.liveWhere(type, workspaceId),
+            this.liveWhere(type, workspaceId, visibility),
             // No-op for types the extension doesn't apply to; for an i18n type
             // it scopes to the requested locale (rejecting an unknown one).
             this.extension?.listScope(type, workspaceId, { locale })
@@ -700,15 +774,37 @@ export class PublicEntriesQuery {
      */
     private liveWhere(
         type: AnyContentType,
-        workspaceId: string
+        workspaceId: string,
+        visibility: EntryVisibility = 'published'
     ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
         return and(
             eq(table['workspaceId'], workspaceId),
-            type.publishable
-                ? eq(table['status'], ENTRY_STATUS.Published)
-                : undefined,
+            this.statusWhere(type, visibility),
             type.paranoid ? isNull(table['deletedAt']) : undefined
+        );
+    }
+
+    /**
+     * The publish-state clause. `published` — the default and everything a
+     * read-only token can ask for — is the API's headline rule; the other two
+     * exist so a write-scoped token can read back what it just created.
+     *
+     * A non-publishable type has no `status` column and every row is simply
+     * live, so this is a no-op there rather than an error: the caller asked for
+     * a distinction the type does not make.
+     */
+    private statusWhere(
+        type: AnyContentType,
+        visibility: EntryVisibility
+    ): SQL | undefined {
+        if (!type.publishable || visibility === 'any') {
+            return undefined;
+        }
+        const table = type.table as unknown as ContentTable;
+        return eq(
+            table['status'],
+            visibility === 'draft' ? ENTRY_STATUS.Draft : ENTRY_STATUS.Published
         );
     }
 

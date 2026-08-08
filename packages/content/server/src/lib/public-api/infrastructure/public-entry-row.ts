@@ -74,6 +74,7 @@ export function toPublicEntry(
         values
     };
     if (type.publishable) {
+        entry.status = row['status'] as string;
         const publishedAt = row['publishedAt'] as Date | null | undefined;
         entry.publishedAt = publishedAt ? publishedAt.toISOString() : null;
     }
