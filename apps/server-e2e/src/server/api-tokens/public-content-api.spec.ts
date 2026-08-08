@@ -6,12 +6,14 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    expireApiToken,
     resetDb,
     seedActiveUser,
     seedArticles,
     seedArticleTags,
     seedContentGrants,
     seedLanding,
+    seedMediaAsset,
     seedPages,
     seedTags,
     seedWorkspace
@@ -60,6 +62,8 @@ describe('Public content API (/api/v1)', () => {
     let harness: TestApp;
     let workspaceId: string;
     let otherWorkspaceId: string;
+    /** The seeded admin — `media_asset.uploaded_by` needs a real user. */
+    let adminId: string;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -71,11 +75,13 @@ describe('Public content API (/api/v1)', () => {
 
     beforeEach(async () => {
         await resetDb();
-        await seedActiveUser(harness.app, {
-            email: ADMIN_EMAIL,
-            password: PASSWORD,
-            role: 'admin'
-        });
+        adminId = (
+            await seedActiveUser(harness.app, {
+                email: ADMIN_EMAIL,
+                password: PASSWORD,
+                role: 'admin'
+            })
+        ).id;
         workspaceId = (await seedWorkspace({ name: 'WS A', slug: 'ws-a' })).id;
         otherWorkspaceId = (await seedWorkspace({ name: 'WS B', slug: 'ws-b' }))
             .id;
@@ -175,6 +181,27 @@ describe('Public content API (/api/v1)', () => {
                 .expect(401);
         });
 
+        it('401s once the token has expired', async () => {
+            const { id, secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+            // Works right up until it doesn't — asserting the "before" is what
+            // makes the "after" about expiry rather than about the setup.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            await expireApiToken(id);
+
+            // Flat 401, indistinguishable from an unknown token: expired,
+            // revoked, and never-existed must not be tellable apart.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(401);
+        });
+
         it('does not open the management API to a bearer token', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId],
@@ -257,6 +284,29 @@ describe('Public content API (/api/v1)', () => {
                 .set('Authorization', `Bearer ${secret}`)
                 .set('X-Workspace-Id', otherWorkspaceId)
                 .expect(403);
+        });
+
+        it('403s a foreign X-Workspace-Id even on a single-workspace token', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // The header is optional for a one-workspace token, but it is NOT
+            // ignored when sent: a foreign id is checked against the bucket
+            // like any other. Otherwise the "convenience" default would be a
+            // way to smuggle a workspace past the check.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .set('X-Workspace-Id', otherWorkspaceId)
+                .expect(403);
+
+            // Naming its own workspace explicitly is fine.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .set('X-Workspace-Id', workspaceId)
+                .expect(200);
         });
 
         it('400s a malformed X-Workspace-Id', async () => {
@@ -450,6 +500,81 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.items).toHaveLength(1);
         });
 
+        it('sorts by a whitelisted column, ascending and descending', async () => {
+            await seedPublished('Beta');
+            await seedPublished('Alpha');
+            await seedPublished('Gamma');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const asc = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ sort: 'text' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(
+                (asc.body.items as PublicItem[]).map((i) => i.values['text'])
+            ).toEqual(['Alpha', 'Beta', 'Gamma']);
+
+            const desc = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ sort: '-text' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(
+                (desc.body.items as PublicItem[]).map((i) => i.values['text'])
+            ).toEqual(['Gamma', 'Beta', 'Alpha']);
+        });
+
+        it('falls back to newest-updated for a sort key it does not allow', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // Three shapes of "not sortable": a name that is no field at all, a
+            // media field (no comparable column), and a join-backed relation
+            // (no column on this table at all). Each must fall back, NOT reach
+            // `asc(undefined)` and 500 — which is the whole reason the sort
+            // whitelist exists.
+            for (const sort of ['nope', 'image', 'tags', '-tags']) {
+                const res = await request(harness.server)
+                    .get('/api/v1/content/test_article')
+                    .query({ sort })
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(200);
+                expect(Array.isArray(res.body.items)).toBe(true);
+            }
+        });
+
+        it('rejects a page or pageSize outside its bounds', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            for (const query of [
+                { page: 0 },
+                { pageSize: 0 },
+                { pageSize: 101 },
+                { page: 'x' },
+                { pageSize: '2.5' }
+            ]) {
+                await request(harness.server)
+                    .get('/api/v1/content/test_article')
+                    .query(query)
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(400);
+            }
+
+            // The cap itself is allowed — an off-by-one here would silently
+            // make the documented maximum unusable.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ pageSize: 100 })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+        });
+
         it('searches across the type’s text columns', async () => {
             await seedPublished('Alpha release notes');
             await seedPublished('Beta announcement');
@@ -467,6 +592,34 @@ describe('Public content API (/api/v1)', () => {
             expect((res.body.items as PublicItem[])[0].values['text']).toBe(
                 'Alpha release notes'
             );
+        });
+
+        it('matches LIKE metacharacters in a search literally', async () => {
+            await seedPublished('100% organic');
+            await seedPublished('Plain text');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // Unescaped, `%` is the ILIKE wildcard and would match BOTH rows —
+            // the classic way a search box turns into "return everything".
+            const wildcard = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ search: '%' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(wildcard.body.total).toBe(1);
+            expect(
+                (wildcard.body.items as PublicItem[])[0].values['text']
+            ).toBe('100% organic');
+
+            // `_` is the single-character wildcard, same story.
+            const underscore = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ search: 'P_ain' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+            expect(underscore.body.total).toBe(0);
         });
 
         it('filters on a scalar field with the query-builder tree', async () => {
@@ -662,6 +815,49 @@ describe('Public content API (/api/v1)', () => {
                 .expect(400);
         });
 
+        it('reads an empty ?fields= as "no preference", not "no fields"', async () => {
+            await seedPublished('Everything');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const [full, empty] = await Promise.all(
+                [undefined, ''].map((fields) =>
+                    request(harness.server)
+                        .get('/api/v1/content/test_article')
+                        .query(fields === undefined ? {} : { fields })
+                        .set('Authorization', `Bearer ${secret}`)
+                        .expect(200)
+                )
+            );
+
+            const keysOf = (res: { body: { items: PublicItem[] } }) =>
+                Object.keys(res.body.items[0].values).sort();
+            // An empty `values` bag is never what a caller meant, so the two
+            // must agree — and the assertion is against the FULL key set, not
+            // just "non-empty", so a partial regression can't slip through.
+            expect(keysOf(empty)).toEqual(keysOf(full));
+            expect(keysOf(empty).length).toBeGreaterThan(1);
+        });
+
+        it('400s a fields list longer than the cap', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // Bounded before any name is looked up, so the 400 is about the
+            // list's size rather than the first bogus name in it.
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({
+                    fields: Array.from({ length: 101 }, (_, i) => `f${i}`).join(
+                        ','
+                    )
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
         it('still filters and sorts on fields it was not asked to return', async () => {
             await seedArticles(
                 [
@@ -821,6 +1017,50 @@ describe('Public content API (/api/v1)', () => {
                 .expect(400);
         });
 
+        it('expands every granted relation field when none are named', async () => {
+            await seedContentGrants(workspaceId, ['test_tag']);
+            const source = await seedPublished('Unnamed expansion');
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${source}`)
+                .query({ relations: 'preview' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const fields = Object.keys(res.body.relations ?? {});
+            expect(fields).toContain('tags');
+            // `test_author` is ungranted. Naming it would be a 400, but when
+            // the caller named NOTHING there is nothing to correct them about,
+            // so it is skipped rather than refused — and it must not appear.
+            expect(fields).not.toContain('author');
+        });
+
+        it('400s naming more expandable fields than the cap allows', async () => {
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // Cost scales with the number of FIELDS (each is its own query
+            // pass), so this is the bound that actually protects the endpoint.
+            // The names need not exist — the count is checked first.
+            const eleven = Array.from({ length: 11 }, (_, i) => `f${i}`).join(
+                ','
+            );
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ relations: 'preview', relationFields: eleven })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .query({ media: 'preview', mediaFields: eleven })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+        });
+
         it('400s a relationFields name that is not a relation', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -923,6 +1163,108 @@ describe('Public content API (/api/v1)', () => {
             });
         });
 
+        it('resolves attached media to metadata and URLs, capped by mediaLimit', async () => {
+            const assets: { id: string }[] = [];
+            for (const name of ['a.pdf', 'b.pdf', 'c.pdf']) {
+                assets.push(
+                    await seedMediaAsset({
+                        workspaceId,
+                        uploadedBy: adminId,
+                        name
+                    })
+                );
+            }
+            const [entry] = await seedArticles(
+                [
+                    {
+                        text: 'With media',
+                        select: 'article',
+                        status: 'published',
+                        publishedAt: new Date(),
+                        attachments: assets.map((a) => a.id)
+                    }
+                ],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${entry}`)
+                .query({
+                    media: 'preview',
+                    mediaFields: 'attachments',
+                    mediaLimit: 2
+                })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const view = res.body.media.attachments;
+            // Capped to 2 — but `total` reports all 3, so the limit is visible
+            // as `items.length < total` and never passes a slice off as whole.
+            expect(view.items).toHaveLength(2);
+            expect(view.total).toBe(3);
+            // Stored order is preserved; it is what the editor arranged.
+            expect(view.items.map((i: { name: string }) => i.name)).toEqual([
+                'a.pdf',
+                'b.pdf'
+            ]);
+            expect(view.items[0]).toMatchObject({
+                id: assets[0].id,
+                name: 'a.pdf',
+                kind: 'document',
+                mimeType: 'application/pdf',
+                alt: null
+            });
+            // A URL is returned even though a bearer token cannot fetch it —
+            // see the caveat on PublicMediaRef. It must at least identify the
+            // asset.
+            expect(view.items[0].url).toContain(assets[0].id);
+        });
+
+        it('omits a media id that names an asset in another workspace', async () => {
+            const theirs = await seedMediaAsset({
+                workspaceId: otherWorkspaceId,
+                uploadedBy: adminId,
+                name: 'theirs.pdf'
+            });
+            const mine = await seedMediaAsset({
+                workspaceId,
+                uploadedBy: adminId,
+                name: 'mine.pdf'
+            });
+            const [entry] = await seedArticles(
+                [
+                    {
+                        text: 'Mixed media',
+                        select: 'article',
+                        status: 'published',
+                        publishedAt: new Date(),
+                        attachments: [theirs.id, mine.id]
+                    }
+                ],
+                workspaceId
+            );
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            const res = await request(harness.server)
+                .get(`/api/v1/content/test_article/${entry}`)
+                .query({ media: 'preview', mediaFields: 'attachments' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            // The cross-workspace id is dropped, not returned as a placeholder,
+            // and — the part that matters — is not counted either.
+            const view = res.body.media.attachments;
+            expect(view.items.map((i: { name: string }) => i.name)).toEqual([
+                'mine.pdf'
+            ]);
+            expect(view.total).toBe(1);
+        });
+
         it('400s a mediaFields name that is not a media field', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -983,6 +1325,56 @@ describe('Public content API (/api/v1)', () => {
             rows.forEach((row, index) => (byLocale[row.locale] = ids[index]));
             return { groupId, byLocale };
         }
+
+        it('400s an unknown locale on every route that takes one', async () => {
+            const { groupId, byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // The slug is validated by the localization plugin behind the
+            // extension port, so this also pins that the public reads actually
+            // route `?locale=` through it rather than trusting the string.
+            const paths = [
+                '/api/v1/content/test_article',
+                `/api/v1/content/test_article/${byLocale['en']}`,
+                `/api/v1/content/test_article/${byLocale['en']}/media`,
+                `/api/v1/content/test_article/group/${groupId}`
+            ];
+            for (const path of paths) {
+                await request(harness.server)
+                    .get(path)
+                    .query({ locale: 'zz' })
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(400);
+            }
+        });
+
+        it('reads a localized entry by id only when the locale agrees', async () => {
+            const { byLocale } = await seedGroup([
+                { locale: 'en', text: 'Story EN' },
+                { locale: 'de', text: 'Story DE' }
+            ]);
+            const { secret } = await mintToken({
+                workspaceIds: [workspaceId]
+            });
+
+            // Documented sharp edge, pinned so a change to it is deliberate:
+            // the locale scope is AND-ed into the id reads too, so a valid id
+            // for a non-default-locale row is a 404 without its `?locale=`.
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${byLocale['de']}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(404);
+
+            await request(harness.server)
+                .get(`/api/v1/content/test_article/${byLocale['de']}`)
+                .query({ locale: 'de' })
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+        });
 
         it('filters a list by localeGroupId, scoped to the requested locale', async () => {
             const { groupId, byLocale } = await seedGroup([

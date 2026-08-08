@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_485 test cases across 37 spec files._
+_499 test cases across 37 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -98,6 +98,7 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | 401s on a non-bearer Authorization scheme |
 | does not accept a session cookie in place of a token |
 | 401s once the token is revoked |
+| 401s once the token has expired |
 | does not open the management API to a bearer token |
 
 ### workspace resolution
@@ -108,6 +109,7 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | requires X-Workspace-Id when the token covers several |
 | reads each workspace of a multi-workspace token |
 | 403s a workspace outside the token’s bucket |
+| 403s a foreign X-Workspace-Id even on a single-workspace token |
 | 400s a malformed X-Workspace-Id |
 
 ### entry reads
@@ -123,7 +125,11 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | 404s an unknown content type |
 | serves a single (page) type through the same list route |
 | paginates |
+| sorts by a whitelisted column, ascending and descending |
+| falls back to newest-updated for a sort key it does not allow |
+| rejects a page or pageSize outside its bounds |
 | searches across the type’s text columns |
+| matches LIKE metacharacters in a search literally |
 | filters on a scalar field with the query-builder tree |
 | never lets a filter widen the published-only scope |
 | 400s a malformed filter and an unknown filter field |
@@ -131,15 +137,21 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | returns only the selected fields |
 | applies a field selection to the single-entry route too |
 | 400s an unknown or unselectable field name |
+| reads an empty ?fields= as "no preference", not "no fields" |
+| 400s a fields list longer than the cap |
 | still filters and sorts on fields it was not asked to return |
 | expands a relation only when asked, and only to published targets |
 | caps preview items with relationLimit, keeping total truthful |
 | rejects a relationLimit outside 1…100 |
 | 400s expanding a relation into an ungranted type |
+| expands every granted relation field when none are named |
+| 400s naming more expandable fields than the cap allows |
 | 400s a relationFields name that is not a relation |
 | pages one relation field from the sibling route |
 | 404s the relation and media routes for an entry it cannot read |
 | exposes media fields as empty views when nothing is attached |
+| resolves attached media to metadata and URLs, capped by mediaLimit |
+| omits a media id that names an asset in another workspace |
 | 400s a mediaFields name that is not a media field |
 | rejects an undeclared query parameter |
 
@@ -147,6 +159,8 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 
 | Test case |
 | --- |
+| 400s an unknown locale on every route that takes one |
+| reads a localized entry by id only when the locale agrees |
 | filters a list by localeGroupId, scoped to the requested locale |
 | reads a group’s row in the requested locale |
 | 404s a group whose row in the requested locale is not published |
