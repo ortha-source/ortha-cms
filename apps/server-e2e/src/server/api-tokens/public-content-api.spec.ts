@@ -1352,7 +1352,7 @@ describe('Public content API (/api/v1)', () => {
             }
         });
 
-        it('reads a localized entry by id only when the locale agrees', async () => {
+        it('reads a localized entry by id without naming its locale', async () => {
             const { byLocale } = await seedGroup([
                 { locale: 'en', text: 'Story EN' },
                 { locale: 'de', text: 'Story DE' }
@@ -1361,19 +1361,21 @@ describe('Public content API (/api/v1)', () => {
                 workspaceIds: [workspaceId]
             });
 
-            // Documented sharp edge, pinned so a change to it is deliberate:
-            // the locale scope is AND-ed into the id reads too, so a valid id
-            // for a non-default-locale row is a 404 without its `?locale=`.
-            await request(harness.server)
-                .get(`/api/v1/content/test_article/${byLocale['de']}`)
-                .set('Authorization', `Bearer ${secret}`)
-                .expect(404);
-
-            await request(harness.server)
-                .get(`/api/v1/content/test_article/${byLocale['de']}`)
-                .query({ locale: 'de' })
-                .set('Authorization', `Bearer ${secret}`)
-                .expect(200);
+            // An entry id names exactly one row, so the locale scope can only
+            // ever turn a valid id into a 404. It used to do exactly that — a
+            // documented sharp edge — until the write API made it untenable:
+            // updating a German article by its own id would have needed
+            // `?locale=de` bolted onto a request that already named the row.
+            // A GROUP read still needs the locale; that is what picks the row.
+            for (const query of [{}, { locale: 'de' }, { locale: 'en' }]) {
+                const res = await request(harness.server)
+                    .get(`/api/v1/content/test_article/${byLocale['de']}`)
+                    .query(query)
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(200);
+                expect(res.body.id).toBe(byLocale['de']);
+                expect(res.body.locale).toBe('de');
+            }
         });
 
         it('filters a list by localeGroupId, scoped to the requested locale', async () => {

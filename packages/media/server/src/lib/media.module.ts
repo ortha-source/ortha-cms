@@ -36,6 +36,7 @@ import { ListAssetsController } from './http/controllers/list-assets.controller'
 import { DownloadAssetController } from './http/controllers/download-asset.controller';
 import { UpdateAssetController } from './http/controllers/update-asset.controller';
 import { DuplicateAssetController } from './http/controllers/duplicate-asset.controller';
+import { PublicMediaController } from './http/controllers/public-media.controller';
 import { DeleteAssetsController } from './http/controllers/delete-assets.controller';
 
 /** Options `MediaModule.forRoot` binds into DI. */
@@ -75,7 +76,12 @@ export class MediaModule {
                 DownloadAssetController,
                 UpdateAssetController,
                 DuplicateAssetController,
-                DeleteAssetsController
+                DeleteAssetsController,
+                // The token-authenticated `/api/v1/media` pair (upload + raw),
+                // sibling to content-server's public content API. Its own `v1`
+                // prefix keeps it clear of the session routes above, so
+                // registration order relative to them doesn't matter.
+                PublicMediaController
             ],
             providers: [
                 // Storage seam — the registry + the resolver handler.

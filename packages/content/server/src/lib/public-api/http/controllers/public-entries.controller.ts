@@ -31,6 +31,7 @@ import type {
 import { RELATION_PAGE_SIZE } from '../../../entries/infrastructure/persistence/relation-link.service';
 import { ApiTokenGuard } from '../guards/api-token.guard';
 import { ApiTokenWorkspaceGuard } from '../guards/api-token-workspace.guard';
+import { DraftVisibilityGuard } from '../guards/draft-visibility.guard';
 import {
     PublicEntryQueryDto,
     PublicListEntriesQueryDto
@@ -69,7 +70,7 @@ export interface PublicEntryTranslationsView {
  * honest shape for both — take `items[0]`.
  */
 @Public()
-@UseGuards(ApiTokenGuard, ApiTokenWorkspaceGuard)
+@UseGuards(ApiTokenGuard, ApiTokenWorkspaceGuard, DraftVisibilityGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @ApiSecurity('apiToken')
 @ApiHeader({
@@ -351,7 +352,8 @@ export class PublicEntriesController {
             query.pageSize ?? query.relationLimit ?? RELATION_PAGE_SIZE,
             workspaceId,
             granted,
-            query.locale
+            query.locale,
+            query.status
         );
     }
 
@@ -374,7 +376,8 @@ export class PublicEntriesController {
                 locator,
                 workspaceId,
                 query.locale,
-                query.mediaLimit
+                query.mediaLimit,
+                query.status
             )
         };
     }

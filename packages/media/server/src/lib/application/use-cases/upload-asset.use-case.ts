@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Readable } from 'node:stream';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import type { PublicUser } from '@ortha-cms/identity-server';
+import type { EventActor } from '@ortha-cms/database';
 import { Asset, type AssetMedia, type AssetVariants } from '../../domain/asset';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import { FolderId } from '../../domain/value-objects/folder-id';
@@ -76,7 +76,11 @@ export class UploadAssetUseCase {
     /** Runs the upload. Returns the new asset id. */
     async execute(
         command: UploadAssetCommand,
-        actor: PublicUser
+        // `EventActor` rather than `PublicUser`: this use case only ever reads
+        // `id` (for `uploaded_by`) and hands the pair to `attachActor`, and a
+        // token-authenticated upload has no session user to supply the rest.
+        // A `PublicUser` still satisfies it, so the session route is unchanged.
+        actor: EventActor
     ): Promise<string> {
         const folderId = command.folderId
             ? FolderId.create(command.folderId)

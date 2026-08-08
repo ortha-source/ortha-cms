@@ -167,4 +167,37 @@ export interface RelationDelta {
     unlink?: string[];
     /** Desired order of the listed target ids (owning many-relations only). */
     order?: string[];
+    /**
+     * The target of an owning **single** relation — the one-value counterpart of
+     * `link`, and the only key a single relation accepts here. `null` clears it.
+     *
+     * A single relation is a column on the row, so it is normally set through
+     * `values`. It is settable here too for one reason: `values` carries the
+     * content type's own contract, where a relation field means *an entry id* —
+     * there is no room in it for `by`, so without this key a single relation
+     * could not be addressed by translation group at all while a many-relation
+     * could. Sending the same field in both `values` and here is a 400.
+     */
+    set?: string | null;
+    /**
+     * How the uuids above name their targets. `id` (the default) is a literal
+     * entry id; `localeGroup` reads them as **translation group** ids, each
+     * resolved to that group's row in the *source entry's own locale*.
+     *
+     * The group form exists because a client that holds "this tag" as a concept
+     * holds its group id, not one id per language — and links may not cross
+     * locales, so linking by id forces it to keep a per-locale id map and pick
+     * the right one for every write. With `localeGroup` the server picks, which
+     * is the only party that knows the source row's locale for certain.
+     *
+     * Only meaningful when both sides are localized; anything else is a 400.
+     */
+    by?: RelationDeltaAddressing;
 }
+
+/** @see RelationDelta.by */
+export const RELATION_DELTA_ADDRESSING = ['id', 'localeGroup'] as const;
+
+/** @see RelationDelta.by */
+export type RelationDeltaAddressing =
+    (typeof RELATION_DELTA_ADDRESSING)[number];

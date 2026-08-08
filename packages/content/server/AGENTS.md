@@ -393,6 +393,103 @@ token is the only way in, and a session cookie is _not_ accepted):
   metadata + URLs.
 - `GET /v1/content/:typeName/:id/translations` — the entry's other locale rows.
 
+### Writes (`full`-scope tokens)
+
+| Route                                                    | What it does                                                          |
+| -------------------------------------------------------- | --------------------------------------------------------------------- |
+| `POST /v1/content/:typeName`                             | create a **draft** (`values`, `relations`, `locale`, `localeGroupId`) |
+| `PATCH /v1/content/:typeName/:id`                        | **partial** update + relation deltas                                  |
+| `POST /v1/content/:typeName/:id/publish` \| `/unpublish` | the publish lifecycle                                                 |
+| `DELETE /v1/content/:typeName/:id`                       | soft delete (paranoid) or hard delete                                 |
+
+Plus `/v1/media/assets` (upload) and `/v1/media/assets/:id/raw` (bytes), which
+live in **media-server** — see its AGENTS.md.
+
+Five decisions worth knowing before touching this:
+
+- **The write side reuses `EntryWriterService`; the read side deliberately did
+  not reuse `EntriesService`.** Opposite calls, opposite reasons. The read
+  avoided reaching through a wide API because `?deleted=only` alone selects rows
+  a token must never see. A write has no such hazard and far more to get right —
+  validation, relation deltas, media-target checks, revision numbering under a
+  per-entry advisory lock, the outbox, and i18n's sibling sync. A second
+  implementation of any of that is how you get duplicate version numbers and
+  translations that drift. `PublicEntryWritesService` adds the locator, the
+  grant gate, and the wire shape, and delegates everything else.
+- **`PATCH` merges; the admin's `PATCH` replaces.** The editor always submits
+  the full document, so replace is right there. An API client sends the two
+  fields it changed — and because value rules are only enforced at publish (see
+  below), silently nulling the rest stays invisible until some later publish
+  fails on fields the caller never touched. Merge is by **key presence**, so
+  `{"excerpt": null}` still clears.
+- **Value validation runs when content goes live, not when it is written.** On a
+  **publishable** type a draft may be incomplete _and_ malformed — a bad select,
+  a number in a text field — and `POST`/`PATCH` return 201/200; `publish` is
+  where the type's rules bite, with the failing fields named. On a
+  **non-publishable** type there is no later moment, so the same rules run at
+  create. Media-target checks (does the workspace own this asset?) are not value
+  rules and always run at write time.
+- **Writes return a re-read, not a mapped `EntryRecord`.** One extra SELECT,
+  and the guarantee that a write's response shape is identical to a read's —
+  including the reference fields `values` omits, which a hand-written mapper
+  would have to keep remembering to strip.
+- **No `OriginGuard`.** The admin's write controllers carry it because they are
+  cookie-authenticated and CSRF-able. A bearer token is never sent ambiently by
+  a browser, and demanding an `Origin` header would break every non-browser
+  client.
+
+**Relations may not cross locales.** When both the owner and the target type
+are `i18n`, a link must stay inside one locale — the English article links the
+English tag. The admin has always enforced this in its **picker** (same-locale
+candidates only); it is now enforced in the **writer**, so a direct API call
+cannot bypass it. `assertSameLocale` (exported from `relation-link.service.ts`)
+is the single implementation, reached from all three write paths: the join-table
+ones via `RelationLinkService.assertTargets` (deltas + whole-set arrays) and the
+owning single FK via `EntryWriterService.assertRelationTargets`. It compares
+against the **source row's own** locale, read from the row being written rather
+than from a request parameter — on create from the extension's stamped columns
+(resolved before the target checks for exactly this reason), on update from a
+one-off `localeOf` lookup. A target type that is _not_ localized is untouched: a
+shared author or SEO record is legitimately linked from every translation, and
+breaking that is the real risk in tightening the rule.
+
+**Linking by translation group (`by: "localeGroup"`).** The rule above is only
+usable if a client can name a target without knowing its per-locale id, so a
+relation delta may set `by: "localeGroup"` and pass **group** ids: each resolves
+to that group's row in the source entry's locale. A client that thinks in
+stories then holds one id per story instead of one per language, and the server
+— the only party that knows the source row's locale for certain — does the
+picking. A group with no row in this locale is a 422 saying so; the mode on a
+non-localized target, or from a non-localized owner, is a 400.
+
+An owning **single** relation is addressed the same way through the delta's
+`set` key — `relations: { author: { set: "<gid>", by: "localeGroup" } }`, with
+`set: null` clearing it. It lives there rather than in `values` because that bag
+is the content type's own contract, where a relation field means _an entry id_
+and there is no room for a `by`; without `set`, a single relation would be the
+one relation that could not be addressed by group. The resolved id is folded
+into `values` **before** the write, so it passes through the same existence,
+workspace, and same-locale checks as any other — no second implementation. A
+field sent in both bags is a 400 (one would have to win silently), as is mixing
+`set` with the arrays (a field is a single or a join, not both). The public
+API's partial-update merge drops only its **own** re-supplied value for a
+`set` field, so a genuinely ambiguous request still reaches that 400.
+
+A **malformed** relation id is now a uniform 422 rather than a 500. A single
+relation's FK arrives inside the free-form `values` bag where no DTO decorator
+reaches it, and `inArray(<uuid column>, ['not-a-uuid'])` is a Postgres cast
+error.
+
+**Drafts and `?status=`.** Reads default to published-only. A write-scoped token
+may pass `?status=draft|any`, gated by `DraftVisibilityGuard` — a guard, so the
+rule has one home and covers every route including the ones that reach drafts
+indirectly. Without it the write API would be write-only: a create returns the
+record once and it is then invisible forever. `PublicEntry.status` is exposed for
+the same reason — it used to be omitted as a constant, and is now real
+information. The pair with `publishedAt` is what distinguishes a never-published
+draft (`draft` + `null`) from live content with unpublished edits (`draft` +
+a timestamp — the admin's **Modified**).
+
 **Every single-entry route exists twice**: once under `:id` and once under
 `group/:localeGroupId` (`…/group/:gid`, `…/group/:gid/relations/:field`,
 `…/group/:gid/media`, `…/group/:gid/translations`). Anything a consumer can do
@@ -419,15 +516,22 @@ cannot express, so `/relations/:field` is the one relation route that survives.
 also pure duplicates of their preview params; they are kept for now because a
 media field has no per-field pager to fall back on.)
 
-**Reading a non-default-locale row by id needs `?locale=`.** The locale scope is
-AND-ed into every read including the id ones, so `GET /:type/<de-row-id>` is a
-404 unless `?locale=de` comes with it. This is not new and is self-consistent
-(every payload that hands a consumer a foreign-locale id — a translations preview,
-a locale-scoped list — carries that row's `locale` right beside it), and the group
-routes remove the need to carry foreign ids at all. It is still a sharp edge: the
-fix would be to skip the extension's `listScope` for id-addressed reads, which is
-a deliberate narrowing of a **visibility hook** and wants its own decision rather
-than a drive-by.
+**An id-addressed read is NOT locale-scoped; a group-addressed one is.** An
+entry id already names exactly one row, so AND-ing the locale scope onto it could
+only ever turn a valid id into a 404 — which it did, and which the write API made
+untenable (updating a German article by its own id would have needed `?locale=de`
+bolted onto a request that already named the row). `entryWhere` therefore applies
+the extension's `listScope` **only** for a group locator, where the locale is
+what picks the row out of the group. The narrowing is safe because `liveWhere`
+still carries the whole visibility rule — workspace, publish state, soft delete;
+`listScope` is, per its name and its one implementation, about choosing rows out
+of a _set_, and a request naming one row has already chosen.
+
+**A group-addressed WRITE takes its locale from the query string**, never from
+`body.locale` — that field is create-only (it stamps a new row's locale), and
+reading it for addressing let a body that omitted it silently retarget the write
+at the default-locale row. A live check caught a German update rewriting the
+English article; the e2e pins it.
 
 **Authentication + authorization.** `ApiTokenGuard` hashes the presented bearer,
 resolves it through identity's `ApiTokenService.verify` (unknown / revoked /

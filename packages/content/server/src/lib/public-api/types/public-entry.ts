@@ -25,13 +25,25 @@ import type {
  * real content model; when relation and media reads land they begin appearing
  * in `values`, which only ever adds keys.
  *
- * `status` is deliberately not exposed. Publishable types serve **only**
- * published entries here, so it would be a constant; `publishedAt` is the
- * useful half of the pair and is carried instead.
+ * `status` is carried on publishable types. It used to be omitted as a
+ * constant — this API only ever served published rows — but a write-scoped
+ * token can now create drafts and read them back with `?status=`, so it is real
+ * information again. Adding it is additive: a consumer that ignored the key
+ * before still sees `published` on every entry a read-only token can reach.
  */
 export interface PublicEntry {
     /** Entry id — the `:id` segment of the single-entry route. */
     id: string;
+    /**
+     * `draft` or `published` — only on `publishable` types. A read-only token
+     * only ever sees `published`.
+     *
+     * `draft` with a non-null {@link publishedAt} is the admin's **Modified**
+     * state: live content with unpublished edits on top. Saving a published
+     * entry moves it back to `draft` while its published *version* stays live,
+     * so the pair is what tells those apart — neither field alone does.
+     */
+    status?: string;
     /** ISO creation timestamp. */
     createdAt: string;
     /** ISO last-updated timestamp. */

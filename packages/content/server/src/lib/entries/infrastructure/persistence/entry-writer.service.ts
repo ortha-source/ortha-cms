@@ -16,6 +16,7 @@ import {
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { lockWorkspaceShared } from '@ortha-cms/workspaces-server';
 import { isUniqueViolation } from '@ortha-cms/utils-server';
@@ -43,6 +44,7 @@ import type {
 import type { BulkActionResult } from '../../types/bulk-publish';
 import { coerceValues, toColumns, toRecord } from './entry-row';
 import {
+    assertSameLocale,
     RelationLinkService,
     type DbTransaction
 } from './relation-link.service';
@@ -55,6 +57,19 @@ import { buildSnapshot } from '../../../revisions/infrastructure/persistence/rev
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
+
+/**
+ * RFC-4122 uuid, matched case-insensitively.
+ *
+ * A relation id that isn't one must be rejected **before** it reaches the
+ * existence probe: `inArray(<uuid column>, ['not-a-uuid'])` is a Postgres cast
+ * error, i.e. a 500 on ordinary bad input. The relation-*delta* path has been
+ * shape-checked at the DTO since it was written; a single relation's FK arrives
+ * inside the free-form `values` bag, which no decorator can reach, so the guard
+ * has to live here.
+ */
+const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * The infrastructure persistence engine for entry writes — create / read-one /
@@ -98,6 +113,103 @@ export class EntryWriterService {
         @InjectMediaAssetResolver()
         private readonly mediaResolver?: MediaAssetResolver
     ) {}
+
+    /**
+     * Fold any `relations: { <singleField>: { set } }` entries into the values
+     * bag, resolving `by: "localeGroup"` on the way, and return the deltas with
+     * those fields removed.
+     *
+     * Done **before** the write rather than alongside the link deltas, because a
+     * single relation is a column on the row itself: routing it through `values`
+     * means the row is written once, and the resolved id then passes through
+     * `assertRelationTargets` — existence, workspace, and the same-locale rule —
+     * with no second implementation of any of them.
+     *
+     * The field must not appear in both bags. One of the two would have to win
+     * silently, and a caller who set it twice does not know which they meant.
+     * Reads the **raw** submitted values for that test — `coerceValues` stamps
+     * every declared field, so after coercion every field is "present".
+     */
+    private async foldSingleRelationSets(
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        relations: Record<string, RelationDelta> | undefined,
+        workspaceId: string,
+        sourceLocale: string | undefined
+    ): Promise<{
+        values: Record<string, unknown>;
+        relations?: Record<string, RelationDelta>;
+    }> {
+        if (!relations) return { values, relations };
+        const singles = Object.entries(relations).filter(([field]) => {
+            const rel = type.fields[field]?.relation;
+            return !!rel && !rel.many && !rel.inverse;
+        });
+        if (!singles.length) return { values, relations };
+
+        const merged = { ...values };
+        const rest = { ...relations };
+        for (const [field, delta] of singles) {
+            if (delta.set === undefined) {
+                // Left to the caller's own error below: the arrays are
+                // meaningless on a single relation, and saying so beats a
+                // silent no-op.
+                continue;
+            }
+            if (Object.hasOwn(values, field)) {
+                throw new BadRequestException(
+                    `Relation "${type.name}.${field}" was set in both \`values\` and \`relations\` — ` +
+                        'send it in one of them.'
+                );
+            }
+            const target = type.fields[field].relation?.to();
+            if (delta.set === null || !target) {
+                merged[field] = null;
+            } else if (delta.by === 'localeGroup') {
+                const byGroup = await this.relations.resolveLocaleGroups(
+                    this.db,
+                    target,
+                    [delta.set],
+                    workspaceId,
+                    field,
+                    sourceLocale
+                );
+                merged[field] = byGroup.get(delta.set) ?? null;
+            } else {
+                merged[field] = delta.set;
+            }
+            delete rest[field];
+        }
+        return {
+            values: merged,
+            relations: Object.keys(rest).length ? rest : undefined
+        };
+    }
+
+    /**
+     * The locale of one live row, or `undefined` on a type that has none.
+     *
+     * A relation link may not cross locales, and an update's target checks run
+     * before the transaction opens — so the row's locale has to be read up
+     * front. Costs one indexed lookup, and only on localized types: a non-i18n
+     * type short-circuits without touching the database.
+     */
+    private async localeOf(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<string | undefined> {
+        if (!type.i18n) return undefined;
+        // `PgColumn`, not the looser `AnyColumn` the predicate helpers use —
+        // drizzle's select builder accepts only the former.
+        const cols = type.table as unknown as Record<string, PgColumn>;
+        const [row] = (await this.db
+            .select({ locale: cols['locale'] })
+            .from(type.table)
+            .where(this.liveWhere(type, id, workspaceId))
+            .limit(1)) as { locale: string }[];
+        return row?.locale;
+    }
 
     /**
      * Append an immutable **draft** revision for a just-saved row, on the save's
@@ -191,19 +303,40 @@ export class EntryWriterService {
         localeGroupId?: string,
         actorId?: string | null
     ): Promise<EntryRecord> {
-        const coerced = coerceValues(type, values);
-        await this.assertRelationTargets(type, coerced, workspaceId);
-        await this.assertMediaTargets(type, coerced, workspaceId);
-        if (!type.publishable) this.assertValid(type, coerced);
+        // `coerceValues` stamps every declared field onto the bag, so the
+        // "sent in both places" check below has to read the RAW body — after
+        // coercion every field looks present.
+        let coerced = coerceValues(type, values);
         // Extension-stamped envelope columns (e.g. the validated locale + group
         // id). Resolved before the transaction so an invalid param — unknown
         // locale, or a group id that names no group in the workspace — fails
         // fast. May read the DB (the group check), hence awaited.
+        //
+        // Resolved **before** the relation checks because the locale it stamps is
+        // what those compare against: a link may not cross locales, and the
+        // locale this row will be written in is not known until the extension
+        // has defaulted and validated it.
         const extensionColumns =
             (await this.extension?.createColumns(type, workspaceId, {
                 locale,
                 localeGroupId
             })) ?? {};
+        const rowLocale = extensionColumns['locale'] as string | undefined;
+        // A `{ set }` on an owning single relation becomes a plain value here, so
+        // everything below — existence, workspace, the same-locale rule — sees
+        // one shape and needs no second implementation.
+        const folded = await this.foldSingleRelationSets(
+            type,
+            values,
+            relations,
+            workspaceId,
+            rowLocale
+        );
+        coerced = coerceValues(type, folded.values);
+        relations = folded.relations;
+        await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
+        await this.assertMediaTargets(type, coerced, workspaceId);
+        if (!type.publishable) this.assertValid(type, coerced);
         // One transaction: take the workspace's shared content lock (coordinates
         // with the delete / content-revoke guards so a new entry can't be
         // orphaned), then write the row, its whole-set join-table links (a
@@ -229,14 +362,16 @@ export class EntryWriterService {
                         type,
                         id,
                         coerced,
-                        workspaceId
+                        workspaceId,
+                        rowLocale
                     );
                     await this.applyRelationDeltas(
                         tx,
                         type,
                         id,
                         relations,
-                        workspaceId
+                        workspaceId,
+                        rowLocale
                     );
                     // A non-publishable type is always live, so — like its scalar
                     // values — a required link-managed relation must be satisfied now.
@@ -340,7 +475,8 @@ export class EntryWriterService {
         type: AnyContentType,
         id: string,
         relations: Record<string, RelationDelta> | undefined,
-        workspaceId: string
+        workspaceId: string,
+        sourceLocale?: string
     ): Promise<void> {
         if (!relations) return;
         for (const [field, delta] of Object.entries(relations)) {
@@ -367,7 +503,8 @@ export class EntryWriterService {
                 id,
                 field,
                 delta,
-                workspaceId
+                workspaceId,
+                sourceLocale
             );
         }
     }
@@ -420,8 +557,21 @@ export class EntryWriterService {
             appendRevision?: boolean;
         }
     ): Promise<EntryRecord> {
-        const coerced = coerceValues(type, values);
-        await this.assertRelationTargets(type, coerced, workspaceId);
+        let coerced = coerceValues(type, values);
+        // The row's own locale is what a relation link must match. Read up front
+        // (one indexed lookup, and only on localized types) so the pre-transaction
+        // target checks can apply the same rule the in-transaction link writes do.
+        const rowLocale = await this.localeOf(type, id, workspaceId);
+        const folded = await this.foldSingleRelationSets(
+            type,
+            values,
+            relations,
+            workspaceId,
+            rowLocale
+        );
+        coerced = coerceValues(type, folded.values);
+        relations = folded.relations;
+        await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
         await this.assertMediaTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
@@ -454,21 +604,27 @@ export class EntryWriterService {
                     // admin reads as **Modified** — unsaved-to-live changes on
                     // top of published content — versus a never-published
                     // `draft`.
-                    ...(type.publishable
-                        ? { status: ENTRY_STATUS.Draft }
-                        : {}),
+                    ...(type.publishable ? { status: ENTRY_STATUS.Draft } : {}),
                     updatedAt: new Date()
                 } as never)
                 .where(this.liveWhere(type, id, workspaceId))
                 .returning();
             if (!updated) throw this.notFound(type, id);
-            await this.relations.writeLinks(tx, type, id, coerced, workspaceId);
+            await this.relations.writeLinks(
+                tx,
+                type,
+                id,
+                coerced,
+                workspaceId,
+                rowLocale
+            );
             await this.applyRelationDeltas(
                 tx,
                 type,
                 id,
                 relations,
-                workspaceId
+                workspaceId,
+                rowLocale
             );
             // Enforce required link-managed relations against the post-delta
             // link set (inside the txn, so it sees the just-written rows); a
@@ -993,7 +1149,8 @@ export class EntryWriterService {
     private async assertRelationTargets(
         type: AnyContentType,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        sourceLocale?: string
     ): Promise<void> {
         // Group referenced ids by target content type so each type is probed once.
         const byTarget = new Map<
@@ -1036,7 +1193,23 @@ export class EntryWriterService {
         const issues: ValidationIssue[] = [];
         for (const [target, refs] of byTarget) {
             const t = target.table as unknown as Record<string, AnyColumn>;
-            const ids = [...new Set(refs.map((ref) => ref.id))];
+            // A malformed id is the same uniform 422 as a missing one, and never
+            // reaches the query — see UUID_RE.
+            const malformed = refs.filter((ref) => !UUID_RE.test(ref.id));
+            for (const ref of malformed) {
+                issues.push({
+                    field: ref.field,
+                    message: 'must reference an existing entry'
+                });
+            }
+            const ids = [
+                ...new Set(
+                    refs
+                        .filter((ref) => UUID_RE.test(ref.id))
+                        .map((ref) => ref.id)
+                )
+            ];
+            if (!ids.length) continue;
             const rows = (await this.db
                 .select()
                 .from(target.table)
@@ -1048,11 +1221,25 @@ export class EntryWriterService {
                 )) as Row[];
             const present = new Set(rows.map((row) => row['id'] as string));
             for (const ref of refs) {
-                if (!present.has(ref.id))
+                if (UUID_RE.test(ref.id) && !present.has(ref.id))
                     issues.push({
                         field: ref.field,
                         message: 'must reference an existing entry'
                     });
+            }
+            // Same cross-locale rule the join-backed links get, applied to the
+            // owning single FKs and inverse arrays that only pass through here.
+            // Reported per field so a save touching two of them names both.
+            for (const field of new Set(refs.map((ref) => ref.field))) {
+                const ids = new Set(
+                    refs.filter((ref) => ref.field === field).map((r) => r.id)
+                );
+                assertSameLocale(
+                    rows.filter((row) => ids.has(row['id'] as string)),
+                    target,
+                    field,
+                    sourceLocale
+                );
             }
         }
         if (issues.length) {
@@ -1096,7 +1283,8 @@ export class EntryWriterService {
                   ? [value]
                   : [];
             for (const id of ids) {
-                if (typeof id === 'string' && id) refs.push({ field: name, id });
+                if (typeof id === 'string' && id)
+                    refs.push({ field: name, id });
             }
         }
         if (!refs.length) return;

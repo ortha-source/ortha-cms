@@ -38,10 +38,39 @@ export const PREVIEW = 'preview';
 export const DEFAULT_EXPANSION_LIMIT = 20;
 
 /**
+ * What publish states a read may return. `published` is the default and the only
+ * value a `read`-scope token may use; the other two need write scope.
+ */
+export const ENTRY_VISIBILITY = ['published', 'draft', 'any'] as const;
+
+/** @see ENTRY_VISIBILITY */
+export type EntryVisibility = (typeof ENTRY_VISIBILITY)[number];
+
+/**
  * The one parameter every public read accepts: which locale to read. Shared by
  * the list and the single-entry route so the slug is declared once.
  */
 export class PublicEntryQueryDto {
+    /**
+     * Which publish states to return. Defaults to `published` — the whole
+     * contract of this API for an anonymous consumer.
+     *
+     * A **write-scoped** token may widen it, because otherwise creating a draft
+     * would produce a record the creator cannot read back: the write returns it
+     * once and it is then invisible forever. Narrower than "drafts are public" —
+     * the widening is gated on the same scope that could have published the row
+     * anyway.
+     */
+    @ApiPropertyOptional({
+        enum: ENTRY_VISIBILITY,
+        default: 'published',
+        description:
+            'Publish states to return. `published` (default) is all a read-only token may ask for; `draft` and `any` require a `full`-scope token, and are a 403 otherwise. Ignored on types that are not publishable — those have no publish state and every row is live.'
+    })
+    @IsOptional()
+    @IsIn(ENTRY_VISIBILITY)
+    status?: EntryVisibility;
+
     /** `preview` expands the relation fields named by `relationFields`. */
     @ApiPropertyOptional({
         enum: [PREVIEW],
@@ -121,7 +150,7 @@ export class PublicEntryQueryDto {
         maxLength: FIELDS_MAX_LENGTH,
         example: 'coverImage,gallery',
         description:
-            'Comma-separated media fields to expand (ignored without `media=preview`). Returns asset metadata and URLs — note the URLs are the CMS media routes, which require a session, so a bearer token cannot fetch them.'
+            'Comma-separated media fields to expand (ignored without `media=preview`). Returns asset metadata plus URLs under `/v1/media/assets/:id/raw`, which take the same bearer token as this request.'
     })
     @IsOptional()
     @IsString()
