@@ -37,6 +37,11 @@ export interface TestConfigOverrides {
      * with no `ORTHA_ROOT_ADMIN_EMAIL` set).
      */
     rootAdmin?: IdentityRootAdminConfig;
+    /**
+     * Turn the MCP endpoint off, to assert that the kill switch really
+     * unmounts it. Enabled by default so the suites can drive it.
+     */
+    mcpEnabled?: boolean;
 }
 
 export function buildTestConfig(
@@ -105,6 +110,14 @@ export function buildTestConfig(
                     claude: { apiKey: '', models: [] },
                     ollama: { baseUrl: '', models: [] }
                 }
+            },
+            // Enabled by default here (the host default is off): the endpoint
+            // is what the MCP suites drive. `mcpEnabled: false` is how the
+            // kill-switch suite asserts the controller is really unmounted.
+            mcp: {
+                enabled: overrides.mcpEnabled ?? true,
+                name: 'ortha-cms-test',
+                version: '0.0.0-test'
             }
         }
     };
