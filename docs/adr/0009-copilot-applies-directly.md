@@ -1,4 +1,4 @@
-# 0009 — The copilot applies its changes directly
+# 0009 — The copilot asks in the moment, then applies directly
 
 - **Status:** Proposed
 - **Date:** 2026-08-09
@@ -48,12 +48,37 @@ away.
 
 ## Decision
 
-**A `propose` tool's change is applied the moment it is drafted.** The caller's
-own permissions are the only gate.
+**A write asks once, in the moment, and then applies immediately.** The
+caller's own permissions decide what is _possible_; an in-the-moment prompt
+decides what actually happens.
 
-1. **No approval step.** The run engine persists the `copilot_proposals` row and
+1. **No review queue.** The run engine persists the `copilot_proposals` row and
    immediately applies it through the owning plugin's `ProposalApplier`. There
-   is no `accept`, no `reject`, and no state in which a change sits waiting.
+   is no `accept`, no `reject`, and no change sitting in a list waiting to be
+   found.
+
+1b. **Instead, the run parks _before_ the call runs.** A `propose` or `apply`
+tool the thread has not already allowed makes the engine emit a
+`tool-permission-request` frame and wait. The user answers **Allow once**,
+**Allow for this chat**, or **Don't allow**; a refusal comes back as an
+ordinary tool error the model reports. Reads never ask — a model runs three
+or four before it answers anything, and a chat that opens with four prompts
+teaches people to click through them without reading, which is worse than
+not asking.
+
+This is the difference between this record and the boundary it replaces, and
+it is the whole of it: the old step asked about a change that had **already
+been computed**, from a queue, later. This asks **before anything happens**,
+inline, with the escape hatch in the prompt itself rather than on a settings
+page. Twelve cards became twelve clicks; twelve calls become one click and
+then silence, because the second button says "for this chat".
+
+"Allow for this chat" is remembered on the **conversation row**
+(`copilot_conversations.allowed_tools`) and dies with the thread. There is
+deliberately no "always": a standing per-user allow-list is a policy
+outliving the context it was granted in, which is the shape §4 below deletes.
+The memory is a **usability** one and never an authority one — every call it
+skips the prompt for is still authorized against live grants.
 
 2. **The row stays, and is now the whole paper trail.** It is still written
    _before_ the apply, by the engine rather than the binder, so ADR-0005 §5's
@@ -94,21 +119,31 @@ own permissions are the only gate.
 
 **Harder / the cost we accept, stated plainly:**
 
-- **A successful prompt injection now writes.** Under §5 it cost the attacker a
-  declined card; now it lands, bounded by the current user's permissions. It is
-  still audited (§9), still revision-backed, and still cannot publish (§7) or
-  reach another workspace — but "recoverable" and "noticed" are different
-  things, and ADR-0005 said so while rejecting this as a default. We are
-  choosing it as the default anyway, with eyes open, because the review step it
-  replaces was not delivering the noticing it promised.
-- **The audit log is now the only detection mechanism**, which raises the
-  priority of surfacing it: a workspace should be able to see what the copilot
-  changed without opening a chat thread. That is follow-up work, not shipped
-  here, and it is the mitigation this decision leans on.
+- **A prompt injection is stopped at the prompt, not by the audit log.** This is
+  where an earlier draft of this record accepted that an injection would simply
+  write, with the audit trail as the only detection. That was too much to give
+  up, and §1b is what buys it back: the injected call parks and shows the user
+  its arguments before anything happens. What remains is the honest residual —
+  a user who has answered "allow for this chat" has, for that thread, accepted
+  whatever that tool does next, including a call an injection talked the model
+  into. Bounded by their own permissions, audited, revision-backed, and unable
+  to publish (§7) or leave the workspace.
+- **A parked run holds a connection and a model context open.** Five minutes,
+  then it refuses and the answer lands anyway. The SSE heartbeat already keeps
+  the socket alive, so the limit is about the user, not the transport.
+- **The broker is in-memory, so a run and its decision must reach the same
+  instance.** Fine for a single-node self-hosted deployment, which is what this
+  is; a horizontally scaled one needs sticky routing by `runId` or a shared
+  channel. Documented rather than discovered as an occasional hang.
+- **Surfacing what the copilot changed is still worth building** — a workspace
+  should see it without opening a thread — but it is no longer the only thing
+  standing between an injection and a write.
 - **Undo is per entry, through revisions.** There is no "undo everything that
   run did", and a run that touched a dozen entries needs a dozen restores.
-- A deployment that genuinely wants review has no setting for it. Its lever is
-  `copilot:use` per role, or the global kill switch.
+- A deployment that wants _queued_ review — someone other than the asker
+  approving later — has no setting for it. The prompt is synchronous and belongs
+  to whoever is driving the run. Its levers are `copilot:use` per role and the
+  global kill switch.
 
 **What this rules out:** the proposal as a _decision_ — nothing may pause on a
 human again without a new record. It does **not** rule out a future
@@ -138,3 +173,13 @@ should be config next to the model providers, where operator decisions live.
   decision. It helps, and it is what showed that the step was ceremony: with one
   button clearing twelve cards, the cards were doing nothing the button could
   not.
+- **Apply directly with no prompt at all**, leaning on the audit log. The first
+  draft of this record. Rejected once written down: it traded a real defence for
+  convenience and offered "you can read the log afterwards" as the mitigation,
+  which is exactly the "recoverable ≠ noticed" argument ADR-0005 made and this
+  record had just agreed with.
+- **A persistent per-user "always allow".** The obvious third button, and what
+  the tool it is modelled on offers. Rejected here because a standing allow-list
+  is a policy that outlives its context — the thing §4 deletes — and because a
+  thread is a scope a person can actually hold in their head. Revisit if
+  re-approving once per thread proves to be the new ceremony.

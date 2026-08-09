@@ -30,6 +30,8 @@ export interface CopilotSessions {
     ): void;
     /** A run finished. Marks the chat only if it is off screen. */
     noteActivity(id: string): void;
+    /** Records whether the chat is parked on a permission prompt. */
+    setAwaiting(id: string, value: boolean): void;
 }
 
 /**
@@ -91,6 +93,12 @@ export function useCopilotSessions(): CopilotSessions {
         []
     );
 
+    const setAwaiting = useCallback(
+        (id: string, value: boolean) =>
+            dispatch({ type: 'awaiting', id, value }),
+        []
+    );
+
     const visible = useMemo(() => visibleSessions(all), [all]);
 
     return {
@@ -103,6 +111,7 @@ export function useCopilotSessions(): CopilotSessions {
         minimize,
         toggle,
         describe,
-        noteActivity
+        noteActivity,
+        setAwaiting
     };
 }

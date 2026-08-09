@@ -76,6 +76,50 @@ export interface RunToolResultEvent {
  * card is a receipt rather than a prompt. There is no third possibility here:
  * a proposal is never born rejected.
  */
+/**
+ * The run has stopped and is waiting for the user to allow one tool call.
+ *
+ * **Emitted before the call runs, not after** — which is the whole difference
+ * between this and the proposal card ADR-0009 removed. That asked a human to
+ * approve a change that had already been computed; this asks before anything
+ * happens, so a call the model was talked into by poisoned content never
+ * executes. It is the mitigation ADR-0009's Consequences said the audit trail
+ * was standing in for.
+ *
+ * The run holds its SSE connection open while it waits (the stream's heartbeat
+ * is what keeps an intermediary from reaping it), so a client that receives
+ * this **must** answer — by posting a decision, or by disconnecting.
+ */
+export interface RunPermissionRequestEvent {
+    type: 'tool-permission-request';
+    /** The tool call awaiting a decision — what a decision addresses. */
+    id: string;
+    /** The run to post the decision against. */
+    runId: string;
+    /** The tool's name, e.g. `content_propose_update`. */
+    name: string;
+    /** Its human title, when it declared one. */
+    title?: string;
+    /** The arguments the model supplied, so the user can see what it would do. */
+    input: unknown;
+}
+
+/**
+ * How a user answered a {@link RunPermissionRequestEvent}.
+ *
+ * There is deliberately no `always`. A persistent per-user allow-list is a
+ * policy that outlives the conversation it was granted in, and this CMS has
+ * just finished deleting one of those; `chat` is remembered on the conversation
+ * row and dies with the thread, which is a scope a user can hold in their head.
+ */
+export type ToolPermissionDecision =
+    /** Run this call. Ask again next time. */
+    | 'once'
+    /** Run it, and stop asking about this tool for the rest of this thread. */
+    | 'chat'
+    /** Refuse it. The model is told, and carries on. */
+    | 'deny';
+
 export interface RunProposalEvent {
     type: 'proposal';
     /** The persisted proposal's id — the receipt's key. */
@@ -144,6 +188,7 @@ export type CopilotRunEvent =
     | RunTextDeltaEvent
     | RunToolCallEvent
     | RunToolResultEvent
+    | RunPermissionRequestEvent
     | RunProposalEvent
     | RunDoneEvent
     | RunErrorEvent;

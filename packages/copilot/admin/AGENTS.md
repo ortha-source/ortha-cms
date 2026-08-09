@@ -9,11 +9,12 @@ The admin-side copilot plugin — the chat panel.
 > [`docs/design/copilot.md`](../../../docs/design/copilot.md). When you add a
 > string, follow the same split.
 
-`CopilotPlugin()` fills the shell's `SIDEBAR_FOOTER_SLOT` with a launcher that
-starts a chat (or `⌘J`). A chat is a docked window over whatever page you are
-on, which is the point of it being a persistent surface rather than a
-destination — and there can be **several at once**, listed in a bar along the
-bottom.
+`CopilotPlugin()` fills the shell's `SIDEBAR_FOOTER_SLOT`, but renders **nothing
+into the sidebar** — the slot is only what mounts the component, which portals
+the dock and its windows to `<body>`. A chat is a docked window over whatever
+page you are on, which is the point of it being a persistent surface rather than
+a destination, and there can be **several at once**, listed in a bar along the
+bottom right.
 
 It contributes **no routes and no nav entry**. It used to contribute one, for
 the workspace's auto-apply policy;
@@ -31,6 +32,7 @@ application/
   useCopilotChat.ts        # owns the transcript, drives + cancels the stream
   useConversations.ts      # thread list (query)
   useConversation.ts       # open one thread (mutation) + block→UI mapping
+  useDecideToolPermission.ts # answer a parked run (mutation)
   useCopilotModels.ts      # the model catalogue + choice-key helpers
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
@@ -47,6 +49,7 @@ presentation/
   PanelResizeHandles/      # the eight grab strips
   MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
   ContextChip/             # what context is attached to the next turn
+  PermissionPrompt/        # "may I?" — the inline gate before a write runs
   ProposalCard/            # the receipt for a change, and its diff
   Markdown/                # small local renderer (see below)
 ```
@@ -118,8 +121,17 @@ That is the feature; everything below is what it costs.
   oldest visible chat, which keeps running. Refusing would be the wrong trade:
   the user asked for another chat, and the one they stopped looking at is the
   cheapest thing to give up.
-- **A marker is only ever set on a chat that is off screen** (`sessions.ts`), and
-  it is edge-triggered off `busy` going true→false. Watching the transcript
+- **Two markers, and they mean different things.** `unread` — a run finished —
+  is edge-triggered off `busy` going true→false and only ever set on a chat that
+  is **off screen**. `awaiting` — the run is parked on a permission prompt — is
+  live **state**, set even while visible, and outranks `unread` on the pill:
+  a chat blocked on a question is the one to open first.
+- **The `awaiting` action returns the same array when nothing changed**, so
+  `useReducer` bails out. That is load-bearing: it is reported from an effect
+  whose callback is a fresh closure each render, and an action that always
+  allocated produced "Maximum update depth exceeded" — found by driving it in a
+  browser, not by reading it.
+- The `unread` marker is edge-triggered off `busy` going true→false. Watching the transcript
   instead would fire on the first `text-delta`, i.e. before there is anything to
   come back and read; badging the window the user is already reading trains them
   to ignore the badge that means something.
@@ -137,6 +149,31 @@ That is the feature; everything below is what it costs.
   ephemeral; "the leftmost window" is a place on the screen the user arranged.
   `usePanelFrame` reads its key through a ref so a window changing slot cannot
   write its geometry under the old slot's key and swap two windows' positions.
+
+## Asking before a write
+
+A write tool the thread has not already allowed parks the run, and the prompt
+renders **in the transcript** — not as a modal. The panel is non-modal on
+purpose (you act on answers while reading them), and a dialog demanding an
+answer would block the very page you need in order to decide, often the entry
+the change is about.
+
+- **Three buttons, no "always".** Once / this chat / don't allow. "For this
+  chat" is the escape hatch, and having it _in the prompt_ is the whole
+  difference from the settings page ADR-0009 deleted — you decide where you
+  already have the context, not in advance on another screen.
+- **A 404 from the answer is expected traffic**, not a bug: the run's five-minute
+  timeout fired, or it is parked on another instance. The prompt then **keeps its
+  buttons** and says the answer did not land — the run might still be parked, and
+  taking the controls away would strand it.
+- **A `tool-result` for a parked call retires its prompt.** The server timing
+  out, or another window answering, both end the wait without this client having
+  clicked; live buttons that answer nothing are worse than no buttons.
+- **"Waiting for you" is session _state_, not an `unread` event** — see the dock
+  notes above. A chat asking a question stays asking, so an edge-triggered
+  marker missed the ordinary case of parking while visible and being collapsed
+  afterwards. That miss was hidden behind an infinite render loop; both are
+  fixed by the same change.
 
 ## Changes the copilot makes
 

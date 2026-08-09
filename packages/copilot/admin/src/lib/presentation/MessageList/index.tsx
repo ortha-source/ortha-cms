@@ -2,10 +2,12 @@ import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { CircleAlert, TriangleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
+import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
 import type { ChatMessage } from '../../domain/types/chat';
 import { Markdown } from '../Markdown';
 import { ToolStep } from '../ToolStep';
 import { ProposalCard } from '../ProposalCard';
+import { PermissionPrompt } from '../PermissionPrompt';
 
 const messages = defineMessages({
     empty: {
@@ -61,7 +63,18 @@ const TRUNCATING_STOP_REASONS: Record<string, string> = {
  * when the run ended for a reason other than a finished answer — a line saying
  * so, because a truncated answer that looks complete is worse than a short one.
  */
-export function MessageList({ messages: turns }: { messages: ChatMessage[] }) {
+export function MessageList({
+    messages: turns,
+    onAnswer
+}: {
+    messages: ChatMessage[];
+    /** Answers a parked tool call. Omitted, prompts render read-only. */
+    onAnswer?(
+        runId: string,
+        callId: string,
+        decision: ToolPermissionDecision
+    ): void;
+}) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
 
@@ -90,14 +103,28 @@ export function MessageList({ messages: turns }: { messages: ChatMessage[] }) {
             aria-live="polite"
         >
             {turns.map((turn) => (
-                <Turn key={turn.id} turn={turn} />
+                <Turn
+                    key={turn.id}
+                    turn={turn}
+                    {...(onAnswer ? { onAnswer } : {})}
+                />
             ))}
             <div ref={endRef} />
         </div>
     );
 }
 
-function Turn({ turn }: { turn: ChatMessage }) {
+function Turn({
+    turn,
+    onAnswer
+}: {
+    turn: ChatMessage;
+    onAnswer?(
+        runId: string,
+        callId: string,
+        decision: ToolPermissionDecision
+    ): void;
+}) {
     const intl = useIntl();
     const reason = turn.stopReason
         ? TRUNCATING_STOP_REASONS[turn.stopReason]
@@ -127,6 +154,22 @@ function Turn({ turn }: { turn: ChatMessage }) {
             )}
 
             {turn.text && <Markdown text={turn.text} />}
+
+            {/* Before the change cards and after the steps: this is the one
+                thing in the transcript the run is *blocked* on, so it belongs
+                where the reader's eye already is — at the bottom of what has
+                happened so far. */}
+            {turn.permissions
+                ?.filter((request) => !request.answered)
+                .map((request) => (
+                    <PermissionPrompt
+                        key={request.id}
+                        request={request}
+                        onDecide={(decision) =>
+                            onAnswer?.(request.runId, request.id, decision)
+                        }
+                    />
+                ))}
 
             {/* After the answer, not before it: the prose is where the model
                 explains what it did, and a receipt above its own explanation

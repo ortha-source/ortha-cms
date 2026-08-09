@@ -17,6 +17,16 @@ export interface CopilotSession {
     minimized: boolean;
     /** Something happened here while it was not on screen. */
     unread: boolean;
+    /**
+     * The run is parked on a permission prompt.
+     *
+     * A **state**, not an event, and that distinction is the bug it was written
+     * for: a chat asking you a question stays asking until you answer, so a
+     * one-shot `unread` flag misses the ordinary case of parking while visible
+     * and *then* being collapsed. It is also not "finished" — the word `unread`
+     * would have put on the pill — it is the opposite.
+     */
+    awaiting: boolean;
 }
 
 /**
@@ -56,7 +66,9 @@ export type SessionsAction =
           title?: string;
       }
     /** A run finished here. Marks it only if nobody is looking. */
-    | { type: 'activity'; id: string };
+    | { type: 'activity'; id: string }
+    /** The run is, or is no longer, parked on a permission prompt. */
+    | { type: 'awaiting'; id: string; value: boolean };
 
 /**
  * Folds an action into the set of open chats.
@@ -77,7 +89,8 @@ export function sessionsReducer(
                 conversationId: action.conversationId ?? null,
                 title: action.title ?? null,
                 minimized: false,
-                unread: false
+                unread: false,
+                awaiting: false
             };
             // Reopening a thread that is already open focuses it instead of
             // showing the same conversation in two windows, which would give it
@@ -138,6 +151,21 @@ export function sessionsReducer(
                       }
                     : s
             );
+
+        case 'awaiting': {
+            const target = state.find((s) => s.id === action.id);
+            // **The same array back when nothing changed**, so `useReducer`
+            // bails out of the re-render. The caller reports this from an
+            // effect whose callback is a fresh closure each render, so an
+            // action that always allocated would re-render, re-run the effect
+            // and dispatch again — the render loop this replaced.
+            if (!target || target.awaiting === action.value) {
+                return state as CopilotSession[];
+            }
+            return state.map((s) =>
+                s.id === action.id ? { ...s, awaiting: action.value } : s
+            );
+        }
 
         case 'activity':
             return state.map((s) =>

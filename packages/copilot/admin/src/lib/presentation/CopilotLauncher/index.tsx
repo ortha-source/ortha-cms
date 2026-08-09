@@ -1,24 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { defineMessages, useIntl } from 'react-intl';
-import { Sparkles } from 'lucide-react';
-import { Kbd } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { useRouteContext } from '../../application/useRouteContext';
 import { CopilotDock } from '../CopilotDock';
 import { CopilotSession } from '../CopilotSession';
-
-// The product is called **Ortha AI**; the code, packages, routes, permission
-// keys and tables all keep the `copilot` name. That mismatch is deliberate —
-// see the naming note in `docs/design/copilot.md` — so don't "fix" the message
-// ids to match the label.
-const messages = defineMessages({
-    open: {
-        id: 'copilot.launcher.open',
-        defaultMessage: 'Ortha AI'
-    }
-});
 
 /** The permission the whole surface is gated on. */
 const COPILOT_USE = 'copilot:use';
@@ -32,11 +18,16 @@ const COPILOT_USE = 'copilot:use';
  * (`X-Workspace-Id` is required by `WorkspaceGuard`), so offering a chat where
  * there is no open workspace would only produce a 400.
  *
- * **There is no floating button any more.** It could only ever mean "the
- * panel", singular. The dock replaces it: with no chats open it *is* a labelled
- * Ortha AI button in the same corner, and as soon as there are chats it becomes
- * the bar listing them. One control that grows into the thing it opens, rather
- * than a button and a separate list that both mean roughly the same.
+ * **The dock is the only entry point.** There was a floating button, and then
+ * a sidebar row beside it; both are gone. A round button could only ever mean
+ * "the panel", singular, and a sidebar row duplicated what the dock already
+ * says while spending a permanent slot in navigation on it. With no chats open
+ * the dock *is* a labelled Ortha AI button in the corner, and as soon as there
+ * are chats it becomes the bar listing them — one control that grows into the
+ * thing it opens.
+ *
+ * `⌘J` is still the shortcut. Its discoverability moved onto the dock's own
+ * button, which shows the hint while it is the only thing there.
  *
  * **Every chat stays mounted for as long as its pill exists**, collapsed or
  * not. That is what lets three answers stream while you read a fourth, and it
@@ -48,9 +39,7 @@ const COPILOT_USE = 'copilot:use';
  * than a button that 403s.
  */
 export function CopilotLauncher() {
-    const intl = useIntl();
     const sessions = useCopilotSessions();
-    const sidebarRef = useRef<HTMLButtonElement>(null);
     const newChatRef = useRef<HTMLButtonElement>(null);
 
     const canUse = useHasPermission(COPILOT_USE);
@@ -91,21 +80,11 @@ export function CopilotLauncher() {
         return null;
     }
 
+    // Nothing is rendered into the sidebar slot itself any more — only the
+    // portalled dock and its windows. The slot contribution stays because it is
+    // what mounts this component at all.
     return (
         <>
-            <button
-                ref={sidebarRef}
-                type="button"
-                onClick={() => sessions.start()}
-                className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors"
-            >
-                <Sparkles className="size-4 shrink-0" />
-                <span className="flex-1 text-left">
-                    {intl.formatMessage(messages.open)}
-                </span>
-                <Kbd className="hidden sm:inline-flex">⌘J</Kbd>
-            </button>
-
             {/* Portalled to `<body>`. This component is contributed to the
                 sidebar's footer slot, so without a portal the fixed-position
                 chrome below stays a DOM *descendant of the sidebar* — and
@@ -140,6 +119,9 @@ export function CopilotLauncher() {
                                 sessions.describe(session.id, meta)
                             }
                             onActivity={() => sessions.noteActivity(session.id)}
+                            onAwaiting={(value) =>
+                                sessions.setAwaiting(session.id, value)
+                            }
                         />
                     ))}
 

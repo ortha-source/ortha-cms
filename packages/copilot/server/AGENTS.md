@@ -106,6 +106,30 @@ Plus the `propose` half — the write tools, all of which **write nothing**:
 | `i18n`    | `i18n_propose_translation` | `i18n.entry.translate` |
 | `media`   | `media_propose_alt_text`   | `media.asset.setAlt`   |
 
+## Asking before a write runs
+
+A `propose`/`apply` tool the thread has not already allowed **parks the run**:
+the engine yields `tool-permission-request` and awaits `ToolPermissionBroker`,
+which `POST /api/copilot/runs/:runId/permission` resolves. Reads never ask (see
+`mayRun` for why: a chat that opens with four prompts trains people to click
+through them).
+
+- **Before, not after.** This is the gate ADR-0009 §1b is about, and the reason
+  it is worth the machinery: an injected call shows the user its arguments and
+  is stopped with nothing having happened. A refusal is fed back as an ordinary
+  tool error, so the model reports it and the answer still lands.
+- **"Allow for this chat" lives on `copilot_conversations.allowed_tools`** and
+  dies with the thread. Read **per call**, never per run — two calls in one turn
+  can both be answered while the run is parked, and the second must see the
+  first's answer. The append is done in SQL for the same reason.
+- **The broker is in-memory.** A run and its decision must reach the same
+  instance; single-node is fine, horizontal scaling needs sticky routing by
+  `runId`. Its three exits — answered, five-minute timeout, abort — all clean up,
+  because a registry that only deletes on the happy path leaks a promise per
+  abandoned run.
+- **A refused or timed-out call is audited** like any other. "The user said no"
+  is exactly what a reviewer reading `copilot_tool_calls` wants to find.
+
 ## Writes — proposal row, then apply
 
 A `propose` tool's return value **is** the change (`ProposalDraft`), and the

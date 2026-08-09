@@ -5,6 +5,8 @@ import { toast } from '@ortha-cms/design-system';
 import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
 import { conversationsKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
+import { useDecideToolPermission } from './useDecideToolPermission';
+import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
 import type { ChatMessage } from '../domain/types/chat';
 
 const messages = defineMessages({
@@ -54,6 +56,14 @@ export interface CopilotChat {
     reset(): void;
     /** Shows a persisted thread. */
     load(conversationId: string, messages: ChatMessage[]): void;
+    /** Answers a tool call the run is parked on. */
+    answer(
+        runId: string,
+        callId: string,
+        decision: ToolPermissionDecision
+    ): void;
+    /** True while the run is waiting on the user rather than on the model. */
+    awaitingPermission: boolean;
 }
 
 /**
@@ -78,6 +88,7 @@ export function useCopilotChat(
     const [state, dispatch] = useReducer(chatReducer, initialChatState);
     const intl = useIntl();
     const queryClient = useQueryClient();
+    const decidePermission = useDecideToolPermission();
     const abortRef = useRef<AbortController | null>(null);
     // Read through a ref, never the captured value: `send`'s async closure is
     // created when the message is sent, but the failure it handles can land
@@ -175,6 +186,28 @@ export function useCopilotChat(
         abortRef.current?.abort();
     }, []);
 
+    const answer = useCallback(
+        (runId: string, callId: string, decision: ToolPermissionDecision) => {
+            dispatch({ type: 'answering', callId });
+            decidePermission.mutate(
+                { runId, callId, decision, workspaceId },
+                {
+                    onSuccess: () => dispatch({ type: 'answered', callId }),
+                    // The prompt keeps its buttons and says so. A 404 means the
+                    // run had already moved on — telling the user their click
+                    // did nothing is the only honest option.
+                    onError: () =>
+                        dispatch({
+                            type: 'answered',
+                            callId,
+                            error: 'not-delivered'
+                        })
+                }
+            );
+        },
+        [decidePermission, workspaceId]
+    );
+
     const dispatchAction = useCallback(
         (action: ChatAction) => dispatch(action),
         []
@@ -186,6 +219,13 @@ export function useCopilotChat(
         busy: state.busy,
         send,
         stop,
+        answer,
+        // Drives the dock's marker: a chat parked on a question is exactly the
+        // one worth coming back to, and `busy` alone cannot say so — it is true
+        // for "thinking" too.
+        awaitingPermission: state.messages.some((message) =>
+            message.permissions?.some((request) => !request.answered)
+        ),
         reset: () => dispatchAction({ type: 'reset' }),
         load: (conversationId, messages) =>
             dispatchAction({ type: 'load', conversationId, messages })

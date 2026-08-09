@@ -59,6 +59,32 @@ export interface ChatProposal {
     error?: string;
 }
 
+/**
+ * A tool call parked waiting for the user to allow it.
+ *
+ * Lives on the turn, like the change card, because it belongs to the answer
+ * being written — and unlike the card, it is the one thing in the transcript
+ * the run is *blocked* on.
+ */
+export interface ChatPermissionRequest {
+    /** The provider's call id — what a decision addresses. */
+    id: string;
+    /** The run to answer against. */
+    runId: string;
+    /** The tool's name, e.g. `content_propose_update`. */
+    name: string;
+    /** Its human title, when the tool declared one. */
+    title?: string;
+    /** The arguments the model supplied, shown so the user can judge them. */
+    input: unknown;
+    /** True while an answer is in flight. */
+    deciding?: boolean;
+    /** Set when the answer did not reach the run (it had already moved on). */
+    error?: string;
+    /** True once answered — the prompt stops rendering, the step carries on. */
+    answered?: boolean;
+}
+
 /** One turn as the transcript renders it. */
 export interface ChatMessage {
     /** Stable key. The server's message id once persisted, else a local id. */
@@ -71,6 +97,8 @@ export interface ChatMessage {
     steps: ChatToolStep[];
     /** Changes proposed during this turn, in order. */
     proposals?: ChatProposal[];
+    /** Tool calls waiting on the user, in order. */
+    permissions?: ChatPermissionRequest[];
     /** True while this turn is still streaming. */
     streaming?: boolean;
     /** Why the run ended, once it has. */

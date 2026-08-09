@@ -1,6 +1,7 @@
 import type { CopilotRunEvent } from '@ortha-cms/copilot-domain';
 import type {
     ChatMessage,
+    ChatPermissionRequest,
     ChatProposal,
     ChatState
 } from '../domain/types/chat';
@@ -16,7 +17,11 @@ export type ChatAction =
     /** Load a persisted transcript, replacing whatever is shown. */
     | { type: 'load'; conversationId: string | null; messages: ChatMessage[] }
     /** Start an empty new chat. */
-    | { type: 'reset' };
+    | { type: 'reset' }
+    /** An answer to a permission request is in flight. */
+    | { type: 'answering'; callId: string }
+    /** The answer landed, or failed to reach the run. */
+    | { type: 'answered'; callId: string; error?: string };
 
 /** The empty panel. */
 export const initialChatState: ChatState = {
@@ -83,6 +88,23 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 }))
             };
 
+        case 'answering':
+            return mapPermission(state, action.callId, (request) => ({
+                ...request,
+                deciding: true,
+                error: undefined
+            }));
+
+        case 'answered':
+            return mapPermission(state, action.callId, (request) => ({
+                ...request,
+                deciding: false,
+                // Only a delivered answer retires the prompt. One that failed
+                // keeps its buttons: the run may still be parked, and taking
+                // the controls away would strand it with no way to answer.
+                ...(action.error ? { error: action.error } : { answered: true })
+            }));
+
         case 'event':
             return applyEvent(state, action.event);
 
@@ -123,25 +145,50 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 }))
             };
 
-        case 'tool-result':
+        case 'tool-permission-request':
             return {
                 ...state,
                 messages: mapLastAssistant(state.messages, (message) => ({
                     ...message,
-                    steps: message.steps.map((step) =>
-                        step.id === event.id
-                            ? {
-                                  ...step,
-                                  status: event.ok ? 'ok' : 'error',
-                                  summary: event.summary,
-                                  output: event.output,
-                                  error: event.error,
-                                  durationMs: event.durationMs
-                              }
-                            : step
-                    )
+                    permissions: [
+                        ...(message.permissions ?? []),
+                        {
+                            id: event.id,
+                            runId: event.runId,
+                            name: event.name,
+                            ...(event.title ? { title: event.title } : {}),
+                            input: event.input
+                        }
+                    ]
                 }))
             };
+
+        case 'tool-result':
+            // A result for a parked call means it stopped being parked — the
+            // user answered, or nobody did and it timed out server-side. Either
+            // way the prompt must go, or a run that moved on leaves live
+            // buttons behind that answer nothing.
+            return retirePermission(
+                {
+                    ...state,
+                    messages: mapLastAssistant(state.messages, (message) => ({
+                        ...message,
+                        steps: message.steps.map((step) =>
+                            step.id === event.id
+                                ? {
+                                      ...step,
+                                      status: event.ok ? 'ok' : 'error',
+                                      summary: event.summary,
+                                      output: event.output,
+                                      error: event.error,
+                                      durationMs: event.durationMs
+                                  }
+                                : step
+                        )
+                    }))
+                },
+                event.id
+            );
 
         case 'proposal':
             return {
@@ -203,6 +250,36 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
         default:
             return state;
     }
+}
+
+/** Applies `change` to one permission request, wherever it sits. */
+function mapPermission(
+    state: ChatState,
+    callId: string,
+    change: (request: ChatPermissionRequest) => ChatPermissionRequest
+): ChatState {
+    return {
+        ...state,
+        messages: state.messages.map((message) =>
+            message.permissions?.some((request) => request.id === callId)
+                ? {
+                      ...message,
+                      permissions: message.permissions.map((request) =>
+                          request.id === callId ? change(request) : request
+                      )
+                  }
+                : message
+        )
+    };
+}
+
+/** Marks a request answered once its call has produced a result. */
+function retirePermission(state: ChatState, callId: string): ChatState {
+    return mapPermission(state, callId, (request) => ({
+        ...request,
+        deciding: false,
+        answered: true
+    }));
 }
 
 /**

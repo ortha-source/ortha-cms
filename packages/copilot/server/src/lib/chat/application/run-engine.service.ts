@@ -33,6 +33,7 @@ import {
     type RunAuthority
 } from './capability-profile.service';
 import { DecideProposalService } from './decide-proposal.service';
+import { ToolPermissionBroker } from './tool-permission.broker';
 import { summarizeToolOutput } from './summarize-tool-output';
 import {
     buildSystemPrompt,
@@ -122,6 +123,7 @@ export class RunEngine {
         private readonly conversations: ConversationRepository,
         private readonly proposals: ProposalRepository,
         private readonly decisions: DecideProposalService,
+        private readonly permissions: ToolPermissionBroker,
         @Optional()
         @Inject(COPILOT_RUN_LIMITS)
         limits: RunLimits | null = null
@@ -352,6 +354,22 @@ export class RunEngine {
                     name: call.name,
                     input: call.input
                 };
+
+                // **Ask before running, not after.** This is the one place a
+                // call the model was talked into by poisoned content can still
+                // be stopped without anything having happened — which is the
+                // mitigation ADR-0009's Consequences left owing.
+                const gate = await this.mayRun(ctx, call);
+                if (gate) {
+                    yield gate.event;
+                    const refusal = await gate.settle();
+                    if (refusal) {
+                        results.push(refusal.block);
+                        for (const event of refusal.events) yield event;
+                        continue;
+                    }
+                }
+
                 const outcome = await this.executeTool(
                     ctx,
                     call,
@@ -443,6 +461,114 @@ export class RunEngine {
      * the model can recover from, and the run continues (design §5, step 6).
      * Turning a model mistake into a 500 would lose the whole turn.
      */
+    /**
+     * Decides whether `call` needs the user's say-so, and parks the run if so.
+     *
+     * Returns `null` when it may just run — which is the overwhelmingly common
+     * case, because **only write tools ask**. Prompting on reads was
+     * considered and rejected: a model does three or four searches before it
+     * answers anything, so a fresh chat would open with four prompts, and
+     * everyone would learn to click through them without reading. That is worse
+     * than not asking, because it also devalues the prompt that matters.
+     *
+     * Otherwise it hands back the frame to emit and a `settle` to await, rather
+     * than doing both itself — the caller is the generator, and only a
+     * generator can `yield`.
+     */
+    private async mayRun(
+        ctx: {
+            input: StartRunInput;
+            runId: string;
+            conversationId: string;
+            authority: RunAuthority;
+        },
+        call: ToolUseBlock
+    ): Promise<{
+        event: CopilotRunEvent;
+        settle(): Promise<{
+            block: ToolResultBlock;
+            events: CopilotRunEvent[];
+        } | null>;
+    } | null> {
+        const tool = ctx.authority.profile.tools.find(
+            (entry) => entry.name === call.name
+        );
+        // An unknown tool is `executeTool`'s to refuse, with its own message.
+        // Gating it here would ask the user to approve something that does not
+        // exist.
+        if (!tool) return null;
+        if (tool.effect !== 'propose' && tool.effect !== 'apply') return null;
+
+        // Read per call, not per run: the list grows while the run is parked —
+        // answering "allow for this chat" on the first of two calls in one turn
+        // must stop the second from asking.
+        const allowed = await this.conversations.allowedTools(
+            ctx.conversationId
+        );
+        if (allowed.includes(call.name)) return null;
+
+        return {
+            event: {
+                type: 'tool-permission-request',
+                id: call.id,
+                runId: ctx.runId,
+                name: call.name,
+                ...(tool.title ? { title: tool.title } : {}),
+                input: call.input
+            },
+            settle: async () => {
+                const outcome = await this.permissions.ask(
+                    ctx.runId,
+                    call.id,
+                    ctx.input.signal
+                );
+                if (outcome.decision === 'chat') {
+                    await this.conversations.allowTool(
+                        ctx.conversationId,
+                        call.name
+                    );
+                }
+                if (outcome.decision !== 'deny') return null;
+
+                // A refusal is an ordinary tool error, so the model reports it
+                // and carries on rather than the run dying — the same treatment
+                // an unknown tool or a revoked permission gets. It is audited
+                // too: "the user said no" is exactly what a reviewer reading
+                // `copilot_tool_calls` wants to see.
+                const message = outcome.timedOut
+                    ? `"${call.name}" was not run: nobody answered the request to allow it.`
+                    : `"${call.name}" was not run: the user did not allow it.`;
+                await this.audit(ctx, call, {
+                    ok: false,
+                    error: message,
+                    durationMs: 0,
+                    outputSummary: null
+                });
+                return {
+                    block: {
+                        type: 'tool_result' as const,
+                        toolUseId: call.id,
+                        content: message,
+                        isError: true
+                    },
+                    events: [
+                        {
+                            type: 'tool-result' as const,
+                            id: call.id,
+                            name: call.name,
+                            ok: false,
+                            durationMs: 0,
+                            summary: outcome.timedOut
+                                ? 'no answer'
+                                : 'not allowed',
+                            error: message
+                        }
+                    ]
+                };
+            }
+        };
+    }
+
     private async executeTool(
         ctx: {
             input: StartRunInput;

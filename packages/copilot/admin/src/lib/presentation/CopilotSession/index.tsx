@@ -30,7 +30,8 @@ export function CopilotSession({
     onClose,
     onNewChat,
     onDescribe,
-    onActivity
+    onActivity,
+    onAwaiting
 }: {
     session: Session;
     workspaceId: string;
@@ -42,6 +43,7 @@ export function CopilotSession({
     onNewChat(): void;
     onDescribe(meta: { conversationId?: string | null; title?: string }): void;
     onActivity(): void;
+    onAwaiting(value: boolean): void;
 }) {
     const chat = useCopilotChat(workspaceId, session.minimized);
 
@@ -66,10 +68,15 @@ export function CopilotSession({
         onDescribe({ title: summarize(firstAsk) });
     }, [firstAsk, session.title, onDescribe]);
 
-    // A run ending is the event worth a marker. Edge-triggered off `busy`
-    // rather than watching the transcript: a `text-delta` lands dozens of times
-    // per answer, and marking on each would fire the moment the first token
-    // arrives — before there is anything to come back and read.
+    // Two things are worth a marker, and a chat **parked on a question** is the
+    // more urgent of them: it is not merely finished, it is stuck, and it stays
+    // stuck until someone looks. Without this a collapsed chat would sit
+    // silently for five minutes and then time out having never asked anyone.
+    //
+    // The other is a run ending, edge-triggered off `busy` rather than watched
+    // on the transcript: a `text-delta` lands dozens of times per answer, and
+    // marking on each would fire the moment the first token arrives — before
+    // there is anything to come back and read.
     const wasBusy = useRef(chat.busy);
     useEffect(() => {
         if (wasBusy.current && !chat.busy) {
@@ -77,6 +84,16 @@ export function CopilotSession({
         }
         wasBusy.current = chat.busy;
     }, [chat.busy, onActivity]);
+
+    // Being parked is **reported as state, not as an event**. A chat asking a
+    // question stays asking until it is answered, so an edge would miss the
+    // ordinary case: parked while you are watching, then collapsed. The
+    // reducer ignores a value that has not changed and hands back the same
+    // array, which is what keeps this from looping — `onAwaiting` is a fresh
+    // closure every render, so this effect re-runs constantly by construction.
+    useEffect(() => {
+        onAwaiting(chat.awaitingPermission);
+    }, [chat.awaitingPermission, onAwaiting]);
 
     return (
         <CopilotPanel

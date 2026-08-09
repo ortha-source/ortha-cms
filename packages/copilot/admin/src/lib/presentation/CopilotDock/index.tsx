@@ -29,6 +29,13 @@ const messages = defineMessages({
         id: 'copilot.dock.unread',
         defaultMessage: '{title} — finished'
     },
+    // Distinct from "finished" on purpose: this chat has not finished, it has
+    // stopped and is blocked on you. Conflating the two would let the more
+    // urgent state hide behind the routine one.
+    awaiting: {
+        id: 'copilot.dock.awaiting',
+        defaultMessage: '{title} — waiting for you'
+    },
     close: {
         id: 'copilot.dock.close',
         defaultMessage: 'Close {title}'
@@ -104,13 +111,19 @@ export function CopilotDock({
                             type="button"
                             onClick={() => onToggle(session.id)}
                             aria-pressed={!session.minimized}
-                            // The marker is in the name, not only in the dot.
+                            // The marker is in the name, not only in the dot —
+                            // and `awaiting` outranks `unread`, because a chat
+                            // blocked on a question is the one to open first.
                             aria-label={
-                                session.unread
-                                    ? intl.formatMessage(messages.unread, {
+                                session.awaiting
+                                    ? intl.formatMessage(messages.awaiting, {
                                           title
                                       })
-                                    : title
+                                    : session.unread
+                                      ? intl.formatMessage(messages.unread, {
+                                            title
+                                        })
+                                      : title
                             }
                             title={title}
                             className={cn(
@@ -122,10 +135,20 @@ export function CopilotDock({
                         >
                             <Sparkles className="size-3.5 shrink-0" />
                             <span className="truncate">{title}</span>
-                            {session.unread && (
+                            {(session.awaiting || session.unread) && (
                                 <span
                                     aria-hidden
-                                    className="bg-primary size-1.5 shrink-0 rounded-full"
+                                    className={cn(
+                                        'size-1.5 shrink-0 rounded-full',
+                                        // Amber for "answer me", primary for
+                                        // "there is something to read". Shape
+                                        // and position are identical, so the
+                                        // colour is a nicety on top of the
+                                        // name — never the only signal.
+                                        session.awaiting
+                                            ? 'bg-warning'
+                                            : 'bg-primary'
+                                    )}
                                 />
                             )}
                         </button>

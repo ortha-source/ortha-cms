@@ -67,6 +67,8 @@ export type {
     RunTextDeltaEvent,
     RunToolCallEvent,
     RunToolResultEvent,
+    RunPermissionRequestEvent,
+    ToolPermissionDecision,
     RunProposalEvent,
     RunDoneEvent,
     RunErrorEvent

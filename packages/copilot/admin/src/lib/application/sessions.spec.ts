@@ -21,7 +21,8 @@ describe('sessionsReducer', () => {
                 conversationId: null,
                 title: null,
                 minimized: false,
-                unread: false
+                unread: false,
+                awaiting: false
             }
         ]);
     });
@@ -108,6 +109,94 @@ describe('sessionsReducer', () => {
                 { type: 'activity', id: 'a' }
             );
             expect(state[0].unread).toBe(true);
+        });
+    });
+
+    describe('waiting on the user', () => {
+        it('marks a chat parked on a permission prompt', () => {
+            const state = play(open('a'), {
+                type: 'awaiting',
+                id: 'a',
+                value: true
+            });
+            expect(state[0].awaiting).toBe(true);
+        });
+
+        it('marks it even while it is on screen', () => {
+            // Unlike `unread`. A visible chat blocked on a question should say
+            // so on its pill too — that is how you tell which of three windows
+            // is the one waiting.
+            const state = play(open('a'), {
+                type: 'awaiting',
+                id: 'a',
+                value: true
+            });
+            expect(state[0]).toMatchObject({
+                minimized: false,
+                awaiting: true
+            });
+        });
+
+        it('survives being collapsed after it parked', () => {
+            // The case an edge-triggered marker missed: parked while visible,
+            // collapsed afterwards. The pill must still say it is waiting.
+            const state = play(
+                open('a'),
+                { type: 'awaiting', id: 'a', value: true },
+                { type: 'minimize', id: 'a' }
+            );
+            expect(state[0]).toMatchObject({ minimized: true, awaiting: true });
+        });
+
+        it('is not cleared by focusing — only by being answered', () => {
+            // Opening the window does not answer the question, so clearing on
+            // focus (as `unread` does) would hide a chat that is still stuck.
+            const state = play(
+                open('a'),
+                { type: 'awaiting', id: 'a', value: true },
+                { type: 'minimize', id: 'a' },
+                { type: 'focus', id: 'a' }
+            );
+            expect(state[0].awaiting).toBe(true);
+        });
+
+        it('clears when the chat reports it is no longer parked', () => {
+            const state = play(
+                open('a'),
+                { type: 'awaiting', id: 'a', value: true },
+                { type: 'awaiting', id: 'a', value: false }
+            );
+            expect(state[0].awaiting).toBe(false);
+        });
+
+        it('returns the very same array when the value has not changed', () => {
+            // Load-bearing, not an optimisation: the caller reports this from
+            // an effect whose callback is a fresh closure each render, so a new
+            // array would re-render, re-run the effect and dispatch again —
+            // "Maximum update depth exceeded".
+            const before = play(open('a'), {
+                type: 'awaiting',
+                id: 'a',
+                value: true
+            });
+            expect(
+                sessionsReducer(before, {
+                    type: 'awaiting',
+                    id: 'a',
+                    value: true
+                })
+            ).toBe(before);
+        });
+
+        it('returns the same array for a chat it does not have', () => {
+            const before = play(open('a'));
+            expect(
+                sessionsReducer(before, {
+                    type: 'awaiting',
+                    id: 'nope',
+                    value: true
+                })
+            ).toBe(before);
         });
     });
 

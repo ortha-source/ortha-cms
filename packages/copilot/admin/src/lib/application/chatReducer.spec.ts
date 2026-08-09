@@ -203,6 +203,106 @@ describe('chatReducer', () => {
         expect(play(submit, { type: 'reset' })).toEqual(initialChatState);
     });
 
+    describe('permission prompts', () => {
+        const asks: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'tool-permission-request',
+                id: 'call-1',
+                runId: 'run-1',
+                name: 'content_propose_update',
+                input: { typeName: 'article', id: 'e1' }
+            }
+        };
+        const result = (ok: boolean): ChatAction => ({
+            type: 'event',
+            event: {
+                type: 'tool-result',
+                id: 'call-1',
+                name: 'content_propose_update',
+                ok,
+                durationMs: 1,
+                summary: ok ? 'applied' : 'not allowed'
+            }
+        });
+
+        it('attaches the request to the assistant turn', () => {
+            const state = play(submit, started, asks);
+            expect(state.messages[1].permissions).toEqual([
+                expect.objectContaining({
+                    id: 'call-1',
+                    runId: 'run-1',
+                    name: 'content_propose_update'
+                })
+            ]);
+        });
+
+        it('flags an answer in flight and clears any previous failure', () => {
+            const state = play(
+                submit,
+                started,
+                asks,
+                { type: 'answered', callId: 'call-1', error: 'not-delivered' },
+                { type: 'answering', callId: 'call-1' }
+            );
+            expect(state.messages[1].permissions?.[0]).toMatchObject({
+                deciding: true,
+                error: undefined
+            });
+        });
+
+        it('retires the prompt once the answer lands', () => {
+            const state = play(
+                submit,
+                started,
+                asks,
+                { type: 'answering', callId: 'call-1' },
+                { type: 'answered', callId: 'call-1' }
+            );
+            expect(state.messages[1].permissions?.[0]).toMatchObject({
+                deciding: false,
+                answered: true
+            });
+        });
+
+        it('keeps the prompt answerable when the answer did not reach the run', () => {
+            // A 404 means the run had already moved on — but it might not have,
+            // and taking the buttons away would strand a still-parked run with
+            // no way to answer it.
+            const state = play(submit, started, asks, {
+                type: 'answered',
+                callId: 'call-1',
+                error: 'not-delivered'
+            });
+            expect(state.messages[1].permissions?.[0]).toMatchObject({
+                deciding: false,
+                error: 'not-delivered'
+            });
+            expect(state.messages[1].permissions?.[0].answered).toBeUndefined();
+        });
+
+        it('retires the prompt when the call produces a result', () => {
+            // The server timing out, or another window answering: either way
+            // the run moved on, and live buttons that answer nothing are worse
+            // than no buttons.
+            const state = play(submit, started, asks, result(true));
+            expect(state.messages[1].permissions?.[0].answered).toBe(true);
+        });
+
+        it('retires it on a refused result too', () => {
+            const state = play(submit, started, asks, result(false));
+            expect(state.messages[1].permissions?.[0].answered).toBe(true);
+            expect(state.messages[1].steps).toEqual([]);
+        });
+
+        it('ignores an answer for a request it does not have', () => {
+            const before = play(submit, started, asks);
+            expect(
+                chatReducer(before, { type: 'answered', callId: 'nope' })
+            ).toEqual(before);
+        });
+    });
+
     describe('proposals', () => {
         const proposed = (
             status: 'pending' | 'accepted' = 'accepted',
