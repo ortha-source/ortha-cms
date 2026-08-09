@@ -176,6 +176,34 @@ inverted failure mode: the old risk was a model claiming success when nothing
 was saved, the new one is a model hedging about a write that already landed, or
 quietly repeating a failed one.
 
+## The system prompt
+
+`system-prompt.ts` assembles it, `SYSTEM_PROMPT_VERSION` is stamped on the run,
+and `system-prompt.spec.ts` pins the structure. Three rules for editing it:
+
+- **Every section is conditional on something, and that is the point.** A run's
+  prompt says only what is true of _that_ run: MAKING CHANGES needs write tools,
+  the locale line needs `i18n_locales_list` to be on offer, `ON THIS SURFACE`
+  needs a surface with something distinctive to say. Telling a viewer how writes
+  behave, or a no-i18n deployment to look up locale slugs, buys a tool call that
+  can only fail. `toolNames` carries the offered tool _names_ rather than a
+  count for exactly this reason.
+- **Per-tool mechanics belong in the tool's `description`, not here.** The
+  prompt costs tokens on every run; a description costs them on the runs that
+  read it, and arrives in context. HOW ORTHA WORKS carries only what is true of
+  every deployment and what no single tool can say — the workspace grant
+  boundary, `draft`/`published` being the whole state set, numbered versions,
+  and each locale being its own entry.
+- **The propose-rule bug is the cautionary tale.** v3 and v4 both said "any tool
+  whose name starts with `propose`". Every propose tool is named for its owning
+  plugin first (`content_propose_update`), so the rule matched **nothing** — a
+  prompt can be wrong in a way that typechecks, passes e2e and reads fine. v5
+  names a tool instead, and adds "despite the name", because since ADR-0009 the
+  word `propose` argues against the rule it appears in. Until phase 4's offline
+  eval set exists, the spec's conditional-structure cases are the only thing
+  standing between a prompt edit and production — and note they would _not_ have
+  caught this one.
+
 ## The run engine
 
 An **async generator**, not a service that writes to a response — the transport
