@@ -530,15 +530,31 @@ describe('Public content API — writes (/api/v1)', () => {
         });
 
         it('sets a single relation by translation group, per locale', async () => {
+            // The write needs no grant on the target — the writer checks that
+            // the workspace owns the row. Reading the link back does, because
+            // `?relationFields=` refuses to expand a type the workspace was
+            // never granted, and that read-back is how this asserts.
+            await seedContentGrants(workspaceId, ['test_author']);
             const secret = await mintToken();
             // One author translated into two locales — one group, two rows.
+            // **Published**, both of them: a public expansion never shows or
+            // counts a draft target, so a drafted author would read back as an
+            // empty relation and look exactly like a write that didn't land.
             const [authorEn, authorDe] = await seedAuthors(
                 [
-                    { name: 'Ada', locale: 'en', localeGroupId: AUTHOR_GROUP },
+                    {
+                        name: 'Ada',
+                        locale: 'en',
+                        localeGroupId: AUTHOR_GROUP,
+                        status: 'published',
+                        publishedAt: new Date()
+                    },
                     {
                         name: 'Ada (de)',
                         locale: 'de',
-                        localeGroupId: AUTHOR_GROUP
+                        localeGroupId: AUTHOR_GROUP,
+                        status: 'published',
+                        publishedAt: new Date()
                     }
                 ],
                 workspaceId

@@ -588,28 +588,45 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(offered).not.toContain('fixture.applyThing');
         });
 
-        it('offers a contributor propose tools but never apply tools', async () => {
+        it('offers a contributor both propose and apply tools', async () => {
             scriptCopilot({ text: 'ok' });
             const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
 
             await run(agent, { message: 'hello' });
 
             const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
+            // ADR-0009 §5 deleted the second gate: `effect` no longer decides
+            // anything at offer time, so holding `content:update` — which both
+            // fixtures declare — is now the whole test. What stops a write
+            // running unasked is the in-the-moment prompt (§1b), not a
+            // withheld offer.
             expect(offered).toContain('fixture.proposeThing');
-            // Holding content:update is not enough: direct apply needs a
-            // per-workspace opt-in, which phase 1 has no way to grant.
-            expect(offered).not.toContain('fixture.applyThing');
+            expect(offered).toContain('fixture.applyThing');
         });
 
-        it('withholds apply tools even from an admin', async () => {
+        it('offers an admin an apply tool exactly as it would a read one', async () => {
             scriptCopilot({ text: 'ok' });
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             await run(agent, { message: 'hello' });
 
-            expect(
-                (copilotCalls()[0].tools ?? []).map((t) => t.name)
-            ).not.toContain('fixture.applyThing');
+            const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
+            expect(offered).toContain('fixture.readThing');
+            expect(offered).toContain('fixture.applyThing');
+        });
+
+        // The other half of §5, and the one that could regress silently: the
+        // gate that remains is permission, so a role missing `content:update`
+        // must still be offered neither — whatever the tool's effect.
+        it('still withholds both from a role without the permission', async () => {
+            scriptCopilot({ text: 'ok' });
+            const { agent } = await signIn(VIEWER_EMAIL, 'viewer');
+
+            await run(agent, { message: 'hello' });
+
+            const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
+            expect(offered).not.toContain('fixture.proposeThing');
+            expect(offered).not.toContain('fixture.applyThing');
         });
 
         // Enforcement is in three places, and offer-time filtering is not the

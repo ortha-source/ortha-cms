@@ -556,6 +556,14 @@ export class PublicEntriesQuery {
      * `listScope` is, per its own name and its one implementation, about
      * choosing rows out of a *set*; a request that names one row has already
      * chosen.
+     *
+     * What the asymmetry must **not** cost is validation. Dropping the scope
+     * from an id read also dropped the only thing that looks at `?locale=`, so
+     * `?locale=zz` went from a 400 to being silently ignored — a typo that
+     * quietly returns another language's content, on a contract that says
+     * every route taking a locale rejects an unknown one. Hence the discarded
+     * call below: `listScope` validates as well as narrows (see the port's
+     * docs), and only the narrowing is unwanted here.
      */
     private entryWhere(
         type: AnyContentType,
@@ -566,6 +574,9 @@ export class PublicEntriesQuery {
     ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
         if ('id' in locator) {
+            // Called for its validation, not its predicate — an unknown slug
+            // throws here. Do not "clean up" the unused return value.
+            this.extension?.listScope(type, workspaceId, { locale });
             return and(
                 eq(table['id'], locator.id),
                 this.liveWhere(type, workspaceId, visibility)

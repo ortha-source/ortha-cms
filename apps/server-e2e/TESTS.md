@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_709 test cases across 45 spec files._
+_705 test cases across 45 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -117,7 +117,7 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | Test case |
 | --- |
 | serves only published, non-deleted entries |
-| returns a flat entry: no relations, no media, no workspace, no status |
+| returns a flat entry: no relations, no media, no workspace |
 | reads one entry by id |
 | 404s a draft entry by id |
 | 404s an entry that lives in another workspace |
@@ -902,8 +902,9 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | Test case |
 | --- |
 | offers a viewer no write tools |
-| offers a contributor propose tools but never apply tools |
-| withholds apply tools even from an admin |
+| offers a contributor both propose and apply tools |
+| offers an admin an apply tool exactly as it would a read one |
+| still withholds both from a role without the permission |
 | refuses a withheld tool at execution, not only at offer time |
 
 ### model selection
@@ -952,6 +953,15 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_
 | offers a viewer no write tool at all |
 | offers a contributor the whole write surface, matching the role matrix |
 | exposes no publish tool at any role |
+
+### a write asks before it runs
+
+| Test case |
+| --- |
+| parks the call and shows the user its arguments |
+| never asks about a read |
+| refuses the call when the user says no, and writes nothing |
+| stops asking for the rest of the chat once allowed for it |
 
 ### a propose tool writes, and records what it wrote
 
