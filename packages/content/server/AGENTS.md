@@ -811,6 +811,63 @@ which only ever adds keys. `status` is not exposed (it would be a constant
 "published"); `publishedAt` is, along with `locale`/`localeGroupId` on i18n
 types.
 
+## Agent tools (`src/lib/mcp/`)
+
+The same content CRUD, contributed to the shared **tool registry** in
+`@ortha-cms/mcp-server` — so an MCP client (and, once its run engine lands, the
+copilot) can do what the public API does. [ADR-0006](../../../docs/adr/0006-cms-as-an-mcp-server.md).
+
+```
+mcp/
+  content-tools.provider.ts  # the ToolProvider: twelve tools + the type resources
+  tool-schemas.ts            # JSON Schema for the tool ARGUMENTS (generic, hand-written)
+  tool-input.ts              # DTO-backed validation, the locator, the draft-visibility rule
+```
+
+**Every handler delegates to the objects the public controllers call** —
+`resolveGrantedType`, `PublicEntriesQuery`, `PublicEntryWritesService`. That is
+the whole design: published-only reads, the grant gate, the locale rules,
+publish-time validation, revision numbering, the outbox are not restated and
+therefore cannot drift. The provider adds tool descriptions, argument
+validation, and the mapping — nothing else. This is also why the tools live
+**here** rather than in the MCP package: those services are internal to content
+and exporting them so an outside package could drive the read path is exactly
+how a second, diverging copy of the visibility rules gets written.
+
+**Twelve generic tools, not a set per content type.** `content_types_list`,
+`content_type_get`, `content_list`, `content_get`, `content_relations`,
+`content_media`, `content_translations`, `content_create`, `content_update`,
+`content_publish`, `content_unpublish`, `content_delete`. `typeName` is an
+argument, exactly as it is a path segment on the HTTP routes. Generating
+`article_create`, `author_create`, … would put the whole content model in every
+conversation's context (a client loads all tool schemas on connect) and could
+not be a fixed set anyway, since visible types depend on the token's grants. A
+model discovers one type's shape on demand with `content_type_get`, whose
+`valuesSchema` comes from the same `docs/field-schema.ts` the OpenAPI document
+uses. Granted types are also exposed as MCP **resources**
+(`ortha://content-type/<name>`), through the same grant gate.
+
+**Authorization is declared, not implemented.** Each tool names its permissions
+in `requires`, and `ToolRegistry.call` enforces them before dispatch — the
+analogue of `@RequirePermissions(...)`. No handler contains a line saying a
+`read` token cannot write. The one authorization decision a handler _does_ make
+is `assertDraftVisibility`, because that is a rule about an argument
+(`status=draft|any` needs `content:update`) rather than about the operation —
+the same rule `DraftVisibilityGuard` applies to the routes.
+
+**Arguments validate through the real HTTP DTOs** (`validateToolInput` runs
+`PublicListEntriesQueryDto` / `PublicSaveEntryDto` with the host's
+`ValidationPipe` options). Hand-checking them would fork the contract the first
+time a bound moved — `pageSize` would cap at 100 on the route and at whatever
+this file said on the tool. Unknown arguments are rejected rather than ignored,
+which matters more for a model than a developer: a silently dropped typo
+produces a plausible-looking wrong answer.
+
+One thing to know when adding a tool: on `content_update` the `locale` argument
+is the **addressing** locale and is passed separately, never folded into the
+save DTO — `body.locale` is create-only, and reading it for addressing is how a
+group-addressed German update silently rewrites the English row.
+
 ## OpenAPI — the types describe themselves (`src/lib/docs/`)
 
 The host generates an OpenAPI document at boot and serves it as a Scalar
