@@ -154,6 +154,40 @@ the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's
 `EntryWriterService` resolves the binding regardless of registration order.
 
+## The copilot tool (`src/lib/copilot/`)
+
+This package binds the copilot's tool port — `copilot/server` declares
+`COPILOT_TOOL_PROVIDER` (in `copilot-domain`) and never imports media.
+`MediaCopilotToolProvider` ships one read tool, `media_assets_search`, wrapping
+the same `ListAssetsQuery` the library route calls. Registration is the
+`copilotToolsRegistrar('media', …)` one-liner in `MediaModule.forRoot`, which
+injects the registry **optionally** — a deployment without `CopilotPlugin` is
+normal, and media must boot without it.
+
+It also binds `media_propose_alt_text` (`effect: 'propose'`) — the tool ADR-0005
+§6 names as the motivating case for auto-apply, since a team that trusts alt-text
+generation should not click twice a hundred times a day. Like every propose tool
+it writes nothing; `AltTextProposalApplier` carries an accepted one out through
+`UpdateAssetUseCase`, the same use-case the PATCH route calls, so the change runs
+in the same unit of work and raises the same domain event with the accepting
+human as actor. That use-case's `actor` parameter was widened from `PublicUser`
+to `EventActor` (`{ id, email }`) — all `attachActor` reads — so the applier can
+reach it without fabricating a user to satisfy a wider type.
+
+Two departures from the library's own list, each answering something a model
+needs and a person browsing does not:
+
+- **It searches every folder.** `ListAssetsParams.folderId` gained a third
+  state: an **absent key** spans the workspace, `null` is the root folder, a
+  string is one folder. The admin browses one folder at a time, so `null` had to
+  keep meaning root; a model asked "do we have a logo?" doesn't know which
+  folder to look in and would get "no" for an asset that exists. The query tests
+  the key with `in`, not truthiness, so the two stay distinguishable.
+- **It returns a narrowed projection** — id, name, kind, MIME type, size, alt,
+  tags, folder, created — dropping `url`, `variants` and the intrinsic
+  dimensions. `url` in particular is a session-gated route a model cannot fetch,
+  so it costs prompt tokens and answers nothing.
+
 ## Register with the host
 
 After `WorkspacesPlugin` (routes use `WorkspaceGuard`) and `IdentityPlugin`

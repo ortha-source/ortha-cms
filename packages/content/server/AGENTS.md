@@ -154,6 +154,105 @@ a clean **409**. A boot check (`EntryExtensionBootCheck`) fails start-up if an
 `i18n: true` type has no extension bound. Only one binding is supported (a
 second consumer would need a composite).
 
+### The copilot tools (`src/lib/copilot/`)
+
+This package **binds** the copilot's tool port, the same inversion again with
+the roles swapped back: `copilot/server` declares `COPILOT_TOOL_PROVIDER` (in
+`copilot-domain`) and never imports content, while content — which already owns
+`EntriesService`, `EntryWriterService` and the registry — supplies the tools as
+thin wrappers over them. No query logic is duplicated and no refactor was needed.
+
+- `ContentCopilotToolProvider` ships phase 1's three **read-only** tools:
+  `admin_content_types`, `admin_content_search`, `admin_content_get`. Between
+  them they reach the same query surface the admin's records table does —
+  free-text search, the structured `?filter=` tree, sorting, paging, locales,
+  and sparse fieldsets — so "which German articles has Ada not published?" is
+  one tool call rather than a page-by-page crawl the run's step limit ends
+  first.
+- **`filter` is the query builder's own grammar** (`copilot/filter-schema.ts`):
+  a node is a group (`{and: […]}` / `{or: […]}`) or a rule
+  (`{field, op, value}`), so the model emits exactly what the admin's UI emits
+  and `parseFilterTree` validates both. The model gets an **object** and the
+  tool stringifies it — the wire wants JSON in a query param, but an object is
+  far easier for a model to build correctly. It never writes SQL: every path is
+  checked against the type's schema, so an unknown field or an ungranted
+  relation hop is a rejected filter. The paths on offer come from
+  `admin_content_types`, which returns `filterableFields` built with
+  `grantedTypes` — the same grant-pruning the public API applies, so a hop into
+  a type the workspace was never granted is never advertised.
+- **`fields` projects `values`** (`copilot/project-entry.ts`) and is what makes
+  "list all the articles" possible at all: a full `EntryRecord` carries every
+  richtext body, so a page of 25 exhausts the run's token ceiling long before
+  its row cap. The envelope — `id` above all — is always kept, since a
+  projection that could drop it would break the follow-up `admin_content_get`.
+  An unknown name is **ignored**, not a 400 as on the public API: there a typo
+  is a developer's bug worth surfacing, here the name came from a model that
+  may have mis-remembered a field, and the returned `values` already say what
+  was found.
+- **`locale` / `localeFallback`** are forwarded verbatim to the bound
+  `CONTENT_ENTRY_EXTENSION`, which validates the slug and scopes the rows —
+  content-server stays locale-agnostic here as everywhere. An unknown locale is
+  a tool error, never a silent read of the default. `admin_content_get` takes no
+  `locale`: an entry id already names one row including its locale.
+- `RevisionCopilotToolProvider` ships the **version-history** pair,
+  `admin_content_revisions` and `admin_content_diff`. A second provider rather
+  than more methods on the first: revisions are their own feature folder with
+  their own port, and the registry takes any number of providers. `diffRevisions`
+  returns **only the changed fields** plus a count of the unchanged ones — the
+  admin's dialog renders every field because a person wants unchanged rows for
+  context, but on a wide type the unchanged richtext bodies alone would dominate
+  a run's token budget. The comparison rules (`copilot/diff-snapshots.ts`, pure
+  and unit-tested) mirror `content-admin`'s `diffRevision` exactly: empties
+  collapse, link sets compare order-sensitively. The duplication is deliberate
+  until the two sides' schema types are unified — noted at the call site.
+- Both providers are registered by `copilotToolsRegistrar('content', …)` from
+  `@ortha-cms/copilot-server`, in `ContentModule.forRoot`'s `providers`.
+  Registration is a **runtime `register(...)` call**, not a multi-provider
+  binding: Nest cannot merge a multi-provider token across independent dynamic
+  modules, so a second binder (media, i18n, …) would silently replace this one.
+  The helper exists because the hand-written registrar it replaced had to inject
+  the registry `@Optional()`, and a `Foo | null` parameter type emits `Object`
+  for `design:paramtypes` — Nest then injects `undefined` silently, producing a
+  copilot with no content tools and no error anywhere. A factory's `inject` list
+  names its dependencies as values, so there is no reflected type to get wrong.
+- `EntryProposalToolProvider` ships the **write** pair,
+  `content_propose_create` and `content_propose_update` (`effect: 'propose'`).
+  Neither writes anything: they compute a change and hand it back, and the run
+  engine records it for a human to accept. That is the whole point of the split
+  — the tool is a pure function of the model's arguments plus the current
+  entry, so a prompt-injected "just save it" has nowhere to land. `proposeEdit`
+  reads the live entry so the proposal carries a real before/after diff, drops
+  fields that would not actually change, and refuses an edit that changes
+  nothing. An unknown field name is an **error** here, unlike the reads'
+  `fields`: the cost is a human approving a change they believe writes a field
+  that does not exist. Join-backed relations are refused for the same reason —
+  their links never travel in the values bag, so a value for one would be
+  silently dropped. **No `status` parameter exists at any role** (ADR-0005 §7):
+  the copilot may prepare a publishable draft; a person presses publish.
+- `CreateEntryProposalApplier` / `UpdateEntryProposalApplier` carry those
+  changes out, through **`EntryWriterService.create` / `.update` — the same
+  methods the HTTP routes call**. Not "similar to": the same, which is what
+  makes an accepted proposal validated, advisory-locked, snapshotted as a
+  revision and passed through the i18n extension exactly as a hand-typed entry
+  is. The update **merges** rather than replacing (the admin's `PATCH` replaces
+  because the editor submits the whole document; a proposal carries only what a
+  reviewer approved), and it reads the entry **now**, so a proposal accepted an
+  hour later writes the approved fields onto whatever the entry has become
+  instead of rewinding it. Grants are re-checked at apply time, not trusted from
+  the row — a stored `typeName` is an argument like any other.
+- **Every tool re-checks the workspace's content grants** via
+  `WorkspaceGrantsQuery` — which is **exported from this package and from the
+  global module** for the same reason: i18n and media bind their own
+  content-scoped tools, each takes a type name from the model, and that check
+  needs one implementation rather than one per binder. `WorkspaceGuard` proved the caller belongs to the
+  workspace, not that the workspace may reach a given type — and the type name
+  arrives from the _model_, which is steerable by content it has read. "Not
+  granted" and "does not exist" return the **same** message, so a run in one
+  workspace cannot enumerate the deployment's other content types.
+- Page size is clamped in `run` as well as declared in the input schema: the
+  schema validator is defence in depth, not the boundary, and a model ignoring
+  `maximum` must not be able to pull a whole table into a prompt.
+
 ## Generated storage (`buildTables`)
 
 One `content_<name>` table per type; one `content_<name>_<field>` join table per

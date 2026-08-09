@@ -18,6 +18,14 @@ import { UpdateEntryController } from './entries/http/controllers/update-entry.c
 import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
+import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
+import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
+import { RevisionCopilotToolProvider } from './copilot/revision-tool.provider';
+import { EntryProposalToolProvider } from './copilot/entry-proposal.provider';
+import {
+    CreateEntryProposalApplier,
+    UpdateEntryProposalApplier
+} from './copilot/entry-proposal.applier';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
 import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
@@ -173,18 +181,45 @@ export class ContentModule {
                 // The agent-facing tools — the same CRUD as the public API,
                 // over the same services, for the MCP endpoint and (once its
                 // run engine lands) the copilot. Registers itself with
-                // `@ortha-cms/mcp-server`'s registry when that plugin is
+                // `@ortha-cms/tools-server`'s registry when the MCP plugin is
                 // installed, and is inert when it isn't.
                 ContentToolProvider,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
                 // bound (nothing would stamp the NOT NULL locale column).
-                EntryExtensionBootCheck
+                EntryExtensionBootCheck,
+                // The copilot's read-only content tools, and the bootstrap hook
+                // that registers them. Both no-op when no copilot plugin is
+                // registered — the registrar injects the registry optionally.
+                ContentCopilotToolProvider,
+                RevisionCopilotToolProvider,
+                EntryProposalToolProvider,
+                // The appliers for the kinds those propose tools produce.
+                // Next to the tools on purpose: a missing applier surfaces only
+                // when a human clicks Accept.
+                CreateEntryProposalApplier,
+                UpdateEntryProposalApplier,
+                copilotAppliersRegistrar(
+                    'content',
+                    CreateEntryProposalApplier,
+                    UpdateEntryProposalApplier
+                )
             ],
             exports: [
                 CONTENT_REGISTRY,
                 CONTENT_CATALOG,
                 CONTENT_ENTRY_COUNTER,
-                EntryValidationService
+                EntryValidationService,
+                // Exported for the plugins that bind their own copilot tools
+                // over content-scoped data (i18n, media). A tool's type name
+                // arrives from the model, so every one of them has to re-check
+                // the workspace's grants — and there must be exactly one
+                // implementation of that check, not one per binder.
+                WorkspaceGrantsQuery,
+                // The write engine, for the proposal appliers those plugins
+                // also bind. ADR-0005 §5 requires an applied proposal to run
+                // the ordinary use-case, so they must reach *this* service
+                // rather than write their own insert.
+                EntryWriterService
             ]
         };
     }

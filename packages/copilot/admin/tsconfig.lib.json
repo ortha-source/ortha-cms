@@ -11,8 +11,32 @@
         "types": ["node"]
     },
     "include": ["src/**/*.ts", "src/**/*.tsx"],
-    "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
+    "exclude": [
+        "dist",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+    ],
     "references": [
+        {
+            "path": "../../workspaces/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../utils/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../shell/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../identity/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../design-system/tsconfig.lib.json"
+        },
+        {
+            "path": "../domain/tsconfig.lib.json"
+        },
         {
             "path": "../../bootstrap/admin/tsconfig.lib.json"
         }

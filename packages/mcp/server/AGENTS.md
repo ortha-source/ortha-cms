@@ -1,5 +1,18 @@
 # @ortha-cms/mcp-server
 
+> **The tool registry moved out.** `ToolDefinition` / `ToolContext` /
+> `ToolProvider` / `ToolRegistry` / `createToolContext` / `toToolError` now live
+> in [`@ortha-cms/tools-server`](../../tools/server/AGENTS.md)
+> ([ADR-0007](../../../docs/adr/0007-one-tool-registry-two-surfaces.md)). This
+> package owns the **protocol** and nothing else — the endpoint, bearer auth,
+> workspace resolution, JSON-RPC dispatch. It imports `ToolsModule` for the
+> registry rather than providing it, because the copilot imports the same one.
+>
+> Consequently a tool now declares `surfaces`, and every tool here is
+> `['mcp']`: they read the public API's published-only services and attribute
+> writes to a token, which is right for an external agent and wrong for the
+> chat panel. The e2e asserts no copilot tool is listed **or callable** here.
+
 The **Model Context Protocol** front door onto the CMS, and the home of the
 shared **agent tool registry**. An external agent — Claude Desktop, Cursor, an
 SDK-built client — connects to `POST /api/v1/mcp` with an API token and gets the

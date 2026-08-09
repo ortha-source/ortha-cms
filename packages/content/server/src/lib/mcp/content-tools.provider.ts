@@ -12,7 +12,7 @@ import {
     type ToolContext,
     type ToolDefinition,
     type ToolProvider
-} from '@ortha-cms/mcp-server';
+} from '@ortha-cms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
 import type {
     ContentTypeRegistry,
@@ -98,8 +98,25 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
         this.toolRegistry?.register(this);
     }
 
-    /** The twelve content tools. @see ToolProvider.tools */
+    /**
+     * The twelve content tools. @see ToolProvider.tools
+     *
+     * Every one is stamped `surfaces: ['mcp']` below rather than tool by tool:
+     * they are uniformly the **public-API** set — published-only reads through
+     * `PublicEntriesQuery`, writes through `PublicEntryWritesService` attributed
+     * to a token. The copilot's content tools are the admin-scoped counterpart
+     * (a viewer must see drafts; a write records the accepting human), so the
+     * two sets share the registry and not each other's callers.
+     */
     tools(): readonly ToolDefinition[] {
+        return this.mcpTools().map((tool) => ({
+            ...tool,
+            surfaces: ['mcp'] as const
+        }));
+    }
+
+    /** The tool definitions themselves, before the surface stamp. */
+    private mcpTools(): readonly ToolDefinition[] {
         return [
             // ---- discovery ------------------------------------------------
             // A model cannot type a `values` bag it has not seen, so discovery

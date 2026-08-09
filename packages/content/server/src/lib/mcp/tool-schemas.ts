@@ -1,4 +1,4 @@
-import type { JsonSchema } from '@ortha-cms/mcp-server';
+import type { JsonSchema } from '@ortha-cms/tools-server';
 import {
     DEFAULT_PAGE_SIZE,
     FILTER_MAX_LENGTH,

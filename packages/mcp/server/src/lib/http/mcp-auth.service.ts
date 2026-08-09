@@ -9,8 +9,8 @@ import {
     WORKSPACE_HEADER,
     WORKSPACE_ID_PATTERN
 } from '@ortha-cms/workspaces-server';
-import type { ToolContext } from '../types/tool';
-import { createToolContext } from './tool-context';
+import type { ToolContext } from '@ortha-cms/tools-server';
+import { createToolContext } from '@ortha-cms/tools-server';
 
 /** The scheme the `Authorization` header must use, case-insensitively. */
 const BEARER = 'bearer';

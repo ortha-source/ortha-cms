@@ -3,6 +3,7 @@ import { ACTIVITY_RECORDER } from '@ortha-cms/identity-server';
 import { ListActivityController } from './activity/controllers/list-activity.controller';
 import { ActivityService } from './activity/services/activity.service';
 import { AuditEventSubscriber } from './activity/infrastructure/audit-event.subscriber';
+import { ActivityCopilotToolProvider } from './copilot/activity-tool.provider';
 
 /**
  * NestJS module for the activity plugin. Mounts the read API under
@@ -29,7 +30,11 @@ export class ActivityModule {
             providers: [
                 ActivityService,
                 AuditEventSubscriber,
-                { provide: ACTIVITY_RECORDER, useExisting: ActivityService }
+                { provide: ACTIVITY_RECORDER, useExisting: ActivityService },
+                // The copilot's audit-log read. Both no-op when no copilot
+                // plugin is registered — the registrar injects the registry
+                // optionally.
+                ActivityCopilotToolProvider,
             ],
             exports: [ActivityService, ACTIVITY_RECORDER]
         };

@@ -4,6 +4,12 @@
 - **Date:** 2026-08-08
 - **Deciders:** Engineering
 
+> **Completed by [ADR-0007](0007-one-tool-registry-two-surfaces.md)**: §2's
+> second consumer arrived. The registry moved out of this package into
+> `@ortha-cms/tools-server` (the copilot must not depend on a protocol it does
+> not speak), and a tool now declares its `surfaces` — because sharing a
+> registry turned out not to mean sharing every tool.
+>
 > This ADR settles how **external agents** reach the CMS.
 > [ADR-0005](0005-copilot-authority-model.md) settles what our **own** copilot
 > may do; the two meet at the tool registry this record introduces.

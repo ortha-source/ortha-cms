@@ -33,6 +33,18 @@
             "path": "../../packages/media/server"
         },
         {
+            "path": "../../packages/copilot/domain"
+        },
+        {
+            "path": "../../packages/copilot/server"
+        },
+        {
+            "path": "../../packages/copilot/provider-fake"
+        },
+        {
+            "path": "../../packages/tools/server"
+        },
+        {
             "path": "../../packages/content/server"
         },
         {

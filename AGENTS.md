@@ -41,23 +41,30 @@
   and **ships its own migrations** (`drizzle.config.ts` + committed
   `migrations/`). Opens no connection; the host applies its migrations.
 - `packages/copilot/*` — the AI copilot. `domain` holds the framework-free
-  `ModelProvider` port; `server` is the plugin (`CopilotPlugin`) that binds the
-  model registry + resolver + config; `admin` is the chat panel's (still empty)
-  home; `provider-anthropic` / `provider-openai` / `provider-fake`
-  are the three shipped adapters, constructed at the composition root. Only
+  `ModelProvider` port, the offer-time capability profile and the proposal
+  contracts; `server` is the plugin (`CopilotPlugin`) with the SSE run route,
+  the bounded run engine, propose-then-apply and the per-workspace auto-apply
+  policy; `admin` is the docked chat panel and its proposal card;
+  `provider-anthropic` / `provider-openai` / `provider-fake` are the three
+  shipped adapters, constructed at the composition root. Only
   `provider-anthropic` may import a vendor SDK
-  ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Phase 0 of
-  [`docs/design/copilot.md`](docs/design/copilot.md) — no routes, no engine, no
-  tables yet.
+  ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Its tools live
+  in the shared registry, marked `surfaces: ['copilot']`
+  ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)).
+- `packages/tools/server` — `@ortha-cms/tools-server`, the shared agent **tool
+  registry**: the transport-neutral `ToolDefinition` contract and the one place
+  a tool call is authorized. Two consumers import its global `ToolsModule` — the
+  MCP endpoint and the copilot's run loop — so both see one instance, and a tool
+  declares which `surfaces` it is offered to
+  ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)).
 - `packages/mcp/server` — `@ortha-cms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
-  agent do content CRUD with an API token, plus the shared **tool registry**
-  behind it. The contract is transport-neutral on purpose — MCP is one adapter
-  over the registry, and the copilot's tool loop will be the other, so a tool
-  serves both ([ADR-0006](docs/adr/0006-cms-as-an-mcp-server.md)). Owns no
-  tools: `content/server` contributes them through the `TOOL_PROVIDER` port,
-  which is what lets a handler call `PublicEntriesQuery` directly instead of
-  re-implementing the rules it enforces. Off unless `MCP_ENABLED=true`.
+  agent do content CRUD with an API token
+  ([ADR-0006](docs/adr/0006-cms-as-an-mcp-server.md)). Owns the protocol and
+  nothing else — the registry lives in `tools/server` and the tools in
+  `content/server`, which is what lets a handler call `PublicEntriesQuery`
+  directly instead of re-implementing the rules it enforces. Off unless
+  `MCP_ENABLED=true`.
 - `packages/nx` — `@ortha-cms/nx`, the workspace **Nx plugin**: infers and
   implements the `db:generate` / `db:migrate` targets (Drizzle migration
   tooling). Registered in `nx.json`.

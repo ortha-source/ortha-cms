@@ -366,6 +366,54 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             );
         });
 
+        // The registry is shared with the copilot's run loop (ADR-0006 §2), so
+        // "which tools does an MCP client see" stopped being "all of them" the
+        // moment a second consumer registered its own. A copilot tool reaching
+        // this list would be a real leak: they read the ADMIN services (drafts,
+        // the trash) and their write half produces proposals only the chat panel
+        // can accept, so an MCP client could see unpublished content or create
+        // changes it has no way to apply.
+        it('shows no copilot-only tool, whatever the scope', async () => {
+            const { secret } = await mintToken({ scope: 'full' });
+
+            const res = await rpc(secret, 'tools/list').expect(200);
+            const names = (
+                (res.body as RpcResponse).result as { tools: McpTool[] }
+            ).tools.map((tool) => tool.name);
+
+            expect(names).toEqual(
+                expect.not.arrayContaining([
+                    'admin_content_types',
+                    'admin_content_search',
+                    'admin_content_get',
+                    'admin_content_revisions',
+                    'admin_content_diff',
+                    'i18n_locales_list',
+                    'i18n_translations_get',
+                    'media_assets_search',
+                    'activity_recent',
+                    'workspace_members_list',
+                    'content_propose_create',
+                    'content_propose_update',
+                    'i18n_propose_translation',
+                    'media_propose_alt_text'
+                ])
+            );
+        });
+
+        // Surface filtering is applied in `call` too, not only in `list` —
+        // exactly as the permission check is, and for the same reason: a client
+        // may invoke a name it was never shown.
+        it('refuses a copilot-only tool invoked by name', async () => {
+            const { secret } = await mintToken({ scope: 'full' });
+
+            const { isError } = await callTool(secret, 'admin_content_search', {
+                typeName: 'test_article'
+            });
+
+            expect(isError).toBe(true);
+        });
+
         it('gives every tool an object input schema', async () => {
             const { secret } = await mintToken({ scope: 'full' });
 

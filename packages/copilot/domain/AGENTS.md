@@ -1,9 +1,8 @@
 # @ortha-cms/copilot-domain
 
-The copilot's **framework-free core**. Today it holds one thing: the
-`ModelProvider` port and everything that crosses it — the request shape, the
-normalised stream events, the usage record, and the supported-capability
-baseline.
+The copilot's **framework-free core**: the `ModelProvider` port and everything
+that crosses it, plus (as of phase 1) the tool contracts, the capability
+profile, the run vocabulary, and the untrusted-content fence.
 
 > Feature context: [`docs/design/copilot.md`](../../../docs/design/copilot.md).
 > The two settled decisions:
@@ -16,8 +15,13 @@ baseline.
 **This package imports nothing.** Not Nest, not Drizzle, not React, and — the
 rule ADR-0004 §1 exists to enforce — **no vendor SDK**. `@anthropic-ai/sdk` may
 appear in `copilot/provider-anthropic` and nowhere else. That is what makes the
-tool contracts, the capability profile and (later) the run state machine
-testable without a framework or a model.
+tool contracts, the capability profile and the run vocabulary testable without a
+framework or a model.
+
+This rule has real consequences, and they are features rather than costs: the
+capability profile restates set membership instead of importing identity's
+`AccessPolicy`, and tool-input validation is a hand-written schema subset
+instead of a library. Both are documented where they live.
 
 `package.json` has no `dependencies` block at all. Keep it that way; if
 something here needs a dependency, it belongs in a layer above.
@@ -70,6 +74,63 @@ than throwing out of it, and that a cancelled call reports zero usage. Every
 adapter has to implement that clause, so it lives here as two functions instead
 of as prose copy-pasted into each one. Both are pure, so this costs the layer
 nothing.
+
+### The offer-time gate
+
+The tool _contract_ and its registry are shared with the MCP endpoint and live
+in `@ortha-cms/tools-server` (ADR-0007). `ToolSpec`, `ToolContext` and
+`COPILOT_TOOL_PROVIDER` are gone from this package. What remains is what
+genuinely belongs to a framework-free core:
+
+- `resolveCapabilityProfile(...)` — the **offer**-time gate (ADR-0005 §3). Pure
+  and total, which is what makes "a viewer is offered no write tools" a unit
+  test rather than a promise. It is **generic over a three-field structural
+  type** (`AuthorizableTool`: `name`, `requires`, `effect`) rather than
+  importing `ToolDefinition`, so this package still imports nothing and the
+  server still passes the real registry's tools straight in.
+- `validateToolInput(input, schema)` — a **deliberate JSON Schema subset**
+  covering what the generated tool schemas use, ignoring keywords it doesn't
+  know. Sound because it is defence in depth behind the profile, not the
+  boundary: `ToolRegistry.call` is the boundary. Its job is stopping a
+  malformed model call from becoming a 500.
+
+### Proposals (phase 3)
+
+- `ProposalDraft` / `ProposalTarget` / `ProposalChange` / `ProposalStatus` —
+  what a `propose` tool returns. `target` and `patch` are deliberately opaque
+  JSON: their shape belongs to the applier that declared the `kind`, and
+  teaching the copilot every plugin's addressing would make it the thing that
+  changes whenever one of them does.
+- `isProposalDraft(value)` — the runtime guard. `effect: 'propose'` is a promise
+  a binder makes about its return value; without this, a binder that broke it
+  would write a malformed row into an append-only table instead of producing an
+  ordinary tool error.
+- `ProposalApplier` + `COPILOT_PROPOSAL_APPLIER` + `ProposalActor` /
+  `ProposalApplyResult` — the write half, inverted exactly like the tool port so
+  `copilot/server` still never imports a feature plugin. The interface's
+  contract is one sentence: **an applier runs the ordinary use-case**, with the
+  human as actor. `ProposalActor` carries the actor's email as well as their id,
+  because the audit trail freezes an email snapshot on every event and an
+  applier holding only an id would have to look it up — a query per apply, in
+  the one path where getting the actor wrong is least acceptable.
+
+### The run (phase 1)
+
+- `CopilotRunEvent` — the engine's output vocabulary and exactly what the SSE
+  controller serializes. `RunProposalEvent` follows a `propose` tool's own
+  result rather than replacing it: the tool result is what the _model_ was told,
+  the proposal is what the _human_ is being asked to decide, and a client
+  renders the step list from one and the card from the other. A client reducer written against this union turns a new
+  event kind into a compile error rather than a silently ignored frame.
+- `RunLimits` / `DEFAULT_RUN_LIMITS` / `RunStopReason` — the three ceilings
+  (steps, wall clock, tokens) and why a run ended. `RunStopReason` is a superset
+  of `ModelStopReason`: the model reports why _it_ stopped, this reports why the
+  _run_ did, including limits the model never sees.
+- `fenceUntrusted(source, payload)` + `UNTRUSTED_DATA_RULE` — ADR-0005 §8's
+  structural defence. Two properties carry it: the payload is JSON (so no field
+  can introduce a line that reads as a new turn) and `<` is escaped (so the
+  closing delimiter is unforgeable from inside). Unit-tested against a forged
+  fence.
 
 ### The baseline
 

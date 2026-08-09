@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import type { PublicUser } from '@ortha-cms/identity-server';
+import type { EventActor } from '@ortha-cms/database';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import { FolderId } from '../../domain/value-objects/folder-id';
 import { AssetNotFoundError } from '../../domain/errors/asset-not-found.error';
@@ -37,7 +37,13 @@ export class UpdateAssetUseCase {
         assetId: string,
         workspaceId: string,
         patch: UpdateAssetPatch,
-        actor: PublicUser
+        // `EventActor` (`{ id, email }`) rather than `PublicUser`: that is all
+        // `attachActor` reads, and stating the narrower need lets a caller that
+        // legitimately has only those two — the copilot's proposal applier —
+        // reach this use-case instead of building a fake user to satisfy a
+        // wider type. Every existing caller passes a `PublicUser`, which
+        // satisfies it.
+        actor: EventActor
     ): Promise<void> {
         const id = AssetId.create(assetId);
 
