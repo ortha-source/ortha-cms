@@ -49,6 +49,15 @@
   ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Phase 0 of
   [`docs/design/copilot.md`](docs/design/copilot.md) — no routes, no engine, no
   tables yet.
+- `packages/mcp/server` — `@ortha-cms/mcp-server`, the **MCP plugin**: the
+  Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
+  agent do content CRUD with an API token, plus the shared **tool registry**
+  behind it. The contract is transport-neutral on purpose — MCP is one adapter
+  over the registry, and the copilot's tool loop will be the other, so a tool
+  serves both ([ADR-0006](docs/adr/0006-cms-as-an-mcp-server.md)). Owns no
+  tools: `content/server` contributes them through the `TOOL_PROVIDER` port,
+  which is what lets a handler call `PublicEntriesQuery` directly instead of
+  re-implementing the rules it enforces. Off unless `MCP_ENABLED=true`.
 - `packages/nx` — `@ortha-cms/nx`, the workspace **Nx plugin**: infers and
   implements the `db:generate` / `db:migrate` targets (Drizzle migration
   tooling). Registered in `nx.json`.
