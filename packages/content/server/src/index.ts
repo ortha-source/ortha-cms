@@ -12,6 +12,20 @@ export { field } from './lib/fields';
 export { ContentModule } from './lib/content.module';
 export { CONTENT_REGISTRY, InjectContentRegistry } from './lib/content.tokens';
 
+// The workspace's content grants. Exported (and exported from the global
+// module) for plugins that bind their own copilot tools over content-scoped
+// data — i18n's translations, media's assets. Every such tool takes its type
+// name from the *model*, so each has to re-check the grants, and that check
+// needs exactly one implementation rather than one per binder.
+export { WorkspaceGrantsQuery } from './lib/content-types/queries/workspace-grants.query';
+
+// The entry write engine, exported for the plugins that apply the copilot's
+// proposals over content. Deliberately the *same* service the HTTP controllers
+// call — ADR-0005 §5 requires an applied proposal to run the ordinary
+// use-case, so an applier reaching for anything else is the bug the port
+// exists to prevent.
+export { EntryWriterService } from './lib/entries/infrastructure/persistence/entry-writer.service';
+
 export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
 export type {
     ContentEntryExtension,
@@ -114,7 +128,8 @@ export type {
 export { PublicEntriesQuery } from './lib/public-api/infrastructure/public-entries.query';
 export type { EntryLocator } from './lib/public-api/infrastructure/public-entries.query';
 export { PublicEntryWritesService } from './lib/public-api/infrastructure/public-entry-writes.service';
-export { WorkspaceGrantsQuery } from './lib/content-types/queries/workspace-grants.query';
+// `WorkspaceGrantsQuery` is exported above — the grant gate is shared with the
+// copilot tool binders, which is the same one-implementation argument.
 export { resolveGrantedType } from './lib/public-api/http/controllers/resolve-granted-type';
 export type {
     ContentGrantsSource,

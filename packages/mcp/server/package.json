@@ -19,6 +19,7 @@
         "@nestjs/common": "^11.0.0",
         "@ortha-cms/bootstrap-server": "*",
         "@ortha-cms/identity-server": "*",
+        "@ortha-cms/tools-server": "*",
         "@ortha-cms/workspaces-server": "*"
     }
 }

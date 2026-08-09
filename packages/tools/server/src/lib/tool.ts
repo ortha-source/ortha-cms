@@ -56,6 +56,16 @@ export interface ToolContext {
     /** The workspace this call acts in — always resolved before dispatch. */
     workspaceId: string;
     /**
+     * Aborted when the caller goes away, so a tool doing real I/O can give up
+     * instead of finishing work nobody will read.
+     *
+     * Optional because only one consumer has one: the copilot's run is a live
+     * SSE stream that ends when the browser disconnects, while an MCP call is a
+     * request/response and finishes either way. A tool that ignores it is
+     * correct — this is a courtesy, never a correctness boundary.
+     */
+    signal?: AbortSignal;
+    /**
      * Whether the actor holds a permission. Handlers use this for decisions
      * **finer** than the tool's own `requires` gate — e.g. content reads let a
      * writer see drafts, which is a widening inside one tool rather than a
@@ -63,6 +73,39 @@ export interface ToolContext {
      */
     can(permission: PermissionKey): boolean;
 }
+
+/**
+ * What running a tool does to the system — the **authority** vocabulary, as
+ * distinct from the `readOnly`/`destructive` MCP *hints* below.
+ *
+ * `read` runs freely. `propose` produces a reviewable change a human accepts
+ * ([ADR-0005](../../../../docs/adr/0005-copilot-authority-model.md) §5) — its
+ * handler writes nothing, returning the change for its consumer to record.
+ * `apply` writes directly and is off unless a workspace policy enables it (§6).
+ *
+ * Two vocabularies rather than one because they answer different questions.
+ * `readOnly` tells an MCP client what is safe to auto-approve; `effect` tells
+ * the *server* whether a handler's return value is a change or a result. A
+ * `propose` tool is not read-only in the MCP sense (it is part of a write
+ * flow), and a direct-write tool is not `propose` however destructive it is.
+ */
+export type ToolEffect = 'read' | 'propose' | 'apply';
+
+/**
+ * Which consumer of the registry a tool is offered to.
+ *
+ * Sharing the registry does **not** mean every tool suits every caller. The
+ * MCP content tools read through the public API's published-only services and
+ * attribute writes to a token; the copilot's read the admin's services (a
+ * viewer must see drafts) and write through propose-then-apply with the human
+ * as actor. Both are correct for their caller and wrong for the other, so the
+ * tool declares who it is for rather than a filter elsewhere guessing.
+ *
+ * Omitted means **both** — the honest default for a tool with no such tension
+ * (locales, media search), and the one that makes adding a genuinely shared
+ * tool the path of least resistance.
+ */
+export type ToolSurface = 'mcp' | 'copilot';
 
 /**
  * What a tool returns. A plain JSON-serializable value — the transport decides
@@ -109,6 +152,17 @@ export interface ToolDefinition {
      * `readOnlyHint`, which clients use to decide what to auto-approve.
      */
     readOnly: boolean;
+    /**
+     * What running this does to the system. Defaults to `read` when omitted,
+     * which is what every tool written before the copilot joined the registry
+     * meant — but say it explicitly on anything that writes.
+     */
+    effect?: ToolEffect;
+    /**
+     * Which consumers may be offered this tool. Omitted means both; see
+     * {@link ToolSurface} for why a tool would ever narrow it.
+     */
+    surfaces?: readonly ToolSurface[];
     /**
      * True when the tool can destroy data an actor would not get back.
      * Surfaces as MCP's `destructiveHint`.

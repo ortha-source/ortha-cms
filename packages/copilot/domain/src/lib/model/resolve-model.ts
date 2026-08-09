@@ -19,7 +19,7 @@ export function resolveModel(
 ): string {
     if (available.length === 0) {
         throw new Error(
-            'This copilot provider declares no models. Configure at least one.'
+            'This model provider declares no models. Configure at least one.'
         );
     }
     if (requested === undefined) {

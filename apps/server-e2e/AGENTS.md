@@ -23,7 +23,18 @@ running Docker daemon for testcontainers).
    `listen()`. `app.init()` still runs the `OnApplicationBootstrap` seeders
    (system roles). Suites drive `harness.server` (`getHttpServer()`) with
    supertest. `closeTestApp` closes the app and the per-file DB pool.
-3. **`src/support/seed.ts`** — `seedUser` / `seedActiveUser` insert through the
+3. **`src/support/copilot.ts`** — the copilot harness. `scriptCopilot(...turns)`
+   scripts the fake model for one test; `copilotCalls()` returns every
+   `ModelRequest` served, which is the assertion target for the negative path
+   ADR-0005 makes mandatory (*a viewer's run must be verified not to be offered
+   write tools* — an assertion about `calls[0].tools`, made without a model).
+   The object registered with `CopilotPlugin` is a **stable delegating facade**,
+   because the plugin list is built once per spec file while each test needs its
+   own script, and `createFakeProvider` takes its script at construction.
+   `src/support/copilot-fixture-tools.ts` supplies propose/apply tools that
+   phase 1 otherwise has none of — without them "a viewer is offered no write
+   tools" would pass vacuously.
+4. **`src/support/seed.ts`** — `seedUser` / `seedActiveUser` insert through the
    app's **real `HashingService`** (pulled from DI), so seeded credentials match
    what login verifies. `resetDb()` truncates the mutable tables, leaving the
    seeded system roles. Plus `expireUserSessions` / `revokeUserSessions` /
@@ -48,7 +59,9 @@ running Docker daemon for testcontainers).
   `ortha_session=...` pair explicitly via `.set('Cookie', …)`.
 - `src/support/**` is exempt from `@nx/enforce-module-boundaries` (it
   deliberately imports the host app and a plugin internal); **specs are not** —
-  keep cross-project imports in the support harness.
+  keep cross-project imports in the support harness. (This is why the copilot
+  suite reaches DI through `registerCopilotTools` / `copilotToolCallRows`
+  helpers rather than importing `@ortha-cms/copilot-server` directly.)
 
 ## Gotchas
 

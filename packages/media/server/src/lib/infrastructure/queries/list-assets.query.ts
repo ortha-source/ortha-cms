@@ -21,8 +21,17 @@ type MediaKindColumn = (typeof mediaKind.enumValues)[number];
 /** Parameters for a paginated asset listing. */
 export interface ListAssetsParams {
     workspaceId: string;
-    /** Folder to list, or `null` for the workspace root. */
-    folderId: string | null;
+    /**
+     * Folder to list, `null` for the workspace root, or **omitted to search
+     * every folder** in the workspace.
+     *
+     * The three-way distinction exists because the two callers want different
+     * things and neither can express the other's: the admin's library browses
+     * one folder at a time (root is a folder, so `null` has to mean root), while
+     * a copilot asked "do we have a logo?" has no idea which folder it is in and
+     * would find nothing under either spelling.
+     */
+    folderId?: string | null;
     search?: string;
     kind?: string;
     sort?: string;
@@ -43,11 +52,17 @@ export class ListAssetsQuery {
     /** Runs the listing. */
     async execute(params: ListAssetsParams): Promise<AssetListView> {
         const conditions: SQL[] = [
-            eq(mediaAsset.workspaceId, params.workspaceId),
-            params.folderId
-                ? eq(mediaAsset.folderId, params.folderId)
-                : isNull(mediaAsset.folderId)
+            eq(mediaAsset.workspaceId, params.workspaceId)
         ];
+        // `undefined` spans every folder; `null` is the root folder. Tested
+        // with `in`, not truthiness, so the two stay distinguishable.
+        if ('folderId' in params) {
+            conditions.push(
+                params.folderId
+                    ? eq(mediaAsset.folderId, params.folderId)
+                    : isNull(mediaAsset.folderId)
+            );
+        }
         if (params.kind && params.kind !== 'all') {
             conditions.push(eq(mediaAsset.kind, params.kind as MediaKindColumn));
         }

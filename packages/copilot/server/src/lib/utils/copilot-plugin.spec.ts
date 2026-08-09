@@ -51,8 +51,16 @@ describe('CopilotPlugin config validation', () => {
         expect(plugin.copilotConfig).toBe(pluginConfig);
     });
 
-    it('ships no migrations — phase 0 owns no tables', () => {
-        expect(CopilotPlugin(options()).migrations).toBeUndefined();
+    // Phase 1 gave the plugin its own tables (conversations, messages, tool
+    // calls), so it now ships migrations under its own tracking table — the
+    // host applies them alongside every other plugin's.
+    it('ships its migrations under its own tracking table', () => {
+        const { migrations } = CopilotPlugin(options());
+
+        expect(migrations?.table).toBe('__drizzle_migrations_copilot');
+        // The dir is a thunk so the path resolves only at migrate time.
+        expect(typeof migrations?.dir).toBe('function');
+        expect(migrations?.dir()).toMatch(/migrations$/);
     });
 
     it('accepts a valid wiring', () => {

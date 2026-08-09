@@ -9,7 +9,7 @@ serves over REST, not a second API.
 Owns no schema, ships no migrations, and adds no credential. A token minted
 before this package existed works against it unchanged.
 
-> Decisions recorded in [ADR-0007](../../../docs/adr/0007-graphql-as-a-protocol-adapter.md);
+> Decisions recorded in [ADR-0008](../../../docs/adr/0008-graphql-as-a-protocol-adapter.md);
 > the original design write-up is [`docs/design/graphql-api.md`](../../../docs/design/graphql-api.md).
 
 ## The one rule

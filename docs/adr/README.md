@@ -30,6 +30,7 @@ routine, easily-reversed changes.
 - [0004 — Model-agnostic copilot provider](0004-model-agnostic-copilot-provider.md)
 - [0005 — The copilot acts as its user, never as itself](0005-copilot-authority-model.md)
 - [0006 — The CMS is an MCP server, over one shared tool registry](0006-cms-as-an-mcp-server.md)
-- [0007 — GraphQL is a protocol adapter over the public content API](0007-graphql-as-a-protocol-adapter.md)
+- [0007 — One tool registry, two surfaces](0007-one-tool-registry-two-surfaces.md)
+- [0008 — GraphQL is a protocol adapter over the public content API](0008-graphql-as-a-protocol-adapter.md)
 
 <!-- Add new ADRs to this index. -->

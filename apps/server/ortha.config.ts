@@ -198,6 +198,20 @@ const config: OrthaConfig = {
             defaultProvider: process.env['COPILOT_PROVIDER'] ?? 'fake',
             maxOutputTokens:
                 Number(process.env['COPILOT_MAX_OUTPUT_TOKENS']) || 8_192,
+            // Run ceilings. Only `maxSteps` is env-exposed, because it is the
+            // one an operator actually reaches for: a smaller local model often
+            // needs more tool round trips than a frontier one to answer the
+            // same question, and a run that ends on "reached the maximum number
+            // of steps" is usually asking for a higher number here. Raising it
+            // costs tokens rather than safety — every step is still authorized,
+            // audited, and bounded by the wall-clock and token ceilings.
+            ...(Number(process.env['COPILOT_MAX_STEPS'])
+                ? {
+                      limits: {
+                          maxSteps: Number(process.env['COPILOT_MAX_STEPS'])
+                      }
+                  }
+                : {}),
             providers: {
                 claude: {
                     apiKey: process.env['ANTHROPIC_API_KEY'] ?? '',

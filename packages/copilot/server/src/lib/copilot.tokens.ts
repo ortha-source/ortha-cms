@@ -17,3 +17,14 @@ export const COPILOT_CONFIG = Symbol('COPILOT_CONFIG');
 /** Parameter decorator that injects the copilot configuration. */
 export const InjectCopilotConfig = (): ParameterDecorator =>
     Inject(COPILOT_CONFIG);
+
+/**
+ * Optional override for the run engine's ceilings (`RunLimits`). Unbound, the
+ * engine uses `DEFAULT_RUN_LIMITS`.
+ *
+ * A token rather than a defaulted constructor parameter: Nest resolves every
+ * constructor argument positionally and does **not** honour a TypeScript
+ * default, so `limits: RunLimits = DEFAULT_RUN_LIMITS` fails boot with an
+ * unresolvable dependency at that index rather than quietly using the default.
+ */
+export const COPILOT_RUN_LIMITS = Symbol('COPILOT_RUN_LIMITS');

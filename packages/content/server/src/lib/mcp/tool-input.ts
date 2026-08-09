@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { validate } from 'class-validator';
-import type { ToolContext } from '@ortha-cms/mcp-server';
+import type { ToolContext } from '@ortha-cms/tools-server';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
 import type { EntryLocator } from '../public-api/infrastructure/public-entries.query';
 import { ENTRY_VISIBILITY } from '../public-api/http/dto/public-list-entries-query.dto';

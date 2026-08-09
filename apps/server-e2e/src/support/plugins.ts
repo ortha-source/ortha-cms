@@ -3,6 +3,7 @@ import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
 import { ContentGraphqlPlugin } from '@ortha-cms/content-graphql';
+import { CopilotPlugin } from '@ortha-cms/copilot-server';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
@@ -12,6 +13,7 @@ import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
+import { fakeProvider } from './copilot';
 import { createInMemoryStorageProvider } from './media-storage';
 
 /**
@@ -68,9 +70,17 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),
-        // MCP — registered last, as in the host. Enabled here regardless of
-        // the `MCP_ENABLED` default so the endpoint is testable; the disabled
-        // path is covered by a per-suite config override.
+        // Copilot before MCP: runs are workspace-scoped and execute as the
+        // calling user, so it must register after workspaces and identity. Its
+        // only provider is the scripted fake — no key, no network, and the
+        // whole tool loop still exercised.
+        CopilotPlugin({
+            providers: [{ name: 'fake', provider: fakeProvider }],
+            config: config.plugins.copilot
+        }),
+        // MCP last, as in the host. Enabled here regardless of the
+        // `MCP_ENABLED` default so the endpoint is testable; the disabled path
+        // is covered by a per-suite config override.
         McpPlugin({ config: config.plugins.mcp })
     ];
 }

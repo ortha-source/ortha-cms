@@ -4,88 +4,85 @@
     "files": [],
     "references": [
         {
-            "path": "./apps/admin-e2e"
-        },
-        {
             "path": "./apps/admin"
         },
         {
-            "path": "./apps/server-e2e"
+            "path": "./apps/admin-e2e"
         },
         {
             "path": "./apps/server"
         },
         {
-            "path": "./packages/design-system"
-        },
-        {
-            "path": "./packages/bootstrap/server"
-        },
-        {
-            "path": "./packages/bootstrap/admin"
-        },
-        {
-            "path": "./packages/database"
-        },
-        {
-            "path": "./packages/identity/server"
-        },
-        {
-            "path": "./packages/nx"
-        },
-        {
-            "path": "./packages/identity/admin"
-        },
-        {
-            "path": "./packages/utils/admin"
-        },
-        {
-            "path": "./packages/shell/admin"
-        },
-        {
-            "path": "./packages/workspaces/admin"
-        },
-        {
-            "path": "./packages/users/server"
-        },
-        {
-            "path": "./packages/users/admin"
-        },
-        {
-            "path": "./packages/activity/server"
+            "path": "./apps/server-e2e"
         },
         {
             "path": "./packages/activity/admin"
         },
         {
-            "path": "./packages/utils/server"
+            "path": "./packages/activity/server"
         },
         {
-            "path": "./packages/query-builder/admin"
+            "path": "./packages/api-tokens/admin"
         },
         {
-            "path": "./packages/content/server"
+            "path": "./packages/bootstrap/admin"
         },
         {
-            "path": "./packages/insights/admin"
+            "path": "./packages/bootstrap/server"
         },
         {
             "path": "./packages/content/admin"
         },
         {
-            "path": "./packages/media/admin"
+            "path": "./packages/content/domain"
         },
         {
-            "path": "./packages/i18n/server"
+            "path": "./packages/content/server"
+        },
+        {
+            "path": "./packages/copilot/admin"
+        },
+        {
+            "path": "./packages/copilot/domain"
+        },
+        {
+            "path": "./packages/copilot/provider-anthropic"
+        },
+        {
+            "path": "./packages/copilot/provider-fake"
+        },
+        {
+            "path": "./packages/copilot/provider-openai"
+        },
+        {
+            "path": "./packages/copilot/server"
+        },
+        {
+            "path": "./packages/database"
+        },
+        {
+            "path": "./packages/design-system"
         },
         {
             "path": "./packages/i18n/admin"
         },
         {
-            "path": "./packages/workspaces/server"
+            "path": "./packages/i18n/server"
         },
         {
-            "path": "./packages/content/domain"
+            "path": "./packages/identity/admin"
+        },
+        {
+            "path": "./packages/identity/server"
+        },
+        {
+            "path": "./packages/insights/admin"
+        },
+        {
+            "path": "./packages/mcp/server"
+        },
+        {
+            "path": "./packages/media/admin"
         },
         {
             "path": "./packages/media/provider-local"
@@ -97,34 +94,40 @@
             "path": "./packages/media/server"
         },
         {
-            "path": "./packages/api-tokens/admin"
+            "path": "./packages/nx"
+        },
+        {
+            "path": "./packages/query-builder/admin"
+        },
+        {
+            "path": "./packages/shell/admin"
+        },
+        {
+            "path": "./packages/tools/server"
+        },
+        {
+            "path": "./packages/users/admin"
+        },
+        {
+            "path": "./packages/users/server"
+        },
+        {
+            "path": "./packages/utils/admin"
+        },
+        {
+            "path": "./packages/utils/server"
+        },
+        {
+            "path": "./packages/workspaces/admin"
+        },
+        {
+            "path": "./packages/workspaces/server"
         },
         {
             "path": "./packages/wysiwyg/admin"
         },
         {
-            "path": "./packages/copilot/provider-anthropic"
-        },
-        {
-            "path": "./packages/copilot/provider-fake"
-        },
-        {
-            "path": "./packages/copilot/domain"
-        },
-        {
-            "path": "./packages/copilot/server"
-        },
-        {
-            "path": "./packages/copilot/admin"
-        },
-        {
-            "path": "./packages/copilot/provider-openai"
-        },
-        {
             "path": "./packages/content/graphql"
-        },
-        {
-            "path": "./packages/mcp/server"
         }
     ]
 }

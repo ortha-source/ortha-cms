@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import type { ModelResolver } from '@ortha-cms/copilot-domain';
 import { CopilotModule } from '../copilot.module';
@@ -76,10 +77,9 @@ function assertOptions(options: CopilotPluginOptions): void {
  * plugin never imports a vendor SDK, and never learns which adapters exist
  * ([ADR-0004](../../../../../docs/adr/0004-model-agnostic-copilot-provider.md) §1).
  *
- * **Phase 0 ships nothing visible.** It binds the model seam, the config and
- * the permission surface, so the chat vertical slice has something to build
- * on. It owns no tables, so it declares no migrations; adding them later is a
- * `drizzle.config.ts` plus a `migrations` descriptor, exactly as media does.
+ * **Phase 1 ships the chat vertical slice**: the SSE run route, the bounded run
+ * engine, the capability profile, and the transcript tables this plugin now
+ * owns and migrates.
  *
  * @example
  * ```typescript
@@ -100,6 +100,12 @@ export function CopilotPlugin(
     return {
         name: 'copilot',
         module: CopilotModule.forRoot(options),
-        copilotConfig: options.config
+        copilotConfig: options.config,
+        migrations: {
+            // Lazy — only called at migrate time. Source layout: src/lib/utils
+            // → ../../../migrations = <pkg>/migrations.
+            dir: () => join(__dirname, '../../../migrations'),
+            table: '__drizzle_migrations_copilot'
+        }
     };
 }

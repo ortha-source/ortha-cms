@@ -12,6 +12,8 @@ import { SetMemberStatusUseCase } from './member/application/use-cases/set-membe
 import { ResendInviteUseCase } from './member/application/use-cases/resend-invite.use-case';
 import { RevokeInviteUseCase } from './member/application/use-cases/revoke-invite.use-case';
 import { MemberViewQuery } from './member/infrastructure/queries/member-view.query';
+import { WorkspaceMembersQuery } from './member/infrastructure/queries/workspace-members.query';
+import { WorkspaceCopilotToolProvider } from './copilot/workspace-tool.provider';
 import { MEMBER_REPOSITORY } from './member/domain/member.repository';
 import { SESSION_REVOKER } from './member/application/ports/session-revoker.port';
 import { WORKSPACE_LINKER } from './member/application/ports/workspace-linker.port';
@@ -63,6 +65,11 @@ export class UsersModule {
                 RevokeInviteUseCase,
                 // Read model — thin CQRS query service (bypasses the aggregate).
                 MemberViewQuery,
+                WorkspaceMembersQuery,
+                // The copilot's workspace-scoped member list. Both no-op when
+                // no copilot plugin is registered — the registrar injects the
+                // registry optionally.
+                WorkspaceCopilotToolProvider,
                 // Infrastructure — port adapters + persistence.
                 { provide: MEMBER_REPOSITORY, useClass: DrizzleMemberRepository },
                 { provide: SESSION_REVOKER, useClass: DrizzleSessionRevoker },

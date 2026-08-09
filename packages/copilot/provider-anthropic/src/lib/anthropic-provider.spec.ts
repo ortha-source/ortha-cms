@@ -181,7 +181,7 @@ describe('createAnthropicProvider', () => {
                             {
                                 type: 'tool_use',
                                 id: 'toolu_1',
-                                name: 'content.searchEntries',
+                                name: 'admin_content_search',
                                 input: { q: 'launch' }
                             }
                         ]
@@ -197,7 +197,7 @@ describe('createAnthropicProvider', () => {
                 {
                     type: 'tool-call',
                     id: 'toolu_1',
-                    name: 'content.searchEntries',
+                    name: 'admin_content_search',
                     input: { q: 'launch' }
                 },
                 {

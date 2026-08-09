@@ -11,7 +11,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Public } from '@ortha-cms/identity-server';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ToolRegistry } from '../application/tool-registry';
+import { ToolRegistry } from '@ortha-cms/tools-server';
 import { MCP_CONFIG } from '../mcp.tokens';
 import { buildMcpServer } from '../protocol/build-mcp-server';
 import type { McpPluginConfig } from '../types/mcp-config';

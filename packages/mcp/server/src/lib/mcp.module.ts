@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ToolRegistry } from './application/tool-registry';
+import { ToolRegistry, ToolsModule } from '@ortha-cms/tools-server';
 import { McpAuthService } from './http/mcp-auth.service';
 import { McpController } from './http/mcp.controller';
 import { MCP_CONFIG } from './mcp.tokens';
@@ -10,7 +10,7 @@ import type { McpPluginConfig } from './types/mcp-config';
  * plugin module here, so a capability plugin can inject {@link ToolRegistry}
  * and contribute tools without an explicit import.
  *
- * **The registry is bound even when the endpoint is disabled**, and the
+ * **The registry is available even when the endpoint is disabled**, and the
  * controller is the only thing the kill switch removes. Two reasons: the
  * copilot's in-process tool loop consumes the same registry and has nothing to
  * do with whether an *external* endpoint is exposed, and a contributing plugin
@@ -24,13 +24,16 @@ export class McpModule {
         return {
             module: McpModule,
             global: true,
+            // The registry is *imported*, not provided: it is shared with the
+            // copilot, and whichever consumer a deployment runs must see the
+            // same instance.
+            imports: [ToolsModule],
             controllers: config.enabled ? [McpController] : [],
             providers: [
                 { provide: MCP_CONFIG, useValue: config },
-                ToolRegistry,
                 McpAuthService
             ],
-            exports: [MCP_CONFIG, ToolRegistry]
+            exports: [MCP_CONFIG, ToolsModule]
         };
     }
 }

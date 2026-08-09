@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786102471523,
+      "tag": "0000_copilot_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786205519325,
+      "tag": "0001_proposals",
+      "breakpoints": true
+    }
+  ]
+}

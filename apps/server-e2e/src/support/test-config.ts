@@ -99,6 +99,23 @@ export function buildTestConfig(
                     { slug: 'fr', name: 'Français' }
                 ]
             },
+            // The copilot boots ENABLED in tests. Production defaults it off
+            // (ADR-0005 §10) because enabling a hosted provider ships content
+            // to a third party — but the e2e run's only provider is the
+            // scripted fake, which makes no network call, so there is nothing
+            // to opt into and everything to cover.
+            copilot: {
+                enabled: true,
+                defaultProvider: 'fake',
+                maxOutputTokens: 1024,
+                providers: {
+                    claude: { apiKey: '', models: ['unused'] },
+                    ollama: {
+                        baseUrl: 'http://localhost:1',
+                        models: ['unused']
+                    }
+                }
+            },
             // The media plugin registers an in-memory `memory` provider in
             // `buildTestPlugins`, so uploads never touch disk. `defaultProvider`
             // names it; local/s3 settings are unused in tests.
@@ -110,20 +127,6 @@ export function buildTestConfig(
                 },
                 s3: { bucket: '', region: '' },
                 maxUploadBytes: 52_428_800
-            },
-            // `buildTestPlugins` registers no copilot plugin, so this exists
-            // only to satisfy the `OrthaConfig` contract — same reason as
-            // `docs` above. Disabled and pointed at no real backend: a suite
-            // must never reach a model provider, and empty credentials make
-            // that a connection error rather than a silent live call.
-            copilot: {
-                enabled: false,
-                defaultProvider: 'fake',
-                maxOutputTokens: 1024,
-                providers: {
-                    claude: { apiKey: '', models: [] },
-                    ollama: { baseUrl: '', models: [] }
-                }
             },
             // The GraphQL endpoint's cost budget. Left at the shipped defaults
             // so the limit suite asserts the real numbers rather than

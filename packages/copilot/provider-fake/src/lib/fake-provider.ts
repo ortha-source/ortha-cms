@@ -30,7 +30,7 @@ import { estimateUsage } from './usage';
  * ```typescript
  * const provider = createFakeProvider({
  *     script: [
- *         { toolCalls: [{ name: 'content.searchEntries', input: { q: 'launch' } }] },
+ *         { toolCalls: [{ name: 'admin_content_search', input: { q: 'launch' } }] },
  *         { text: 'I found 3 matching articles.' }
  *     ]
  * });
