@@ -49,6 +49,7 @@ import { PublicEntriesQuery } from './public-api/infrastructure/public-entries.q
 import { PublicEntryWritesService } from './public-api/infrastructure/public-entry-writes.service';
 import { DraftVisibilityGuard } from './public-api/http/guards/draft-visibility.guard';
 import { PublicExpansionQuery } from './public-api/infrastructure/public-expansion.query';
+import { ContentToolProvider } from './mcp/content-tools.provider';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -172,6 +173,12 @@ export class ContentModule {
                 PublicEntryWritesService,
                 // Batched relation + media expansion for the public reads.
                 PublicExpansionQuery,
+                // The agent-facing tools — the same CRUD as the public API,
+                // over the same services, for the MCP endpoint and (once its
+                // run engine lands) the copilot. Registers itself with
+                // `@ortha-cms/mcp-server`'s registry when that plugin is
+                // installed, and is inert when it isn't.
+                ContentToolProvider,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
                 // bound (nothing would stamp the NOT NULL locale column).
                 EntryExtensionBootCheck,
