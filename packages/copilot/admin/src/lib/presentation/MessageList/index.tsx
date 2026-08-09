@@ -182,11 +182,19 @@ function Turn({
                 </div>
             )}
 
-            {turn.streaming && !turn.text && turn.steps.length === 0 && (
-                <p className="text-muted-foreground animate-pulse text-sm">
-                    {intl.formatMessage(messages.thinking)}
-                </p>
-            )}
+            {/* Also **between** tool calls, not only before the first one.
+                The old condition bailed as soon as a step existed, so a turn
+                that searched and then thought for three seconds showed a
+                finished step and nothing else — the answer looked stuck. A
+                running step has its own spinner, so this stands down for it
+                rather than doubling up. */}
+            {turn.streaming &&
+                !turn.text &&
+                !turn.steps.some((step) => step.status === 'running') && (
+                    <p className="text-muted-foreground animate-pulse text-sm">
+                        {intl.formatMessage(messages.thinking)}
+                    </p>
+                )}
 
             {/* A real Alert, not a line of red text: a failed turn is the one
                 thing in the transcript a user must not scroll past, and the

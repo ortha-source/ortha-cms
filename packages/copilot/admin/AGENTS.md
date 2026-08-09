@@ -47,7 +47,9 @@ presentation/
   CopilotSession/          # one always-mounted chat; owns useCopilotChat
   CopilotPanel/            # the window a visible chat renders in
   PanelResizeHandles/      # the eight grab strips
-  MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
+  MessageList/             # the transcript
+  ToolStep/                # one call, as a sentence; `labels.ts` holds both tenses
+  Composer/  ModelPicker/  ConversationPicker/
   ContextChip/             # what context is attached to the next turn
   PermissionPrompt/        # "may I?" — the inline gate before a write runs
   ProposalCard/            # the receipt for a change, and its diff
@@ -74,20 +76,22 @@ presentation/
   dozens of times per answer and must append to the _current_ last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
-- **The dock replaced the floating button.** A round button could only ever
-  mean "the panel", singular. With no chats open the dock _is_ a labelled Ortha
-  AI button in the same corner; as soon as there are chats it becomes the bar
-  listing them. One control that grows into the thing it opens beats a button
-  plus a separate list that mean roughly the same. The sidebar-footer row stays,
-  because it carries the `⌘J` hint and is where the shortcut is discoverable.
+- **The dock is the only entry point.** It replaced the floating button, and
+  then the sidebar row went too. A round button could only ever mean "the
+  panel", singular; a sidebar row duplicated what the dock already says while
+  spending a permanent navigation slot on it. With no chats open the dock _is_ a
+  labelled Ortha AI button in the corner — carrying the `⌘J` hint, which is
+  where the shortcut is now discoverable — and as soon as there are chats it
+  becomes the bar listing them.
 - **The window is non-modal, not a `Sheet`.** A modal drawer
   dims the page, traps focus and blocks every control behind it — but the useful
   thing to do with an answer is act on it, which would mean closing the
   conversation first. Consequences, all deliberate: no focus trap (Tab leaves
   the panel, because the page is live), no overlay, focus still _managed_
-  (composer on open, `returnFocusRef` on close), Escape closes. Minimizing hides
-  the body but keeps it **mounted**, so a run in flight keeps streaming rather
-  than being silently cancelled.
+  (composer on open, the dock's new-chat button when a window closes).
+  **Escape collapses to the dock rather than closing** — discarding a chat and
+  cancelling its run is too much to hang off the key people press to dismiss
+  things, and the chat keeps streaming as a pill.
 - **Markdown is rendered by a small local component**, not a dependency. It
   covers what an assistant actually emits — including **pipe tables**, which was
   the first gap real use hit and hit hard: without them a content-type table
@@ -174,6 +178,37 @@ the change is about.
   marker missed the ordinary case of parking while visible and being collapsed
   afterwards. That miss was hidden behind an infinite render loop; both are
   fixed by the same change.
+
+## The step list reads as a log
+
+`ToolStep` shows a **phrase in two tenses** — "Searching content…" while it
+runs, "Searched content · 12 results" once it has — from `ToolStep/labels.ts`,
+keyed by tool name.
+
+It used to show the raw `admin_content_search` beside a separate "Running…".
+That is a pending state that technically existed and told nobody anything: a
+tool that takes 20ms flashes past, so what a user saw was a list of snake_case
+function names appearing already-finished. Two tenses rather than one string
+with a spinner is the point — "is happening" and "happened" are different
+sentences, and a run that made six calls should read back as six of them.
+
+- **The identifier is still there, one click away**, as a payload row in the
+  expanded panel: someone debugging wants it and nobody else has to read it.
+- **An unknown tool degrades, it does not blank.** `humanizeToolName` turns
+  `mcp.acme.fetch_orders` into "Fetch orders" — the connector namespace is
+  plumbing this CMS imposes (ADR-0005 §8), not part of the tool's own name. It
+  is deliberately **not** translated: there is no message to translate for an
+  identifier a third party chose, and minting an id per unknown tool would put
+  untranslated English in the catalogue under a key nothing resolves.
+- **"Thinking…" also shows between steps**, not only before the first one. The
+  old condition bailed as soon as a step existed, so a turn that searched and
+  then thought for three seconds showed a finished step and nothing else — the
+  answer looked stuck. It stands down while a step is running, since the step
+  has its own spinner.
+- **A failed apply now draws as a failed step.** The `tool-result` event carried
+  `ok: true` with `summary: 'failed'` — a green tick beside the word "failed".
+  The block the _model_ gets stays a normal result whose text says NOT applied,
+  because that is a receipt to report rather than an error to recover from.
 
 ## Changes the copilot makes
 

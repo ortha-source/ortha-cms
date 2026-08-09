@@ -861,7 +861,13 @@ export class RunEngine {
                     type: 'tool-result',
                     id: call.id,
                     name: call.name,
-                    ok: true,
+                    // The **UI** event, not the model's block: a write that did
+                    // not land is a failed step and must draw as one. It read
+                    // `ok: true` with `summary: 'failed'` — a green tick beside
+                    // the word "failed". The block the model gets stays a
+                    // normal result whose text says NOT applied, because that
+                    // is a receipt to report, not an error to recover from.
+                    ok: !applyError,
                     durationMs,
                     summary,
                     output: {
