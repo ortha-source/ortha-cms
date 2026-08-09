@@ -5,6 +5,7 @@ import { ContentPlugin } from '@ortha-cms/content-server';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
+import { McpPlugin } from '@ortha-cms/mcp-server';
 import { MediaServerPlugin } from '@ortha-cms/media-server';
 import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
@@ -53,6 +54,10 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
             providers: { memory: createInMemoryStorageProvider() },
             config: config.plugins.media
         }),
-        I18nServerPlugin(config.plugins.i18n)
+        I18nServerPlugin(config.plugins.i18n),
+        // MCP — registered last, as in the host. Enabled here regardless of
+        // the `MCP_ENABLED` default so the endpoint is testable; the disabled
+        // path is covered by a per-suite config override.
+        McpPlugin({ config: config.plugins.mcp })
     ];
 }

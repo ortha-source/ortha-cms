@@ -13,6 +13,7 @@ import type { AnthropicProviderConfig } from '@ortha-cms/copilot-provider-anthro
 import type { OpenAiProviderConfig } from '@ortha-cms/copilot-provider-openai';
 import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
 import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
+import type { McpPluginConfig } from '@ortha-cms/mcp-server';
 import type { MediaPluginConfig } from '@ortha-cms/media-server';
 
 /**
@@ -65,6 +66,8 @@ export interface OrthaConfig {
         media: MediaPluginConfig;
         /** Copilot plugin settings — kill switch + model providers. */
         copilot: OrthaCopilotConfig;
+        /** MCP plugin settings — kill switch + the identity clients see. */
+        mcp: McpPluginConfig;
     };
 }
 
@@ -203,6 +206,19 @@ const config: OrthaConfig = {
                     apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? ''
                 }
             }
+        },
+        mcp: {
+            // Off by default, like the copilot's kill switch and for the same
+            // reason: enabling it lets any holder of a `full`-scope API token
+            // drive content CRUD from an external agent. That is a decision an
+            // operator makes deliberately, not one they inherit from an
+            // upgrade. Tokens, scopes, and workspace buckets are unchanged —
+            // this only controls whether the MCP front door is mounted.
+            enabled: process.env['MCP_ENABLED'] === 'true',
+            // Stable product configuration, so literals: this is the identity
+            // MCP clients display in their connector lists.
+            name: 'ortha-cms',
+            version: '1.0.0'
         }
     }
 };
