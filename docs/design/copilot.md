@@ -136,7 +136,7 @@ inversion as `CONTENT_ENTRY_EXTENSION`:
 ```ts
 /** One capability the copilot may invoke on the user's behalf. */
 export interface ToolSpec<I = unknown, O = unknown> {
-    name: string; // 'content.searchEntries'
+    name: string; // 'admin_content_search'
     description: string; // shown to the model
     inputSchema: JsonSchema; // generated from the content registry
     permissions: PermissionKey[]; // ALL must be held by the caller
@@ -176,7 +176,7 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
 4. **Assemble context** — system prompt + content-type _summaries_ for this
    workspace + surface context + trimmed history, fitted to the provider's
    context window. Full field schema is fetched on demand via
-   `content.listTypes`, not inlined. Content bodies arrive only through tool
+   `admin_content_types`, not inlined. Content bodies arrive only through tool
    results, fenced as untrusted data.
 5. **Model call**, streamed through the provider chosen by `resolve(ctx)`. Text
    deltas forward immediately; tool-use blocks are collected. Without native
@@ -199,21 +199,21 @@ directly and is off unless workspace policy enables it (ADR-0005 §6).
 
 | Tool                      | Bound by  | Requires           | Effect          |
 | ------------------------- | --------- | ------------------ | --------------- |
-| `content.listTypes`       | content   | `content:read`     | read            |
-| `content.searchEntries`   | content   | `content:read`     | read            |
-| `content.getEntry`        | content   | `content:read`     | read            |
-| `content.listRevisions`   | content   | `content:read`     | read            |
-| `content.diffRevisions`   | content   | `content:read`     | read            |
+| `admin_content_types`       | content   | `content:read`     | read            |
+| `admin_content_search`   | content   | `content:read`     | read            |
+| `admin_content_get`        | content   | `content:read`     | read            |
+| `admin_content_revisions`   | content   | `content:read`     | read            |
+| `admin_content_diff`   | content   | `content:read`     | read            |
 | `content.exportEntries`   | content   | `content:read`     | read            |
-| `i18n.listLocales`        | i18n      | `content:read`     | read            |
-| `i18n.getTranslations`    | i18n      | `content:read`     | read            |
-| `content.proposeEntry`    | content   | `content:create`   | propose         |
-| `content.proposeEdit`     | content   | `content:update`   | propose         |
-| `i18n.proposeTranslation` | i18n      | `content:update`   | propose         |
-| `media.searchAssets`      | media     | `media:read`       | read            |
-| `media.proposeAltText`    | media     | `media:update`     | propose         |
-| `activity.recent`         | activity  | `activity:read`    | read            |
-| `workspace.members`       | users     | `users:read`       | read            |
+| `i18n_locales_list`        | i18n      | `content:read`     | read            |
+| `i18n_translations_get`    | i18n      | `content:read`     | read            |
+| `content_propose_create`    | content   | `content:create`   | propose         |
+| `content_propose_update`     | content   | `content:update`   | propose         |
+| `i18n_propose_translation` | i18n      | `content:update`   | propose         |
+| `media_assets_search`      | media     | `media:read`       | read            |
+| `media_propose_alt_text`    | media     | `media:update`     | propose         |
+| `activity_recent`         | activity  | `activity:read`    | read            |
+| `workspace_members_list`       | users     | `users:read`       | read            |
 | `mcp.<connector>.*`       | connector | as mapped by admin | read by default |
 
 Because the profile is derived from `SYSTEM_ROLES`, the practical effect is:
@@ -229,16 +229,16 @@ Because the profile is derived from `SYSTEM_ROLES`, the practical effect is:
 | Read the activity log          |   —    |      —      |  ✔   |
 | Configure models & connectors  |   —    |      —      |  ✔   |
 
-**Two tools the first draft of this table didn't have.** `content.listRevisions`
-is what makes `content.diffRevisions` reachable — a diff needs two version
-numbers, and nothing else tells the model which exist. `i18n.listLocales` is
-what makes `content.searchEntries`'s `locale` usable: locale slugs are
+**Two tools the first draft of this table didn't have.** `admin_content_revisions`
+is what makes `admin_content_diff` reachable — a diff needs two version
+numbers, and nothing else tells the model which exist. `i18n_locales_list` is
+what makes `admin_content_search`'s `locale` usable: locale slugs are
 deployment configuration, so without it the model either omits `locale` and
 silently searches the default language or guesses a slug and gets an error.
-`i18n.getTranslations` follows, since "which article is missing a German
+`i18n_translations_get` follows, since "which article is missing a German
 version?" is the question a localized CMS is actually asked.
 
-**`activity.recent` is deployment-wide, not workspace-scoped.** `activity_events`
+**`activity_recent` is deployment-wide, not workspace-scoped.** `activity_events`
 has no workspace column — the trail records invites, role changes and workspace
 lifecycle alongside content edits, several of which belong to no workspace at
 all. So there is nothing to scope by; what bounds the tool is `activity:read`,
@@ -449,7 +449,7 @@ Settled enough to start phase 0; decide before the phase that needs them.
 
 - **How much schema goes in the system prompt?** A workspace with fifty content
   types would blow the budget if every field were inlined. Current plan: type
-  summaries in the prompt, full schema on demand via `content.listTypes` — one
+  summaries in the prompt, full schema on demand via `admin_content_types` — one
   extra round trip, bounded cost. Revisit with real workspaces.
 - ~~**Does `copilot:use` extend to viewers?**~~ **Decided: yes.** A read-only
   copilot is useful and, by construction, cannot mutate — a viewer's runs are

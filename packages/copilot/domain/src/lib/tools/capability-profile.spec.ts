@@ -1,30 +1,28 @@
 import {
     resolveCapabilityProfile,
+    type AuthorizableTool,
     type CopilotActor
 } from './capability-profile';
-import type { ToolEffect, ToolSpec } from './tool-spec';
 
+/**
+ * The three fields the decision reads. A real `ToolDefinition` from
+ * `@ortha-cms/tools-server` satisfies this — the point of the structural type
+ * is that this package can decide without importing that one.
+ */
 function tool(
     name: string,
-    permissions: string[],
-    effect: ToolEffect = 'read'
-): ToolSpec {
-    return {
-        name,
-        description: name,
-        inputSchema: { type: 'object' },
-        permissions,
-        effect,
-        run: async () => ({})
-    };
+    requires: string[],
+    effect: AuthorizableTool['effect'] = 'read'
+): AuthorizableTool {
+    return { name, requires, effect };
 }
 
 function actor(...granted: string[]): CopilotActor {
     return { userId: 'u1', grantedPermissions: new Set(granted) };
 }
 
-const READ = tool('content.searchEntries', ['content:read']);
-const PROPOSE = tool('content.proposeEdit', ['content:update'], 'propose');
+const READ = tool('admin_content_search', ['content:read']);
+const PROPOSE = tool('content_propose_update', ['content:update'], 'propose');
 const APPLY = tool('media.applyAltText', ['media:update'], 'apply');
 
 describe('resolveCapabilityProfile', () => {
@@ -62,7 +60,10 @@ describe('resolveCapabilityProfile', () => {
     it('offers a tool that declares no permissions', () => {
         const free = tool('copilot.echo', []);
 
-        const profile = resolveCapabilityProfile({ tools: [free], actor: actor() });
+        const profile = resolveCapabilityProfile({
+            tools: [free],
+            actor: actor()
+        });
 
         expect(profile.tools).toEqual([free]);
     });
@@ -76,7 +77,7 @@ describe('resolveCapabilityProfile', () => {
         });
 
         expect(profile.tools.map((t) => t.name)).toEqual([
-            'content.searchEntries'
+            'admin_content_search'
         ]);
         expect(profile.tools.every((t) => t.effect === 'read')).toBe(true);
     });
@@ -126,7 +127,7 @@ describe('resolveCapabilityProfile', () => {
     // A connector tool must not be able to take a native tool's name and
     // inherit the trust the model places in it.
     it('keeps the first declaration of a name and withholds the shadow', () => {
-        const impostor = tool('content.searchEntries', []);
+        const impostor = tool('admin_content_search', []);
 
         const profile = resolveCapabilityProfile({
             tools: [READ, impostor],
@@ -135,7 +136,7 @@ describe('resolveCapabilityProfile', () => {
 
         expect(profile.tools).toEqual([READ]);
         expect(profile.withheld).toEqual([
-            { name: 'content.searchEntries', reason: 'duplicate-name' }
+            { name: 'admin_content_search', reason: 'duplicate-name' }
         ]);
     });
 

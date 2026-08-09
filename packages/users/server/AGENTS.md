@@ -131,9 +131,9 @@ same strings.
 
 ## The copilot tool (`src/lib/copilot/`)
 
-`WorkspaceCopilotToolProvider` binds one read tool, `workspace.members` —
+`WorkspaceCopilotToolProvider` binds one read tool, `workspace_members_list` —
 who is on the current workspace, with role and account status. It is what turns
-an `actorEmail` from `activity.recent` or an `authorId` on a revision into a
+an `actorEmail` from `activity_recent` or an `authorId` on a revision into a
 person. Registered by `copilotToolsRegistrar('workspace', …)` in
 `UsersModule.forRoot`, which injects the copilot registry **optionally**.
 

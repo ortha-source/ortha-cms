@@ -55,7 +55,7 @@ describe('createFakeProvider', () => {
                 {
                     toolCalls: [
                         {
-                            name: 'content.searchEntries',
+                            name: 'admin_content_search',
                             input: { q: 'launch' }
                         }
                     ]
@@ -68,7 +68,7 @@ describe('createFakeProvider', () => {
         expect(turnOne).toContainEqual({
             type: 'tool-call',
             id: 'fake-tool-0-0',
-            name: 'content.searchEntries',
+            name: 'admin_content_search',
             input: { q: 'launch' }
         });
         expect(turnOne.at(-1)).toMatchObject({ stopReason: 'tool_use' });
@@ -94,7 +94,7 @@ describe('createFakeProvider', () => {
                 ...request,
                 tools: [
                     {
-                        name: 'content.searchEntries',
+                        name: 'admin_content_search',
                         description: 'Search entries',
                         inputSchema: { type: 'object' }
                     }
@@ -103,7 +103,7 @@ describe('createFakeProvider', () => {
         );
 
         expect(provider.calls[0].tools?.map((tool) => tool.name)).toEqual([
-            'content.searchEntries'
+            'admin_content_search'
         ]);
     });
 

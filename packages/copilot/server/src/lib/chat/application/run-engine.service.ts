@@ -9,7 +9,6 @@ import {
     isProposalDraft,
     resolveModel,
     validateToolInput,
-    type CapabilityProfile,
     type CopilotRunEvent,
     type ModelContentBlock,
     type ModelMessage,
@@ -21,16 +20,18 @@ import {
     type ProposalDraft,
     type RunLimits,
     type RunStopReason,
-    type ToolContext,
     type ToolResultBlock,
-    type ToolSpec,
     type ToolUseBlock
 } from '@ortha-cms/copilot-domain';
+import { ToolRegistry, type ToolDefinition } from '@ortha-cms/tools-server';
 import { COPILOT_RUN_LIMITS, InjectCopilotConfig } from '../../copilot.tokens';
 import type { CopilotPluginConfig } from '../../types/copilot-config';
 import { ConversationRepository } from '../infrastructure/persistence/conversation.repository';
 import { ProposalRepository } from '../infrastructure/persistence/proposal.repository';
-import { CapabilityProfileService } from './capability-profile.service';
+import {
+    CapabilityProfileService,
+    type RunAuthority
+} from './capability-profile.service';
 import { DecideProposalService } from './decide-proposal.service';
 import { CopilotPolicyService } from './copilot-policy.service';
 import { summarizeToolOutput } from './summarize-tool-output';
@@ -118,6 +119,7 @@ export class RunEngine {
         @Inject(MODEL_RESOLVER) private readonly resolver: ModelResolver,
         @InjectCopilotConfig() private readonly config: CopilotPluginConfig,
         private readonly profiles: CapabilityProfileService,
+        private readonly tools: ToolRegistry,
         private readonly conversations: ConversationRepository,
         private readonly proposals: ProposalRepository,
         private readonly decisions: DecideProposalService,
@@ -173,11 +175,16 @@ export class RunEngine {
             messageId: userMessage.id
         };
 
-        const profile = await this.profiles.resolve(
-            input.userId,
-            input.roleId,
-            input.workspaceId
+        const authority = await this.profiles.resolve(
+            {
+                id: input.userId,
+                email: input.userEmail,
+                roleId: input.roleId
+            },
+            input.workspaceId,
+            input.signal
         );
+        const profile = authority.profile;
 
         // An explicitly requested provider wins over the host's resolver: the
         // resolver expresses a default routing policy, not a veto over what the
@@ -224,7 +231,7 @@ export class RunEngine {
                 input,
                 runId,
                 conversationId: conversation.id,
-                profile,
+                authority,
                 provider: { name: providerName, provider },
                 model,
                 system,
@@ -281,7 +288,7 @@ export class RunEngine {
         input: StartRunInput;
         runId: string;
         conversationId: string;
-        profile: CapabilityProfile;
+        authority: RunAuthority;
         provider: { name: string; provider: ReturnType<ModelRegistry['get']> };
         model: string;
         system: string;
@@ -291,7 +298,7 @@ export class RunEngine {
         startedAt: number;
     }): AsyncGenerator<CopilotRunEvent, RunStopReason> {
         const messages = [...ctx.history];
-        const tools = toModelTools(ctx.profile.tools);
+        const tools = toModelTools(ctx.authority.profile.tools);
         // Signatures of calls already made this run, so a model that asks for
         // the same thing twice is told rather than silently obliged.
         const alreadyCalled = new Set<string>();
@@ -443,7 +450,7 @@ export class RunEngine {
             input: StartRunInput;
             runId: string;
             conversationId: string;
-            profile: CapabilityProfile;
+            authority: RunAuthority;
         },
         call: ToolUseBlock,
         alreadyCalled: Set<string>
@@ -478,13 +485,19 @@ export class RunEngine {
             };
         };
 
-        const tool = ctx.profile.tools.find(
+        const tool = ctx.authority.profile.tools.find(
             (entry) => entry.name === call.name
         );
         if (!tool) {
-            // Either a hallucinated name or a tool that was withheld. Both get
-            // the same answer: the model is never told which, because "that
-            // tool exists but you may not use it" is itself information.
+            // A hallucinated name, or one the offer withheld. Both answer
+            // "unknown" — which is what the shared registry says too. The tool
+            // set is not secret: it is derived from the caller's own role,
+            // which they can read off their own profile, so naming it reveals
+            // nothing and saves the model a wasted turn. (This used to answer
+            // uniformly to avoid an enumeration signal; that reasoning is right
+            // for *data* — an ungranted content type still 404s like an unknown
+            // one — and wrong for the tool list. ADR-0006 §5 reached the same
+            // conclusion for MCP, and one registry should not answer two ways.)
             return fail(`Unknown tool "${call.name}".`);
         }
 
@@ -492,11 +505,15 @@ export class RunEngine {
         // was computed at the start of the run, and a role can change while a
         // long turn is in flight.
         const fresh = await this.profiles.resolve(
-            ctx.input.userId,
-            ctx.input.roleId,
-            ctx.input.workspaceId
+            {
+                id: ctx.input.userId,
+                email: ctx.input.userEmail,
+                roleId: ctx.input.roleId
+            },
+            ctx.input.workspaceId,
+            ctx.input.signal
         );
-        if (!fresh.tools.some((entry) => entry.name === call.name)) {
+        if (!fresh.profile.tools.some((entry) => entry.name === call.name)) {
             this.logger.warn(
                 `Run ${ctx.runId}: tool "${call.name}" was offered but is no longer permitted; refused.`
             );
@@ -531,16 +548,18 @@ export class RunEngine {
         }
         alreadyCalled.add(signature);
 
-        const toolContext: ToolContext = {
-            userId: ctx.input.userId,
-            workspaceId: ctx.input.workspaceId,
-            runId: ctx.runId,
-            conversationId: ctx.conversationId,
-            signal: ctx.input.signal
-        };
-
         try {
-            const output = await tool.run(call.input, toolContext);
+            // Dispatched through the shared registry, not called directly:
+            // `ToolRegistry.call` re-checks `requires` before it runs the
+            // handler, which is the one authorization point both consumers
+            // share (ADR-0006 §5). The offer above is a usability filter; this
+            // is the boundary.
+            const output = await this.tools.call(
+                call.name,
+                (call.input ?? {}) as Record<string, unknown>,
+                fresh.context,
+                'copilot'
+            );
 
             // A `propose` tool's return value IS the change. The engine
             // persists it and (when the workspace opted this tool in) applies
@@ -787,7 +806,7 @@ export class RunEngine {
 export const ENGINE_PROMPT_VERSION = SYSTEM_PROMPT_VERSION;
 
 /** The provider-facing view of the offered tools. */
-function toModelTools(tools: readonly ToolSpec[]): ModelTool[] {
+function toModelTools(tools: readonly ToolDefinition[]): ModelTool[] {
     return tools.map((tool) => ({
         name: tool.name,
         description: tool.description,

@@ -38,7 +38,8 @@ describe('validateToolInput', () => {
 
     it('distinguishes integer from number', () => {
         expect(
-            validateToolInput({ typeName: 'a', page: 1.5 }, SEARCH_SCHEMA).errors
+            validateToolInput({ typeName: 'a', page: 1.5 }, SEARCH_SCHEMA)
+                .errors
         ).toContain('page: expected integer');
         expect(
             validateToolInput({ typeName: 'a', page: 2 }, SEARCH_SCHEMA).valid
@@ -51,7 +52,9 @@ describe('validateToolInput', () => {
             SEARCH_SCHEMA
         );
 
-        expect(result.errors).toContain('sort: must be one of updatedAt, -updatedAt');
+        expect(result.errors).toContain(
+            'sort: must be one of updatedAt, -updatedAt'
+        );
     });
 
     it('enforces numeric and length bounds', () => {
@@ -131,8 +134,8 @@ describe('validateToolInput', () => {
             properties: { a: { type: 'string', pattern: '^\\d+$' } }
         };
 
-        expect(validateToolInput({ a: 'not-a-number' }, withUnknown).valid).toBe(
-            true
-        );
+        expect(
+            validateToolInput({ a: 'not-a-number' }, withUnknown).valid
+        ).toBe(true);
     });
 });

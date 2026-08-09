@@ -1,11 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type {
-    CopilotToolProvider,
-    ProposalDraft,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import type { ProposalDraft } from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { AssetViewQuery } from '../infrastructure/queries/asset-view.query';
 
 /** The proposal kind this plugin declares and applies. */
@@ -15,7 +12,7 @@ export const MEDIA_PROPOSAL_KINDS = {
 } as const;
 
 /**
- * `media.proposeAltText` — the alt-text tool ADR-0005 §6 names as the
+ * `media_propose_alt_text` — the alt-text tool ADR-0005 §6 names as the
  * motivating case for auto-apply ("a team that trusts alt-text generation
  * should not click twice a hundred times a day").
  *
@@ -24,27 +21,41 @@ export const MEDIA_PROPOSAL_KINDS = {
  * if this workspace opted this specific tool in.
  *
  * The tool deliberately does not generate the text itself. The model already
- * has the asset's name, kind and MIME type from `media.searchAssets`, and
+ * has the asset's name, kind and MIME type from `media_assets_search`, and
  * asking it to describe an image it has not seen would produce confident
  * fiction. What this does is carry the model's proposed text to a reviewer with
  * the current value beside it.
  */
 @Injectable()
-export class AltTextProposalToolProvider implements CopilotToolProvider {
-    constructor(private readonly assets: AssetViewQuery) {}
+export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
+    constructor(
+        private readonly assets: AssetViewQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
+    ) {}
+
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
 
     /** The one media write tool. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.proposeAltText()];
     }
 
-    private proposeAltText(): ToolSpec {
+    private proposeAltText(): ToolDefinition {
         return {
-            name: 'media.proposeAltText',
+            name: 'media_propose_alt_text',
+            title: 'Propose alt text',
             description:
                 'Propose alternative text for a media asset. This does NOT save anything — it ' +
                 'drafts the change for the user to approve, and the reply will say so. Find ' +
-                'the asset with media.searchAssets first; assets with no alt text report ' +
+                'the asset with media_assets_search first; assets with no alt text report ' +
                 '`alt: null`. Describe what the image conveys in context, not what file it is.',
             inputSchema: {
                 type: 'object',
@@ -52,7 +63,7 @@ export class AltTextProposalToolProvider implements CopilotToolProvider {
                     assetId: {
                         type: 'string',
                         description:
-                            'The asset’s id, as returned by media.searchAssets.'
+                            'The asset’s id, as returned by media_assets_search.'
                     },
                     alt: {
                         type: 'string',
@@ -72,9 +83,14 @@ export class AltTextProposalToolProvider implements CopilotToolProvider {
                 required: ['assetId', 'alt', 'summary'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.MEDIA_UPDATE],
+            requires: [PERMISSIONS.MEDIA_UPDATE],
+            readOnly: false,
             effect: 'propose',
-            run: async (input, ctx: ToolContext): Promise<ProposalDraft> => {
+            // Copilot-only: it reads the admin services (a viewer must see
+            // drafts) or writes through propose-then-apply with the human as
+            // actor. MCP's content tools are the public-API set.
+            surfaces: ['copilot'],
+            handler: async (input, ctx): Promise<ProposalDraft> => {
                 const args = (input ?? {}) as {
                     assetId: string;
                     alt: string;

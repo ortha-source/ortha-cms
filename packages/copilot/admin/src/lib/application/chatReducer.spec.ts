@@ -70,7 +70,7 @@ describe('chatReducer', () => {
                 event: {
                     type: 'tool-call',
                     id: 't1',
-                    name: 'content.searchEntries',
+                    name: 'admin_content_search',
                     input: { q: 'x' }
                 }
             },
@@ -79,7 +79,7 @@ describe('chatReducer', () => {
                 event: {
                     type: 'tool-result',
                     id: 't1',
-                    name: 'content.searchEntries',
+                    name: 'admin_content_search',
                     ok: true,
                     durationMs: 12,
                     summary: '3 results',
@@ -91,7 +91,7 @@ describe('chatReducer', () => {
         expect(state.messages[1].steps).toEqual([
             {
                 id: 't1',
-                name: 'content.searchEntries',
+                name: 'admin_content_search',
                 input: { q: 'x' },
                 status: 'ok',
                 summary: '3 results',
@@ -212,7 +212,7 @@ describe('chatReducer', () => {
                 type: 'proposal',
                 id: 'p1',
                 toolCallId: 'call-1',
-                toolName: 'content.proposeEdit',
+                toolName: 'content_propose_update',
                 kind: 'content.entry.update',
                 summary: 'Fix the headline',
                 target: { typeName: 'article', entryId: 'e1' },

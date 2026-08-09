@@ -1,20 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type {
-    CopilotToolProvider,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { ListAssetsQuery } from '../infrastructure/queries/list-assets.query';
 import { mediaKind } from '../infrastructure/schema/media-asset';
 import type { AssetView } from '../types/asset-view';
 
-/** Assets a single `media.searchAssets` call may return. */
+/** Assets a single `media_assets_search` call may return. */
 const MAX_TOOL_PAGE_SIZE = 25;
 
 /**
  * The media plugin's contribution to the copilot's tool catalogue —
- * `media.searchAssets`.
+ * `media_assets_search`.
  *
  * A thin wrapper over the same `ListAssetsQuery` the library's own route calls,
  * with two departures, each answering something a model needs and the admin's
@@ -33,18 +30,32 @@ const MAX_TOOL_PAGE_SIZE = 25;
  * simply does not match.
  */
 @Injectable()
-export class MediaCopilotToolProvider implements CopilotToolProvider {
-    constructor(private readonly assets: ListAssetsQuery) {}
+export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
+    constructor(
+        private readonly assets: ListAssetsQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
+    ) {}
+
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
 
     /** The one media read tool. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.searchAssets()];
     }
 
-    /** `media.searchAssets` — one page of the workspace's media library. */
-    private searchAssets(): ToolSpec {
+    /** `media_assets_search` — one page of the workspace's media library. */
+    private searchAssets(): ToolDefinition {
         return {
-            name: 'media.searchAssets',
+            name: 'media_assets_search',
+            title: 'Search media assets',
             description:
                 'Search the workspace’s media library by file name, across every folder. ' +
                 'Filter by `kind` to narrow to images, video, audio, documents or archives. ' +
@@ -96,9 +107,11 @@ export class MediaCopilotToolProvider implements CopilotToolProvider {
                 },
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.MEDIA_READ],
+            requires: [PERMISSIONS.MEDIA_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     search?: string;
                     kind?: string;

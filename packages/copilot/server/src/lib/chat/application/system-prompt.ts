@@ -55,7 +55,7 @@ const MAX_TYPE_SUMMARIES = 50;
  * `docs/design/copilot.md` §10, resolved the way that document proposes. A
  * workspace with fifty content types would blow the context budget if every
  * field were inlined; the model fetches the full schema on demand through
- * `content.listTypes`, costing one extra round trip with a bounded worst case.
+ * `admin_content_types`, costing one extra round trip with a bounded worst case.
  *
  * Content bodies never appear here. They arrive only through tool results,
  * fenced as untrusted data.
@@ -139,13 +139,13 @@ function describeTypes(summaries: readonly string[]): string {
     // cut off.
     const note =
         summaries.length > shown.length
-            ? `\n- (${summaries.length - shown.length} more not listed — use content.listTypes to see them all.)`
+            ? `\n- (${summaries.length - shown.length} more not listed — use admin_content_types to see them all.)`
             : '';
 
     return (
         'CONTENT TYPES\n' +
         'These are the types in the open workspace, as `name — label (kind)`. ' +
-        'Field schemas are NOT listed here; call content.listTypes for a type’s fields.\n' +
+        'Field schemas are NOT listed here; call admin_content_types for a type’s fields.\n' +
         lines +
         note
     );

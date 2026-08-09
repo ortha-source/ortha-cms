@@ -3,7 +3,7 @@ import { apiClient, STALE_TIME } from '@ortha-cms/utils-admin';
 
 /** A `propose` tool an admin may opt into auto-apply. */
 export interface CopilotOptInCandidate {
-    /** The tool's name, e.g. `media.proposeAltText`. */
+    /** The tool's name, e.g. `media_propose_alt_text`. */
     name: string;
     /** The description the model sees — the most honest label available. */
     description: string;

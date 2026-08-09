@@ -114,18 +114,58 @@ describe('Copilot read catalogue', () => {
             const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
             expect(offered).toEqual(
                 expect.arrayContaining([
-                    'content.listTypes',
-                    'content.searchEntries',
-                    'content.getEntry',
-                    'content.listRevisions',
-                    'content.diffRevisions',
-                    'i18n.listLocales',
-                    'i18n.getTranslations',
-                    'media.searchAssets',
-                    'activity.recent',
-                    'workspace.members'
+                    'admin_content_types',
+                    'admin_content_search',
+                    'admin_content_get',
+                    'admin_content_revisions',
+                    'admin_content_diff',
+                    'i18n_locales_list',
+                    'i18n_translations_get',
+                    'media_assets_search',
+                    'activity_recent',
+                    'workspace_members_list'
                 ])
             );
+        });
+
+        // The other half of the surface split. The MCP content tools read the
+        // PUBLIC API's services — published-only by default, `?status=` gated on
+        // `content:update` — so a viewer's copilot offered `content_list` would
+        // silently stop being able to see drafts, which is most of what the
+        // panel is for.
+        it('offers no MCP-only tool', async () => {
+            scriptCopilot({ text: 'ok' });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            await run(agent, { message: 'hello' });
+
+            const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
+            expect(offered).toEqual(
+                expect.not.arrayContaining([
+                    'content_list',
+                    'content_get',
+                    'content_create',
+                    'content_update',
+                    'content_publish',
+                    'content_delete',
+                    'content_types_list'
+                ])
+            );
+        });
+
+        it('refuses an MCP-only tool the model names anyway', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const result = await callTool(agent, 'content_create', {
+                typeName: 'test_article',
+                values: { text: 'Straight to the database' }
+            });
+
+            // Not merely absent from the offer: unreachable. A model that
+            // hallucinates the MCP name must not get a direct write that
+            // bypasses propose-then-apply.
+            expect(result.ok).toBe(false);
+            expect(result.error).toContain('Unknown tool');
         });
 
         it('withholds the audit log from a contributor, who lacks activity:read', async () => {
@@ -138,14 +178,14 @@ describe('Copilot read catalogue', () => {
             // Withheld at *offer* time, so the model is never told it exists —
             // ADR-0005 §3's first enforcement point, which is not an
             // optimisation.
-            expect(offered).not.toContain('activity.recent');
+            expect(offered).not.toContain('activity_recent');
             // …while the rest of the read catalogue is untouched: this is a
             // permission gate, not a role-shaped allowlist.
             expect(offered).toEqual(
                 expect.arrayContaining([
-                    'media.searchAssets',
-                    'workspace.members',
-                    'content.listRevisions'
+                    'media_assets_search',
+                    'workspace_members_list',
+                    'admin_content_revisions'
                 ])
             );
         });
@@ -157,13 +197,13 @@ describe('Copilot read catalogue', () => {
             await run(agent, { message: 'hello' });
 
             const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
-            expect(offered).not.toContain('activity.recent');
+            expect(offered).not.toContain('activity_recent');
             expect(offered).toEqual(
                 expect.arrayContaining([
-                    'content.listRevisions',
-                    'i18n.listLocales',
-                    'media.searchAssets',
-                    'workspace.members'
+                    'admin_content_revisions',
+                    'i18n_locales_list',
+                    'media_assets_search',
+                    'workspace_members_list'
                 ])
             );
             // Every offered tool reads. A viewer's copilot being provably
@@ -177,7 +217,7 @@ describe('Copilot read catalogue', () => {
     });
 
     // ------------------------------------------------------------- revisions
-    describe('content.listRevisions / content.diffRevisions', () => {
+    describe('admin_content_revisions / admin_content_diff', () => {
         /** Create an entry through the API, then edit it — two versions. */
         async function entryWithTwoVersions(agent: request.Agent) {
             const created = await agent
@@ -200,7 +240,7 @@ describe('Copilot read catalogue', () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             const id = await entryWithTwoVersions(agent);
 
-            const result = await callTool(agent, 'content.listRevisions', {
+            const result = await callTool(agent, 'admin_content_revisions', {
                 typeName: 'test_article',
                 id
             });
@@ -218,7 +258,7 @@ describe('Copilot read catalogue', () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             const id = await entryWithTwoVersions(agent);
 
-            const result = await callTool(agent, 'content.diffRevisions', {
+            const result = await callTool(agent, 'admin_content_diff', {
                 typeName: 'test_article',
                 id,
                 from: 1,
@@ -245,7 +285,7 @@ describe('Copilot read catalogue', () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             const id = await entryWithTwoVersions(agent);
 
-            const result = await callTool(agent, 'content.diffRevisions', {
+            const result = await callTool(agent, 'admin_content_diff', {
                 typeName: 'test_article',
                 id,
                 from: 1,
@@ -259,7 +299,7 @@ describe('Copilot read catalogue', () => {
         it('refuses a content type the workspace was not granted', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const result = await callTool(agent, 'content.listRevisions', {
+            const result = await callTool(agent, 'admin_content_revisions', {
                 typeName: 'test_author',
                 id: '00000000-0000-0000-0000-000000000000'
             });
@@ -270,11 +310,11 @@ describe('Copilot read catalogue', () => {
     });
 
     // ------------------------------------------------------------------ i18n
-    describe('i18n.listLocales / i18n.getTranslations', () => {
+    describe('i18n_locales_list / i18n_translations_get', () => {
         it('lists the configured locales, marking the default', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const result = await callTool(agent, 'i18n.listLocales');
+            const result = await callTool(agent, 'i18n_locales_list');
 
             expect(result.ok).toBe(true);
             const output = result.output as {
@@ -293,7 +333,7 @@ describe('Copilot read catalogue', () => {
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const result = await callTool(agent, 'i18n.getTranslations', {
+            const result = await callTool(agent, 'i18n_translations_get', {
                 typeName: 'test_article',
                 id
             });
@@ -314,7 +354,7 @@ describe('Copilot read catalogue', () => {
             await seedContentGrants(workspace.id, ['test_tag']);
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const result = await callTool(agent, 'i18n.getTranslations', {
+            const result = await callTool(agent, 'i18n_translations_get', {
                 typeName: 'test_tag',
                 id: '00000000-0000-0000-0000-000000000000'
             });
@@ -326,7 +366,7 @@ describe('Copilot read catalogue', () => {
         it('refuses a content type the workspace was not granted', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const result = await callTool(agent, 'i18n.getTranslations', {
+            const result = await callTool(agent, 'i18n_translations_get', {
                 typeName: 'test_author',
                 id: '00000000-0000-0000-0000-000000000000'
             });
@@ -337,7 +377,7 @@ describe('Copilot read catalogue', () => {
     });
 
     // ----------------------------------------------------------------- media
-    describe('media.searchAssets', () => {
+    describe('media_assets_search', () => {
         it('searches every folder, not just the workspace root', async () => {
             const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
             const folder = await seedMediaFolder({
@@ -353,7 +393,7 @@ describe('Copilot read catalogue', () => {
                 folderId: folder.id
             });
 
-            const result = await callTool(agent, 'media.searchAssets', {
+            const result = await callTool(agent, 'media_assets_search', {
                 search: 'logo'
             });
 
@@ -387,7 +427,7 @@ describe('Copilot read catalogue', () => {
                 kind: 'document'
             });
 
-            const result = await callTool(agent, 'media.searchAssets', {
+            const result = await callTool(agent, 'media_assets_search', {
                 kind: 'image'
             });
 
@@ -406,7 +446,7 @@ describe('Copilot read catalogue', () => {
                 name: 'secret.pdf'
             });
 
-            const result = await callTool(agent, 'media.searchAssets', {});
+            const result = await callTool(agent, 'media_assets_search', {});
 
             expect((result.output as { total: number }).total).toBe(0);
         });
@@ -421,7 +461,7 @@ describe('Copilot read catalogue', () => {
                 mimeType: 'image/png'
             });
 
-            const result = await callTool(agent, 'media.searchAssets', {});
+            const result = await callTool(agent, 'media_assets_search', {});
 
             const item = (result.output as { items: Record<string, unknown>[] })
                 .items[0];
@@ -434,7 +474,7 @@ describe('Copilot read catalogue', () => {
     });
 
     // -------------------------------------------------------------- activity
-    describe('activity.recent', () => {
+    describe('activity_recent', () => {
         it('reads the audit trail for an admin', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             // Inviting a member is an audited action, so this produces a real
@@ -445,7 +485,7 @@ describe('Copilot read catalogue', () => {
                 .send({ email: 'invited@example.com', role: 'viewer' })
                 .expect(201);
 
-            const result = await callTool(agent, 'activity.recent', {});
+            const result = await callTool(agent, 'activity_recent', {});
 
             expect(result.ok).toBe(true);
             const output = result.output as {
@@ -461,7 +501,7 @@ describe('Copilot read catalogue', () => {
         it('is not callable by a contributor even if the model names it', async () => {
             const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
 
-            const result = await callTool(agent, 'activity.recent', {});
+            const result = await callTool(agent, 'activity_recent', {});
 
             // The second enforcement point: authorize at execution, against a
             // freshly resolved session. A withheld tool and an unknown one get
@@ -472,12 +512,12 @@ describe('Copilot read catalogue', () => {
     });
 
     // ------------------------------------------------------------- workspace
-    describe('workspace.members', () => {
+    describe('workspace_members_list', () => {
         it('lists this workspace’s members with their roles', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             await signIn(VIEWER_EMAIL, 'viewer');
 
-            const result = await callTool(agent, 'workspace.members');
+            const result = await callTool(agent, 'workspace_members_list');
 
             expect(result.ok).toBe(true);
             const output = result.output as {
@@ -504,7 +544,7 @@ describe('Copilot read catalogue', () => {
                 role: 'admin'
             });
 
-            const result = await callTool(agent, 'workspace.members');
+            const result = await callTool(agent, 'workspace_members_list');
 
             const output = result.output as { items: { email: string }[] };
             expect(output.items.map((item) => item.email)).toEqual([

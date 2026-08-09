@@ -1,9 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CONTENT_ENTRY_EXTENSION } from '@ortha-cms/content-server';
-import {
-    copilotAppliersRegistrar,
-    copilotToolsRegistrar
-} from '@ortha-cms/copilot-server';
+import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
 import { I18N_CONFIG } from './i18n.constants';
 import type { I18nPluginConfig } from './types/locale';
 import { LocaleRegistryService } from './locales/services/locale-registry.service';
@@ -54,11 +51,6 @@ export class I18nModule {
                 // optionally.
                 I18nCopilotToolProvider,
                 TranslationProposalToolProvider,
-                copilotToolsRegistrar(
-                    'i18n',
-                    I18nCopilotToolProvider,
-                    TranslationProposalToolProvider
-                ),
                 // The applier for the kind that propose tool produces. Next to
                 // it on purpose: a missing applier surfaces only when a human
                 // clicks Accept.

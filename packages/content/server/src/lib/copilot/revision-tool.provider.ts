@@ -1,10 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type {
-    CopilotToolProvider,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
 import type { ContentTypeRegistry } from '../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
@@ -14,12 +11,12 @@ import {
 } from '../revisions/application/ports/revision-store';
 import { diffSnapshots } from './diff-snapshots';
 
-/** Revisions a single `content.listRevisions` call may return. */
+/** Revisions a single `admin_content_revisions` call may return. */
 const MAX_REVISION_PAGE_SIZE = 25;
 
 /**
- * The content plugin's **version-history** tools — `content.listRevisions` and
- * `content.diffRevisions`.
+ * The content plugin's **version-history** tools — `admin_content_revisions` and
+ * `admin_content_diff`.
  *
  * A second provider rather than more methods on
  * {@link ContentCopilotToolProvider}: revisions are their own feature folder
@@ -32,17 +29,28 @@ const MAX_REVISION_PAGE_SIZE = 25;
  * reads as absent rather than as a leak.
  */
 @Injectable()
-export class RevisionCopilotToolProvider implements CopilotToolProvider {
+export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         @InjectRevisionStore()
         private readonly revisions: RevisionStore,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
     ) {}
 
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
+
     /** The two history tools, in the order the model sees them. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.listRevisions(), this.diffRevisions()];
     }
 
@@ -63,15 +71,16 @@ export class RevisionCopilotToolProvider implements CopilotToolProvider {
         return type;
     }
 
-    /** `content.listRevisions` — an entry's version timeline, newest first. */
-    private listRevisions(): ToolSpec {
+    /** `admin_content_revisions` — an entry's version timeline, newest first. */
+    private listRevisions(): ToolDefinition {
         return {
-            name: 'content.listRevisions',
+            name: 'admin_content_revisions',
+            title: 'List an entry’s versions',
             description:
                 'List an entry’s saved versions, newest first — version number, status ' +
                 '(draft / published / superseded), when it was captured and by whom. Use this ' +
                 'to answer “when did this change?” or “what version is live?”, and to find the ' +
-                'two version numbers to pass to content.diffRevisions. Each locale of a ' +
+                'two version numbers to pass to admin_content_diff. Each locale of a ' +
                 'localized entry has its own timeline, keyed by that locale’s entry id.',
             inputSchema: {
                 type: 'object',
@@ -83,7 +92,7 @@ export class RevisionCopilotToolProvider implements CopilotToolProvider {
                     id: {
                         type: 'string',
                         description:
-                            'The entry’s id, as returned by content.searchEntries.'
+                            'The entry’s id, as returned by admin_content_search.'
                     },
                     page: {
                         type: 'integer',
@@ -100,9 +109,11 @@ export class RevisionCopilotToolProvider implements CopilotToolProvider {
                 required: ['typeName', 'id'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     id: string;
@@ -133,7 +144,7 @@ export class RevisionCopilotToolProvider implements CopilotToolProvider {
     }
 
     /**
-     * `content.diffRevisions` — what changed between two versions.
+     * `admin_content_diff` — what changed between two versions.
      *
      * The tool returns **only the changed fields**, plus a count of the
      * unchanged ones. A full side-by-side of every field is what the admin's
@@ -141,14 +152,15 @@ export class RevisionCopilotToolProvider implements CopilotToolProvider {
      * model gets nothing from them but a bigger prompt, and on a wide type the
      * unchanged richtext bodies alone would dominate the run's token budget.
      */
-    private diffRevisions(): ToolSpec {
+    private diffRevisions(): ToolDefinition {
         return {
-            name: 'content.diffRevisions',
+            name: 'admin_content_diff',
+            title: 'Compare two versions',
             description:
                 'Compare two saved versions of an entry and report which fields differ, with ' +
                 'the before and after value of each. Only changed fields are returned (the ' +
                 'number of unchanged ones is reported separately). Get the version numbers ' +
-                'from content.listRevisions.',
+                'from admin_content_revisions.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -172,9 +184,11 @@ export class RevisionCopilotToolProvider implements CopilotToolProvider {
                 required: ['typeName', 'id', 'from', 'to'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     id: string;

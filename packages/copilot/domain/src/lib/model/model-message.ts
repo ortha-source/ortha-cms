@@ -12,7 +12,7 @@ export type JsonSchema = Readonly<Record<string, unknown>>;
  * the copilot's tool port and lands with the run engine.
  */
 export interface ModelTool {
-    /** Namespaced tool name, e.g. `content.searchEntries`. */
+    /** Namespaced tool name, e.g. `admin_content_search`. */
     name: string;
     /** Shown to the model — the primary signal for when to call it. */
     description: string;

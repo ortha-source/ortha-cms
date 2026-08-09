@@ -3,12 +3,9 @@ import {
     createFakeProvider,
     type FakeTurn
 } from '@ortha-cms/copilot-provider-fake';
-import {
-    ConversationRepository,
-    CopilotToolRegistry
-} from '@ortha-cms/copilot-server';
+import { ConversationRepository } from '@ortha-cms/copilot-server';
+import { ToolRegistry, type ToolProvider } from '@ortha-cms/tools-server';
 import type {
-    CopilotToolProvider,
     ModelCapabilities,
     ModelProvider,
     ModelRequest,
@@ -70,7 +67,7 @@ export function copilotCalls(): readonly ModelRequest[] {
 
 /**
  * Registers a tool provider with the running app's copilot registry — the same
- * call `content-server` makes from its own `OnApplicationBootstrap`.
+ * call `content-server` makes from its own `onModuleInit`.
  *
  * Lives in the harness rather than in a spec because `src/support/**` is the
  * only place exempt from `@nx/enforce-module-boundaries`; specs are not, and a
@@ -78,9 +75,9 @@ export function copilotCalls(): readonly ModelRequest[] {
  */
 export function registerCopilotTools(
     app: INestApplication,
-    provider: CopilotToolProvider
+    provider: ToolProvider
 ): void {
-    app.get(CopilotToolRegistry).register(provider);
+    app.get(ToolRegistry).register(provider);
 }
 
 /** One run's audit rows — the surface a security review reads. */

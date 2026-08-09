@@ -31,7 +31,7 @@ export const copilotToolCalls = pgTable(
         runId: uuid('run_id').notNull(),
         /** The provider-assigned call id, as the model issued it. */
         callId: text('call_id').notNull(),
-        /** The tool's name, e.g. `content.searchEntries`. */
+        /** The tool's name, e.g. `admin_content_search`. */
         name: text('name').notNull(),
         /** The arguments the model supplied. */
         input: jsonb('input'),

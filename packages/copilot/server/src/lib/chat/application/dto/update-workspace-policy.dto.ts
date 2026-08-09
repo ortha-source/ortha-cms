@@ -18,7 +18,7 @@ const MAX_TOOLS = 64;
 export class UpdateWorkspacePolicyDto {
     @ApiProperty({
         type: [String],
-        example: ['media.proposeAltText'],
+        example: ['media_propose_alt_text'],
         description:
             'Tool names allowed to write directly instead of producing a proposal. ' +
             'Send an empty array to require review for everything. Unknown names are dropped.'

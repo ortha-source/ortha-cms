@@ -109,9 +109,7 @@ function checkObject(
         // Only complain about an unknown key when the schema actually closed
         // the object. A schema that stays open is choosing to accept extras.
         if (schema['additionalProperties'] === false) {
-            errors.push(
-                `${path ? `${path}.` : ''}${key}: unexpected property`
-            );
+            errors.push(`${path ? `${path}.` : ''}${key}: unexpected property`);
         }
     }
 }

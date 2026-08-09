@@ -59,50 +59,52 @@ These are spike findings from phase 1, each now covered by a test.
   `design:paramtypes`, so an `@Optional()` one silently injects `undefined`
   unless you name the token explicitly.
 
-## The tool seam
+## The tool seam — shared with MCP
 
-`copilot/server` must not import `content-server` — that would put the copilot
-at the bottom of the package graph. Instead:
+`copilot/server` must not import `content-server`, and it no longer owns a tool
+registry either. Both facts are settled by
+[ADR-0007](../../../docs/adr/0007-one-tool-registry-two-surfaces.md):
 
-- `ToolSpec`, `ToolContext` and `COPILOT_TOOL_PROVIDER` live in
-  **`copilot-domain`**, so a binder depends only on the framework-free core.
-- Binders **register at runtime**, by adding `copilotToolsRegistrar('<plugin>',
-…Providers)` to their module's `providers`. This is the precedent
-  `OutboxDispatcher.register` set, and it exists because **Nest cannot merge a
-  multi-provider token across independent dynamic modules** — every plugin here
-  is one, so a second binder would silently replace the first rather than join
-  it. A static single binding to `COPILOT_TOOL_PROVIDER` is also honoured.
-- **Use the helper, not a hand-written registrar class.** A registrar has to
-  inject the registry `@Optional()` (a deployment without `CopilotPlugin` is
-  normal), and a constructor parameter typed `CopilotToolRegistry | null` emits
-  `Object` for `design:paramtypes` — Nest then has no type to resolve and, being
-  optional, injects `undefined` without failing. The result is a registrar that
-  runs, finds no registry, and returns: the copilot boots with none of that
-  plugin's tools and nothing reports a problem. That shipped once. A factory's
-  `inject` list names its dependencies as values, so there is no reflected type
-  to get wrong.
-- A provider that throws while describing its tools is **skipped, not fatal**:
-  one plugin failing degrades that run's catalogue instead of failing the chat.
+- **The catalogue is `@ortha-cms/tools-server`'s `ToolRegistry`** — the same
+  instance the MCP endpoint serves. `CopilotToolRegistry`,
+  `COPILOT_TOOL_PROVIDER`, `ToolSpec` and `copilotToolsRegistrar` are gone. A
+  binder implements `ToolProvider`, injects `ToolRegistry` `@Optional()`, and
+  registers itself from `onModuleInit`.
+- **`ToolsModule` is imported by this module**, not provided by it, so a
+  deployment running the copilot _without_ MCP still has a registry and one
+  running both has exactly one.
+- **A copilot tool declares `surfaces: ['copilot']`.** It is not decoration:
+  these tools read the _admin_ services (a viewer must see drafts) and their
+  write half produces proposals only the chat panel can accept, so an MCP client
+  reaching one would see unpublished content or create a change it cannot apply.
+  The cross-surface e2e cases in both suites are the guard.
+- **`ToolRegistry.call` is the authorization boundary**, checking `requires`
+  before dispatch. The engine's offer is a usability filter on top.
+- What stays here is the copilot-specific _policy_: `CapabilityProfileService`
+  builds a `ToolActor` (`kind: 'user'`) and hands `forSurface('copilot')` to the
+  pure `resolveCapabilityProfile`, which adds the auto-apply gate on `apply`
+  tools and the `withheld` reasons the settings page renders. The MCP endpoint
+  has no use for either.
 
 Every tool ships with the plugin that owns its data, as a thin wrapper over the
 same service the HTTP controllers call:
 
-| Plugin     | Tools                                                                      |
-| ---------- | -------------------------------------------------------------------------- |
-| `content`  | `listTypes`, `searchEntries`, `getEntry`, `listRevisions`, `diffRevisions` |
-| `i18n`     | `listLocales`, `getTranslations`                                           |
-| `media`    | `searchAssets`                                                             |
-| `activity` | `recent` — deployment-wide, `activity:read` (admin only)                   |
-| `users`    | `workspace.members` — scoped to the run's workspace                        |
+| Plugin     | Tools                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` |
+| `i18n`     | `i18n_locales_list`, `i18n_translations_get`                                                                        |
+| `media`    | `media_assets_search`                                                                                               |
+| `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                   |
+| `users`    | `workspace_members_list` — scoped to the run's workspace                                                            |
 
 Plus the `propose` half — the write tools, all of which **write nothing**:
 
-| Plugin    | Tool                      | Produces kind          |
-| --------- | ------------------------- | ---------------------- |
-| `content` | `content.proposeEntry`    | `content.entry.create` |
-| `content` | `content.proposeEdit`     | `content.entry.update` |
-| `i18n`    | `i18n.proposeTranslation` | `i18n.entry.translate` |
-| `media`   | `media.proposeAltText`    | `media.asset.setAlt`   |
+| Plugin    | Tool                       | Produces kind          |
+| --------- | -------------------------- | ---------------------- |
+| `content` | `content_propose_create`   | `content.entry.create` |
+| `content` | `content_propose_update`   | `content.entry.update` |
+| `i18n`    | `i18n_propose_translation` | `i18n.entry.translate` |
+| `media`   | `media_propose_alt_text`   | `media.asset.setAlt`   |
 
 ## Proposals — the accept boundary
 

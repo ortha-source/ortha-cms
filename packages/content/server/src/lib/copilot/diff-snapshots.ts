@@ -4,7 +4,7 @@ import type { RevisionSnapshot } from '../revisions/types/revision-view';
 
 /** One field that differs between two revision snapshots. */
 export interface SnapshotFieldChange {
-    /** The field's name, as the model knows it from `content.listTypes`. */
+    /** The field's name, as the model knows it from `admin_content_types`. */
     field: string;
     /** The field's declared type, so a model can read the values correctly. */
     type: string;

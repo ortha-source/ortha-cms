@@ -9,7 +9,7 @@ import {
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import type { WorkspaceCopilotPolicy } from '@ortha-cms/copilot-domain';
 import { CopilotPolicyService } from '../../application/copilot-policy.service';
-import { CopilotToolRegistry } from '../../application/tool-registry.service';
+import { ToolRegistry, type ToolDefinition } from '@ortha-cms/tools-server';
 import { UpdateWorkspacePolicyDto } from '../../application/dto/update-workspace-policy.dto';
 
 /** The policy plus the tools an admin may opt in — one round trip for the UI. */
@@ -40,7 +40,7 @@ export interface WorkspacePolicyView extends WorkspaceCopilotPolicy {
 export class WorkspacePolicyController {
     constructor(
         private readonly policies: CopilotPolicyService,
-        private readonly tools: CopilotToolRegistry
+        private readonly tools: ToolRegistry
     ) {}
 
     @Get('policy')
@@ -48,11 +48,10 @@ export class WorkspacePolicyController {
     async get(
         @CurrentWorkspace() workspaceId: string
     ): Promise<WorkspacePolicyView> {
-        const [policy, candidates] = await Promise.all([
-            this.policies.forWorkspace(workspaceId),
-            this.optInCandidates(workspaceId)
-        ]);
-        return { ...policy, optInCandidates: candidates };
+        const policy = await this.policies.forWorkspace(workspaceId);
+        // Synchronous now: the shared registry holds the catalogue in memory
+        // and its `forSurface` filter reads no state.
+        return { ...policy, optInCandidates: this.optInCandidates() };
     }
 
     @Put('policy')
@@ -65,7 +64,7 @@ export class WorkspacePolicyController {
         // Names are intersected with what is actually bound, so a stale or
         // mistyped entry cannot sit in the policy waiting for a future tool to
         // adopt that name and inherit an opt-in nobody granted it.
-        const candidates = await this.optInCandidates(workspaceId);
+        const candidates = this.optInCandidates();
         const known = new Set(candidates.map((tool) => tool.name));
         const policy = await this.policies.setAutoApplyTools(
             workspaceId,
@@ -84,10 +83,11 @@ export class WorkspacePolicyController {
      * accept, with a message saying this deployment cannot carry the change
      * out.
      */
-    private async optInCandidates(workspaceId: string) {
-        return (await this.tools.tools(workspaceId))
-            .filter((tool) => tool.effect === 'propose')
-            .map((tool) => ({
+    private optInCandidates() {
+        return this.tools
+            .forSurface('copilot')
+            .filter((tool: ToolDefinition) => tool.effect === 'propose')
+            .map((tool: ToolDefinition) => ({
                 name: tool.name,
                 description: tool.description
             }));

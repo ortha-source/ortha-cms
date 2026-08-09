@@ -1,21 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type {
-    CopilotToolProvider,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { WorkspaceMembersQuery } from '../member/infrastructure/queries/workspace-members.query';
 
-/** Members a single `workspace.members` call may return. */
+/** Members a single `workspace_members_list` call may return. */
 const MAX_TOOL_PAGE_SIZE = 50;
 
 /**
  * The users plugin's contribution to the copilot's tool catalogue —
- * `workspace.members`.
+ * `workspace_members_list`.
  *
  * It answers "who can I assign this to?" and "who is on this team?", and it is
- * what turns an `actorEmail` from `activity.recent` or an `authorId` on a
+ * what turns an `actorEmail` from `activity_recent` or an `authorId` on a
  * revision into a person's name.
  *
  * **Scoped to the run's workspace**, via a purpose-built query rather than the
@@ -28,18 +25,34 @@ const MAX_TOOL_PAGE_SIZE = 50;
  * invite tokens, no session data, no password state.
  */
 @Injectable()
-export class WorkspaceCopilotToolProvider implements CopilotToolProvider {
-    constructor(private readonly members: WorkspaceMembersQuery) {}
+export class WorkspaceCopilotToolProvider
+    implements ToolProvider, OnModuleInit
+{
+    constructor(
+        private readonly members: WorkspaceMembersQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
+    ) {}
+
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
 
     /** The one workspace-directory tool. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.workspaceMembers()];
     }
 
-    /** `workspace.members` — the people in the current workspace. */
-    private workspaceMembers(): ToolSpec {
+    /** `workspace_members_list` — the people in the current workspace. */
+    private workspaceMembers(): ToolDefinition {
         return {
-            name: 'workspace.members',
+            name: 'workspace_members_list',
+            title: 'Workspace members',
             description:
                 'List the people who are members of the current workspace, with their email, ' +
                 'name, global role (admin / contributor / viewer) and account status. Use it ' +
@@ -63,9 +76,11 @@ export class WorkspaceCopilotToolProvider implements CopilotToolProvider {
                 },
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.USERS_READ],
+            requires: [PERMISSIONS.USERS_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     page?: number;
                     pageSize?: number;

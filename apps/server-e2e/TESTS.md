@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_659 test cases across 42 spec files._
+_663 test cases across 42 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -888,10 +888,12 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | Test case |
 | --- |
 | offers every read tool in the catalogue to an admin |
+| offers no MCP-only tool |
+| refuses an MCP-only tool the model names anyway |
 | withholds the audit log from a contributor, who lacks activity:read |
 | offers a viewer the whole read catalogue except the audit log |
 
-### content.listRevisions / content.diffRevisions
+### admin_content_revisions / admin_content_diff
 
 | Test case |
 | --- |
@@ -900,7 +902,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | names the missing version rather than failing opaquely |
 | refuses a content type the workspace was not granted |
 
-### i18n.listLocales / i18n.getTranslations
+### i18n_locales_list / i18n_translations_get
 
 | Test case |
 | --- |
@@ -909,7 +911,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | says a type is not localized rather than answering “no translations” |
 | refuses a content type the workspace was not granted |
 
-### media.searchAssets
+### media_assets_search
 
 | Test case |
 | --- |
@@ -918,14 +920,14 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | does not see another workspace’s assets |
 | omits the storage URL, which a model cannot fetch anyway |
 
-### activity.recent
+### activity_recent
 
 | Test case |
 | --- |
 | reads the audit trail for an admin |
 | is not callable by a contributor even if the model names it |
 
-### workspace.members
+### workspace_members_list
 
 | Test case |
 | --- |
@@ -1043,6 +1045,8 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | shows a read-scoped token only the read tools |
 | shows a full-scoped token the write tools too |
 | annotates read-only and destructive tools |
+| shows no copilot-only tool, whatever the scope |
+| refuses a copilot-only tool invoked by name |
 | gives every tool an object input schema |
 
 ### authorization

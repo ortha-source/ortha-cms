@@ -1,4 +1,30 @@
-import type { ToolPermissionKey, ToolSpec } from './tool-spec';
+/**
+ * A `resource:action` permission key, as a plain string.
+ *
+ * Deliberately **not** imported from `@ortha-cms/identity-server`: this package
+ * imports nothing, and the binder that declares a tool passes the real
+ * `PERMISSIONS.*` constant, so the concrete union is still enforced at the one
+ * place that matters — the tool declaration.
+ */
+export type ToolPermissionKey = string;
+
+/**
+ * The least this decision needs to know about a tool.
+ *
+ * Structural rather than an import of `@ortha-cms/tools-server`'s
+ * `ToolDefinition`, because this package imports nothing — and because the
+ * decision genuinely only reads these three fields. A real `ToolDefinition`
+ * satisfies it, so the server passes the shared registry's tools straight in
+ * and gets its own definitions back out.
+ */
+export interface AuthorizableTool {
+    /** The tool's name — what a duplicate collides on. */
+    name: string;
+    /** Permission keys the caller must hold in full. */
+    requires: readonly ToolPermissionKey[];
+    /** What running it does. Absent reads as `read`. */
+    effect?: 'read' | 'propose' | 'apply';
+}
 
 /**
  * The acting user, reduced to what an authority decision needs. Structurally
@@ -56,17 +82,21 @@ export interface WithheldTool {
  * permissions can be revoked mid-thread, and a long chat must not carry stale
  * authority.
  */
-export interface CapabilityProfile {
+export interface CapabilityProfile<
+    T extends AuthorizableTool = AuthorizableTool
+> {
     /** The tools offered to the model, in declaration order. */
-    tools: readonly ToolSpec[];
+    tools: readonly T[];
     /** What was declared but withheld, for logging and for the settings UI. */
     withheld: readonly WithheldTool[];
 }
 
 /** Inputs to {@link resolveCapabilityProfile}. */
-export interface ResolveCapabilityProfileInput {
-    /** Every tool the bound providers declared for this workspace. */
-    tools: readonly ToolSpec[];
+export interface ResolveCapabilityProfileInput<
+    T extends AuthorizableTool = AuthorizableTool
+> {
+    /** Every tool the shared registry offers this surface. */
+    tools: readonly T[];
     /** The user the run acts as. */
     actor: CopilotActor;
     /** The workspace's copilot policy, if any. */
@@ -91,11 +121,11 @@ function missingPermissions(
  * Pure and total — no I/O, no clock — so "a viewer is offered no write tools"
  * is a unit test rather than a promise.
  */
-export function resolveCapabilityProfile(
-    input: ResolveCapabilityProfileInput
-): CapabilityProfile {
+export function resolveCapabilityProfile<T extends AuthorizableTool>(
+    input: ResolveCapabilityProfileInput<T>
+): CapabilityProfile<T> {
     const autoApply = new Set(input.policy?.autoApplyTools ?? []);
-    const tools: ToolSpec[] = [];
+    const tools: T[] = [];
     const withheld: WithheldTool[] = [];
     const claimed = new Set<string>();
 
@@ -110,7 +140,7 @@ export function resolveCapabilityProfile(
         }
         claimed.add(tool.name);
 
-        const missing = missingPermissions(input.actor, tool.permissions);
+        const missing = missingPermissions(input.actor, tool.requires);
         if (missing.length > 0) {
             withheld.push({
                 name: tool.name,

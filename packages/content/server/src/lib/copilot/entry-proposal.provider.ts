@@ -1,12 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type {
-    CopilotToolProvider,
-    ProposalChange,
-    ProposalDraft,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import type { ProposalChange, ProposalDraft } from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
 import type {
     ContentTypeRegistry,
@@ -17,8 +13,8 @@ import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
 
 /**
- * The content plugin's **write** tools — `content.proposeEntry` and
- * `content.proposeEdit`.
+ * The content plugin's **write** tools — `content_propose_create` and
+ * `content_propose_update`.
  *
  * Both are `effect: 'propose'`: they compute a change and hand it back, and the
  * run engine persists it as a `copilot_proposals` row for a human to accept
@@ -39,16 +35,27 @@ import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
  * deliberately no `status` in either tool's schema.
  */
 @Injectable()
-export class EntryProposalToolProvider implements CopilotToolProvider {
+export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly writer: EntryWriterService,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
     ) {}
 
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
+
     /** The two write tools, in the order the model sees them. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.proposeEntry(), this.proposeEdit()];
     }
 
@@ -108,21 +115,22 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
         if (unknown.length > 0) {
             throw new Error(
                 `Unknown or non-writable field(s) on "${typeName}": ${unknown.join(', ')}. ` +
-                    'Call content.listTypes for this type’s fields. Many-relations and ' +
+                    'Call admin_content_types for this type’s fields. Many-relations and ' +
                     'back-references cannot be set this way.'
             );
         }
         return { values, fields };
     }
 
-    /** `content.proposeEntry` — a new draft entry, for a human to accept. */
-    private proposeEntry(): ToolSpec {
+    /** `content_propose_create` — a new draft entry, for a human to accept. */
+    private proposeEntry(): ToolDefinition {
         return {
-            name: 'content.proposeEntry',
+            name: 'content_propose_create',
+            title: 'Propose a new entry',
             description:
                 'Propose creating a new entry. This does NOT create anything — it drafts the ' +
                 'change and asks the user to approve it, and the reply will say so. Call ' +
-                'content.listTypes for the type’s fields first; supply only fields you are ' +
+                'admin_content_types for the type’s fields first; supply only fields you are ' +
                 'confident about, since the user reviews exactly what you send. The entry is ' +
                 'always created as a draft: you cannot publish.',
             inputSchema: {
@@ -135,7 +143,7 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
                     values: {
                         type: 'object',
                         description:
-                            'Field values keyed by field name, as content.listTypes describes ' +
+                            'Field values keyed by field name, as admin_content_types describes ' +
                             'them. Many-relations and back-references cannot be set here.'
                     },
                     locale: {
@@ -143,13 +151,13 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
                         maxLength: 35,
                         description:
                             'Locale to create in, on a localized type. Omitted, the default ' +
-                            'locale is used — call i18n.listLocales if unsure.'
+                            'locale is used — call i18n_locales_list if unsure.'
                     },
                     localeGroupId: {
                         type: 'string',
                         description:
                             'Join an existing translation group, making this entry that ' +
-                            'group’s row in `locale`. From i18n.getTranslations.'
+                            'group’s row in `locale`. From i18n_translations_get.'
                     },
                     summary: {
                         type: 'string',
@@ -162,9 +170,14 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
                 required: ['typeName', 'values', 'summary'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_CREATE],
+            requires: [PERMISSIONS.CONTENT_CREATE],
+            readOnly: false,
             effect: 'propose',
-            run: async (input, ctx: ToolContext): Promise<ProposalDraft> => {
+            // Copilot-only: it reads the admin services (a viewer must see
+            // drafts) or writes through propose-then-apply with the human as
+            // actor. MCP's content tools are the public-API set.
+            surfaces: ['copilot'],
+            handler: async (input, ctx): Promise<ProposalDraft> => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     values: Record<string, unknown>;
@@ -207,16 +220,17 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
         };
     }
 
-    /** `content.proposeEdit` — a change to an existing entry, with a real diff. */
-    private proposeEdit(): ToolSpec {
+    /** `content_propose_update` — a change to an existing entry, with a real diff. */
+    private proposeEdit(): ToolDefinition {
         return {
-            name: 'content.proposeEdit',
+            name: 'content_propose_update',
+            title: 'Propose an entry edit',
             description:
                 'Propose changing fields on an existing entry. This does NOT save anything — ' +
                 'it drafts the change and asks the user to approve it, and the reply will say ' +
                 'so. Send only the fields you are changing: everything else is left alone. ' +
                 'The user sees a before/after for each field, so read the entry first ' +
-                '(content.getEntry) and change what actually needs changing.',
+                '(admin_content_get) and change what actually needs changing.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -227,7 +241,7 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
                     id: {
                         type: 'string',
                         description:
-                            'The entry’s id, as returned by content.searchEntries.'
+                            'The entry’s id, as returned by admin_content_search.'
                     },
                     values: {
                         type: 'object',
@@ -246,9 +260,14 @@ export class EntryProposalToolProvider implements CopilotToolProvider {
                 required: ['typeName', 'id', 'values', 'summary'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_UPDATE],
+            requires: [PERMISSIONS.CONTENT_UPDATE],
+            readOnly: false,
             effect: 'propose',
-            run: async (input, ctx: ToolContext): Promise<ProposalDraft> => {
+            // Copilot-only: it reads the admin services (a viewer must see
+            // drafts) or writes through propose-then-apply with the human as
+            // actor. MCP's content tools are the public-API set.
+            surfaces: ['copilot'],
+            handler: async (input, ctx): Promise<ProposalDraft> => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     id: string;

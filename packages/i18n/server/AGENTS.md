@@ -151,18 +151,18 @@ join-copy is **not** performed (relations are per-locale in v1).
 `copilotToolsRegistrar('i18n', …)` in `I18nModule.forRoot` (the registry is
 injected **optionally** — a deployment without `CopilotPlugin` is normal).
 
-- **`i18n.listLocales`** is what makes `content.searchEntries`'s `locale`
+- **`i18n_locales_list`** is what makes `admin_content_search`'s `locale`
   parameter usable at all. Locale slugs are deployment configuration, not
   content, so nothing else tells the model they exist: without this it either
   omits `locale` and silently searches the default language, or guesses a slug
   and gets a tool error. One cheap call replaces both failure modes.
-- **`i18n.getTranslations`** answers "which languages is this in, and which is
+- **`i18n_translations_get`** answers "which languages is this in, and which is
   missing?" from the same `LocaleGroupService.entryLocales` the admin's locale
   panel reads, so the copilot's answer cannot drift from what the editor shows.
   It returns one item per **configured** locale, so a missing translation is
   `entry: null` rather than an absent key.
 
-It also binds **`i18n.proposeTranslation`** (`effect: 'propose'`), which drafts
+It also binds **`i18n_propose_translation`** (`effect: 'propose'`), which drafts
 an entry's translation into another locale for a human to accept. It writes
 nothing; what it does do is the part a model cannot be trusted with: resolve the
 slug against the configured set, confirm the target locale does not already exist

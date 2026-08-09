@@ -2,7 +2,7 @@
 export interface ChatToolStep {
     /** The provider-assigned call id. */
     id: string;
-    /** The tool's name, e.g. `content.searchEntries`. */
+    /** The tool's name, e.g. `admin_content_search`. */
     name: string;
     /** The arguments the model supplied. */
     input: unknown;
@@ -31,7 +31,7 @@ export interface ChatProposal {
     id: string;
     /** The tool call that produced it, so the card sits with its step. */
     toolCallId: string;
-    /** The tool's name, e.g. `content.proposeEdit`. */
+    /** The tool's name, e.g. `content_propose_update`. */
     toolName: string;
     /** Which applier would carry it out, e.g. `content.entry.update`. */
     kind: string;

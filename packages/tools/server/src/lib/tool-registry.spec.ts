@@ -1,8 +1,8 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import { createToolContext } from '../http/tool-context';
-import type { ToolContext, ToolDefinition } from '../types/tool';
-import type { ToolProvider } from '../types/tool-provider';
+import { createToolContext } from './tool-context';
+import type { ToolContext, ToolDefinition } from './tool';
+import type { ToolProvider } from './tool-provider';
 import { ToolRegistry } from './tool-registry';
 
 /** A context holding exactly the named permissions. */

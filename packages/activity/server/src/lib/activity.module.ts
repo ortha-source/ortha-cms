@@ -3,7 +3,6 @@ import { ACTIVITY_RECORDER } from '@ortha-cms/identity-server';
 import { ListActivityController } from './activity/controllers/list-activity.controller';
 import { ActivityService } from './activity/services/activity.service';
 import { AuditEventSubscriber } from './activity/infrastructure/audit-event.subscriber';
-import { copilotToolsRegistrar } from '@ortha-cms/copilot-server';
 import { ActivityCopilotToolProvider } from './copilot/activity-tool.provider';
 
 /**
@@ -36,7 +35,6 @@ export class ActivityModule {
                 // plugin is registered — the registrar injects the registry
                 // optionally.
                 ActivityCopilotToolProvider,
-                copilotToolsRegistrar('activity', ActivityCopilotToolProvider)
             ],
             exports: [ActivityService, ACTIVITY_RECORDER]
         };

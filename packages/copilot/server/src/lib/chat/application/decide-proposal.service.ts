@@ -232,9 +232,8 @@ export class DecideProposalService {
         proposal: ProposalView,
         by: Decider
     ): Promise<boolean> {
-        const profile = await this.profiles.resolve(
-            by.userId,
-            by.roleId,
+        const { profile } = await this.profiles.resolve(
+            { id: by.userId, email: by.email, roleId: by.roleId },
             by.workspaceId
         );
         return profile.tools.some((tool) => tool.name === proposal.toolName);

@@ -158,13 +158,13 @@ cycle — content doesn't depend on media). Both modules are global, so content'
 
 This package binds the copilot's tool port — `copilot/server` declares
 `COPILOT_TOOL_PROVIDER` (in `copilot-domain`) and never imports media.
-`MediaCopilotToolProvider` ships one read tool, `media.searchAssets`, wrapping
+`MediaCopilotToolProvider` ships one read tool, `media_assets_search`, wrapping
 the same `ListAssetsQuery` the library route calls. Registration is the
 `copilotToolsRegistrar('media', …)` one-liner in `MediaModule.forRoot`, which
 injects the registry **optionally** — a deployment without `CopilotPlugin` is
 normal, and media must boot without it.
 
-It also binds `media.proposeAltText` (`effect: 'propose'`) — the tool ADR-0005
+It also binds `media_propose_alt_text` (`effect: 'propose'`) — the tool ADR-0005
 §6 names as the motivating case for auto-apply, since a team that trusts alt-text
 generation should not click twice a hundred times a day. Like every propose tool
 it writes nothing; `AltTextProposalApplier` carries an accepted one out through

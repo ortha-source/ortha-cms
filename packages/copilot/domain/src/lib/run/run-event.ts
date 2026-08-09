@@ -38,7 +38,7 @@ export interface RunToolCallEvent {
     type: 'tool-call';
     /** Provider-assigned call id; the matching result echoes it. */
     id: string;
-    /** The tool's name, e.g. `content.searchEntries`. */
+    /** The tool's name, e.g. `admin_content_search`. */
     name: string;
     /** The arguments the model supplied, already parsed. */
     input: unknown;
@@ -82,7 +82,7 @@ export interface RunProposalEvent {
     id: string;
     /** The tool call that produced it, so the UI can attach it to the step. */
     toolCallId: string;
-    /** The tool's name, e.g. `content.proposeEdit`. */
+    /** The tool's name, e.g. `content_propose_update`. */
     toolName: string;
     /** Which applier would carry it out, e.g. `content.entry.update`. */
     kind: string;

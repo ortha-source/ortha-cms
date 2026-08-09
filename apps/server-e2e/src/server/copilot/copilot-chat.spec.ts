@@ -735,7 +735,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
     // structured filter, a locale, and a field projection.
     describe('the content tools — filter, locale, projection', () => {
         /**
-         * Runs one scripted `content.searchEntries` call and returns its
+         * Runs one scripted `admin_content_search` call and returns its
          * result frame. Takes an already-signed-in agent so a test can make
          * several calls — `signIn` seeds a user, and seeding the same email
          * twice is a unique-constraint violation, not a second session.
@@ -745,7 +745,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             input: Record<string, unknown>
         ) {
             scriptCopilot(
-                { toolCalls: [{ name: 'content.searchEntries', input }] },
+                { toolCalls: [{ name: 'admin_content_search', input }] },
                 { text: 'done' }
             );
             const events = await run(agent, { message: 'search' });
@@ -905,13 +905,13 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(item.id).toEqual(expect.any(String));
         });
 
-        /** The paths `content.listTypes` advertises for `test_article`. */
+        /** The paths `admin_content_types` advertises for `test_article`. */
         async function filterablePaths(agent: request.Agent) {
             scriptCopilot(
                 {
                     toolCalls: [
                         {
-                            name: 'content.listTypes',
+                            name: 'admin_content_types',
                             input: { typeName: 'test_article' }
                         }
                     ]
@@ -956,7 +956,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 {
                     toolCalls: [
                         {
-                            name: 'content.getEntry',
+                            name: 'admin_content_get',
                             input: {
                                 typeName: 'test_article',
                                 id,
@@ -990,7 +990,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 {
                     toolCalls: [
                         {
-                            name: 'content.searchEntries',
+                            name: 'admin_content_search',
                             input: {
                                 typeName: 'test_article',
                                 search: 'launch'
@@ -1007,9 +1007,9 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
             expect(offered).toEqual(
                 expect.arrayContaining([
-                    'content.listTypes',
-                    'content.searchEntries',
-                    'content.getEntry'
+                    'admin_content_types',
+                    'admin_content_search',
+                    'admin_content_get'
                 ])
             );
 
@@ -1033,7 +1033,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(system).toContain('test_article');
             // Summaries only — the field schema is fetched on demand.
             expect(system).not.toContain('"fields"');
-            expect(system).toContain('content.listTypes');
+            expect(system).toContain('admin_content_types');
         });
 
         it('refuses a content type the workspace was not granted', async () => {
@@ -1041,7 +1041,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 {
                     toolCalls: [
                         {
-                            name: 'content.searchEntries',
+                            name: 'admin_content_search',
                             input: { typeName: 'test_author' }
                         }
                     ]

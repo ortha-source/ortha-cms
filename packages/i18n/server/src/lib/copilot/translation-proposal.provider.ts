@@ -1,17 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
 import {
     InjectContentRegistry,
     WorkspaceGrantsQuery,
     type ContentTypeRegistry
 } from '@ortha-cms/content-server';
-import type {
-    CopilotToolProvider,
-    ProposalChange,
-    ProposalDraft,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import type { ProposalChange, ProposalDraft } from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { LocaleRegistryService } from '../locales/services/locale-registry.service';
 import { LocaleGroupService } from '../content/services/locale-group.service';
 
@@ -22,7 +18,7 @@ export const I18N_PROPOSAL_KINDS = {
 } as const;
 
 /**
- * `i18n.proposeTranslation` — drafts an entry's translation into another
+ * `i18n_propose_translation` — drafts an entry's translation into another
  * locale, for a human to accept.
  *
  * Like every propose tool it **writes nothing**. What it does do is the part a
@@ -38,28 +34,42 @@ export const I18N_PROPOSAL_KINDS = {
  * and neither is something to hand a reviewer.
  */
 @Injectable()
-export class TranslationProposalToolProvider implements CopilotToolProvider {
+export class TranslationProposalToolProvider
+    implements ToolProvider, OnModuleInit
+{
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly locales: LocaleRegistryService,
         private readonly groups: LocaleGroupService,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
     ) {}
 
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
+
     /** The one i18n write tool. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.proposeTranslation()];
     }
 
-    private proposeTranslation(): ToolSpec {
+    private proposeTranslation(): ToolDefinition {
         return {
-            name: 'i18n.proposeTranslation',
+            name: 'i18n_propose_translation',
+            title: 'Propose a translation',
             description:
                 'Propose a translation of an entry into another locale, creating that locale’s ' +
                 'row in the same translation group. This does NOT save anything — it drafts ' +
                 'the change for the user to approve, and the reply will say so. Read the ' +
-                'source entry first (content.getEntry) and translate its text yourself; only ' +
+                'source entry first (admin_content_get) and translate its text yourself; only ' +
                 'fields the type marks as localized can differ per locale.',
             inputSchema: {
                 type: 'object',
@@ -78,7 +88,7 @@ export class TranslationProposalToolProvider implements CopilotToolProvider {
                         type: 'string',
                         maxLength: 35,
                         description:
-                            'The locale slug to create, from i18n.listLocales. It must not ' +
+                            'The locale slug to create, from i18n_locales_list. It must not ' +
                             'already exist in this entry’s translation group.'
                     },
                     values: {
@@ -102,9 +112,14 @@ export class TranslationProposalToolProvider implements CopilotToolProvider {
             // catalogue says so, and it is the right key — a translation is a
             // change to an existing piece of content, not a new one, which is
             // exactly how an editor thinks about it.
-            permissions: [PERMISSIONS.CONTENT_UPDATE],
+            requires: [PERMISSIONS.CONTENT_UPDATE],
+            readOnly: false,
             effect: 'propose',
-            run: async (input, ctx: ToolContext): Promise<ProposalDraft> => {
+            // Copilot-only: it reads the admin services (a viewer must see
+            // drafts) or writes through propose-then-apply with the human as
+            // actor. MCP's content tools are the public-API set.
+            surfaces: ['copilot'],
+            handler: async (input, ctx): Promise<ProposalDraft> => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     id: string;
@@ -129,7 +144,7 @@ export class TranslationProposalToolProvider implements CopilotToolProvider {
                 const target = this.locales.get(args.locale);
                 if (!target) {
                     throw new Error(
-                        `Unknown locale "${args.locale}". Call i18n.listLocales for the ` +
+                        `Unknown locale "${args.locale}". Call i18n_locales_list for the ` +
                             'configured slugs.'
                     );
                 }
@@ -147,7 +162,7 @@ export class TranslationProposalToolProvider implements CopilotToolProvider {
                 if (existing?.entry) {
                     throw new Error(
                         `This entry already has a "${target.slug}" translation. Use ` +
-                            'content.proposeEdit on that row instead.'
+                            'content_propose_update on that row instead.'
                     );
                 }
 

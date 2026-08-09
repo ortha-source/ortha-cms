@@ -10,7 +10,7 @@ import type { EntryRecord } from '../entries/types/entry-list-view';
  * into something a model can actually reason over.
  *
  * The envelope (`id`, `status`, `locale`, timestamps, …) is always kept: `id` is
- * what makes an entry addressable for a follow-up `content.getEntry`, and a
+ * what makes an entry addressable for a follow-up `admin_content_get`, and a
  * projection that could drop it would be a trap. Same rule the public API's
  * sparse fieldsets follow.
  *

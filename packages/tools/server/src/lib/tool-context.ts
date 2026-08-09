@@ -1,5 +1,5 @@
 import type { PermissionKey } from '@ortha-cms/identity-server';
-import type { ToolActor, ToolContext } from '../types/tool';
+import type { ToolActor, ToolContext } from './tool';
 
 /**
  * Build a {@link ToolContext} from an already-resolved actor and workspace.

@@ -1,14 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type { CopilotToolProvider, ToolSpec } from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { ActivityService } from '../activity/services/activity.service';
 
-/** Events a single `activity.recent` call may return. */
+/** Events a single `activity_recent` call may return. */
 const MAX_TOOL_PAGE_SIZE = 25;
 
 /**
  * The activity plugin's contribution to the copilot's tool catalogue —
- * `activity.recent`, a thin wrapper over the same `ActivityService.list` the
+ * `activity_recent`, a thin wrapper over the same `ActivityService.list` the
  * read route calls.
  *
  * **This tool is deployment-wide, not workspace-scoped, and that is not an
@@ -26,18 +27,32 @@ const MAX_TOOL_PAGE_SIZE = 25;
  * by opening the Activity page.
  */
 @Injectable()
-export class ActivityCopilotToolProvider implements CopilotToolProvider {
-    constructor(private readonly activity: ActivityService) {}
+export class ActivityCopilotToolProvider implements ToolProvider, OnModuleInit {
+    constructor(
+        private readonly activity: ActivityService,
+        @Optional() private readonly toolRegistry?: ToolRegistry
+    ) {}
+
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
 
     /** The one activity read tool. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.recent()];
     }
 
-    /** `activity.recent` — a page of the audit trail, newest first. */
-    private recent(): ToolSpec {
+    /** `activity_recent` — a page of the audit trail, newest first. */
+    private recent(): ToolDefinition {
         return {
-            name: 'activity.recent',
+            name: 'activity_recent',
+            title: 'Recent activity',
             description:
                 'Read the audit trail — who did what, when. Filter by event kind ' +
                 '(e.g. "entry.published"), by the subject acted upon, by actor, or by a time ' +
@@ -100,9 +115,11 @@ export class ActivityCopilotToolProvider implements CopilotToolProvider {
                 },
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.ACTIVITY_READ],
+            requires: [PERMISSIONS.ACTIVITY_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input) => {
+            surfaces: ['copilot'],
+            handler: async (input) => {
                 const args = (input ?? {}) as {
                     kind?: string[];
                     subjectType?: string;

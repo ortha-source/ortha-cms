@@ -92,7 +92,7 @@ describe('createOpenAiProvider', () => {
                                         index: 0,
                                         id: 'call_1',
                                         function: {
-                                            name: 'content.searchEntries',
+                                            name: 'admin_content_search',
                                             arguments: '{"q":'
                                         }
                                     }
@@ -125,7 +125,7 @@ describe('createOpenAiProvider', () => {
             {
                 type: 'tool-call',
                 id: 'call_1',
-                name: 'content.searchEntries',
+                name: 'admin_content_search',
                 input: { q: 'launch' }
             }
         ]);
@@ -314,7 +314,7 @@ describe('createOpenAiProvider', () => {
                 ...request,
                 tools: [
                     {
-                        name: 'content.searchEntries',
+                        name: 'admin_content_search',
                         description: 'Search entries',
                         inputSchema: { type: 'object' }
                     }
@@ -326,7 +326,7 @@ describe('createOpenAiProvider', () => {
             {
                 type: 'function',
                 function: {
-                    name: 'content.searchEntries',
+                    name: 'admin_content_search',
                     description: 'Search entries',
                     parameters: { type: 'object' }
                 }

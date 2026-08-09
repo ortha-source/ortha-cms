@@ -5,9 +5,9 @@ import {
     ListToolsRequestSchema,
     ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import type { ToolRegistry } from '../application/tool-registry';
-import { toToolError } from '../application/tool-error';
-import type { ToolContext } from '../types/tool';
+import type { ToolRegistry } from '@ortha-cms/tools-server';
+import { toToolError } from '@ortha-cms/tools-server';
+import type { ToolContext } from '@ortha-cms/tools-server';
 
 /** Identity this server reports to clients during `initialize`. */
 export interface McpServerInfo {
@@ -43,7 +43,7 @@ export function buildMcpServer(
     });
 
     server.setRequestHandler(ListToolsRequestSchema, () => ({
-        tools: registry.visibleTo(context).map((tool) => ({
+        tools: registry.visibleTo(context, 'mcp').map((tool) => ({
             name: tool.name,
             title: tool.title,
             description: tool.description,
@@ -59,7 +59,12 @@ export function buildMcpServer(
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
         try {
-            const result = await registry.call(name, args ?? {}, context);
+            const result = await registry.call(
+                name,
+                args ?? {},
+                context,
+                'mcp'
+            );
             return {
                 // Both spellings of the same value: `structuredContent` for
                 // clients that parse it, and the text block for models that

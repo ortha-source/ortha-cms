@@ -16,10 +16,7 @@ import { AssetMapper } from './infrastructure/persistence/asset.mapper';
 import { FolderMapper } from './infrastructure/persistence/folder.mapper';
 import { DrizzleAssetRepository } from './infrastructure/persistence/drizzle-asset.repository';
 import { DrizzleFolderRepository } from './infrastructure/persistence/drizzle-folder.repository';
-import {
-    copilotAppliersRegistrar,
-    copilotToolsRegistrar
-} from '@ortha-cms/copilot-server';
+import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
 import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
 import { MediaCopilotToolProvider } from './copilot/media-tool.provider';
 import { AltTextProposalToolProvider } from './copilot/alt-text-proposal.provider';
@@ -123,11 +120,6 @@ export class MediaModule {
                 // registry optionally.
                 MediaCopilotToolProvider,
                 AltTextProposalToolProvider,
-                copilotToolsRegistrar(
-                    'media',
-                    MediaCopilotToolProvider,
-                    AltTextProposalToolProvider
-                ),
                 // The applier for the kind that propose tool produces. Next to
                 // it on purpose: a missing applier surfaces only when a human
                 // clicks Accept.

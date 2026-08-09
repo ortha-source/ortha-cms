@@ -18,10 +18,7 @@ import { UpdateEntryController } from './entries/http/controllers/update-entry.c
 import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
-import {
-    copilotAppliersRegistrar,
-    copilotToolsRegistrar
-} from '@ortha-cms/copilot-server';
+import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
 import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
 import { RevisionCopilotToolProvider } from './copilot/revision-tool.provider';
 import { EntryProposalToolProvider } from './copilot/entry-proposal.provider';
@@ -184,7 +181,7 @@ export class ContentModule {
                 // The agent-facing tools — the same CRUD as the public API,
                 // over the same services, for the MCP endpoint and (once its
                 // run engine lands) the copilot. Registers itself with
-                // `@ortha-cms/mcp-server`'s registry when that plugin is
+                // `@ortha-cms/tools-server`'s registry when the MCP plugin is
                 // installed, and is inert when it isn't.
                 ContentToolProvider,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
@@ -196,12 +193,6 @@ export class ContentModule {
                 ContentCopilotToolProvider,
                 RevisionCopilotToolProvider,
                 EntryProposalToolProvider,
-                copilotToolsRegistrar(
-                    'content',
-                    ContentCopilotToolProvider,
-                    RevisionCopilotToolProvider,
-                    EntryProposalToolProvider
-                ),
                 // The appliers for the kinds those propose tools produce.
                 // Next to the tools on purpose: a missing applier surfaces only
                 // when a human clicks Accept.

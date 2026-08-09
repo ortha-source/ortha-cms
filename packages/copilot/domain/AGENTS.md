@@ -75,26 +75,24 @@ adapter has to implement that clause, so it lives here as two functions instead
 of as prose copy-pasted into each one. Both are pure, so this costs the layer
 nothing.
 
-### The tool seam (phase 1)
+### The offer-time gate
 
-- `ToolSpec` / `ToolContext` / `ToolEffect` — one capability the copilot may
-  invoke. A tool declares the `PermissionKey[]` its caller must hold **in full**
-  and an `effect` of `read | propose | apply`.
-- `COPILOT_TOOL_PROVIDER` + `CopilotToolProvider` — the port each feature plugin
-  binds. **It lives here, not in `copilot/server`**, deviating from
-  `docs/design/copilot.md` §4 for the same reason phase 0 moved
-  `MODEL_REGISTRY`: the port exists so `copilot/server` never imports
-  `content-server`, and putting the token in the server would merely invert that
-  dependency. A binder depends on the domain and on nothing else.
+The tool _contract_ and its registry are shared with the MCP endpoint and live
+in `@ortha-cms/tools-server` (ADR-0007). `ToolSpec`, `ToolContext` and
+`COPILOT_TOOL_PROVIDER` are gone from this package. What remains is what
+genuinely belongs to a framework-free core:
+
 - `resolveCapabilityProfile(...)` — the **offer**-time gate (ADR-0005 §3). Pure
   and total, which is what makes "a viewer is offered no write tools" a unit
-  test rather than a promise. It restates identity's set-membership check in ten
-  lines instead of importing `AccessPolicy`, because this package imports
-  nothing and that class sits behind a Nest barrel.
+  test rather than a promise. It is **generic over a three-field structural
+  type** (`AuthorizableTool`: `name`, `requires`, `effect`) rather than
+  importing `ToolDefinition`, so this package still imports nothing and the
+  server still passes the real registry's tools straight in.
 - `validateToolInput(input, schema)` — a **deliberate JSON Schema subset**
   covering what the generated tool schemas use, ignoring keywords it doesn't
   know. Sound because it is defence in depth behind the profile, not the
-  boundary: its job is stopping a malformed model call from becoming a 500.
+  boundary: `ToolRegistry.call` is the boundary. Its job is stopping a
+  malformed model call from becoming a 500.
 
 ### Proposals (phase 3)
 

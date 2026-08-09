@@ -23,6 +23,7 @@
         "@ortha-cms/copilot-server": "*",
         "@ortha-cms/database": "*",
         "@ortha-cms/identity-server": "*",
+        "@ortha-cms/tools-server": "*",
         "@ortha-cms/utils-server": "*",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.15.1",

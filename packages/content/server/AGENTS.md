@@ -163,7 +163,7 @@ the roles swapped back: `copilot/server` declares `COPILOT_TOOL_PROVIDER` (in
 thin wrappers over them. No query logic is duplicated and no refactor was needed.
 
 - `ContentCopilotToolProvider` ships phase 1's three **read-only** tools:
-  `content.listTypes`, `content.searchEntries`, `content.getEntry`. Between
+  `admin_content_types`, `admin_content_search`, `admin_content_get`. Between
   them they reach the same query surface the admin's records table does —
   free-text search, the structured `?filter=` tree, sorting, paging, locales,
   and sparse fieldsets — so "which German articles has Ada not published?" is
@@ -177,14 +177,14 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
   far easier for a model to build correctly. It never writes SQL: every path is
   checked against the type's schema, so an unknown field or an ungranted
   relation hop is a rejected filter. The paths on offer come from
-  `content.listTypes`, which returns `filterableFields` built with
+  `admin_content_types`, which returns `filterableFields` built with
   `grantedTypes` — the same grant-pruning the public API applies, so a hop into
   a type the workspace was never granted is never advertised.
 - **`fields` projects `values`** (`copilot/project-entry.ts`) and is what makes
   "list all the articles" possible at all: a full `EntryRecord` carries every
   richtext body, so a page of 25 exhausts the run's token ceiling long before
   its row cap. The envelope — `id` above all — is always kept, since a
-  projection that could drop it would break the follow-up `content.getEntry`.
+  projection that could drop it would break the follow-up `admin_content_get`.
   An unknown name is **ignored**, not a 400 as on the public API: there a typo
   is a developer's bug worth surfacing, here the name came from a model that
   may have mis-remembered a field, and the returned `values` already say what
@@ -192,10 +192,10 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
 - **`locale` / `localeFallback`** are forwarded verbatim to the bound
   `CONTENT_ENTRY_EXTENSION`, which validates the slug and scopes the rows —
   content-server stays locale-agnostic here as everywhere. An unknown locale is
-  a tool error, never a silent read of the default. `content.getEntry` takes no
+  a tool error, never a silent read of the default. `admin_content_get` takes no
   `locale`: an entry id already names one row including its locale.
 - `RevisionCopilotToolProvider` ships the **version-history** pair,
-  `content.listRevisions` and `content.diffRevisions`. A second provider rather
+  `admin_content_revisions` and `admin_content_diff`. A second provider rather
   than more methods on the first: revisions are their own feature folder with
   their own port, and the registry takes any number of providers. `diffRevisions`
   returns **only the changed fields** plus a count of the unchanged ones — the
@@ -216,7 +216,7 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
   copilot with no content tools and no error anywhere. A factory's `inject` list
   names its dependencies as values, so there is no reflected type to get wrong.
 - `EntryProposalToolProvider` ships the **write** pair,
-  `content.proposeEntry` and `content.proposeEdit` (`effect: 'propose'`).
+  `content_propose_create` and `content_propose_update` (`effect: 'propose'`).
   Neither writes anything: they compute a change and hand it back, and the run
   engine records it for a human to accept. That is the whole point of the split
   — the tool is a pure function of the model's arguments plus the current

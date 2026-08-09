@@ -17,6 +17,9 @@
             "path": "../../utils/server/tsconfig.lib.json"
         },
         {
+            "path": "../../tools/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../identity/server/tsconfig.lib.json"
         },
         {

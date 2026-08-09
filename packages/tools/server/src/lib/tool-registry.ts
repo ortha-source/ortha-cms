@@ -8,9 +8,10 @@ import type {
     ResourceDefinition,
     ToolContext,
     ToolDefinition,
-    ToolOutput
-} from '../types/tool';
-import type { ToolProvider } from '../types/tool-provider';
+    ToolOutput,
+    ToolSurface
+} from './tool';
+import type { ToolProvider } from './tool-provider';
 
 /**
  * The shared, transport-neutral catalogue of everything an agent can do to this
@@ -67,13 +68,31 @@ export class ToolRegistry {
     }
 
     /**
-     * The tools `context`'s actor holds the permissions for. What a client is
-     * shown — a read-only token never learns that `content_create` exists,
-     * which is a far better experience than discovering it via a refusal, and
-     * keeps a model from burning turns on calls that cannot succeed.
+     * Every tool offered to one **surface** — the MCP endpoint or the copilot.
+     *
+     * A tool that names no surfaces is offered to both, so this narrows only
+     * the ones that declared a reason to be narrowed (see {@link ToolSurface}).
      */
-    visibleTo(context: ToolContext): readonly ToolDefinition[] {
-        return this.all().filter((tool) => this.permits(tool, context));
+    forSurface(surface: ToolSurface): readonly ToolDefinition[] {
+        return this.all().filter(
+            (tool) => !tool.surfaces || tool.surfaces.includes(surface)
+        );
+    }
+
+    /**
+     * The tools `context`'s actor holds the permissions for, on one surface.
+     * What a client is shown — a read-only token never learns that
+     * `content_create` exists, which is a far better experience than
+     * discovering it via a refusal, and keeps a model from burning turns on
+     * calls that cannot succeed.
+     */
+    visibleTo(
+        context: ToolContext,
+        surface: ToolSurface
+    ): readonly ToolDefinition[] {
+        return this.forSurface(surface).filter((tool) =>
+            this.permits(tool, context)
+        );
     }
 
     /**
@@ -89,9 +108,16 @@ export class ToolRegistry {
     async call(
         name: string,
         input: Record<string, unknown>,
-        context: ToolContext
+        context: ToolContext,
+        surface: ToolSurface
     ): Promise<ToolOutput> {
-        const tool = this.all().find((candidate) => candidate.name === name);
+        // Scoped to the surface, so a caller cannot invoke a tool the *other*
+        // consumer's rules were written for — an MCP client naming
+        // `content_propose_edit` gets "unknown tool", not a proposal it has no
+        // way to accept.
+        const tool = this.forSurface(surface).find(
+            (candidate) => candidate.name === name
+        );
         if (!tool) {
             throw new NotFoundException(`Unknown tool "${name}".`);
         }

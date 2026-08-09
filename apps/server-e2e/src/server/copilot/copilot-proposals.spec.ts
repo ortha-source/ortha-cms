@@ -122,10 +122,10 @@ describe('Copilot proposals', () => {
             const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
             expect(offered).toEqual(
                 expect.arrayContaining([
-                    'content.proposeEntry',
-                    'content.proposeEdit',
-                    'i18n.proposeTranslation',
-                    'media.proposeAltText'
+                    'content_propose_create',
+                    'content_propose_update',
+                    'i18n_propose_translation',
+                    'media_propose_alt_text'
                 ])
             );
         });
@@ -157,13 +157,13 @@ describe('Copilot proposals', () => {
             const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
             expect(offered).toEqual(
                 expect.arrayContaining([
-                    'content.proposeEntry',
-                    'content.proposeEdit',
-                    'i18n.proposeTranslation',
-                    'media.proposeAltText'
+                    'content_propose_create',
+                    'content_propose_update',
+                    'i18n_propose_translation',
+                    'media_propose_alt_text'
                 ])
             );
-            expect(offered).not.toContain('activity.recent');
+            expect(offered).not.toContain('activity_recent');
         });
 
         it('exposes no publish tool at any role', async () => {
@@ -188,7 +188,7 @@ describe('Copilot proposals', () => {
 
             const { result, proposal } = await propose(
                 agent,
-                'content.proposeEntry',
+                'content_propose_create',
                 {
                     typeName: 'test_article',
                     values: { text: 'Drafted headline', select: 'article' },
@@ -217,7 +217,7 @@ describe('Copilot proposals', () => {
         it('tells the model to wait rather than letting it claim success', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            await propose(agent, 'content.proposeEntry', {
+            await propose(agent, 'content_propose_create', {
                 typeName: 'test_article',
                 values: { text: 'Waiting on approval', select: 'article' },
                 summary: 'New article'
@@ -238,12 +238,16 @@ describe('Copilot proposals', () => {
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const { proposal } = await propose(agent, 'content.proposeEdit', {
-                typeName: 'test_article',
-                id,
-                values: { text: 'New headline' },
-                summary: 'Fix the headline'
-            });
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id,
+                    values: { text: 'New headline' },
+                    summary: 'Fix the headline'
+                }
+            );
 
             expect(proposal.changes).toEqual([
                 expect.objectContaining({
@@ -261,7 +265,7 @@ describe('Copilot proposals', () => {
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const { result } = await propose(agent, 'content.proposeEdit', {
+            const { result } = await propose(agent, 'content_propose_update', {
                 typeName: 'test_article',
                 id,
                 values: { text: 'Unchanged' },
@@ -277,7 +281,7 @@ describe('Copilot proposals', () => {
         it('refuses a field the type does not declare', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const { result } = await propose(agent, 'content.proposeEntry', {
+            const { result } = await propose(agent, 'content_propose_create', {
                 typeName: 'test_article',
                 values: { text: 'Fine', select: 'article', nope: 'invented' },
                 summary: 'Bad field'
@@ -293,7 +297,7 @@ describe('Copilot proposals', () => {
         it('refuses a content type the workspace was not granted', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            const { result } = await propose(agent, 'content.proposeEntry', {
+            const { result } = await propose(agent, 'content_propose_create', {
                 typeName: 'test_author',
                 values: { name: 'Ada' },
                 summary: 'New author'
@@ -308,12 +312,16 @@ describe('Copilot proposals', () => {
     describe('accepting applies through the ordinary use-case', () => {
         /** Propose an edit and return the proposal id. */
         async function proposeEdit(agent: request.Agent, id: string) {
-            const { proposal } = await propose(agent, 'content.proposeEdit', {
-                typeName: 'test_article',
-                id,
-                values: { text: 'Approved headline' },
-                summary: 'Fix the headline'
-            });
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id,
+                    values: { text: 'Approved headline' },
+                    summary: 'Fix the headline'
+                }
+            );
             return proposal.id;
         }
 
@@ -535,7 +543,7 @@ describe('Copilot proposals', () => {
     describe('the review queue', () => {
         it('lists pending proposals for the workspace', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            await propose(agent, 'content.proposeEntry', {
+            await propose(agent, 'content_propose_create', {
                 typeName: 'test_article',
                 values: { text: 'Queued', select: 'article' },
                 summary: 'New article'
@@ -549,7 +557,7 @@ describe('Copilot proposals', () => {
 
             expect(response.body.items).toHaveLength(1);
             expect(response.body.items[0]).toMatchObject({
-                toolName: 'content.proposeEntry',
+                toolName: 'content_propose_create',
                 status: 'pending'
             });
         });
@@ -568,7 +576,7 @@ describe('Copilot proposals', () => {
 
         it('does not leak another workspace’s proposals', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            await propose(agent, 'content.proposeEntry', {
+            await propose(agent, 'content_propose_create', {
                 typeName: 'test_article',
                 values: { text: 'Ours', select: 'article' },
                 summary: 'New article'
@@ -615,7 +623,7 @@ describe('Copilot proposals', () => {
                 response.body.optInCandidates.map(
                     (tool: { name: string }) => tool.name
                 )
-            ).toEqual(expect.arrayContaining(['media.proposeAltText']));
+            ).toEqual(expect.arrayContaining(['media_propose_alt_text']));
         });
 
         it('applies immediately once a tool is opted in, and still records the row', async () => {
@@ -627,13 +635,17 @@ describe('Copilot proposals', () => {
                 kind: 'image',
                 mimeType: 'image/png'
             });
-            await setPolicy(agent, ['media.proposeAltText']).expect(200);
+            await setPolicy(agent, ['media_propose_alt_text']).expect(200);
 
-            const { proposal } = await propose(agent, 'media.proposeAltText', {
-                assetId: asset.id,
-                alt: 'A cyclist crossing a bridge at dawn',
-                summary: 'Alt text for hero.png'
-            });
+            const { proposal } = await propose(
+                agent,
+                'media_propose_alt_text',
+                {
+                    assetId: asset.id,
+                    alt: 'A cyclist crossing a bridge at dawn',
+                    summary: 'Alt text for hero.png'
+                }
+            );
 
             // Applied without a click — and still recorded, which is what makes
             // a direct apply "undoable, never invisible".
@@ -653,14 +665,18 @@ describe('Copilot proposals', () => {
                 workspace.id
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            await setPolicy(agent, ['media.proposeAltText']).expect(200);
+            await setPolicy(agent, ['media_propose_alt_text']).expect(200);
 
-            const { proposal } = await propose(agent, 'content.proposeEdit', {
-                typeName: 'test_article',
-                id,
-                values: { text: 'Still needs review' },
-                summary: 'Fix the headline'
-            });
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id,
+                    values: { text: 'Still needs review' },
+                    summary: 'Fix the headline'
+                }
+            );
 
             // There is deliberately no `all` switch: one team's judgement about
             // alt text must not become blanket write access.
@@ -674,14 +690,14 @@ describe('Copilot proposals', () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const response = await setPolicy(agent, [
-                'media.proposeAltText',
+                'media_propose_alt_text',
                 'content.deleteEverything'
             ]).expect(200);
 
             // A stale or mistyped name must not sit in the policy waiting for a
             // future tool to adopt it and inherit an opt-in nobody granted.
             expect(response.body.autoApplyTools).toEqual([
-                'media.proposeAltText'
+                'media_propose_alt_text'
             ]);
         });
 
@@ -692,7 +708,7 @@ describe('Copilot proposals', () => {
                 .get('/api/copilot/policy')
                 .set('X-Workspace-Id', workspace.id)
                 .expect(403);
-            await setPolicy(agent, ['media.proposeAltText']).expect(403);
+            await setPolicy(agent, ['media_propose_alt_text']).expect(403);
         });
     });
 });

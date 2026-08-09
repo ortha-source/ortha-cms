@@ -1,4 +1,10 @@
-import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Param,
+    ParseUUIDPipe,
+    UseGuards
+} from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import {
     CurrentUser,
@@ -7,10 +13,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import {
     ConversationRepository,
     type ConversationView,
@@ -39,7 +42,9 @@ export class GetConversationController {
     constructor(private readonly conversations: ConversationRepository) {}
 
     @Get('conversations/:id')
-    @ApiOperation({ summary: 'Get one copilot conversation and its transcript' })
+    @ApiOperation({
+        summary: 'Get one copilot conversation and its transcript'
+    })
     async get(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: PublicUser,

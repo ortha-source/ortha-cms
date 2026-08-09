@@ -7,6 +7,14 @@
 > Companion to [ADR-0004](0004-model-agnostic-copilot-provider.md), which settles
 > how the copilot reaches a model. This ADR settles what it may do once it can.
 > Full feature context: [`docs/design/copilot.md`](../design/copilot.md).
+>
+> **Amended by [ADR-0007](0007-one-tool-registry-two-surfaces.md)**: the tool
+> catalogue and the authorization check in §3 are now the _shared_
+> `ToolRegistry` this CMS also serves over MCP, not a copilot-private one. The
+> authority model here is unchanged — §3's three enforcement points, §5's
+> propose-then-apply and §7's no-publish rule all still hold — but a tool now
+> declares which surface it is offered to, and the "unknown tool" wording in §3
+> follows ADR-0006 §5 instead of hiding a withheld name.
 
 ## Context
 
@@ -22,8 +30,8 @@ What already exists and works:
   grants — the same source `GET /auth/me` uses.
 - **Workspace scoping.** `WorkspaceGuard` + `X-Workspace-Id` isolate
   workspace-owned data to workspaces the caller belongs to.
-- **Audit.** `ACTIVITY_RECORDER` writes an activity row *in the same
-  transaction* as the mutation it records.
+- **Audit.** `ACTIVITY_RECORDER` writes an activity row _in the same
+  transaction_ as the mutation it records.
 - **Revisions.** Content entries keep history, so a change is diffable and
   recoverable.
 
@@ -57,16 +65,16 @@ a principal that acts.
 
 3. **Enforcement happens in three places, and the first one is not an
    optimisation.**
-   - **Offer** — the tool list is filtered *before* prompt assembly. A tool the
-     model was never told about cannot be requested, argued into existence, or
-     refused at token cost.
-   - **Authorize** — at execution, the declared permissions are re-checked
-     against a freshly resolved session.
-   - **Present** — the admin gates affordances with the existing fail-closed
-     `hasPermission` on the auth context.
+    - **Offer** — the tool list is filtered _before_ prompt assembly. A tool the
+      model was never told about cannot be requested, argued into existence, or
+      refused at token cost.
+    - **Authorize** — at execution, the declared permissions are re-checked
+      against a freshly resolved session.
+    - **Present** — the admin gates affordances with the existing fail-closed
+      `hasPermission` on the auth context.
 
 4. **Tools declare their authority in `ToolSpec`**: the `PermissionKey[]` a
-   caller must hold *in full*, and an `effect` of `read | propose | apply`.
+   caller must hold _in full_, and an `effect` of `read | propose | apply`.
 
 5. **Writes produce proposals by default.** A mutating tool writes a
    `copilot_proposals` row; a human accepts it. Applying runs the **ordinary
@@ -102,7 +110,7 @@ a principal that acts.
 
 - Role changes propagate to the copilot with no copilot code touched — the
   capability profile is derived from `SYSTEM_ROLES`, not restated.
-- A viewer's copilot is *provably* read-only, and that is a test, not a promise.
+- A viewer's copilot is _provably_ read-only, and that is a test, not a promise.
 - Security review has one surface: `copilot_tool_calls` joined to the activity
   log.
 - Prompt injection buys the attacker nothing beyond what the current user could
@@ -114,7 +122,7 @@ a principal that acts.
   policy is the pressure valve, and it is a new configuration surface with its
   own review burden.
 - **No caching of the profile**, so each run pays a permission resolution.
-- **Negative-path e2e is mandatory**: a viewer's run must be verified *not* to
+- **Negative-path e2e is mandatory**: a viewer's run must be verified _not_ to
   be offered write tools, which is a test shape the suite does not have yet.
 - Connector permission mapping is manual, because we cannot infer what someone
   else's tool does.
@@ -132,7 +140,7 @@ a principal that acts.
   excluding roles from the feature.
 
 **What this rules out:** a service account or any elevated copilot identity;
-execution-time checks as the *only* gate; silent writes to live content;
+execution-time checks as the _only_ gate; silent writes to live content;
 exposing publish to the model in v1; and treating content or connector text as
 trusted prompt context.
 
@@ -147,7 +155,7 @@ trusted prompt context.
   refusal noise, wasted tokens, and a worse experience for exactly the
   lowest-privileged users. Offer-time filtering is also a cheap second layer.
 - **Always apply directly, with undo.** Honest about what users want, and
-  revisions do make it recoverable. Rejected as a *default* because "recoverable"
+  revisions do make it recoverable. Rejected as a _default_ because "recoverable"
   and "noticed" are different things; kept as an opt-in policy for low-risk
   tools.
 - **Let the model publish when the user holds `content:publish`.** Consistent

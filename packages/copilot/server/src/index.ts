@@ -14,15 +14,10 @@ export type { CopilotPluginConfig } from './lib/types/copilot-config';
 export { buildModelRegistry } from './lib/infrastructure/model-registry';
 export type { ProviderRegistration } from './lib/infrastructure/model-registry';
 
-// The seam a tool-binding plugin uses: inject the registry from its own
-// `OnApplicationBootstrap` and call `register(...)`. The `ToolSpec` /
-// `CopilotToolProvider` contracts it registers live in `@ortha-cms/copilot-domain`,
-// so a binder never has to import this package's internals.
-export { CopilotToolRegistry } from './lib/chat/application/tool-registry.service';
-// The one-liner a binding plugin adds to its module's `providers` to register
-// its tools at bootstrap. Prefer it over a hand-written registrar class — see
-// its JSDoc for the `design:paramtypes` trap it exists to close.
-export { copilotToolsRegistrar } from './lib/chat/application/tools-registrar';
+// Tools are no longer registered here. A binding plugin registers with the
+// shared `ToolRegistry` from `@ortha-cms/tools-server` — the same catalogue the
+// MCP endpoint serves — and marks a copilot-only tool `surfaces: ['copilot']`
+// (ADR-0006 §2).
 export { ProposalApplierRegistry } from './lib/chat/application/proposal-applier.registry';
 // The sibling one-liner for the plugins that own writes. A plugin binding
 // propose tools must register the appliers for the kinds they produce.

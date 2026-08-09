@@ -57,7 +57,9 @@ export class SseStream {
         }
         // JSON.stringify cannot emit a raw newline inside a string, so a single
         // `data:` line is always well-formed — no need to split the payload.
-        this.res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+        this.res.write(
+            `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+        );
     }
 
     /** Stops the heartbeat and ends the response. Safe to call twice. */

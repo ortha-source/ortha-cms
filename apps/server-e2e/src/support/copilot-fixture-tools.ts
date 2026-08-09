@@ -1,7 +1,4 @@
-import type {
-    CopilotToolProvider,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 
 /**
  * Fixture tools, registered by the copilot suite only.
@@ -12,15 +9,20 @@ import type {
  * that this negative path is mandatory rather than nice to have. These give it
  * something real to be false about, and let the `apply`-not-opted-in branch be
  * exercised end to end instead of only in the domain unit test.
+ *
+ * They are `surfaces: ['copilot']` like every other copilot tool, so registering
+ * them cannot leak a fixture into the MCP endpoint's `tools/list` and break the
+ * MCP suite's exact-catalogue assertions.
  */
-export class FixtureToolProvider implements CopilotToolProvider {
+export class FixtureToolProvider implements ToolProvider {
     /** Names of tools whose `run` was actually invoked, in order. */
     readonly invoked: string[] = [];
 
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [
             {
                 name: 'fixture.readThing',
+                title: 'Fixture read',
                 description: 'A read tool any role with content:read may use.',
                 inputSchema: {
                     type: 'object',
@@ -28,42 +30,53 @@ export class FixtureToolProvider implements CopilotToolProvider {
                     required: ['q'],
                     additionalProperties: false
                 },
-                permissions: ['content:read'],
+                requires: ['content:read'],
+                readOnly: true,
                 effect: 'read',
-                run: async (input) => {
+                surfaces: ['copilot'],
+                handler: async (input) => {
                     this.invoked.push('fixture.readThing');
                     return { echoed: (input as { q: string }).q, total: 3 };
                 }
             },
             {
                 name: 'fixture.proposeThing',
+                title: 'Fixture propose',
                 description: 'A propose tool needing content:update.',
                 inputSchema: { type: 'object', properties: {} },
-                permissions: ['content:update'],
+                requires: ['content:update'],
+                readOnly: false,
                 effect: 'propose',
-                run: async () => {
+                surfaces: ['copilot'],
+                handler: async () => {
                     this.invoked.push('fixture.proposeThing');
                     return { proposed: true };
                 }
             },
             {
                 name: 'fixture.applyThing',
+                title: 'Fixture apply',
                 description: 'An apply tool needing content:update.',
                 inputSchema: { type: 'object', properties: {} },
-                permissions: ['content:update'],
+                requires: ['content:update'],
+                readOnly: false,
                 effect: 'apply',
-                run: async () => {
+                surfaces: ['copilot'],
+                handler: async () => {
                     this.invoked.push('fixture.applyThing');
                     return { applied: true };
                 }
             },
             {
                 name: 'fixture.explodes',
+                title: 'Fixture thrower',
                 description: 'A read tool that always throws.',
                 inputSchema: { type: 'object', properties: {} },
-                permissions: ['content:read'],
+                requires: ['content:read'],
+                readOnly: true,
                 effect: 'read',
-                run: async () => {
+                surfaces: ['copilot'],
+                handler: async () => {
                     this.invoked.push('fixture.explodes');
                     throw new Error('the tool blew up');
                 }

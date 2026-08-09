@@ -1,10 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type {
-    CopilotToolProvider,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
 import type { ContentTypeRegistry } from '../registry/content-type-registry';
 import { EntriesService } from '../entries/infrastructure/queries/entries.service';
@@ -15,7 +12,7 @@ import { buildEntryFilterSurface } from '../entries/infrastructure/queries/entry
 import { describeFilterFields, filterTreeSchema } from './filter-schema';
 import { projectEntry } from './project-entry';
 
-/** Rows a single `content.searchEntries` call may return. */
+/** Rows a single `admin_content_search` call may return. */
 const MAX_TOOL_PAGE_SIZE = 25;
 
 /**
@@ -34,17 +31,28 @@ const MAX_TOOL_PAGE_SIZE = 25;
  * check lives, and every tool goes through it.
  */
 @Injectable()
-export class ContentCopilotToolProvider implements CopilotToolProvider {
+export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
     constructor(
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly entries: EntriesService,
         private readonly writer: EntryWriterService,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
     ) {}
 
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
+
     /** The three read tools, in the order the model sees them. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.listTypes(), this.searchEntries(), this.getEntry()];
     }
 
@@ -69,7 +77,7 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
     }
 
     /**
-     * `content.listTypes` — the workspace's types, and a named type's full
+     * `admin_content_types` — the workspace's types, and a named type's full
      * field schema on demand.
      *
      * This is the other half of the "summaries in the prompt, schema on
@@ -77,9 +85,10 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
      * without fields, and the model calls this when it needs one type's fields,
      * costing one round trip instead of a context window.
      */
-    private listTypes(): ToolSpec {
+    private listTypes(): ToolDefinition {
         return {
-            name: 'content.listTypes',
+            name: 'admin_content_types',
+            title: 'Content types (admin)',
             description:
                 'List the content types available in this workspace. Pass a typeName to get ' +
                 'that type’s full field schema (field names, types, required flags, relation ' +
@@ -96,9 +105,11 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                 },
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const { typeName } = (input ?? {}) as { typeName?: string };
                 const granted = await this.grants.grantedSlugs(ctx.workspaceId);
 
@@ -131,10 +142,11 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
         };
     }
 
-    /** `content.searchEntries` — one page of a type's entries. */
-    private searchEntries(): ToolSpec {
+    /** `admin_content_search` — one page of a type's entries. */
+    private searchEntries(): ToolDefinition {
         return {
-            name: 'content.searchEntries',
+            name: 'admin_content_search',
+            title: 'Search entries (admin)',
             description:
                 'Search a content type’s entries in this workspace. Combine free-text `search` ' +
                 '(across text-like fields) with a structured `filter` for precise queries, and ' +
@@ -200,9 +212,11 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                 required: ['typeName'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     search?: string;
@@ -268,13 +282,14 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
         };
     }
 
-    /** `content.getEntry` — one entry in full, by id. */
-    private getEntry(): ToolSpec {
+    /** `admin_content_get` — one entry in full, by id. */
+    private getEntry(): ToolDefinition {
         return {
-            name: 'content.getEntry',
+            name: 'admin_content_get',
+            title: 'Get an entry (admin)',
             description:
                 'Fetch one entry of a content type by its id, with all of its field values. ' +
-                'Use this after content.searchEntries when you need an entry’s full contents.',
+                'Use this after admin_content_search when you need an entry’s full contents.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -285,7 +300,7 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                     id: {
                         type: 'string',
                         description:
-                            'The entry’s id, as returned by content.searchEntries.'
+                            'The entry’s id, as returned by admin_content_search.'
                     },
                     fields: {
                         type: 'array',
@@ -298,9 +313,11 @@ export class ContentCopilotToolProvider implements CopilotToolProvider {
                 required: ['typeName', 'id'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     typeName: string;
                     id: string;

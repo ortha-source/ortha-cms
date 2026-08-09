@@ -62,7 +62,7 @@ entirely.
 
 ## The copilot tool (`src/lib/copilot/`)
 
-`ActivityCopilotToolProvider` binds one read tool, `activity.recent`, wrapping
+`ActivityCopilotToolProvider` binds one read tool, `activity_recent`, wrapping
 `ActivityService.list`. Registered by `copilotToolsRegistrar('activity', …)` in
 `ActivityModule.forRoot`, which injects the copilot registry **optionally** — a
 deployment without `CopilotPlugin` is normal.

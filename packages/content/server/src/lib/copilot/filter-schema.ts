@@ -22,7 +22,7 @@ export const FILTER_OPERATORS = [
 
 /**
  * The JSON Schema for a filter tree, handed to the model as
- * `content.searchEntries`'s `filter` parameter.
+ * `admin_content_search`'s `filter` parameter.
  *
  * The grammar is the query builder's own — a node is either a group
  * (`{and: […]}` / `{or: […]}`) or a rule (`{field, op, value}`) — so the model
@@ -44,7 +44,7 @@ export function filterTreeSchema(): Record<string, unknown> {
             field: {
                 type: 'string',
                 description:
-                    'A filterable path from content.listTypes → filterableFields, e.g. "status" or "author.name".'
+                    'A filterable path from admin_content_types → filterableFields, e.g. "status" or "author.name".'
             },
             op: { type: 'string', enum: [...FILTER_OPERATORS] },
             value: {
@@ -70,7 +70,7 @@ export function filterTreeSchema(): Record<string, unknown> {
         description:
             'A filter tree. Either a group — {"and":[…]} or {"or":[…]} — or, nested inside one, ' +
             'rules of the form {"field":"status","op":"eq","value":"published"}. ' +
-            'Only paths listed by content.listTypes are accepted.'
+            'Only paths listed by admin_content_types are accepted.'
     };
 }
 
@@ -79,7 +79,7 @@ export function filterTreeSchema(): Record<string, unknown> {
  *
  * `WireFilterField` carries a `group` breadcrumb for the admin's picker UI,
  * which is noise here — a model wants the dotted path, the coercion type, and
- * the allowed values for an enum. Trimming it also keeps `content.listTypes`
+ * the allowed values for an enum. Trimming it also keeps `admin_content_types`
  * affordable on a type with a wide relation graph.
  */
 export function describeFilterFields(

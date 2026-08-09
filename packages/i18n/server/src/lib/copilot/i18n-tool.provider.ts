@@ -1,23 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
 import {
     InjectContentRegistry,
     WorkspaceGrantsQuery,
     type ContentTypeRegistry
 } from '@ortha-cms/content-server';
-import type {
-    CopilotToolProvider,
-    ToolContext,
-    ToolSpec
-} from '@ortha-cms/copilot-domain';
+import { ToolRegistry } from '@ortha-cms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { LocaleRegistryService } from '../locales/services/locale-registry.service';
 import { LocaleGroupService } from '../content/services/locale-group.service';
 
 /**
- * The i18n plugin's read tools — `i18n.listLocales` and
- * `i18n.getTranslations`.
+ * The i18n plugin's read tools — `i18n_locales_list` and
+ * `i18n_translations_get`.
  *
- * **`listLocales` is what makes `content.searchEntries`'s `locale` usable.**
+ * **`listLocales` is what makes `admin_content_search`'s `locale` usable.**
  * The configured locale slugs are deployment config, not content, so nothing
  * else tells the model they exist: without this it either omits `locale` and
  * silently searches the default, or guesses a slug and gets a tool error. One
@@ -29,27 +26,39 @@ import { LocaleGroupService } from '../content/services/locale-group.service';
  * drift from what the editor shows.
  */
 @Injectable()
-export class I18nCopilotToolProvider implements CopilotToolProvider {
+export class I18nCopilotToolProvider implements ToolProvider, OnModuleInit {
     constructor(
         private readonly locales: LocaleRegistryService,
         private readonly groups: LocaleGroupService,
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly toolRegistry?: ToolRegistry
     ) {}
 
+    /**
+     * Register with the shared tool registry once the DI graph is built —
+     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
+     * surface by each tool's `surfaces`. `@Optional()` because a deployment
+     * may run neither consumer, in which case these simply go unregistered.
+     */
+    onModuleInit(): void {
+        this.toolRegistry?.register(this);
+    }
+
     /** The two locale tools, in the order the model sees them. */
-    tools(): readonly ToolSpec[] {
+    tools(): readonly ToolDefinition[] {
         return [this.listLocales(), this.getTranslations()];
     }
 
-    /** `i18n.listLocales` — the deployment's configured locales. */
-    private listLocales(): ToolSpec {
+    /** `i18n_locales_list` — the deployment's configured locales. */
+    private listLocales(): ToolDefinition {
         return {
-            name: 'i18n.listLocales',
+            name: 'i18n_locales_list',
+            title: 'List locales',
             description:
                 'List the locales this CMS is configured for, with their slugs and which one ' +
-                'is the default. Call this before passing a `locale` to content.searchEntries ' +
+                'is the default. Call this before passing a `locale` to admin_content_search ' +
                 '— locale slugs are deployment configuration and are not in your system ' +
                 'prompt, so guessing one produces an error and omitting one silently searches ' +
                 'the default language.',
@@ -62,16 +71,19 @@ export class I18nCopilotToolProvider implements CopilotToolProvider {
             // and the HTTP route needs only a session. `content:read` is the
             // narrowest key that means "may look at content at all", which is
             // the only thing this list is useful for.
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async () => ({ locales: this.locales.all() })
+            surfaces: ['copilot'],
+            handler: async () => ({ locales: this.locales.all() })
         };
     }
 
-    /** `i18n.getTranslations` — which locales an entry exists in. */
-    private getTranslations(): ToolSpec {
+    /** `i18n_translations_get` — which locales an entry exists in. */
+    private getTranslations(): ToolDefinition {
         return {
-            name: 'i18n.getTranslations',
+            name: 'i18n_translations_get',
+            title: 'An entry’s translations',
             description:
                 'For one entry of a localized type, list every configured locale and whether ' +
                 'the entry has been translated into it — with each translation’s own entry id ' +
@@ -88,15 +100,17 @@ export class I18nCopilotToolProvider implements CopilotToolProvider {
                     id: {
                         type: 'string',
                         description:
-                            'The id of any one locale’s row, as returned by content.searchEntries.'
+                            'The id of any one locale’s row, as returned by admin_content_search.'
                     }
                 },
                 required: ['typeName', 'id'],
                 additionalProperties: false
             },
-            permissions: [PERMISSIONS.CONTENT_READ],
+            requires: [PERMISSIONS.CONTENT_READ],
+            readOnly: true,
             effect: 'read',
-            run: async (input, ctx: ToolContext) => {
+            surfaces: ['copilot'],
+            handler: async (input, ctx) => {
                 const args = (input ?? {}) as { typeName: string; id: string };
 
                 // The same grant re-check every content tool makes, for the

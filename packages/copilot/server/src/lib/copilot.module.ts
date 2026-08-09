@@ -5,6 +5,7 @@ import {
     type ModelResolver
 } from '@ortha-cms/copilot-domain';
 import { DatabaseModule } from '@ortha-cms/database';
+import { ToolsModule } from '@ortha-cms/tools-server';
 import { COPILOT_CONFIG } from './copilot.tokens';
 import {
     buildModelRegistry,
@@ -17,7 +18,6 @@ import { DecideProposalService } from './chat/application/decide-proposal.servic
 import { ProposalApplierRegistry } from './chat/application/proposal-applier.registry';
 import { ContentTypeSummaryService } from './chat/application/content-type-summary.service';
 import { RunEngine } from './chat/application/run-engine.service';
-import { CopilotToolRegistry } from './chat/application/tool-registry.service';
 import { ConversationRepository } from './chat/infrastructure/persistence/conversation.repository';
 import { ProposalRepository } from './chat/infrastructure/persistence/proposal.repository';
 import { CreateRunController } from './chat/http/controllers/create-run.controller';
@@ -59,7 +59,11 @@ export class CopilotModule {
             global: true,
             // `DatabaseModule` is global, but importing it explicitly keeps
             // this module standalone-testable.
-            imports: [DatabaseModule],
+            // `ToolsModule` carries the shared tool registry — the same
+            // catalogue the MCP endpoint serves. Imported rather than provided
+            // so a deployment running the copilot *without* MCP still has one,
+            // and one running both has exactly one.
+            imports: [DatabaseModule, ToolsModule],
             controllers: [
                 CreateRunController,
                 // Before `GetConversationController`: `conversations/:id` and
@@ -81,7 +85,6 @@ export class CopilotModule {
                     useValue: buildModelRegistry(options.providers)
                 },
                 { provide: MODEL_RESOLVER, useValue: resolver },
-                CopilotToolRegistry,
                 CapabilityProfileService,
                 ContentTypeSummaryService,
                 ConversationRepository,
@@ -95,10 +98,9 @@ export class CopilotModule {
                 COPILOT_CONFIG,
                 MODEL_REGISTRY,
                 MODEL_RESOLVER,
-                // Exported so a binding plugin can inject it from its own
-                // `OnApplicationBootstrap` and register its tools — and, for
-                // the plugins that own writes, its proposal appliers.
-                CopilotToolRegistry,
+                // Exported so the plugins that own writes can register their
+                // proposal appliers. Tools go to the shared `ToolRegistry` in
+                // `@ortha-cms/tools-server`, which the MCP module provides.
                 ProposalApplierRegistry
             ]
         };
