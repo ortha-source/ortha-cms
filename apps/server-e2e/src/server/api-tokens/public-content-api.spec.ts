@@ -25,6 +25,7 @@ const PASSWORD = 'SecurePass123!';
 /** Shape of one item in the public list envelope (only the asserted bits). */
 interface PublicItem {
     id: string;
+    status?: string;
     publishedAt?: string | null;
     locale?: string;
     localeGroupId?: string;
@@ -354,7 +355,7 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.items[0].values.text).toBe('Live');
         });
 
-        it('returns a flat entry: no relations, no media, no workspace, no status', async () => {
+        it('returns a flat entry: no relations, no media, no workspace', async () => {
             await seedPublished('Flat');
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -367,7 +368,13 @@ describe('Public content API (/api/v1)', () => {
 
             const [item] = res.body.items as PublicItem[];
             expect(item).toHaveProperty('publishedAt');
-            expect(item).not.toHaveProperty('status');
+            // `status` used to be omitted here, on the grounds that a public
+            // read could only ever return `published` and a constant is not
+            // information. A `full`-scope token can now create drafts and read
+            // them back with `?status=`, so it is a real field.
+            expect(item.status).toBe('published');
+            // The workspace is not: it is how the *token* was scoped, never
+            // something a consumer of the content needs to know.
             expect(item).not.toHaveProperty('workspaceId');
 
             // The entry's own data rides `values` — scalars plus the jsonb
@@ -1121,6 +1128,11 @@ describe('Public content API (/api/v1)', () => {
         });
 
         it('404s the relation and media routes for an entry it cannot read', async () => {
+            // `test_tag` has to be granted for this to test what it says: the
+            // relation route checks the *target type's* grant before it looks
+            // the entry up, so without this the 400 for an ungranted target
+            // would mask the 404 under test.
+            await seedContentGrants(workspaceId, ['test_tag']);
             const [draft] = await seedArticles(
                 [{ text: 'Hidden', select: 'article' }],
                 workspaceId

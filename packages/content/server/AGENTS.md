@@ -634,7 +634,12 @@ the extension's `listScope` **only** for a group locator, where the locale is
 what picks the row out of the group. The narrowing is safe because `liveWhere`
 still carries the whole visibility rule — workspace, publish state, soft delete;
 `listScope` is, per its name and its one implementation, about choosing rows out
-of a _set_, and a request naming one row has already chosen.
+of a _set_, and a request naming one row has already chosen. It is still
+**validated**, though: `entryWhere` calls `listScope` for an id locator too and
+discards the predicate, because that call is also the only thing that checks the
+slug. Without it `?locale=zz` on `/:id` stopped being a 400 and became silently
+ignored — a typo answered with another language's content, which is worse than
+either 404-ing or rejecting it.
 
 **A group-addressed WRITE takes its locale from the query string**, never from
 `body.locale` — that field is create-only (it stamps a new row's locale), and

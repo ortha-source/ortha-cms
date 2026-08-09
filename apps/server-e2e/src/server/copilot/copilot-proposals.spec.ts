@@ -14,7 +14,7 @@ import {
     type SeededWorkspace
 } from '../../support/seed';
 import { copilotCalls, scriptCopilot } from '../../support/copilot';
-import { framesOfType, parseSse } from '../../support/sse';
+import { framesOfType, parseSse, streamSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
 const ADMIN_EMAIL = 'proposal-admin@example.com';
@@ -86,21 +86,85 @@ describe('Copilot changes', () => {
         return parseSse(response.text);
     }
 
-    /** Script one tool call, run it, and return the frames it produced. */
+    /** Answer one parked call. Fire-and-forget: the run is awaiting this. */
+    function decide(
+        agent: request.Agent,
+        runId: string,
+        callId: string,
+        decision: 'once' | 'chat' | 'deny'
+    ): void {
+        void agent
+            .post(`/api/copilot/runs/${runId}/permission`)
+            .set('X-Workspace-Id', workspace.id)
+            .set('Origin', TEST_ALLOWED_ORIGIN)
+            .send({ callId, decision })
+            .expect(204)
+            .catch((error: Error) => {
+                // Surfacing this matters: a swallowed failure here reads as the
+                // five-minute broker timeout, i.e. a 30s Jest timeout with no
+                // hint of why.
+                throw new Error(`answering ${callId} failed: ${error.message}`);
+            });
+    }
+
+    /**
+     * Start a run and answer every write prompt it parks on.
+     *
+     * ADR-0009 §1b: a `propose`/`apply` call the thread has not already allowed
+     * suspends the run until `POST /runs/:runId/permission` resolves it. So the
+     * answer must be sent *mid-stream* — hence {@link streamSse} rather than the
+     * buffered `run` above, which would deadlock waiting for a body that cannot
+     * finish until it is answered.
+     */
+    async function runAnswering(
+        agent: request.Agent,
+        body: Record<string, unknown>,
+        decision: 'once' | 'chat' | 'deny' = 'once'
+    ) {
+        const request$ = agent
+            .post('/api/copilot/runs')
+            .set('X-Workspace-Id', workspace.id)
+            .set('Origin', TEST_ALLOWED_ORIGIN)
+            .send(body)
+            .expect(200);
+        return streamSse(request$, (event) => {
+            if (event.type === 'tool-permission-request') {
+                decide(agent, event.runId, event.id, decision);
+            }
+        });
+    }
+
+    /** Script one tool call, allow it, and return the frames it produced. */
     async function propose(
         agent: request.Agent,
         name: string,
-        input: Record<string, unknown>
+        input: Record<string, unknown>,
+        decision: 'once' | 'chat' | 'deny' = 'once'
     ) {
         scriptCopilot(
             { toolCalls: [{ name, input }] },
             { text: 'Drafted for you.' }
         );
-        const events = await run(agent, { message: `call ${name}` });
+        const events = await runAnswering(
+            agent,
+            { message: `call ${name}` },
+            decision
+        );
         return {
+            events,
             result: framesOfType(events, 'tool-result')[0],
-            proposal: framesOfType(events, 'proposal')[0]
+            proposal: framesOfType(events, 'proposal')[0],
+            permission: framesOfType(events, 'tool-permission-request')[0]
         };
+    }
+
+    /** The whole paper trail for the workspace, whatever each row's status. */
+    async function proposalRows(agent: request.Agent) {
+        const response = await agent
+            .get('/api/copilot/proposals')
+            .set('X-Workspace-Id', workspace.id)
+            .expect(200);
+        return response.body.items as { toolName: string; status: string }[];
     }
 
     /** Read one entry through the API — the check that a write did/didn't land. */
@@ -179,6 +243,128 @@ describe('Copilot changes', () => {
             expect(
                 offered.filter((name) => name.toLowerCase().includes('publish'))
             ).toEqual([]);
+        });
+    });
+
+    // ------------------------------------------------------- asking first
+    //
+    // ADR-0009 §1b. The prompt is what buys back the defence the rest of that
+    // record gives up: the injected call parks and shows its arguments before
+    // anything happens. Untested, it is also *invisible* — a run that silently
+    // stopped asking would look exactly like these suites passing.
+    describe('a write asks before it runs', () => {
+        it('parks the call and shows the user its arguments', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { permission, result, events } = await propose(
+                agent,
+                'content_propose_create',
+                {
+                    typeName: 'test_article',
+                    values: { text: 'Asked first' },
+                    summary: 'Draft it'
+                }
+            );
+
+            expect(permission).toBeDefined();
+            expect(permission.name).toBe('content_propose_create');
+            // The arguments ride the frame, because approving a write you
+            // cannot see is the ceremony ADR-0009 deleted, not the one it kept.
+            expect(permission.input).toMatchObject({
+                typeName: 'test_article'
+            });
+            // …and it is asked *before* the call runs, not alongside it.
+            expect(events.indexOf(permission)).toBeLessThan(
+                events.indexOf(result)
+            );
+            expect(result.ok).toBe(true);
+        });
+
+        it('never asks about a read', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            scriptCopilot(
+                {
+                    toolCalls: [
+                        {
+                            name: 'admin_content_search',
+                            input: { typeName: 'test_article' }
+                        }
+                    ]
+                },
+                { text: 'Found them.' }
+            );
+
+            const events = await runAnswering(agent, { message: 'search' });
+
+            // A model runs three or four reads before it answers anything; a
+            // chat that opens with four prompts teaches people to click
+            // through them without reading.
+            expect(framesOfType(events, 'tool-permission-request')).toEqual([]);
+            expect(framesOfType(events, 'tool-result')[0].ok).toBe(true);
+        });
+
+        it('refuses the call when the user says no, and writes nothing', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { result } = await propose(
+                agent,
+                'content_propose_create',
+                {
+                    typeName: 'test_article',
+                    values: { text: 'Refused' },
+                    summary: 'Draft it'
+                },
+                'deny'
+            );
+
+            // A refusal is an ordinary tool error, so the model reports it and
+            // the run carries on rather than dying.
+            expect(result.ok).toBe(false);
+            expect(result.error).toContain('did not allow');
+            expect(await proposalRows(agent)).toHaveLength(0);
+        });
+
+        it('stops asking for the rest of the chat once allowed for it', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            scriptCopilot(
+                {
+                    toolCalls: [
+                        {
+                            name: 'content_propose_create',
+                            input: {
+                                typeName: 'test_article',
+                                values: { text: 'First' },
+                                summary: 'One'
+                            }
+                        },
+                        {
+                            name: 'content_propose_create',
+                            input: {
+                                typeName: 'test_article',
+                                values: { text: 'Second' },
+                                summary: 'Two'
+                            }
+                        }
+                    ]
+                },
+                { text: 'Both drafted.' }
+            );
+
+            const events = await runAnswering(
+                agent,
+                { message: 'draft two' },
+                'chat'
+            );
+
+            // The allow-list is read per call rather than per run, so the
+            // answer to the first stops the second in the *same* turn asking.
+            expect(framesOfType(events, 'tool-permission-request')).toHaveLength(
+                1
+            );
+            expect(
+                framesOfType(events, 'tool-result').map((frame) => frame.ok)
+            ).toEqual([true, true]);
+            expect(await proposalRows(agent)).toHaveLength(2);
         });
     });
 
@@ -421,7 +607,9 @@ describe('Copilot changes', () => {
                 },
                 { text: 'That did not work.' }
             );
-            const events = await run(agent, { message: 'edit a ghost' });
+            const events = await runAnswering(agent, {
+                message: 'edit a ghost'
+            });
             const result = framesOfType(events, 'tool-result')[0];
 
             // The propose half refuses outright here, which is the cheapest
