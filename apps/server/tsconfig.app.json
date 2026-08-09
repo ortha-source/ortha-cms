@@ -46,6 +46,9 @@
             "path": "../../packages/media/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/mcp/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/i18n/server/tsconfig.lib.json"
         },
         {

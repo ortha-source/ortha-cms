@@ -122,6 +122,9 @@
         },
         {
             "path": "./packages/content/graphql"
+        },
+        {
+            "path": "./packages/mcp/server"
         }
     ]
 }

@@ -50,6 +50,11 @@ export interface TestConfigOverrides {
      * a deployment asks.
      */
     docsEnabled?: boolean;
+    /**
+     * Turn the MCP endpoint off, to assert that the kill switch really
+     * unmounts it. Enabled by default so the suites can drive it.
+     */
+    mcpEnabled?: boolean;
 }
 
 export function buildTestConfig(
@@ -130,6 +135,14 @@ export function buildTestConfig(
                     ? { limits: overrides.graphqlLimits }
                     : {}),
                 schemaCacheTtlMs: 0
+            },
+            // Enabled by default here (the host default is off): the endpoint
+            // is what the MCP suites drive. `mcpEnabled: false` is how the
+            // kill-switch suite asserts the controller is really unmounted.
+            mcp: {
+                enabled: overrides.mcpEnabled ?? true,
+                name: 'ortha-cms-test',
+                version: '0.0.0-test'
             }
         }
     };

@@ -54,9 +54,18 @@
   `content/server`'s `public-api/`, not a second API: same bearer tokens, same
   guards, same scopes, same visibility rules, and resolvers that assemble the
   existing DTOs rather than reaching for the database
-  ([ADR-0006](docs/adr/0006-graphql-as-a-protocol-adapter.md)). Its schema is
+  ([ADR-0007](docs/adr/0007-graphql-as-a-protocol-adapter.md)). Its schema is
   built **per workspace content-grant set**, so introspection cannot enumerate
   types the workspace was not granted.
+- `packages/mcp/server` — `@ortha-cms/mcp-server`, the **MCP plugin**: the
+  Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
+  agent do content CRUD with an API token, plus the shared **tool registry**
+  behind it. The contract is transport-neutral on purpose — MCP is one adapter
+  over the registry, and the copilot's tool loop will be the other, so a tool
+  serves both ([ADR-0006](docs/adr/0006-cms-as-an-mcp-server.md)). Owns no
+  tools: `content/server` contributes them through the `TOOL_PROVIDER` port,
+  which is what lets a handler call `PublicEntriesQuery` directly instead of
+  re-implementing the rules it enforces. Off unless `MCP_ENABLED=true`.
 - `packages/nx` — `@ortha-cms/nx`, the workspace **Nx plugin**: infers and
   implements the `db:generate` / `db:migrate` targets (Drizzle migration
   tooling). Registered in `nx.json`.

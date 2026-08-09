@@ -1,0 +1,39 @@
+import { McpPlugin } from './mcp-plugin';
+
+const CONFIG = { enabled: true, name: 'ortha-cms', version: '1.0.0' };
+
+describe('McpPlugin', () => {
+    it('builds a named plugin carrying its config', () => {
+        const plugin = McpPlugin({ config: CONFIG });
+
+        expect(plugin.name).toBe('mcp');
+        expect(plugin.mcpConfig).toEqual(CONFIG);
+        expect(plugin.module).toBeDefined();
+    });
+
+    it('owns no migrations', () => {
+        expect(McpPlugin({ config: CONFIG }).migrations).toBeUndefined();
+    });
+
+    it('builds when disabled — the registry still binds', () => {
+        const plugin = McpPlugin({
+            config: { ...CONFIG, enabled: false }
+        });
+
+        expect(plugin.mcpConfig.enabled).toBe(false);
+    });
+
+    // Eager, like every other plugin factory here: a blank identity would
+    // surface as a malformed `initialize` response, far from its cause.
+    it('rejects a blank server name at construction', () => {
+        expect(() => McpPlugin({ config: { ...CONFIG, name: '' } })).toThrow(
+            /config\.name/
+        );
+    });
+
+    it('rejects a blank version at construction', () => {
+        expect(() => McpPlugin({ config: { ...CONFIG, version: '' } })).toThrow(
+            /config\.version/
+        );
+    });
+});

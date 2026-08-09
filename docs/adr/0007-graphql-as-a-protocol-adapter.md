@@ -1,4 +1,4 @@
-# 0006 — GraphQL is a protocol adapter over the public content API
+# 0007 — GraphQL is a protocol adapter over the public content API
 
 - **Status:** Accepted
 - **Date:** 2026-08-08

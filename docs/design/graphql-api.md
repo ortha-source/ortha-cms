@@ -8,7 +8,7 @@ second API.
 This document is the design write-up that preceded the build. **It has shipped**
 — see [`packages/content/graphql/AGENTS.md`](../../packages/content/graphql/AGENTS.md)
 for what the package actually does, and
-[ADR-0006](../adr/0006-graphql-as-a-protocol-adapter.md) for the decisions of
+[ADR-0007](../adr/0007-graphql-as-a-protocol-adapter.md) for the decisions of
 record. Kept for the reasoning; where the two disagree, the package's own
 `AGENTS.md` wins.
 
@@ -448,7 +448,7 @@ publish lifecycle, per-resolver permission assertions, `status: DRAFT` reads for
 
 **Phase 4 — polish.** A dev-only GraphiQL page (same `docs` config flag as the
 Scalar reference), the API Tokens page showing a GraphQL example next to the
-curl one, ADR-0006 recording the "adapter, not second implementation" and
+curl one, ADR-0007 recording the "adapter, not second implementation" and
 "per-grant-set schema" decisions.
 
 ## 11. What changes outside the new package
@@ -470,7 +470,7 @@ Small and mostly mechanical — the point of §1 is that this list stays short:
 - `apps/server-e2e/src/support/plugins.ts` — same registration for tests.
 - Root `package.json` — `graphql`.
 - Docs — `CONTEXT-MAP.md` project table, `AGENTS.md` package-layout note,
-  `packages/content/server/AGENTS.md` cross-reference, ADR-0006.
+  `packages/content/server/AGENTS.md` cross-reference, ADR-0007.
 
 No migrations. No schema. No change to the token model: **a token minted today
 works against GraphQL with no admin change at all**, which is the main reason
