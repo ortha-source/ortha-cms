@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_569 test cases across 39 spec files._
+_603 test cases across 40 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -879,6 +879,90 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | ignores ?locale= on a non-localized type |
+
+<!-- source: apps/server-e2e/src/server/mcp/mcp.spec.ts -->
+_<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
+
+## MCP endpoint (/api/v1/mcp)
+
+### authentication
+
+| Test case |
+| --- |
+| 401s without an Authorization header |
+| 401s on an unknown bearer token |
+| does not accept a session cookie in place of a token |
+| 401s once the token is revoked |
+
+### workspace resolution
+
+| Test case |
+| --- |
+| needs no header when the token covers one workspace |
+| 400s when a multi-workspace token names none |
+| honours X-Workspace-Id for a multi-workspace token |
+| accepts ?workspaceId= on the endpoint URL |
+| 403s a workspace outside the token bucket |
+
+### initialize
+
+| Test case |
+| --- |
+| reports the server identity and its capabilities |
+
+### tools/list
+
+| Test case |
+| --- |
+| shows a read-scoped token only the read tools |
+| shows a full-scoped token the write tools too |
+| annotates read-only and destructive tools |
+| gives every tool an object input schema |
+
+### authorization
+
+| Test case |
+| --- |
+| refuses a write tool a read token invokes by name |
+| refuses each write tool to a read token |
+| refuses draft visibility to a read token |
+| reports an unknown tool as not_found |
+
+### discovery
+
+| Test case |
+| --- |
+| lists only the workspace’s granted types |
+| returns a type’s fields and a values JSON Schema |
+| 404s an ungranted type exactly like an unknown one |
+| exposes granted types as resources |
+| reads a content-type resource |
+
+### reads
+
+| Test case |
+| --- |
+| lists published entries only |
+| does not leak another workspace’s entries |
+| reads one entry by id |
+| honours a sparse fieldset |
+| rejects an unknown argument rather than ignoring it |
+| requires a locator on a single-entry read |
+
+### write round-trip
+
+| Test case |
+| --- |
+| creates a draft, reads it back, publishes, and deletes it |
+| clears a field with an explicit null but leaves omitted ones |
+| reports publish-time validation failures with per-field issues |
+| cannot write into a workspace outside the bucket |
+
+### kill switch
+
+| Test case |
+| --- |
+| unmounts the endpoint when disabled |
 
 <!-- source: apps/server-e2e/src/server/media/media-assets.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
