@@ -74,24 +74,48 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
     /**
      * The type's writable fields, keyed by name.
      *
-     * Join-backed relations are excluded: their links never travel in the
-     * `values` bag, so a value for one would be silently dropped by the writer
-     * — a proposal a reviewer accepts and that then does nothing is worse than
-     * one that is refused up front.
+     * **Back-references are excluded and owning many-relations are not.** The
+     * exclusion used to cover both, on the stated grounds that join-backed
+     * links "never travel in the `values` bag" — which is not true of the
+     * owning side: `RelationLinkService.writeLinks` performs a whole-set write
+     * for any owning many-relation submitted as an **array**, on create and on
+     * update alike, and the appliers already merge the patch straight into the
+     * values they hand the writer. So refusing `article.tags` refused something
+     * that works, which is how "Unknown or non-writable field(s): tags" came to
+     * be the answer to a perfectly ordinary request.
+     *
+     * An **inverse** relation genuinely cannot be written from this side —
+     * `writeLinks` skips it (`ownCol !== 'sourceId'`) — so a value for one
+     * really would be silently dropped, and a proposal that does nothing is
+     * worse than one refused up front.
      */
     private writableFields(typeName: string): Map<string, SerializedField> {
         const schema = this.registry.serialize(typeName);
         const fields = new Map<string, SerializedField>();
         for (const field of schema?.fields ?? []) {
-            const joinBacked =
-                field.type === 'relation' &&
-                !!field.relation &&
-                (field.relation.many || !!field.relation.inverse);
-            if (!joinBacked) {
+            const backReference =
+                field.type === 'relation' && !!field.relation?.inverse;
+            if (!backReference) {
                 fields.set(field.name, field);
             }
         }
         return fields;
+    }
+
+    /**
+     * Whether a field is written as a **whole set** of target ids.
+     *
+     * These have no `before` in the diff: the current links are not part of the
+     * entry's `values` (`toRecord` drops join-backed fields), so the honest card
+     * shows what the set is being made into rather than a fabricated `null`
+     * before that reads as "it had no tags".
+     */
+    private isWholeSetRelation(field?: SerializedField): boolean {
+        return (
+            field?.type === 'relation' &&
+            !!field.relation?.many &&
+            !field.relation.inverse
+        );
     }
 
     /**
@@ -144,7 +168,9 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                         type: 'object',
                         description:
                             'Field values keyed by field name, as admin_content_types describes ' +
-                            'them. Many-relations and back-references cannot be set here.'
+                            'them. A many-relation (e.g. tags) takes an array of target entry ' +
+                            'ids — find them with admin_content_search. Back-references cannot ' +
+                            'be set here.'
                     },
                     locale: {
                         type: 'string',
@@ -247,7 +273,11 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                         type: 'object',
                         description:
                             'Only the fields to change, keyed by field name. Omitted fields ' +
-                            'keep their current values.'
+                            'keep their current values. A many-relation (e.g. tags) takes an ' +
+                            'array of target entry ids and REPLACES the whole set, so include ' +
+                            'the ids it already has as well as the new ones — read them with ' +
+                            'admin_content_get first, and find new ones with ' +
+                            'admin_content_search.'
                     },
                     summary: {
                         type: 'string',
@@ -300,21 +330,34 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                 const before = current.values ?? {};
 
                 const changes = Object.entries(values)
-                    .map(
-                        ([field, after]): ProposalChange => ({
+                    .map(([field, after]): ProposalChange => {
+                        // A whole-set relation has no readable `before` here —
+                        // its links are not in the entry's values — so the card
+                        // shows only what the set becomes.
+                        if (this.isWholeSetRelation(fields.get(field))) {
+                            return {
+                                field,
+                                ...labelOf(fields.get(field)),
+                                after
+                            };
+                        }
+                        return {
                             field,
                             ...labelOf(fields.get(field)),
                             before: before[field] ?? null,
                             after
-                        })
-                    )
+                        };
+                    })
                     // A "change" that changes nothing is noise on the card and
                     // invites a reviewer to approve a no-op. The model gets the
-                    // error above only when *every* field is unchanged.
+                    // error above only when *every* field is unchanged. A
+                    // whole-set relation has nothing to compare against, so it
+                    // always counts as a change.
                     .filter(
                         (change) =>
+                            !('before' in change) ||
                             JSON.stringify(change.before ?? null) !==
-                            JSON.stringify(change.after ?? null)
+                                JSON.stringify(change.after ?? null)
                     );
                 if (changes.length === 0) {
                     throw new Error(

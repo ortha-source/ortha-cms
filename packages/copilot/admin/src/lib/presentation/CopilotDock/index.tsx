@@ -1,0 +1,196 @@
+import { defineMessages, useIntl } from 'react-intl';
+import { Plus, Sparkles, X } from 'lucide-react';
+import { cn, Kbd } from '@ortha-cms/design-system';
+import type { CopilotSession } from '../../application/sessions';
+
+// The product is **Ortha AI**; the code keeps `copilot`. See the naming note in
+// `docs/design/copilot.md`.
+const messages = defineMessages({
+    label: {
+        id: 'copilot.dock.label',
+        defaultMessage: 'Ortha AI chats'
+    },
+    newChat: {
+        id: 'copilot.dock.newChat',
+        defaultMessage: 'New chat'
+    },
+    start: {
+        id: 'copilot.dock.start',
+        defaultMessage: 'Ortha AI'
+    },
+    // Deliberately not "New chat": that is the name of the button beside it,
+    // and two controls in one toolbar answering to the same name is ambiguous
+    // to anyone driving this by voice or by a screen reader's control list.
+    untitled: {
+        id: 'copilot.dock.untitled',
+        defaultMessage: 'Untitled chat'
+    },
+    unread: {
+        id: 'copilot.dock.unread',
+        defaultMessage: '{title} — finished'
+    },
+    // Distinct from "finished" on purpose: this chat has not finished, it has
+    // stopped and is blocked on you. Conflating the two would let the more
+    // urgent state hide behind the routine one.
+    awaiting: {
+        id: 'copilot.dock.awaiting',
+        defaultMessage: '{title} — waiting for you'
+    },
+    close: {
+        id: 'copilot.dock.close',
+        defaultMessage: 'Close {title}'
+    }
+});
+
+/**
+ * The bar along the bottom: one pill per chat, plus a way to start another.
+ *
+ * **It replaces the floating button**, and is the reason there can be more than
+ * one chat at all. A single round button could only ever mean "the panel";
+ * a bar of chats means the panel is one of several, and gives a collapsed chat
+ * somewhere to live where you can still see it exists.
+ *
+ * Three things it has to get right:
+ *
+ * - **A pill for a chat you cannot see must say something happened in it.**
+ *   That is the entire point of running several: you ask three questions and go
+ *   back to work. The marker is a dot, and it is also in the pill's accessible
+ *   name — a colour-only signal is no signal for a screen-reader user, and this
+ *   one is load-bearing.
+ * - **Clicking a pill toggles**, so the same control that shows a chat hides it
+ *   again. `aria-pressed` says which state it is in rather than the styling
+ *   alone.
+ * - **Close is a separate control with its own name.** "Close Fix the headline"
+ *   rather than an unlabelled ×, because closing ends a run and discards a
+ *   window, and it sits a few pixels from the thing that merely hides it.
+ *
+ * Bottom-**right**, not full width: it sits where the floating button was, and
+ * a bar spanning the viewport would cover page content across every screen for
+ * the sake of at most a handful of chats.
+ */
+export function CopilotDock({
+    sessions,
+    onToggle,
+    onClose,
+    onNewChat,
+    newChatRef
+}: {
+    sessions: readonly CopilotSession[];
+    onToggle(id: string): void;
+    onClose(id: string): void;
+    onNewChat(): void;
+    /** Focus lands here when a chat closes, so it never falls to `<body>`. */
+    newChatRef?: React.RefObject<HTMLButtonElement | null>;
+}) {
+    const intl = useIntl();
+    const empty = sessions.length === 0;
+
+    return (
+        <div
+            // `toolbar`, so a screen reader announces it as one control group
+            // and arrow-key conventions apply, rather than reading a loose row
+            // of buttons floating over the page.
+            role="toolbar"
+            aria-label={intl.formatMessage(messages.label)}
+            aria-orientation="horizontal"
+            className={cn(
+                'bg-background text-foreground fixed right-4 bottom-3 z-40',
+                'flex max-w-[calc(100vw-2rem)] items-center gap-1 overflow-x-auto',
+                'rounded-full border p-1 shadow-lg'
+            )}
+        >
+            {sessions.map((session) => {
+                const title =
+                    session.title ?? intl.formatMessage(messages.untitled);
+                return (
+                    <div
+                        key={session.id}
+                        className="flex shrink-0 items-center"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => onToggle(session.id)}
+                            aria-pressed={!session.minimized}
+                            // The marker is in the name, not only in the dot —
+                            // and `awaiting` outranks `unread`, because a chat
+                            // blocked on a question is the one to open first.
+                            aria-label={
+                                session.awaiting
+                                    ? intl.formatMessage(messages.awaiting, {
+                                          title
+                                      })
+                                    : session.unread
+                                      ? intl.formatMessage(messages.unread, {
+                                            title
+                                        })
+                                      : title
+                            }
+                            title={title}
+                            className={cn(
+                                'focus-visible:ring-ring flex max-w-[12rem] items-center gap-1.5 rounded-full py-1 pr-1 pl-2.5 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                                session.minimized
+                                    ? 'hover:bg-muted text-muted-foreground'
+                                    : 'bg-secondary text-secondary-foreground'
+                            )}
+                        >
+                            <Sparkles className="size-3.5 shrink-0" />
+                            <span className="truncate">{title}</span>
+                            {(session.awaiting || session.unread) && (
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'size-1.5 shrink-0 rounded-full',
+                                        // Amber for "answer me", primary for
+                                        // "there is something to read". Shape
+                                        // and position are identical, so the
+                                        // colour is a nicety on top of the
+                                        // name — never the only signal.
+                                        session.awaiting
+                                            ? 'bg-warning'
+                                            : 'bg-primary'
+                                    )}
+                                />
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onClose(session.id)}
+                            aria-label={intl.formatMessage(messages.close, {
+                                title
+                            })}
+                            className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring mr-0.5 rounded-full p-1 focus-visible:ring-2 focus-visible:outline-none"
+                        >
+                            <X className="size-3" />
+                        </button>
+                    </div>
+                );
+            })}
+
+            <button
+                ref={newChatRef}
+                type="button"
+                onClick={onNewChat}
+                aria-label={intl.formatMessage(messages.newChat)}
+                title={intl.formatMessage(messages.newChat)}
+                className={cn(
+                    'bg-primary text-primary-foreground focus-visible:ring-ring flex shrink-0 items-center gap-1.5 rounded-full text-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-none',
+                    // With no chats open this is the only thing on screen, so it
+                    // names the product — it is the entry point the floating
+                    // button used to be. Once there are pills it shrinks to a
+                    // `+`, because the bar itself now says what this is about.
+                    empty ? 'px-3 py-1.5' : 'size-7 justify-center'
+                )}
+            >
+                {empty ? (
+                    <>
+                        <Sparkles className="size-3.5" />
+                        {intl.formatMessage(messages.start)}
+                        <Kbd className="hidden sm:inline-flex">⌘J</Kbd>
+                    </>
+                ) : (
+                    <Plus className="size-4" />
+                )}
+            </button>
+        </div>
+    );
+}

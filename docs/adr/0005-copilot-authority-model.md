@@ -8,6 +8,16 @@
 > how the copilot reaches a model. This ADR settles what it may do once it can.
 > Full feature context: [`docs/design/copilot.md`](../design/copilot.md).
 >
+> **Amended by [ADR-0009](0009-copilot-applies-directly.md)**: §5
+> (writes produce proposals a human accepts) and §6 (direct apply is a
+> per-workspace, per-tool opt-in) are **replaced** — a write now asks the user
+> once, inline, _before_ the call runs, and then applies immediately. Read those
+> two sections as history: the queue of proposals waiting to be found is gone,
+> but the human is still in the loop, earlier and with the escape hatch in the
+> prompt. Everything else here stands, and §1–3 carry more weight than before:
+> the capability profile decides what is _possible_, and the prompt decides what
+> happens.
+>
 > **Amended by [ADR-0007](0007-one-tool-registry-two-surfaces.md)**: the tool
 > catalogue and the authorization check in §3 are now the _shared_
 > `ToolRegistry` this CMS also serves over MCP, not a copilot-private one. The

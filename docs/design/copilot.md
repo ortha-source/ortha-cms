@@ -10,7 +10,7 @@ what the signed-in person is allowed to do.
 > launcher, the empty state, the error frames, and how the model introduces
 > itself. Everything a user does not read keeps the `copilot` name: the packages
 > (`@ortha-cms/copilot-*`), the routes (`/api/copilot/runs`), the permission
-> keys (`copilot:use`, `copilot:configure`), the tables
+> keys (`copilot:use`), the tables
 > (`copilot_conversations`, …), the i18n message ids (`copilot.panel.title`),
 > and this document.
 >
@@ -197,24 +197,24 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
 `read` runs freely; `propose` produces a reviewable change; `apply` writes
 directly and is off unless workspace policy enables it (ADR-0005 §6).
 
-| Tool                      | Bound by  | Requires           | Effect          |
-| ------------------------- | --------- | ------------------ | --------------- |
-| `admin_content_types`       | content   | `content:read`     | read            |
-| `admin_content_search`   | content   | `content:read`     | read            |
+| Tool                       | Bound by  | Requires           | Effect          |
+| -------------------------- | --------- | ------------------ | --------------- |
+| `admin_content_types`      | content   | `content:read`     | read            |
+| `admin_content_search`     | content   | `content:read`     | read            |
 | `admin_content_get`        | content   | `content:read`     | read            |
-| `admin_content_revisions`   | content   | `content:read`     | read            |
-| `admin_content_diff`   | content   | `content:read`     | read            |
-| `content.exportEntries`   | content   | `content:read`     | read            |
+| `admin_content_revisions`  | content   | `content:read`     | read            |
+| `admin_content_diff`       | content   | `content:read`     | read            |
+| `content.exportEntries`    | content   | `content:read`     | read            |
 | `i18n_locales_list`        | i18n      | `content:read`     | read            |
 | `i18n_translations_get`    | i18n      | `content:read`     | read            |
-| `content_propose_create`    | content   | `content:create`   | propose         |
-| `content_propose_update`     | content   | `content:update`   | propose         |
+| `content_propose_create`   | content   | `content:create`   | propose         |
+| `content_propose_update`   | content   | `content:update`   | propose         |
 | `i18n_propose_translation` | i18n      | `content:update`   | propose         |
 | `media_assets_search`      | media     | `media:read`       | read            |
-| `media_propose_alt_text`    | media     | `media:update`     | propose         |
-| `activity_recent`         | activity  | `activity:read`    | read            |
-| `workspace_members_list`       | users     | `users:read`       | read            |
-| `mcp.<connector>.*`       | connector | as mapped by admin | read by default |
+| `media_propose_alt_text`   | media     | `media:update`     | propose         |
+| `activity_recent`          | activity  | `activity:read`    | read            |
+| `workspace_members_list`   | users     | `users:read`       | read            |
+| `mcp.<connector>.*`        | connector | as mapped by admin | read by default |
 
 Because the profile is derived from `SYSTEM_ROLES`, the practical effect is:
 
@@ -253,8 +253,11 @@ before producing the file, cap the export, resolve relation and media fields to
 human-readable labels rather than raw ids, and write an activity row naming the
 filter.
 
-**New permissions.** `copilot:use` (admin + contributor, and viewer — see §10)
-and `copilot:configure` (admin only).
+**New permissions.** `copilot:use` (admin + contributor, and viewer — see §10).
+`copilot:configure` was added and then removed: it gated the per-workspace
+auto-apply policy, which
+[ADR-0009](../adr/0009-copilot-applies-directly.md) deleted. Re-add it if the
+runtime model registry of ADR-0004 §5 lands.
 
 ## 7. Data model
 
@@ -267,7 +270,7 @@ and `copilot:configure` (admin only).
 | `copilot_conversations` | Thread per user × workspace, title, surface, archived flag                  | FKs to identity `users` and workspaces                                      |
 | `copilot_messages`      | Ordered turns: role, content blocks, model id, finish reason                | Append-only — the transcript for replay and audit                           |
 | `copilot_tool_calls`    | Tool name, input, redacted output, duration, error                          | What actually touched data; the security-review surface                     |
-| `copilot_proposals`     | Target (type, entry, locale), patch, status, decided by/at                  | The accept boundary; applying runs the ordinary update use-case             |
+| `copilot_proposals`     | Target (type, entry, locale), patch, status, applied by/at                  | The receipt for every change; applying runs the ordinary update use-case    |
 | `copilot_model_configs` | Adapter kind, base URL, model id, encrypted credential, probed capabilities | Runtime provider registration (ADR-0004 §5); secrets never leave the server |
 | `copilot_connectors`    | MCP endpoint, auth, enabled workspaces, per-tool permission mapping         | Admin-managed; disabled by default                                          |
 | `copilot_usage`         | Per run: input/output tokens, cost, provider, model                         | Backs quotas and the cost panel                                             |
@@ -300,7 +303,7 @@ The plugin seams are ready; the streaming and model plumbing is not.
 Six phases; each after phase 1 is independently shippable.
 
 **Phase 0 — Foundations. ✅ Shipped.** `ModelProvider` port + registry, the three
-adapters, `plugins.copilot` config, `copilot:use` / `copilot:configure`, empty
+adapters, `plugins.copilot` config, `copilot:use`, empty
 plugin registered in both hosts. _Ships nothing visible; unblocks everything._
 Four things landed differently from the sketch above, all deliberate and all
 detailed in the package `AGENTS.md` files:
@@ -360,12 +363,15 @@ Both are documented at their call sites with the upgrade path.
 **Phase 2 — Export.** Streaming CSV/JSON/Markdown with label resolution, row
 caps and audit; `content.exportEntries`; the records-toolbar entry point.
 
-**Phase 3 — Create & edit. ✅ Shipped.** `copilot_proposals` +
-`copilot_workspace_policies`, the four propose tools, the applier port, the
-accept/reject routes and the per-workspace auto-apply policy are in, and so is
-the admin half: the field-level diff card in the transcript and the workspace's
-auto-apply settings page. The entry-editor entry points are the one piece left,
-and they are an entry point rather than a capability.
+**Phase 3 — Create & edit. ✅ Shipped, then simplified.** `copilot_proposals`,
+the four propose tools, the applier port and the field-level diff card in the
+transcript are in. What shipped alongside them and has since been **removed** —
+`copilot_workspace_policies`, the accept/reject routes, the per-workspace
+auto-apply policy and its settings page — is the subject of
+[ADR-0009](../adr/0009-copilot-applies-directly.md): a change now applies the
+moment it is drafted, gated only by the caller's own permissions, and the card
+is a receipt rather than a decision. The entry-editor entry points are the one
+piece left, and they are an entry point rather than a capability.
 
 Three things landed differently from the sketch above:
 

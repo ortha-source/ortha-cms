@@ -125,6 +125,44 @@ export class ConversationRepository {
         return found;
     }
 
+    /**
+     * Tool names this thread has been told to stop asking about.
+     *
+     * Read **per run**, never cached, for the same reason the capability
+     * profile is: the list can grow mid-thread (the user answers "allow for
+     * this chat" on turn three), and a run holding a snapshot from turn one
+     * would ask again for something already answered.
+     */
+    async allowedTools(conversationId: string): Promise<string[]> {
+        const [row] = await this.db
+            .select({ allowedTools: copilotConversations.allowedTools })
+            .from(copilotConversations)
+            .where(eq(copilotConversations.id, conversationId))
+            .limit(1);
+        return row?.allowedTools ?? [];
+    }
+
+    /**
+     * Adds a tool to this thread's allow list.
+     *
+     * The append happens **in the database**, not by reading and writing back:
+     * two calls in one turn can both be answered "allow for this chat" while
+     * the run is parked, and a read-modify-write would lose one of them.
+     */
+    async allowTool(conversationId: string, toolName: string): Promise<void> {
+        await this.db
+            .update(copilotConversations)
+            .set({
+                allowedTools: sql`(
+                    select coalesce(jsonb_agg(distinct value), '[]'::jsonb)
+                    from jsonb_array_elements(
+                        ${copilotConversations.allowedTools} || ${JSON.stringify([toolName])}::jsonb
+                    ) as value
+                )`
+            })
+            .where(eq(copilotConversations.id, conversationId));
+    }
+
     /** Starts a thread owned by `userId` in `workspaceId`. */
     async create(
         userId: string,

@@ -81,8 +81,9 @@ describe('readRouteContext', () => {
     });
 
     it('reads a workspace-shell route that is not the content library', () => {
-        expect(
-            readRouteContext('/workspaces/ws-1/media', '')
-        ).toEqual({ workspaceId: 'ws-1', surface: 'chat' });
+        expect(readRouteContext('/workspaces/ws-1/media', '')).toEqual({
+            workspaceId: 'ws-1',
+            surface: 'chat'
+        });
     });
 });

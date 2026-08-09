@@ -1,34 +1,20 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, CircleAlert, Sparkles, X } from 'lucide-react';
-import {
-    Alert,
-    AlertDescription,
-    Badge,
-    Button,
-    Spinner
-} from '@ortha-cms/design-system';
+import { CircleAlert, Sparkles } from 'lucide-react';
+import { Alert, AlertDescription, Badge } from '@ortha-cms/design-system';
 import type { ChatProposal } from '../../domain/types/chat';
 
 const messages = defineMessages({
-    pending: {
-        id: 'copilot.proposal.pending',
-        defaultMessage: 'Needs your approval'
+    failed: {
+        id: 'copilot.proposal.failed',
+        defaultMessage: 'Not saved'
     },
     accepted: {
         id: 'copilot.proposal.accepted',
-        defaultMessage: 'Applied'
+        defaultMessage: 'Saved'
     },
     rejected: {
         id: 'copilot.proposal.rejected',
         defaultMessage: 'Discarded'
-    },
-    accept: {
-        id: 'copilot.proposal.accept',
-        defaultMessage: 'Apply change'
-    },
-    reject: {
-        id: 'copilot.proposal.reject',
-        defaultMessage: 'Discard'
     },
     empty: {
         id: 'copilot.proposal.empty',
@@ -36,53 +22,58 @@ const messages = defineMessages({
     },
     before: {
         id: 'copilot.proposal.before',
-        defaultMessage: 'Now'
+        defaultMessage: 'Was'
     },
     after: {
         id: 'copilot.proposal.after',
-        defaultMessage: 'After'
+        defaultMessage: 'Now'
     },
-    nothingYet: {
-        id: 'copilot.proposal.nothingYet',
-        defaultMessage: 'Nothing has been saved yet.'
+    applied: {
+        id: 'copilot.proposal.applied',
+        defaultMessage: 'This change was saved to your content.'
     },
-    autoApplied: {
-        id: 'copilot.proposal.autoApplied',
+    notApplied: {
+        id: 'copilot.proposal.notApplied',
+        defaultMessage: 'Nothing was saved.'
+    },
+    failedGeneric: {
+        id: 'copilot.proposal.failedGeneric',
         defaultMessage:
-            'Applied automatically — this workspace trusts this tool.'
+            'Ortha AI could not make this change, so your content is unchanged. Try asking again.'
     },
-    appliedByYou: {
-        id: 'copilot.proposal.appliedByYou',
-        defaultMessage: 'You applied this change.'
+    wasRejected: {
+        id: 'copilot.proposal.wasRejected',
+        defaultMessage: 'This change was discarded.'
     }
 });
 
 /**
- * One proposed change, with its per-field diff and the two buttons that decide
- * it — **the accept boundary, rendered**
- * ([ADR-0005](../../../../../../docs/adr/0005-copilot-authority-model.md) §5).
+ * One change the copilot made, with its per-field diff — **a receipt**.
+ *
+ * It used to be the accept boundary: two buttons, and a decision that had not
+ * been taken yet.
+ * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+ * removed the human step, so by the time this renders the write has already
+ * happened (or failed). Every word on it is past tense for that reason — a card
+ * that still read "Needs your approval" would be describing a step that no
+ * longer exists.
+ *
+ * **Its job is unchanged even though its buttons are gone: be unmistakable
+ * about what happened.** With nothing pausing for review, this card is the only
+ * place a user learns that their content changed — so "Saved" and "Not saved"
+ * are stated in words, not implied by styling, and a failure shows the server's
+ * own reason rather than a generic apology.
  *
  * The card lives in the transcript, attached to the turn that produced it,
- * because a proposal is part of an answer: "here is what I would change". A
- * separate review queue elsewhere would make the reply refer to something
- * off-screen, and the reply is where the reasoning is.
- *
- * **Its most important job is being unmistakable about what has and has not
- * happened.** A pending card says so in words, not only in the presence of
- * buttons; an applied one says Applied and drops them. That is the whole point
- * of propose-then-apply, and a card a user reads as "done" while it is still
- * pending would undo it.
+ * because a change is part of an answer: "here is what I changed". A list
+ * elsewhere would make the reply refer to something off-screen, and the reply
+ * is where the reasoning is.
  */
-export function ProposalCard({
-    proposal,
-    onDecide
-}: {
-    proposal: ChatProposal;
-    onDecide(decision: 'accept' | 'reject'): void;
-}) {
+export function ProposalCard({ proposal }: { proposal: ChatProposal }) {
     const intl = useIntl();
-    const pending = proposal.status === 'pending';
-    const busy = proposal.deciding === true;
+    // `pending` no longer means "waiting" — nothing waits. It means the apply
+    // did not go through.
+    const failed = proposal.status === 'pending';
 
     return (
         <section
@@ -132,52 +123,31 @@ export function ProposalCard({
                 </dl>
             )}
 
-            {proposal.error && (
+            {/* Keyed off the status, not off `error` being present. A row
+                reopened from a past thread may carry the failure without the
+                message (older rows, or a reason that was never recorded), and a
+                card that then showed the diff with no warning would read as
+                though the change had gone through. */}
+            {failed && (
                 <div className="px-3 pt-3">
                     <Alert variant="destructive">
                         <CircleAlert className="size-4" />
-                        <AlertDescription>{proposal.error}</AlertDescription>
+                        <AlertDescription>
+                            {proposal.error ??
+                                intl.formatMessage(messages.failedGeneric)}
+                        </AlertDescription>
                     </Alert>
                 </div>
             )}
 
             <footer className="flex items-center gap-2 border-t px-3 py-2">
-                {pending ? (
-                    <>
-                        <span className="text-muted-foreground mr-auto text-[11px]">
-                            {intl.formatMessage(messages.nothingYet)}
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={busy}
-                            onClick={() => onDecide('reject')}
-                        >
-                            <X className="size-3.5" />
-                            {intl.formatMessage(messages.reject)}
-                        </Button>
-                        <Button
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => onDecide('accept')}
-                        >
-                            {busy ? (
-                                <Spinner className="size-3.5" />
-                            ) : (
-                                <Check className="size-3.5" />
-                            )}
-                            {intl.formatMessage(messages.accept)}
-                        </Button>
-                    </>
-                ) : (
-                    <span className="text-muted-foreground text-[11px]">
-                        {proposal.status !== 'accepted'
-                            ? intl.formatMessage(messages.rejected)
-                            : proposal.autoApplied
-                              ? intl.formatMessage(messages.autoApplied)
-                              : intl.formatMessage(messages.appliedByYou)}
-                    </span>
-                )}
+                <span className="text-muted-foreground text-[11px]">
+                    {proposal.status === 'accepted'
+                        ? intl.formatMessage(messages.applied)
+                        : proposal.status === 'rejected'
+                          ? intl.formatMessage(messages.wasRejected)
+                          : intl.formatMessage(messages.notApplied)}
+                </span>
             </footer>
         </section>
     );
@@ -199,7 +169,14 @@ function StatusBadge({ status }: { status: ChatProposal['status'] }) {
             </Badge>
         );
     }
-    return <Badge>{intl.formatMessage(messages.pending)}</Badge>;
+    // `destructive`, not the neutral default it had as "pending": a change the
+    // user was told about but which never landed is a failure, and the badge is
+    // what they read first.
+    return (
+        <Badge variant="destructive">
+            {intl.formatMessage(messages.failed)}
+        </Badge>
+    );
 }
 
 /**

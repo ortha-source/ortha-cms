@@ -1,6 +1,7 @@
 import type { CopilotRunEvent } from '@ortha-cms/copilot-domain';
 import type {
     ChatMessage,
+    ChatPermissionRequest,
     ChatProposal,
     ChatState
 } from '../domain/types/chat';
@@ -17,16 +18,10 @@ export type ChatAction =
     | { type: 'load'; conversationId: string | null; messages: ChatMessage[] }
     /** Start an empty new chat. */
     | { type: 'reset' }
-    /** A decision is in flight for one proposal. */
-    | { type: 'deciding'; proposalId: string }
-    /** A decision landed — the proposal's new status, or the failure. */
-    | {
-          type: 'decided';
-          proposalId: string;
-          status?: ChatProposal['status'];
-          entityId?: string;
-          error?: string;
-      };
+    /** An answer to a permission request is in flight. */
+    | { type: 'answering'; callId: string }
+    /** The answer landed, or failed to reach the run. */
+    | { type: 'answered'; callId: string; error?: string };
 
 /** The empty panel. */
 export const initialChatState: ChatState = {
@@ -93,20 +88,21 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 }))
             };
 
-        case 'deciding':
-            return mapProposal(state, action.proposalId, (proposal) => ({
-                ...proposal,
+        case 'answering':
+            return mapPermission(state, action.callId, (request) => ({
+                ...request,
                 deciding: true,
                 error: undefined
             }));
 
-        case 'decided':
-            return mapProposal(state, action.proposalId, (proposal) => ({
-                ...proposal,
+        case 'answered':
+            return mapPermission(state, action.callId, (request) => ({
+                ...request,
                 deciding: false,
-                ...(action.status ? { status: action.status } : {}),
-                ...(action.entityId ? { entityId: action.entityId } : {}),
-                error: action.error
+                // Only a delivered answer retires the prompt. One that failed
+                // keeps its buttons: the run may still be parked, and taking
+                // the controls away would strand it with no way to answer.
+                ...(action.error ? { error: action.error } : { answered: true })
             }));
 
         case 'event':
@@ -149,25 +145,50 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 }))
             };
 
-        case 'tool-result':
+        case 'tool-permission-request':
             return {
                 ...state,
                 messages: mapLastAssistant(state.messages, (message) => ({
                     ...message,
-                    steps: message.steps.map((step) =>
-                        step.id === event.id
-                            ? {
-                                  ...step,
-                                  status: event.ok ? 'ok' : 'error',
-                                  summary: event.summary,
-                                  output: event.output,
-                                  error: event.error,
-                                  durationMs: event.durationMs
-                              }
-                            : step
-                    )
+                    permissions: [
+                        ...(message.permissions ?? []),
+                        {
+                            id: event.id,
+                            runId: event.runId,
+                            name: event.name,
+                            ...(event.title ? { title: event.title } : {}),
+                            input: event.input
+                        }
+                    ]
                 }))
             };
+
+        case 'tool-result':
+            // A result for a parked call means it stopped being parked — the
+            // user answered, or nobody did and it timed out server-side. Either
+            // way the prompt must go, or a run that moved on leaves live
+            // buttons behind that answer nothing.
+            return retirePermission(
+                {
+                    ...state,
+                    messages: mapLastAssistant(state.messages, (message) => ({
+                        ...message,
+                        steps: message.steps.map((step) =>
+                            step.id === event.id
+                                ? {
+                                      ...step,
+                                      status: event.ok ? 'ok' : 'error',
+                                      summary: event.summary,
+                                      output: event.output,
+                                      error: event.error,
+                                      durationMs: event.durationMs
+                                  }
+                                : step
+                        )
+                    }))
+                },
+                event.id
+            );
 
         case 'proposal':
             return {
@@ -190,14 +211,14 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                                   }
                                 : {}),
                             status: event.status,
-                            // Arriving already accepted means nobody clicked —
-                            // the workspace opted this tool into auto-apply.
-                            ...(event.status === 'accepted'
-                                ? { autoApplied: true }
-                                : {}),
                             ...(event.entityId
                                 ? { entityId: event.entityId }
-                                : {})
+                                : {}),
+                            // `pending` now means the apply failed, so the
+                            // reason travels with it — the card is a receipt,
+                            // and a receipt that cannot say "this did not
+                            // happen" is worse than none.
+                            ...(event.error ? { error: event.error } : {})
                         }
                     ]
                 }))
@@ -231,33 +252,34 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
     }
 }
 
-/**
- * Applies `change` to one proposal, wherever in the transcript it sits.
- *
- * Searched by id across every turn rather than assumed onto the last one: a
- * proposal stays reviewable after the conversation has moved on, and deciding a
- * card three answers up is the ordinary case, not an edge one.
- */
-function mapProposal(
+/** Applies `change` to one permission request, wherever it sits. */
+function mapPermission(
     state: ChatState,
-    proposalId: string,
-    change: (proposal: ChatProposal) => ChatProposal
+    callId: string,
+    change: (request: ChatPermissionRequest) => ChatPermissionRequest
 ): ChatState {
     return {
         ...state,
         messages: state.messages.map((message) =>
-            message.proposals?.some((proposal) => proposal.id === proposalId)
+            message.permissions?.some((request) => request.id === callId)
                 ? {
                       ...message,
-                      proposals: message.proposals.map((proposal) =>
-                          proposal.id === proposalId
-                              ? change(proposal)
-                              : proposal
+                      permissions: message.permissions.map((request) =>
+                          request.id === callId ? change(request) : request
                       )
                   }
                 : message
         )
     };
+}
+
+/** Marks a request answered once its call has produced a result. */
+function retirePermission(state: ChatState, callId: string): ChatState {
+    return mapPermission(state, callId, (request) => ({
+        ...request,
+        deciding: false,
+        answered: true
+    }));
 }
 
 /**

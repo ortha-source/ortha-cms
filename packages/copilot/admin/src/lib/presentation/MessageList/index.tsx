@@ -2,10 +2,12 @@ import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { CircleAlert, TriangleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
+import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
 import type { ChatMessage } from '../../domain/types/chat';
 import { Markdown } from '../Markdown';
 import { ToolStep } from '../ToolStep';
 import { ProposalCard } from '../ProposalCard';
+import { PermissionPrompt } from '../PermissionPrompt';
 
 const messages = defineMessages({
     empty: {
@@ -15,7 +17,7 @@ const messages = defineMessages({
     emptyHint: {
         id: 'copilot.chat.emptyHint',
         defaultMessage:
-            'Ortha AI can only see what you can see, and every change it makes needs your approval.'
+            'Ortha AI can only see and change what your own role allows. Every change it makes is recorded and can be undone.'
     },
     thinking: {
         id: 'copilot.chat.thinking',
@@ -63,11 +65,15 @@ const TRUNCATING_STOP_REASONS: Record<string, string> = {
  */
 export function MessageList({
     messages: turns,
-    onDecideProposal
+    onAnswer
 }: {
     messages: ChatMessage[];
-    /** Decides one proposal. Omitted, the cards render read-only. */
-    onDecideProposal?(proposalId: string, decision: 'accept' | 'reject'): void;
+    /** Answers a parked tool call. Omitted, prompts render read-only. */
+    onAnswer?(
+        runId: string,
+        callId: string,
+        decision: ToolPermissionDecision
+    ): void;
 }) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
@@ -100,7 +106,7 @@ export function MessageList({
                 <Turn
                     key={turn.id}
                     turn={turn}
-                    {...(onDecideProposal ? { onDecideProposal } : {})}
+                    {...(onAnswer ? { onAnswer } : {})}
                 />
             ))}
             <div ref={endRef} />
@@ -110,10 +116,14 @@ export function MessageList({
 
 function Turn({
     turn,
-    onDecideProposal
+    onAnswer
 }: {
     turn: ChatMessage;
-    onDecideProposal?(proposalId: string, decision: 'accept' | 'reject'): void;
+    onAnswer?(
+        runId: string,
+        callId: string,
+        decision: ToolPermissionDecision
+    ): void;
 }) {
     const intl = useIntl();
     const reason = turn.stopReason
@@ -145,28 +155,46 @@ function Turn({
 
             {turn.text && <Markdown text={turn.text} />}
 
+            {/* Before the change cards and after the steps: this is the one
+                thing in the transcript the run is *blocked* on, so it belongs
+                where the reader's eye already is — at the bottom of what has
+                happened so far. */}
+            {turn.permissions
+                ?.filter((request) => !request.answered)
+                .map((request) => (
+                    <PermissionPrompt
+                        key={request.id}
+                        request={request}
+                        onDecide={(decision) =>
+                            onAnswer?.(request.runId, request.id, decision)
+                        }
+                    />
+                ))}
+
             {/* After the answer, not before it: the prose is where the model
-                explains why, and a card asking for a decision above its own
-                reasoning asks the user to decide first and read second. */}
+                explains what it did, and a receipt above its own explanation
+                is a result with no account of itself. */}
             {turn.proposals && turn.proposals.length > 0 && (
                 <div className="space-y-2">
                     {turn.proposals.map((proposal) => (
-                        <ProposalCard
-                            key={proposal.id}
-                            proposal={proposal}
-                            onDecide={(decision) =>
-                                onDecideProposal?.(proposal.id, decision)
-                            }
-                        />
+                        <ProposalCard key={proposal.id} proposal={proposal} />
                     ))}
                 </div>
             )}
 
-            {turn.streaming && !turn.text && turn.steps.length === 0 && (
-                <p className="text-muted-foreground animate-pulse text-sm">
-                    {intl.formatMessage(messages.thinking)}
-                </p>
-            )}
+            {/* Also **between** tool calls, not only before the first one.
+                The old condition bailed as soon as a step existed, so a turn
+                that searched and then thought for three seconds showed a
+                finished step and nothing else — the answer looked stuck. A
+                running step has its own spinner, so this stands down for it
+                rather than doubling up. */}
+            {turn.streaming &&
+                !turn.text &&
+                !turn.steps.some((step) => step.status === 'running') && (
+                    <p className="text-muted-foreground animate-pulse text-sm">
+                        {intl.formatMessage(messages.thinking)}
+                    </p>
+                )}
 
             {/* A real Alert, not a line of red text: a failed turn is the one
                 thing in the transcript a user must not scroll past, and the

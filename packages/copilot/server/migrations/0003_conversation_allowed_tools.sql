@@ -1,0 +1,1 @@
+ALTER TABLE "copilot_conversations" ADD COLUMN "allowed_tools" jsonb DEFAULT '[]'::jsonb NOT NULL;

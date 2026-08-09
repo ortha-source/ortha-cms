@@ -203,9 +203,110 @@ describe('chatReducer', () => {
         expect(play(submit, { type: 'reset' })).toEqual(initialChatState);
     });
 
+    describe('permission prompts', () => {
+        const asks: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'tool-permission-request',
+                id: 'call-1',
+                runId: 'run-1',
+                name: 'content_propose_update',
+                input: { typeName: 'article', id: 'e1' }
+            }
+        };
+        const result = (ok: boolean): ChatAction => ({
+            type: 'event',
+            event: {
+                type: 'tool-result',
+                id: 'call-1',
+                name: 'content_propose_update',
+                ok,
+                durationMs: 1,
+                summary: ok ? 'applied' : 'not allowed'
+            }
+        });
+
+        it('attaches the request to the assistant turn', () => {
+            const state = play(submit, started, asks);
+            expect(state.messages[1].permissions).toEqual([
+                expect.objectContaining({
+                    id: 'call-1',
+                    runId: 'run-1',
+                    name: 'content_propose_update'
+                })
+            ]);
+        });
+
+        it('flags an answer in flight and clears any previous failure', () => {
+            const state = play(
+                submit,
+                started,
+                asks,
+                { type: 'answered', callId: 'call-1', error: 'not-delivered' },
+                { type: 'answering', callId: 'call-1' }
+            );
+            expect(state.messages[1].permissions?.[0]).toMatchObject({
+                deciding: true,
+                error: undefined
+            });
+        });
+
+        it('retires the prompt once the answer lands', () => {
+            const state = play(
+                submit,
+                started,
+                asks,
+                { type: 'answering', callId: 'call-1' },
+                { type: 'answered', callId: 'call-1' }
+            );
+            expect(state.messages[1].permissions?.[0]).toMatchObject({
+                deciding: false,
+                answered: true
+            });
+        });
+
+        it('keeps the prompt answerable when the answer did not reach the run', () => {
+            // A 404 means the run had already moved on — but it might not have,
+            // and taking the buttons away would strand a still-parked run with
+            // no way to answer it.
+            const state = play(submit, started, asks, {
+                type: 'answered',
+                callId: 'call-1',
+                error: 'not-delivered'
+            });
+            expect(state.messages[1].permissions?.[0]).toMatchObject({
+                deciding: false,
+                error: 'not-delivered'
+            });
+            expect(state.messages[1].permissions?.[0].answered).toBeUndefined();
+        });
+
+        it('retires the prompt when the call produces a result', () => {
+            // The server timing out, or another window answering: either way
+            // the run moved on, and live buttons that answer nothing are worse
+            // than no buttons.
+            const state = play(submit, started, asks, result(true));
+            expect(state.messages[1].permissions?.[0].answered).toBe(true);
+        });
+
+        it('retires it on a refused result too', () => {
+            const state = play(submit, started, asks, result(false));
+            expect(state.messages[1].permissions?.[0].answered).toBe(true);
+            expect(state.messages[1].steps).toEqual([]);
+        });
+
+        it('ignores an answer for a request it does not have', () => {
+            const before = play(submit, started, asks);
+            expect(
+                chatReducer(before, { type: 'answered', callId: 'nope' })
+            ).toEqual(before);
+        });
+    });
+
     describe('proposals', () => {
         const proposed = (
-            status: 'pending' | 'accepted' = 'pending'
+            status: 'pending' | 'accepted' = 'accepted',
+            error?: string
         ): ChatAction => ({
             type: 'event',
             event: {
@@ -217,105 +318,81 @@ describe('chatReducer', () => {
                 summary: 'Fix the headline',
                 target: { typeName: 'article', entryId: 'e1' },
                 changes: [{ field: 'title', before: 'Old', after: 'New' }],
-                status
+                status,
+                ...(error ? { error } : {})
             }
         });
 
-        it('attaches a proposal to the assistant turn', () => {
+        it('attaches a change to the assistant turn', () => {
             const state = play(submit, started, proposed());
 
             expect(state.messages[1].proposals).toEqual([
                 expect.objectContaining({
                     id: 'p1',
                     summary: 'Fix the headline',
-                    status: 'pending'
+                    status: 'accepted'
                 })
             ]);
         });
 
-        it('marks a proposal that arrives already accepted as auto-applied', () => {
-            const state = play(submit, started, proposed('accepted'));
-
-            // The server records the same `decidedBy` either way — auto-apply
-            // acts as the user whose run produced it — so arriving already
-            // accepted is the only signal that nobody clicked.
-            expect(state.messages[1].proposals?.[0]).toMatchObject({
-                status: 'accepted',
-                autoApplied: true
-            });
-        });
-
-        it('does not mark a pending proposal as auto-applied', () => {
-            const state = play(submit, started, proposed());
-            expect(
-                state.messages[1].proposals?.[0].autoApplied
-            ).toBeUndefined();
-        });
-
-        it('flags a decision in flight and clears any previous error', () => {
-            const state = play(
-                submit,
-                started,
-                proposed(),
-                { type: 'decided', proposalId: 'p1', error: 'Nope.' },
-                { type: 'deciding', proposalId: 'p1' }
-            );
-
-            expect(state.messages[1].proposals?.[0]).toMatchObject({
-                deciding: true,
-                error: undefined
-            });
-        });
-
-        it('applies a decision to a proposal in an earlier turn', () => {
-            // Deciding a card three answers up is the ordinary case, not an
-            // edge one, so the lookup is by id across the whole transcript.
-            const state = play(
-                submit,
-                started,
-                proposed(),
-                done,
-                { type: 'submit', text: 'and another', localId: '2' },
-                {
-                    type: 'decided',
-                    proposalId: 'p1',
-                    status: 'accepted',
+        it('carries the entity the change landed on', () => {
+            const state = play(submit, started, {
+                type: 'event',
+                event: {
+                    ...(proposed().event as Extract<
+                        ChatAction,
+                        { type: 'event' }
+                    >['event'] & { type: 'proposal' }),
                     entityId: 'e1'
                 }
-            );
+            });
 
             expect(state.messages[1].proposals?.[0]).toMatchObject({
                 status: 'accepted',
-                entityId: 'e1',
-                deciding: false
+                entityId: 'e1'
             });
         });
 
-        it('keeps the proposal decidable when the decision failed', () => {
-            const state = play(submit, started, proposed(), {
-                type: 'decided',
-                proposalId: 'p1',
-                error: 'This proposal was already accepted.'
-            });
+        // Since ADR-0009 the engine applies as it drafts, so `pending` on an
+        // arriving frame does not mean "waiting" — it means the write failed.
+        // The reason has to survive onto the card, because this frame is the
+        // only place the user will ever be told.
+        it('keeps the failure reason on a change that did not apply', () => {
+            const state = play(
+                submit,
+                started,
+                proposed('pending', 'Entry validation failed')
+            );
 
-            // Still pending, still has its buttons, and says why — the four
-            // server statuses mean different things to the person clicking.
             expect(state.messages[1].proposals?.[0]).toMatchObject({
                 status: 'pending',
-                deciding: false,
-                error: 'This proposal was already accepted.'
+                error: 'Entry validation failed'
             });
         });
 
-        it('ignores a decision for a proposal it does not have', () => {
-            const before = play(submit, started, proposed());
-            const after = chatReducer(before, {
-                type: 'decided',
-                proposalId: 'nope',
-                status: 'accepted'
-            });
+        it('leaves the error unset when the change applied', () => {
+            const state = play(submit, started, proposed());
+            expect(state.messages[1].proposals?.[0].error).toBeUndefined();
+        });
 
-            expect(after.messages).toEqual(before.messages);
+        it('appends several changes from one turn in order', () => {
+            const second: ChatAction = {
+                type: 'event',
+                event: {
+                    ...(proposed().event as Extract<
+                        ChatAction,
+                        { type: 'event' }
+                    >['event'] & { type: 'proposal' }),
+                    id: 'p2',
+                    summary: 'Fix the standfirst'
+                }
+            };
+            const state = play(submit, started, proposed(), second);
+
+            expect(state.messages[1].proposals?.map((p) => p.id)).toEqual([
+                'p1',
+                'p2'
+            ]);
         });
     });
 });

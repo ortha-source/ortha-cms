@@ -68,6 +68,8 @@ interface PersistedProposal {
     changes: ChatProposal['changes'] | null;
     status: ChatProposal['status'];
     result: { entityId?: string } | null;
+    /** Why the change did not apply, when it didn't. */
+    error: string | null;
 }
 
 /**
@@ -101,7 +103,11 @@ function toChatMessages(
             status: proposal.status,
             ...(proposal.result?.entityId
                 ? { entityId: proposal.result.entityId }
-                : {})
+                : {}),
+            // A reopened thread must still say a change failed. The card reads
+            // `pending` as "did not apply" (ADR-0009), and without the reason
+            // it could only say so generically.
+            ...(proposal.error ? { error: proposal.error } : {})
         });
         proposalsByCall.set(proposal.toolCallId, list);
     }

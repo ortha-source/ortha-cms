@@ -12,7 +12,6 @@ import {
     type CapabilityProfile,
     type CopilotActor
 } from '@ortha-cms/copilot-domain';
-import { CopilotPolicyService } from './copilot-policy.service';
 
 /** A run's authority: the profile the model is offered, and the tool context. */
 export interface RunAuthority {
@@ -27,23 +26,27 @@ export interface RunAuthority {
  *
  * **The catalogue is the shared `ToolRegistry`** (ADR-0006 §2) — the same
  * instance the MCP endpoint serves — narrowed to the `copilot` surface. What
- * stays copilot-specific is the *policy* on top: the pure
- * `resolveCapabilityProfile` in `copilot-domain`, which adds the auto-apply
- * gate on `apply` tools and the `withheld` reasons the settings UI renders.
- * Keeping that rule pure is what makes "a viewer is offered no write tools" a
- * unit test rather than an e2e hope.
+ * stays copilot-specific is the pure `resolveCapabilityProfile` in
+ * `copilot-domain` and the `withheld` reasons it returns. Keeping that rule
+ * pure is what makes "a viewer is offered no write tools" a unit test rather
+ * than an e2e hope.
+ *
+ * **The caller's grants are the whole decision**
+ * ([ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)).
+ * There used to be a second input — the workspace's auto-apply policy, read
+ * here per run — and it is gone along with the table behind it. One resolution
+ * per run, one rule.
  *
  * **Nothing here is cached.** [ADR-0005](../../../../../../docs/adr/0005-copilot-authority-model.md) §2
  * requires the profile be recomputed per run: permissions can be revoked
  * mid-thread, and a long conversation must not carry stale authority. The cost
- * is two indexed reads per run, which the ADR accepts explicitly.
+ * is one indexed read per run, which the ADR accepts explicitly.
  */
 @Injectable()
 export class CapabilityProfileService {
     constructor(
         private readonly permissions: PermissionsService,
-        private readonly tools: ToolRegistry,
-        private readonly policies: CopilotPolicyService
+        private readonly tools: ToolRegistry
     ) {}
 
     /** The authority for a run by `user` in `workspaceId`. */
@@ -80,12 +83,7 @@ export class CapabilityProfileService {
             // reasons — "you lack content:update" is what the settings page
             // shows, and a pre-filtered list cannot say it.
             tools: this.tools.forSurface('copilot'),
-            actor: copilotActor,
-            // Read per run alongside the grants, and equally uncached: a policy
-            // revoked mid-thread has to take effect on the next tool call.
-            // Absent, it reads as closed — enabling the copilot never silently
-            // enables direct writes.
-            policy: await this.policies.forWorkspace(workspaceId)
+            actor: copilotActor
         });
 
         return { profile, context };

@@ -9,7 +9,6 @@ import {
     seedActiveUser,
     seedArticles,
     seedContentGrants,
-    seedMediaAsset,
     seedMembership,
     seedWorkspace,
     type SeededWorkspace
@@ -19,23 +18,25 @@ import { framesOfType, parseSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
 const ADMIN_EMAIL = 'proposal-admin@example.com';
-const OTHER_ADMIN_EMAIL = 'proposal-admin2@example.com';
 const VIEWER_EMAIL = 'proposal-viewer@example.com';
 const CONTRIBUTOR_EMAIL = 'proposal-contributor@example.com';
 const PASSWORD = 'SecurePass123!';
 
 /**
- * The **propose → accept** path (ADR-0005 §5) end to end: a write tool that
- * writes nothing, a `copilot_proposals` row, and an accept that runs the
- * ordinary use-case with the human as actor.
+ * The **write** path end to end: a `propose` tool that computes a change, the
+ * `copilot_proposals` row recording it, and the apply that runs the ordinary
+ * use-case with the human as actor.
  *
- * The assertions worth their weight are the negative ones. That a proposal
- * *can* be applied is the easy half; that proposing alone changes nothing, that
- * a viewer cannot approve, that accepting twice does not write twice, and that
- * the model is told it must wait — those are the properties the design rests
- * on, and none of them are visible from a happy-path test.
+ * ADR-0009 removed the human step this suite used to be built around. What is
+ * gone with it: accept/reject routes, a viewer rubber-stamping a colleague's
+ * change, a double-accept, and the per-workspace auto-apply policy. What
+ * replaces them is the property that now carries the whole design — **the
+ * caller's own permissions are the only gate** — so the assertions that earn
+ * their weight are still the negative ones: a viewer is offered no write tool
+ * at all, no role is offered publish, an ungranted type is unreachable, and a
+ * failed apply is reported as a failure rather than quietly swallowed.
  */
-describe('Copilot proposals', () => {
+describe('Copilot changes', () => {
     let harness: TestApp;
     let workspace: SeededWorkspace;
 
@@ -182,8 +183,8 @@ describe('Copilot proposals', () => {
     });
 
     // ------------------------------------------------------------- proposing
-    describe('proposing changes nothing', () => {
-        it('creates a pending proposal and no entry', async () => {
+    describe('a propose tool writes, and records what it wrote', () => {
+        it('creates the entry and the row that recorded it', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const { result, proposal } = await propose(
@@ -200,35 +201,37 @@ describe('Copilot proposals', () => {
             expect(proposal).toMatchObject({
                 type: 'proposal',
                 kind: 'content.entry.create',
-                status: 'pending',
+                status: 'accepted',
                 summary: 'New article: Drafted headline'
             });
 
-            // Nothing was written. This is the assertion the whole design rests
-            // on: a prompt-injected "just save it" has nowhere to land, because
-            // the tool has no write path at all.
+            // The entry exists — and so does the row saying it was the copilot
+            // that made it. The row is written *before* the apply, and since
+            // nothing pauses for review it is the only paper trail there is
+            // ("undoable, never invisible" with the "never invisible" now
+            // resting entirely on this).
             const list = await agent
                 .get('/api/content/test_article')
                 .set('X-Workspace-Id', workspace.id)
                 .expect(200);
-            expect(list.body.total).toBe(0);
+            expect(list.body.total).toBe(1);
         });
 
-        it('tells the model to wait rather than letting it claim success', async () => {
+        it('tells the model it saved, so it does not hedge', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             await propose(agent, 'content_propose_create', {
                 typeName: 'test_article',
-                values: { text: 'Waiting on approval', select: 'article' },
+                values: { text: 'Saved outright', select: 'article' },
                 summary: 'New article'
             });
 
-            // The second model call carries the tool result. A model told only
-            // "ok" would happily report the entry as created.
+            // The second model call carries the tool result. The old failure
+            // mode was a model claiming success when nothing had been written;
+            // the new one is the reverse — hedging about a write that already
+            // happened — so the receipt has to say Applied in as many words.
             const followUp = copilotCalls()[1];
-            expect(JSON.stringify(followUp.messages)).toContain(
-                'Awaiting the user'
-            );
+            expect(JSON.stringify(followUp.messages)).toContain('Applied');
         });
 
         it('carries a before/after diff on an edit', async () => {
@@ -308,10 +311,10 @@ describe('Copilot proposals', () => {
         });
     });
 
-    // --------------------------------------------------------------- accept
-    describe('accepting applies through the ordinary use-case', () => {
-        /** Propose an edit and return the proposal id. */
-        async function proposeEdit(agent: request.Agent, id: string) {
+    // ---------------------------------------------------------------- apply
+    describe('applying runs the ordinary use-case', () => {
+        /** Edit an entry through the copilot and return the proposal frame. */
+        async function edit(agent: request.Agent, id: string) {
             const { proposal } = await propose(
                 agent,
                 'content_propose_update',
@@ -322,39 +325,32 @@ describe('Copilot proposals', () => {
                     summary: 'Fix the headline'
                 }
             );
-            return proposal.id;
+            return proposal;
         }
 
-        function decide(
-            agent: request.Agent,
-            proposalId: string,
-            decision: 'accept' | 'reject'
-        ) {
-            return agent
-                .post(`/api/copilot/proposals/${proposalId}/${decision}`)
-                .set('X-Workspace-Id', workspace.id)
-                .set('Origin', TEST_ALLOWED_ORIGIN);
-        }
-
-        it('writes the change and records who decided', async () => {
+        it('writes the change and records who made it', async () => {
             const [id] = await seedArticles(
                 [{ text: 'Old headline', select: 'article' }],
                 workspace.id
             );
             const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
 
-            const response = await decide(agent, proposalId, 'accept').expect(
-                200
-            );
+            const proposal = await edit(agent, id);
 
-            expect(response.body).toMatchObject({
-                status: 'accepted',
-                decidedBy: user.id
-            });
+            expect(proposal.status).toBe('accepted');
             expect((await readEntry(agent, id)).values['text']).toBe(
                 'Approved headline'
             );
+            // The run acts as the user, so the row names them — there is no
+            // copilot identity to attribute a change to (ADR-0005 §1).
+            const row = await agent
+                .get(`/api/copilot/proposals/${proposal.id}`)
+                .set('X-Workspace-Id', workspace.id)
+                .expect(200);
+            expect(row.body).toMatchObject({
+                status: 'accepted',
+                decidedBy: user.id
+            });
         });
 
         it('appends a revision, because it went through the ordinary write', async () => {
@@ -363,12 +359,12 @@ describe('Copilot proposals', () => {
                 workspace.id
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
 
-            await decide(agent, proposalId, 'accept').expect(200);
+            await edit(agent, id);
 
             // Same validation, same revision, same activity row as a hand-made
-            // edit — which is exactly what "run the ordinary use-case" buys.
+            // edit — which is exactly what "run the ordinary use-case" buys,
+            // and the only reason an unreviewed change is recoverable.
             const revisions = await agent
                 .get(`/api/content/test_article/${id}/revisions`)
                 .set('X-Workspace-Id', workspace.id)
@@ -381,167 +377,110 @@ describe('Copilot proposals', () => {
                 [
                     {
                         text: 'Old headline',
-                        richtext: 'A body nobody reviewed',
+                        richtext: 'A body nobody asked about',
                         select: 'article'
                     }
                 ],
                 workspace.id
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
 
-            await decide(agent, proposalId, 'accept').expect(200);
+            await edit(agent, id);
 
             // The admin's PATCH replaces the whole bag because the editor
-            // submits the full document; a proposal carries only what a human
-            // approved, so replacing would silently null everything they did
-            // not see.
+            // submits the full document; a copilot change carries only the
+            // fields it named, so replacing would silently null everything the
+            // user never mentioned.
             const entry = await readEntry(agent, id);
-            expect(entry.values['richtext']).toBe('A body nobody reviewed');
+            expect(entry.values['richtext']).toBe('A body nobody asked about');
         });
 
-        it('refuses a second accept instead of writing twice', async () => {
+        it('reports a failed apply instead of claiming success', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            // `content_propose_update` on a soft-deleted entry: the propose
+            // half resolves it from the revision-visible row, the applier's
+            // ordinary use-case refuses it.
             const [id] = await seedArticles(
                 [{ text: 'Old headline', select: 'article' }],
                 workspace.id
             );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
-
-            await decide(agent, proposalId, 'accept').expect(200);
-            // 409, not 200: the client should refresh, not retry.
-            await decide(agent, proposalId, 'accept').expect(409);
-        });
-
-        it('rejecting writes nothing and closes the proposal', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
+            scriptCopilot(
+                {
+                    toolCalls: [
+                        {
+                            name: 'content_propose_update',
+                            input: {
+                                typeName: 'test_article',
+                                id: '00000000-0000-4000-8000-000000000000',
+                                values: { text: 'Never lands' },
+                                summary: 'Edit a ghost'
+                            }
+                        }
+                    ]
+                },
+                { text: 'That did not work.' }
             );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
+            const events = await run(agent, { message: 'edit a ghost' });
+            const result = framesOfType(events, 'tool-result')[0];
 
-            const response = await decide(agent, proposalId, 'reject').expect(
-                200
-            );
-
-            expect(response.body.status).toBe('rejected');
+            // The propose half refuses outright here, which is the cheapest
+            // failure: nothing is recorded and the model is told why.
+            expect(result.ok).toBe(false);
             expect((await readEntry(agent, id)).values['text']).toBe(
                 'Old headline'
             );
-        });
-
-        it('lets a different member approve a colleague’s proposal', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
-            );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
-            const { user: other, agent: otherAgent } = await signIn(
-                OTHER_ADMIN_EMAIL,
-                'admin'
-            );
-
-            const response = await decide(
-                otherAgent,
-                proposalId,
-                'accept'
-            ).expect(200);
-
-            // A proposal is a review item, not private correspondence. What
-            // bounds it is the *approver's* permissions, not authorship.
-            expect(response.body.decidedBy).toBe(other.id);
-        });
-
-        it('403s a viewer who could not have proposed it', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
-            );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
-            const { agent: viewerAgent } = await signIn(VIEWER_EMAIL, 'viewer');
-
-            // "You may accept what you could have proposed" — checked by
-            // re-resolving the capability profile, so there is no second
-            // permission model to keep in step.
-            await decide(viewerAgent, proposalId, 'accept').expect(403);
-            await decide(viewerAgent, proposalId, 'reject').expect(403);
-            expect((await readEntry(agent, id)).values['text']).toBe(
-                'Old headline'
-            );
-        });
-
-        it('403s a cross-site Origin on the accept', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
-            );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
-
-            await agent
-                .post(`/api/copilot/proposals/${proposalId}/accept`)
-                .set('X-Workspace-Id', workspace.id)
-                .set('Origin', 'https://evil.example')
-                .expect(403);
-        });
-
-        it('404s a proposal from another workspace', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
-            );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
-            const other = await seedWorkspace({ name: 'Other', slug: 'other' });
-            const admin = await seedActiveUser(harness.app, {
-                email: 'outsider-admin@example.com',
-                password: PASSWORD,
-                role: 'admin'
-            });
-            await seedMembership(admin.id, other.id);
-            const otherAgent = await login('outsider-admin@example.com');
-
-            await otherAgent
-                .post(`/api/copilot/proposals/${proposalId}/accept`)
-                .set('X-Workspace-Id', other.id)
-                .set('Origin', TEST_ALLOWED_ORIGIN)
-                .expect(404);
-        });
-
-        it('422s and stays pending when the apply fails', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
-            );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const proposalId = await proposeEdit(agent, id);
-
-            // Delete the target between proposing and accepting.
-            await agent
-                .delete(`/api/content/test_article/${id}`)
-                .set('X-Workspace-Id', workspace.id)
-                .set('Origin', TEST_ALLOWED_ORIGIN)
-                .expect(204);
-
-            await decide(agent, proposalId, 'accept').expect(422);
-
-            // Still pending, with the reason recorded — a failed apply is a
-            // proposal that still needs deciding, not a fourth state.
-            const after = await agent
-                .get(`/api/copilot/proposals/${proposalId}`)
-                .set('X-Workspace-Id', workspace.id)
-                .expect(200);
-            expect(after.body.status).toBe('pending');
-            expect(after.body.error).toEqual(expect.any(String));
         });
     });
 
-    // ------------------------------------------------------------ the queue
-    describe('the review queue', () => {
-        it('lists pending proposals for the workspace', async () => {
+    // ------------------------------------------------- the removed boundary
+    describe('there is no approval boundary any more', () => {
+        it('serves no accept or reject route', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const { proposal } = await propose(
+                agent,
+                'content_propose_create',
+                {
+                    typeName: 'test_article',
+                    values: { text: 'Already saved', select: 'article' },
+                    summary: 'New article'
+                }
+            );
+
+            // A 404 rather than a 405: the routes are gone, not disabled. This
+            // is a regression guard — an accept endpoint that quietly came back
+            // would let a second apply write the same change twice.
+            for (const decision of ['accept', 'reject']) {
+                await agent
+                    .post(`/api/copilot/proposals/${proposal.id}/${decision}`)
+                    .set('X-Workspace-Id', workspace.id)
+                    .set('Origin', TEST_ALLOWED_ORIGIN)
+                    .expect(404);
+            }
+        });
+
+        it('serves no per-workspace policy route', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            // ADR-0009 deleted the policy, its table and `copilot:configure`.
+            // An admin is the role that *would* have held the key, so this is
+            // the caller that proves the surface is gone rather than forbidden.
+            await agent
+                .get('/api/copilot/policy')
+                .set('X-Workspace-Id', workspace.id)
+                .expect(404);
+            await agent
+                .put('/api/copilot/policy')
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ autoApplyTools: [] })
+                .expect(404);
+        });
+    });
+
+    // ----------------------------------------------------------- the record
+    describe('the record of what changed', () => {
+        it('lists the workspace’s changes', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             await propose(agent, 'content_propose_create', {
                 typeName: 'test_article',
@@ -551,14 +490,14 @@ describe('Copilot proposals', () => {
 
             const response = await agent
                 .get('/api/copilot/proposals')
-                .query({ status: 'pending' })
+                .query({ status: 'accepted' })
                 .set('X-Workspace-Id', workspace.id)
                 .expect(200);
 
             expect(response.body.items).toHaveLength(1);
             expect(response.body.items[0]).toMatchObject({
                 toolName: 'content_propose_create',
-                status: 'pending'
+                status: 'accepted'
             });
         });
 
@@ -596,119 +535,6 @@ describe('Copilot proposals', () => {
                 .expect(200);
 
             expect(response.body.items).toEqual([]);
-        });
-    });
-
-    // ---------------------------------------------------------- auto-apply
-    describe('the auto-apply policy', () => {
-        function setPolicy(agent: request.Agent, tools: string[]) {
-            return agent
-                .put('/api/copilot/policy')
-                .set('X-Workspace-Id', workspace.id)
-                .set('Origin', TEST_ALLOWED_ORIGIN)
-                .send({ autoApplyTools: tools });
-        }
-
-        it('is closed by default — a workspace with no policy proposes', async () => {
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-
-            const response = await agent
-                .get('/api/copilot/policy')
-                .set('X-Workspace-Id', workspace.id)
-                .expect(200);
-
-            // Enabling the copilot must never silently enable direct writes.
-            expect(response.body.autoApplyTools).toEqual([]);
-            expect(
-                response.body.optInCandidates.map(
-                    (tool: { name: string }) => tool.name
-                )
-            ).toEqual(expect.arrayContaining(['media_propose_alt_text']));
-        });
-
-        it('applies immediately once a tool is opted in, and still records the row', async () => {
-            const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const asset = await seedMediaAsset({
-                workspaceId: workspace.id,
-                uploadedBy: user.id,
-                name: 'hero.png',
-                kind: 'image',
-                mimeType: 'image/png'
-            });
-            await setPolicy(agent, ['media_propose_alt_text']).expect(200);
-
-            const { proposal } = await propose(
-                agent,
-                'media_propose_alt_text',
-                {
-                    assetId: asset.id,
-                    alt: 'A cyclist crossing a bridge at dawn',
-                    summary: 'Alt text for hero.png'
-                }
-            );
-
-            // Applied without a click — and still recorded, which is what makes
-            // a direct apply "undoable, never invisible".
-            expect(proposal.status).toBe('accepted');
-            const assets = await agent
-                .get('/api/media/assets')
-                .set('X-Workspace-Id', workspace.id)
-                .expect(200);
-            expect(assets.body.items[0].alt).toBe(
-                'A cyclist crossing a bridge at dawn'
-            );
-        });
-
-        it('opts in one tool without opening the others', async () => {
-            const [id] = await seedArticles(
-                [{ text: 'Old headline', select: 'article' }],
-                workspace.id
-            );
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-            await setPolicy(agent, ['media_propose_alt_text']).expect(200);
-
-            const { proposal } = await propose(
-                agent,
-                'content_propose_update',
-                {
-                    typeName: 'test_article',
-                    id,
-                    values: { text: 'Still needs review' },
-                    summary: 'Fix the headline'
-                }
-            );
-
-            // There is deliberately no `all` switch: one team's judgement about
-            // alt text must not become blanket write access.
-            expect(proposal.status).toBe('pending');
-            expect((await readEntry(agent, id)).values['text']).toBe(
-                'Old headline'
-            );
-        });
-
-        it('drops a tool name nothing binds', async () => {
-            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
-
-            const response = await setPolicy(agent, [
-                'media_propose_alt_text',
-                'content.deleteEverything'
-            ]).expect(200);
-
-            // A stale or mistyped name must not sit in the policy waiting for a
-            // future tool to adopt it and inherit an opt-in nobody granted.
-            expect(response.body.autoApplyTools).toEqual([
-                'media_propose_alt_text'
-            ]);
-        });
-
-        it('403s an editor without copilot:configure', async () => {
-            const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
-
-            await agent
-                .get('/api/copilot/policy')
-                .set('X-Workspace-Id', workspace.id)
-                .expect(403);
-            await setPolicy(agent, ['media_propose_alt_text']).expect(403);
         });
     });
 });

@@ -72,8 +72,10 @@ export class CreateEntryProposalApplier implements ProposalApplier {
             type,
             values,
             actor.workspaceId,
-            // No relation deltas: the propose tools refuse join-backed
-            // relations, so there are none to carry.
+            // No relation *deltas*. An owning many-relation still lands: it
+            // travels as an array in `values`, which the writer turns into a
+            // whole-set link write. Deltas are the editor's incremental path
+            // and have no caller here.
             undefined,
             typeof locale === 'string' ? locale : undefined,
             typeof localeGroupId === 'string' ? localeGroupId : undefined,

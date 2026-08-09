@@ -1,65 +1,52 @@
 import {
-    BadRequestException,
-    ConflictException,
     Controller,
-    ForbiddenException,
     Get,
-    HttpCode,
     NotFoundException,
     Param,
     ParseUUIDPipe,
-    Post,
     Query,
-    UnprocessableEntityException,
     UseGuards
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import {
-    CurrentUser,
-    OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions,
-    type PublicUser
+    RequirePermissions
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import {
     ProposalRepository,
     type ProposalView
 } from '../../infrastructure/persistence/proposal.repository';
-import {
-    DecideProposalService,
-    type DecisionOutcome
-} from '../../application/decide-proposal.service';
 import { ListProposalsQueryDto } from '../../application/dto/list-proposals-query.dto';
 
 /**
- * `GET/POST /api/copilot/proposals…` — the review queue and the accept/reject
- * boundary ([ADR-0005](../../../../../../docs/adr/0005-copilot-authority-model.md) §5).
+ * `GET /api/copilot/proposals…` — the record of what the copilot changed.
  *
- * **`copilot:use` is the route's requirement, not the change's.** Whether this
- * caller may apply *this* proposal is decided by `DecideProposalService`, which
- * re-resolves the capability profile and requires the proposing tool to still be
- * offered to them — so a viewer with `copilot:use` can see the queue and cannot
- * approve a content edit in it. Putting `content:update` on the route instead
- * would be both too strict (it would hide media proposals from a content
- * editor) and too loose (it would let one content permission approve every kind
- * of change).
+ * **Reads only.** These used to sit alongside `accept` and `reject`, and this
+ * was the accept boundary
+ * ([ADR-0005](../../../../../../docs/adr/0005-copilot-authority-model.md) §5).
+ * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+ * removed the human step, so a proposal is now a **receipt** rather than a
+ * decision waiting to be made: the engine applies it as it is drafted, and what
+ * is left to serve is the row saying what happened.
  *
- * The writes carry `OriginGuard`; the reads do not, matching every other
- * cookie-authenticated surface here.
+ * They are still worth serving, and both callers prove it: the chat panel joins
+ * them onto a reopened thread so the cards come back, and the row is the paper
+ * trail a change made without review depends on. Keeping the read while
+ * deleting the write is the point — "undoable, never invisible" is now carried
+ * entirely by this record.
+ *
+ * No `OriginGuard`: nothing here is state-changing any more.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.COPILOT_USE)
 @Controller('copilot')
 export class ProposalsController {
-    constructor(
-        private readonly proposals: ProposalRepository,
-        private readonly decisions: DecideProposalService
-    ) {}
+    constructor(private readonly proposals: ProposalRepository) {}
 
     @Get('proposals')
-    @ApiOperation({ summary: 'List the workspace’s copilot proposals' })
+    @ApiOperation({ summary: 'List the workspace’s copilot changes' })
     async list(
         @Query() query: ListProposalsQueryDto,
         @CurrentWorkspace() workspaceId: string
@@ -75,7 +62,7 @@ export class ProposalsController {
     }
 
     @Get('proposals/:id')
-    @ApiOperation({ summary: 'Read one copilot proposal' })
+    @ApiOperation({ summary: 'Read one copilot change' })
     async get(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentWorkspace() workspaceId: string
@@ -85,73 +72,5 @@ export class ProposalsController {
             throw new NotFoundException(`No proposal "${id}".`);
         }
         return proposal;
-    }
-
-    @Post('proposals/:id/accept')
-    @HttpCode(200)
-    @UseGuards(OriginGuard)
-    @ApiOperation({ summary: 'Accept a proposal, applying the change' })
-    async accept(
-        @Param('id', ParseUUIDPipe) id: string,
-        @CurrentUser() user: PublicUser,
-        @CurrentWorkspace() workspaceId: string
-    ): Promise<ProposalView> {
-        return unwrap(
-            await this.decisions.accept(id, {
-                userId: user.id,
-                email: user.email,
-                roleId: user.roleId,
-                workspaceId
-            })
-        );
-    }
-
-    @Post('proposals/:id/reject')
-    @HttpCode(200)
-    @UseGuards(OriginGuard)
-    @ApiOperation({ summary: 'Reject a proposal, writing nothing' })
-    async reject(
-        @Param('id', ParseUUIDPipe) id: string,
-        @CurrentUser() user: PublicUser,
-        @CurrentWorkspace() workspaceId: string
-    ): Promise<ProposalView> {
-        return unwrap(
-            await this.decisions.reject(id, {
-                userId: user.id,
-                email: user.email,
-                roleId: user.roleId,
-                workspaceId
-            })
-        );
-    }
-}
-
-/**
- * Turns a decision outcome into a response or the matching HTTP error.
- *
- * The mapping is deliberate rather than uniform: `409` says "someone got there
- * first" and the client should refresh rather than retry, while `422` says the
- * apply failed and the proposal is still pending — the one case where retrying
- * the same request is the right move. Collapsing them into one status would
- * make those two indistinguishable to the UI.
- */
-function unwrap(outcome: DecisionOutcome): ProposalView {
-    if (outcome.ok) {
-        return outcome.proposal;
-    }
-    switch (outcome.reason) {
-        case 'not-found':
-            throw new NotFoundException(outcome.message);
-        case 'already-decided':
-            throw new ConflictException(outcome.message);
-        case 'not-permitted':
-            throw new ForbiddenException(outcome.message);
-        case 'apply-failed':
-            throw new UnprocessableEntityException(outcome.message);
-        case 'no-applier':
-            // A deployment wiring bug, surfaced as a bad request rather than a
-            // 500: nothing is broken at runtime, this change simply cannot be
-            // carried out here, and the message says so.
-            throw new BadRequestException(outcome.message);
     }
 }

@@ -5,7 +5,8 @@ import { toast } from '@ortha-cms/design-system';
 import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
 import { conversationsKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
-import { useDecideProposal } from './useDecideProposal';
+import { useDecideToolPermission } from './useDecideToolPermission';
+import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
 import type { ChatMessage } from '../domain/types/chat';
 
 const messages = defineMessages({
@@ -24,10 +25,6 @@ const messages = defineMessages({
     offline: {
         id: 'copilot.chat.error.offline',
         defaultMessage: 'Could not reach the server. Check your connection.'
-    },
-    decideFailed: {
-        id: 'copilot.chat.error.decideFailed',
-        defaultMessage: 'That change could not be decided. Please try again.'
     }
 });
 
@@ -59,8 +56,14 @@ export interface CopilotChat {
     reset(): void;
     /** Shows a persisted thread. */
     load(conversationId: string, messages: ChatMessage[]): void;
-    /** Accepts or rejects one proposed change. */
-    decide(proposalId: string, decision: 'accept' | 'reject'): void;
+    /** Answers a tool call the run is parked on. */
+    answer(
+        runId: string,
+        callId: string,
+        decision: ToolPermissionDecision
+    ): void;
+    /** True while the run is waiting on the user rather than on the model. */
+    awaitingPermission: boolean;
 }
 
 /**
@@ -84,8 +87,8 @@ export function useCopilotChat(
 ): CopilotChat {
     const [state, dispatch] = useReducer(chatReducer, initialChatState);
     const intl = useIntl();
-    const decideProposal = useDecideProposal();
     const queryClient = useQueryClient();
+    const decidePermission = useDecideToolPermission();
     const abortRef = useRef<AbortController | null>(null);
     // Read through a ref, never the captured value: `send`'s async closure is
     // created when the message is sent, but the failure it handles can land
@@ -183,38 +186,26 @@ export function useCopilotChat(
         abortRef.current?.abort();
     }, []);
 
-    const decide = useCallback(
-        (proposalId: string, decision: 'accept' | 'reject') => {
-            dispatch({ type: 'deciding', proposalId });
-            decideProposal.mutate(
-                { proposalId, decision, workspaceId },
+    const answer = useCallback(
+        (runId: string, callId: string, decision: ToolPermissionDecision) => {
+            dispatch({ type: 'answering', callId });
+            decidePermission.mutate(
+                { runId, callId, decision, workspaceId },
                 {
-                    onSuccess: (proposal) =>
+                    onSuccess: () => dispatch({ type: 'answered', callId }),
+                    // The prompt keeps its buttons and says so. A 404 means the
+                    // run had already moved on — telling the user their click
+                    // did nothing is the only honest option.
+                    onError: () =>
                         dispatch({
-                            type: 'decided',
-                            proposalId,
-                            status: proposal.status,
-                            ...(proposal.result?.entityId
-                                ? { entityId: proposal.result.entityId }
-                                : {})
-                        }),
-                    // The card keeps its buttons and shows why. The four
-                    // statuses the server can return mean different things to
-                    // the person clicking — someone got there first, you may
-                    // not, it could not be applied and is still pending — and
-                    // the server's own message says which. Collapsing them into
-                    // "failed" would lose exactly what tells them whether to
-                    // retry, refresh, or ask a colleague.
-                    onError: (error) =>
-                        dispatch({
-                            type: 'decided',
-                            proposalId,
-                            error: decisionMessage(error, intl)
+                            type: 'answered',
+                            callId,
+                            error: 'not-delivered'
                         })
                 }
             );
         },
-        [decideProposal, intl, workspaceId]
+        [decidePermission, workspaceId]
     );
 
     const dispatchAction = useCallback(
@@ -228,36 +219,17 @@ export function useCopilotChat(
         busy: state.busy,
         send,
         stop,
-        decide,
+        answer,
+        // Drives the dock's marker: a chat parked on a question is exactly the
+        // one worth coming back to, and `busy` alone cannot say so — it is true
+        // for "thinking" too.
+        awaitingPermission: state.messages.some((message) =>
+            message.permissions?.some((request) => !request.answered)
+        ),
         reset: () => dispatchAction({ type: 'reset' }),
         load: (conversationId, messages) =>
             dispatchAction({ type: 'load', conversationId, messages })
     };
-}
-
-/**
- * A failed accept/reject, in words the person clicking can act on.
- *
- * The server's own message is preferred wherever it has one: for a 409 it says
- * the proposal was already decided, for a 403 that they may not apply it, for a
- * 422 why the change could not be carried out. Those are more useful than
- * anything restated here, and they are the difference between "refresh" and
- * "try again".
- */
-function decisionMessage(error: unknown, intl: IntlShape): string {
-    const response = (
-        error as {
-            response?: { data?: { message?: string | string[] } };
-        }
-    )?.response;
-    const message = response?.data?.message;
-    if (typeof message === 'string' && message) {
-        return message;
-    }
-    if (Array.isArray(message) && message.length > 0) {
-        return message.join(' ');
-    }
-    return intl.formatMessage(messages.decideFailed);
 }
 
 /** What to show, and whether it is worth interrupting the user for. */

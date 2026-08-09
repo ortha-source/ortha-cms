@@ -123,9 +123,7 @@ export async function* streamRun(
  * to flush headers and keep an idle connection alive, and carry nothing.
  */
 function parseFrame(frame: string): CopilotRunEvent | null {
-    const data = frame
-        .split('\n')
-        .find((line) => line.startsWith('data:'));
+    const data = frame.split('\n').find((line) => line.startsWith('data:'));
     if (!data) {
         return null;
     }
