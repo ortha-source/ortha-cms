@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
@@ -81,6 +81,22 @@ export class WysiwygFieldPage extends BasePage {
     async open(label: string): Promise<void> {
         await this.control(label).click();
         await this.toolbar.waitFor();
+        await this.waitForCaret(label);
+    }
+
+    /**
+     * Wait until the caret is actually **in the document**.
+     *
+     * The toolbar is not that signal, though it looks like one: it renders as
+     * soon as the editor object exists, while TipTap applies `autofocus: 'end'`
+     * to the ProseMirror view a tick later. Typing in that gap sends keystrokes
+     * to whatever still holds focus, and they are simply lost — so the failure
+     * is a *prefix* of the text going missing ("Hello there" arriving as "ello
+     * there"), which reads as a broken editor rather than a race. How much is
+     * lost depends on machine load, so it fails a few runs in a hundred.
+     */
+    private async waitForCaret(label: string): Promise<void> {
+        await expect(this.surface(label)).toBeFocused();
     }
 
     /** The expanded editor's heading — the field's label, below the record's. */
@@ -117,6 +133,7 @@ export class WysiwygFieldPage extends BasePage {
         await this.control(label).focus();
         await this.page.keyboard.press('Enter');
         await this.toolbar.waitFor();
+        await this.waitForCaret(label);
     }
 
     /** A toolbar toggle/action by its accessible name (e.g. "Bold"). */
