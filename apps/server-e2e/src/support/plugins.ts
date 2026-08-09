@@ -54,7 +54,11 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
         // shared bearer guards it depends on.
         ContentGraphqlPlugin({
             content,
-            ...config.plugins.contentGraphql
+            ...config.plugins.contentGraphql,
+            // GraphiQL rides the same switch as the Scalar reference: both are
+            // developer tooling, and neither should be reachable in production
+            // unless the operator asks (`API_DOCS=true`).
+            playground: config.docs.enabled === true
         }),
         // Media ships its own migrations (picked up by the migrate loop) and
         // registers an in-memory storage provider so uploads never touch disk.

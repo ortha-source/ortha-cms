@@ -43,6 +43,13 @@ export interface TestConfigOverrides {
      * without having to author a genuinely enormous document.
      */
     graphqlLimits?: Partial<ContentGraphqlLimits>;
+    /**
+     * Turn developer tooling on. `createTestApp` never mounts the Scalar
+     * reference, so this exists for the one thing that reads the same flag: the
+     * GraphiQL playground, whose whole security story is that it is off unless
+     * a deployment asks.
+     */
+    docsEnabled?: boolean;
 }
 
 export function buildTestConfig(
@@ -54,9 +61,10 @@ export function buildTestConfig(
         globalPrefix: 'api',
         database: { url: connectionString },
         // `createTestApp` builds the app itself and never calls `setupApiDocs`,
-        // so this is only here to satisfy the config contract — stated
-        // explicitly so a reader doesn't wonder whether the suites serve docs.
-        docs: { enabled: false },
+        // so this mounts no Scalar reference. It is NOT inert, though: the
+        // GraphQL plugin reads the same flag to decide whether to register the
+        // GraphiQL playground, which is what `docsEnabled` exists to flip.
+        docs: { enabled: overrides.docsEnabled ?? false },
         plugins: {
             identity: {
                 sessionSecret: 'test-session-secret',

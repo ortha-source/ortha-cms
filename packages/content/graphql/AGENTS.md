@@ -105,9 +105,9 @@ a fork in the authentication path, which is the one place a fork is least
 affordable. It is also one dependency instead of three, and the endpoint stays
 visible to the OpenAPI document and to `apps/server-e2e`'s supertest harness.
 
-What we give up and where it went: depth/complexity limits are `execution/limits.ts`;
-batching is `resolvers/entry-loader.ts`; GraphiQL is **not shipped** (the SDL
-endpoint covers codegen, and introspection covers a client IDE).
+What we give up and where it went: depth/complexity limits are
+`execution/limits.ts`; batching is `resolvers/entry-loader.ts`; GraphiQL is
+rendered by `@graphql-yoga/render-graphiql` behind our own route (below).
 
 ### 3. The selection set becomes `?fields=`
 
@@ -220,11 +220,40 @@ reason to offer GraphQL.
 throttle either (only login does). Worth its own issue; `request.apiToken.id` is
 the natural key.
 
+## The playground (`GET /v1/graphql/playground`)
+
+GraphiQL, the GraphQL counterpart of the Scalar reference at `/reference` — and
+gated by the same switch. Three things about it are deliberate:
+
+- **Registered only when the host enables it.** `ContentGraphqlModule.forRoot`
+  leaves the controller out entirely when `playground` is false, so a deployment
+  with tooling off has no such route rather than a live handler that refuses.
+  `apps/server` passes `docs.enabled`, which is off in production unless
+  `API_DOCS=true`.
+- **Unauthenticated, unlike every other route here.** You cannot paste a token
+  into a page you are not allowed to load, so requiring one would be a
+  chicken-and-egg. The page carries no content and reads nothing — it is a
+  static asset that happens to be generated, and the credential is supplied by
+  whoever opens it, in GraphiQL's header editor. A public page inviting a pasted
+  credential is precisely why it is dev-gated rather than always on.
+- **Self-contained, no CDN.** The renderer inlines the whole bundle (~9 MB of
+  HTML), which is what makes an air-gapped install work — the same reason the
+  Scalar reference takes a `cdn` option pointing at a self-hosted copy. It is
+  memoised per endpoint URL, since re-rendering 9 MB per reload buys nothing.
+
+The endpoint the editor posts to is **derived from the request path** (drop the
+trailing `/playground`) rather than configured, because the plugin does not know
+the host's global prefix — `createServer` owns that.
+
+`packages/content/graphql` depends on `@graphql-yoga/render-graphiql`, which is
+why this package pins **graphql 16**: every package that ships a _prebuilt_
+GraphiQL bundle peers on graphql ≤16, and `graphiql` itself is an ESM React
+library needing a build step these source-consumed packages do not have. 16 is
+also what the wider tooling ecosystem expects. See `coercedVariables` in
+`resolvers/selection.ts` for the one place a v17 upgrade would otherwise bite.
+
 ## Not shipped
 
-- **GraphiQL.** Introspection plus `GET /v1/graphql` (SDL) covers client IDEs
-  and codegen; a bundled playground would need vendored assets for no capability
-  gain.
 - **Typed filter inputs.** `filter` is the existing JSON tree behind a `JSON`
   scalar, so there is exactly one filter language and one validator. A generated
   `ArticleFilterInput` is the natural next step.

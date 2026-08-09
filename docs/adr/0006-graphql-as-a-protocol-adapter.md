@@ -74,9 +74,16 @@ differs per token, which reads as a bug until it is explained. Not using
 `@nestjs/graphql` means depth/complexity limits, batching, and any playground
 are ours to maintain.
 
-**Ruled out for now.** GraphiQL (introspection and the SDL endpoint cover
-codegen and client IDEs), typed per-type filter inputs (the shared JSON tree
-keeps one validator), and subscriptions (nothing publishes content events yet).
+**Ruled out for now.** Typed per-type filter inputs (the shared JSON tree keeps
+one validator) and subscriptions (nothing publishes content events yet).
+
+**Amended.** A GraphiQL playground was initially ruled out and is now shipped at
+`GET /v1/graphql/playground`, gated on the host's `docs.enabled` so it is off in
+production by default. It is served self-contained rather than from a CDN, which
+constrains us to **graphql 16**: every package shipping a prebuilt GraphiQL
+bundle peers on ≤16, and bundling `graphiql` ourselves would need a build step
+these source-consumed packages deliberately do not have. 16 is also what the
+tooling ecosystem expects, so this is not much of a concession.
 
 **Follow-up.** The public API — both protocols — still has no rate limit; the
 token id is the natural key. Grant changes wait out the schema-cache TTL rather

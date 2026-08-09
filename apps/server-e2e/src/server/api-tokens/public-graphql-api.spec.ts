@@ -858,6 +858,30 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
         });
     });
 
+    // ---- developer tooling ------------------------------------------------
+
+    describe('the GraphiQL playground', () => {
+        // This harness boots with `docs.enabled` false — the production
+        // default — so it is the right place to assert the page is absent.
+        // The served page is covered by `public-graphql-playground.spec.ts`,
+        // which boots its own app with tooling on.
+
+        it('is not served when developer tooling is off', async () => {
+            // Registration-level: the controller is never registered, so there
+            // is no handler to reach rather than one that refuses.
+            await request(harness.server)
+                .get('/api/v1/graphql/playground')
+                .expect(404);
+        });
+
+        it('does not take the API down with it', async () => {
+            const secret = await mintToken({ workspaceIds: [workspaceId] });
+            const body = await gql(secret, '{ contentTypes { name } }');
+
+            expect(body.errors).toBeUndefined();
+        });
+    });
+
     // ---- error shape ------------------------------------------------------
 
     describe('errors', () => {

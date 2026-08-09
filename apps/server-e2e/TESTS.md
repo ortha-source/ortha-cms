@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_573 test cases across 40 spec files._
+_579 test cases across 41 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -340,6 +340,13 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts</sub>_
 | --- |
 | refuses a multi-operation document with no operationName |
 
+### the GraphiQL playground
+
+| Test case |
+| --- |
+| is not served when developer tooling is off |
+| does not take the API down with it |
+
 ### errors
 
 | Test case |
@@ -360,6 +367,20 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-graphql-limits.spec.ts</sub>_
 | refuses a document that aliases past the field limit |
 | refuses a shallow but expensive query on complexity |
 | refuses the query before executing it |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-graphql-playground.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-graphql-playground.spec.ts</sub>_
+
+## Public GraphQL playground (/api/v1/graphql/playground)
+
+### with developer tooling on
+
+| Test case |
+| --- |
+| serves GraphiQL as HTML, without a token |
+| points the editor at the API endpoint under the global prefix |
+| loads no external assets, so an air-gapped install works |
+| serves a byte-identical page on a second request |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_

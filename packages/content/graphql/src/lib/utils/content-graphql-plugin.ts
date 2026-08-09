@@ -20,6 +20,19 @@ export interface ContentGraphqlPluginOptions
      * the one workspace granted both.
      */
     content: ContentServerPlugin;
+    /**
+     * Serve the GraphiQL playground at `GET /v1/graphql/playground`.
+     *
+     * A **composition-time** option rather than a config key, because it is the
+     * host that knows whether this deployment exposes developer tooling — the
+     * same judgement that drives the Scalar reference. `apps/server` passes
+     * `docs.enabled`, so one switch governs both API explorers and neither is
+     * on in production unless asked for.
+     *
+     * Defaults to `false`: the page is unauthenticated and invites a pasted
+     * bearer token, so it is opt-in rather than opt-out.
+     */
+    playground?: boolean;
 }
 
 /** The GraphQL plugin's `ServerPlugin`, with its resolved config attached. */
@@ -51,7 +64,7 @@ export interface ContentGraphqlServerPlugin extends ServerPlugin {
 export function ContentGraphqlPlugin(
     options: ContentGraphqlPluginOptions
 ): ContentGraphqlServerPlugin {
-    const { content, ...config } = options;
+    const { content, playground = false, ...config } = options;
     // Checked against the WHOLE registry, not per workspace: a collision between
     // two content types is a modelling bug, and finding it only when some
     // workspace happens to be granted both would turn it into a production
@@ -60,7 +73,7 @@ export function ContentGraphqlPlugin(
     const resolved = resolveConfig(config);
     return {
         name: 'content-graphql',
-        module: ContentGraphqlModule.forRoot(resolved),
+        module: ContentGraphqlModule.forRoot(resolved, { playground }),
         graphqlConfig: resolved
     };
 }

@@ -65,7 +65,11 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // rather than on the first request from a workspace granted both.
         ContentGraphqlPlugin({
             content,
-            ...config.plugins.contentGraphql
+            ...config.plugins.contentGraphql,
+            // GraphiQL rides the same switch as the Scalar reference: both are
+            // developer tooling, and neither should be reachable in production
+            // unless the operator asks (`API_DOCS=true`).
+            playground: config.docs.enabled === true
         }),
         // Media — registered after workspaces (its routes use `WorkspaceGuard`)
         // and identity (its routes use `PermissionsGuard`). The composition root

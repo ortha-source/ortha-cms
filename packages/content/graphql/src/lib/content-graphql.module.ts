@@ -1,6 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { CONTENT_GRAPHQL_CONFIG } from './content-graphql.tokens';
 import { GraphqlController } from './http/controllers/graphql.controller';
+import { GraphqlPlaygroundController } from './http/controllers/graphql-playground.controller';
 import type { ResolvedContentGraphqlConfig } from './types/config';
 
 /**
@@ -18,11 +19,24 @@ import type { ResolvedContentGraphqlConfig } from './types/config';
  */
 @Module({})
 export class ContentGraphqlModule {
-    /** Creates the module around a resolved config. */
-    static forRoot(config: ResolvedContentGraphqlConfig): DynamicModule {
+    /**
+     * Creates the module around a resolved config.
+     *
+     * `features.playground` decides whether the GraphiQL controller is
+     * registered **at all**. Gating by registration rather than by a check
+     * inside the handler means a deployment with it off serves no such route —
+     * there is no live handler to reach, and nothing to get wrong later.
+     */
+    static forRoot(
+        config: ResolvedContentGraphqlConfig,
+        features: { playground: boolean } = { playground: false }
+    ): DynamicModule {
         return {
             module: ContentGraphqlModule,
-            controllers: [GraphqlController],
+            controllers: [
+                ...(features.playground ? [GraphqlPlaygroundController] : []),
+                GraphqlController
+            ],
             providers: [{ provide: CONTENT_GRAPHQL_CONFIG, useValue: config }]
         };
     }

@@ -556,6 +556,13 @@ no design doc.
    type in the SDL, which is exactly the enumeration §2.1 exists to prevent. A
    deliberate divergence from REST, which would allow the write.
 
-Not built, as §13 anticipated: GraphiQL (introspection plus the SDL endpoint
-covers codegen and client IDEs), typed per-type filter inputs, and the
+7. **GraphiQL shipped after all.** §10 phase 4 and §13 deferred it. Added on
+   request at `GET /v1/graphql/playground`, gated on `docs.enabled` so it is off
+   in production, and served self-contained rather than from a CDN. That choice
+   pinned the package to **graphql 16** — every prebuilt-GraphiQL package peers
+   on ≤16, and bundling `graphiql` ourselves needs a build step these packages
+   do not have. No code changed in the downgrade; `coercedVariables` already
+   handled both shapes.
+
+Not built, as §13 anticipated: typed per-type filter inputs, and the
 grant-change cache-invalidation hook (the TTL covers it).

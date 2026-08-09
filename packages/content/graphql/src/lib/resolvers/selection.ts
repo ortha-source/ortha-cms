@@ -36,10 +36,12 @@ export type VariableMap = Readonly<Record<string, unknown>>;
 /**
  * The operation's variables as a plain name → value map.
  *
- * graphql-js v17 hands resolvers a `{ sources, coerced }` pair rather than the
- * flat map v16 did, so reading `info.variableValues` directly yields an object
- * with two keys and none of the caller's variables in it. One accessor, so that
- * version detail is stated once instead of being rediscovered at each use.
+ * On graphql-js v16 (what we run) `info.variableValues` **is** that map, so this
+ * is a pass-through. v17 replaces it with a `{ sources, coerced }` pair, where
+ * reading it directly yields an object holding two keys and none of the
+ * caller's variables — a silent wrong answer rather than a type error. Handling
+ * both here means the major upgrade is a version bump rather than a hunt, and
+ * it costs one property check per field.
  */
 export function coercedVariables(info: GraphQLResolveInfo): VariableMap {
     const raw = info.variableValues as unknown;
