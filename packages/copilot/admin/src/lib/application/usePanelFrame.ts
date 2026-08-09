@@ -8,8 +8,17 @@ import {
     type ResizeEdge
 } from './panelFrame';
 
-/** Where a user-placed frame is remembered between sessions. */
-export const PANEL_FRAME_STORAGE_KEY = 'ortha.copilot.panel-frame';
+/**
+ * Where a user-placed frame is remembered, per window **slot**.
+ *
+ * Keyed by slot rather than by chat, because a chat is ephemeral — its id dies
+ * with the window — while "the leftmost chat window" is a place on the screen
+ * the user arranged and expects to stay arranged. Slot 0 is the one most people
+ * will ever move.
+ */
+export function panelFrameStorageKey(slot: number): string {
+    return `ortha.copilot.panel-frame.${slot}`;
+}
 
 /** How far one arrow key moves or resizes the panel, in pixels. */
 const STEP = 16;
@@ -74,9 +83,16 @@ export interface PanelFrameControls {
  * where a `mouseup` listener on `window` can be swallowed by an iframe or a
  * drag that ends outside the document.
  */
-export function usePanelFrame(): PanelFrameControls {
+export function usePanelFrame(storageKey: string): PanelFrameControls {
     const ref = useRef<HTMLDivElement>(null);
-    const [frame, setFrame] = useState<PanelFrame | null>(readStoredFrame);
+    const [frame, setFrame] = useState<PanelFrame | null>(() =>
+        readStoredFrame(storageKey)
+    );
+    // Read through a ref so the persist helpers never capture a stale key: a
+    // window changes slot when a neighbour closes, and writing the new geometry
+    // under the old slot's key would swap two windows' remembered positions.
+    const keyRef = useRef(storageKey);
+    keyRef.current = storageKey;
     const [interacting, setInteracting] = useState(false);
 
     // The gesture in flight. A ref rather than state: it changes on every
@@ -91,7 +107,7 @@ export function usePanelFrame(): PanelFrameControls {
 
     const persist = useCallback((next: PanelFrame | null) => {
         setFrame(next);
-        writeStoredFrame(next);
+        writeStoredFrame(keyRef.current, next);
     }, []);
 
     // A frame saved on a large monitor must not strand the panel off-screen on
@@ -174,7 +190,7 @@ export function usePanelFrame(): PanelFrameControls {
         // worth remembering, and a `localStorage` write per pointer frame is a
         // synchronous disk hit inside the drag loop.
         setFrame((current) => {
-            writeStoredFrame(current);
+            writeStoredFrame(keyRef.current, current);
             return current;
         });
     }, []);
@@ -247,9 +263,9 @@ function viewport() {
     return { width: window.innerWidth, height: window.innerHeight };
 }
 
-function readStoredFrame(): PanelFrame | null {
+function readStoredFrame(storageKey: string): PanelFrame | null {
     try {
-        const raw = window.localStorage.getItem(PANEL_FRAME_STORAGE_KEY);
+        const raw = window.localStorage.getItem(storageKey);
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         return isPanelFrame(parsed) ? clampFrame(parsed, viewport()) : null;
@@ -260,15 +276,12 @@ function readStoredFrame(): PanelFrame | null {
     }
 }
 
-function writeStoredFrame(frame: PanelFrame | null) {
+function writeStoredFrame(storageKey: string, frame: PanelFrame | null) {
     try {
         if (frame) {
-            window.localStorage.setItem(
-                PANEL_FRAME_STORAGE_KEY,
-                JSON.stringify(frame)
-            );
+            window.localStorage.setItem(storageKey, JSON.stringify(frame));
         } else {
-            window.localStorage.removeItem(PANEL_FRAME_STORAGE_KEY);
+            window.localStorage.removeItem(storageKey);
         }
     } catch {
         // Storage full or blocked: the placement is lost on reload, which is a

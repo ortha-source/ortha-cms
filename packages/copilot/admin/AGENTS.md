@@ -10,9 +10,10 @@ The admin-side copilot plugin — the chat panel.
 > string, follow the same split.
 
 `CopilotPlugin()` fills the shell's `SIDEBAR_FOOTER_SLOT` with a launcher that
-opens the panel (or `⌘J`) — the panel is a docked window over whatever page you
-are on, which is the point of it being a persistent surface rather than a
-destination.
+starts a chat (or `⌘J`). A chat is a docked window over whatever page you are
+on, which is the point of it being a persistent surface rather than a
+destination — and there can be **several at once**, listed in a bar along the
+bottom.
 
 It contributes **no routes and no nav entry**. It used to contribute one, for
 the workspace's auto-apply policy;
@@ -33,12 +34,16 @@ application/
   useCopilotModels.ts      # the model catalogue + choice-key helpers
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
+  sessions.ts              # pure reducer over the set of open chats (tested)
+  useCopilotSessions.ts    # the hook over it: ids + stable callbacks
   panelFrame.ts            # pure move/resize/clamp arithmetic (unit-tested)
   usePanelFrame.ts         # the hook over it: pointer capture + localStorage
 presentation/
   copilotPlugin/           # the plugin object
-  CopilotLauncher/         # sidebar row + floating button + ⌘J, permission-gated
-  CopilotPanel/            # the docked window
+  CopilotLauncher/         # sidebar row + ⌘J + the dock, permission-gated
+  CopilotDock/             # the bottom bar: one pill per chat, + new chat
+  CopilotSession/          # one always-mounted chat; owns useCopilotChat
+  CopilotPanel/            # the window a visible chat renders in
   PanelResizeHandles/      # the eight grab strips
   MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
   ContextChip/             # what context is attached to the next turn
@@ -66,14 +71,13 @@ presentation/
   dozens of times per answer and must append to the _current_ last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
-- **Two triggers, one panel.** A sidebar-footer row (which carries the `⌘J`
-  hint, so the shortcut is discoverable) and a floating button in the corner the
-  panel opens from. Focus returns to **whichever** trigger was used. The
-  floating button fades out while the panel is open — but stays mounted, so
-  focus has somewhere to return to, and takes `tabIndex={-1}` + `aria-hidden`
-  meanwhile, because an invisible-but-tabbable button is a trap in a non-modal
-  surface where Tab really does reach it.
-- **The panel is a non-modal docked window, not a `Sheet`.** A modal drawer
+- **The dock replaced the floating button.** A round button could only ever
+  mean "the panel", singular. With no chats open the dock _is_ a labelled Ortha
+  AI button in the same corner; as soon as there are chats it becomes the bar
+  listing them. One control that grows into the thing it opens beats a button
+  plus a separate list that mean roughly the same. The sidebar-footer row stays,
+  because it carries the `⌘J` hint and is where the shortcut is discoverable.
+- **The window is non-modal, not a `Sheet`.** A modal drawer
   dims the page, traps focus and blocks every control behind it — but the useful
   thing to do with an answer is act on it, which would mean closing the
   conversation first. Consequences, all deliberate: no focus trap (Tab leaves
@@ -94,6 +98,45 @@ presentation/
   escaping does not save you from `[click](javascript:…)`. **If a second gap
   like the table one turns up, stop growing this and take `react-markdown`** —
   it is a drop-in replacement for the component.
+
+## Several chats at once
+
+Ask three things, go back to work, come back when the dock says one finished.
+That is the feature; everything below is what it costs.
+
+- **`useCopilotChat` lives in `CopilotSession`, not in `CopilotPanel`.** This is
+  the load-bearing bit. The panel unmounts when its chat collapses to the dock,
+  and a hook inside an unmounted panel takes its `AbortController` cleanup with
+  it — so minimizing used to be, and would silently become again, a disguised
+  cancel. Lifting the hook one level is the whole mechanism. **Do not move it
+  back into the panel.**
+- **Every chat stays mounted for as long as its pill exists.** Closing a pill is
+  what cancels a run; collapsing one never does.
+- **The window cap minimizes rather than refuses.** Three windows fit side by
+  side on a 1440px screen without covering the content the chat is _about_ —
+  which is why the panel is non-modal in the first place. A fourth minimizes the
+  oldest visible chat, which keeps running. Refusing would be the wrong trade:
+  the user asked for another chat, and the one they stopped looking at is the
+  cheapest thing to give up.
+- **A marker is only ever set on a chat that is off screen** (`sessions.ts`), and
+  it is edge-triggered off `busy` going true→false. Watching the transcript
+  instead would fire on the first `text-delta`, i.e. before there is anything to
+  come back and read; badging the window the user is already reading trains them
+  to ignore the badge that means something.
+- **The marker is in the pill's accessible name, not only in the dot.** A
+  colour-only signal is no signal, and this one is the entire point of the
+  feature.
+- **An untitled pill is "Untitled chat", never "New chat".** That is the name of
+  the button beside it, and two controls in one toolbar answering to the same
+  name is ambiguous by voice and in a screen reader's control list. (Caught by
+  the browser harness, not by review.)
+- **Reopening a thread focuses the window already on it.** Two windows on one
+  `conversationId` would hold two transcripts that immediately disagree — and
+  the match is on the id, so two _unsaved_ chats (both `null`) stay separate.
+- **A window's remembered geometry is keyed by slot, not by chat.** A chat is
+  ephemeral; "the leftmost window" is a place on the screen the user arranged.
+  `usePanelFrame` reads its key through a ref so a window changing slot cannot
+  write its geometry under the old slot's key and swap two windows' positions.
 
 ## Changes the copilot makes
 
@@ -280,12 +323,16 @@ co-located `defineMessages`.
 
 ## Testing
 
-`chatReducer`, the model-choice key helpers and `panelFrame` are unit-tested
-(`nx test`) — this is the first admin package with a jest config,
+`chatReducer`, the model-choice key helpers, `panelFrame` and `sessions` are
+unit-tested (`nx test`) — this is the first admin package with a jest config,
 `testEnvironment: 'node'` because the tested code is pure. Anything that has to
 be got exactly right about the window's geometry belongs in `panelFrame.ts` for
 that reason; `usePanelFrame` should stay thin enough to be obviously correct.
-**The panel has no browser-level coverage yet**:
+The dock and the windows were driven in a real Chromium against a harness of
+the actual components — tiling, the cap, titles, the marker's true _and_ false
+positives, toggling, closing, drag persistence, Escape, and axe — but **that
+harness is not checked in and does not run in CI**. **The panel still has no
+`admin-e2e` coverage**:
 `admin-e2e` mocks `/api` with `page.route` and cannot currently fulfil an
 event-stream body. That gap is tracked in `docs/design/copilot.md` §8.
 

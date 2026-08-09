@@ -9,9 +9,10 @@ import {
     X
 } from 'lucide-react';
 import { Button, cn } from '@ortha-cms/design-system';
-import { useCopilotChat } from '../../application/useCopilotChat';
+import type { CopilotChat } from '../../application/useCopilotChat';
 import {
     keyboardStep,
+    panelFrameStorageKey,
     usePanelFrame,
     type PanelFrameControls
 } from '../../application/usePanelFrame';
@@ -79,8 +80,16 @@ const ARROWS: Record<string, [number, number]> = {
     ArrowDown: [0, 1]
 };
 
-/** How much of the window the panel takes. */
-type PanelSize = 'docked' | 'expanded' | 'minimized';
+/**
+ * How much of the screen the panel takes.
+ *
+ * There is no `minimized` any more: collapsing a chat is now the **dock's** job
+ * — it becomes a pill in the bottom bar and this component unmounts, while the
+ * chat's state and its in-flight run live on in the session above. That is what
+ * makes several background chats possible at all; a minimized-but-mounted panel
+ * per chat would have meant N hidden transcripts in the tree.
+ */
+type PanelSize = 'docked' | 'expanded';
 
 /**
  * Enter/exit duration, in ms. Must match the `duration-200` class below — the
@@ -89,23 +98,50 @@ type PanelSize = 'docked' | 'expanded' | 'minimized';
  */
 const MOTION_MS = 200;
 
+/**
+ * How far above the viewport's bottom an un-dragged window sits — clear of the
+ * dock, which is `bottom-3` and about `2.25rem` tall.
+ */
+const DOCK_CLEARANCE = '4rem';
+
+/**
+ * Horizontal step between un-dragged windows: the docked width plus a gutter.
+ * Two chats opened back to back land side by side rather than one hiding the
+ * other, and the user can still drag either anywhere.
+ */
+const SLOT_PITCH = '27.5rem';
+
 export interface CopilotPanelProps {
     /**
-     * The workspace runs are scoped to. `null` outside a workspace, where the
-     * panel renders only its header — every run route requires the header, so
-     * a composer here could only produce a 400.
+     * The chat this window shows. Owned by the **session** above, not created
+     * here: a chat that is collapsed to the dock must keep streaming, and a
+     * hook inside an unmounted panel cannot.
      */
-    workspaceId: string | null;
+    chat: CopilotChat;
+    /** The workspace runs are scoped to. */
+    workspaceId: string;
     /**
      * Where the user is, from the URL. Sent with every turn so the model can
      * resolve "this entry" and "here", and shown above the composer so the user
      * can see what is being attached.
      */
     routeContext: RouteContext;
-    /** Whether the panel is open. */
+    /** What the header shows — the thread's title, or a placeholder. */
+    title: string | null;
+    /** Whether this window is on screen. */
     open: boolean;
-    /** Called when the panel should open or close. */
-    onOpenChange(open: boolean): void;
+    /**
+     * Which visible window this is, counting from the right. Sets where an
+     * un-dragged window sits, so opening a second chat does not stack it exactly
+     * on the first.
+     */
+    slot: number;
+    /** Collapses this chat to the dock. It keeps running. */
+    onMinimize(): void;
+    /** Closes this chat for good. */
+    onClose(): void;
+    /** Starts another chat alongside this one. */
+    onNewChat(): void;
     /** Focused when the panel closes, so keyboard focus doesn't fall to `<body>`. */
     returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
@@ -132,17 +168,22 @@ export interface CopilotPanelProps {
  * - Escape closes it, matching what every floating panel does.
  */
 export function CopilotPanel({
+    chat,
     workspaceId,
     routeContext,
+    title,
     open,
-    onOpenChange,
+    slot,
+    onMinimize,
+    onClose,
+    onNewChat,
     returnFocusRef
 }: CopilotPanelProps) {
     const intl = useIntl();
     const [size, setSize] = useState<PanelSize>('docked');
     // Where the user dragged it to, if they have. `null` until then, which is
     // what keeps the docked/expanded classes below meaningful.
-    const frame = usePanelFrame();
+    const frame = usePanelFrame(panelFrameStorageKey(slot));
     // `rendered` keeps the panel in the tree long enough to play the exit
     // transition; `visible` drives the transition itself. Two states rather
     // than one because the element has to mount in its hidden position *first*,
@@ -151,12 +192,15 @@ export function CopilotPanel({
     const [rendered, setRendered] = useState(open);
     const [visible, setVisible] = useState(false);
 
-    // Escape closes. Bound on the panel's own subtree rather than the window,
-    // so Escape inside a page dialog behind us doesn't also close the chat.
+    // Escape collapses to the dock rather than closing. Discarding a chat —
+    // and cancelling whatever run is in flight — is too much to hang off a key
+    // people press to dismiss things; the pill stays, and so does the thread.
+    // Bound on the panel's own subtree rather than the window, so Escape inside
+    // a page dialog behind us doesn't also touch the chat.
     const onKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === 'Escape') {
             event.stopPropagation();
-            onOpenChange(false);
+            onMinimize();
         }
     };
 
@@ -179,9 +223,6 @@ export function CopilotPanel({
         setVisible(false);
         const timer = setTimeout(() => {
             setRendered(false);
-            // Restore the default size for next time: reopening into a
-            // minimized window reads as "the panel is broken".
-            setSize('docked');
             returnFocusRef?.current?.focus();
         }, MOTION_MS);
         return () => clearTimeout(timer);
@@ -191,7 +232,6 @@ export function CopilotPanel({
         return null;
     }
 
-    const minimized = size === 'minimized';
     const expanded = size === 'expanded';
     const placed = frame.frame !== null;
     /** True only when the panel is sitting at the expanded preset, undragged. */
@@ -224,15 +264,19 @@ export function CopilotPanel({
             // own the geometry, so the panel opens correctly on a viewport it
             // has never been opened in — and `left`/`top` from a previous,
             // larger monitor can never strand it off-screen.
+            // Placed: the exact frame the user dragged. Unplaced: parked above
+            // the dock, offset by slot so a second chat lands beside the first
+            // rather than exactly on top of it. Expanded ignores the slot — a
+            // full-height window has nowhere to go but the right-hand side.
             style={
                 placed
-                    ? minimized
-                        ? // A minimized window is its title bar: it keeps where
-                          // it is and how wide it is, and lets the header set
-                          // the height.
-                          { ...frame.style, height: undefined }
-                        : frame.style
-                    : undefined
+                    ? frame.style
+                    : {
+                          bottom: DOCK_CLEARANCE,
+                          right: expanded
+                              ? '1rem'
+                              : `calc(1rem + ${slot} * ${SLOT_PITCH})`
+                      }
             }
             className={cn(
                 // `text-foreground` is stated rather than inherited: the panel
@@ -241,17 +285,15 @@ export function CopilotPanel({
                 // when this rendered inside the dark sidebar's subtree.
                 'bg-background text-foreground fixed z-50 flex flex-col',
                 'rounded-lg border shadow-lg',
-                !placed && 'right-4 bottom-4',
                 // Never taller or wider than the viewport allows, so the panel
                 // stays usable on a laptop screen and on a short window. A
                 // placed panel is clamped to the viewport in the frame itself,
                 // and these would fight that clamp rather than back it up.
-                !placed && 'max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)]',
-                !placed && minimized && 'w-[380px]',
-                !placed && !minimized && !expanded && 'h-[620px] w-[420px]',
+                !placed && 'max-h-[calc(100vh-5rem)] max-w-[calc(100vw-2rem)]',
+                !placed && !expanded && 'h-[620px] w-[420px]',
                 !placed &&
                     expanded &&
-                    'h-[calc(100vh-2rem)] w-[min(820px,calc(100vw-2rem))]',
+                    'h-[calc(100vh-5rem)] w-[min(820px,calc(100vw-2rem))]',
                 // Text selection is suppressed for the whole panel while a
                 // gesture runs, rather than the drag calling `preventDefault()`
                 // — which would also swallow the focus a mousedown gives the
@@ -276,9 +318,7 @@ export function CopilotPanel({
                     : 'translate-y-2 scale-95 opacity-0'
             )}
         >
-            {/* Not while minimized: there is no body left to resize, and the
-                strips would be grab targets on a bar the user just collapsed. */}
-            {!minimized && <PanelResizeHandles controls={frame} />}
+            <PanelResizeHandles controls={frame} />
 
             <header
                 className="flex shrink-0 cursor-move touch-none items-center gap-1 border-b px-3 py-2 select-none"
@@ -294,61 +334,45 @@ export function CopilotPanel({
                 <MoveHandle controls={frame} />
 
                 <h2 className="flex-1 truncate text-sm font-semibold">
-                    {intl.formatMessage(messages.title)}
+                    {title ?? intl.formatMessage(messages.title)}
                 </h2>
 
                 <IconButton
-                    icon={minimized ? Maximize2 : Minus}
-                    label={intl.formatMessage(
-                        minimized ? messages.restore : messages.minimize
-                    )}
-                    onClick={() => setSize(minimized ? 'docked' : 'minimized')}
+                    icon={MessageSquarePlus}
+                    label={intl.formatMessage(messages.newChat)}
+                    onClick={onNewChat}
                 />
-                {!minimized && (
-                    // Reads its label off the *preset*, not off `size` alone: a
-                    // panel the user has dragged is at no preset, so the button
-                    // offers Expand — "Shrink" on a window that is currently
-                    // 400px wide because someone resized it would be nonsense.
-                    <IconButton
-                        icon={atExpandedPreset ? Minimize2 : Maximize2}
-                        label={intl.formatMessage(
-                            atExpandedPreset
-                                ? messages.collapse
-                                : messages.expand
-                        )}
-                        onClick={() =>
-                            preset(atExpandedPreset ? 'docked' : 'expanded')
-                        }
-                    />
-                )}
+                <IconButton
+                    icon={Minus}
+                    label={intl.formatMessage(messages.minimize)}
+                    onClick={onMinimize}
+                />
+                {/* Reads its label off the *preset*, not off `size` alone: a
+                    panel the user has dragged is at no preset, so the button
+                    offers Expand — "Shrink" on a window that is currently 400px
+                    wide because someone resized it would be nonsense. */}
+                <IconButton
+                    icon={atExpandedPreset ? Minimize2 : Maximize2}
+                    label={intl.formatMessage(
+                        atExpandedPreset ? messages.collapse : messages.expand
+                    )}
+                    onClick={() =>
+                        preset(atExpandedPreset ? 'docked' : 'expanded')
+                    }
+                />
                 <IconButton
                     icon={X}
                     label={intl.formatMessage(messages.close)}
-                    onClick={() => onOpenChange(false)}
+                    onClick={onClose}
                 />
             </header>
 
-            {/* Minimized keeps the thread mounted — and therefore any run still
-                streaming — so minimizing is genuinely "get this out of my way"
-                rather than a disguised cancel. */}
-            <div
-                className={cn(
-                    'flex min-h-0 flex-1 flex-col',
-                    minimized && 'hidden'
-                )}
-            >
-                {workspaceId ? (
-                    <PanelBody
-                        key={workspaceId}
-                        workspaceId={workspaceId}
-                        routeContext={routeContext}
-                        hidden={minimized}
-                    />
-                ) : (
-                    <p className="text-muted-foreground p-4 text-sm">
-                        {intl.formatMessage(messages.description)}
-                    </p>
-                )}
+            <div className="flex min-h-0 flex-1 flex-col">
+                <PanelBody
+                    chat={chat}
+                    workspaceId={workspaceId}
+                    routeContext={routeContext}
+                />
             </div>
         </div>
     );
@@ -417,16 +441,14 @@ function IconButton({
 }
 
 function PanelBody({
+    chat,
     workspaceId,
-    routeContext,
-    hidden
+    routeContext
 }: {
+    chat: CopilotChat;
     workspaceId: string;
     routeContext: RouteContext;
-    hidden: boolean;
 }) {
-    const intl = useIntl();
-    const chat = useCopilotChat(workspaceId, hidden);
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
@@ -452,16 +474,6 @@ function PanelBody({
                         chat.load(conversationId, loaded)
                     }
                 />
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground size-7"
-                    onClick={chat.reset}
-                    aria-label={intl.formatMessage(messages.newChat)}
-                    title={intl.formatMessage(messages.newChat)}
-                >
-                    <MessageSquarePlus className="size-4" />
-                </Button>
             </div>
 
             <MessageList messages={chat.messages} />
