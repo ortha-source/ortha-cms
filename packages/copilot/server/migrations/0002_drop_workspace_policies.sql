@@ -1,0 +1,1 @@
+DROP TABLE "copilot_workspace_policies" CASCADE;

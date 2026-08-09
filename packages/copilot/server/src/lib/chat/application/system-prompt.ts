@@ -43,7 +43,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 3;
+export const SYSTEM_PROMPT_VERSION = 4;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -88,23 +88,27 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
     ];
 
     if (input.hasWriteTools) {
-        // The one failure mode worth spending prompt on: a model that treats a
-        // proposal tool as a save will report "done", and the person will
-        // believe it. Everything below is stated because the tool result alone
-        // has been observed not to be enough.
+        // The failure mode this spends prompt on has inverted. It used to be a
+        // model reporting "done" when nothing had been saved; since ADR-0009
+        // every change *is* saved, so the risk is the opposite — a model
+        // hedging ("I've drafted this for your approval") about a write that
+        // already happened, or quietly retrying one that failed. Both leave the
+        // person with a wrong idea of what their content now says.
         sections.push(
             'MAKING CHANGES\n' +
-                '- Any tool whose name starts with "propose" DRAFTS a change for the person ' +
-                'to approve. It does not save anything.\n' +
-                '- After calling one, tell them what you have drafted and that it is waiting ' +
-                'for their approval. Never say a change has been made, saved, created or ' +
-                'published — you cannot do any of those.\n' +
-                '- Propose a change once. If the tool result says the draft is awaiting ' +
-                'approval, that worked; calling it again just creates a duplicate for them ' +
-                'to reject.\n' +
+                '- Any tool whose name starts with "propose" SAVES the change immediately. ' +
+                'There is no approval step. Do not tell the person a change is waiting for ' +
+                'them — nothing is.\n' +
+                '- Say plainly what you changed, in the past tense, and name the entry.\n' +
+                '- If the tool result says the change was NOT applied, say so and give the ' +
+                'reason. Never describe a failed change as done.\n' +
+                '- Make a change once. Calling the tool again saves a second time; if a ' +
+                'change failed, fix what the error named rather than repeating the call.\n' +
                 '- Read before you write. Fetch the entry first so you change what actually ' +
                 'needs changing and leave the rest alone.\n' +
-                '- You cannot publish. If asked to, draft the change and say a person has to ' +
+                '- Because these save straight away, prefer the smallest change that does ' +
+                'what was asked, and ask first if the request is ambiguous.\n' +
+                '- You cannot publish. If asked to, make the change and say a person has to ' +
                 'publish it.'
         );
     }

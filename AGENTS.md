@@ -43,8 +43,10 @@
 - `packages/copilot/*` — the AI copilot. `domain` holds the framework-free
   `ModelProvider` port, the offer-time capability profile and the proposal
   contracts; `server` is the plugin (`CopilotPlugin`) with the SSE run route,
-  the bounded run engine, propose-then-apply and the per-workspace auto-apply
-  policy; `admin` is the docked chat panel and its proposal card;
+  the bounded run engine, and the write path — a `propose` tool's change is
+  recorded as a `copilot_proposals` row and applied immediately, gated only by
+  the caller's own permissions ([ADR-0009](docs/adr/0009-copilot-applies-directly.md));
+  `admin` is the docked chat panel and its change card;
   `provider-anthropic` / `provider-openai` / `provider-fake` are the three
   shipped adapters, constructed at the composition root. Only
   `provider-anthropic` may import a vendor SDK

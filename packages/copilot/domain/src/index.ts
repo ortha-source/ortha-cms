@@ -52,8 +52,7 @@ export type {
     ResolveCapabilityProfileInput,
     ToolPermissionKey,
     WithheldReason,
-    WithheldTool,
-    WorkspaceCopilotPolicy
+    WithheldTool
 } from './lib/tools/capability-profile';
 
 // --- the run (phase 1) ---

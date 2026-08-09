@@ -205,7 +205,8 @@ describe('chatReducer', () => {
 
     describe('proposals', () => {
         const proposed = (
-            status: 'pending' | 'accepted' = 'pending'
+            status: 'pending' | 'accepted' = 'accepted',
+            error?: string
         ): ChatAction => ({
             type: 'event',
             event: {
@@ -217,105 +218,81 @@ describe('chatReducer', () => {
                 summary: 'Fix the headline',
                 target: { typeName: 'article', entryId: 'e1' },
                 changes: [{ field: 'title', before: 'Old', after: 'New' }],
-                status
+                status,
+                ...(error ? { error } : {})
             }
         });
 
-        it('attaches a proposal to the assistant turn', () => {
+        it('attaches a change to the assistant turn', () => {
             const state = play(submit, started, proposed());
 
             expect(state.messages[1].proposals).toEqual([
                 expect.objectContaining({
                     id: 'p1',
                     summary: 'Fix the headline',
-                    status: 'pending'
+                    status: 'accepted'
                 })
             ]);
         });
 
-        it('marks a proposal that arrives already accepted as auto-applied', () => {
-            const state = play(submit, started, proposed('accepted'));
-
-            // The server records the same `decidedBy` either way — auto-apply
-            // acts as the user whose run produced it — so arriving already
-            // accepted is the only signal that nobody clicked.
-            expect(state.messages[1].proposals?.[0]).toMatchObject({
-                status: 'accepted',
-                autoApplied: true
-            });
-        });
-
-        it('does not mark a pending proposal as auto-applied', () => {
-            const state = play(submit, started, proposed());
-            expect(
-                state.messages[1].proposals?.[0].autoApplied
-            ).toBeUndefined();
-        });
-
-        it('flags a decision in flight and clears any previous error', () => {
-            const state = play(
-                submit,
-                started,
-                proposed(),
-                { type: 'decided', proposalId: 'p1', error: 'Nope.' },
-                { type: 'deciding', proposalId: 'p1' }
-            );
-
-            expect(state.messages[1].proposals?.[0]).toMatchObject({
-                deciding: true,
-                error: undefined
-            });
-        });
-
-        it('applies a decision to a proposal in an earlier turn', () => {
-            // Deciding a card three answers up is the ordinary case, not an
-            // edge one, so the lookup is by id across the whole transcript.
-            const state = play(
-                submit,
-                started,
-                proposed(),
-                done,
-                { type: 'submit', text: 'and another', localId: '2' },
-                {
-                    type: 'decided',
-                    proposalId: 'p1',
-                    status: 'accepted',
+        it('carries the entity the change landed on', () => {
+            const state = play(submit, started, {
+                type: 'event',
+                event: {
+                    ...(proposed().event as Extract<
+                        ChatAction,
+                        { type: 'event' }
+                    >['event'] & { type: 'proposal' }),
                     entityId: 'e1'
                 }
-            );
+            });
 
             expect(state.messages[1].proposals?.[0]).toMatchObject({
                 status: 'accepted',
-                entityId: 'e1',
-                deciding: false
+                entityId: 'e1'
             });
         });
 
-        it('keeps the proposal decidable when the decision failed', () => {
-            const state = play(submit, started, proposed(), {
-                type: 'decided',
-                proposalId: 'p1',
-                error: 'This proposal was already accepted.'
-            });
+        // Since ADR-0009 the engine applies as it drafts, so `pending` on an
+        // arriving frame does not mean "waiting" — it means the write failed.
+        // The reason has to survive onto the card, because this frame is the
+        // only place the user will ever be told.
+        it('keeps the failure reason on a change that did not apply', () => {
+            const state = play(
+                submit,
+                started,
+                proposed('pending', 'Entry validation failed')
+            );
 
-            // Still pending, still has its buttons, and says why — the four
-            // server statuses mean different things to the person clicking.
             expect(state.messages[1].proposals?.[0]).toMatchObject({
                 status: 'pending',
-                deciding: false,
-                error: 'This proposal was already accepted.'
+                error: 'Entry validation failed'
             });
         });
 
-        it('ignores a decision for a proposal it does not have', () => {
-            const before = play(submit, started, proposed());
-            const after = chatReducer(before, {
-                type: 'decided',
-                proposalId: 'nope',
-                status: 'accepted'
-            });
+        it('leaves the error unset when the change applied', () => {
+            const state = play(submit, started, proposed());
+            expect(state.messages[1].proposals?.[0].error).toBeUndefined();
+        });
 
-            expect(after.messages).toEqual(before.messages);
+        it('appends several changes from one turn in order', () => {
+            const second: ChatAction = {
+                type: 'event',
+                event: {
+                    ...(proposed().event as Extract<
+                        ChatAction,
+                        { type: 'event' }
+                    >['event'] & { type: 'proposal' }),
+                    id: 'p2',
+                    summary: 'Fix the standfirst'
+                }
+            };
+            const state = play(submit, started, proposed(), second);
+
+            expect(state.messages[1].proposals?.map((p) => p.id)).toEqual([
+                'p1',
+                'p2'
+            ]);
         });
     });
 });

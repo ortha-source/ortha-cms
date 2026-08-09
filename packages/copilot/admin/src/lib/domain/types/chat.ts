@@ -19,12 +19,12 @@ export interface ChatToolStep {
 }
 
 /**
- * One proposed change as the transcript renders it.
+ * One change the copilot made, as the transcript renders it.
  *
- * Mirrors the server's `RunProposalEvent` plus a client-only `deciding` flag.
- * It lives on the turn rather than in a separate list because a proposal is
- * *part of an answer* — "here is what I would change" — and pulling it into a
- * queue elsewhere would make the reply refer to something off-screen.
+ * Mirrors the server's `RunProposalEvent`. It lives on the turn rather than in
+ * a separate list because a change is *part of an answer* — "here is what I
+ * changed" — and pulling it into a list elsewhere would make the reply refer to
+ * something off-screen.
  */
 export interface ChatProposal {
     /** The persisted proposal's id — what accept/reject address. */
@@ -46,25 +46,16 @@ export interface ChatProposal {
         before?: unknown;
         after: unknown;
     }[];
-    /** `pending`, or `accepted` when auto-apply carried it out already. */
+    /**
+     * `accepted` — the change was made — or `pending`, which now means the
+     * apply **failed** (ADR-0009: every change applies as it is drafted, so
+     * nothing waits). `rejected` only appears on rows written before that
+     * change; nothing produces it now.
+     */
     status: 'pending' | 'accepted' | 'rejected';
     /** The entity the change landed on — present only once applied. */
     entityId?: string;
-    /**
-     * True when the change was applied **without** anyone clicking — the
-     * workspace opted this tool in.
-     *
-     * Derived at arrival rather than read off the row: the server records the
-     * same `decidedBy` either way, because auto-apply acts as the user whose run
-     * produced it. What distinguishes them is that an auto-applied proposal
-     * arrives *already* accepted, which only the client that watched it arrive
-     * can know. It matters because "you applied this" and "this was applied for
-     * you" are different things to tell someone.
-     */
-    autoApplied?: boolean;
-    /** True while an accept or reject is in flight. */
-    deciding?: boolean;
-    /** Why the last decision failed, when one did. */
+    /** Why the change did not happen, when it didn't. */
     error?: string;
 }
 

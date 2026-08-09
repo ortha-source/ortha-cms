@@ -20,7 +20,6 @@ import { MessageList } from '../MessageList';
 import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
 import { PanelResizeHandles } from '../PanelResizeHandles';
-import { PendingProposals } from '../PendingProposals';
 import type { CopilotModelChoice } from '../../application/useCopilotModels';
 import type { RouteContext } from '../../application/readRouteContext';
 import { ContextChip } from '../ContextChip';
@@ -465,20 +464,7 @@ function PanelBody({
                 </Button>
             </div>
 
-            <MessageList
-                messages={chat.messages}
-                onDecideProposal={chat.decide}
-            />
-
-            {/* Directly under the transcript, so the cards it acts on are the
-                last thing read before the click — and above the composer,
-                because deciding what the last answer proposed comes before
-                asking the next question. */}
-            <PendingProposals
-                count={chat.pending.length}
-                bulk={chat.bulk}
-                onDecideAll={chat.decideAll}
-            />
+            <MessageList messages={chat.messages} />
 
             {/* "Your message, plus where you are" (design §2) — but only when
                 the user asked for it. See ContextChip for why this is opt-in. */}

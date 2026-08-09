@@ -14,21 +14,12 @@ opens the panel (or `⌘J`) — the panel is a docked window over whatever page 
 are on, which is the point of it being a persistent surface rather than a
 destination.
 
-It contributes exactly **one route**, and the exception proves the rule: the
-workspace's auto-apply policy (ADR-0005 §6) _is_ a destination — configuration,
-per workspace, read rarely by one person rather than constantly by everyone. Its
-nav entry carries `permission: 'copilot:configure'`, so an editor never sees a
-link to a page that would 403; the page gates itself too, because a nav entry is
-a courtesy and not a boundary.
-
-That page is **not a permission screen**, and it says so on itself now: people
-read a screen of unticked checkboxes as a list of things they are not allowed to
-do and conclude the copilot is crippled. Every tool listed is one the role
-_already_ allows; what the page decides is which of them stop pausing for
-review. Its "Tick all" is a shortcut over the tools **on screen**, not a
-wildcard — what is saved is their names, so a tool that ships next release
-arrives asking for approval like any other, which is the property ADR-0005 §6 is
-protecting.
+It contributes **no routes and no nav entry**. It used to contribute one, for
+the workspace's auto-apply policy;
+[ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) deleted the
+policy along with the screen, the table, the two routes and `copilot:configure`.
+What the copilot may do is what the caller's role may do, so there is nothing
+left to configure per workspace.
 
 ## Layout
 
@@ -40,8 +31,6 @@ application/
   useConversations.ts      # thread list (query)
   useConversation.ts       # open one thread (mutation) + block→UI mapping
   useCopilotModels.ts      # the model catalogue + choice-key helpers
-  useDecideProposal.ts     # accept / reject one proposal (mutation)
-  useCopilotPolicy.ts      # the workspace's auto-apply opt-ins (query + mutation)
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
   panelFrame.ts            # pure move/resize/clamp arithmetic (unit-tested)
@@ -53,11 +42,8 @@ presentation/
   PanelResizeHandles/      # the eight grab strips
   MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
   ContextChip/             # what context is attached to the next turn
-  ProposalCard/            # a proposed change, its diff, and the two buttons
-  PendingProposals/        # decide every pending change at once
+  ProposalCard/            # the receipt for a change, and its diff
   Markdown/                # small local renderer (see below)
-pages/
-  CopilotSettingsPage/     # the auto-apply policy, `copilot:configure`
 ```
 
 ## Decisions worth knowing
@@ -109,53 +95,35 @@ pages/
   like the table one turns up, stop growing this and take `react-markdown`** —
   it is a drop-in replacement for the component.
 
-## Proposals
+## Changes the copilot makes
 
 A `propose` tool's change arrives as its **own** run event, after the tool
 result the same call produced. The two answer different questions — the tool
-result is what the _model_ was told, the proposal is what the _human_ is being
-asked to decide — so the step list renders from one and the card from the other.
+result is what the _model_ was told, the proposal event is what the _human_ is
+being shown — so the step list renders from one and the card from the other.
+
+**The card is a receipt, not a decision.** Since ADR-0009 the write has already
+happened by the time it renders, so every word on it is past tense and it has no
+buttons. That inverts what it is guarding against: it used to exist to stop a
+user reading "drafted" as "done", and now exists because it is the _only_ place
+they learn their content changed at all.
 
 - **The card lives in the transcript**, attached to the turn that produced it and
-  rendered _after_ the prose. A proposal is part of an answer ("here is what I
-  would change"), and a card asking for a decision above its own reasoning asks
-  the user to decide first and read second. A separate review queue elsewhere
-  would make the reply refer to something off-screen.
-- **Its most important job is being unmistakable about what has not happened.** A
-  pending card says "Nothing has been saved yet" in words, not only by having
-  buttons; an applied one says so and drops them.
-- **"You applied this" and "this was applied for you" are different sentences**,
-  so the card distinguishes them. The server records the same `decidedBy` either
-  way — auto-apply acts as the user whose run produced the change — so the only
-  signal is that an auto-applied proposal _arrives already accepted_, which the
-  reducer stamps as `autoApplied` at that moment.
-- **Decisions are found by id across the whole transcript**, not assumed onto the
-  last turn: deciding a card three answers up is the ordinary case.
-- **A failed decision keeps the card decidable** and shows the server's own
-  message. The four statuses mean different things to the person clicking — 409
-  someone got there first, 403 you may not, 422 it could not be applied and is
-  still pending, 404 it is gone — and collapsing them into "failed" loses exactly
-  what tells them whether to retry, refresh, or ask a colleague.
+  rendered _after_ the prose. A change is part of an answer ("here is what I
+  changed"), and a result above its own explanation is a result with no account
+  of itself.
+- **`pending` means the apply failed.** Nothing waits any more, so the card
+  reads that status as a failure: a destructive badge, "Not saved", and the
+  server's own reason. It falls back to a generic line when a reopened row
+  carries no message — keyed off the **status**, never off `error` being
+  present, or an older row would render its diff as though the change had landed.
 - **Reopening a thread reattaches the cards.** `useOpenConversation` fetches the
   transcript and `GET /copilot/proposals?conversationId=` concurrently and joins
-  them on `toolCallId`, which is why the server stores it.
-- **`PendingProposals` decides the whole queue in one click**, and it is an
-  accelerator rather than a second authority path: it loops over the same
-  per-proposal endpoint, so every accept keeps its own capability re-check, its
-  own `status = 'pending'` claim and its own audit row. There is deliberately
-  **no bulk route** — one would have to reproduce all three and then answer with
-  a partial success no card could render. The loop is **sequential** (two
-  proposals in one answer routinely touch the same entry) and a failure does not
-  stop it: each card records its own error and stays decidable. The queue is
-  snapshotted at the click, so a proposal from a still-streaming run is not
-  swept into a decision the user never saw.
-- **Why it exists at all:** one answer produces a dozen cards — "add alt text to
-  every image in this article" is one sentence and twelve proposals. Twelve
-  clicks is not review, it is a queue being cleared, and a UI that makes bulk
-  work tedious is a UI that gets auto-apply switched on for tools that did not
-  warrant it.
+  them on `toolCallId`, which is why the server stores it. The failure reason
+  comes back with them.
 - Proposed values render as **text**, never markup — same rule as the tool step's
-  payload, and for a stronger reason: this card is where a human approves them.
+  payload, and for a stronger reason: this card is what tells a human what was
+  written to their content.
 
 ## The panel is portalled to `<body>` — and must stay that way
 

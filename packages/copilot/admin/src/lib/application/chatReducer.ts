@@ -16,17 +16,7 @@ export type ChatAction =
     /** Load a persisted transcript, replacing whatever is shown. */
     | { type: 'load'; conversationId: string | null; messages: ChatMessage[] }
     /** Start an empty new chat. */
-    | { type: 'reset' }
-    /** A decision is in flight for one proposal. */
-    | { type: 'deciding'; proposalId: string }
-    /** A decision landed — the proposal's new status, or the failure. */
-    | {
-          type: 'decided';
-          proposalId: string;
-          status?: ChatProposal['status'];
-          entityId?: string;
-          error?: string;
-      };
+    | { type: 'reset' };
 
 /** The empty panel. */
 export const initialChatState: ChatState = {
@@ -92,22 +82,6 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                     error: action.message
                 }))
             };
-
-        case 'deciding':
-            return mapProposal(state, action.proposalId, (proposal) => ({
-                ...proposal,
-                deciding: true,
-                error: undefined
-            }));
-
-        case 'decided':
-            return mapProposal(state, action.proposalId, (proposal) => ({
-                ...proposal,
-                deciding: false,
-                ...(action.status ? { status: action.status } : {}),
-                ...(action.entityId ? { entityId: action.entityId } : {}),
-                error: action.error
-            }));
 
         case 'event':
             return applyEvent(state, action.event);
@@ -190,14 +164,14 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                                   }
                                 : {}),
                             status: event.status,
-                            // Arriving already accepted means nobody clicked —
-                            // the workspace opted this tool into auto-apply.
-                            ...(event.status === 'accepted'
-                                ? { autoApplied: true }
-                                : {}),
                             ...(event.entityId
                                 ? { entityId: event.entityId }
-                                : {})
+                                : {}),
+                            // `pending` now means the apply failed, so the
+                            // reason travels with it — the card is a receipt,
+                            // and a receipt that cannot say "this did not
+                            // happen" is worse than none.
+                            ...(event.error ? { error: event.error } : {})
                         }
                     ]
                 }))
@@ -229,55 +203,6 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
         default:
             return state;
     }
-}
-
-/**
- * Every proposal in the transcript still waiting on a decision, oldest first.
- *
- * Flattened across turns rather than read off the last one for the same reason
- * `mapProposal` searches the whole transcript: a proposal three answers up is
- * still pending, and a bulk "apply all" that quietly skipped it would be
- * lying about what it did.
- *
- * Proposals with a decision **already in flight** are excluded. The count is
- * what the bulk action offers to do, so counting a card whose own Apply button
- * is mid-request would both overstate the offer and race that request.
- */
-export function pendingProposals(messages: ChatMessage[]): ChatProposal[] {
-    return messages
-        .flatMap((message) => message.proposals ?? [])
-        .filter(
-            (proposal) => proposal.status === 'pending' && !proposal.deciding
-        );
-}
-
-/**
- * Applies `change` to one proposal, wherever in the transcript it sits.
- *
- * Searched by id across every turn rather than assumed onto the last one: a
- * proposal stays reviewable after the conversation has moved on, and deciding a
- * card three answers up is the ordinary case, not an edge one.
- */
-function mapProposal(
-    state: ChatState,
-    proposalId: string,
-    change: (proposal: ChatProposal) => ChatProposal
-): ChatState {
-    return {
-        ...state,
-        messages: state.messages.map((message) =>
-            message.proposals?.some((proposal) => proposal.id === proposalId)
-                ? {
-                      ...message,
-                      proposals: message.proposals.map((proposal) =>
-                          proposal.id === proposalId
-                              ? change(proposal)
-                              : proposal
-                      )
-                  }
-                : message
-        )
-    };
 }
 
 /**

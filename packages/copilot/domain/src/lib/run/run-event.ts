@@ -78,7 +78,7 @@ export interface RunToolResultEvent {
  */
 export interface RunProposalEvent {
     type: 'proposal';
-    /** The persisted proposal's id — what accept/reject address. */
+    /** The persisted proposal's id — the receipt's key. */
     id: string;
     /** The tool call that produced it, so the UI can attach it to the step. */
     toolCallId: string;
@@ -92,10 +92,23 @@ export interface RunProposalEvent {
     target: ProposalTarget;
     /** Per-field before/after, when the change is field-shaped. */
     changes?: readonly ProposalChange[];
-    /** `pending`, or `accepted` when auto-apply carried it out already. */
+    /**
+     * `accepted` — the change was made — or `pending`, which since
+     * [ADR-0009](../../../../../docs/adr/0009-copilot-applies-directly.md)
+     * means the apply **failed**: the engine applies every proposal as it is
+     * drafted, so nothing is waiting on anyone.
+     */
     status: ProposalStatus;
     /** The entity the change landed on — present only once applied. */
     entityId?: string;
+    /**
+     * Why the change did not happen, when `status` is `pending`.
+     *
+     * Carried on the event rather than left to a follow-up read because there
+     * is no follow-up: nobody will open a review queue and retry this. The
+     * frame the failure arrives on is the only place the user will be told.
+     */
+    error?: string;
 }
 
 /** The terminal event. Exactly one of these ends a well-behaved run. */

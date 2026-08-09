@@ -19,21 +19,20 @@ profile, and the transcript this plugin now owns and migrates
 
 ### Routes
 
-| Route                                                | Guards                                                    | Notes                                                       |
-| ---------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
-| `POST /api/copilot/runs`                             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard`       | SSE. One turn.                                              |
-| `GET /api/copilot/models`                            | `PermissionsGuard`                                        | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
-| `GET /api/copilot/conversations`                     | `PermissionsGuard`, `WorkspaceGuard`                      | This user's threads.                                        |
-| `GET /api/copilot/conversations/:id`                 | `PermissionsGuard`, `WorkspaceGuard`                      | Thread + transcript.                                        |
-| `GET /api/copilot/proposals`                         | `PermissionsGuard`, `WorkspaceGuard`                      | The review queue.                                           |
-| `GET /api/copilot/proposals/:id`                     | `PermissionsGuard`, `WorkspaceGuard`                      | One proposal.                                               |
-| `POST /api/copilot/proposals/:id/accept` · `/reject` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard`       | The accept boundary.                                        |
-| `GET/PUT /api/copilot/policy`                        | `OriginGuard` (PUT), `PermissionsGuard`, `WorkspaceGuard` | Auto-apply opt-ins. `copilot:configure`.                    |
+| Route                                | Guards                                              | Notes                                                       |
+| ------------------------------------ | --------------------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/copilot/runs`             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | SSE. One turn.                                              |
+| `GET /api/copilot/models`            | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
+| `GET /api/copilot/conversations`     | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads.                                        |
+| `GET /api/copilot/conversations/:id` | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript.                                        |
+| `GET /api/copilot/proposals`         | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
+| `GET /api/copilot/proposals/:id`     | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
 
-All require `copilot:use` except the policy pair, which requires
-`copilot:configure`. On the proposal routes `copilot:use` is the _route's_
-requirement, not the change's — whether this caller may apply _this_ proposal is
-decided per proposal (see Proposals below).
+All require `copilot:use`. The proposal routes are **reads only** — the
+accept/reject pair and the `GET/PUT /api/copilot/policy` pair were deleted by
+[ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md), along with
+`copilot:configure` itself. Whether a caller may make a change is decided once,
+by the capability profile, before the tool is ever offered.
 
 ## Three things that will bite you
 
@@ -80,11 +79,12 @@ registry either. Both facts are settled by
   The cross-surface e2e cases in both suites are the guard.
 - **`ToolRegistry.call` is the authorization boundary**, checking `requires`
   before dispatch. The engine's offer is a usability filter on top.
-- What stays here is the copilot-specific _policy_: `CapabilityProfileService`
+- What stays here is the copilot-specific narrowing: `CapabilityProfileService`
   builds a `ToolActor` (`kind: 'user'`) and hands `forSurface('copilot')` to the
-  pure `resolveCapabilityProfile`, which adds the auto-apply gate on `apply`
-  tools and the `withheld` reasons the settings page renders. The MCP endpoint
-  has no use for either.
+  pure `resolveCapabilityProfile`, which returns the offer plus the `withheld`
+  reasons. It used to add a second gate — a per-workspace opt-in an `apply` tool
+  had to appear in — and ADR-0009 removed it: a write tool is offered on the
+  strength of its declared permissions, exactly like a read one.
 
 Every tool ships with the plugin that owns its data, as a thin wrapper over the
 same service the HTTP controllers call:
@@ -106,15 +106,16 @@ Plus the `propose` half — the write tools, all of which **write nothing**:
 | `i18n`    | `i18n_propose_translation` | `i18n.entry.translate` |
 | `media`   | `media_propose_alt_text`   | `media.asset.setAlt`   |
 
-## Proposals — the accept boundary
+## Writes — proposal row, then apply
 
 A `propose` tool's return value **is** the change (`ProposalDraft`), and the
-engine — not the tool — persists it as a `copilot_proposals` row. That split is
-the load-bearing part: ADR-0005 §5's guarantees live in one place instead of
-once per binder, so every proposal is recorded whether or not a human clicks,
-and an auto-applied change is "undoable, never invisible" rather than a write
-with no paper trail. A binder that returns something else gets an ordinary tool
-error (`isProposalDraft`), never a malformed row.
+engine — not the tool — persists it as a `copilot_proposals` row and then
+applies it. That split predates
+[ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) and matters more
+since: with no human step, the row written _before_ the write is the only thing
+carrying ADR-0005 §5's "undoable, never invisible". A binder that wrote directly
+would be a change with no receipt. One that returns something else gets an
+ordinary tool error (`isProposalDraft`), never a malformed row.
 
 Applying is inverted the same way the tools are: `copilot/server` cannot know
 how to write a content entry, so the plugin that owns the data binds a
@@ -122,51 +123,34 @@ how to write a content entry, so the plugin that owns the data binds a
 applier must call the ordinary use-case** — the same one an HTTP request would
 reach, with the human as actor. That is what makes an applied change validated,
 audited and revision-backed; an applier that reimplements the write is the
-failure the port exists to prevent.
+failure the port exists to prevent, and with nobody reviewing the result it is
+also the failure nobody would catch.
 
-Four rules in `DecideProposalService` worth knowing before touching it:
+Three rules in `DecideProposalService` worth knowing before touching it:
 
-- **You may accept what you could have proposed.** Permission is the
-  _capability profile_, re-resolved at accept time, requiring the proposal's own
-  `toolName` to still be offered. One mechanism, not a second permission model:
-  a viewer cannot rubber-stamp a content edit, a revoked role bites immediately,
-  and a tool an admin disables becomes un-acceptable for free. Rejecting is
-  gated identically — discarding someone's pending change is still a decision
-  about content.
+- **No permission check of its own, deliberately.** The profile offered the tool
+  at the start of the run and `executeTool` re-authorized it against a freshly
+  resolved session immediately before the proposal existed. There is no third
+  check because there is no third actor — `accept`, `reject` and the
+  "you may accept what you could have proposed" re-resolution are gone.
 - **The status flips before the write.** `decide` updates with a
-  `status = 'pending'` predicate, so two reviewers clicking Accept cannot both
-  reach the applier. Apply-then-record could apply twice.
-- **A failed apply reopens the row.** It returns to `pending` with the message,
-  because a failed apply is a proposal that still needs deciding — a `failed`
-  state would need something to clear it before a retry could work.
-- **A proposal is a review item, not private correspondence.** The repository
-  filters by workspace, never by author: a colleague should be able to approve a
-  change your copilot drafted.
+  `status = 'pending'` predicate, so the applier is unreachable twice for one
+  row. Still load-bearing with no reviewers: a model that re-proposes an
+  identical change, or a retried run, must not write twice.
+- **A failed apply reopens the row** with its message, and the engine reads that
+  back into the tool result and the `proposal` run event. Nobody will retry it,
+  so `pending` now means _failed_ — the model is told to say the change did not
+  happen, and the card says so too.
 
-Rows carry `toolCallId`, so a proposal joins to its `copilot_tool_calls` row and
+Rows carry `toolCallId`, so a change joins to its `copilot_tool_calls` row and
 the UI attaches the card to the step that produced it.
 
-The model is told about the proposal, not handed the patch back — it already
-knows what it asked for, and echoing the change invites it to "confirm" by
-proposing again. It gets the id, the summary, and whether a human still has to
-accept. `SYSTEM_PROMPT_VERSION` 3 adds a MAKING CHANGES section saying the same
-thing in words, included only when the run actually has write tools; the tool
-result alone was observed not to be enough to stop a model reporting "done".
-
-## Auto-apply policy
-
-`copilot_workspace_policies` holds one row per workspace, `auto_apply_tools` a
-list of **tool names** — never a wildcard (ADR-0005 §6). Absence reads as
-closed, so enabling the copilot never silently enables direct writes and no
-existing workspace needs migrating. Read per run alongside the grants and
-equally uncached: a policy revoked mid-thread has to bite on the next tool call.
-
-An opted-in tool still writes its proposal row first; the engine then accepts it
-in the same breath. `GET/PUT /api/copilot/policy` is `copilot:configure`
-(admin-only) on the read as well as the write — the list of what _could_ be
-auto-applied is itself the shape of the deployment's write surface. `PUT`
-intersects the submitted names with the bound propose tools, so a stale or
-mistyped entry cannot sit there waiting for a future tool to adopt that name.
+The model is told what happened, not handed the patch back — it already knows
+what it asked for, and echoing the change invites it to "confirm" by calling
+again. `SYSTEM_PROMPT_VERSION` 4 rewrote the MAKING CHANGES section for the
+inverted failure mode: the old risk was a model claiming success when nothing
+was saved, the new one is a model hedging about a write that already landed, or
+quietly repeating a failed one.
 
 ## The run engine
 
@@ -218,15 +202,14 @@ stays in the controller, and the loop is testable by draining the generator.
 
 ## Schema
 
-Five tables, migrated under `__drizzle_migrations_copilot`:
+Four tables, migrated under `__drizzle_migrations_copilot`:
 
-| Table                        | Holds                                                                                                                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `copilot_conversations`      | Thread per user × workspace. FKs cascade from both.                                                                                                                                                                                  |
-| `copilot_messages`           | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond.                                                              |
-| `copilot_tool_calls`         | The security-review surface (ADR-0005). Redacted output.                                                                                                                                                                             |
-| `copilot_proposals`          | The accept boundary. `target`/`patch` are opaque jsonb — their shape belongs to the applier that declared the `kind`, and teaching this table about content entries would make the copilot the thing that changes when content does. |
-| `copilot_workspace_policies` | Per-workspace auto-apply opt-ins. Absence = closed.                                                                                                                                                                                  |
+| Table                   | Holds                                                                                                                                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `copilot_conversations` | Thread per user × workspace. FKs cascade from both.                                                                                                                                                                                                                      |
+| `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond.                                                                                                  |
+| `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.                                                                                                                                                                                                                 |
+| `copilot_proposals`     | Every change the copilot made, written before the write. `target`/`patch` are opaque jsonb — their shape belongs to the applier that declared the `kind`, and teaching this table about content entries would make the copilot the thing that changes when content does. |
 
 `external-refs.ts` carries id-only stubs of `users` and `workspaces` so
 drizzle-kit can emit the cross-context FKs without pulling another plugin's Nest
@@ -295,11 +278,15 @@ frame rather than an opaque 403.
 
 ## Permissions
 
-`copilot:use` and `copilot:configure` live in `identity/server`'s `PERMISSIONS`,
-not here — the catalogue has exactly one source of truth. **No migration:**
-`seedSystemRoles` is idempotent and runs each boot. Viewers hold `copilot:use`
-(ADR-0005 §10, resolved); `copilot:configure` is admin-only and unused until
-phase 4.
+`copilot:use` lives in `identity/server`'s `PERMISSIONS`, not here — the
+catalogue has exactly one source of truth. **No migration:** `seedSystemRoles` is
+idempotent and runs each boot. Viewers hold it (ADR-0005 §10, resolved), and a
+viewer's copilot is provably read-only because the profile offers them no write
+tool — which is the whole authority model now that nothing pauses for review.
+
+There is no `copilot:configure`. It gated the per-workspace policy and nothing
+else, so ADR-0009 removed it with the policy. Re-add it if the runtime model
+registry ADR-0004 §5 anticipates ever lands.
 
 ## Package
 

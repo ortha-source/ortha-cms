@@ -84,7 +84,10 @@ genuinely belongs to a framework-free core:
 
 - `resolveCapabilityProfile(...)` — the **offer**-time gate (ADR-0005 §3). Pure
   and total, which is what makes "a viewer is offered no write tools" a unit
-  test rather than a promise. It is **generic over a three-field structural
+  test rather than a promise. Since
+  [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) the declared
+  permissions are its _only_ input: the per-workspace auto-apply opt-in, and the
+  `apply-not-enabled` withheld reason it produced, are gone. It is **generic over a three-field structural
   type** (`AuthorizableTool`: `name`, `requires`, `effect`) rather than
   importing `ToolDefinition`, so this package still imports nothing and the
   server still passes the real registry's tools straight in.
@@ -97,7 +100,9 @@ genuinely belongs to a framework-free core:
 ### Proposals (phase 3)
 
 - `ProposalDraft` / `ProposalTarget` / `ProposalChange` / `ProposalStatus` —
-  what a `propose` tool returns. `target` and `patch` are deliberately opaque
+  what a `propose` tool returns. The engine applies it as soon as it is drafted
+  (ADR-0009), so a new row lands `accepted`, or stays `pending` because the
+  apply **failed**; `rejected` survives only on rows written before that. `target` and `patch` are deliberately opaque
   JSON: their shape belongs to the applier that declared the `kind`, and
   teaching the copilot every plugin's addressing would make it the thing that
   changes whenever one of them does.

@@ -15,7 +15,7 @@ const messages = defineMessages({
     emptyHint: {
         id: 'copilot.chat.emptyHint',
         defaultMessage:
-            'Ortha AI can only see what you can see, and every change it makes needs your approval.'
+            'Ortha AI can only see and change what your own role allows. Every change it makes is recorded and can be undone.'
     },
     thinking: {
         id: 'copilot.chat.thinking',
@@ -61,14 +61,7 @@ const TRUNCATING_STOP_REASONS: Record<string, string> = {
  * when the run ended for a reason other than a finished answer — a line saying
  * so, because a truncated answer that looks complete is worse than a short one.
  */
-export function MessageList({
-    messages: turns,
-    onDecideProposal
-}: {
-    messages: ChatMessage[];
-    /** Decides one proposal. Omitted, the cards render read-only. */
-    onDecideProposal?(proposalId: string, decision: 'accept' | 'reject'): void;
-}) {
+export function MessageList({ messages: turns }: { messages: ChatMessage[] }) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
 
@@ -97,24 +90,14 @@ export function MessageList({
             aria-live="polite"
         >
             {turns.map((turn) => (
-                <Turn
-                    key={turn.id}
-                    turn={turn}
-                    {...(onDecideProposal ? { onDecideProposal } : {})}
-                />
+                <Turn key={turn.id} turn={turn} />
             ))}
             <div ref={endRef} />
         </div>
     );
 }
 
-function Turn({
-    turn,
-    onDecideProposal
-}: {
-    turn: ChatMessage;
-    onDecideProposal?(proposalId: string, decision: 'accept' | 'reject'): void;
-}) {
+function Turn({ turn }: { turn: ChatMessage }) {
     const intl = useIntl();
     const reason = turn.stopReason
         ? TRUNCATING_STOP_REASONS[turn.stopReason]
@@ -146,18 +129,12 @@ function Turn({
             {turn.text && <Markdown text={turn.text} />}
 
             {/* After the answer, not before it: the prose is where the model
-                explains why, and a card asking for a decision above its own
-                reasoning asks the user to decide first and read second. */}
+                explains what it did, and a receipt above its own explanation
+                is a result with no account of itself. */}
             {turn.proposals && turn.proposals.length > 0 && (
                 <div className="space-y-2">
                     {turn.proposals.map((proposal) => (
-                        <ProposalCard
-                            key={proposal.id}
-                            proposal={proposal}
-                            onDecide={(decision) =>
-                                onDecideProposal?.(proposal.id, decision)
-                            }
-                        />
+                        <ProposalCard key={proposal.id} proposal={proposal} />
                     ))}
                 </div>
             )}

@@ -33,7 +33,6 @@ import {
     type RunAuthority
 } from './capability-profile.service';
 import { DecideProposalService } from './decide-proposal.service';
-import { CopilotPolicyService } from './copilot-policy.service';
 import { summarizeToolOutput } from './summarize-tool-output';
 import {
     buildSystemPrompt,
@@ -123,7 +122,6 @@ export class RunEngine {
         private readonly conversations: ConversationRepository,
         private readonly proposals: ProposalRepository,
         private readonly decisions: DecideProposalService,
-        private readonly policies: CopilotPolicyService,
         @Optional()
         @Inject(COPILOT_RUN_LIMITS)
         limits: RunLimits | null = null
@@ -685,35 +683,34 @@ export class RunEngine {
             ...(draft.changes ? { changes: draft.changes } : {})
         });
 
-        // Auto-apply is a per-workspace, per-tool opt-in (ADR-0005 §6). The row
-        // is written first either way, so a direct apply still leaves the same
-        // record a reviewed one does.
-        const policy = await this.policies.forWorkspace(ctx.input.workspaceId);
+        // **Every change applies, immediately** (ADR-0009). The row above is
+        // written first regardless, and that ordering is now the only thing
+        // carrying ADR-0005 §5's "undoable, never invisible": nothing waits for
+        // a human any more, so the receipt is the whole paper trail.
         let applyError: string | undefined;
-        if ((policy.autoApplyTools ?? []).includes(call.name)) {
-            const outcome = await this.decisions.autoApply(proposal, {
-                userId: ctx.input.userId,
-                email: ctx.input.userEmail,
-                workspaceId: ctx.input.workspaceId
-            });
-            if (outcome.ok) {
-                proposal = outcome.proposal;
-            } else {
-                // The proposal survives as pending with its error recorded, so
-                // a failed auto-apply degrades to the ordinary review flow
-                // rather than losing the change.
-                applyError = outcome.message;
-            }
+        const outcome = await this.decisions.apply(proposal, {
+            userId: ctx.input.userId,
+            email: ctx.input.userEmail,
+            workspaceId: ctx.input.workspaceId
+        });
+        if (outcome.ok) {
+            proposal = outcome.proposal;
+        } else {
+            // The row survives as `pending` with its error recorded. Nobody
+            // will retry it — there is no accept endpoint — so this is a
+            // receipt saying the change did not happen, and the model is told
+            // as much so it can report the failure rather than claim success.
+            applyError = outcome.message;
         }
 
         const durationMs = Date.now() - startedAt;
         const applied = proposal.status === 'accepted';
         const receipt = applied
             ? `Applied: ${draft.summary}`
-            : `Proposed: ${draft.summary}. Awaiting the user's approval — do not ` +
-              'call this tool again for the same change, and do not claim it has ' +
-              'been applied.';
-        const summary = applied ? 'applied' : 'awaiting approval';
+            : `NOT applied: ${draft.summary}. The change failed and nothing was ` +
+              `written (${applyError}). Tell the user it did not happen, and do ` +
+              'not claim otherwise.';
+        const summary = applied ? 'applied' : 'failed';
 
         await this.audit(ctx, call, {
             ok: true,
@@ -759,7 +756,11 @@ export class RunEngine {
                     status: proposal.status,
                     ...(typeof proposal.result?.['entityId'] === 'string'
                         ? { entityId: proposal.result['entityId'] }
-                        : {})
+                        : {}),
+                    // The card has to be able to say the change did not
+                    // happen, and this frame is its only chance — there is no
+                    // review queue to go and look it up in.
+                    ...(applyError ? { error: applyError } : {})
                 }
             ]
         };
