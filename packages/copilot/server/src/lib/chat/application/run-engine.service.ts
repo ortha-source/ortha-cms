@@ -213,7 +213,7 @@ export class RunEngine {
             uiLocale: input.uiLocale,
             context: input.context,
             typeSummaries: input.typeSummaries,
-            hasTools: profile.tools.length > 0,
+            toolNames: profile.tools.map((tool) => tool.name),
             hasWriteTools: profile.tools.some((tool) => tool.effect !== 'read')
         });
 

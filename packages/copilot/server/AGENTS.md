@@ -149,9 +149,35 @@ the UI attaches the card to the step that produced it.
 The model is told about the proposal, not handed the patch back — it already
 knows what it asked for, and echoing the change invites it to "confirm" by
 proposing again. It gets the id, the summary, and whether a human still has to
-accept. `SYSTEM_PROMPT_VERSION` 3 adds a MAKING CHANGES section saying the same
-thing in words, included only when the run actually has write tools; the tool
-result alone was observed not to be enough to stop a model reporting "done".
+accept. The prompt's MAKING CHANGES section says the same thing in words,
+included only when the run actually has write tools; the tool result alone was
+observed not to be enough to stop a model reporting "done".
+
+## The system prompt
+
+`system-prompt.ts` assembles it, `SYSTEM_PROMPT_VERSION` is stamped on the run,
+and `system-prompt.spec.ts` pins the structure. Three rules for editing it:
+
+- **Every section is conditional on something, and that is the point.** A run's
+  prompt says only what is true of _that_ run: MAKING CHANGES needs write tools,
+  the locale line needs `i18n_locales_list` to be on offer, `ON THIS SURFACE`
+  needs a surface with something distinctive to say. Telling a viewer about
+  proposals or a no-i18n deployment about locale slugs buys a tool call that can
+  only fail. `toolNames` is the offered tool _names_ rather than a count for
+  exactly this reason.
+- **Per-tool mechanics belong in the tool's `description`, not here.** The
+  prompt costs tokens on every run; a description costs them on the runs that
+  read it, and arrives in context. HOW ORTHA WORKS carries only what is true of
+  every deployment and what no single tool can say — the workspace grant
+  boundary, `draft`/`published` being the whole state set, versions, and each
+  locale being its own entry.
+- **The bug that motivated v4's rewrite of that section is the cautionary
+  tale.** v3 said "any tool whose name starts with `propose`". Every propose
+  tool is named for its owning plugin first (`content_propose_update`), so the
+  rule matched nothing — a prompt can be wrong in a way that typechecks, passes
+  e2e, and reads fine. Until phase 4's offline eval set exists, the spec's
+  conditional-structure cases are the only thing standing between a prompt edit
+  and production.
 
 ## Auto-apply policy
 

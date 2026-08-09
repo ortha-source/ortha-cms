@@ -24,8 +24,16 @@ export interface SystemPromptInput {
     context: SurfaceContext;
     /** Content-type summaries for this workspace: `name — label (kind)`. */
     typeSummaries: readonly string[];
-    /** Whether any tools are on offer this run. */
-    hasTools: boolean;
+    /**
+     * The names of the tools this run was actually offered.
+     *
+     * Names rather than a count, because a few prompt lines are only true when
+     * a particular tool is on offer — a deployment without the i18n plugin has
+     * no locale list to look anything up in, and telling the model to consult
+     * one produces a tool call that can only fail. Same principle as
+     * {@link hasWriteTools}: say a thing only to the runs it applies to.
+     */
+    toolNames: readonly string[];
     /**
      * Whether any of them can propose a change. Drives whether the prompt
      * spends words on the approval flow — a viewer's run has no write tools, so
@@ -43,10 +51,43 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 3;
+export const SYSTEM_PROMPT_VERSION = 4;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
+
+/**
+ * How to behave on the surface the run was opened from.
+ *
+ * A `Map`, not an object literal, so a surface string that is not a key misses
+ * instead of resolving `constructor` or `toString` off `Object.prototype` into
+ * the prompt. `RUN_SURFACES` + the strict pipe already bound the input; this is
+ * the same defence-in-depth `buildModelRegistry` applies to its provider map.
+ *
+ * `chat` is deliberately absent: it is the full conversational default the rest
+ * of the prompt already describes, and a line saying so would only take budget
+ * from the surfaces that genuinely differ.
+ */
+const SURFACE_GUIDANCE = new Map<string, string>([
+    [
+        'entry',
+        'The person is working on the one entry named above. “This”, “it” and ' +
+            '“the entry” mean that entry — resolve them to it instead of searching ' +
+            'for candidates. Change only what they asked about and leave every ' +
+            'other field alone.'
+    ],
+    [
+        'records',
+        'The person is looking at a list of entries of the content type named ' +
+            'above. Take a question that names no type to be about that one.'
+    ],
+    [
+        'palette',
+        'This came from the command palette: one instruction, not a conversation. ' +
+            'Do the single thing asked and reply in a sentence or two — no ' +
+            'preamble, no summary of your steps, and no follow-up questions.'
+    ]
+]);
 
 /**
  * Builds the system prompt.
@@ -79,9 +120,13 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 
         `SECURITY\n- ${UNTRUSTED_DATA_RULE}`,
 
+        describeContentModel(input.toolNames),
+
         'ANSWERING\n' +
             '- Prefer calling a tool over guessing. Facts about content must come from a tool result.\n' +
             '- Cite entries by their title and id so the person can find them.\n' +
+            '- State a count from the total a tool reported, never by counting the rows on the ' +
+            'one page you happened to read.\n' +
             '- Be concise. Answer in Markdown.\n' +
             `- Write your reply in the language of the admin UI locale "${input.uiLocale}", ` +
             'regardless of the language of the content you read.'
@@ -94,8 +139,14 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
         // has been observed not to be enough.
         sections.push(
             'MAKING CHANGES\n' +
-                '- Any tool whose name starts with "propose" DRAFTS a change for the person ' +
-                'to approve. It does not save anything.\n' +
+                // "Starts with" was wrong and shipped in v3: every propose tool is
+                // named for its owning plugin first (content_propose_update,
+                // i18n_propose_translation), so nothing matched the rule and a
+                // model taking it literally concluded none of its tools were
+                // drafts — the exact belief this section exists to prevent.
+                '- Any tool with "propose" in its name — content_propose_update, for ' +
+                'example — DRAFTS a change for the person to approve. It does not save ' +
+                'anything.\n' +
                 '- After calling one, tell them what you have drafted and that it is waiting ' +
                 'for their approval. Never say a change has been made, saved, created or ' +
                 'published — you cannot do any of those.\n' +
@@ -109,7 +160,7 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
         );
     }
 
-    if (!input.hasTools) {
+    if (input.toolNames.length === 0) {
         sections.push(
             'TOOLS\n- You have no tools available in this run. Answer from the ' +
                 'conversation alone, and say clearly that you cannot look anything up.'
@@ -123,7 +174,53 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
         sections.push(where);
     }
 
+    const surface = describeSurfaceBehavior(input.context.surface);
+    if (surface) {
+        sections.push(surface);
+    }
+
     return sections.join('\n\n');
+}
+
+/**
+ * How Ortha models content — the handful of facts that are true of **every**
+ * deployment and that no single tool description can carry.
+ *
+ * This section exists because the rest of the prompt describes what the
+ * assistant may do without ever saying what it is looking at. Each line below
+ * is here because getting it wrong produces a confident, wrong answer rather
+ * than a tool error: "there is no such article" (when the type is merely
+ * ungranted), "it is archived" (no such state), or treating a localized
+ * entry's translations as fields on one row. Per-tool mechanics stay in the
+ * tool's own `description`, where they arrive in context and cost nothing on a
+ * run that never calls it.
+ */
+function describeContentModel(toolNames: readonly string[]): string {
+    const lines = [
+        'A workspace is the boundary. It is granted a subset of the deployment’s ' +
+            'content types, so a type you cannot see may still exist elsewhere. Say ' +
+            'something is “not available in this workspace” rather than that it does ' +
+            'not exist.',
+        'A publishable entry is either a draft or published — there is no archived ' +
+            'or unpublished state. Unpublishing returns an entry to draft.',
+        'Every saved change to an entry captures a numbered version, so what ' +
+            'changed, when, and by whom are answerable rather than guesses.',
+        'On a localized type each locale is its own entry, with its own id, status ' +
+            'and version history. The German article is a separate entry from the ' +
+            'English one, not a field on it.'
+    ];
+
+    // Only true where the i18n plugin is installed: without it there is no
+    // locale list to consult, and telling the model to consult one buys a tool
+    // call that can only fail.
+    if (toolNames.includes('i18n_locales_list')) {
+        lines.push(
+            'Locale slugs are configured per deployment. Look them up rather than ' +
+                'assuming a language has the slug you would expect.'
+        );
+    }
+
+    return 'HOW ORTHA WORKS\n' + lines.map((line) => `- ${line}`).join('\n');
 }
 
 /** The workspace's content types, as a bounded summary list. */
@@ -168,4 +265,16 @@ function describeContext(context: SurfaceContext): string | null {
         'Use this to resolve vague references like "this entry" or "here".\n' +
         lines.join('\n')
     );
+}
+
+/**
+ * How to behave here, as opposed to {@link describeContext}'s *what is on
+ * screen*. Kept a separate section because they are separate jobs: the facts
+ * above are for resolving references, these lines change the shape of the
+ * answer. A surface with nothing distinctive to say — `chat`, or a client that
+ * sent none — contributes nothing.
+ */
+function describeSurfaceBehavior(surface?: string): string | null {
+    const guidance = surface ? SURFACE_GUIDANCE.get(surface) : undefined;
+    return guidance ? `ON THIS SURFACE\n- ${guidance}` : null;
 }
