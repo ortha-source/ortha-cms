@@ -8,14 +8,19 @@
 > the accuracy guardrails.
 >
 > **How to use it.** Paste §0 as the system/role framing, then the sections the
-> task needs. §1–§5 are *what is true*. §6–§9 are *what to say*. §10–§13 are
-> *what to build*. §14 is *what not to claim* — that section is
-> non-negotiable and must travel with every excerpt.
+> task needs. §1–§5 are _what is true_. §6–§9 are _what to say_. §10–§13 are
+> _what to build_. §14 is _what not to claim_ — that section is
+> non-negotiable and must travel with every excerpt. **Appendix A** is the
+> product's design-token block, copy-pasteable; hand it to whoever builds the
+> site alongside §10.
 >
 > **Source of truth.** Everything in §3–§5 is derived from the repository's own
 > documentation (`ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/adr/`,
-> `docs/design/copilot.md`, and each package's `AGENTS.md`). If the code and
-> this document disagree, the code wins — re-verify before publishing.
+> `docs/design/copilot.md`, and each package's `AGENTS.md`). §10 and Appendix A
+> are lifted from `apps/admin/src/styles.css`,
+> `packages/design-system/src/styles.css`, and the component sources under
+> `packages/design-system/src/lib/components/ui/`. If the code and this document
+> disagree, the code wins — re-verify before publishing.
 
 ---
 
@@ -36,7 +41,7 @@
 > "book a demo". Not "talk to sales".
 >
 > Write like a good engineering blog, not like a SaaS landing page. Show code.
-> Show real screenshots. Name the trade-offs. Say what the product does *not*
+> Show real screenshots. Name the trade-offs. Say what the product does _not_
 > do. Credibility is the conversion mechanism for this audience — every
 > unearned superlative costs more trust than it buys attention.
 
@@ -55,8 +60,8 @@ in-admin copilot that runs on whatever model the operator points it at —
 including a local one — and that proposes changes for a human to accept rather
 than writing silently.
 
-**The one-line version:** *The headless CMS your team and your agents can both
-use safely.*
+**The one-line version:** _The headless CMS your team and your agents can both
+use safely._
 
 ---
 
@@ -105,13 +110,13 @@ category. The site's entire narrative hangs off these.
 
 ### 2.4 Audience segments and their jobs
 
-| Segment | Who they are | The job they're hiring Ortha for | The line that lands |
-| --- | --- | --- | --- |
-| **Platform / staff engineer** | Owns the content platform for several front-ends | "Give me a content model I can review in a PR and migrate in CI" | Schema in TypeScript, migrations in git |
-| **Agency / consultancy tech lead** | Ships client sites, needs multi-tenancy | "One deployment, many clients, hard isolation" | Workspaces with per-workspace content grants and scoped API tokens |
-| **AI/platform team** | Building internal agents | "Let our agents read and edit content without giving them the keys" | MCP endpoint + scoped tokens + propose-then-apply |
-| **Content ops lead** | Runs a multilingual editorial team | "Translations that don't drift and a history I can roll back" | Row-per-locale with shared-field sync, per-entry version history |
-| **Compliance / public sector buyer** | Procurement with accessibility and data-residency requirements | "It must be self-hosted, auditable, and accessible" | Self-hosted, WCAG 2.1 AA target, append-only audit trail, local inference |
+| Segment                              | Who they are                                                   | The job they're hiring Ortha for                                    | The line that lands                                                       |
+| ------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Platform / staff engineer**        | Owns the content platform for several front-ends               | "Give me a content model I can review in a PR and migrate in CI"    | Schema in TypeScript, migrations in git                                   |
+| **Agency / consultancy tech lead**   | Ships client sites, needs multi-tenancy                        | "One deployment, many clients, hard isolation"                      | Workspaces with per-workspace content grants and scoped API tokens        |
+| **AI/platform team**                 | Building internal agents                                       | "Let our agents read and edit content without giving them the keys" | MCP endpoint + scoped tokens + propose-then-apply                         |
+| **Content ops lead**                 | Runs a multilingual editorial team                             | "Translations that don't drift and a history I can roll back"       | Row-per-locale with shared-field sync, per-entry version history          |
+| **Compliance / public sector buyer** | Procurement with accessibility and data-residency requirements | "It must be self-hosted, auditable, and accessible"                 | Self-hosted, WCAG 2.1 AA target, append-only audit trail, local inference |
 
 ### 2.5 Competitive frames (use these exact contrasts)
 
@@ -120,7 +125,7 @@ category. The site's entire narrative hangs off these.
   and identical in every environment because it's the same file.
 - **vs. Payload** — Closest philosophical neighbour, and say so; do not
   pretend otherwise. The difference is architectural and AI-shaped: in Ortha
-  *everything* is a plugin (auth, content, media, localization, the copilot
+  _everything_ is a plugin (auth, content, media, localization, the copilot
   itself), so a capability is added or removed without touching the host — and
   the AI/agent layer is designed around an authority model, not added as a
   feature.
@@ -142,7 +147,7 @@ category. The site's entire narrative hangs off these.
 ## 3. Feature inventory — shipped and verifiable
 
 Everything in this section is implemented in the repository. Each item carries
-the *marketing angle* to use. Depth here is deliberate: the site needs enough
+the _marketing angle_ to use. Depth here is deliberate: the site needs enough
 substance to fill a features hub, ten spoke pages, and a year of blog posts.
 
 ### 3.1 Content modeling — schema as code
@@ -158,14 +163,14 @@ substance to fill a features hub, ten spoke pages, and a year of blog posts.
   commit; `nx run server:db:migrate` applies every plugin's pending migrations.
 - **All four relation cardinalities.** many-to-one, one-to-many, one-to-one
   (a unique FK), many-to-many (a join table with an explicit `position` column,
-  so editorial ordering survives). Two-way relations declare an *inverse* side
+  so editorial ordering survives). Two-way relations declare an _inverse_ side
   that carries no storage of its own — so both ends read and write the same
   links and cannot drift.
 - **Type-level flags that turn on whole workflows.** `publishable: true` adds
   the draft/published lifecycle; `paranoid: true` adds soft delete and a Trash
   view; `i18n: true` adds row-per-locale storage. One boolean, one behaviour.
 - **Validation defined once.** The rules live in a framework-free kernel that
-  *both* the admin form and the API validate against, so the client and the
+  _both_ the admin form and the API validate against, so the client and the
   server cannot disagree about what a valid entry is.
 
 > **Angle:** "Your content model is a pull request." Lead the developer story
@@ -174,8 +179,8 @@ substance to fill a features hub, ten spoke pages, and a year of blog posts.
 ### 3.2 The publishing workflow
 
 - Draft → published, with `published_at` tracked separately from status.
-- **Four editor states over two stored values**: *Not saved yet*, *Draft*,
-  *Modified* (live content with unpublished edits on top), *Published*. That
+- **Four editor states over two stored values**: _Not saved yet_, _Draft_,
+  _Modified_ (live content with unpublished edits on top), _Published_. That
   third state is the one most CMSs collapse and editors get burned by.
 - **Required means required-to-publish.** A draft can be incomplete and still
   save; the rules bite at publish, with the failing fields named.
@@ -186,7 +191,7 @@ substance to fill a features hub, ten spoke pages, and a year of blog posts.
   reasons — before anything happens.
 
 > **Angle:** "You can't accidentally publish something broken, and you can't
-> accidentally *not* publish something you thought went live."
+> accidentally _not_ publish something you thought went live."
 
 ### 3.3 Version history
 
@@ -203,13 +208,13 @@ substance to fill a features hub, ten spoke pages, and a year of blog posts.
 
 - **Row per locale**, siblings sharing a translation group id. Not a JSON bag of
   languages in one row.
-- **Per-field scope.** A field is *translated* or *shared*; shared fields sync
+- **Per-field scope.** A field is _translated_ or _shared_; shared fields sync
   across every sibling in the group automatically, and the editor groups them
   under explicit "Translated fields" / "Shared fields" headings so nobody
   discovers the rule after saving.
 - **Consistency is enforced, not hoped for.** A shared-field edit re-validates
   every published sibling in the same transaction and demotes rewritten
-  siblings to *Modified* — so a draft edit can never silently invalidate a live
+  siblings to _Modified_ — so a draft edit can never silently invalidate a live
   translation.
 - **Translation-aware filters.** Filter by `hasLocale`, `missingLocale`, or
   `localeCount` — "which articles are missing a German version?" is one filter,
@@ -250,7 +255,7 @@ substance to fill a features hub, ten spoke pages, and a year of blog posts.
   sent or held whole; assign, unassign and reorder stage locally and commit in
   one transaction on save.
 - **Read-only means read-only.** A user without write permission gets an inert
-  *form*, not just greyed-out buttons — with values still selectable and
+  _form_, not just greyed-out buttons — with values still selectable and
   copyable, and a banner saying why.
 - **Light / dark / system theme**, per user, persisted server-side.
 - **A fully internationalized admin UI** (react-intl throughout).
@@ -320,7 +325,7 @@ substance to fill a features hub, ten spoke pages, and a year of blog posts.
   tokens only.
 - **Grant-pruned**: a content type the workspace was never granted is
   indistinguishable from one that doesn't exist.
-- **API tokens** with a workspace *bucket* (one or many), read or full scope,
+- **API tokens** with a workspace _bucket_ (one or many), read or full scope,
   SHA-256 at rest, plaintext revealed exactly once, revocable, with last-used
   tracking.
 - **A self-documenting API.** OpenAPI is generated at boot from the live content
@@ -448,7 +453,7 @@ link it from the footer and from the pricing page.
   environment variables and the composition root, not through a settings UI.
 
 **On the roadmap (frame as direction, never as availability):** content export,
-runtime model configuration with encrypted credentials, MCP *client* connectors
+runtime model configuration with encrypted credentials, MCP _client_ connectors
 so the copilot can reach an operator's own systems, natural-language filters in
 the command palette, and background/async AI work with semantic retrieval.
 
@@ -459,21 +464,21 @@ the command palette, and background/async AI work with semantic retrieval.
 Marketing for this audience runs on specifics. Use these; each is verifiable in
 the repository.
 
-| Claim | The specific |
-| --- | --- |
-| Content model is real SQL | One table per type, one join table per many-relation, generated migrations you commit |
-| Validation can't drift | One framework-free kernel validated against by both the admin form and the API |
-| Filters can't drift | One traversal builds both the UI's field picker and the SQL whitelist, pinned by a drift test |
-| Expansion doesn't N+1 | Verified flat query counts at `pageSize=1` and `pageSize=50` |
-| Sparse fieldsets are real | The SQL projection narrows too — an unselected rich-text column is never read |
-| The agent path can't diverge | MCP tool handlers call the same services the HTTP controllers call |
-| The AI can't exceed its user | Capability profile recomputed per run; permissions re-checked per tool call |
-| The AI can't publish | No publish tool is exposed at any role |
-| The AI leaves a trail | Every attempted tool call is audited, refusals included |
-| Audit can't be lost or doubled | Written through a transactional outbox, keyed by event id, `ON CONFLICT DO NOTHING` |
-| Concurrency is handled, not hoped | Per-entry advisory locks for revision numbering, workspace locks for delete-vs-create races |
-| Accessibility is tested | axe scans and keyboard suites in the end-to-end pack |
-| It runs offline | A shipped scripted model provider means CI and a fresh clone need no key and no network |
+| Claim                             | The specific                                                                                  |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| Content model is real SQL         | One table per type, one join table per many-relation, generated migrations you commit         |
+| Validation can't drift            | One framework-free kernel validated against by both the admin form and the API                |
+| Filters can't drift               | One traversal builds both the UI's field picker and the SQL whitelist, pinned by a drift test |
+| Expansion doesn't N+1             | Verified flat query counts at `pageSize=1` and `pageSize=50`                                  |
+| Sparse fieldsets are real         | The SQL projection narrows too — an unselected rich-text column is never read                 |
+| The agent path can't diverge      | MCP tool handlers call the same services the HTTP controllers call                            |
+| The AI can't exceed its user      | Capability profile recomputed per run; permissions re-checked per tool call                   |
+| The AI can't publish              | No publish tool is exposed at any role                                                        |
+| The AI leaves a trail             | Every attempted tool call is audited, refusals included                                       |
+| Audit can't be lost or doubled    | Written through a transactional outbox, keyed by event id, `ON CONFLICT DO NOTHING`           |
+| Concurrency is handled, not hoped | Per-entry advisory locks for revision numbering, workspace locks for delete-vs-create races   |
+| Accessibility is tested           | axe scans and keyboard suites in the end-to-end pack                                          |
+| It runs offline                   | A shipped scripted model provider means CI and a fresh clone need no key and no network       |
 
 ---
 
@@ -539,7 +544,7 @@ authority. Competing there directly is a multi-year, losing play at launch.
 **So the SEO strategy is three-layered:**
 
 - **Layer 1 — Own the uncontested.** "MCP CMS", "CMS for AI agents",
-  "self-hosted AI CMS", "local LLM CMS". These have low volume *today* and are
+  "self-hosted AI CMS", "local LLM CMS". These have low volume _today_ and are
   growing fast. Being the definitive result before the volume arrives is the
   single highest-ROI move available. Build these pages first.
 - **Layer 2 — Win the comparison and long-tail.** "Strapi alternative",
@@ -714,21 +719,21 @@ Ship in this order. Do not build all of it before launching.
 
 ### 9.1 Home
 
-| # | Section | Content |
-| --- | --- | --- |
-| 1 | Hero | H1 headline (§6.1), sub-headline (§6.2), two CTAs: **Quickstart** (primary) and **GitHub** (secondary, with live star count). Right side or below: a real, un-mocked screenshot of the entry editor with the copilot panel docked. No stock illustration, no abstract gradient blob. |
-| 2 | Direct answer | 50 words: what Ortha is, for the answer engines and the skimmers. |
-| 3 | Code proof | Two panes: a 12-line `collection()` declaration on the left, the generated SQL migration on the right. This section carries more conviction than any other on the page. |
-| 4 | Value prop 1 — Schema as code | §6.3.1, with a link to `/features/content-modeling`. |
-| 5 | Value prop 2 — AI with an authority model | §6.3.2. Show the proposal card UI. Link to `/ai`. |
-| 6 | Value prop 3 — Agent-ready | §6.3.3. Show the MCP client config JSON. Link to `/mcp`. |
-| 7 | Value prop 4 — Editorial workflows | §6.3.4. Show the version diff. Link to `/features/publishing`. |
-| 8 | Value prop 5 — Everything is a plugin | §6.3.5. Show the `plugins.ts` array. Link to `/features/plugins`. |
-| 9 | Comparison strip | A compact table against Strapi, Payload, Directus, Contentful across five rows: schema location, hosting, AI, agent protocol, licence. Link to `/compare`. |
-| 10 | Honesty block | "What Ortha doesn't do yet" — four bullets from §4 and a link to `/roadmap`. This section will surprise stakeholders; keep it. It is the highest-trust element on the page. |
-| 11 | Quickstart | The actual six commands from the README, copyable. |
-| 12 | FAQ | Six questions with `FAQPage` markup. |
-| 13 | Footer CTA | Quickstart + GitHub + Discord. |
+| #   | Section                                   | Content                                                                                                                                                                                                                                                                              |
+| --- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Hero                                      | H1 headline (§6.1), sub-headline (§6.2), two CTAs: **Quickstart** (primary) and **GitHub** (secondary, with live star count). Right side or below: a real, un-mocked screenshot of the entry editor with the copilot panel docked. No stock illustration, no abstract gradient blob. |
+| 2   | Direct answer                             | 50 words: what Ortha is, for the answer engines and the skimmers.                                                                                                                                                                                                                    |
+| 3   | Code proof                                | Two panes: a 12-line `collection()` declaration on the left, the generated SQL migration on the right. This section carries more conviction than any other on the page.                                                                                                              |
+| 4   | Value prop 1 — Schema as code             | §6.3.1, with a link to `/features/content-modeling`.                                                                                                                                                                                                                                 |
+| 5   | Value prop 2 — AI with an authority model | §6.3.2. Show the proposal card UI. Link to `/ai`.                                                                                                                                                                                                                                    |
+| 6   | Value prop 3 — Agent-ready                | §6.3.3. Show the MCP client config JSON. Link to `/mcp`.                                                                                                                                                                                                                             |
+| 7   | Value prop 4 — Editorial workflows        | §6.3.4. Show the version diff. Link to `/features/publishing`.                                                                                                                                                                                                                       |
+| 8   | Value prop 5 — Everything is a plugin     | §6.3.5. Show the `plugins.ts` array. Link to `/features/plugins`.                                                                                                                                                                                                                    |
+| 9   | Comparison strip                          | A compact table against Strapi, Payload, Directus, Contentful across five rows: schema location, hosting, AI, agent protocol, licence. Link to `/compare`.                                                                                                                           |
+| 10  | Honesty block                             | "What Ortha doesn't do yet" — four bullets from §4 and a link to `/roadmap`. This section will surprise stakeholders; keep it. It is the highest-trust element on the page.                                                                                                          |
+| 11  | Quickstart                                | The actual six commands from the README, copyable.                                                                                                                                                                                                                                   |
+| 12  | FAQ                                       | Six questions with `FAQPage` markup.                                                                                                                                                                                                                                                 |
+| 13  | Footer CTA                                | Quickstart + GitHub + Discord.                                                                                                                                                                                                                                                       |
 
 ### 9.2 `/ai` — the copilot pillar
 
@@ -736,7 +741,7 @@ The most important page after home. Structure it around the objection, not the
 feature: **technical buyers do not want AI in their CMS; they are afraid of it.**
 Sell the constraint, then the capability.
 
-1. H1: *An AI that can only do what you can do.*
+1. H1: _An AI that can only do what you can do._
 2. Direct-answer paragraph.
 3. **The four guarantees**, each with its mechanism named:
    no identity of its own · writes are proposals · publishing is never exposed ·
@@ -755,7 +760,7 @@ Sell the constraint, then the capability.
 
 The land-grab page. Optimize hard for `mcp cms` and `cms for ai agents`.
 
-1. H1: *Your CMS, in your agent's toolbox.*
+1. H1: _Your CMS, in your agent's toolbox._
 2. Direct answer: what MCP is (two sentences, for readers who don't know) and
    what Ortha's endpoint gives them.
 3. **Copy-pasteable client config** above the fold. The fastest possible path
@@ -773,7 +778,7 @@ The land-grab page. Optimize hard for `mcp cms` and `cms for ai agents`.
 Fairness is the strategy. A comparison page that a competitor's own team would
 call accurate is the one that gets linked, cited by answer engines, and shared.
 
-1. H1: *Ortha CMS vs <Competitor>: An Honest Comparison*
+1. H1: _Ortha CMS vs <Competitor>: An Honest Comparison_
 2. A one-paragraph verdict up top: **"Choose <Competitor> if… Choose Ortha if…"**
    Genuinely recommend the competitor where they're stronger.
 3. A feature table with a factual, dated basis (state the version compared and
@@ -792,7 +797,7 @@ Ortha is MIT-licensed and self-hosted, so this page's real job is to remove the
 
 - Lead with: **Free. MIT licensed. Self-hosted. No feature gates, no record
   caps, no API call metering.**
-- State what is *not* included: no hosting, no support SLA, no managed
+- State what is _not_ included: no hosting, no support SLA, no managed
   infrastructure.
 - If a commercial offering exists or is planned (managed hosting, support,
   enterprise features), say exactly what and when. If nothing is planned, say
@@ -804,32 +809,233 @@ Ortha is MIT-licensed and self-hosted, so this page's real job is to remove the
 
 ## 10. Design direction
 
-- **Visual language:** technical, dense, high-contrast. Closer to Linear,
-  Railway, or Resend than to a generic SaaS template. Real product UI, not
-  illustrations of product UI.
-- **Reuse the product's own design tokens.** The admin is built on Tailwind v4 +
-  shadcn/ui with a defined token set; the marketing site should look like the
-  same product. Pull the palette, radii, and type scale from
-  `packages/design-system` and `apps/admin/src/styles.css`.
-- **Light and dark, both first-class**, matching the product's own theme
-  support, respecting `prefers-color-scheme` with a manual toggle.
-- **Code blocks are a primary content type**, not a garnish. Syntax highlighting
-  at build time (Shiki), copy buttons, filename headers, and tabbed variants
-  where a snippet differs by framework.
-- **Screenshots must be real, current, and captioned.** Take them at 2x on a
-  seeded workspace with plausible content — never lorem ipsum, never an empty
-  state pretending to be a full one. Recapture them on every release that
-  changes the UI, and put that on the release checklist.
-- **Motion is restrained.** Transitions only, no scroll-jacking, no parallax,
-  and full `prefers-reduced-motion` support.
-- **The site must itself pass WCAG 2.1 AA.** A product that sells accessibility
-  and ships an inaccessible marketing site has disqualified itself. Include an
-  axe scan in the site's own CI.
+**The marketing site must look like the product, because the product's UI is the
+best asset the project has.** Do not commission a separate marketing aesthetic.
+Copy the admin's design language wholesale, then let real screenshots sit inside
+a page that shares their palette, radii, borders and shadows — so the seam
+between "the site" and "the app" disappears.
 
-**Recommended stack:** Astro (content-first, ships near-zero JS by default,
-excellent MDX and Shiki story) with Tailwind v4 and MDX for docs and blog. Next.js
-is the acceptable alternative if the team already runs it. Deploy anywhere
-static.
+The system below is **not aspirational**. Every token, variant and constraint is
+lifted verbatim from `apps/admin/src/styles.css`,
+`packages/design-system/src/styles.css`, and the component sources in
+`packages/design-system/src/lib/components/ui/`. The literal values are in
+**Appendix A**; copy that block into the site's stylesheet rather than
+re-deriving it.
+
+### 10.1 The visual language in one paragraph
+
+An **incident.io-style** system: a pure-white page canvas with **bordered cards**
+that separate by hairline border plus a whisper of shadow (never by heavy
+elevation), **ink primary buttons** (near-black, not a coloured brand button), a
+**dark near-black chrome surface** for navigation, **true-gray neutrals** with no
+warm cast for hovers and rings, and exactly **one vibrant accent — flame orange**
+— held back for links, active icons and soft tinted highlights. Semantic status
+colours (success, warning, info, destructive) each ship a **solid** and a **soft
+tinted-chip** pair. It reads technical, dense and calm — closer to Linear,
+Railway or Resend than to a gradient-and-blob SaaS template.
+
+### 10.2 Colour — the rules that matter
+
+Colour is authored in **OKLCH**, as Tailwind v4 `@theme` custom properties, with
+the dark palette re-declaring the same token names under a `.dark` class.
+
+**Five rules the site must not break:**
+
+1. **Flame orange is an accent, never a button fill behind white text.**
+   `--color-brand` at `oklch(0.66 0.2 35)` clears 3:1 against white — fine for
+   icons, dots, rules and large accents — but **white text on it does not clear
+   WCAG AA**. Use `--color-brand-text` (`oklch(0.55 0.18 35)`) for link-grade
+   orange text, or put ink text on the orange. This is the single most likely
+   mistake a marketing designer will make with this palette, and the product's
+   own stylesheet carries a comment warning about it.
+2. **The primary button is ink, not brand.** `bg-primary` is
+   `oklch(0.25 0.015 285)` with near-white text. The hero's primary CTA is a
+   black button. Resist the urge to "brand" it orange — the whole system's
+   restraint depends on this.
+3. **Cards separate by border + `shadow-xs`, not by elevation.** The canvas and
+   the card are both pure white in light mode; the hairline border
+   (`--color-border`) is what draws the box. In dark mode the card lifts one
+   step above the canvas so it separates by surface _and_ border.
+4. **Every text-on-surface pairing must clear 4.5:1**, and the product's own
+   token set was verified against that. If you introduce a pairing that isn't in
+   Appendix A, measure it.
+5. **Form-control borders are darker than structural borders.**
+   `--color-input` is a step darker than `--color-border` so inputs read as
+   editable. Newsletter fields and search boxes on the site follow the same rule.
+
+**The token families available:**
+
+| Family           | Tokens                                                                                                 | Use on the site                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Surfaces         | `background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground`                 | Page canvas, feature cards, dropdowns                                                      |
+| Ink primary      | `primary`, `primary-foreground`                                                                        | Every primary CTA                                                                          |
+| Brand accent     | `brand`, `brand-foreground`, `brand-text`, `brand-soft`, `brand-soft-foreground`                       | Links, active states, tinted highlight blocks, the "new" chip                              |
+| Neutrals         | `secondary`, `muted`, `muted-foreground`, `accent`, `accent-foreground`                                | Secondary buttons, quiet copy, row/nav hovers                                              |
+| Status           | `success`, `warning`, `info`, `destructive` — each with `-foreground`, `-soft`, `-soft-foreground`     | Roadmap statuses (shipped/building/considering), comparison table marks, the honesty block |
+| Accent-soft only | `teal-soft`, `violet-soft` (+ foregrounds)                                                             | Icon tiles for Media and Workspaces sections, matching the product's own area accents      |
+| Chrome           | `sidebar`, `sidebar-foreground`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring` | The site's dark footer, and any dark section that echoes the app chrome                    |
+| Nav icon accents | `nav-orange`, `nav-blue`, `nav-green`, `nav-violet`, `nav-amber`, `nav-teal`                           | Coloured icons **on dark surfaces only** — all lightened to L ≥ 0.72 to clear 3:1 there    |
+| Avatar palette   | `avatar-slate/green/amber/violet/rose/teal/indigo`                                                     | Author avatars on the blog; white initials clear AA on all seven                           |
+| Lines & focus    | `border`, `input`, `ring`                                                                              | Hairlines, form controls, focus rings                                                      |
+
+**Feature-area colour coding.** The product assigns each area an accent — Content
+is orange, Media teal, Workspaces violet, Insights blue/green — surfaced as a
+soft-tinted icon tile in each page's top bar. **Mirror this on the site**: give
+each feature spoke page the same tinted icon tile its area carries in the app, so
+a reader who opens the product recognizes where they are. It is free continuity
+and it costs one class.
+
+### 10.3 Dark mode
+
+The product ships full light/dark/system support, so the site must too — and it
+must work the same way, or the two will feel like different products.
+
+- Toggle by adding `.dark` to `<html>`, with
+  `@custom-variant dark (&:where(.dark, .dark *))`.
+- Use `@theme` (not `@theme inline`) so utilities resolve to `var(--color-*)` and
+  the dark override takes effect at runtime.
+- **Ship the pre-paint script.** The admin runs a tiny inline script in `<head>`
+  that reads `localStorage['ortha.theme']` (`light` | `dark` | `system`), applies
+  the class and sets `color-scheme` before first paint. Copy it verbatim,
+  including the storage key — a visitor who set dark mode in the product should
+  land on a dark marketing site.
+- **In dark mode the semantic solids invert their foreground.** They are
+  lightened to read on the near-black canvas, and a lightened fill can no longer
+  carry white text at AA — so success/warning/info/destructive all take **ink**
+  text in dark mode. Do not carry the light-mode `-foreground` values across.
+- Note one asymmetry to preserve: the chrome tokens (`sidebar-*`) and the nav
+  icon accents were authored dark from the start and **carry over unchanged**.
+
+### 10.4 Shape, spacing and type
+
+- **Radius:** `--radius: 0.625rem` (10px) is the base. Buttons and inputs are
+  `rounded-lg`; badges and pills are `rounded-full`; the brand mark uses
+  `rounded-md` at small size and `rounded-[14px]` at large.
+- **Shadow:** `shadow-xs` on buttons and cards. Nothing heavier anywhere. There
+  is no elevation scale to climb.
+- **Focus ring:** `ring-2 ring-ring/40` with `focus-visible:outline-none` — a
+  neutral gray ring, not a brand-coloured one. Every interactive element on the
+  site gets it.
+- **Typography:** the admin ships **no webfont** — it runs on the Tailwind
+  default system stack. Two options, and this needs an owner's decision (§15):
+  keep the system stack (zero webfont cost, instant text, perfect CWV, and
+  literally identical to the product), or introduce one display face for the
+  marketing site _and back-port it to the admin_ so they don't diverge.
+  **Recommendation: keep the system stack for body and UI**, and if a brand face
+  is wanted, use it for H1/H2 only, self-hosted, subset, `font-display: swap`.
+- **Density:** the product is information-dense. The marketing site should be
+  denser than a typical landing page — more content per viewport, less
+  whitespace theatre. This audience scrolls to read, not to be walked through a
+  story.
+
+### 10.5 The brand mark
+
+The product's `Logo` component is a **lucide `Hexagon` icon** in an ink badge
+(`bg-primary` / `text-primary-foreground`) beside the wordmark **"Ortha CMS"** in
+`font-medium`. Two sizes are defined: `sm` (24px badge, 16px icon, `rounded-md`)
+for inline and toolbar use, `lg` (56px badge, 28px icon, `rounded-[14px]`) for
+hero use. **Use exactly this** unless and until a designed logo replaces it — and
+if one is commissioned, it must land in `packages/design-system` first and the
+site should consume it from there, not the other way round.
+
+**Icon library is lucide throughout.** The site uses no second icon set.
+
+### 10.6 Components — reuse the vocabulary, not the code
+
+The design system exports 45 components. The site should not import them (a
+marketing site should not pull in Radix and TanStack), but it must **reproduce
+their look exactly**. The ones that matter:
+
+- **Button** — variants `default` (ink fill), `outline` (bordered on card),
+  `secondary` (bordered, gray fill), `ghost`, `link` (brand-text, underline on
+  hover), `destructive`. Sizes: default `h-9 px-4`, `sm` `h-8 px-3 text-xs`,
+  `lg` `h-10 px-8`, `icon` `h-9 w-9`. **The hero's primary CTA is
+  `variant="default" size="lg"`; the GitHub CTA is `variant="outline" size="lg"`.**
+- **Badge** — `rounded-full`, `text-xs font-medium`. Soft variants (`success`,
+  `warning`, `info`, `destructive-soft`, `primary-soft`) are the right tool for
+  roadmap status chips, "new" markers and version pills. Solid variants for
+  emphasis only.
+- **Card** — the container for every feature block, comparison cell group and
+  blog card.
+- **TopBar / TopBarIcon** — the coloured icon tile + breadcrumb pattern. Reuse it
+  as the header treatment on feature spoke pages (§10.2).
+- **StatTile** — for any numbers the site shows.
+- **Table** — for comparison tables. Use the product's own table styling so the
+  `/compare` pages look like a product screen.
+- **Alert** — `destructive`, `warning` and default variants. The honesty block on
+  the home page and the `/roadmap` caveats should use the warning treatment.
+- **Empty**, **Skeleton**, **Kbd**, **Separator**, **Tooltip**, **Tabs** /
+  **TabNav** — for the docs, the keyboard-shortcut callouts (`⌘K`, `⌘J`, `⌘B`
+  are real product shortcuts worth showing) and the framework-tabbed code
+  samples.
+
+Build these as a small local component set in the site repo, styled from the same
+tokens. Document the mapping so a product-side token change can be pulled through
+in one commit.
+
+### 10.7 Motion — and the trap
+
+**`tailwindcss-animate` / `tw-animate-css` are deliberately not installed in this
+workspace.** The `animate-in`, `fade-in-0`, `zoom-in-95` classes that ship with
+shadcn components therefore **generate no CSS at all**. Anyone copying markup out
+of the product will silently get no animation — and worse, a keyframe-based
+approach can leave an element stuck invisible when motion is disabled.
+
+The product's answer, which the site should adopt:
+
+- **Plain CSS transitions** for state changes, not keyframe entrances.
+- **Transform-only entrances** where an entrance is wanted — opacity stays at 1
+  throughout, so content is never hidden in a background tab, in print, or under
+  reduced motion. The product's `wizard-step-in` is `translateY(6px) → 0` over
+  **220ms ease-out**.
+- **Dropdown/popover motion**: in at **140ms `cubic-bezier(0.16, 1, 0.3, 1)`**,
+  out at **90ms ease-in** — a dismissal should feel immediate, an entrance
+  placed. Reuse these two curves for every transition on the site so the timing
+  feel matches.
+- **Transition `translate` and `scale` as standalone properties, not
+  `transform`.** Tailwind v4 emits them separately, so
+  `transition-[opacity,transform]` fades the opacity while the movement snaps —
+  a bug the product team hit and documented.
+- **`prefers-reduced-motion: reduce` disables all of it**, and the reduced state
+  must be the fully-visible state.
+- No scroll-jacking, no parallax, no autoplaying video, no animated counters.
+
+### 10.8 Small details that carry the product's feel
+
+Cheap to copy, and collectively they are most of why the admin feels considered:
+
+- **Thin, quiet scrollbars** — 8px, fully-rounded thumb coloured with the
+  `border` token (so it tracks the theme), transparent track.
+- **`::selection` is `bg-foreground/15`** — a neutral wash, not the browser blue.
+- **Cursors**: Tailwind v4's preflight no longer sets `cursor: pointer` on
+  buttons. The product restores it in a base layer for buttons, `[role="button"]`,
+  checkbox labels and `summary`, and sets `cursor: not-allowed` on disabled
+  controls. Copy that block or every control on the site will render an arrow.
+- **Screenshots must be real, current, and captioned.** Capture at 2x on a seeded
+  workspace with plausible content — never lorem ipsum, never an empty state
+  dressed as a full one. Capture **both** themes and serve the one matching the
+  reader's. Recapture on any release that changes the UI; put it on the release
+  checklist.
+- **Code blocks are a primary content type**, not a garnish: build-time
+  highlighting (Shiki), copy buttons, filename headers, and tabbed variants where
+  a snippet differs by framework. Use a Shiki theme derived from these tokens
+  rather than an off-the-shelf one, in both light and dark.
+
+### 10.9 Accessibility of the site itself
+
+The product sells WCAG 2.1 AA as a tested design target. **A marketing site that
+fails it disqualifies the claim**, and this audience will check. Non-negotiable:
+axe clean at AA in the site's own CI, a real heading hierarchy, keyboard
+operability throughout, visible focus on every interactive element, and the
+reduced-motion and contrast rules above enforced rather than intended.
+
+### 10.10 Recommended stack
+
+**Astro** — content-first, ships near-zero JS by default, first-class MDX and
+Shiki, and it will hit the Core Web Vitals budget in §7.4 without effort — with
+**Tailwind v4** (matching the product, so the `@theme` block in Appendix A drops
+straight in) and MDX for docs and blog. Next.js in SSG/ISR mode is the acceptable
+alternative if the team already runs it. Deploy anywhere static.
 
 ---
 
@@ -865,12 +1071,12 @@ already 80% of a good post each.
 
 **Launch set (three posts):**
 
-1. *Why we made the CMS an MCP server* — adapted from ADR-0006. Targets the
+1. _Why we made the CMS an MCP server_ — adapted from ADR-0006. Targets the
    uncontested cluster. Cross-post to Hacker News and r/programming.
-2. *An AI copilot with no authority of its own* — adapted from ADR-0005. The
+2. _An AI copilot with no authority of its own_ — adapted from ADR-0005. The
    authority model is a genuinely novel contribution and the strongest
    thought-leadership asset the project has.
-3. *Content types as TypeScript, tables as migrations* — the schema-as-code
+3. _Content types as TypeScript, tables as migrations_ — the schema-as-code
    argument, with the generated SQL shown.
 
 **Ongoing pipeline (each maps to a keyword cluster):**
@@ -895,8 +1101,12 @@ quickstart.
 **Deliverables**
 
 1. Phase 1 site (§8.2) — designed, built, deployed, indexed.
-2. A component library shared with the product's design tokens.
-3. Templated OG image generation.
+2. A local component set reproducing the design-system vocabulary in §10.6,
+   built from the token block in **Appendix A**, with a documented mapping back
+   to `packages/design-system` so a product-side token change pulls through in
+   one commit.
+3. Templated OG image generation, rendered from the same tokens (ink surface,
+   hexagon mark, flame-orange accent) so a shared link looks like the product.
 4. `sitemap.xml`, `robots.txt`, `/llms.txt`, blog and changelog RSS.
 5. Structured data on every page type per §7.4.
 6. Analytics (cookieless) with the quickstart click and the GitHub click as
@@ -904,7 +1114,7 @@ quickstart.
 7. A screenshot capture script and a documented recapture procedure tied to the
    release checklist.
 8. A launch checklist covering Hacker News, r/selfhosted, r/programming,
-   Product Hunt, the MCP server directories, and the awesome-* lists for
+   Product Hunt, the MCP server directories, and the awesome-\* lists for
    headless CMS and MCP.
 
 **Acceptance criteria**
@@ -912,6 +1122,14 @@ quickstart.
 - Lighthouse ≥ 95 on Performance, Accessibility, Best Practices, SEO for every
   page in Phase 1.
 - Zero axe violations at WCAG 2.1 AA, verified in the site's own CI.
+- **Design fidelity**: the site's `@theme` block matches Appendix A token for
+  token; light and dark both ship; the pre-paint theme script reads the same
+  `ortha.theme` storage key as the product; the primary CTA is the ink button,
+  not an orange one; and no white text sits on `bg-brand` anywhere.
+- **Motion audit**: no `animate-in` / `fade-in-0` / `zoom-in-95` class appears in
+  the built CSS (they generate nothing — their presence means a component was
+  copied without checking), every entrance is transform-only, and
+  `prefers-reduced-motion` resolves to the fully-visible state.
 - Every page has a unique title, a unique meta description, a canonical URL,
   exactly one H1, and valid structured data.
 - Every factual product claim on the site traces to a section of this document
@@ -943,14 +1161,14 @@ carefully-worded guarantee on the `/ai` page.
 - A finished S3 or cloud storage adapter.
 - Per-workspace roles (roles are global per user).
 - A settings UI for configuring AI models at runtime.
-- MCP *client* connectors (Ortha is an MCP server; connecting the copilot to an
+- MCP _client_ connectors (Ortha is an MCP server; connecting the copilot to an
   operator's own MCP servers is roadmap).
 - Any AI capability to publish content.
 - Any specific performance number, uptime figure, or benchmark not measured and
   documented.
 - Any customer, user count, logo, testimonial, case study, or award.
 - Any compliance certification (SOC 2, ISO 27001, HIPAA, VPAT). You may describe
-  the *properties* that support a compliance posture — self-hosting, audit
+  the _properties_ that support a compliance posture — self-hosting, audit
   trail, RBAC, WCAG 2.1 AA as a design target — but never assert a
   certification, and never state WCAG conformance as certified rather than as a
   standard the project builds and tests against.
@@ -969,16 +1187,320 @@ These need a human answer before the site can be finished. Flagged, not assumed.
 1. **Commercial model.** Is there a paid offering — managed hosting, support,
    enterprise add-ons — now or planned? `/pricing` cannot be written honestly
    without this.
-2. **Domain and brand.** Final domain, logo, wordmark, and whether the product
-   name is styled "Ortha CMS", "OrthaCms", or "Ortha" (the repository currently
-   uses all three; pick one and normalize).
-3. **The AI product name.** The code calls it `copilot`; the UI calls it
+2. **Domain and brand.** Final domain, and whether the product name is styled
+   "Ortha CMS", "OrthaCms", or "Ortha" (the repository currently uses all three;
+   pick one and normalize). The design-system `Logo` component's own label says
+   **"Ortha CMS"**, which is the strongest argument for standardizing on that.
+3. **Logo.** The current mark is a lucide `Hexagon` in an ink badge — functional
+   placeholder, not a designed identity. Commission one, or ship with it? If
+   commissioned, it lands in `packages/design-system` first and the site
+   consumes it from there.
+4. **Typeface.** Keep the product's system font stack (fastest, and identical to
+   the app), or introduce a display face for headings and back-port it to the
+   admin? Diverging here is the one thing that would break the
+   site-looks-like-the-product effect. See §10.4 for the recommendation.
+5. **The AI product name.** The code calls it `copilot`; the UI calls it
    **Ortha AI**. The site should use "Ortha AI" consistently — confirm.
-4. **Hosted demo.** Is there budget to run a public, seeded, reset-nightly demo
+6. **Hosted demo.** Is there budget to run a public, seeded, reset-nightly demo
    instance? It is the single highest-converting asset a CMS can offer, and its
    absence is felt.
-5. **Community home.** Discord, GitHub Discussions, or both.
-6. **Launch timing.** Whether to launch before or after email delivery ships —
+7. **Community home.** Discord, GitHub Discussions, or both.
+8. **Launch timing.** Whether to launch before or after email delivery ships —
    it is the most-felt gap in §4 and materially affects first-run experience.
-7. **Site localization.** English-only at launch is the right call, but confirm;
+9. **Site localization.** English-only at launch is the right call, but confirm;
    if not, `hreflang` and a translation workflow need designing up front.
+
+---
+
+## Appendix A — Design tokens, verbatim
+
+Copy this into the site's stylesheet. It is the product's own theme block,
+reproduced exactly from `apps/admin/src/styles.css` — light palette, dark
+overrides, the avatar palette, and the base-layer rules that make controls and
+scrollbars behave. Re-verify against that file before launch; if it has moved on,
+it wins.
+
+```css
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --radius: 0.625rem;
+
+    /* Surfaces — pure-white canvas; cards separate via border + shadow. */
+    --color-background: oklch(1 0 0);
+    --color-foreground: oklch(0.21 0.012 285);
+    --color-card: oklch(1 0 0);
+    --color-card-foreground: oklch(0.21 0.012 285);
+    --color-popover: oklch(1 0 0);
+    --color-popover-foreground: oklch(0.21 0.012 285);
+
+    /* Ink primary — the "contrast" button. NOT the brand colour. */
+    --color-primary: oklch(0.25 0.015 285);
+    --color-primary-foreground: oklch(0.985 0 0);
+
+    /* Flame orange. `brand` = icons/accents (3:1 on white, NOT AA for white
+       text on it). `brand-text` = AA link-grade orange text. */
+    --color-brand: oklch(0.66 0.2 35);
+    --color-brand-foreground: oklch(0.21 0.012 285);
+    --color-brand-text: oklch(0.55 0.18 35);
+    --color-brand-soft: oklch(0.955 0.025 40);
+    --color-brand-soft-foreground: oklch(0.47 0.16 35);
+
+    --color-secondary: oklch(0.945 0.003 285);
+    --color-secondary-foreground: oklch(0.25 0.012 285);
+    --color-muted: oklch(0.975 0.003 285);
+    --color-muted-foreground: oklch(0.49 0.015 285);
+    --color-accent: oklch(0.975 0.003 285);
+    --color-accent-foreground: oklch(0.21 0.012 285);
+
+    --color-destructive: oklch(0.55 0.22 27);
+    --color-destructive-foreground: oklch(0.985 0 0);
+    --color-destructive-soft: oklch(0.95 0.025 20);
+    --color-destructive-soft-foreground: oklch(0.44 0.17 27);
+
+    --color-success: oklch(0.52 0.14 150);
+    --color-success-foreground: oklch(0.985 0 0);
+    --color-success-soft: oklch(0.95 0.045 150);
+    --color-success-soft-foreground: oklch(0.42 0.11 150);
+
+    --color-warning: oklch(0.55 0.12 66);
+    --color-warning-foreground: oklch(0.985 0 0);
+    --color-warning-soft: oklch(0.95 0.045 80);
+    --color-warning-soft-foreground: oklch(0.44 0.1 60);
+
+    --color-info: oklch(0.52 0.17 255);
+    --color-info-foreground: oklch(0.985 0 0);
+    --color-info-soft: oklch(0.945 0.03 255);
+    --color-info-soft-foreground: oklch(0.42 0.14 260);
+
+    /* Accent-only soft pairs — area icon tiles (Media = teal, Workspaces =
+       violet). Same L/C recipe as the *-soft pairs above. */
+    --color-teal-soft: oklch(0.94 0.035 190);
+    --color-teal-soft-foreground: oklch(0.4 0.08 190);
+    --color-violet-soft: oklch(0.945 0.035 300);
+    --color-violet-soft-foreground: oklch(0.42 0.14 300);
+
+    --color-border: oklch(0.9 0.008 285);
+    --color-input: oklch(
+        0.84 0.01 285
+    ); /* darker: form controls read editable */
+    --color-ring: oklch(0.55 0.01 285); /* neutral gray focus ring */
+
+    --color-status-active: oklch(0.63 0.17 149);
+    --color-status-invited: oklch(0.67 0.14 70);
+
+    /* Dark chrome — the app's sidebar surface. Authored dark, so it does NOT
+       flip in dark mode. Use for the site's dark footer / chrome sections. */
+    --color-sidebar: oklch(0.21 0.012 285);
+    --color-sidebar-foreground: oklch(0.93 0.005 285);
+    --color-sidebar-primary: oklch(0.66 0.2 35);
+    --color-sidebar-primary-foreground: oklch(0.21 0.012 285);
+    --color-sidebar-accent: oklch(0.3 0.018 285);
+    --color-sidebar-accent-foreground: oklch(0.985 0.002 285);
+    --color-sidebar-border: oklch(0.31 0.012 285);
+    --color-sidebar-ring: oklch(0.75 0.01 285);
+
+    /* Nav-icon accents — ON DARK SURFACES ONLY. L >= 0.72 so each clears 3:1
+       against the dark chrome. Do not use these on white. */
+    --color-nav-orange: oklch(0.72 0.17 40);
+    --color-nav-blue: oklch(0.74 0.11 250);
+    --color-nav-green: oklch(0.74 0.13 150);
+    --color-nav-violet: oklch(0.76 0.11 300);
+    --color-nav-amber: oklch(0.78 0.13 80);
+    --color-nav-teal: oklch(0.75 0.1 190);
+}
+
+/* Dark theme. Only the light-surface tokens flip; the chrome and nav accents
+   above carry over unchanged. Note the semantic solids invert their FOREGROUND
+   to ink — a lightened fill cannot carry white text at AA. */
+.dark {
+    --color-background: oklch(0.175 0.012 285);
+    --color-foreground: oklch(0.95 0.004 285);
+    --color-card: oklch(0.215 0.012 285);
+    --color-card-foreground: oklch(0.95 0.004 285);
+    --color-popover: oklch(0.215 0.012 285);
+    --color-popover-foreground: oklch(0.95 0.004 285);
+
+    --color-primary: oklch(0.92 0.004 285);
+    --color-primary-foreground: oklch(0.21 0.012 285);
+
+    --color-brand: oklch(0.7 0.19 40);
+    --color-brand-foreground: oklch(0.21 0.012 285);
+    --color-brand-text: oklch(0.8 0.14 45);
+    --color-brand-soft: oklch(0.29 0.05 40);
+    --color-brand-soft-foreground: oklch(0.83 0.11 45);
+
+    --color-secondary: oklch(0.28 0.008 285);
+    --color-secondary-foreground: oklch(0.95 0.004 285);
+    --color-muted: oklch(0.25 0.006 285);
+    --color-muted-foreground: oklch(0.72 0.012 285);
+    --color-accent: oklch(0.27 0.008 285);
+    --color-accent-foreground: oklch(0.95 0.004 285);
+
+    --color-destructive: oklch(0.65 0.2 25);
+    --color-destructive-foreground: oklch(0.21 0.012 285);
+    --color-destructive-soft: oklch(0.3 0.08 20);
+    --color-destructive-soft-foreground: oklch(0.83 0.11 25);
+
+    --color-success: oklch(0.62 0.14 150);
+    --color-success-foreground: oklch(0.21 0.012 285);
+    --color-success-soft: oklch(0.3 0.06 150);
+    --color-success-soft-foreground: oklch(0.83 0.12 150);
+
+    --color-warning: oklch(0.7 0.13 70);
+    --color-warning-foreground: oklch(0.21 0.012 285);
+    --color-warning-soft: oklch(0.32 0.06 70);
+    --color-warning-soft-foreground: oklch(0.86 0.1 82);
+
+    --color-info: oklch(0.62 0.15 255);
+    --color-info-foreground: oklch(0.21 0.012 285);
+    --color-info-soft: oklch(0.3 0.07 255);
+    --color-info-soft-foreground: oklch(0.83 0.1 258);
+
+    --color-teal-soft: oklch(0.3 0.05 190);
+    --color-teal-soft-foreground: oklch(0.83 0.08 190);
+    --color-violet-soft: oklch(0.31 0.06 300);
+    --color-violet-soft-foreground: oklch(0.85 0.1 300);
+
+    --color-border: oklch(0.3 0.008 285);
+    --color-input: oklch(0.4 0.01 285);
+    --color-ring: oklch(0.62 0.01 285);
+
+    --color-status-active: oklch(0.7 0.16 149);
+    --color-status-invited: oklch(0.74 0.13 70);
+}
+
+/* Avatar accents — white initials clear AA (>= 5.7:1) on all seven. Declared
+   as plain custom properties, not @theme: they are applied via inline
+   `var(--color-avatar-…)` styles, and Tailwind tree-shakes @theme tokens no
+   generated utility references. */
+:root {
+    --color-avatar-slate: oklch(0.5 0.05 250);
+    --color-avatar-green: oklch(0.5 0.11 150);
+    --color-avatar-amber: oklch(0.5 0.1 70);
+    --color-avatar-violet: oklch(0.5 0.16 300);
+    --color-avatar-rose: oklch(0.5 0.15 15);
+    --color-avatar-teal: oklch(0.5 0.08 190);
+    --color-avatar-indigo: oklch(0.5 0.16 275);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+
+    /* Thin, quiet scrollbars — thumb tracks the theme via the border token. */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+    }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        border-radius: 9999px;
+        background-color: var(--color-border);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-muted-foreground);
+    }
+
+    ::selection {
+        @apply bg-foreground/15;
+    }
+
+    /* Tailwind v4 preflight no longer points the cursor at buttons. Without
+       this, nothing on the site reads as clickable. */
+    button:not(:disabled):not([aria-disabled='true']):not([data-disabled]),
+    [role='button']:not([aria-disabled='true']):not([data-disabled]),
+    label:has(> input[type='checkbox']:not(:disabled)),
+    summary {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    button[aria-disabled='true'],
+    [role='button'][aria-disabled='true'],
+    [data-disabled] {
+        cursor: not-allowed;
+    }
+}
+
+/* Motion. `tailwindcss-animate` is NOT installed — `animate-in` / `fade-in-0` /
+   `zoom-in-95` generate no CSS. Entrances are transform-only so content is
+   never hidden when the motion clock is paused or reduced motion is on. */
+@keyframes rise-in {
+    from {
+        transform: translateY(6px);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+.rise-in {
+    animation: rise-in 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise-in {
+        animation: none;
+    }
+}
+```
+
+**The pre-paint theme script** — put this in `<head>` before the stylesheet, so a
+dark-mode visitor never sees a flash of the light canvas. The storage key is
+shared with the product on purpose.
+
+```html
+<script>
+    (function () {
+        try {
+            var stored = localStorage.getItem('ortha.theme');
+            var theme =
+                stored === 'light' || stored === 'dark' || stored === 'system'
+                    ? stored
+                    : 'system';
+            var dark =
+                theme === 'dark' ||
+                (theme === 'system' &&
+                    window.matchMedia('(prefers-color-scheme: dark)').matches);
+            var root = document.documentElement;
+            root.classList.toggle('dark', dark);
+            root.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {}
+    })();
+</script>
+```
+
+**Motion curves to reuse for every transition on the site:**
+
+| Purpose           | Duration | Easing                          |
+| ----------------- | -------- | ------------------------------- |
+| Entrance (placed) | 140ms    | `cubic-bezier(0.16, 1, 0.3, 1)` |
+| Exit (immediate)  | 90ms     | `ease-in`                       |
+| Content rise-in   | 220ms    | `ease-out` (transform only)     |
+
+**Component quick reference** (§10.6 for the full list):
+
+| Element        | Spec                                                                                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary button | `bg-primary text-primary-foreground rounded-lg shadow-xs h-9 px-4 text-sm font-medium`, hover `bg-primary/90`                                                             |
+| Large CTA      | as above at `h-10 px-8`                                                                                                                                                   |
+| Outline button | `border border-input bg-card shadow-xs`, hover `bg-accent`                                                                                                                |
+| Link           | `text-brand-text underline-offset-4 hover:underline`                                                                                                                      |
+| Badge / chip   | `rounded-full border px-2.5 py-0.5 text-xs font-medium`; soft variants for status                                                                                         |
+| Focus ring     | `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40`                                                                                              |
+| Card           | `bg-card border border-border rounded-[0.625rem] shadow-xs`                                                                                                               |
+| Brand mark     | lucide `Hexagon` in `bg-primary text-primary-foreground`; sm 24px badge / 16px icon / `rounded-md`, lg 56px / 28px / `rounded-[14px]`; wordmark "Ortha CMS" `font-medium` |
+| Icons          | lucide-react, `size-4` inside buttons                                                                                                                                     |
