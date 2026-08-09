@@ -9,6 +9,7 @@ import { createOpenAiProvider } from '@ortha-cms/copilot-provider-openai';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
+import { McpPlugin } from '@ortha-cms/mcp-server';
 import { MediaServerPlugin } from '@ortha-cms/media-server';
 import { createLocalStorageProvider } from '@ortha-cms/media-provider-local';
 import { UsersPlugin } from '@ortha-cms/users-server';
@@ -112,6 +113,19 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
                 { name: 'fake', provider: createFakeProvider() }
             ],
             config: config.plugins.copilot
-        })
+        }),
+        // MCP — the Model Context Protocol front door, registered LAST because
+        // it serves whatever the plugins above contributed. Order is legibility
+        // only: every plugin module is global, and a contributor registers its
+        // tools in `onModuleInit`, once the whole graph exists.
+        //
+        // It owns no tools itself. `ContentPlugin` contributes the content CRUD
+        // set; a future media or users provider is a `ToolProvider` in that
+        // plugin and nothing at all here. The same registry is what the
+        // copilot's tool loop will consume in-process, so a tool added for one
+        // consumer is automatically available to the other.
+        //
+        // Disabled unless `MCP_ENABLED=true` — see the config's note.
+        McpPlugin({ config: config.plugins.mcp })
     ];
 }
