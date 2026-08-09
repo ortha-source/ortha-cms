@@ -39,6 +39,16 @@ const messages = defineMessages({
         defaultMessage:
             'Deciding what may change without review is an administrator’s call. Ask one of your workspace’s administrators.'
     },
+    // The question this page gets asked, answered on the page: people read a
+    // screen of unticked checkboxes as a list of things they are not allowed to
+    // do, and conclude the copilot is crippled. It is the opposite — every one
+    // of these is something they *are* allowed to do, listed so they can decide
+    // which ones stop pausing for review.
+    permissionNote: {
+        id: 'copilot.settings.permissionNote',
+        defaultMessage:
+            'This is not about permissions. Ortha AI can only ever do what your own role already allows, and it is re-checked on every change. What this page decides is which of those changes still wait for a person to approve them.'
+    },
     sectionTitle: {
         id: 'copilot.settings.sectionTitle',
         defaultMessage: 'Apply without asking'
@@ -61,6 +71,18 @@ const messages = defineMessages({
         id: 'copilot.settings.warning',
         defaultMessage:
             'Anything you tick here writes to real content as soon as Ortha AI decides to. Tick the ones whose mistakes are cheap to spot and undo — alt text, say — and leave the rest asking.'
+    },
+    selectAll: {
+        id: 'copilot.settings.selectAll',
+        defaultMessage: 'Tick all'
+    },
+    selectNone: {
+        id: 'copilot.settings.selectNone',
+        defaultMessage: 'Untick all'
+    },
+    selectedCount: {
+        id: 'copilot.settings.selectedCount',
+        defaultMessage: '{selected} of {total} ticked'
     },
     save: {
         id: 'copilot.settings.save',
@@ -89,9 +111,14 @@ const COPILOT_CONFIGURE = 'copilot:configure';
  * copy leads with "every change waits for approval" and frames ticking a box as
  * *removing* a step rather than granting a capability.
  *
- * There is deliberately no "select all". ADR-0005 §6's opt-in is per tool, and
- * one control that ticks everything would turn a team's judgement about alt
- * text into blanket write access the next time a tool ships.
+ * **"Tick all" is a shortcut, not a wildcard**, and the distinction is the
+ * whole reason it is allowed here. ADR-0005 §6 rules out storing "everything";
+ * what this ticks is the tools *on screen right now*, and what is saved is
+ * their names. A tool that ships next release is not in that list, so it
+ * arrives asking for approval like any other — which is exactly the property
+ * the ADR is protecting, and it survives the shortcut. What it buys is the
+ * common case of a workspace that has already decided it trusts the four write
+ * tools it has, and should not have to re-express that four times.
  */
 export function CopilotSettingsPage() {
     const intl = useIntl();
@@ -145,6 +172,13 @@ export function CopilotSettingsPage() {
                 </p>
             </header>
 
+            <Alert>
+                <ShieldCheck className="size-4" />
+                <AlertDescription>
+                    {intl.formatMessage(messages.permissionNote)}
+                </AlertDescription>
+            </Alert>
+
             <section className="space-y-3">
                 <div>
                     <h2 className="text-sm font-medium">
@@ -162,48 +196,89 @@ export function CopilotSettingsPage() {
                         {intl.formatMessage(messages.empty)}
                     </p>
                 ) : (
-                    <ul className="divide-y rounded-lg border">
-                        {candidates.map((tool) => {
-                            const checked = current.includes(tool.name);
-                            return (
-                                <li
-                                    key={tool.name}
-                                    className="flex items-start gap-3 p-3"
-                                >
-                                    <Checkbox
-                                        id={`auto-${tool.name}`}
-                                        checked={checked}
-                                        onCheckedChange={(next) =>
-                                            setSelected(
-                                                next === true
-                                                    ? [...current, tool.name]
-                                                    : current.filter(
-                                                          (name) =>
-                                                              name !== tool.name
-                                                      )
-                                            )
-                                        }
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                        <Label
-                                            htmlFor={`auto-${tool.name}`}
-                                            className="font-mono text-xs"
-                                        >
-                                            {tool.name}
-                                        </Label>
-                                        {/* The tool's own description — the
+                    <>
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="text-muted-foreground mr-auto text-xs"
+                                role="status"
+                            >
+                                {intl.formatMessage(messages.selectedCount, {
+                                    selected: current.length,
+                                    total: candidates.length
+                                })}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={current.length === 0}
+                                onClick={() => setSelected([])}
+                            >
+                                {intl.formatMessage(messages.selectNone)}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={current.length === candidates.length}
+                                // The **names** on screen, never a wildcard: a
+                                // tool that ships later is not in this list and
+                                // therefore still asks (ADR-0005 §6).
+                                onClick={() =>
+                                    setSelected(
+                                        candidates.map((tool) => tool.name)
+                                    )
+                                }
+                            >
+                                {intl.formatMessage(messages.selectAll)}
+                            </Button>
+                        </div>
+
+                        <ul className="divide-y rounded-lg border">
+                            {candidates.map((tool) => {
+                                const checked = current.includes(tool.name);
+                                return (
+                                    <li
+                                        key={tool.name}
+                                        className="flex items-start gap-3 p-3"
+                                    >
+                                        <Checkbox
+                                            id={`auto-${tool.name}`}
+                                            checked={checked}
+                                            onCheckedChange={(next) =>
+                                                setSelected(
+                                                    next === true
+                                                        ? [
+                                                              ...current,
+                                                              tool.name
+                                                          ]
+                                                        : current.filter(
+                                                              (name) =>
+                                                                  name !==
+                                                                  tool.name
+                                                          )
+                                                )
+                                            }
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <Label
+                                                htmlFor={`auto-${tool.name}`}
+                                                className="font-mono text-xs"
+                                            >
+                                                {tool.name}
+                                            </Label>
+                                            {/* The tool's own description — the
                                             model reads it to decide when to
                                             call the tool, so it is the most
                                             honest account of what ticking this
                                             box lets happen. */}
-                                        <p className="text-muted-foreground mt-1 text-xs">
-                                            {tool.description}
-                                        </p>
-                                    </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
+                                            <p className="text-muted-foreground mt-1 text-xs">
+                                                {tool.description}
+                                            </p>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </>
                 )}
 
                 {candidates.length > 0 && (

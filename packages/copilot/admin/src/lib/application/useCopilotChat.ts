@@ -1,12 +1,24 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState
+} from 'react';
 import { defineMessages, useIntl, type IntlShape } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@ortha-cms/design-system';
-import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
+import {
+    chatReducer,
+    initialChatState,
+    pendingProposals,
+    type ChatAction
+} from './chatReducer';
 import { conversationsKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideProposal } from './useDecideProposal';
-import type { ChatMessage } from '../domain/types/chat';
+import type { ChatMessage, ChatProposal } from '../domain/types/chat';
 
 const messages = defineMessages({
     generic: {
@@ -30,6 +42,16 @@ const messages = defineMessages({
         defaultMessage: 'That change could not be decided. Please try again.'
     }
 });
+
+/** How far a bulk decision has got. */
+export interface BulkDecision {
+    /** Which decision is being applied to the whole queue. */
+    decision: 'accept' | 'reject';
+    /** How many have been answered so far. */
+    done: number;
+    /** How many were pending when the user clicked. */
+    total: number;
+}
 
 /** How one turn should be routed, when the user has picked. */
 export interface CopilotChatOptions {
@@ -61,6 +83,12 @@ export interface CopilotChat {
     load(conversationId: string, messages: ChatMessage[]): void;
     /** Accepts or rejects one proposed change. */
     decide(proposalId: string, decision: 'accept' | 'reject'): void;
+    /** Every change in the transcript still waiting on a decision. */
+    pending: ChatProposal[];
+    /** Accepts or rejects **all** of them, one after another. */
+    decideAll(decision: 'accept' | 'reject'): void;
+    /** The bulk decision in flight, or `null`. */
+    bulk: BulkDecision | null;
 }
 
 /**
@@ -94,16 +122,33 @@ export function useCopilotChat(
     // decide on the state the panel was in when they hit Enter.
     const hiddenRef = useRef(hidden);
     hiddenRef.current = hidden;
+    // Same reasoning as `hiddenRef`, for the bulk queue: the click reads the
+    // transcript as it is *at that moment*, and the loop that follows must not
+    // see the render it started on.
+    const stateRef = useRef(state);
+    stateRef.current = state;
+    const [bulk, setBulk] = useState<BulkDecision | null>(null);
+    // Guards the loop rather than the button: `bulk` lands a render later, so a
+    // double-click would start two queues over the same proposals before the
+    // first `setBulk` had disabled anything.
+    const bulkRef = useRef(false);
+    // Cleared on unmount so a queue stops between requests instead of
+    // dispatching into a reducer that is no longer mounted.
+    const aliveRef = useRef(true);
 
     // Cancel an in-flight run when the panel goes away. Without this the
     // generator keeps reading into a dispatch nobody is listening to, and the
     // server keeps paying for an answer nobody will see.
-    useEffect(
-        () => () => {
+    useEffect(() => {
+        // Re-armed in the body, not just initialised: StrictMode mounts, tears
+        // down and remounts, so a flag only ever set to `false` in the cleanup
+        // would leave the remounted panel permanently unable to dispatch.
+        aliveRef.current = true;
+        return () => {
+            aliveRef.current = false;
             abortRef.current?.abort();
-        },
-        []
-    );
+        };
+    }, []);
 
     const send = useCallback(
         (
@@ -183,43 +228,110 @@ export function useCopilotChat(
         abortRef.current?.abort();
     }, []);
 
-    const decide = useCallback(
-        (proposalId: string, decision: 'accept' | 'reject') => {
+    /**
+     * One decision, awaited.
+     *
+     * Promise-shaped rather than `mutate` + callbacks so the bulk action can
+     * queue decisions behind one another. The two entry points below are the
+     * same request either way — there is no batch endpoint and deliberately so:
+     * every accept keeps its own permission re-check, its own `pending`
+     * predicate, and its own audit row, which is the whole of ADR-0005 §5. A
+     * bulk route would have to reproduce all three and answer with a partial
+     * success nobody could render per card.
+     */
+    const decideOne = useCallback(
+        async (proposalId: string, decision: 'accept' | 'reject') => {
             dispatch({ type: 'deciding', proposalId });
-            decideProposal.mutate(
-                { proposalId, decision, workspaceId },
-                {
-                    onSuccess: (proposal) =>
-                        dispatch({
-                            type: 'decided',
-                            proposalId,
-                            status: proposal.status,
-                            ...(proposal.result?.entityId
-                                ? { entityId: proposal.result.entityId }
-                                : {})
-                        }),
-                    // The card keeps its buttons and shows why. The four
-                    // statuses the server can return mean different things to
-                    // the person clicking — someone got there first, you may
-                    // not, it could not be applied and is still pending — and
-                    // the server's own message says which. Collapsing them into
-                    // "failed" would lose exactly what tells them whether to
-                    // retry, refresh, or ask a colleague.
-                    onError: (error) =>
-                        dispatch({
-                            type: 'decided',
-                            proposalId,
-                            error: decisionMessage(error, intl)
-                        })
-                }
-            );
+            try {
+                const proposal = await decideProposal.mutateAsync({
+                    proposalId,
+                    decision,
+                    workspaceId
+                });
+                if (!aliveRef.current) return;
+                dispatch({
+                    type: 'decided',
+                    proposalId,
+                    status: proposal.status,
+                    ...(proposal.result?.entityId
+                        ? { entityId: proposal.result.entityId }
+                        : {})
+                });
+            } catch (error) {
+                if (!aliveRef.current) return;
+                // The card keeps its buttons and shows why. The four statuses
+                // the server can return mean different things to the person
+                // clicking — someone got there first, you may not, it could not
+                // be applied and is still pending — and the server's own
+                // message says which. Collapsing them into "failed" would lose
+                // exactly what tells them whether to retry, refresh, or ask a
+                // colleague.
+                dispatch({
+                    type: 'decided',
+                    proposalId,
+                    error: decisionMessage(error, intl)
+                });
+            }
         },
         [decideProposal, intl, workspaceId]
+    );
+
+    const decide = useCallback(
+        (proposalId: string, decision: 'accept' | 'reject') => {
+            void decideOne(proposalId, decision);
+        },
+        [decideOne]
+    );
+
+    /**
+     * Decides every pending proposal in the transcript.
+     *
+     * **Sequential, not parallel.** Two proposals in one answer routinely touch
+     * the same entry, and firing them together would race the appliers writing
+     * it; sequencing also keeps the transcript's cards resolving in the order
+     * they were proposed, so the progress the user reads matches what happened.
+     *
+     * **A failure does not stop the queue.** Each card records its own error
+     * and stays decidable, so one entry that fails validation costs the user
+     * that one change rather than every change after it.
+     *
+     * The queue is **snapshotted at the click**: a proposal that arrives from a
+     * still-streaming run afterwards was not part of what the user agreed to.
+     */
+    const decideAll = useCallback(
+        (decision: 'accept' | 'reject') => {
+            if (bulkRef.current) return;
+            const queue = pendingProposals(stateRef.current.messages);
+            if (queue.length === 0) return;
+
+            bulkRef.current = true;
+            setBulk({ decision, done: 0, total: queue.length });
+            void (async () => {
+                for (const [index, proposal] of queue.entries()) {
+                    if (!aliveRef.current) break;
+                    await decideOne(proposal.id, decision);
+                    if (!aliveRef.current) break;
+                    setBulk({
+                        decision,
+                        done: index + 1,
+                        total: queue.length
+                    });
+                }
+                bulkRef.current = false;
+                if (aliveRef.current) setBulk(null);
+            })();
+        },
+        [decideOne]
     );
 
     const dispatchAction = useCallback(
         (action: ChatAction) => dispatch(action),
         []
+    );
+
+    const pending = useMemo(
+        () => pendingProposals(state.messages),
+        [state.messages]
     );
 
     return {
@@ -229,6 +341,9 @@ export function useCopilotChat(
         send,
         stop,
         decide,
+        pending,
+        decideAll,
+        bulk,
         reset: () => dispatchAction({ type: 'reset' }),
         load: (conversationId, messages) =>
             dispatchAction({ type: 'load', conversationId, messages })

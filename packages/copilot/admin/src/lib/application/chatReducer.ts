@@ -232,6 +232,26 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
 }
 
 /**
+ * Every proposal in the transcript still waiting on a decision, oldest first.
+ *
+ * Flattened across turns rather than read off the last one for the same reason
+ * `mapProposal` searches the whole transcript: a proposal three answers up is
+ * still pending, and a bulk "apply all" that quietly skipped it would be
+ * lying about what it did.
+ *
+ * Proposals with a decision **already in flight** are excluded. The count is
+ * what the bulk action offers to do, so counting a card whose own Apply button
+ * is mid-request would both overstate the offer and race that request.
+ */
+export function pendingProposals(messages: ChatMessage[]): ChatProposal[] {
+    return messages
+        .flatMap((message) => message.proposals ?? [])
+        .filter(
+            (proposal) => proposal.status === 'pending' && !proposal.deciding
+        );
+}
+
+/**
  * Applies `change` to one proposal, wherever in the transcript it sits.
  *
  * Searched by id across every turn rather than assumed onto the last one: a

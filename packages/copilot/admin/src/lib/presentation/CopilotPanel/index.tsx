@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    GripVertical,
     Maximize2,
     MessageSquarePlus,
     Minimize2,
@@ -9,10 +10,17 @@ import {
 } from 'lucide-react';
 import { Button, cn } from '@ortha-cms/design-system';
 import { useCopilotChat } from '../../application/useCopilotChat';
+import {
+    keyboardStep,
+    usePanelFrame,
+    type PanelFrameControls
+} from '../../application/usePanelFrame';
 import { Composer } from '../Composer';
 import { MessageList } from '../MessageList';
 import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
+import { PanelResizeHandles } from '../PanelResizeHandles';
+import { PendingProposals } from '../PendingProposals';
 import type { CopilotModelChoice } from '../../application/useCopilotModels';
 import type { RouteContext } from '../../application/readRouteContext';
 import { ContextChip } from '../ContextChip';
@@ -52,8 +60,25 @@ const messages = defineMessages({
     close: {
         id: 'copilot.panel.close',
         defaultMessage: 'Close'
+    },
+    move: {
+        id: 'copilot.panel.move',
+        defaultMessage: 'Move Ortha AI'
+    },
+    moveHint: {
+        id: 'copilot.panel.moveHint',
+        defaultMessage:
+            'Drag to move. With this focused, arrow keys move; hold Shift for larger steps.'
     }
 });
+
+/** Which arrow key moves which way, as a `[dx, dy]` unit vector. */
+const ARROWS: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1]
+};
 
 /** How much of the window the panel takes. */
 type PanelSize = 'docked' | 'expanded' | 'minimized';
@@ -116,6 +141,9 @@ export function CopilotPanel({
 }: CopilotPanelProps) {
     const intl = useIntl();
     const [size, setSize] = useState<PanelSize>('docked');
+    // Where the user dragged it to, if they have. `null` until then, which is
+    // what keeps the docked/expanded classes below meaningful.
+    const frame = usePanelFrame();
     // `rendered` keeps the panel in the tree long enough to play the exit
     // transition; `visible` drives the transition itself. Two states rather
     // than one because the element has to mount in its hidden position *first*,
@@ -166,6 +194,23 @@ export function CopilotPanel({
 
     const minimized = size === 'minimized';
     const expanded = size === 'expanded';
+    const placed = frame.frame !== null;
+    /** True only when the panel is sitting at the expanded preset, undragged. */
+    const atExpandedPreset = expanded && !placed;
+
+    /**
+     * Returns the panel to a preset size **and** to its docked corner.
+     *
+     * Expand and Shrink double as the way out of a bad drag: a window dragged
+     * mostly off the bottom of a short screen is awkward to retrieve with the
+     * same gesture that put it there, and this is the control already in the
+     * header. Nothing else clears the placement, so it survives close/reopen
+     * and reload — which is the point of being able to move it at all.
+     */
+    const preset = (next: PanelSize) => {
+        frame.reset();
+        setSize(next);
+    };
 
     return (
         <div
@@ -175,20 +220,45 @@ export function CopilotPanel({
             // the rest of the page is inert when it isn't.
             aria-label={intl.formatMessage(messages.title)}
             onKeyDown={onKeyDown}
+            ref={frame.ref}
+            // Only once the user has placed it. Until then the classes below
+            // own the geometry, so the panel opens correctly on a viewport it
+            // has never been opened in — and `left`/`top` from a previous,
+            // larger monitor can never strand it off-screen.
+            style={
+                placed
+                    ? minimized
+                        ? // A minimized window is its title bar: it keeps where
+                          // it is and how wide it is, and lets the header set
+                          // the height.
+                          { ...frame.style, height: undefined }
+                        : frame.style
+                    : undefined
+            }
             className={cn(
                 // `text-foreground` is stated rather than inherited: the panel
                 // paints its own surface, so it must own the colour that goes
                 // on it. Inheriting is what produced near-white text on white
                 // when this rendered inside the dark sidebar's subtree.
-                'bg-background text-foreground fixed right-4 bottom-4 z-50 flex flex-col',
+                'bg-background text-foreground fixed z-50 flex flex-col',
                 'rounded-lg border shadow-lg',
+                !placed && 'right-4 bottom-4',
                 // Never taller or wider than the viewport allows, so the panel
-                // stays usable on a laptop screen and on a short window.
-                'max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)]',
-                minimized && 'w-[380px]',
-                !minimized && !expanded && 'h-[620px] w-[420px]',
-                expanded &&
+                // stays usable on a laptop screen and on a short window. A
+                // placed panel is clamped to the viewport in the frame itself,
+                // and these would fight that clamp rather than back it up.
+                !placed && 'max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)]',
+                !placed && minimized && 'w-[380px]',
+                !placed && !minimized && !expanded && 'h-[620px] w-[420px]',
+                !placed &&
+                    expanded &&
                     'h-[calc(100vh-2rem)] w-[min(820px,calc(100vw-2rem))]',
+                // Text selection is suppressed for the whole panel while a
+                // gesture runs, rather than the drag calling `preventDefault()`
+                // — which would also swallow the focus a mousedown gives the
+                // resize handle, and that focus is what makes it keyboard
+                // operable.
+                frame.interacting && 'select-none',
                 // A **transition**, not an `animate-in` utility: those come from
                 // tailwindcss-animate, which this workspace deliberately does
                 // not install — the classes shadcn ships generate no CSS here
@@ -207,7 +277,23 @@ export function CopilotPanel({
                     : 'translate-y-2 scale-95 opacity-0'
             )}
         >
-            <header className="flex shrink-0 items-center gap-1 border-b px-3 py-2">
+            {/* Not while minimized: there is no body left to resize, and the
+                strips would be grab targets on a bar the user just collapsed. */}
+            {!minimized && <PanelResizeHandles controls={frame} />}
+
+            <header
+                className="flex shrink-0 cursor-move touch-none items-center gap-1 border-b px-3 py-2 select-none"
+                onPointerDown={(event) => {
+                    // The header's own controls are buttons, not a grab
+                    // surface — starting a drag from Close would mean the panel
+                    // walks across the screen on the way to being dismissed.
+                    if ((event.target as HTMLElement).closest('button')) return;
+                    frame.startMove(event);
+                }}
+                {...frame.handleProps}
+            >
+                <MoveHandle controls={frame} />
+
                 <h2 className="flex-1 truncate text-sm font-semibold">
                     {intl.formatMessage(messages.title)}
                 </h2>
@@ -220,13 +306,19 @@ export function CopilotPanel({
                     onClick={() => setSize(minimized ? 'docked' : 'minimized')}
                 />
                 {!minimized && (
+                    // Reads its label off the *preset*, not off `size` alone: a
+                    // panel the user has dragged is at no preset, so the button
+                    // offers Expand — "Shrink" on a window that is currently
+                    // 400px wide because someone resized it would be nonsense.
                     <IconButton
-                        icon={expanded ? Minimize2 : Maximize2}
+                        icon={atExpandedPreset ? Minimize2 : Maximize2}
                         label={intl.formatMessage(
-                            expanded ? messages.collapse : messages.expand
+                            atExpandedPreset
+                                ? messages.collapse
+                                : messages.expand
                         )}
                         onClick={() =>
-                            setSize(expanded ? 'docked' : 'expanded')
+                            preset(atExpandedPreset ? 'docked' : 'expanded')
                         }
                     />
                 )}
@@ -260,6 +352,44 @@ export function CopilotPanel({
                 )}
             </div>
         </div>
+    );
+}
+
+/**
+ * The grip at the left of the header.
+ *
+ * The whole header is already draggable, so this is not the pointer
+ * affordance — it is the **keyboard** one, and the reason it is a `<button>`
+ * rather than a decorative icon. A window a mouse user can move and a keyboard
+ * user cannot is a window whose position is a mouse-only setting; arrow keys
+ * move it, `Shift` moves it faster, and the header's Expand button puts it
+ * back.
+ *
+ * It doubles as the visual cue that the header is grabbable, which the cursor
+ * alone only tells you after you have already hovered it.
+ */
+function MoveHandle({ controls }: { controls: PanelFrameControls }) {
+    const intl = useIntl();
+    return (
+        <button
+            type="button"
+            aria-label={intl.formatMessage(messages.move)}
+            title={intl.formatMessage(messages.moveHint)}
+            className="text-muted-foreground focus-visible:ring-ring -ml-1 shrink-0 cursor-move touch-none rounded p-0.5 focus-visible:ring-2 focus-visible:outline-none"
+            onPointerDown={(event) => controls.startMove(event)}
+            onKeyDown={(event) => {
+                const arrow = ARROWS[event.key];
+                if (!arrow) return;
+                // Or the page behind this non-modal panel scrolls under the
+                // window being moved across it.
+                event.preventDefault();
+                const step = keyboardStep(event);
+                controls.nudgeMove(arrow[0] * step, arrow[1] * step);
+            }}
+            {...controls.handleProps}
+        >
+            <GripVertical className="size-4" />
+        </button>
     );
 }
 
@@ -338,6 +468,16 @@ function PanelBody({
             <MessageList
                 messages={chat.messages}
                 onDecideProposal={chat.decide}
+            />
+
+            {/* Directly under the transcript, so the cards it acts on are the
+                last thing read before the click — and above the composer,
+                because deciding what the last answer proposed comes before
+                asking the next question. */}
+            <PendingProposals
+                count={chat.pending.length}
+                bulk={chat.bulk}
+                onDecideAll={chat.decideAll}
             />
 
             {/* "Your message, plus where you are" (design §2) — but only when

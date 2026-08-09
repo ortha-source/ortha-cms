@@ -21,6 +21,15 @@ nav entry carries `permission: 'copilot:configure'`, so an editor never sees a
 link to a page that would 403; the page gates itself too, because a nav entry is
 a courtesy and not a boundary.
 
+That page is **not a permission screen**, and it says so on itself now: people
+read a screen of unticked checkboxes as a list of things they are not allowed to
+do and conclude the copilot is crippled. Every tool listed is one the role
+_already_ allows; what the page decides is which of them stop pausing for
+review. Its "Tick all" is a shortcut over the tools **on screen**, not a
+wildcard — what is saved is their names, so a tool that ships next release
+arrives asking for approval like any other, which is the property ADR-0005 §6 is
+protecting.
+
 ## Layout
 
 ```
@@ -35,13 +44,17 @@ application/
   useCopilotPolicy.ts      # the workspace's auto-apply opt-ins (query + mutation)
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
+  panelFrame.ts            # pure move/resize/clamp arithmetic (unit-tested)
+  usePanelFrame.ts         # the hook over it: pointer capture + localStorage
 presentation/
   copilotPlugin/           # the plugin object
   CopilotLauncher/         # sidebar row + floating button + ⌘J, permission-gated
   CopilotPanel/            # the docked window
+  PanelResizeHandles/      # the eight grab strips
   MessageList/  ToolStep/  Composer/  ModelPicker/  ConversationPicker/
   ContextChip/             # what context is attached to the next turn
   ProposalCard/            # a proposed change, its diff, and the two buttons
+  PendingProposals/        # decide every pending change at once
   Markdown/                # small local renderer (see below)
 pages/
   CopilotSettingsPage/     # the auto-apply policy, `copilot:configure`
@@ -126,6 +139,21 @@ asked to decide — so the step list renders from one and the card from the othe
 - **Reopening a thread reattaches the cards.** `useOpenConversation` fetches the
   transcript and `GET /copilot/proposals?conversationId=` concurrently and joins
   them on `toolCallId`, which is why the server stores it.
+- **`PendingProposals` decides the whole queue in one click**, and it is an
+  accelerator rather than a second authority path: it loops over the same
+  per-proposal endpoint, so every accept keeps its own capability re-check, its
+  own `status = 'pending'` claim and its own audit row. There is deliberately
+  **no bulk route** — one would have to reproduce all three and then answer with
+  a partial success no card could render. The loop is **sequential** (two
+  proposals in one answer routinely touch the same entry) and a failure does not
+  stop it: each card records its own error and stays decidable. The queue is
+  snapshotted at the click, so a proposal from a still-streaming run is not
+  swept into a decision the user never saw.
+- **Why it exists at all:** one answer produces a dozen cards — "add alt text to
+  every image in this article" is one sentence and twelve proposals. Twelve
+  clicks is not review, it is a queue being cleared, and a UI that makes bulk
+  work tedious is a UI that gets auto-apply switched on for tools that did not
+  warrant it.
 - Proposed values render as **text**, never markup — same rule as the tool step's
   payload, and for a stronger reason: this card is where a human approves them.
 
@@ -208,6 +236,42 @@ closure is created when the message is sent, but the failure it handles can land
 seconds later, by which time the panel may have been minimized — which is the
 case the toast is for. Capturing would decide on the state at Enter.
 
+## Moving and resizing
+
+The panel is a window: drag the header to move it, drag any of the eight edge
+strips to resize it. Four things about how that is built are load-bearing.
+
+- **A frame is `null` until the user places one.** The docked / expanded /
+  minimized geometry stays in CSS, so the panel opens correctly on a viewport it
+  has never been opened in, and `left`/`top` remembered from a 4K monitor can
+  never be what positions it on a laptop. `usePanelFrame` only takes over
+  positioning once someone actually drags, and the first drag **measures**
+  `getBoundingClientRect()` so the window does not jump as the gesture starts.
+- **Expand and Shrink clear the placement.** They are the way out of a bad drag,
+  and the header already has them. Nothing else clears it: the frame survives
+  close/reopen and reload (`localStorage`), which is the point of being able to
+  move it. The button reads its label off the _preset_, not off `size` — "Shrink"
+  on a window the user has just resized to 400px is nonsense.
+- **The arithmetic is pure and in `panelFrame.ts`**, because the interesting
+  cases are all arithmetic: the whole panel stays on screen (a dragged-off panel
+  is a lost panel — there is no other affordance for retrieving it), a saved
+  frame on a smaller monitor **slides in rather than shrinking**, and dragging
+  the west or north edge past the minimum stops that edge dead instead of towing
+  the panel across the screen. That last one is the bug the spec exists for:
+  clamping the width _after_ moving `x` moves the whole window.
+- **Pointer capture, and no `preventDefault()`.** Capture keeps the moves coming
+  when the pointer outruns a 6px strip, and guarantees the release arrives.
+  `preventDefault` on the pointerdown would also swallow the focus a mousedown
+  gives the resize handle — and that focus is the whole of its keyboard support
+  — so text selection is suppressed with `select-none` on the panel instead.
+
+Keyboard: seven strips are pointer-only and `aria-hidden`, because eight
+focusable splitters would add eight tab stops to a non-modal surface a keyboard
+user is passing _through_. The two that are real controls are the header grip
+(arrow keys move, `Shift` for larger steps) and the north-west corner (arrow
+keys resize) — the panel's home is bottom-right, so up and left is the direction
+that has somewhere to go.
+
 ## Motion
 
 Two traps, both hit while building this:
@@ -248,9 +312,12 @@ co-located `defineMessages`.
 
 ## Testing
 
-`chatReducer` and the model-choice key helpers are unit-tested (`nx test`) —
-this is the first admin package with a jest config, `testEnvironment: 'node'`
-because the tested code is pure. **The panel has no browser-level coverage yet**:
+`chatReducer`, the model-choice key helpers and `panelFrame` are unit-tested
+(`nx test`) — this is the first admin package with a jest config,
+`testEnvironment: 'node'` because the tested code is pure. Anything that has to
+be got exactly right about the window's geometry belongs in `panelFrame.ts` for
+that reason; `usePanelFrame` should stay thin enough to be obviously correct.
+**The panel has no browser-level coverage yet**:
 `admin-e2e` mocks `/api` with `page.route` and cannot currently fulfil an
 event-stream body. That gap is tracked in `docs/design/copilot.md` §8.
 
