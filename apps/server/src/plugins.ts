@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
+import { ContentGraphqlPlugin } from '@ortha-cms/content-graphql';
 import { CopilotPlugin } from '@ortha-cms/copilot-server';
 import { createAnthropicProvider } from '@ortha-cms/copilot-provider-anthropic';
 import { createFakeProvider } from '@ortha-cms/copilot-provider-fake';
@@ -39,22 +40,37 @@ import { contentTypes } from './content';
  * reads its registry.
  */
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
+    const content = ContentPlugin({
+        types: contentTypes,
+        // The HOST owns the generated collection tables (drizzle.config.ts
+        // diffs src/content/index.ts into ./migrations); routing the
+        // descriptor through the plugin lets the standard db:migrate
+        // machinery apply them with every other plugin's migrations.
+        migrations: {
+            dir: () => join(__dirname, '../migrations'),
+            table: '__drizzle_migrations_content'
+        }
+    });
     return [
         DatabasePlugin({ connectionString: config.database.url }),
         IdentityPlugin(config.plugins.identity),
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),
-        ContentPlugin({
-            types: contentTypes,
-            // The HOST owns the generated collection tables (drizzle.config.ts
-            // diffs src/content/index.ts into ./migrations); routing the
-            // descriptor through the plugin lets the standard db:migrate
-            // machinery apply them with every other plugin's migrations.
-            migrations: {
-                dir: () => join(__dirname, '../migrations'),
-                table: '__drizzle_migrations_content'
-            }
+        content,
+        // The same public content API over GraphQL, on `/api/v1/graphql`. It
+        // owns no schema and adds no credential — it reuses content's bearer
+        // guards and read/write services, so a token minted before it existed
+        // works against it unchanged. Taking `content` by value lets it fail
+        // boot on two content types that would collide as GraphQL names,
+        // rather than on the first request from a workspace granted both.
+        ContentGraphqlPlugin({
+            content,
+            ...config.plugins.contentGraphql,
+            // GraphiQL rides the same switch as the Scalar reference: both are
+            // developer tooling, and neither should be reachable in production
+            // unless the operator asks (`API_DOCS=true`).
+            playground: config.docs.enabled === true
         }),
         // Media — registered after workspaces (its routes use `WorkspaceGuard`)
         // and identity (its routes use `PermissionsGuard`). The composition root

@@ -1,3 +1,4 @@
+import type { ContentGraphqlLimits } from '@ortha-cms/content-graphql';
 import type {
     IdentityRateLimitConfig,
     IdentityRootAdminConfig
@@ -38,6 +39,18 @@ export interface TestConfigOverrides {
      */
     rootAdmin?: IdentityRootAdminConfig;
     /**
+     * Tighten the GraphQL cost budget, so a suite can prove a limit trips
+     * without having to author a genuinely enormous document.
+     */
+    graphqlLimits?: Partial<ContentGraphqlLimits>;
+    /**
+     * Turn developer tooling on. `createTestApp` never mounts the Scalar
+     * reference, so this exists for the one thing that reads the same flag: the
+     * GraphiQL playground, whose whole security story is that it is off unless
+     * a deployment asks.
+     */
+    docsEnabled?: boolean;
+    /**
      * Turn the MCP endpoint off, to assert that the kill switch really
      * unmounts it. Enabled by default so the suites can drive it.
      */
@@ -53,9 +66,10 @@ export function buildTestConfig(
         globalPrefix: 'api',
         database: { url: connectionString },
         // `createTestApp` builds the app itself and never calls `setupApiDocs`,
-        // so this is only here to satisfy the config contract — stated
-        // explicitly so a reader doesn't wonder whether the suites serve docs.
-        docs: { enabled: false },
+        // so this mounts no Scalar reference. It is NOT inert, though: the
+        // GraphQL plugin reads the same flag to decide whether to register the
+        // GraphiQL playground, which is what `docsEnabled` exists to flip.
+        docs: { enabled: overrides.docsEnabled ?? false },
         plugins: {
             identity: {
                 sessionSecret: 'test-session-secret',
@@ -96,7 +110,10 @@ export function buildTestConfig(
                 maxOutputTokens: 1024,
                 providers: {
                     claude: { apiKey: '', models: ['unused'] },
-                    ollama: { baseUrl: 'http://localhost:1', models: ['unused'] }
+                    ollama: {
+                        baseUrl: 'http://localhost:1',
+                        models: ['unused']
+                    }
                 }
             },
             // The media plugin registers an in-memory `memory` provider in
@@ -110,6 +127,17 @@ export function buildTestConfig(
                 },
                 s3: { bucket: '', region: '' },
                 maxUploadBytes: 52_428_800
+            },
+            // The GraphQL endpoint's cost budget. Left at the shipped defaults
+            // so the limit suite asserts the real numbers rather than
+            // test-only ones — except the schema cache, pinned to 0 so a suite
+            // that changes a workspace's content grants sees the new schema on
+            // the very next request instead of racing a TTL.
+            contentGraphql: {
+                ...(overrides.graphqlLimits
+                    ? { limits: overrides.graphqlLimits }
+                    : {}),
+                schemaCacheTtlMs: 0
             },
             // Enabled by default here (the host default is off): the endpoint
             // is what the MCP suites drive. `mcpEnabled: false` is how the

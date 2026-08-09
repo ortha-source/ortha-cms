@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
+import { ContentGraphqlPlugin } from '@ortha-cms/content-graphql';
 import { CopilotPlugin } from '@ortha-cms/copilot-server';
 import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
@@ -33,22 +34,34 @@ import { createInMemoryStorageProvider } from './media-storage';
  * ports), and i18n after content (binds content's extension port).
  */
 export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
+    const content = ContentPlugin({
+        types: testContentTypes,
+        // The e2e harness OWNS these generated tables: drizzle.config.ts
+        // diffs src/support/content into ./migrations/content. Routing the
+        // descriptor through the plugin lets `global-setup`'s standard
+        // migrate loop apply them with every other plugin's migrations.
+        migrations: {
+            dir: () => join(__dirname, '../../migrations/content'),
+            table: '__drizzle_migrations_content'
+        }
+    });
     return [
         DatabasePlugin({ connectionString: config.database.url }),
         IdentityPlugin(config.plugins.identity),
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),
-        ContentPlugin({
-            types: testContentTypes,
-            // The e2e harness OWNS these generated tables: drizzle.config.ts
-            // diffs src/support/content into ./migrations/content. Routing the
-            // descriptor through the plugin lets `global-setup`'s standard
-            // migrate loop apply them with every other plugin's migrations.
-            migrations: {
-                dir: () => join(__dirname, '../../migrations/content'),
-                table: '__drizzle_migrations_content'
-            }
+        content,
+        // The GraphQL protocol over the same public content API — registered
+        // here so the e2e suite exercises the real composition, including the
+        // shared bearer guards it depends on.
+        ContentGraphqlPlugin({
+            content,
+            ...config.plugins.contentGraphql,
+            // GraphiQL rides the same switch as the Scalar reference: both are
+            // developer tooling, and neither should be reachable in production
+            // unless the operator asks (`API_DOCS=true`).
+            playground: config.docs.enabled === true
         }),
         // Media ships its own migrations (picked up by the migrate loop) and
         // registers an in-memory storage provider so uploads never touch disk.

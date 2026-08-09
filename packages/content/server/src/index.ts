@@ -118,3 +118,43 @@ export type {
     ApiTokenRequest,
     PublicApiToken
 } from './lib/public-api/http/api-token-request';
+
+// --- The public API's engine, for a second protocol over the same surface ---
+// `@ortha-cms/content-graphql` serves `/v1/graphql` by assembling these exact
+// DTOs and calling these exact services, so GraphQL and REST cannot drift on
+// what a token may see or write. Everything below is the *implementation* of
+// the public API rather than its wire contract: it is exported for that reuse,
+// and a change here is a change to both protocols at once.
+export { PublicEntriesQuery } from './lib/public-api/infrastructure/public-entries.query';
+export type { EntryLocator } from './lib/public-api/infrastructure/public-entries.query';
+export { PublicEntryWritesService } from './lib/public-api/infrastructure/public-entry-writes.service';
+// `WorkspaceGrantsQuery` is exported above — the grant gate is shared with the
+// copilot tool binders, which is the same one-implementation argument.
+export { resolveGrantedType } from './lib/public-api/http/controllers/resolve-granted-type';
+export type {
+    ContentGrantsSource,
+    GrantedType
+} from './lib/public-api/http/controllers/resolve-granted-type';
+export {
+    PublicEntryQueryDto,
+    PublicListEntriesQueryDto,
+    ENTRY_VISIBILITY,
+    PREVIEW,
+    DEFAULT_EXPANSION_LIMIT
+} from './lib/public-api/http/dto/public-list-entries-query.dto';
+export type { EntryVisibility } from './lib/public-api/http/dto/public-list-entries-query.dto';
+export { PublicSaveEntryDto } from './lib/public-api/http/dto/public-save-entry.dto';
+export type {
+    PublicMediaFieldView,
+    PublicMediaRef,
+    PublicRelationFieldView
+} from './lib/public-api/types/public-expansion';
+export {
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE
+} from './lib/entries/entries.constants';
+export { RELATION_DELTA_ADDRESSING } from './lib/entries/types/entry-list-view';
+export type {
+    RelationDelta,
+    RelationDeltaAddressing
+} from './lib/entries/types/entry-list-view';

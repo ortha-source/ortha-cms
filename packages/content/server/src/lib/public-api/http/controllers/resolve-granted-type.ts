@@ -1,7 +1,21 @@
 import { NotFoundException } from '@nestjs/common';
-import type { WorkspaceGrantsQuery } from '../../../content-types/queries/workspace-grants.query';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import type { AnyContentType } from '../../../types/content-type';
+
+/**
+ * Where this resolver reads a workspace's content grants from.
+ *
+ * A structural port rather than `WorkspaceGrantsQuery` itself, so a caller that
+ * has **already** read the grant set for the current request can supply it
+ * instead of provoking one query per resolved type. `WorkspaceGrantsQuery`
+ * satisfies it as-is; the GraphQL endpoint passes a cache over it, because a
+ * single document resolves many types and they must all see one consistent
+ * grant set anyway.
+ */
+export interface ContentGrantsSource {
+    /** Every content slug granted to `workspaceId`. */
+    grantedSlugs(workspaceId: string): Promise<ReadonlySet<string>>;
+}
 
 /**
  * A resolved type plus the workspace's full grant set. The grants are returned
@@ -30,7 +44,7 @@ export interface GrantedType {
  */
 export async function resolveGrantedType(
     registry: ContentTypeRegistry,
-    grants: WorkspaceGrantsQuery,
+    grants: ContentGrantsSource,
     typeName: string,
     workspaceId: string
 ): Promise<GrantedType> {

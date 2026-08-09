@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md))
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md))
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 
@@ -57,6 +57,14 @@
   MCP endpoint and the copilot's run loop — so both see one instance, and a tool
   declares which `surfaces` it is offered to
   ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)).
+- `packages/content/graphql` — `@ortha-cms/content-graphql`, the public content
+  API over **GraphQL** (`POST /api/v1/graphql`). A protocol **adapter** over
+  `content/server`'s `public-api/`, not a second API: same bearer tokens, same
+  guards, same scopes, same visibility rules, and resolvers that assemble the
+  existing DTOs rather than reaching for the database
+  ([ADR-0008](docs/adr/0008-graphql-as-a-protocol-adapter.md)). Its schema is
+  built **per workspace content-grant set**, so introspection cannot enumerate
+  types the workspace was not granted.
 - `packages/mcp/server` — `@ortha-cms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
   agent do content CRUD with an API token
@@ -77,6 +85,11 @@ Packages are either **flat** (`packages/<name>`, e.g. `design-system`) or
 stays hyphenated regardless of nesting: `packages/bootstrap/admin` is published
 as `@ortha-cms/bootstrap-admin`. The root `workspaces` globs (`packages/*` and
 `packages/*/*`) cover both shapes.
+
+A group is not limited to `admin`/`server`: it holds however many packages the
+domain needs, named for what they are. `content` has four — `domain` (the
+framework-free kernel), `server`, `admin`, and `graphql` (the public API's
+second protocol); `copilot` has six.
 
 ## How packages resolve
 

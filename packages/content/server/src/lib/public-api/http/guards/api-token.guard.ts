@@ -11,8 +11,7 @@ import {
     ApiTokenService,
     Permission,
     PERMISSIONS_KEY,
-    scopePermissions,
-    type Actor,
+    tokenActor,
     type PermissionKey
 } from '@ortha-cms/identity-server';
 import type { ApiTokenRequest } from '../api-token-request';
@@ -78,16 +77,10 @@ export class ApiTokenGuard implements CanActivate {
             [context.getHandler(), context.getClass()]
         );
         if (required && required.length > 0) {
-            const actor: Actor = {
-                // A token acts on its own behalf, not a user's — its id is the
-                // actor identity, and the `createdBy` user's role grants are
-                // deliberately NOT consulted (revoking a token must be enough
-                // to revoke its access, regardless of who minted it).
-                userId: token.id,
-                grantedPermissions: new Set(scopePermissions(token.scope))
-            };
+            // A token acts on its own behalf, not a user's — see `tokenActor`
+            // for why the minting user's role grants are never consulted.
             const allowed = this.accessPolicy.canAll(
-                actor,
+                tokenActor(token),
                 required.map((key) => Permission.create(key))
             );
             if (!allowed) {

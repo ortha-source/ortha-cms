@@ -209,12 +209,26 @@ export class ContentModule {
                 CONTENT_CATALOG,
                 CONTENT_ENTRY_COUNTER,
                 EntryValidationService,
-                // Exported for the plugins that bind their own copilot tools
-                // over content-scoped data (i18n, media). A tool's type name
-                // arrives from the model, so every one of them has to re-check
-                // the workspace's grants — and there must be exactly one
+                // The public API's collaborators, exported so another plugin can
+                // put a SECOND PROTOCOL in front of the same surface without
+                // re-implementing any of it — `@ortha-cms/content-graphql` does
+                // exactly that. The module is already `global: true`, so
+                // exporting is all that is needed for it to inject these.
+                // Everything a `/v1` request is authorized and answered by lives
+                // in this list, which is what keeps the two protocols honest:
+                // there is one visibility rule, one grant gate, one write path.
+                //
+                // `WorkspaceGrantsQuery` serves a second set of callers too:
+                // the plugins that bind their own copilot tools over
+                // content-scoped data (i18n, media). A tool's type name arrives
+                // from the model, so every one of them has to re-check the
+                // workspace's grants — and there must be exactly one
                 // implementation of that check, not one per binder.
                 WorkspaceGrantsQuery,
+                PublicEntriesQuery,
+                PublicEntryWritesService,
+                ApiTokenGuard,
+                ApiTokenWorkspaceGuard,
                 // The write engine, for the proposal appliers those plugins
                 // also bind. ADR-0005 §5 requires an applied proposal to run
                 // the ordinary use-case, so they must reach *this* service

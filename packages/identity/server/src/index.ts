@@ -75,6 +75,10 @@ export type {
 } from './lib/api-tokens/infrastructure/persistence/drizzle-api-token.repository';
 export {
     API_TOKEN_SCOPES,
-    scopePermissions
+    scopePermissions,
+    tokenActor
 } from './lib/api-tokens/domain/api-token-scope';
-export type { ApiTokenScope } from './lib/api-tokens/domain/api-token-scope';
+export type {
+    ApiTokenScope,
+    ScopedToken
+} from './lib/api-tokens/domain/api-token-scope';
