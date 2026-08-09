@@ -162,11 +162,12 @@ injected **optionally** — a deployment without `CopilotPlugin` is normal).
   It returns one item per **configured** locale, so a missing translation is
   `entry: null` rather than an absent key.
 
-It also binds **`i18n_propose_translation`** (`effect: 'propose'`), which drafts
-an entry's translation into another locale for a human to accept. It writes
-nothing; what it does do is the part a model cannot be trusted with: resolve the
-slug against the configured set, confirm the target locale does not already exist
-in the group (a duplicate would be a 409 long after approval), and refuse a
+It also binds **`i18n_propose_translation`** (`effect: 'propose'`), which
+translates an entry into another locale. Since
+[ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) the change is
+applied as soon as it is drafted, so the tool's own checks are the last ones
+before a write: resolve the slug against the configured set, confirm the target
+locale does not already exist in the group (a duplicate is a 409), and refuse a
 **shared** field — one value across the whole group by definition, so a
 per-locale version of it would either be ignored or silently overwrite every
 sibling.
@@ -177,6 +178,20 @@ sibling.
 already means, and the bound extension stamps and validates it inside the write
 transaction, which is also what makes a duplicate `(group, locale)` a clean 409
 instead of a corrupt group.
+
+**It reads the source entry first, and must keep doing so.** The tool accepts
+only localized values, but a create is a whole row: `coerceValues` stamps every
+declared field, so a shared field nobody supplied arrives as `null` rather than
+absent. Two things then go wrong at once — the new row fails its own required
+check (`tag.slug` is required _and_ shared, so no translation of a tag ever
+carries it), and, worse, `afterUpdate` treats that `null` as a shared value the
+save carries and pushes it onto every sibling. A published sibling is
+re-validated and fails, rolling the create back with "Entry validation failed";
+a group of drafts has no such guard and the shared field is **silently blanked
+in every locale**. So the applier seeds the create from the source row's shared
+values — the same thing the admin's own create-translation does by sending the
+source's values, which is why that path never hit this. The values then match
+the group, `IS DISTINCT FROM` finds nothing to sync, and no sibling is touched.
 
 Two rules the tools apply that the HTTP path does not:
 

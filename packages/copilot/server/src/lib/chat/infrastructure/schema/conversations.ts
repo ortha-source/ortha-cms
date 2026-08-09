@@ -1,6 +1,7 @@
 import {
     boolean,
     index,
+    jsonb,
     pgTable,
     text,
     timestamp,
@@ -43,6 +44,24 @@ export const copilotConversations = pgTable(
         surface: text('surface').notNull().default('chat'),
         /** Hidden from the list without losing the transcript. */
         archived: boolean('archived').notNull().default(false),
+        /**
+         * Tool names the user answered "allow for this chat" to.
+         *
+         * **On the thread, not on the user**, and that is the whole scope: it
+         * dies when the thread does, so there is no standing permission anyone
+         * has to remember granting or go and revoke. A per-user allow-list
+         * would be a policy outliving its context, which is the shape
+         * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+         * just finished removing.
+         *
+         * It is a **usability** memory, never an authority one: every call it
+         * skips the prompt for is still authorized against the caller's live
+         * grants by `ToolRegistry.call`.
+         */
+        allowedTools: jsonb('allowed_tools')
+            .notNull()
+            .$type<string[]>()
+            .default([]),
         /** Row creation timestamp. */
         createdAt: timestamp('created_at', { withTimezone: true })
             .notNull()

@@ -52,8 +52,7 @@ export type {
     ResolveCapabilityProfileInput,
     ToolPermissionKey,
     WithheldReason,
-    WithheldTool,
-    WorkspaceCopilotPolicy
+    WithheldTool
 } from './lib/tools/capability-profile';
 
 // --- the run (phase 1) ---
@@ -68,6 +67,8 @@ export type {
     RunTextDeltaEvent,
     RunToolCallEvent,
     RunToolResultEvent,
+    RunPermissionRequestEvent,
+    ToolPermissionDecision,
     RunProposalEvent,
     RunDoneEvent,
     RunErrorEvent

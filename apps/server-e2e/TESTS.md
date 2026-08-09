@@ -942,7 +942,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 <!-- source: apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_
 
-## Copilot proposals
+## Copilot changes
 
 ### the offer
 
@@ -953,49 +953,40 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_
 | offers a contributor the whole write surface, matching the role matrix |
 | exposes no publish tool at any role |
 
-### proposing changes nothing
+### a propose tool writes, and records what it wrote
 
 | Test case |
 | --- |
-| creates a pending proposal and no entry |
-| tells the model to wait rather than letting it claim success |
+| creates the entry and the row that recorded it |
+| tells the model it saved, so it does not hedge |
 | carries a before/after diff on an edit |
 | refuses an edit that would change nothing |
 | refuses a field the type does not declare |
 | refuses a content type the workspace was not granted |
 
-### accepting applies through the ordinary use-case
+### applying runs the ordinary use-case
 
 | Test case |
 | --- |
-| writes the change and records who decided |
+| writes the change and records who made it |
 | appends a revision, because it went through the ordinary write |
 | merges rather than replacing the untouched fields |
-| refuses a second accept instead of writing twice |
-| rejecting writes nothing and closes the proposal |
-| lets a different member approve a colleague’s proposal |
-| 403s a viewer who could not have proposed it |
-| 403s a cross-site Origin on the accept |
-| 404s a proposal from another workspace |
-| 422s and stays pending when the apply fails |
+| reports a failed apply instead of claiming success |
 
-### the review queue
+### there is no approval boundary any more
 
 | Test case |
 | --- |
-| lists pending proposals for the workspace |
+| serves no accept or reject route |
+| serves no per-workspace policy route |
+
+### the record of what changed
+
+| Test case |
+| --- |
+| lists the workspace’s changes |
 | 400s an undeclared query parameter |
 | does not leak another workspace’s proposals |
-
-### the auto-apply policy
-
-| Test case |
-| --- |
-| is closed by default — a workspace with no policy proposes |
-| applies immediately once a tool is opted in, and still records the row |
-| opts in one tool without opening the others |
-| drops a tool name nothing binds |
-| 403s an editor without copilot:configure |
 
 <!-- source: apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_

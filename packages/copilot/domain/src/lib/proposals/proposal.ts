@@ -26,12 +26,14 @@ export interface ProposalChange {
  * decide on, and for an applier to carry out.
  *
  * **The tool does not write it.** A propose tool computes the change and hands
- * it back; the run engine persists it as a `copilot_proposals` row and, if the
- * workspace opted this tool into auto-apply, immediately accepts it. That split
- * is what keeps [ADR-0005](../../../../../docs/adr/0005-copilot-authority-model.md)
- * §5's guarantees in one place instead of once per binder — every proposal is
- * recorded, whether or not a human clicks, so an auto-applied change is
- * "undoable, never invisible" rather than a write with no paper trail.
+ * it back; the run engine persists it as a `copilot_proposals` row and then
+ * applies it. That split survived
+ * [ADR-0009](../../../../../docs/adr/0009-copilot-applies-directly.md) removing
+ * the human step, and is now the *only* thing carrying ADR-0005 §5's
+ * "undoable, never invisible" — the row is the receipt, written before the
+ * write, in one place instead of once per binder. Keep the split even though
+ * nothing waits on it any more: a binder that wrote directly would be a change
+ * with no paper trail.
  */
 export interface ProposalDraft {
     /**
@@ -55,12 +57,19 @@ export interface ProposalDraft {
 }
 
 /**
- * Whether a proposal is still awaiting a decision, and which one it got.
+ * What happened to a proposal.
  *
  * There is no `applied` state distinct from `accepted`: accepting *is*
- * applying — the use-case runs inside the accept, and a failure leaves the
- * proposal `pending` with its error recorded, so a transient failure can be
- * retried rather than stranding the row in a fourth state nobody clears.
+ * applying — the use-case runs inside the accept, and a failure leaves the row
+ * `pending` with its error recorded rather than stranding it in a fourth state
+ * nobody clears.
+ *
+ * Since [ADR-0009](../../../../../docs/adr/0009-copilot-applies-directly.md)
+ * the engine applies every proposal as it is drafted, so a *new* row only ever
+ * lands `accepted`, or stays `pending` because the apply failed — which the UI
+ * reads as "Ortha AI could not make this change". `rejected` is no longer
+ * produced and is kept only because rows written before that change still carry
+ * it; a reader must still handle all three.
  */
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
 

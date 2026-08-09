@@ -15,6 +15,20 @@
       "when": 1786205519325,
       "tag": "0001_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786278493847,
+      "tag": "0002_drop_workspace_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786281609216,
+      "tag": "0003_conversation_allowed_tools",
+      "breakpoints": true
     }
   ]
 }

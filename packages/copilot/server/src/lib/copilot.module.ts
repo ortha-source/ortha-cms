@@ -13,8 +13,8 @@ import {
 } from './infrastructure/model-registry';
 import type { CopilotPluginConfig } from './types/copilot-config';
 import { CapabilityProfileService } from './chat/application/capability-profile.service';
-import { CopilotPolicyService } from './chat/application/copilot-policy.service';
 import { DecideProposalService } from './chat/application/decide-proposal.service';
+import { ToolPermissionBroker } from './chat/application/tool-permission.broker';
 import { ProposalApplierRegistry } from './chat/application/proposal-applier.registry';
 import { ContentTypeSummaryService } from './chat/application/content-type-summary.service';
 import { RunEngine } from './chat/application/run-engine.service';
@@ -25,7 +25,7 @@ import { GetConversationController } from './chat/http/controllers/get-conversat
 import { ListConversationsController } from './chat/http/controllers/list-conversations.controller';
 import { ListModelsController } from './chat/http/controllers/list-models.controller';
 import { ProposalsController } from './chat/http/controllers/proposals.controller';
-import { WorkspacePolicyController } from './chat/http/controllers/workspace-policy.controller';
+import { ToolPermissionController } from './chat/http/controllers/tool-permission.controller';
 
 /** Options `CopilotModule.forRoot` binds into DI. */
 export interface CopilotModuleOptions {
@@ -75,7 +75,10 @@ export class CopilotModule {
                 // is the only wildcard here — Express matches in declaration
                 // order, so the literal-prefixed routes go first.
                 ProposalsController,
-                WorkspacePolicyController,
+                // Before `GetConversationController` for the same reason as
+                // the others: its `conversations/:id` is the only wildcard, and
+                // Express matches in declaration order.
+                ToolPermissionController,
                 GetConversationController
             ],
             providers: [
@@ -90,8 +93,8 @@ export class CopilotModule {
                 ConversationRepository,
                 ProposalRepository,
                 ProposalApplierRegistry,
-                CopilotPolicyService,
                 DecideProposalService,
+                ToolPermissionBroker,
                 RunEngine
             ],
             exports: [

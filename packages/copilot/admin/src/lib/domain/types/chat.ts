@@ -19,12 +19,12 @@ export interface ChatToolStep {
 }
 
 /**
- * One proposed change as the transcript renders it.
+ * One change the copilot made, as the transcript renders it.
  *
- * Mirrors the server's `RunProposalEvent` plus a client-only `deciding` flag.
- * It lives on the turn rather than in a separate list because a proposal is
- * *part of an answer* — "here is what I would change" — and pulling it into a
- * queue elsewhere would make the reply refer to something off-screen.
+ * Mirrors the server's `RunProposalEvent`. It lives on the turn rather than in
+ * a separate list because a change is *part of an answer* — "here is what I
+ * changed" — and pulling it into a list elsewhere would make the reply refer to
+ * something off-screen.
  */
 export interface ChatProposal {
     /** The persisted proposal's id — what accept/reject address. */
@@ -46,26 +46,43 @@ export interface ChatProposal {
         before?: unknown;
         after: unknown;
     }[];
-    /** `pending`, or `accepted` when auto-apply carried it out already. */
+    /**
+     * `accepted` — the change was made — or `pending`, which now means the
+     * apply **failed** (ADR-0009: every change applies as it is drafted, so
+     * nothing waits). `rejected` only appears on rows written before that
+     * change; nothing produces it now.
+     */
     status: 'pending' | 'accepted' | 'rejected';
     /** The entity the change landed on — present only once applied. */
     entityId?: string;
-    /**
-     * True when the change was applied **without** anyone clicking — the
-     * workspace opted this tool in.
-     *
-     * Derived at arrival rather than read off the row: the server records the
-     * same `decidedBy` either way, because auto-apply acts as the user whose run
-     * produced it. What distinguishes them is that an auto-applied proposal
-     * arrives *already* accepted, which only the client that watched it arrive
-     * can know. It matters because "you applied this" and "this was applied for
-     * you" are different things to tell someone.
-     */
-    autoApplied?: boolean;
-    /** True while an accept or reject is in flight. */
-    deciding?: boolean;
-    /** Why the last decision failed, when one did. */
+    /** Why the change did not happen, when it didn't. */
     error?: string;
+}
+
+/**
+ * A tool call parked waiting for the user to allow it.
+ *
+ * Lives on the turn, like the change card, because it belongs to the answer
+ * being written — and unlike the card, it is the one thing in the transcript
+ * the run is *blocked* on.
+ */
+export interface ChatPermissionRequest {
+    /** The provider's call id — what a decision addresses. */
+    id: string;
+    /** The run to answer against. */
+    runId: string;
+    /** The tool's name, e.g. `content_propose_update`. */
+    name: string;
+    /** Its human title, when the tool declared one. */
+    title?: string;
+    /** The arguments the model supplied, shown so the user can judge them. */
+    input: unknown;
+    /** True while an answer is in flight. */
+    deciding?: boolean;
+    /** Set when the answer did not reach the run (it had already moved on). */
+    error?: string;
+    /** True once answered — the prompt stops rendering, the step carries on. */
+    answered?: boolean;
 }
 
 /** One turn as the transcript renders it. */
@@ -80,6 +97,8 @@ export interface ChatMessage {
     steps: ChatToolStep[];
     /** Changes proposed during this turn, in order. */
     proposals?: ChatProposal[];
+    /** Tool calls waiting on the user, in order. */
+    permissions?: ChatPermissionRequest[];
     /** True while this turn is still streaming. */
     streaming?: boolean;
     /** Why the run ended, once it has. */

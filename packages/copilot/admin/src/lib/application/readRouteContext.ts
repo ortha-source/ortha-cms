@@ -50,14 +50,12 @@ export function readRouteContext(
 
     // `/content/:contentType/...` — the content library. Any other section
     // (media, insights, settings) has no entry-level context to offer.
-    const contentType =
-        segments[2] === 'content' ? segments[3] : undefined;
+    const contentType = segments[2] === 'content' ? segments[3] : undefined;
     const candidate = contentType ? segments[4] : undefined;
     const entryId =
         candidate && !NOT_AN_ENTRY_ID.has(candidate) ? candidate : undefined;
 
-    const locale =
-        new URLSearchParams(search).get(LOCALE_PARAM) ?? undefined;
+    const locale = new URLSearchParams(search).get(LOCALE_PARAM) ?? undefined;
 
     return {
         workspaceId,

@@ -27,8 +27,7 @@ export const PERMISSIONS = {
     TOKENS_READ: 'tokens:read',
     TOKENS_CREATE: 'tokens:create',
     TOKENS_DELETE: 'tokens:delete',
-    COPILOT_USE: 'copilot:use',
-    COPILOT_CONFIGURE: 'copilot:configure'
+    COPILOT_USE: 'copilot:use'
 } as const;
 
 /** A `resource:action` permission key drawn from {@link PERMISSIONS}. */

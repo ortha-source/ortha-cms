@@ -82,7 +82,7 @@ export function ContextChip({
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2">
+        <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
             {attached && (
                 <Badge variant="secondary" className="gap-1 pr-1 font-normal">
                     {attached.surface === 'entry' ? (

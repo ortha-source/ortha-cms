@@ -68,16 +68,21 @@ describe('buildSystemPrompt', () => {
             expect(build()).not.toContain('MAKING CHANGES');
         });
 
-        it('explains that proposing is not saving when write tools are offered', () => {
+        // Post-ADR-0009 there is no approval step, so the failure mode is a
+        // model hedging about a write that already landed.
+        it('says a write saves immediately when write tools are offered', () => {
             const prompt = build({ hasWriteTools: true });
 
             expect(prompt).toContain('MAKING CHANGES');
-            expect(prompt).toContain('DRAFTS a change');
+            expect(prompt).toContain('SAVES the change immediately');
+            expect(prompt).toContain('no approval step');
             expect(prompt).toContain('You cannot publish');
         });
 
-        // v3 said "any tool whose name starts with propose". Every propose tool
-        // is named for its owning plugin first, so the rule matched nothing.
+        // v3 and v4 both said "any tool whose name starts with propose". Every
+        // propose tool is named for its owning plugin first, so the rule
+        // matched nothing — and post-ADR-0009 the name argues against the rule
+        // as well, which is why it is overruled out loud.
         it('describes the propose tools by a rule that actually matches them', () => {
             const prompt = build({
                 toolNames: ['content_propose_update'],
@@ -86,6 +91,7 @@ describe('buildSystemPrompt', () => {
 
             expect(prompt).not.toContain('starts with "propose"');
             expect(prompt).toContain('content_propose_update');
+            expect(prompt).toContain('despite the name');
         });
     });
 

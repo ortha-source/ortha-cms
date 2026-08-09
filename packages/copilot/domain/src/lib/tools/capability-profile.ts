@@ -39,25 +39,10 @@ export interface CopilotActor {
     grantedPermissions: ReadonlySet<ToolPermissionKey>;
 }
 
-/**
- * The workspace's copilot policy — the opt-ins an admin makes per workspace
- * ([ADR-0005](../../../../../docs/adr/0005-copilot-authority-model.md) §6, §10).
- */
-export interface WorkspaceCopilotPolicy {
-    /**
-     * Tool names allowed to write **directly** instead of producing a
-     * proposal. Empty by default: a team opts a specific low-risk tool in, and
-     * never opts in wholesale — there is deliberately no `all` switch.
-     */
-    autoApplyTools?: readonly string[];
-}
-
 /** Why a declared tool is not on offer for this run. */
 export type WithheldReason =
     /** The caller lacks at least one of the tool's declared permissions. */
     | 'missing-permission'
-    /** An `apply` tool the workspace policy has not opted into. */
-    | 'apply-not-enabled'
     /** A later tool re-declared a name an earlier one already took. */
     | 'duplicate-name';
 
@@ -99,8 +84,6 @@ export interface ResolveCapabilityProfileInput<
     tools: readonly T[];
     /** The user the run acts as. */
     actor: CopilotActor;
-    /** The workspace's copilot policy, if any. */
-    policy?: WorkspaceCopilotPolicy;
 }
 
 /** The permissions `actor` is missing from `required`, in declaration order. */
@@ -118,13 +101,18 @@ function missingPermissions(
  * cannot be requested, argued into existence, or refused at token cost.
  * Execution re-checks the same permissions against a freshly resolved session.
  *
+ * **Permission is now the only gate**
+ * ([ADR-0009](../../../../../docs/adr/0009-copilot-applies-directly.md)). There
+ * was a second one — a per-workspace opt-in an `apply` tool had to appear in —
+ * and removing it is the whole of that ADR: what a run may do is what the
+ * caller's role may do, decided here and nowhere else.
+ *
  * Pure and total — no I/O, no clock — so "a viewer is offered no write tools"
  * is a unit test rather than a promise.
  */
 export function resolveCapabilityProfile<T extends AuthorizableTool>(
     input: ResolveCapabilityProfileInput<T>
 ): CapabilityProfile<T> {
-    const autoApply = new Set(input.policy?.autoApplyTools ?? []);
     const tools: T[] = [];
     const withheld: WithheldTool[] = [];
     const claimed = new Set<string>();
@@ -150,15 +138,10 @@ export function resolveCapabilityProfile<T extends AuthorizableTool>(
             continue;
         }
 
-        // Holding the permission is necessary but not sufficient for a direct
-        // write: `apply` additionally needs the workspace to have opted this
-        // specific tool in. `propose` needs no opt-in — its output is a
-        // reviewable change, not an effect.
-        if (tool.effect === 'apply' && !autoApply.has(tool.name)) {
-            withheld.push({ name: tool.name, reason: 'apply-not-enabled' });
-            continue;
-        }
-
+        // No second gate on `effect`. A write tool is offered on the strength
+        // of the permissions it declares, exactly like a read one — which is
+        // what "the copilot can do what your role can do" has to mean if it is
+        // to mean anything (ADR-0009).
         tools.push(tool);
     }
 

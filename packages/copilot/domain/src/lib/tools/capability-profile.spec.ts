@@ -82,40 +82,29 @@ describe('resolveCapabilityProfile', () => {
         expect(profile.tools.every((t) => t.effect === 'read')).toBe(true);
     });
 
-    it('withholds an apply tool the workspace has not opted into', () => {
+    // ADR-0009 removed the second gate. A write tool now stands or falls on the
+    // permissions it declares — the same rule a read tool has always had.
+    it('offers an apply tool on the strength of its permission alone', () => {
         const profile = resolveCapabilityProfile({
             tools: [APPLY],
             actor: actor('media:update')
         });
 
-        expect(profile.tools).toEqual([]);
-        expect(profile.withheld).toEqual([
-            { name: 'media.applyAltText', reason: 'apply-not-enabled' }
-        ]);
-    });
-
-    it('offers an apply tool the workspace opted in by name', () => {
-        const profile = resolveCapabilityProfile({
-            tools: [APPLY],
-            actor: actor('media:update'),
-            policy: { autoApplyTools: ['media.applyAltText'] }
-        });
-
         expect(profile.tools).toEqual([APPLY]);
+        expect(profile.withheld).toEqual([]);
     });
 
-    it('does not let an opt-in substitute for the permission itself', () => {
+    it('still withholds an apply tool whose permission the actor lacks', () => {
         const profile = resolveCapabilityProfile({
             tools: [APPLY],
-            actor: actor(),
-            policy: { autoApplyTools: ['media.applyAltText'] }
+            actor: actor()
         });
 
         expect(profile.tools).toEqual([]);
         expect(profile.withheld[0].reason).toBe('missing-permission');
     });
 
-    it('offers a propose tool with no opt-in — its output is reviewable', () => {
+    it('offers a propose tool on the same terms', () => {
         const profile = resolveCapabilityProfile({
             tools: [PROPOSE],
             actor: actor('content:update')

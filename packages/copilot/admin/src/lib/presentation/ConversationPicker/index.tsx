@@ -91,10 +91,7 @@ export function ConversationPicker({
                             onSelect={() => {
                                 open.mutate(conversation.id, {
                                     onSuccess: (detail) =>
-                                        onOpen(
-                                            conversation.id,
-                                            detail.messages
-                                        )
+                                        onOpen(conversation.id, detail.messages)
                                 });
                             }}
                         >
