@@ -3,7 +3,7 @@ import { defineMessages, useIntl, type IntlShape } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@ortha-cms/design-system';
 import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
-import { conversationsKey } from './useConversations';
+import { conversationsScopeKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideToolPermission } from './useDecideToolPermission';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
@@ -195,7 +195,7 @@ export function useCopilotChat(
                     // turn, and a brand-new thread doesn't exist in it at all
                     // until now.
                     void queryClient.invalidateQueries({
-                        queryKey: conversationsKey(workspaceId)
+                        queryKey: conversationsScopeKey(workspaceId)
                     });
                 }
             })();

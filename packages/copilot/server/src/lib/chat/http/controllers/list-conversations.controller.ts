@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import {
     CurrentUser,
@@ -12,6 +12,7 @@ import {
     ConversationRepository,
     type ConversationView
 } from '../../infrastructure/persistence/conversation.repository';
+import { ListConversationsQueryDto } from '../../application/dto/list-conversations-query.dto';
 
 /**
  * `GET /api/copilot/conversations` — the signed-in user's threads in the open
@@ -31,11 +32,16 @@ export class ListConversationsController {
     @Get('conversations')
     @ApiOperation({ summary: 'List the current user’s copilot conversations' })
     async list(
+        @Query() query: ListConversationsQueryDto,
         @CurrentUser() user: PublicUser,
         @CurrentWorkspace() workspaceId: string
     ): Promise<{ items: ConversationView[] }> {
         return {
-            items: await this.conversations.list(user.id, workspaceId)
+            items: await this.conversations.list(
+                user.id,
+                workspaceId,
+                query.archived ?? false
+            )
         };
     }
 }

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_705 test cases across 45 spec files._
+_721 test cases across 46 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -939,6 +939,47 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | offers the phase-1 read tools and searches real entries |
 | names the workspace’s granted types in the system prompt, without fields |
 | refuses a content type the workspace was not granted |
+
+<!-- source: apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts -->
+_<sub>apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts</sub>_
+
+## Copilot conversations (PATCH /api/copilot/conversations/:id)
+
+### renaming
+
+| Test case |
+| --- |
+| replaces the derived title |
+| trims the title, and rejects one that is blank once trimmed |
+| rejects a title past the limit |
+| does not reorder the list — a rename is not a use |
+
+### archiving
+
+| Test case |
+| --- |
+| moves the thread between two disjoint lists, reversibly |
+| keeps the transcript readable by id |
+| applies a rename and an archive in one request |
+
+### validation
+
+| Test case |
+| --- |
+| 400s an empty patch — it cannot mean anything |
+| 400s an unknown property |
+| 400s a non-uuid id, rather than treating it as a miss |
+| rejects `archived` as a bare string |
+
+### scoping
+
+| Test case |
+| --- |
+| 404s another user’s thread — the id is not probeable |
+| 404s a thread from another workspace |
+| 403s a role without copilot:use |
+| 401s an unauthenticated request |
+| 403s a cross-origin write — `OriginGuard` is on this route |
 
 <!-- source: apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_

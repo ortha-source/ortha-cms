@@ -218,6 +218,47 @@ sheet, opened from the top bar's **Chats** button. Both render it, which is why
 that component navigates and holds no chat state: which thread is open is a fact
 about the URL.
 
+### Renaming and archiving
+
+Each row carries a `⋯` menu — **Rename…** and **Archive** (or **Unarchive**) —
+revealed on hover *or focus*, and positioned over the title rather than in a
+column of its own: a permanent second column would truncate every title in an
+18rem rail to make room for a control most rows never need.
+
+**There is no Delete, and that is a product decision rather than a gap.** A
+thread's proposals are the receipts for changes actually made to your content, so
+destroying a conversation destroys the only record the user has of those edits.
+Archiving is reversible, keeps the transcript, and is the part people actually
+want. See the server package's AGENTS.md for what a hard delete would have to
+answer for.
+
+- **The archived list is a mode, not a route.** A footer link switches the rail
+  to it, and it appears only once something has been archived — a permanent
+  "Archived (0)" is a door to an empty room. It is local state rather than a URL
+  param on purpose: Back already moves between threads, and stepping through a
+  filter with it would fight that.
+- **Archiving the thread you are reading starts a new chat.** Otherwise you are
+  left looking at a conversation that is in no visible list.
+- **Invalidate `conversationsScopeKey`, never `conversationsKey`.** Every write
+  here moves a thread *between* the two lists, and `conversationsKey(id)`
+  defaults `archived` to `false`, so it is the exact key of the active list and
+  nothing else — invalidating with it refreshes the list you are looking at and
+  leaves the other stale. This was a real bug: archiving worked, and the
+  "Archived" link never appeared.
+- **Renaming is a dialog, and its focus return is hand-wired.** The dialog is
+  opened *from a menu item*, which unmounts with its menu — so Radix has nothing
+  to restore focus to and drops it on `<body>`. The row hands up a callback that
+  focuses its own menu button, and the dialog calls it from `onCloseAutoFocus`
+  with the default prevented. The callback lives in a **ref**, not in state:
+  closing clears the dialog's state in the same commit that unmounts it, so a
+  callback held in state is already gone when Radix asks for it. Both halves
+  were found by driving it, and neither is visible in a screenshot.
+- **Save is disabled while saving, never on a validation error.** A greyed-out
+  Save refuses without saying why, and on a field the user has not blurred there
+  is no message on screen either; submitting an invalid name is what surfaces
+  the reason. The field also carries no `maxLength`, so a pasted title too long
+  gets an explanation instead of a silent truncation.
+
 ### One bar, not two
 
 `AgentsTopBar` composes the design-system `TopBar` directly, the way

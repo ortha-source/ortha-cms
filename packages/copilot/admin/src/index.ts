@@ -33,9 +33,12 @@ export { useCopilotChat } from './lib/application/useCopilotChat';
 export type { CopilotChat } from './lib/application/useCopilotChat';
 export {
     useConversations,
-    conversationsKey
+    conversationsKey,
+    conversationsScopeKey
 } from './lib/application/useConversations';
 export type { CopilotConversation } from './lib/application/useConversations';
+export { useUpdateConversation } from './lib/application/useUpdateConversation';
+export type { ConversationPatch } from './lib/application/useUpdateConversation';
 export {
     useCopilotModels,
     copilotModelsKey,
