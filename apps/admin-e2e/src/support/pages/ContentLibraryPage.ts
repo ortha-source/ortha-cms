@@ -640,4 +640,22 @@ export class ContentLibraryPage extends BasePage {
             name: `Switch to the ${localeName} version`
         });
     }
+
+    /** The entry editor's Properties panel (the shell's right column). */
+    get propertiesPanel(): Locator {
+        return this.page.getByRole('complementary', { name: 'Properties' });
+    }
+
+    /**
+     * The publish-state badge in the Properties panel's **Details** block —
+     * "Not saved yet" / "Draft" / "Modified" / "Published". Anchored on the
+     * row's own `Status` term rather than the badge text, so it reads whatever
+     * the badge currently says instead of asserting a state into existence.
+     */
+    get entryDetailsStatus(): Locator {
+        return this.propertiesPanel
+            .locator('dl > div')
+            .filter({ has: this.page.getByText('Status', { exact: true }) })
+            .locator('dd');
+    }
 }
