@@ -7,6 +7,11 @@
  *     npm run release -- 1.2.0     # force a version instead of deriving one
  *     npm run release:publish      # publish only, to finish a partial release
  *
+ * `nx release` asks for confirmation before it publishes, and that prompt is
+ * deliberately left in place — publishing to a public registry cannot be
+ * undone, and a version number can never be reused. Pass `--yes` to skip it
+ * only for an unattended run.
+ *
  * Credentials come from `.env` at the workspace root (git-ignored), which
  * this script loads before handing off to `nx release`:
  *
@@ -65,7 +70,7 @@ const nxArgs = publishOnly
           ...passthrough.filter((a) => a !== '--dry-run'),
           ...(dryRun ? ['--dry-run'] : [])
       ]
-    : ['nx', 'release', ...passthrough, '--yes'];
+    : ['nx', 'release', ...passthrough];
 
 console.log(`\n▶ npx ${nxArgs.join(' ')}\n`);
 
