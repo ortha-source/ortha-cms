@@ -10,7 +10,6 @@ import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
 import {
     isPerLocaleField,
     relationLocaleSync,
-    RELATION_LOCALE_SYNC,
     type RelationLocaleSync
 } from '../extension/relation-locale-sync';
 
@@ -75,43 +74,6 @@ export interface SerializedContentType extends SerializedContentTypeSummary {
     fields: SerializedField[];
 }
 
-/**
- * Reject a **one-to-one** relation that would be copied verbatim onto every
- * locale sibling — `unique: true` plus {@link RELATION_LOCALE_SYNC.Shared}.
- *
- * The two are contradictory: a shared link writes the *same* `<field>_id` into
- * every row of the translation group, and the `UNIQUE` constraint that makes
- * the relation one-to-one permits exactly one row to hold that value. The
- * second locale is a constraint violation, not a design decision — so it fails
- * boot rather than the first save of a translated record.
- *
- * Both escapes are real modelling choices, and which one fits depends on the
- * content: `syncAcrossLocales: false` gives each locale its own target record
- * (right for SEO metadata, which is per-language anyway), while localizing the
- * target makes the relation *mirrored*, so each sibling points at that record's
- * own translation and the ids differ by construction.
- *
- * Lives here rather than in `assertFields` because it has to resolve the target
- * thunk, which is only safe once every type is registered.
- */
-function assertSyncableUnique(
-    type: AnyContentType,
-    fieldName: string,
-    spec: AnyFieldSpec
-): void {
-    if (!spec.relation?.unique) return;
-    if (relationLocaleSync(type, spec) !== RELATION_LOCALE_SYNC.Shared) return;
-    throw new Error(
-        `Relation "${type.name}.${fieldName}" is unique: true on a localized ` +
-            `type, but targets "${spec.relation.to().name}", which is not ` +
-            `localized — so the same id would be synced into every locale row ` +
-            `and collide on the UNIQUE constraint. Either set ` +
-            `syncAcrossLocales: false (each locale gets its own record), or ` +
-            `set i18n: true on "${spec.relation.to().name}" (each locale links ` +
-            `its own translation).`
-    );
-}
-
 export class ContentTypeRegistry {
     private readonly byName = new Map<string, AnyContentType>();
 
@@ -163,7 +125,6 @@ export class ContentTypeRegistry {
                         );
                     }
                 }
-                assertSyncableUnique(type, fieldName, spec);
             }
         }
     }

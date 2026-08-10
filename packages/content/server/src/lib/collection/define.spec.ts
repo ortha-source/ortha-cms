@@ -1,5 +1,6 @@
 import { collection, joinTableOf, single } from './define';
 import { field } from '../fields';
+import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 import type { AnyContentType } from '../types/content-type';
 
 /** A throwaway relation target — relation thunks aren't resolved by define(). */
@@ -421,5 +422,70 @@ describe('syncAcrossLocales', () => {
                 fields: { tag: field.relation({ to: () => tag }) }
             })
         ).not.toThrow();
+    });
+});
+
+describe('one-to-one across locales', () => {
+    const plainSeo = collection('plain_seo', { fields: { t: field.text() } });
+
+    /** The unique indexes drizzle emits for a built table, by name. */
+    const uniqueIndexNames = (type: AnyContentType) =>
+        getTableConfig(type.table as PgTable)
+            .indexes.filter((i) => i.config.unique)
+            .map((i) => i.config.name);
+
+    /** Column names of one named index, in order. */
+    const indexColumns = (type: AnyContentType, name: string) =>
+        getTableConfig(type.table as PgTable)
+            .indexes.find((i) => i.config.name === name)
+            ?.config.columns.map((c) => (c as { name: string }).name);
+
+    it('keeps a column-wide UNIQUE on a type with no locales', () => {
+        const page = collection('page', {
+            fields: { seo: field.relation({ to: () => plainSeo, unique: true }) }
+        });
+        const seo = getTableConfig(page.table as PgTable).columns.find(
+            (c) => c.name === 'seo_id'
+        );
+        expect(seo?.isUnique).toBe(true);
+        expect(uniqueIndexNames(page)).not.toContain('content_page_seo_locale_unique');
+    });
+
+    it('scopes the UNIQUE to the locale on a localized type', () => {
+        // A localized record is N rows, one per language. A column-wide UNIQUE
+        // would read "one *row* may point here" when the model means "one
+        // *record*" — so the second translation of a record that owns an SEO
+        // entry would be a constraint violation.
+        const post = collection('post', {
+            i18n: true,
+            fields: { seo: field.relation({ to: () => plainSeo, unique: true }) }
+        });
+        const seo = getTableConfig(post.table as PgTable).columns.find(
+            (c) => c.name === 'seo_id'
+        );
+        expect(seo?.isUnique).toBeFalsy();
+        expect(uniqueIndexNames(post)).toContain('content_post_seo_locale_unique');
+    });
+
+    it('leads that index with the FK, so inverse reads stay indexed', () => {
+        // Uniqueness of a pair is order-independent, but the leading column
+        // decides what else the index can serve — and the plain per-FK index is
+        // skipped for `unique` relations on the assumption one already exists.
+        const post = collection('post', {
+            i18n: true,
+            fields: { seo: field.relation({ to: () => plainSeo, unique: true }) }
+        });
+        expect(indexColumns(post, 'content_post_seo_locale_unique')).toEqual([
+            'seo_id',
+            'locale'
+        ]);
+    });
+
+    it('emits no locale-scoped index for a non-unique relation', () => {
+        const post = collection('post', {
+            i18n: true,
+            fields: { seo: field.relation({ to: () => plainSeo }) }
+        });
+        expect(uniqueIndexNames(post)).not.toContain('content_post_seo_locale_unique');
     });
 });

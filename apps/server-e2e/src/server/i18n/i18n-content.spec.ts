@@ -848,27 +848,66 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const de = (await createTranslation(agent, en, 'de')).body as {
                 id: string;
             };
-            const seo = (
-                await agent
-                    .post('/api/content/test_seo')
-                    .send({ values: { metaTitle: 'EN meta' } })
-                    .expect(201)
-            ).body as { id: string };
+            const pinned = await createTag(agent, 'Pinned');
 
             await agent
                 .patch(`/api/content/test_article/${en.id}`)
-                .send({ values: { ...VALID, seo: seo.id } })
+                .send({ values: { ...VALID, pinnedTag: pinned.id } })
                 .expect(200);
 
-            // `test_article.seo` sets syncAcrossLocales: false — required,
-            // since its FK is UNIQUE and a shared id would collide on the
-            // second locale.
+            // `pinnedTag` sets syncAcrossLocales: false, so the German sibling
+            // keeps its own — the same target type as `tags`, which DOES sync,
+            // so the flag is the only thing telling them apart.
             const deAfter = (
                 await agent
                     .get(`/api/content/test_article/${de.id}`)
                     .expect(200)
             ).body as { values: Record<string, unknown> };
-            expect(deAfter.values.seo ?? null).toBeNull();
+            expect(deAfter.values.pinnedTag ?? null).toBeNull();
+        });
+
+        it('lets one record share a one-to-one target across its locales', async () => {
+            const agent = await login();
+            const seo = (
+                await agent
+                    .post('/api/content/test_seo')
+                    .send({ values: { metaTitle: 'Shared meta' } })
+                    .expect(201)
+            ).body as { id: string };
+            const en = await createArticle(agent, {
+                values: { ...VALID, seo: seo.id }
+            });
+
+            // The whole point of the per-locale UNIQUE: before it, creating the
+            // second language of a record that owned an SEO entry was a flat
+            // constraint violation, because every locale row carried the same
+            // `seo_id` against a column-wide UNIQUE.
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+                values: Record<string, unknown>;
+            };
+            expect(de.values.seo).toBe(seo.id);
+        });
+
+        it('refuses a one-to-one target already claimed in the same locale', async () => {
+            const agent = await login();
+            const seo = (
+                await agent
+                    .post('/api/content/test_seo')
+                    .send({ values: { metaTitle: 'Taken' } })
+                    .expect(201)
+            ).body as { id: string };
+            await createArticle(agent, { values: { ...VALID, seo: seo.id } });
+
+            // A *different* record, same locale — still one-to-one, and the
+            // caller is told which field, not handed a raw constraint name.
+            const res = await agent
+                .post('/api/content/test_article')
+                .send({ values: { ...VALID, seo: seo.id } })
+                .expect(422);
+            expect(res.body.issues).toEqual([
+                expect.objectContaining({ field: 'seo' })
+            ]);
         });
 
         it('leaves siblings — and their history — alone when links are resent unchanged', async () => {
@@ -956,11 +995,17 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(byName('contributors')?.relation?.localeSync).toBe(
                 'mirrored'
             );
-            expect(byName('seo')?.relation?.localeSync).toBe('none');
+            // `seo` is one-to-one and still shared: on a localized type the
+            // UNIQUE is scoped to the locale, so the record's language rows may
+            // all point at it.
+            expect(byName('seo')?.relation?.localeSync).toBe('shared');
+            expect(byName('pinnedTag')?.relation?.localeSync).toBe('none');
             // A shared relation holds the same id in every locale, so it is not
-            // a per-locale value; a mirrored one is.
+            // a per-locale value; a mirrored or unsynced one is.
             expect(byName('tags')?.localized).toBeUndefined();
+            expect(byName('seo')?.localized).toBeUndefined();
             expect(byName('contributors')?.localized).toBe(true);
+            expect(byName('pinnedTag')?.localized).toBe(true);
         });
     });
 

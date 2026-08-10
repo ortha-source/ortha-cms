@@ -57,7 +57,8 @@ function idColumnOf(table: PgTable): AnyPgColumn {
 function columnFor(
     fieldName: string,
     spec: AnyFieldSpec,
-    enforceRequired: boolean
+    enforceRequired: boolean,
+    i18n: boolean
 ): PgColumnBuilderBase | null {
     const col = snakeCase(fieldName);
     let builder;
@@ -115,7 +116,15 @@ function columnFor(
             // One-to-one: at most one owner may point at a given target.
             // Nullable-unique — Postgres allows many NULLs, so owners with no
             // relation don't collide.
-            if (spec.relation!.unique) builder = builder.unique();
+            //
+            // On an **i18n** type the constraint is per-locale instead, and is
+            // emitted as a composite index below rather than here: a localized
+            // record is N rows, one per language, so a column-wide UNIQUE would
+            // read "one *row* may point at this target" when what the model
+            // means is "one *record* may". The English and German rows of one
+            // article legitimately share an SEO record; two different articles
+            // must not.
+            if (spec.relation!.unique && !i18n) builder = builder.unique();
             break;
         }
     }
@@ -203,7 +212,7 @@ export function buildTables(
     // always live, so a required field is NOT NULL.
     const enforceRequired = !meta.publishable;
     for (const [fieldName, spec] of Object.entries(fields)) {
-        const column = columnFor(fieldName, spec, enforceRequired);
+        const column = columnFor(fieldName, spec, enforceRequired, !!meta.i18n);
         if (column) columns[fieldName] = column;
     }
 
@@ -257,6 +266,45 @@ export function buildTables(
                     ? groupLocale.where(isNull(cols['deletedAt']))
                     : groupLocale
             );
+
+            // One-to-one, **scoped to the locale** — the i18n counterpart of the
+            // column-level UNIQUE `columnFor` emits on a plain type.
+            //
+            // A localized record is one row per language, so "at most one owner
+            // points at this target" has to be counted in records, not rows.
+            // `(locale, <field>_id)` says exactly that: within any one language
+            // a target is claimed once, while the same target may be shared by
+            // the locale rows of the record that owns it — which is what a
+            // relation synced across the group *is*. Nullable-unique survives,
+            // since Postgres treats NULLs as distinct in a composite index too.
+            for (const [fieldName, spec] of Object.entries(fields)) {
+                if (
+                    spec.type !== CONTENT_FIELD_TYPE.Relation ||
+                    !spec.relation?.unique ||
+                    spec.relation.many ||
+                    spec.relation.inverse
+                )
+                    continue;
+                const fk = cols[fieldName];
+                if (!fk) continue;
+                // The FK leads deliberately. Uniqueness of a pair is
+                // order-independent, but the leading column decides what the
+                // index can also *serve* — and the inverse side of this
+                // relation reads `inArray(<fk>, sourceIds)` for a whole page on
+                // every records-table render. Leading with `locale` would leave
+                // that a sequential scan, since the skipped plain FK index just
+                // below assumes `unique` already provides one.
+                const localeUnique = uniqueIndex(
+                    `${tableName}_${snakeCase(fieldName)}_locale_unique`
+                ).on(fk, cols['locale']);
+                // Partial on paranoid types for the same reason as the pair
+                // above: a trashed row must not hold a target hostage.
+                indexes.push(
+                    meta.paranoid
+                        ? localeUnique.where(isNull(cols['deletedAt']))
+                        : localeUnique
+                );
+            }
         }
         return indexes;
     });

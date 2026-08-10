@@ -128,17 +128,13 @@ export const article = collection('article', {
             required: true,
             onDelete: 'restrict'
         }),
-        // one-to-one: UNIQUE constraint on the FK column — which is exactly why
-        // this one must NOT sync. A shared FK writes the same `seo_id` into
-        // every locale row and the UNIQUE constraint admits one, so the second
-        // translation would be a constraint violation (the registry rejects the
-        // combination at boot). Per-locale is the right model anyway: a meta
-        // title and description are written per language.
+        // one-to-one. On a localized type the UNIQUE is per **locale**
+        // (`(seo_id, locale)`), so the record's language rows may all point at
+        // this one SEO record while no other article can claim it.
         seo: field.relation({
             to: (): AnyContentType => seo_meta,
             unique: true,
             onDelete: 'set null',
-            syncAcrossLocales: false,
             admin: { label: 'SEO metadata' }
         }),
         // many-to-one, optional → ON DELETE SET NULL. Non-i18n target ⇒ shared.

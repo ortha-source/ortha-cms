@@ -39,7 +39,9 @@ export const post = collection('post', {
   nulled on delete. `unique: true` makes a single relation **one-to-one** — a
   `UNIQUE` constraint on the `<field>_id` FK (nullable-unique, so unrelated rows
   don't collide); combining it with `many: true` is rejected (a join table has
-  no column to constrain).
+  no column to constrain). On an **`i18n`** type the constraint is scoped to the
+  locale instead — see _Relations across locales_ below, since a localized
+  record is one row per language and one-to-one has to be counted in records.
 
 ### Two-way relations (`relationInverse`)
 
@@ -162,14 +164,34 @@ per-locale *and* propagated, the id differing per row precisely so each row
 points at the right translation. `relation.localeSync` is serialized on the wire
 (on localized types only) so the editor can say what a save will reach.
 
-**One combination fails boot**: `unique: true` with `shared`. The `UNIQUE`
-constraint on the `<field>_id` FK admits one row holding a value, and a shared
-link writes the same value into every sibling — so the second translation is a
-constraint violation. The registry rejects it (`assertSyncableUnique`) rather
-than letting it fire on the first save of a translated record. Both escapes are
-real modelling choices: `syncAcrossLocales: false` (each locale gets its own
-record — right for SEO metadata) or localizing the target (each locale links its
-own translation, so the ids differ by construction).
+**`unique: true` means one-to-one per _record_, and on a localized type a record
+is N rows.** So the constraint is scoped to the locale there: `columnFor` omits
+the column-wide `UNIQUE` on an `i18n` type and `buildTables` emits a partial
+`uniqueIndex(<field>_id, locale)` instead (partial on paranoid types, like the
+`(locale_group_id, locale)` pair, so a trashed row can't hold a target hostage).
+The English and German rows of one article may therefore share one SEO record —
+which is exactly what a **shared** relation does — while another article still
+cannot claim it. A column-wide `UNIQUE` would have read "one _row_ may point
+here" and made the second translation of any such record a flat constraint
+violation.
+
+The FK **leads** that index (`(<field>_id, locale)`, not the reverse).
+Uniqueness of a pair is order-independent, but the leading column decides what
+else the index serves — and the plain per-FK index is skipped for `unique`
+relations on the assumption one already exists, which the inverse side's
+`inArray(<fk>, sourceIds)` page read depends on.
+
+Enforcement is in **both** places, deliberately. The index is the guarantee (it
+is the only thing that holds under concurrency);
+`EntryWriterService.assertUniqueRelations` runs first purely for the message,
+turning what would be a 500 with a constraint name into the same
+`{ field, message }` 422 as every other entry error. It compares translation
+**groups**, not row ids — excluding only the row being written would make a
+record's own second locale look like a rival claimant. A race that slips between
+the two is caught by `uniqueGuarded`, which reads the violated constraint name
+(`violatedConstraint`, from `utils-server`) to tell the two indexes on a
+localized table apart: reporting a taken one-to-one as "this locale is already
+occupied" would send the caller to fix the wrong thing.
 
 ### The entries extension port (`CONTENT_ENTRY_EXTENSION`)
 

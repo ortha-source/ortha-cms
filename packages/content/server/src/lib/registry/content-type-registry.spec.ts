@@ -221,11 +221,14 @@ describe('locale sync', () => {
             .serialize(type)
             ?.fields.find((entry) => entry.name === name);
 
-    describe('the unique + shared collision', () => {
-        it('rejects a unique relation that would be copied into every locale', () => {
-            // The same `seo_id` in every sibling row against a UNIQUE column is
-            // a constraint violation waiting for the second translation, so it
-            // fails boot rather than the first save.
+    describe('one-to-one on a localized type', () => {
+        // The collision this used to reject at boot is now expressed by the
+        // schema instead: `columnFor` omits the column-wide UNIQUE on an i18n
+        // type and `buildTables` emits `(<field>_id, locale)` in its place, so
+        // the language rows of one record may share a target while another
+        // record cannot claim it. There is nothing left to reject here —
+        // `table-builder.spec` owns the index shape.
+        it('accepts a unique relation to a non-localized target', () => {
             const story = collection('story', {
                 i18n: true,
                 fields: {
@@ -234,28 +237,10 @@ describe('locale sync', () => {
             });
             expect(
                 () => new ContentTypeRegistry([plainTag, story])
-            ).toThrow(/would be synced into every locale row/);
-        });
-
-        it('accepts it when the relation opts out of syncing', () => {
-            const story = collection('story', {
-                i18n: true,
-                fields: {
-                    seo: field.relation({
-                        to: () => plainTag,
-                        unique: true,
-                        syncAcrossLocales: false
-                    })
-                }
-            });
-            expect(
-                () => new ContentTypeRegistry([plainTag, story])
             ).not.toThrow();
         });
 
-        it('accepts it when the target is localized, so the ids differ anyway', () => {
-            // Mirrored: each locale points at that record's own translation, so
-            // no two siblings hold the same id and UNIQUE is satisfied.
+        it('accepts a unique relation to a localized target', () => {
             const story = collection('story', {
                 i18n: true,
                 fields: {
@@ -264,17 +249,6 @@ describe('locale sync', () => {
             });
             expect(
                 () => new ContentTypeRegistry([localTag, story])
-            ).not.toThrow();
-        });
-
-        it('leaves a unique relation on a non-localized type alone', () => {
-            const story = collection('story', {
-                fields: {
-                    seo: field.relation({ to: () => plainTag, unique: true })
-                }
-            });
-            expect(
-                () => new ContentTypeRegistry([plainTag, story])
             ).not.toThrow();
         });
     });

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_716 test cases across 45 spec files._
+_718 test cases across 45 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1119,6 +1119,8 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | mirrors a localized single relation into each sibling locale |
 | drops a mirrored link whose target is untranslated, and still saves |
 | keeps an unsynced relation independent per locale |
+| lets one record share a one-to-one target across its locales |
+| refuses a one-to-one target already claimed in the same locale |
 | leaves siblings — and their history — alone when links are resent unchanged |
 | versions a sibling and moves it to Modified when only its links change |
 | reports the sync mode on the schema so the editor can explain itself |

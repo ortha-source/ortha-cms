@@ -1,0 +1,3 @@
+ALTER TABLE "content_test_article" ADD COLUMN "pinned_tag_id" uuid;--> statement-breakpoint
+ALTER TABLE "content_test_article" ADD CONSTRAINT "content_test_article_pinned_tag_id_content_test_tag_id_fk" FOREIGN KEY ("pinned_tag_id") REFERENCES "public"."content_test_tag"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "content_test_article_pinned_tag_id_idx" ON "content_test_article" USING btree ("pinned_tag_id");
