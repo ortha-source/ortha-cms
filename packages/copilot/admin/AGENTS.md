@@ -735,10 +735,25 @@ are the ones that come back: New chat not bouncing into the thread you left, the
 model choice surviving a trip through the CMS, the transcript's block order both
 live and reopened, a run outliving the page as a dock pill and badging the tab,
 the archive link appearing at all, the rename dialog's focus return, and an axe
-scan of every state. **The docked panel is still uncovered** — the page and the
-panel share their components, so most of the risk is now under test, but the
-window's own chrome (tiling, the cap, drag persistence, Escape) is not. That
-remainder is tracked in `docs/design/copilot.md` §8.
+scan of every state.
+
+**The docked panel is covered too** (`dock.spec.ts`), and deliberately does not
+re-assert the chat: those components are literally shared with the page. What it
+covers is the window — the dock as the only entry point, `⌘J`, three tiled
+windows and the cap that minimizes rather than refuses, a pill toggling with
+`aria-pressed`, Escape collapsing rather than closing, close handing focus back
+to the dock, the `— finished` marker and the tab badge, drag persistence per
+**slot**, Expand as the way out of a bad drag, arrow-key moves, and the model
+choice surviving a collapse.
+
+**One known gap, and it is a defect rather than missing coverage.** The
+"reopening a thread focuses the window already on it" guard lives on the
+sessions reducer's `open` action, which is the path the Agents rail takes. The
+panel's own **history dropdown** does not go through it — it calls `chat.load()`
+and reports the id afterwards as `meta`, which has no such check — so two windows
+_can_ end up on one `conversationId`, holding two transcripts that immediately
+disagree. Fixing it means routing the picker through a session-level "open this
+thread" instead of loading straight into the chat.
 
 ## Commands
 
