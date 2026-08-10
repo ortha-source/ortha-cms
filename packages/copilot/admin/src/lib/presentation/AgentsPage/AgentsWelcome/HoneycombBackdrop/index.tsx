@@ -61,10 +61,12 @@ function hexagon(cx: number, cy: number, side: number): string {
  *
  * Three things keep it from becoming noise:
  *
- * - **It is drawn in the neutral ink at very low alpha**, so it tints rather
- *   than draws. Not the brand orange: a full-panel lattice is far more surface
- *   than an accent is meant to cover, and it made the empty state read as a
- *   different product from the rest of the admin.
+ * - **It is drawn in `--color-border`**, the same hairline grey as every divider
+ *   and card edge in the admin, so it tints rather than draws. Not the brand
+ *   orange: a full-panel lattice is far more surface than an accent is meant to
+ *   cover, and it made the empty state read as a different product from the
+ *   rest of the admin. Not the muted ink either — at this size that still read
+ *   as a drawn grid rather than as ground.
  * - **A radial mask fades it out before the content starts.** The lattice haloes
  *   the mark and the greeting and has dissolved by the time the suggestion cards
  *   begin — the cards sit on clean ground, not on a grid.
@@ -85,7 +87,7 @@ export function HoneycombBackdrop() {
     return (
         <svg
             aria-hidden
-            className="text-muted-foreground/30 pointer-events-none absolute inset-0 size-full"
+            className="text-border pointer-events-none absolute inset-0 size-full"
         >
             <defs>
                 <pattern

@@ -277,8 +277,8 @@ answer for.
 
 ### The empty state has a honeycomb behind it
 
-`HoneycombBackdrop` — an SVG lattice of large hexagons in neutral grey
-(`text-muted-foreground/30`) at very low alpha, masked by a radial fade centred
+`HoneycombBackdrop` — an SVG lattice of large hexagons in `text-border`, the
+same hairline grey as every divider in the admin, masked by a radial fade centred
 on the mark. **Not the brand orange**, which is what it was first: a lattice
 covering the whole panel plus an orange mark and an orange card hover is far
 more surface than a single accent is meant to carry, and the empty state read as
