@@ -14,6 +14,26 @@ const UNIQUE_VIOLATION = '23505';
  * errors differently across versions.
  */
 export function isUniqueViolation(error: unknown): boolean {
+    return violatedConstraint(error) !== undefined;
+}
+
+/**
+ * The **name of the index/constraint** a unique violation (`23505`) tripped, or
+ * `undefined` when the error is not one.
+ *
+ * A table can carry several unique indexes, and "which one" is the difference
+ * between two entirely different messages to the caller — a localized content
+ * table has both a `(locale_group_id, locale)` pair and a per-locale one-to-one
+ * relation index, and reporting either as the other tells the user to fix
+ * something that is not wrong. Postgres names the offender on `constraint`;
+ * the same defensive `cause` walk as {@link isUniqueViolation} finds it through
+ * whatever the driver/ORM wrapped it in.
+ *
+ * Returns `''` for a violation whose constraint the driver did not name, so a
+ * caller can still distinguish "a unique violation, unattributed" from "not a
+ * unique violation" without a second call.
+ */
+export function violatedConstraint(error: unknown): string | undefined {
     let current: unknown = error;
     for (let depth = 0; current && depth < 5; depth += 1) {
         if (
@@ -21,12 +41,13 @@ export function isUniqueViolation(error: unknown): boolean {
             'code' in current &&
             (current as { code?: unknown }).code === UNIQUE_VIOLATION
         ) {
-            return true;
+            const name = (current as { constraint?: unknown }).constraint;
+            return typeof name === 'string' ? name : '';
         }
         current =
             typeof current === 'object' && 'cause' in current
                 ? (current as { cause?: unknown }).cause
                 : undefined;
     }
-    return false;
+    return undefined;
 }

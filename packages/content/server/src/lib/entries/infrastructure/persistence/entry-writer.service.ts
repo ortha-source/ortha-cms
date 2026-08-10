@@ -10,6 +10,7 @@ import {
 import {
     and,
     eq,
+    getTableName,
     inArray,
     isNotNull,
     isNull,
@@ -19,7 +20,7 @@ import {
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { lockWorkspaceShared } from '@ortha-cms/workspaces-server';
-import { isUniqueViolation } from '@ortha-cms/utils-server';
+import { violatedConstraint } from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
@@ -42,6 +43,7 @@ import type {
     RelationFieldView
 } from '../../types/entry-list-view';
 import type { BulkActionResult } from '../../types/bulk-publish';
+import { snakeCase } from '../../../collection/table-builder';
 import { coerceValues, toColumns, toRecord } from './entry-row';
 import {
     assertSameLocale,
@@ -198,17 +200,23 @@ export class EntryWriterService {
         type: AnyContentType,
         id: string,
         workspaceId: string
-    ): Promise<string | undefined> {
-        if (!type.i18n) return undefined;
+    ): Promise<{ locale?: string; localeGroupId?: string }> {
+        if (!type.i18n) return {};
         // `PgColumn`, not the looser `AnyColumn` the predicate helpers use —
         // drizzle's select builder accepts only the former.
         const cols = type.table as unknown as Record<string, PgColumn>;
         const [row] = (await this.db
-            .select({ locale: cols['locale'] })
+            .select({
+                locale: cols['locale'],
+                // Read alongside the locale rather than in a second probe: the
+                // one-to-one check needs the row's *record* identity, since the
+                // locale siblings of one record legitimately share a target.
+                localeGroupId: cols['localeGroupId']
+            })
             .from(type.table)
             .where(this.liveWhere(type, id, workspaceId))
-            .limit(1)) as { locale: string }[];
-        return row?.locale;
+            .limit(1)) as { locale: string; localeGroupId: string }[];
+        return { locale: row?.locale, localeGroupId: row?.localeGroupId };
     }
 
     /**
@@ -335,6 +343,14 @@ export class EntryWriterService {
         coerced = coerceValues(type, folded.values);
         relations = folded.relations;
         await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
+        await this.assertUniqueRelations(type, coerced, workspaceId, rowLocale, {
+            id: '',
+            // The group the new row joins, when it joins one. Absent means a
+            // fresh group, so every existing claimant is a different record.
+            localeGroupId: extensionColumns['localeGroupId'] as
+                | string
+                | undefined
+        });
         await this.assertMediaTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
         // One transaction: take the workspace's shared content lock (coordinates
@@ -393,7 +409,8 @@ export class EntryWriterService {
                         type,
                         inserted as Row,
                         coerced,
-                        workspaceId
+                        workspaceId,
+                        { created: true }
                     );
                     // Snapshot the just-created document as its first revision,
                     // inside this same transaction.
@@ -561,7 +578,8 @@ export class EntryWriterService {
         // The row's own locale is what a relation link must match. Read up front
         // (one indexed lookup, and only on localized types) so the pre-transaction
         // target checks can apply the same rule the in-transaction link writes do.
-        const rowLocale = await this.localeOf(type, id, workspaceId);
+        const { locale: rowLocale, localeGroupId: rowGroup } =
+            await this.localeOf(type, id, workspaceId);
         const folded = await this.foldSingleRelationSets(
             type,
             values,
@@ -572,6 +590,13 @@ export class EntryWriterService {
         coerced = coerceValues(type, folded.values);
         relations = folded.relations;
         await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
+        await this.assertUniqueRelations(
+            type,
+            coerced,
+            workspaceId,
+            rowLocale,
+            { id, localeGroupId: rowGroup }
+        );
         await this.assertMediaTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
@@ -644,7 +669,8 @@ export class EntryWriterService {
                 type,
                 updated as Row,
                 coerced,
-                workspaceId
+                workspaceId,
+                { created: false }
             );
             // Snapshot the updated document as a new draft revision, inside this
             // same transaction — unless the caller is re-applying a version that
@@ -1047,12 +1073,42 @@ export class EntryWriterService {
         try {
             return await write();
         } catch (error) {
-            if (type.i18n && isUniqueViolation(error)) {
-                throw new ConflictException(
-                    `An entry already occupies this locale in its translation group on "${type.name}".`
+            const constraint = violatedConstraint(error);
+            if (constraint === undefined || !type.i18n) throw error;
+            // A localized table carries more than one unique index, so the
+            // message has to follow the constraint that actually tripped.
+            // `<table>_<field>_locale_unique` is a one-to-one relation already
+            // claimed in this locale — a 422 about that field, not a 409 about
+            // the locale, which would send the user to fix the wrong thing.
+            // `assertUniqueRelations` normally catches this first; reaching here
+            // means a concurrent writer took the target in between, and the
+            // constraint is what settles the race.
+            if (constraint.endsWith('_locale_unique')) {
+                // Map the index name back to the field by re-deriving each
+                // field's own index name, rather than un-snake-casing the
+                // capture: `snakeCase` is not injective, so the reverse guess
+                // could name a field that doesn't exist.
+                const field = Object.keys(type.fields).find(
+                    (name) =>
+                        constraint ===
+                        `${getTableName(type.table)}_${snakeCase(name)}_locale_unique`
                 );
+                if (field) {
+                    throw new UnprocessableEntityException({
+                        message: 'Entry validation failed',
+                        issues: [
+                            {
+                                field,
+                                message:
+                                    'is already linked to another entry in this locale'
+                            }
+                        ]
+                    });
+                }
             }
-            throw error;
+            throw new ConflictException(
+                `An entry already occupies this locale in its translation group on "${type.name}".`
+            );
         }
     }
 
@@ -1146,6 +1202,85 @@ export class EntryWriterService {
      * An inverse-of-single (one-to-many) field owns no writable link from this
      * side, so it's skipped.
      */
+    /**
+     * Reject a `unique: true` single relation whose target is already claimed
+     * — by a **different record**, in the locale being written.
+     *
+     * The database settles this too (a column-wide UNIQUE on a plain type, a
+     * per-locale `(<field>_id, locale)` index on a localized one), and it has to
+     * stay there: it is the only thing that holds under concurrency. This check
+     * exists for the message, not the guarantee. A raw 23505 surfaces as a 500
+     * with a constraint name in it; the caller needs to know *which field* is
+     * taken, in the same `{ field, message }` shape as every other entry
+     * validation error.
+     *
+     * "Different record" is the whole subtlety on a localized type. The English
+     * and German rows of one article are two rows and one record, and a relation
+     * synced across the group deliberately puts the same id in both — so this
+     * compares translation **groups**, not row ids. Excluding only `entryId`
+     * would make the second locale of a record look like a rival claimant to the
+     * target the record already owns.
+     */
+    private async assertUniqueRelations(
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        workspaceId: string,
+        locale: string | undefined,
+        current?: { id: string; localeGroupId?: string }
+    ): Promise<void> {
+        const unique = Object.entries(type.fields).filter(
+            ([, spec]) =>
+                spec.type === CONTENT_FIELD_TYPE.Relation &&
+                spec.relation?.unique &&
+                !spec.relation.many &&
+                !spec.relation.inverse
+        );
+        if (!unique.length) return;
+
+        const cols = this.columns(type);
+        const issues: ValidationIssue[] = [];
+        for (const [field] of unique) {
+            const target = values[field];
+            if (typeof target !== 'string' || !UUID_RE.test(target)) continue;
+            const rows = (await this.db
+                .select()
+                .from(type.table)
+                .where(
+                    and(
+                        eq(cols[field], target),
+                        eq(cols['workspaceId'], workspaceId),
+                        // Scoped to the locale being written on an i18n type,
+                        // mirroring the index: another language's row holding
+                        // this target is the same record's sibling, not a rival.
+                        type.i18n && locale
+                            ? eq(cols['locale'], locale)
+                            : undefined,
+                        type.paranoid ? isNull(cols['deletedAt']) : undefined
+                    )
+                )
+                .limit(2)) as Row[];
+            const claimedByOther = rows.some((row) =>
+                type.i18n && current?.localeGroupId
+                    ? row['localeGroupId'] !== current.localeGroupId
+                    : row['id'] !== current?.id
+            );
+            if (claimedByOther) {
+                issues.push({
+                    field,
+                    message: type.i18n
+                        ? 'is already linked to another entry in this locale'
+                        : 'is already linked to another entry'
+                });
+            }
+        }
+        if (issues.length) {
+            throw new UnprocessableEntityException({
+                message: 'Entry validation failed',
+                issues
+            });
+        }
+    }
+
     private async assertRelationTargets(
         type: AnyContentType,
         values: Record<string, unknown>,

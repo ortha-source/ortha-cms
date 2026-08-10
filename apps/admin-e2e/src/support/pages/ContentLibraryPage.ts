@@ -364,9 +364,13 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('heading', { name: title, exact: true });
     }
 
-    /** The "Localized relation" mark on a relation section header. */
-    get localizedRelationMark(): Locator {
-        return this.page.getByRole('button', { name: 'Localized relation' });
+    /**
+     * The locale-sync mark on a relation section header. Its accessible name is
+     * the mode — "Shared across locales" / "Follows translations" / "This
+     * locale only" — so the name is also the assertion.
+     */
+    relationSyncMark(mode: string): Locator {
+        return this.page.getByRole('button', { name: mode });
     }
 
     /** The open tooltip bubble, wherever it is portalled. */

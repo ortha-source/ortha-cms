@@ -122,9 +122,26 @@ export interface RelationSpec {
      */
     unique: boolean;
     /**
+     * Whether an edit in one locale propagates this link to the record's other
+     * locale rows. Inert unless the **owner** is `i18n` (a type with no locale
+     * siblings has nothing to propagate to) and on an inverse field (which owns
+     * no storage of its own — it reuses the owning side's).
+     *
+     * `true` (the default) says the link belongs to the **record**, not to the
+     * language, which is what most relations mean: tagging the English article
+     * tags the German one too. *How* that is stored depends on the target — see
+     * `relationLocaleSync` in `extension/relation-locale-sync.ts`, which is the
+     * one place the rule lives.
+     *
+     * `false` gives each locale its own independent links. `localized: true` on
+     * a relation field is an alias for it; setting both in contradiction is
+     * rejected at define time.
+     */
+    syncAcrossLocales: boolean;
+    /**
      * Present only on an **inverse** field: it owns no column/table and reads the
      * link from {@link to}'s `field` (with source/target swapped). `to` is the
-     * owning type; `onDelete`/`unique` are inert.
+     * owning type; `onDelete`/`unique`/`syncAcrossLocales` are inert.
      */
     inverse?: RelationInverseSpec;
 }
@@ -225,6 +242,13 @@ export interface RelationFieldOptions extends BaseFieldOptions {
      * to false. Invalid with `many: true` (rejected at define time).
      */
     unique?: boolean;
+    /**
+     * Propagate this link to the record's other locale rows when it is edited
+     * in one of them. Defaults to `true` (to `false` when `localized: true`).
+     * Meaningful only on an `i18n` type — rejected at define time otherwise.
+     * @see RelationSpec.syncAcrossLocales
+     */
+    syncAcrossLocales?: boolean;
 }
 
 /**

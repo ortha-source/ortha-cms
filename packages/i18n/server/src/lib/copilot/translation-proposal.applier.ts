@@ -5,7 +5,7 @@ import {
     EntryWriterService,
     InjectContentRegistry,
     WorkspaceGrantsQuery,
-    isPerLocaleRelation,
+    isPerLocaleField,
     toRecord,
     type AnyContentType,
     type ContentTypeRegistry
@@ -135,11 +135,14 @@ export class TranslationProposalApplier implements ProposalApplier {
      * be a per-locale field silently seeded from another language:
      *
      * - **Localized fields** are what the translation supplies.
-     * - **Many and inverse relations** are per-locale in v1; `toRecord` already
-     *   drops them, since they are join-backed rather than column-backed.
-     * - **A single relation to an i18n target** is per-locale too
-     *   (`isPerLocaleRelation`) — copying the source's would point the German
-     *   row at an English one, which the writer rejects as a cross-locale link.
+     * - **Many and inverse relations** are join-backed rather than
+     *   column-backed, so `toRecord` already drops them; the extension's own
+     *   sync is what carries them onto the new sibling.
+     * - **Any relation whose stored id differs per locale** — mirrored or
+     *   unsynced (`isPerLocaleField`). Copying the source's would point the
+     *   German row at an English one, which the writer rejects as a
+     *   cross-locale link; for a mirrored relation the extension resolves the
+     *   right per-locale id itself, after the insert.
      */
     private async sharedValues(
         type: AnyContentType,
@@ -167,7 +170,7 @@ export class TranslationProposalApplier implements ProposalApplier {
         const source = toRecord(type, row as Record<string, unknown>).values;
         const shared: Record<string, unknown> = {};
         for (const [name, spec] of Object.entries(type.fields)) {
-            if (spec.localized || isPerLocaleRelation(type, spec)) continue;
+            if (isPerLocaleField(type, spec)) continue;
             if (!(name in source)) continue;
             shared[name] = source[name];
         }

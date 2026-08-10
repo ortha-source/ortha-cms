@@ -155,7 +155,13 @@ function relation<const O extends RelationFieldOptions>(
             many: options.many ?? false,
             onDelete:
                 options.onDelete ?? (options.required ? 'cascade' : 'set null'),
-            unique: options.unique ?? false
+            unique: options.unique ?? false,
+            // `localized: true` on a relation means "each locale keeps its own
+            // links", which is exactly `syncAcrossLocales: false` — so it sets
+            // the default rather than being a second, separately-honoured flag.
+            // Declaring both in contradiction is rejected at define time.
+            syncAcrossLocales:
+                options.syncAcrossLocales ?? !(options.localized ?? false)
         }
     };
 }
@@ -180,6 +186,9 @@ function relationInverse<const O extends RelationInverseFieldOptions>(
             many: options.many ?? true,
             onDelete: 'set null', // inert for a virtual (storage-less) field
             unique: false,
+            // Inert too: an inverse reuses the owning side's FK/join rows, so
+            // syncing from both ends would write the same links twice.
+            syncAcrossLocales: false,
             inverse: { field: options.field }
         }
     };

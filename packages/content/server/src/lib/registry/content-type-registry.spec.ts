@@ -205,3 +205,95 @@ describe('ContentTypeRegistry', () => {
         });
     });
 });
+
+describe('locale sync', () => {
+    const plainTag = collection('plain_tag', {
+        fields: { name: field.text() }
+    });
+    const localTag = collection('local_tag', {
+        i18n: true,
+        fields: { name: field.text() }
+    });
+
+    /** Serialize one field of a registered type. */
+    const fieldOf = (types: AnyContentType[], type: string, name: string) =>
+        new ContentTypeRegistry(types)
+            .serialize(type)
+            ?.fields.find((entry) => entry.name === name);
+
+    describe('one-to-one on a localized type', () => {
+        // The collision this used to reject at boot is now expressed by the
+        // schema instead: `columnFor` omits the column-wide UNIQUE on an i18n
+        // type and `buildTables` emits `(<field>_id, locale)` in its place, so
+        // the language rows of one record may share a target while another
+        // record cannot claim it. There is nothing left to reject here —
+        // `table-builder.spec` owns the index shape.
+        it('accepts a unique relation to a non-localized target', () => {
+            const story = collection('story', {
+                i18n: true,
+                fields: {
+                    seo: field.relation({ to: () => plainTag, unique: true })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([plainTag, story])
+            ).not.toThrow();
+        });
+
+        it('accepts a unique relation to a localized target', () => {
+            const story = collection('story', {
+                i18n: true,
+                fields: {
+                    seo: field.relation({ to: () => localTag, unique: true })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([localTag, story])
+            ).not.toThrow();
+        });
+    });
+
+    describe('serialization', () => {
+        const story = collection('story', {
+            i18n: true,
+            fields: {
+                shared: field.relation({ to: () => plainTag }),
+                mirrored: field.relation({ to: () => localTag }),
+                unsynced: field.relation({
+                    to: () => plainTag,
+                    syncAcrossLocales: false
+                })
+            }
+        });
+        const types = [plainTag, localTag, story];
+
+        it('reports the mode so the editor can say what a save will do', () => {
+            expect(fieldOf(types, 'story', 'shared')?.relation?.localeSync).toBe(
+                'shared'
+            );
+            expect(
+                fieldOf(types, 'story', 'mirrored')?.relation?.localeSync
+            ).toBe('mirrored');
+            expect(
+                fieldOf(types, 'story', 'unsynced')?.relation?.localeSync
+            ).toBe('none');
+        });
+
+        it('omits the mode on a type with no locales to speak of', () => {
+            const flat = collection('flat', {
+                fields: { tag: field.relation({ to: () => plainTag }) }
+            });
+            expect(
+                fieldOf([plainTag, flat], 'flat', 'tag')?.relation?.localeSync
+            ).toBeUndefined();
+        });
+
+        it('marks per-locale relations localized, but not shared ones', () => {
+            // `localized` means "this row's value differs from its siblings'",
+            // which is true of a mirrored id and false of a shared one.
+            expect(fieldOf(types, 'story', 'shared')?.localized).toBeUndefined();
+            expect(fieldOf(types, 'story', 'mirrored')?.localized).toBe(true);
+            expect(fieldOf(types, 'story', 'unsynced')?.localized).toBe(true);
+        });
+    });
+});

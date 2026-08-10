@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_721 test cases across 46 spec files._
+_736 test cases across 46 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1142,11 +1142,31 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | leaves siblings alone when an array-valued shared field is resent unchanged |
 | appends a revision to each sibling the sync rewrote |
 | leaves sibling history alone when only a localized field changes |
-| does not sync a relation to a localizable target across locales |
+| leaves a mirrored relation unset where the target has no translation |
 | syncs shared fields when a sibling is created into the group |
 | 422s and rolls back when the sync would invalidate a published sibling |
 | moves a rewritten published sibling back to draft, keeping publishedAt |
 | leaves a draft sibling — and its publishedAt — alone |
+
+### relation locale sync
+
+| Test case |
+| --- |
+| syncs a shared many-relation to every sibling |
+| unlinks across the group too, not just links |
+| gives a new translation the links the group already had |
+| does not let a new translation wipe the links it arrives without |
+| mirrors a localized many-relation into each sibling locale |
+| mirrors a localized single relation into each sibling locale |
+| drops a mirrored link whose target is untranslated, and still saves |
+| keeps an unsynced relation independent per locale |
+| lets one record share a one-to-one target across its locales |
+| refuses a one-to-one target already claimed in the same locale |
+| leaves siblings — and their history — alone when links are resent unchanged |
+| versions a sibling and moves it to Modified when only its links change |
+| frees a one-to-one target once the holder is soft-deleted |
+| says nothing about locales when the type has none |
+| reports the sync mode on the schema so the editor can explain itself |
 
 ### locale aggregate filters
 
