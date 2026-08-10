@@ -247,6 +247,16 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
   and sparse fieldsets — so "which German articles has Ada not published?" is
   one tool call rather than a page-by-page crawl the run's step limit ends
   first.
+- **`status` alone is not the publish state, and the search tool's description
+  says so.** The envelope carries `status` _and_ `publishedAt` (`projectEntry`
+  always keeps both — `fields` narrows `values` only), and
+  `buildEntryFilterSurface` advertises both on a publishable type, so
+  "modified" is expressible: `status eq draft` AND `publishedAt op null value
+false`. Nothing in `filterableFields` can say that, though — `describeFilterFields`
+  trims to `{path, type}` and has no slot for a description — so a model that
+  filters on `status` alone counts never-published drafts as unpublished edits.
+  The description names the filter; the system prompt (v6) carries the concept,
+  since the pair is true of every publishable type rather than of one tool.
 - **`filter` is the query builder's own grammar** (`copilot/filter-schema.ts`):
   a node is a group (`{and: […]}` / `{or: […]}`) or a rule
   (`{field, op, value}`), so the model emits exactly what the admin's UI emits

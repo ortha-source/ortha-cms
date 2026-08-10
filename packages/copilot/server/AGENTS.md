@@ -214,8 +214,15 @@ and `system-prompt.spec.ts` pins the structure. Three rules for editing it:
   prompt costs tokens on every run; a description costs them on the runs that
   read it, and arrives in context. HOW ORTHA WORKS carries only what is true of
   every deployment and what no single tool can say — the workspace grant
-  boundary, `draft`/`published` being the whole state set, numbered versions,
-  and each locale being its own entry.
+  boundary, `draft`/`published` being the whole state set, **publish state being
+  the `status` + `publishedAt` pair**, numbered versions, and each locale being
+  its own entry. The publish-state line (v6) is the counterpart of the
+  propose-rule bug below: `draft`/`published` is true of the _column_, and a
+  model that reads it as the whole story answers "how many entries are edited
+  but not published?" with a count of every draft — the never-published ones
+  included. Editing a published entry returns it to `draft` but **keeps**
+  `publishedAt`, so "modified" is the pair, and the filter that finds it is in
+  `admin_content_search`'s description where it costs only the runs that search.
 - **The propose-rule bug is the cautionary tale.** v3 and v4 both said "any tool
   whose name starts with `propose`". Every propose tool is named for its owning
   plugin first (`content_propose_update`), so the rule matched **nothing** — a

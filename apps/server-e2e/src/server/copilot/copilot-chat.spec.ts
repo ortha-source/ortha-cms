@@ -834,6 +834,100 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(output.total).toBe(1);
         });
 
+        /**
+         * Publish an entry through the real routes, then edit it — the
+         * admin's **Modified** state, which no seed shortcut can produce
+         * honestly: it exists precisely because the save moves `status` back
+         * to `draft` while `published_at` survives.
+         */
+        async function publishThenEdit(agent: request.Agent, text: string) {
+            const created = await agent
+                .post('/api/content/test_article')
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ values: { text, select: 'article' } })
+                .expect(201);
+            const id = created.body.id as string;
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(201);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    values: { text: `${text} (edited)`, select: 'article' }
+                })
+                .expect(200);
+            return id;
+        }
+
+        // Publish state is a PAIR, so `status eq draft` alone conflates two
+        // different things — an entry with live content plus unpublished
+        // changes, and one that has never been published. Asked "how many are
+        // modified but not published?", a model that does not know this
+        // answers with a count of every draft: confidently wrong, and no tool
+        // error anywhere. The system prompt and `admin_content_search`'s
+        // description both name this filter; this pins that the filter they
+        // name is one the engine actually accepts and answers correctly.
+        it('separates entries with unpublished changes from never-published drafts', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            await publishThenEdit(agent, 'Live with edits');
+            await seedArticles(
+                [
+                    { text: 'Never published', select: 'article' },
+                    {
+                        text: 'Live and current',
+                        select: 'article',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspace.id
+            );
+
+            const modified = await search(agent, {
+                typeName: 'test_article',
+                filter: {
+                    and: [
+                        { field: 'status', op: 'eq', value: 'draft' },
+                        { field: 'publishedAt', op: 'null', value: false }
+                    ]
+                }
+            });
+
+            expect(modified.ok).toBe(true);
+            const modifiedOut = modified.output as {
+                total: number;
+                items: { values: { text: string } }[];
+            };
+            // The count comes off `total`, which is what the model is told to
+            // quote — so the answer is right without reading a page.
+            expect(modifiedOut.total).toBe(1);
+            expect(modifiedOut.items[0].values.text).toBe(
+                'Live with edits (edited)'
+            );
+
+            const neverPublished = await search(agent, {
+                typeName: 'test_article',
+                filter: {
+                    and: [
+                        { field: 'status', op: 'eq', value: 'draft' },
+                        { field: 'publishedAt', op: 'null', value: true }
+                    ]
+                }
+            });
+
+            const neverOut = neverPublished.output as {
+                total: number;
+                items: { values: { text: string } }[];
+            };
+            expect(neverOut.total).toBe(1);
+            expect(neverOut.items[0].values.text).toBe('Never published');
+        });
+
         // A rejected path must reach the model as a recoverable tool error, not
         // a 500 and not a silently-ignored filter.
         it('turns an unknown filter path into a tool error', async () => {

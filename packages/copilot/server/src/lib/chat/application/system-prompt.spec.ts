@@ -46,6 +46,18 @@ describe('buildSystemPrompt', () => {
             );
         });
 
+        // The line above it is about the `status` column and reads, alone, as
+        // "there are two states". Editing a published entry keeps
+        // `publishedAt`, so a model that never learns the pair answers "how
+        // many are edited but not published?" with a count of every draft —
+        // wrong, confident, and no tool error to give it away.
+        it('says publish state is the status/publishedAt pair, not status alone', () => {
+            const prompt = build();
+
+            expect(prompt).toContain('status + publishedAt');
+            expect(prompt).toContain('publishedAt is not null');
+        });
+
         it('says each locale is its own entry', () => {
             expect(build()).toContain('each locale is its own entry');
         });
