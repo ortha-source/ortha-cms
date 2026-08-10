@@ -1,6 +1,6 @@
 # @ortha-cms/copilot-admin
 
-The admin-side copilot plugin — the chat panel.
+The admin-side copilot plugin — **two surfaces onto one chat**.
 
 > **The product is called Ortha AI; this package is called `copilot`.** Every
 > `defaultMessage` a user reads says "Ortha AI"; the message **ids**, component
@@ -9,15 +9,26 @@ The admin-side copilot plugin — the chat panel.
 > [`docs/design/copilot.md`](../../../docs/design/copilot.md). When you add a
 > string, follow the same split.
 
-`CopilotPlugin()` fills the shell's `SIDEBAR_FOOTER_SLOT`, but renders **nothing
-into the sidebar** — the slot is only what mounts the component, which portals
-the dock and its windows to `<body>`. A chat is a docked window over whatever
-page you are on, which is the point of it being a persistent surface rather than
-a destination, and there can be **several at once**, listed in a bar along the
-bottom right.
+- **The docked panel**, from the shell's `SIDEBAR_FOOTER_SLOT` (or `⌘J`). The
+  slot renders **nothing into the sidebar** — it is only what mounts the
+  component, which portals the dock and its windows to `<body>`. A chat is a
+  window over whatever page you are on, which is the point of it being a
+  persistent surface rather than a destination, and there can be **several at
+  once**, listed in a bar along the bottom right.
+- **The Agents view**, a full page inside the workspace at
+  `/workspaces/:id/agents` — history as a column, the transcript with the width
+  to render a table or a diff. See [Agents view](#the-agents-view) below.
 
-It contributes **no routes and no nav entry**. It used to contribute one, for
-the workspace's auto-apply policy;
+Both render the *same* transcript, composer, tool steps, permission prompts and
+change cards. Two chat surfaces that diverge is two chat surfaces to keep
+correct.
+
+It contributes **no top-level route and no global nav entry**. Runs are
+workspace-scoped (`X-Workspace-Id` is required by `WorkspaceGuard`), so
+everything here lives strictly inside a workspace: the page and the switcher go
+into the workspace shell's own `WORKSPACE_ROUTE_SLOT` / `WORKSPACE_SECTION_SLOT`,
+and the launcher renders nothing outside one. There *was* a top-level route once,
+for the workspace's auto-apply policy;
 [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) deleted the
 policy along with the screen, the table, the two routes and `copilot:configure`.
 What the copilot may do is what the caller's role may do, so there is nothing
@@ -26,12 +37,17 @@ left to configure per workspace.
 ## Layout
 
 ```
+domain/
+  agentsRoute.ts           # pure: the Agents view's paths + `readAgentThreadId`
+  types/chat.ts            # the transcript's view types
 application/
   runStream.ts             # the fetch-based SSE transport
   chatReducer.ts           # pure reducer folding run events into a transcript
   useCopilotChat.ts        # owns the transcript, drives + cancels the stream
   useConversations.ts      # thread list (query)
-  useConversation.ts       # open one thread (mutation) + block→UI mapping
+  useConversation.ts       # one thread: a query (the page) + a mutation (the panel)
+  groupConversations.ts    # pure: the rail's date buckets + its filter (tested)
+  useAgentThread.ts        # binds the URL to one chat; the page's whole state
   useDecideToolPermission.ts # answer a parked run (mutation)
   useCopilotModels.ts      # the model catalogue + choice-key helpers
   readRouteContext.ts      # pure URL → surface context
@@ -41,8 +57,15 @@ application/
   panelFrame.ts            # pure move/resize/clamp arithmetic (unit-tested)
   usePanelFrame.ts         # the hook over it: pointer capture + localStorage
 presentation/
-  copilotPlugin/           # the plugin object
-  CopilotLauncher/         # sidebar row + ⌘J + the dock, permission-gated
+  copilotPlugin/           # the plugin object: footer slot + route + section
+  ViewSwitcher/            # CMS ⇄ Agents, in the workspace sidebar
+  AgentsPage/              # the full-page surface
+    AgentsTopBar/          #   the one bar: breadcrumb, mobile Chats sheet, model
+    AgentsRail/            #   the thread column (md+)
+    AgentsRailList/        #   its contents — shared with the mobile sheet
+    AgentsThread/          #   the conversation column
+    AgentsWelcome/         #   the empty thread: greeting + four openers
+  CopilotLauncher/         # ⌘J + the dock, permission-gated
   CopilotDock/             # the bottom bar: one pill per chat, + new chat
   CopilotSession/          # one always-mounted chat; owns useCopilotChat
   CopilotPanel/            # the window a visible chat renders in
@@ -76,13 +99,15 @@ presentation/
   dozens of times per answer and must append to the _current_ last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
-- **The dock is the only entry point.** It replaced the floating button, and
-  then the sidebar row went too. A round button could only ever mean "the
-  panel", singular; a sidebar row duplicated what the dock already says while
-  spending a permanent navigation slot on it. With no chats open the dock _is_ a
-  labelled Ortha AI button in the corner — carrying the `⌘J` hint, which is
-  where the shortcut is now discoverable — and as soon as there are chats it
-  becomes the bar listing them.
+- **The dock is the only entry point to the _panel_.** It replaced the floating
+  button, and then the sidebar row went too. A round button could only ever mean
+  "the panel", singular; a sidebar row duplicated what the dock already says
+  while spending a permanent navigation slot on it. With no chats open the dock
+  _is_ a labelled Ortha AI button in the corner — carrying the `⌘J` hint, which
+  is where the shortcut is now discoverable — and as soon as there are chats it
+  becomes the bar listing them. The Agents view is reached the other way, through
+  the sidebar's `ViewSwitcher`, and the dock's button stands down while you are
+  on it.
 - **The window is non-modal, not a `Sheet`.** A modal drawer
   dims the page, traps focus and blocks every control behind it — but the useful
   thing to do with an answer is act on it, which would mean closing the
@@ -105,6 +130,100 @@ presentation/
   escaping does not save you from `[click](javascript:…)`. **If a second gap
   like the table one turns up, stop growing this and take `react-markdown`** —
   it is a drop-in replacement for the component.
+
+## The Agents view
+
+A page at `/workspaces/:id/agents`, contributed to the workspace shell's
+`WORKSPACE_ROUTE_SLOT` at `order: 50` — a **high** order on purpose, so the
+Content Library (10) stays what `/workspaces/:id` lands on. Three columns: the
+app sidebar's workspace nav, the thread rail, the conversation.
+
+**The third column is the point.** Keeping the CMS navigation on screen is what
+makes leaving the Agents view one click on something already visible, rather than
+a hunt for the way back. The `ViewSwitcher` — a two-segment CMS / Agents control
+at the top of the workspace sidebar, `WORKSPACE_SECTION_SLOT` at `order: 5` — is
+the two-way control, and going back to the CMS returns you to **the page you
+left** (remembered per workspace in `sessionStorage`), not to the workspace's
+default section. Someone who breaks off mid-entry to ask a question should not
+have to navigate back to it; that round trip is the whole reason both surfaces
+exist.
+
+Why a page at all, when the panel exists: the panel is for a question *about the
+page you are on*, and it is deliberately small and non-modal. The page is for the
+work where the conversation *is* the task — a long thread, a change to read
+carefully, something you asked yesterday. History is a column instead of a
+dropdown, and a content-type table or a diff gets the width it needs.
+
+### The URL is the thread
+
+`/…/agents` is an unsaved new chat; `/…/agents/:conversationId` is that thread.
+Deep-linkable, reload-safe, and navigable with the browser's own Back button.
+Four things about how that is wired are load-bearing:
+
+- **The id is read from the location, not from a nested `<Route>`.** The first
+  turn of a new chat mints a thread id and rewrites the URL from the base to the
+  thread path — with two route elements React Router would unmount one and mount
+  the other **mid-stream**, aborting the very run that produced the id. One
+  always-mounted component reading `readAgentThreadId(pathname)` has no such
+  seam. Same reason `useCopilotChat` is called once per page and the transcript
+  is swapped underneath it, rather than keying a component by thread.
+- **Only the *base* URL adopts a minted id.** Guarding on "the chat's id differs
+  from the URL's" looks equivalent and is not: clicking another thread while an
+  answer streams makes them differ, and that effect then shoves the URL back to
+  the running chat and undoes the user's own navigation. When the URL names a
+  thread it is the authority.
+- **Opening a thread is a query here, a mutation in the panel.** A mutation's
+  per-call `onSuccess` runs only while the component that called `mutate` is
+  still mounted, and this load is kicked off by an effect — React's StrictMode
+  remount alone was enough to swallow the callback and strand the page on its
+  skeleton for good. The query is disabled the moment the chat is already on the
+  thread, which also stops a new chat from fetching back the conversation it is
+  streaming into. Read `isFetching`, never `isPending`: a disabled query is
+  "pending" forever.
+- **Switching threads stops the run in flight**, because the transcript it is
+  writing into is about to be replaced. That made a latent bug in
+  `useCopilotChat` visible and it is fixed there rather than here: `abort()` is
+  not instantaneous, so the run loop now checks that its own `AbortController` is
+  still the current one before dispatching each frame — otherwise a cancelled
+  answer appends itself to whichever conversation replaced it. Its `catch` and
+  `finally` are guarded the same way, so a cancelled run can neither write its
+  "Stopped." into a stranger's thread nor clear its replacement's controller on
+  the way out.
+
+### The rail
+
+`groupConversations` buckets threads by **calendar day**, not by elapsed
+milliseconds — a thread from 11pm last night is *yesterday* at 1am, not "today",
+and normalising through a UTC midnight of each local date keeps the DST
+transition out of it. Empty buckets are dropped: a "Yesterday" heading with
+nothing under it reads as a loading failure. The filter appears only past five
+threads (a search box over three rows is furniture that pushes the rows it
+searches down the rail), and an **untitled thread matches nothing but the empty
+query** — the title is the only text the list route carries.
+
+The rail is a `md:` column; below that it is the same `AgentsRailList` inside a
+sheet, opened from the top bar's **Chats** button. Both render it, which is why
+that component navigates and holds no chat state: which thread is open is a fact
+about the URL.
+
+### One bar, not two
+
+`AgentsTopBar` composes the design-system `TopBar` directly, the way
+`ContentTopBar` does, instead of a `PageTopBar` plus a header of the thread's
+own — that pairing would spend 6rem of a chat surface on chrome. Rendering a real
+`TopBar` also matters beyond looks: it is what hosts the sidebar-reveal trigger
+when the app sidebar is collapsed, and what makes the shell's floating fallback
+toggle stand down. It hoists itself into the inset's fixed strip, so it spans the
+rail and the thread both and neither scrolls under it.
+
+### The dock stands down here — the bar only
+
+On the Agents view the dock's button offers to open the page you are already on,
+so it is not rendered. **Only the bar**: every `CopilotSession` stays mounted
+regardless, because unmounting one is what cancels its run, and navigating
+between two copilot surfaces must never be a disguised Stop. If chats *are*
+already open their pills stay, since they are windows that have to remain
+reachable.
 
 ## Several chats at once
 
@@ -395,9 +514,10 @@ co-located `defineMessages`.
 
 ## Testing
 
-`chatReducer`, the model-choice key helpers, `panelFrame` and `sessions` are
-unit-tested (`nx test`) — this is the first admin package with a jest config,
-`testEnvironment: 'node'` because the tested code is pure. Anything that has to
+`chatReducer`, the model-choice key helpers, `panelFrame`, `sessions`,
+`groupConversations` and `agentsRoute` are unit-tested (`nx test`) — this is the
+first admin package with a jest config, `testEnvironment: 'node'` because the
+tested code is pure. Anything that has to
 be got exactly right about the window's geometry belongs in `panelFrame.ts` for
 that reason; `usePanelFrame` should stay thin enough to be obviously correct.
 The dock and the windows were driven in a real Chromium against a harness of

@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@ortha-cms/utils-admin';
 import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
 import type {
@@ -22,38 +22,72 @@ interface ConversationDetail {
     messages: PersistedMessage[];
 }
 
+/** One thread, in the shape the transcript renders. */
+export interface OpenedConversation {
+    conversation: CopilotConversation;
+    messages: ChatMessage[];
+}
+
 /**
- * Opens a persisted thread.
+ * Reads one thread and the changes made in it, and maps both to the transcript.
  *
- * A **mutation, not a query**: opening a thread is an explicit user action with
- * a target that changes per invocation, and its result is folded into the
- * panel's reducer rather than rendered from cache. Modelling it as a query
- * would mean a key per thread and a cache that has to be invalidated on every
- * turn to stay honest.
+ * Two reads, concurrently. The proposals are a separate table and a separate
+ * route, and a thread with no changes in it must not pay for a serial round trip
+ * to learn that.
+ */
+async function fetchConversation(
+    conversationId: string
+): Promise<OpenedConversation> {
+    const [detail, proposals] = await Promise.all([
+        apiClient.get<ConversationDetail>(
+            `/copilot/conversations/${conversationId}`
+        ),
+        apiClient.get<{ items: PersistedProposal[] }>('/copilot/proposals', {
+            params: { conversationId }
+        })
+    ]);
+    return {
+        conversation: detail.data.conversation,
+        messages: toChatMessages(detail.data.messages, proposals.data.items)
+    };
+}
+
+/** Query key for one thread's transcript. */
+export const conversationKey = (conversationId: string) =>
+    ['copilot', 'conversation', conversationId] as const;
+
+/**
+ * Opens a persisted thread, as a **mutation** — the docked panel's history
+ * dropdown, where opening a thread is an explicit click with a different target
+ * each time and the result is folded straight into the panel's reducer.
+ *
+ * Prefer {@link useConversationDetail} anywhere the *URL* says which thread is
+ * open. A mutation's per-call `onSuccess` only runs while the component that
+ * called `mutate` is still mounted, which makes it the wrong tool for a load
+ * kicked off by an effect — React's StrictMode remount alone is enough to
+ * swallow the callback and strand the page on its skeleton.
  */
 export function useOpenConversation() {
-    return useMutation({
-        mutationFn: async (conversationId: string) => {
-            // Two reads, concurrently. The proposals are a separate table and a
-            // separate route, and a thread with no changes in it must not pay
-            // for a serial round trip to learn that.
-            const [detail, proposals] = await Promise.all([
-                apiClient.get<ConversationDetail>(
-                    `/copilot/conversations/${conversationId}`
-                ),
-                apiClient.get<{ items: PersistedProposal[] }>(
-                    '/copilot/proposals',
-                    { params: { conversationId } }
-                )
-            ]);
-            return {
-                conversation: detail.data.conversation,
-                messages: toChatMessages(
-                    detail.data.messages,
-                    proposals.data.items
-                )
-            };
-        }
+    return useMutation({ mutationFn: fetchConversation });
+}
+
+/**
+ * The transcript of the thread the URL points at, as a **query**.
+ *
+ * Pass `null` to disable it — the Agents page does exactly that once its chat is
+ * already on the thread, so the answer streaming into the reducer is never
+ * fetched back out from under itself, and so returning to a thread you are
+ * already reading costs nothing.
+ *
+ * Cached per thread, which is what makes flicking between two conversations
+ * instant on the second visit. The cache is only ever *read* when arriving at a
+ * thread the chat is not on; while you are in one, the reducer is the truth.
+ */
+export function useConversationDetail(conversationId: string | null) {
+    return useQuery({
+        queryKey: conversationKey(conversationId ?? ''),
+        enabled: !!conversationId,
+        queryFn: () => fetchConversation(conversationId as string)
     });
 }
 

@@ -145,9 +145,24 @@ export function useCopilotChat(
                         { workspaceId, signal: controller.signal }
                     );
                     for await (const event of events) {
+                        // Abort is not instantaneous: frames already read out of
+                        // the buffer would otherwise keep dispatching after the
+                        // caller moved on — and on the Agents page "moved on"
+                        // means a *different thread's* transcript is now in the
+                        // reducer, so a cancelled answer would append itself to
+                        // someone else's conversation.
+                        if (abortRef.current !== controller) {
+                            break;
+                        }
                         dispatch({ type: 'event', event });
                     }
                 } catch (error) {
+                    // Same reason as above: a run nobody is listening to any
+                    // more must not write its failure into the transcript that
+                    // replaced it.
+                    if (abortRef.current !== controller) {
+                        return;
+                    }
                     const failure = describe(error, intl);
                     // The alert in the transcript is always the record — it
                     // stays with the turn it belongs to and survives scrolling.
@@ -169,7 +184,13 @@ export function useCopilotChat(
                         );
                     }
                 } finally {
-                    abortRef.current = null;
+                    // Only if this run is still the current one. A run that was
+                    // cancelled and immediately replaced must not clear the
+                    // *replacement's* controller on its way out — that would
+                    // hand the old loop's identity check back to the new run.
+                    if (abortRef.current === controller) {
+                        abortRef.current = null;
+                    }
                     // The thread list's titles and ordering both change with a
                     // turn, and a brand-new thread doesn't exist in it at all
                     // until now.
@@ -184,6 +205,11 @@ export function useCopilotChat(
 
     const stop = useCallback(() => {
         abortRef.current?.abort();
+        // Cleared here rather than only in the run's own `finally`, which lands
+        // a tick or more later: until it does, `send` would refuse to start the
+        // next turn, and the loop's identity check above is what makes dropping
+        // the cancelled run's remaining frames safe.
+        abortRef.current = null;
     }, []);
 
     const answer = useCallback(

@@ -46,7 +46,10 @@
   the bounded run engine, and the write path — a `propose` tool's change is
   recorded as a `copilot_proposals` row and applied immediately, gated only by
   the caller's own permissions ([ADR-0009](docs/adr/0009-copilot-applies-directly.md));
-  `admin` is the docked chat panel and its change card;
+  `admin` is the two chat surfaces — the docked panel over any page, and the
+  full-page **Agents view** at `/workspaces/:id/agents` (thread rail + one
+  conversation, with a CMS ⇄ Agents switch in the workspace sidebar) — sharing
+  one transcript, composer and change card;
   `provider-anthropic` / `provider-openai` / `provider-fake` are the three
   shipped adapters, constructed at the composition root. Only
   `provider-anthropic` may import a vendor SDK

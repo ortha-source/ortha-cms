@@ -97,19 +97,25 @@ export function MessageList({
 
     return (
         <div
-            className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+            className="flex-1 overflow-y-auto px-4 py-4"
             role="log"
             aria-label={intl.formatMessage(messages.transcript)}
             aria-live="polite"
         >
-            {turns.map((turn) => (
-                <Turn
-                    key={turn.id}
-                    turn={turn}
-                    {...(onAnswer ? { onAnswer } : {})}
-                />
-            ))}
-            <div ref={endRef} />
+            {/* The scroller runs the full width so the scrollbar sits at the
+                edge of the surface, but the text does not: a transcript read
+                across a 1400px page is a transcript nobody finishes a line of.
+                A no-op in the 420px docked panel, which never reaches the cap. */}
+            <div className="mx-auto w-full max-w-3xl space-y-4">
+                {turns.map((turn) => (
+                    <Turn
+                        key={turn.id}
+                        turn={turn}
+                        {...(onAnswer ? { onAnswer } : {})}
+                    />
+                ))}
+                <div ref={endRef} />
+            </div>
         </div>
     );
 }

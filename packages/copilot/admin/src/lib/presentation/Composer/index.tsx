@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowUp, Square } from 'lucide-react';
-import { Button, Textarea } from '@ortha-cms/design-system';
+import { Button, Textarea, cn } from '@ortha-cms/design-system';
 
 const messages = defineMessages({
     placeholder: {
@@ -36,6 +36,17 @@ export interface ComposerProps {
      * typing somewhere else on the page.
      */
     inputRef?: React.Ref<HTMLTextAreaElement>;
+    /**
+     * How tall the box starts. Two lines suit the 420px docked panel; a
+     * full-page surface has the room to invite a longer question.
+     */
+    rows?: number;
+    /**
+     * Overrides the wrapper's chrome. The panel wants the divider and padding
+     * that separate it from the transcript above; a page that already centres
+     * its own column wants neither.
+     */
+    className?: string;
 }
 
 /**
@@ -46,7 +57,14 @@ export interface ComposerProps {
  * Enter commits a candidate rather than meaning "send", and without the guard
  * anyone typing Japanese, Chinese or Korean would send a half-finished word.
  */
-export function Composer({ busy, onSend, onStop, inputRef }: ComposerProps) {
+export function Composer({
+    busy,
+    onSend,
+    onStop,
+    inputRef,
+    rows = 2,
+    className
+}: ComposerProps) {
     const intl = useIntl();
     const [value, setValue] = useState('');
 
@@ -71,7 +89,7 @@ export function Composer({ busy, onSend, onStop, inputRef }: ComposerProps) {
     };
 
     return (
-        <div className="border-border/60 border-t p-3">
+        <div className={cn('border-border/60 border-t p-3', className)}>
             <div className="relative">
                 <Textarea
                     ref={inputRef}
@@ -80,7 +98,7 @@ export function Composer({ busy, onSend, onStop, inputRef }: ComposerProps) {
                     onKeyDown={onKeyDown}
                     placeholder={intl.formatMessage(messages.placeholder)}
                     aria-label={intl.formatMessage(messages.placeholder)}
-                    rows={2}
+                    rows={rows}
                     className="max-h-40 resize-none pr-11"
                 />
                 <Button

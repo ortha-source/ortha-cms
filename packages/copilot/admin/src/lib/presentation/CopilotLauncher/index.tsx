@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { useRouteContext } from '../../application/useRouteContext';
+import { COPILOT_USE, isAgentsPath } from '../../domain/agentsRoute';
 import { CopilotDock } from '../CopilotDock';
 import { CopilotSession } from '../CopilotSession';
-
-/** The permission the whole surface is gated on. */
-const COPILOT_USE = 'copilot:use';
 
 /**
  * The entry points, the chats they start, and the dock that lists them.
@@ -41,11 +40,20 @@ const COPILOT_USE = 'copilot:use';
 export function CopilotLauncher() {
     const sessions = useCopilotSessions();
     const newChatRef = useRef<HTMLButtonElement>(null);
+    const { pathname } = useLocation();
 
     const canUse = useHasPermission(COPILOT_USE);
     const routeContext = useRouteContext();
     const { workspaceId } = routeContext;
     const available = canUse && !!workspaceId;
+
+    // On the Agents view the dock's own button offers to open the page the user
+    // is already on, so it stands down — but only the **bar**. Any chats already
+    // open keep their pills, because they are windows that have to stay
+    // reachable, and every session stays mounted either way: unmounting one is
+    // what cancels its run, and navigating between two copilot surfaces must
+    // never be a disguised Stop.
+    const dockRedundant = isAgentsPath(pathname) && sessions.all.length === 0;
 
     const { start, visible } = sessions;
     // ⌘J / Ctrl+J starts a chat (design §2). Registered only while the launcher
@@ -125,13 +133,15 @@ export function CopilotLauncher() {
                         />
                     ))}
 
-                    <CopilotDock
-                        sessions={sessions.all}
-                        onToggle={sessions.toggle}
-                        onClose={sessions.close}
-                        onNewChat={() => sessions.start()}
-                        newChatRef={newChatRef}
-                    />
+                    {!dockRedundant && (
+                        <CopilotDock
+                            sessions={sessions.all}
+                            onToggle={sessions.toggle}
+                            onClose={sessions.close}
+                            onNewChat={() => sessions.start()}
+                            newChatRef={newChatRef}
+                        />
+                    )}
                 </>,
                 document.body
             )}

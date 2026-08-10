@@ -8,6 +8,20 @@ export { CopilotPanel } from './lib/presentation/CopilotPanel';
 export type { CopilotPanelProps } from './lib/presentation/CopilotPanel';
 export { CopilotLauncher } from './lib/presentation/CopilotLauncher';
 
+// The full-page surface and the switch into it. Exported for the same reason
+// the panel is: a deep link from elsewhere in the admin ("open this in Ortha
+// AI") should reach the page that exists rather than build a second one.
+export { AgentsPage } from './lib/presentation/AgentsPage';
+export { ViewSwitcher } from './lib/presentation/ViewSwitcher';
+export {
+    AGENTS_SEGMENT,
+    COPILOT_USE,
+    agentsPath,
+    agentThreadPath,
+    isAgentsPath,
+    readAgentThreadId
+} from './lib/domain/agentsRoute';
+
 // The transport and the chat state, exported for the same reason: an inline
 // surface reuses the run stream instead of reimplementing SSE over fetch.
 export { streamRun, CopilotRunError } from './lib/application/runStream';
