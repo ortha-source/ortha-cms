@@ -85,7 +85,7 @@ export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
                         it — the mark belongs to the pattern rather than sitting
                         on top of an unrelated one. */}
                     <span
-                        className="bg-brand-soft text-brand-soft-foreground mb-5 grid size-12 place-items-center"
+                        className="bg-secondary text-secondary-foreground mb-5 grid size-12 place-items-center"
                         style={{
                             clipPath:
                                 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)'
@@ -117,7 +117,7 @@ export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
                                 <button
                                     type="button"
                                     onClick={() => onPick(text)}
-                                    className="bg-card hover:border-brand/40 hover:bg-accent/40 focus-visible:ring-ring group flex h-full w-full items-start gap-2 rounded-xl border px-3.5 py-3 text-left text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                                    className="bg-card hover:border-muted-foreground/40 hover:bg-accent/40 focus-visible:ring-ring group flex h-full w-full items-start gap-2 rounded-xl border px-3.5 py-3 text-left text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
                                 >
                                     <span className="flex-1 text-pretty">
                                         {text}
