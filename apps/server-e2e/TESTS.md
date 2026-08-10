@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_737 test cases across 46 spec files._
+_739 test cases across 46 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -930,6 +930,8 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | rejects an unknown locale rather than silently using the default |
 | narrows values to the requested fields, keeping the envelope |
 | reports filterable paths from listTypes |
+| advertises publishedAt, which the admin’s picker omits |
+| withholds locale, which is a tool parameter rather than a filter |
 | advertises a relation hop once its target type is granted |
 | projects getEntry too |
 
