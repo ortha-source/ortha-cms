@@ -64,6 +64,9 @@ export const testPages = testPage.table;
 // if the `tags` many-relation is renamed/removed, instead of silently dropping
 // the table from the drizzle-kit diff.
 export const testArticleTags = joinTableOf(testArticle, 'tags');
+// Join table for the test_article ⇄ test_author many-to-many — the **mirrored**
+// counterpart of `tags`, since test_author is localized.
+export const testArticleContributors = joinTableOf(testArticle, 'contributors');
 
 // The revision store — one fixed table (not per-type), defined by
 // content-server and re-exported so drizzle-kit diffs it like any content

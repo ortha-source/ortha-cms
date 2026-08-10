@@ -7,7 +7,7 @@ import type {
     StagedRelation
 } from '../../../../../domain/types/contentType';
 import { useContentSchema } from '../../../../../application/useContentSchema';
-import { LocalizedRelationMark } from './LocalizedRelationMark';
+import { RelationSyncMark } from './RelationSyncMark';
 import { fieldLabel } from '../../../../../domain/entryColumns';
 import { ChangedBadge } from '../../../ChangedBadge';
 import { RelationField } from '../RelationField';
@@ -120,7 +120,15 @@ export function RelationFieldSection({
                         <h3 className="text-sm font-medium">
                             {fieldLabel(field)}
                         </h3>
-                        {targetSchema?.i18n ? <LocalizedRelationMark /> : null}
+                        {/* Read off THIS field's own schema, not the target's
+                            i18n flag: what matters to the editor is whether a
+                            save here reaches the other locales, and only the
+                            server's derived mode answers that (an opted-out
+                            relation to a localized target reads `none`). It
+                            also saves waiting on the target schema fetch. */}
+                        <RelationSyncMark
+                            mode={field.relation?.localeSync}
+                        />
                         {changed ? <ChangedBadge /> : null}
                         {error ? (
                             <AlertCircle

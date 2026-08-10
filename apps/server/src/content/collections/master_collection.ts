@@ -125,7 +125,7 @@ export const master_collection = collection('master_collection', {
             required: true,
             onDelete: 'restrict'
         }),
-        // one-to-one (UNIQUE FK)
+        // one-to-one; the UNIQUE is per locale on a localized type.
         seo: field.relation({
             to: (): AnyContentType => seo_meta,
             unique: true,

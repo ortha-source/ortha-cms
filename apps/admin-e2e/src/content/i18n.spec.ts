@@ -163,21 +163,24 @@ test.describe('Content i18n', () => {
         ).toBeVisible();
     });
 
-    test('marks a relation whose target collection is localized', async ({
+    test('marks how a relation carries across the record’s other locales', async ({
         contentLibraryPage
     }) => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.recordLink('Winter boots').click();
         await contentLibraryPage.openEditorTab('Relations');
 
-        // `related` points at localized_post itself, so its links are per-locale
-        // — the mark is what explains why the picker hides other locales' rows.
-        await expect(
-            contentLibraryPage.localizedRelationMark.first()
-        ).toBeVisible();
-        await contentLibraryPage.localizedRelationMark.first().hover();
+        // `related` points at localized_post itself, so it is **mirrored**: the
+        // mark is what explains both halves — why the picker hides other
+        // locales' rows, and that picking one here links its translation
+        // everywhere else. Neither is inferable from the card.
+        const mark = contentLibraryPage
+            .relationSyncMark('Follows translations')
+            .first();
+        await expect(mark).toBeVisible();
+        await mark.hover();
         await expect(contentLibraryPage.tooltip).toHaveText(
-            /links belong to the record’s locale/
+            /every other locale links that record’s own translation/
         );
     });
 

@@ -65,6 +65,7 @@ export const master_single = single('master_single', {
             required: true,
             onDelete: 'restrict'
         }),
+        // one-to-one; the UNIQUE is per locale on a localized type.
         seo: field.relation({
             to: (): AnyContentType => seo_meta,
             unique: true,

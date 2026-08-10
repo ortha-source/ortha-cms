@@ -278,7 +278,7 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | the default locale keeps a clean URL through the editor |
 | the localized-field mark explains itself on hover and on focus |
 | splits the form into translated and shared field groups |
-| marks a relation whose target collection is localized |
+| marks how a relation carries across the record’s other locales |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |
 | the entry editor locale switcher shows current / existing / missing |

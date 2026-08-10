@@ -123,6 +123,10 @@ export const testArticle = collection('test_article', {
         // one-to-one: an article owns at most one SEO record. `unique: true`
         // adds a UNIQUE constraint on the `seo_id` FK; deleting the record nulls
         // it (default onDelete for an optional relation).
+        //
+        // On a localized type that UNIQUE is scoped to the locale
+        // (`(seo_id, locale)`), so the article's language rows share one SEO
+        // record while no other article can claim it.
         seo: field.relation({
             to: () => testSeo,
             unique: true,
@@ -131,14 +135,41 @@ export const testArticle = collection('test_article', {
                 description: 'Search-engine metadata for this article (one-to-one).'
             }
         }),
+        // The **opt-out**: a tag pinned for this language only. Same
+        // non-localized target as `tags`, so the only thing separating them is
+        // `syncAcrossLocales` — which is exactly what this fixture is for.
+        pinnedTag: field.relation({
+            to: () => testTag,
+            syncAcrossLocales: false,
+            admin: {
+                label: 'Pinned tag',
+                description: 'Featured for this locale only (not synced).'
+            }
+        }),
         // many-to-many: an article links to any number of tags via the
-        // generated `content_test_article_tags` join table.
+        // generated `content_test_article_tags` join table. `test_tag` is NOT
+        // localized, so this relation is **shared** — one tag row is the tag
+        // for every language, and tagging any locale tags the whole record.
         tags: field.relation({
             to: () => testTag,
             many: true,
             admin: {
                 label: 'Tags',
                 description: 'Labels applied to this article (many-to-many).'
+            }
+        }),
+        // many-to-many to a **localized** target — the mirrored case, and the
+        // one `tags` cannot cover: `test_author` has a row per locale, so each
+        // sibling article links that contributor's own translation. Adding a
+        // contributor to the English article adds the German contributor row to
+        // the German article.
+        contributors: field.relation({
+            to: () => testAuthor,
+            many: true,
+            admin: {
+                label: 'Contributors',
+                description:
+                    'Co-authors of this article (many-to-many, localized target).'
             }
         })
     }

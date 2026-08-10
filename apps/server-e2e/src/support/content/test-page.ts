@@ -1,6 +1,7 @@
 import { collection, field } from '@ortha-cms/content-server/define';
 import type { AnyContentType } from '@ortha-cms/content-server/define';
 import { testAuthor } from './test-author';
+import { testSeo } from './test-seo';
 
 /**
  * `test_page` — the e2e-owned **self-referential** collection (a page tree).
@@ -48,6 +49,19 @@ export const testPage: AnyContentType = collection('test_page', {
             admin: {
                 label: 'Owner',
                 description: 'The author who owns this page (many-to-one).'
+            }
+        }),
+        // One-to-one on a type with **no locales** — the counterpart of
+        // `test_article.seo`, and the only fixture that reaches the plain,
+        // column-wide `UNIQUE(seo_id)` branch. Without it the non-localized
+        // half of the one-to-one rule (and its "already linked to another
+        // entry" message, which says nothing about locales) is unreachable.
+        seo: field.relation({
+            to: () => testSeo,
+            unique: true,
+            admin: {
+                label: 'SEO metadata',
+                description: 'One-to-one, on a type with no locales.'
             }
         })
     }

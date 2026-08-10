@@ -53,6 +53,21 @@ export interface EntryScopeParams {
     localeGroupId?: string;
 }
 
+/**
+ * Which write {@link ContentEntryExtension.afterUpdate} is running inside.
+ *
+ * The two are not symmetric, which is why the hook has to be told them apart.
+ * On an **update** the edited row is the authority: what it now holds is what
+ * the extension propagates outward. On a **create** it is the opposite — the
+ * new row is the one with gaps to fill (a translation arrives carrying the
+ * source's shared values but none of its links), so an extension that treated
+ * it as the authority would push those gaps onto rows that were already right.
+ */
+export interface EntryWriteContext {
+    /** True when the row was just INSERTed; false on an update. */
+    created: boolean;
+}
+
 /** Context handed to {@link EntryFilterExtension.resolve} with each rule. */
 export interface EntryFilterContext {
     /** The content type the list request targets. */
@@ -137,12 +152,20 @@ export interface ContentEntryExtension {
      * Revision writing deliberately stays here rather than in the extension:
      * numbering is serialized per entry by an advisory lock, and a second
      * writer allocating numbers out-of-band is how duplicate versions happen.
+     *
+     * An implementation MAY amend `row` **in place** for columns it derives for
+     * that row itself (the i18n sync resolves a mirrored relation into the new
+     * row's own locale on create). The caller snapshots `row` *after* this
+     * call, so an in-place amendment lands in the revision; writing only to the
+     * database would leave the first version describing something the row never
+     * held.
      */
     afterUpdate(
         tx: EntryTransaction,
         type: AnyContentType,
         row: Record<string, unknown>,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        context: EntryWriteContext
     ): Promise<Record<string, unknown>[] | void>;
 }

@@ -757,12 +757,17 @@ already surfaces `required`), so a locale plugin needs no field-level slot:
   editing a shared field changes it in _every_ locale, which is not something to
   discover after saving. A type with only one kind (every plain, non-i18n type)
   keeps the flat, header-free stack, so this is inert outside i18n.
-- `RelationFieldSection` marks a relation whose **target collection** is
-  localized (`targetSchema.i18n`) with a `LocalizedRelationMark`. It labels the
-  _field_, not each linked row: the picker scopes candidates strictly to the
-  record's locale, so every link is necessarily in it — one identical locale
-  repeated down every row would be noise, while _why the picker hides other
-  locales' records_ is the part that isn't obvious.
+- `RelationFieldSection` marks **how a relation carries across the record's
+  other languages** with a `RelationSyncMark`, read off the field's own
+  `relation.localeSync` (`shared` / `mirrored` / `none`; absent on a type with
+  no locales, where the mark renders nothing). It reads that rather than the
+  target's `i18n` flag for two reasons: only the server's derived mode answers
+  the question an editor actually has — _does saving this change German too?_ —
+  and an opted-out relation to a localized target reports `none`, which the old
+  target-flag check got backwards. It also no longer waits on the target
+  schema's fetch. Like its predecessor it labels the _field_, not each linked
+  row: the picker scopes candidates strictly to the record's locale, so one
+  identical locale repeated down every row would be noise.
 - `ContentEntryView` create mode reads `location.state.translateFrom` (a source
   record's values) and seeds the blank form with **only the non-localized**
   fields — the "create a translation" prefill; localized fields start empty.

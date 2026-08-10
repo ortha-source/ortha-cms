@@ -101,14 +101,15 @@ export interface RelationTargetVisibility {
 }
 
 /**
- * How many relation fields a page preview resolves at once. `relationFields` is
+ * How many relation fields are resolved at once — by the page preview and by
+ * the per-entry {@link RelationLinkService.readAll}. `relationFields` is
  * bounded in bytes but not in count, so a type with many relation columns could
  * otherwise fan out one concurrent query per field — and each field takes a
  * connection twice (its window query, then `refsFor`). The pool is small and
  * app-wide, so cap the fan-out and let the remainder queue in-process rather
  * than in the pool, where it would block unrelated requests.
  */
-const PREVIEW_FIELD_CONCURRENCY = 3;
+const RELATION_FIELD_CONCURRENCY = 3;
 
 /**
  * A private advisory-lock class (the first `pg_advisory_xact_lock` key)
@@ -196,15 +197,38 @@ export class RelationLinkService {
         // Each relation field is an independent read, so fan them out
         // concurrently rather than awaiting one before starting the next — a
         // type with several relations pays one field's latency, not their sum.
+        //
+        // Bounded by the same cap as `previewForEntries`, and for the same
+        // reason: the pool is small (10 by default) and app-wide, while each
+        // field takes a connection for its page + count and then again for
+        // `refsFor`. Unbounded, a type with several relation fields could let a
+        // couple of concurrent editor opens occupy every connection and queue
+        // unrelated traffic behind them — the exact hazard the preview path
+        // already guards, which this read simply hadn't caught up with.
         const fields = Object.entries(type.fields).filter(
             ([, spec]) =>
                 spec.type === CONTENT_FIELD_TYPE.Relation && spec.relation
         );
-        const views = await Promise.all(
-            fields.map(([name, spec]) =>
-                this.readField(type, row, name, spec, 1, pageSize, workspaceId)
-            )
-        );
+        const views: RelationFieldView[] = [];
+        for (let i = 0; i < fields.length; i += RELATION_FIELD_CONCURRENCY) {
+            views.push(
+                ...(await Promise.all(
+                    fields
+                        .slice(i, i + RELATION_FIELD_CONCURRENCY)
+                        .map(([name, spec]) =>
+                            this.readField(
+                                type,
+                                row,
+                                name,
+                                spec,
+                                1,
+                                pageSize,
+                                workspaceId
+                            )
+                        )
+                ))
+            );
+        }
         const out: Record<string, RelationFieldView> = {};
         fields.forEach(([name], i) => {
             out[name] = views[i];
@@ -263,8 +287,8 @@ export class RelationLinkService {
         // couple of list requests occupy every connection, queueing unrelated
         // traffic behind a records table's previews.
         const views: Map<string, RelationFieldView>[] = [];
-        for (let i = 0; i < specs.length; i += PREVIEW_FIELD_CONCURRENCY) {
-            const batch = specs.slice(i, i + PREVIEW_FIELD_CONCURRENCY);
+        for (let i = 0; i < specs.length; i += RELATION_FIELD_CONCURRENCY) {
+            const batch = specs.slice(i, i + RELATION_FIELD_CONCURRENCY);
             views.push(
                 ...(await Promise.all(
                     batch.map(([name, spec]) =>
@@ -1159,6 +1183,180 @@ export class RelationLinkService {
         return byGroup;
     }
 
+    /**
+     * The **lenient** counterpart of {@link resolveLocaleGroups}: given target
+     * ids held by one row, find the equivalent id in each of `locales` — the
+     * row of the same translation group, in that language.
+     *
+     * Returns `locale → (given id → that locale's id)`. A pair with no row in a
+     * locale is simply **absent** rather than an error, which is the whole
+     * difference. `resolveLocaleGroups` answers an explicit API call naming a
+     * group, where a missing translation is a request to reject; this answers
+     * the implicit sibling sync, where it is a content gap on the *target* and
+     * failing would mean an English save could not be saved until somebody
+     * translated a tag.
+     *
+     * Two queries regardless of how many ids or locales are asked for: one to
+     * read the given ids' groups, one to read those groups' rows in the wanted
+     * locales. Soft-deleted rows are excluded from the **destination** side —
+     * required for determinism, since the `(locale_group_id, locale)` unique
+     * index is partial (`WHERE deleted_at IS NULL`) on a paranoid type, so
+     * trashed rows can legitimately repeat a pair. The source lookup is not
+     * filtered: a link to a trashed row still has a group, and dropping it
+     * would silently unlink siblings whenever a target went to the bin.
+     */
+    async equivalentIdsByLocale(
+        exec: QueryRunner,
+        target: AnyContentType,
+        ids: readonly string[],
+        locales: readonly string[],
+        workspaceId: string
+    ): Promise<Map<string, Map<string, string>>> {
+        const out = new Map<string, Map<string, string>>();
+        for (const locale of locales) out.set(locale, new Map());
+        const unique = [...new Set(ids)].filter(Boolean);
+        if (!target.i18n || !unique.length || !locales.length) return out;
+
+        const cols = target.table as unknown as Columns;
+        const sourceRows = (await exec
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], unique),
+                    eq(cols['workspaceId'], workspaceId)
+                )
+            )) as Row[];
+        const groupOf = new Map(
+            sourceRows.map((row) => [
+                row['id'] as string,
+                row['localeGroupId'] as string
+            ])
+        );
+        const groups = [...new Set(groupOf.values())].filter(Boolean);
+        if (!groups.length) return out;
+
+        const siblingRows = (await exec
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['localeGroupId'], groups),
+                    inArray(cols['locale'], [...locales]),
+                    eq(cols['workspaceId'], workspaceId),
+                    target.paranoid ? isNull(cols['deletedAt']) : undefined
+                )
+            )) as Row[];
+        // Keyed by group AND locale, since one group contributes at most one
+        // row per language and the pair is what a sibling asks for.
+        const byGroupLocale = new Map<string, string>();
+        for (const row of siblingRows) {
+            byGroupLocale.set(
+                groupLocaleKey(
+                    row['localeGroupId'] as string,
+                    row['locale'] as string
+                ),
+                row['id'] as string
+            );
+        }
+
+        for (const locale of locales) {
+            const bucket = out.get(locale) as Map<string, string>;
+            for (const id of unique) {
+                const group = groupOf.get(id);
+                if (!group) continue;
+                const equivalent = byGroupLocale.get(
+                    groupLocaleKey(group, locale)
+                );
+                if (equivalent) bucket.set(id, equivalent);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Replace one join-backed relation field's links for `sourceId` with
+     * exactly `targetIds`, in order — the primitive the locale sibling sync
+     * writes through. Returns whether anything actually changed, so a caller
+     * can leave an already-correct sibling untouched (and unversioned).
+     *
+     * Deliberately **not** {@link applyDelta}: that is an incremental edit from
+     * a client that knows what it changed, while a sync knows only the desired
+     * end state. Deliberately not {@link writeLinks} either — that reads its ids
+     * out of a values bag and re-validates targets the caller may not have.
+     * Here the ids came from a sibling row that already passed those checks.
+     */
+    async replaceLinks(
+        tx: DbTransaction,
+        type: AnyContentType,
+        sourceId: string,
+        field: string,
+        targetIds: readonly string[]
+    ): Promise<boolean> {
+        const spec = type.fields[field];
+        const join = spec ? this.joinPlanFor(type, field, spec) : null;
+        if (!join || join.ownCol !== 'sourceId') return false;
+
+        const cols = join.table as unknown as Columns;
+        const own = cols[join.ownCol];
+        const ref = cols[join.refCol];
+        const desired = dedupe([...targetIds]);
+
+        // Compare before writing: an unchanged sibling must not be rewritten,
+        // or every save would re-version the whole translation group.
+        const currentRows = (await tx
+            .select()
+            .from(join.table)
+            .where(eq(own, sourceId))
+            .orderBy(asc(cols['position']), asc(ref))) as Row[];
+        const current = currentRows.map((row) => row[join.refCol] as string);
+        if (
+            current.length === desired.length &&
+            current.every((id, index) => id === desired[index])
+        ) {
+            return false;
+        }
+
+        await tx.delete(join.table).where(eq(own, sourceId));
+        if (desired.length) {
+            await tx.insert(join.table).values(
+                desired.map(
+                    (targetId, index) =>
+                        ({
+                            [join.ownCol]: sourceId,
+                            [join.refCol]: targetId,
+                            position: index
+                        }) as never
+                )
+            );
+        }
+        return true;
+    }
+
+    /**
+     * The ordered link ids of **one** join-backed relation field, read on the
+     * passed executor. {@link snapshotLinks} reads every field at once for a
+     * revision; the sync needs one field at a time, and only the ones that
+     * actually propagate.
+     */
+    async linkIdsOf(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        sourceId: string,
+        field: string
+    ): Promise<string[]> {
+        const spec = type.fields[field];
+        const join = spec ? this.joinPlanFor(type, field, spec) : null;
+        if (!join) return [];
+        const cols = join.table as unknown as Columns;
+        const rows = (await exec
+            .select()
+            .from(join.table)
+            .where(eq(cols[join.ownCol], sourceId))
+            .orderBy(asc(cols['position']), asc(cols[join.refCol]))) as Row[];
+        return rows.map((row) => row[join.refCol] as string);
+    }
+
     /** {@link resolveLocaleGroups} applied to a delta's three id arrays. */
     private async resolveByLocaleGroup(
         tx: DbTransaction,
@@ -1303,6 +1501,18 @@ export class RelationLinkService {
             target: owner
         };
     }
+}
+
+/**
+ * The composite map key for "this translation group, in this locale".
+ *
+ * A named helper rather than an inline template so the two call sites cannot
+ * drift apart on the separator — and so the separator is a visible character.
+ * `|` cannot appear in either half: a `locale_group_id` is a uuid, and a locale
+ * slug is `^[a-z]{2,3}(-[a-z0-9]+)*$`, so the pair is unambiguous.
+ */
+function groupLocaleKey(localeGroupId: string, locale: string): string {
+    return `${localeGroupId}|${locale}`;
 }
 
 /** De-duplicate a list of ids, preserving order and dropping empties. */

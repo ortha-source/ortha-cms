@@ -1,8 +1,17 @@
 # @ortha-cms/utils-server
 
-Server-side shared utilities for Ortha CMS. Currently one concern: the
-**filter query builder** — translates a REST-style `?filter=` payload into a
-Drizzle SQL fragment that callers splice into their `WHERE` clause.
+Server-side shared utilities for Ortha CMS. Two concerns:
+
+- the **filter query builder** — translates a REST-style `?filter=` payload into
+  a Drizzle SQL fragment that callers splice into their `WHERE` clause (the bulk
+  of this document);
+- **Postgres error introspection** (`pg-errors.ts`) — `isUniqueViolation` and
+  `violatedConstraint`, for mapping a `23505` to a clean HTTP error instead of a
+  500. `violatedConstraint` returns the offending index's **name** (or `''` when
+  the driver didn't supply one, so a caller can still tell "unattributed
+  violation" from "not a violation"): a table with several unique indexes needs
+  to know *which* one tripped, because reporting one as the other tells the user
+  to fix something that isn't wrong.
 
 The package has no NestJS module of its own — it's a pure helper library any
 plugin can import.

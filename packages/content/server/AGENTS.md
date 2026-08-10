@@ -39,7 +39,9 @@ export const post = collection('post', {
   nulled on delete. `unique: true` makes a single relation **one-to-one** — a
   `UNIQUE` constraint on the `<field>_id` FK (nullable-unique, so unrelated rows
   don't collide); combining it with `many: true` is rejected (a join table has
-  no column to constrain).
+  no column to constrain). On an **`i18n`** type the constraint is scoped to the
+  locale instead — see _Relations across locales_ below, since a localized
+  record is one row per language and one-to-one has to be counted in records.
 
 ### Two-way relations (`relationInverse`)
 
@@ -109,11 +111,8 @@ columns:
   of an entry is a full row; siblings share a `locale_group_id`. Per-field,
   `field.*({ localized: true })` marks a value as varying per locale (rejected
   at define time on a non-i18n type); an unmarked field is **shared** across the
-  group. A **single relation whose target type is also i18n** is per-locale too
-  — `isPerLocaleRelation` (exported) derives it, and the schema serializer stamps
-  `localized: true` on such a field even without the flag: a shared FK would be a
-  cross-locale link, so the i18n sibling-sync and the admin's translation prefill
-  skip it and the relation picker offers only same-locale candidates. This
+  group. Relations follow their own rule — see **Relations across locales**
+  below. This
   package owns the storage _shape_ only — what a locale _means_
   (allowed slugs, the default, scoping, sync) lives behind the
   `CONTENT_ENTRY_EXTENSION` port (see below), so content-server stays
@@ -128,6 +127,72 @@ published" / "not deleted"; the service layer stamps them). `status`,
 flags are carried on `ContentType` and serialized in the schema summary
 (`i18n` on the summary, `localized` per field).
 
+### Relations across locales (`syncAcrossLocales`)
+
+A relation on an `i18n` type belongs to the **record**, not to the language: the
+default is that assigning it in one locale assigns it in all of them. Two things
+decide what actually happens, and only one of them is the author's:
+
+- **The author** sets `field.relation({ …, syncAcrossLocales })` — a boolean,
+  default `true`. `localized: true` on a relation is an **alias** for `false`
+  (declaring both in contradiction is rejected at define time, as is setting it
+  on a type with no locale siblings).
+- **The target type** decides how a synced link is stored, because that is a
+  storage fact rather than a preference. A non-`i18n` target means one row for
+  the whole group, so every sibling holds the same id. An `i18n` target means
+  each sibling must name that record's row **in its own locale** — a shared FK
+  there would be exactly the cross-locale link `assertSameLocale` forbids.
+
+`extension/relation-locale-sync.ts` is the one place that rule lives, consulted
+by the schema serializer, the i18n sibling sync, and the copilot's translation
+applier so the three cannot drift:
+
+| `relationLocaleSync` | when                                    | stored                                     |
+| -------------------- | --------------------------------------- | ------------------------------------------ |
+| `shared`             | sync on, target not `i18n`              | the same target id in every sibling        |
+| `mirrored`           | sync on, target `i18n`                  | that target's **group**, resolved per locale |
+| `none`               | sync off, an inverse, or a non-`i18n` owner | nothing propagates                      |
+
+Cardinality does **not** enter into it — a single FK, an owning many-to-many and
+their join tables all follow the same rule. An **inverse** is always `none`: it
+reuses the owning side's rows, so syncing from both ends would write them twice.
+
+`isPerLocaleField` (also exported) is the *other* question — does this row's
+value differ from its siblings' — and it is what the serializer reports as
+`localized`. Note the two are not opposites: a **mirrored** relation is
+per-locale *and* propagated, the id differing per row precisely so each row
+points at the right translation. `relation.localeSync` is serialized on the wire
+(on localized types only) so the editor can say what a save will reach.
+
+**`unique: true` means one-to-one per _record_, and on a localized type a record
+is N rows.** So the constraint is scoped to the locale there: `columnFor` omits
+the column-wide `UNIQUE` on an `i18n` type and `buildTables` emits a partial
+`uniqueIndex(<field>_id, locale)` instead (partial on paranoid types, like the
+`(locale_group_id, locale)` pair, so a trashed row can't hold a target hostage).
+The English and German rows of one article may therefore share one SEO record —
+which is exactly what a **shared** relation does — while another article still
+cannot claim it. A column-wide `UNIQUE` would have read "one _row_ may point
+here" and made the second translation of any such record a flat constraint
+violation.
+
+The FK **leads** that index (`(<field>_id, locale)`, not the reverse).
+Uniqueness of a pair is order-independent, but the leading column decides what
+else the index serves — and the plain per-FK index is skipped for `unique`
+relations on the assumption one already exists, which the inverse side's
+`inArray(<fk>, sourceIds)` page read depends on.
+
+Enforcement is in **both** places, deliberately. The index is the guarantee (it
+is the only thing that holds under concurrency);
+`EntryWriterService.assertUniqueRelations` runs first purely for the message,
+turning what would be a 500 with a constraint name into the same
+`{ field, message }` 422 as every other entry error. It compares translation
+**groups**, not row ids — excluding only the row being written would make a
+record's own second locale look like a rival claimant. A race that slips between
+the two is caught by `uniqueGuarded`, which reads the violated constraint name
+(`violatedConstraint`, from `utils-server`) to tell the two indexes on a
+localized table apart: reporting a taken one-to-one as "this locale is already
+occupied" would send the caller to fix the wrong thing.
+
 ### The entries extension port (`CONTENT_ENTRY_EXTENSION`)
 
 `src/lib/extension/entry-extension.ts` declares a DI port (a `Symbol` + the
@@ -141,8 +206,21 @@ Methods: `listScope` (extra list `WHERE`), `filterExtension` (virtual filter
 fields resolved via the engine's `extensionFields` + `resolveExtension` seam),
 `createColumns` (extra envelope columns on INSERT — may be **async**, e.g. to
 validate a group id against the DB), `afterUpdate` (in-tx side-effects after a
-save — runs on **both create and update**, e.g. syncing shared fields to locale
-siblings; must no-op when nothing applies). The `?locale=` / `?localeFallback=`
+save — runs on **both create and update**, e.g. syncing shared fields and
+relation links to locale siblings; must no-op when nothing applies).
+
+`afterUpdate` receives an **`EntryWriteContext`** (`{ created }`) because the two
+writes are not symmetric. On an **update** the edited row is the authority and its
+state propagates outward. On a **create** it is the opposite: a translation
+arrives carrying the source's shared values but **none of its relations** (they
+are join-backed, or per-locale and deliberately dropped by the client), so
+treating it as the authority would push those gaps onto rows that were already
+right — wiping the group's links. An implementation may also amend `row` **in
+place** for columns it derives for that row; the caller snapshots `row` _after_
+the call, so a database-only write would leave version 1 describing something the
+row never held.
+
+The `?locale=` / `?localeFallback=`
 query params and the create body
 `locale` + `localeGroupId` are declared on the DTOs as **opaque strings** (the
 strict `ValidationPipe` rejects undeclared keys) and forwarded to the port

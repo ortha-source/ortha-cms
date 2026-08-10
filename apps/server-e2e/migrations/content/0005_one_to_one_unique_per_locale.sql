@@ -1,0 +1,2 @@
+ALTER TABLE "content_test_article" DROP CONSTRAINT "content_test_article_seo_id_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "content_test_article_seo_locale_unique" ON "content_test_article" USING btree ("seo_id","locale") WHERE "content_test_article"."deleted_at" is null;

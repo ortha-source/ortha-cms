@@ -57,15 +57,21 @@ const LOCALIZED_SCHEMA = {
             admin: { label: 'Category' }
         },
         {
-            // A single relation to an i18n target (self) — per-locale: the
-            // server serializes it `localized`, and the picker is scoped to the
-            // active locale (even on a create form, via the slot `params`).
+            // A single relation to an i18n target (self) — **mirrored**: the
+            // stored id differs per locale (so the server serializes it
+            // `localized` and the picker is scoped to the active locale, even
+            // on a create form via the slot `params`), and picking a record
+            // here links that record's own translation in every other locale.
             name: 'related',
             type: 'relation',
             required: false,
             localized: true,
             validation: {},
-            relation: { to: 'localized_post', many: false },
+            relation: {
+                to: 'localized_post',
+                many: false,
+                localeSync: 'mirrored' as const
+            },
             admin: { label: 'Related post' }
         }
     ]

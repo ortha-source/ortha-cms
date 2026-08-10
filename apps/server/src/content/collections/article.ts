@@ -121,30 +121,35 @@ export const article = collection('article', {
 
         // ---- relations ---------------------------------------------------
         // many-to-one, required → ON DELETE RESTRICT (a required single
-        // relation cannot be SET NULL). Target is non-i18n ⇒ shared FK.
+        // relation cannot be SET NULL). Target is non-i18n ⇒ **shared**: one
+        // author for the record, the same FK in every locale row.
         author: field.relation({
             to: (): AnyContentType => author,
             required: true,
             onDelete: 'restrict'
         }),
-        // one-to-one: UNIQUE constraint on the FK column.
+        // one-to-one. On a localized type the UNIQUE is per **locale**
+        // (`(seo_id, locale)`), so the record's language rows may all point at
+        // this one SEO record while no other article can claim it.
         seo: field.relation({
             to: (): AnyContentType => seo_meta,
             unique: true,
             onDelete: 'set null',
             admin: { label: 'SEO metadata' }
         }),
-        // many-to-one, optional → ON DELETE SET NULL.
+        // many-to-one, optional → ON DELETE SET NULL. Non-i18n target ⇒ shared.
         category: field.relation({
             to: (): AnyContentType => category,
             onDelete: 'set null'
         }),
-        // many-to-many (join table). Target is i18n ⇒ per-locale relation.
+        // many-to-many (join table). Target is i18n ⇒ **mirrored**: tagging the
+        // English article tags the German one with the German tag.
         tags: field.relation({
             to: (): AnyContentType => tag,
             many: true
         }),
-        // many-to-many to SELF (a "related articles" graph).
+        // many-to-many to SELF (a "related articles" graph). Self ⇒ i18n target
+        // ⇒ mirrored: each locale links its own language's related articles.
         related: field.relation({
             to: (): AnyContentType => article,
             many: true,

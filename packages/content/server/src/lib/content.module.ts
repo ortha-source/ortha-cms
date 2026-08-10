@@ -233,7 +233,13 @@ export class ContentModule {
                 // also bind. ADR-0005 §5 requires an applied proposal to run
                 // the ordinary use-case, so they must reach *this* service
                 // rather than write their own insert.
-                EntryWriterService
+                EntryWriterService,
+                // Relation storage, for the bound CONTENT_ENTRY_EXTENSION: the
+                // i18n sync reads and rewrites link sets on locale siblings,
+                // and it has to be through the same service the entries
+                // pipeline writes with — a second implementation of the join
+                // table's ordering and de-duplication is how the two drift.
+                RelationLinkService
             ]
         };
     }
