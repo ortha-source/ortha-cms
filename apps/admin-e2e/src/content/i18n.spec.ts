@@ -557,6 +557,35 @@ test.describe('Content i18n', () => {
             ).toBeVisible();
         });
 
+        test('publishing all locales refreshes the open record’s own status', async ({
+            contentLibraryPage
+        }) => {
+            // Open the German sibling: published once and edited since, so the
+            // Details block reads **Modified** — the state you publish from.
+            await openCollection(contentLibraryPage);
+            await contentLibraryPage.selectLocale(/Deutsch/);
+            await contentLibraryPage.recordLink('Winterstiefel').click();
+            await expect(contentLibraryPage.editorSave).toBeVisible();
+            await expect(contentLibraryPage.entryDetailsStatus).toHaveText(
+                'Modified'
+            );
+
+            await contentLibraryPage.openEditorMenu();
+            await contentLibraryPage.chooseEditorAction('Publish all locales');
+            await contentLibraryPage.preflightConfirm.click();
+            await expect(
+                contentLibraryPage.toast('1 record published.')
+            ).toBeVisible();
+
+            // The bulk action published the record the editor is *showing*, so
+            // its own read-one has to be refreshed too — refreshing only the
+            // records list left this badge reading Modified for a record that
+            // had just gone live.
+            await expect(contentLibraryPage.entryDetailsStatus).toHaveText(
+                'Published'
+            );
+        });
+
         test('unpublish all locales confirms, naming the live locales', async ({
             contentLibraryPage
         }) => {

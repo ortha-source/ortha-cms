@@ -356,9 +356,14 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   what tells them apart). `useBulkEntryActions` is exported for the same reason —
   i18n's "unpublish all locales" is `bulk/unpublish` over the sibling ids, since
   unpublish has no pre-flight to run. Destructive actions confirm through the design-system
-  **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations invalidate the type's records list
-  (`contentEntriesPrefix`); the 422 `issues` ride on `ApiError.details` and are
-  extracted by `infrastructure/entryIssues`.
+  **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations —
+  single **and bulk** — run the shared `refreshEntryCaches` pass, not just the
+  records list: a bulk action can be fired from the editor of a record inside the
+  set ("publish all locales" publishes the open record along with its siblings),
+  and refreshing only the list left the Details block reading its pre-publish
+  cache, so a record that had just gone live still showed **Modified**. The 422
+  `issues` ride on `ApiError.details` and are extracted by
+  `infrastructure/entryIssues`.
 - **The editor is read-only without the write permission — the _form_, not just
   its buttons.** `EntryEditor` resolves `content:create` (a create form) or
   `content:update` (an existing record) and publishes the answer through

@@ -6,22 +6,28 @@ import type {
     BulkPublishPreview,
     BulkPublishResult
 } from '../../domain/types/contentType';
-import { contentEntriesPrefix } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
+import { refreshEntryCaches } from '../refreshEntryCaches';
 
 /**
  * Bulk actions over a selected set of entry ids, via the content gateway, shared
- * by the records selection bar. `previewPublish` is a read (validates each id,
- * writes nothing) and so doesn't invalidate; the committing actions invalidate the
- * type's records list on success. Each mutation takes the `ids` array.
+ * by the records selection bar **and** by the i18n plugin's publish/unpublish
+ * all locales menu items. `previewPublish` is a read (validates each id, writes
+ * nothing) and so doesn't invalidate; the committing actions run the shared
+ * {@link refreshEntryCaches} pass on success. Each mutation takes the `ids` array.
+ *
+ * It is the **shared** pass and not just the records list because a bulk action
+ * can be fired from the editor of a record inside the set: "publish all locales"
+ * publishes the open record along with its siblings, and refreshing only the list
+ * left the editor's Details block reading its pre-publish cache — a record that
+ * had just gone live still showing **Modified**. No id is primed: the bulk
+ * responses carry verdicts, not records, so every read-one of the type is dropped.
  */
 export function useBulkEntryActions(typeName: string) {
     const queryClient = useQueryClient();
     const workspace = useCurrentWorkspace();
     const invalidate = () =>
-        queryClient.invalidateQueries({
-            queryKey: contentEntriesPrefix(workspace.id, typeName)
-        });
+        refreshEntryCaches(queryClient, workspace.id, typeName);
 
     const previewPublish = useMutation<BulkPublishPreview, ApiError, string[]>({
         mutationFn: (ids) =>
