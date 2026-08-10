@@ -6,11 +6,10 @@ Server-side shared utilities for Ortha CMS. Two concerns:
   a Drizzle SQL fragment that callers splice into their `WHERE` clause (the bulk
   of this document);
 - **Postgres error introspection** (`pg-errors.ts`) — `isUniqueViolation` and
-  `violatedConstraint`, for mapping a `23505` to a clean HTTP error instead of a
-  500. `violatedConstraint` returns the offending index's **name** (or `''` when
+  `violatedConstraint`, for mapping a `23505` to a clean HTTP error instead of a 500. `violatedConstraint` returns the offending index's **name** (or `''` when
   the driver didn't supply one, so a caller can still tell "unattributed
   violation" from "not a violation"): a table with several unique indexes needs
-  to know *which* one tripped, because reporting one as the other tells the user
+  to know _which_ one tripped, because reporting one as the other tells the user
   to fix something that isn't wrong.
 
 The package has no NestJS module of its own — it's a pure helper library any
@@ -60,7 +59,7 @@ Key concepts:
   yields to the full target join.
 - **Parent-side columns are re-bound to the queried table.** A relation's
   `fk` (on `many-to-one` / `self-referential`) and any `parentKey` are
-  prebuilt against the *physical* parent table, which is wrong whenever the
+  prebuilt against the _physical_ parent table, which is wrong whenever the
   parent is an **alias** — i.e. for anything nested under a
   `self-referential` hop. Postgres resolves the unaliased column from the
   outermost `FROM` instead of erroring, so `parent.author.name` would filter
@@ -75,7 +74,7 @@ Key concepts:
     - **On a relation path**, a negating leaf (`ne` / `nin` / `nilike`, and
       `null: true`) is rewritten into `NOT EXISTS(… positive …)` — the
       negation wraps the **outermost** hop, so a multi-hop path negates the
-      whole chain. The naive `EXISTS(… negated …)` asserts the *opposite*
+      whole chain. The naive `EXISTS(… negated …)` asserts the _opposite_
       once a relation can hold >1 row: `tags.name nin ['x']` would mean "has
       some tag that isn't x" and match an entry tagged `[x, y]`. It also
       makes `relation.id null:true` ("is empty") a dead filter, since a

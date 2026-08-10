@@ -14,9 +14,7 @@ describe('collection() / single() validation', () => {
     });
 
     it('rejects a type with no fields', () => {
-        expect(() => collection('empty', { fields: {} })).toThrow(
-            /no fields/
-        );
+        expect(() => collection('empty', { fields: {} })).toThrow(/no fields/);
     });
 
     it('rejects a field that collides with an envelope column', () => {
@@ -225,11 +223,9 @@ describe('content-type i18n metadata', () => {
 describe('media fields', () => {
     /** A generated column's SQL type (`uuid`, `jsonb`, …). */
     const sqlType = (type: AnyContentType, col: string) =>
-        (
-            (type.table as unknown as Record<string, { getSQLType(): string }>)[
-                col
-            ]
-        ).getSQLType();
+        (type.table as unknown as Record<string, { getSQLType(): string }>)[
+            col
+        ].getSQLType();
 
     it('field.media() normalizes multiple (default false) + accept', () => {
         const single = field.media();
@@ -442,13 +438,17 @@ describe('one-to-one across locales', () => {
 
     it('keeps a column-wide UNIQUE on a type with no locales', () => {
         const page = collection('page', {
-            fields: { seo: field.relation({ to: () => plainSeo, unique: true }) }
+            fields: {
+                seo: field.relation({ to: () => plainSeo, unique: true })
+            }
         });
         const seo = getTableConfig(page.table as PgTable).columns.find(
             (c) => c.name === 'seo_id'
         );
         expect(seo?.isUnique).toBe(true);
-        expect(uniqueIndexNames(page)).not.toContain('content_page_seo_locale_unique');
+        expect(uniqueIndexNames(page)).not.toContain(
+            'content_page_seo_locale_unique'
+        );
     });
 
     it('scopes the UNIQUE to the locale on a localized type', () => {
@@ -458,13 +458,17 @@ describe('one-to-one across locales', () => {
         // entry would be a constraint violation.
         const post = collection('post', {
             i18n: true,
-            fields: { seo: field.relation({ to: () => plainSeo, unique: true }) }
+            fields: {
+                seo: field.relation({ to: () => plainSeo, unique: true })
+            }
         });
         const seo = getTableConfig(post.table as PgTable).columns.find(
             (c) => c.name === 'seo_id'
         );
         expect(seo?.isUnique).toBeFalsy();
-        expect(uniqueIndexNames(post)).toContain('content_post_seo_locale_unique');
+        expect(uniqueIndexNames(post)).toContain(
+            'content_post_seo_locale_unique'
+        );
     });
 
     it('leads that index with the FK, so inverse reads stay indexed', () => {
@@ -473,7 +477,9 @@ describe('one-to-one across locales', () => {
         // skipped for `unique` relations on the assumption one already exists.
         const post = collection('post', {
             i18n: true,
-            fields: { seo: field.relation({ to: () => plainSeo, unique: true }) }
+            fields: {
+                seo: field.relation({ to: () => plainSeo, unique: true })
+            }
         });
         expect(indexColumns(post, 'content_post_seo_locale_unique')).toEqual([
             'seo_id',
@@ -486,6 +492,8 @@ describe('one-to-one across locales', () => {
             i18n: true,
             fields: { seo: field.relation({ to: () => plainSeo }) }
         });
-        expect(uniqueIndexNames(post)).not.toContain('content_post_seo_locale_unique');
+        expect(uniqueIndexNames(post)).not.toContain(
+            'content_post_seo_locale_unique'
+        );
     });
 });
