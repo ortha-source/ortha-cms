@@ -9,6 +9,7 @@ import { copilotStoreState } from './copilotStore';
 import { useCopilotChat, type CopilotChat } from './useCopilotChat';
 import { useCopilotSessions } from './useCopilotSessions';
 import { useConversationDetail } from './useConversation';
+import type { CopilotModelChoice } from './useCopilotModels';
 
 /** What the Agents page needs to render one thread. */
 export interface AgentThread {
@@ -22,6 +23,10 @@ export interface AgentThread {
     failed: boolean;
     /** Fetches the open thread again after a failure. */
     retry(): void;
+    /** Which backend the next turn runs on, or `null` for the host's resolver. */
+    choice: CopilotModelChoice | null;
+    /** Routes the next turn elsewhere. Remembered on the chat, not the page. */
+    setChoice(choice: CopilotModelChoice | null): void;
 }
 
 /**
@@ -241,9 +246,20 @@ export function useAgentThread(workspaceId: string): AgentThread {
     const { refetch } = detail;
     const retry = useCallback(() => void refetch(), [refetch]);
 
+    const setChoice = useCallback((choice: CopilotModelChoice | null) => {
+        const id = sessionIdRef.current;
+        if (id) {
+            sessionsRef.current.setModel(id, choice);
+        }
+    }, []);
+
     return {
         chat,
         conversationId: urlId,
+        // From the session, so it survives leaving the page — which is exactly
+        // what it did not do while it lived in the component.
+        choice: presented?.choice ?? null,
+        setChoice,
         // `isFetching`, not `isPending`: a disabled query stays "pending"
         // forever, and the page would never leave its skeleton.
         loading: detail.isFetching,

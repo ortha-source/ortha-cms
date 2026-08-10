@@ -24,7 +24,8 @@ describe('sessionsReducer', () => {
                 minimized: false,
                 unread: false,
                 awaiting: false,
-                presented: 'dock'
+                presented: 'dock',
+                choice: null
             }
         ]);
     });
@@ -199,6 +200,88 @@ describe('sessionsReducer', () => {
                     value: true
                 })
             ).toBe(before);
+        });
+    });
+
+    describe('the model a chat runs on', () => {
+        const pick = (id: string, model: string | null): SessionsAction => ({
+            type: 'model',
+            id,
+            choice: model ? { provider: 'anthropic', model } : null
+        });
+
+        it('remembers the pick on the chat, not on whatever drew the picker', () => {
+            // The bug this exists for: held in component state it was lost by
+            // collapsing a window or leaving the Agents view, and the user
+            // silently got the default back.
+            const state = play(open('a'), pick('a', 'claude-opus-5'));
+            expect(state[0].choice).toEqual({
+                provider: 'anthropic',
+                model: 'claude-opus-5'
+            });
+        });
+
+        it('survives being minimized and brought back', () => {
+            const state = play(
+                open('a'),
+                pick('a', 'claude-opus-5'),
+                { type: 'minimize', id: 'a' },
+                { type: 'focus', id: 'a' }
+            );
+            expect(state[0].choice?.model).toBe('claude-opus-5');
+        });
+
+        it('survives the round trip between the page and the dock', () => {
+            const state = play(
+                open('a'),
+                { type: 'present', id: 'a', presented: 'page' },
+                pick('a', 'claude-opus-5'),
+                { type: 'present', id: 'a', presented: 'dock' },
+                { type: 'present', id: 'a', presented: 'page' }
+            );
+            expect(state[0].choice?.model).toBe('claude-opus-5');
+        });
+
+        it('is per chat — picking for one leaves the others alone', () => {
+            const state = play(open('a'), open('b'), pick('a', 'gpt-5.2'));
+            expect(state[0].choice?.model).toBe('gpt-5.2');
+            expect(state[1].choice).toBeNull();
+        });
+
+        it('takes null back, because Default is a real choice', () => {
+            const state = play(
+                open('a'),
+                pick('a', 'claude-opus-5'),
+                pick('a', null)
+            );
+            expect(state[0].choice).toBeNull();
+        });
+
+        it('starts a chat on the model it was opened with', () => {
+            // How a new chat inherits the last one the user picked.
+            const state = play({
+                type: 'open',
+                id: 'a',
+                choice: { provider: 'openai', model: 'gpt-5.2' }
+            });
+            expect(state[0].choice?.model).toBe('gpt-5.2');
+        });
+
+        it('does not overwrite the model of a thread already open', () => {
+            // Reopening focuses the existing chat; the seed must not stamp the
+            // model it is already running on.
+            const state = play(
+                { type: 'open', id: 'a', conversationId: 'c1' },
+                pick('a', 'claude-opus-5'),
+                {
+                    type: 'open',
+                    id: 'b',
+                    conversationId: 'c1',
+                    choice: { provider: 'openai', model: 'gpt-5.2' }
+                }
+            );
+            expect(state).toHaveLength(1);
+            expect(state[0].choice?.model).toBe('claude-opus-5');
         });
     });
 

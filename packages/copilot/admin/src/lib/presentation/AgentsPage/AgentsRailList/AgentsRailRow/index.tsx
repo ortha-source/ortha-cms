@@ -45,11 +45,6 @@ export interface AgentsRailRowProps {
     conversation: CopilotConversation;
     /** Whether it is the thread on screen. */
     active: boolean;
-    /**
-     * True when the group heading above already states the day, so the row
-     * shows a clock time instead of repeating "15 Mar" down the whole section.
-     */
-    timeOnly: boolean;
     /** Opens the thread. */
     onSelect(): void;
     /**
@@ -65,11 +60,23 @@ export interface AgentsRailRowProps {
     onToggleArchived(): void;
 }
 
-/** One thread in the rail: what it was about, when it was last used, and its menu. */
+/**
+ * One thread in the rail: **its name, and nothing else.**
+ *
+ * The row used to carry a timestamp under the title. It was true and it was
+ * noise: the group heading above already says Today / Yesterday / Previous 7
+ * days, so the second line spent half the row's height restating the section it
+ * sat in. Dropping it halves the row, which is what lets twice as many
+ * conversations be scannable at a glance — and scanning is the only thing this
+ * list is for.
+ *
+ * Hierarchy carries the selection rather than an accent bar: an inactive row is
+ * muted, the open one is solid on a filled ground. Colour is not doing it alone
+ * — `aria-current` announces it, and the weight changes too.
+ */
 export function AgentsRailRow({
     conversation,
     active,
-    timeOnly,
     onSelect,
     onRename,
     onToggleArchived
@@ -88,33 +95,20 @@ export function AgentsRailRow({
             <button
                 type="button"
                 onClick={onSelect}
+                // The full name, for a title the 18rem column has to truncate.
+                title={title}
                 // `aria-current="page"` rather than a styled-only selection:
                 // this is a list of destinations and the open one has to be
                 // announced, not merely tinted.
                 {...(active ? { 'aria-current': 'page' as const } : {})}
                 className={cn(
-                    'focus-visible:ring-ring flex w-full flex-col items-start gap-0.5 rounded-md py-1.5 pr-8 pl-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    'focus-visible:ring-ring flex h-8 w-full items-center rounded-lg pr-8 pl-2.5 text-left text-[13px] transition-colors focus-visible:ring-2 focus-visible:outline-none',
                     active
-                        ? 'bg-accent text-accent-foreground'
-                        : 'hover:bg-accent/60'
+                        ? 'bg-accent text-foreground font-medium'
+                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                 )}
             >
-                <span
-                    className={cn(
-                        'w-full truncate text-sm',
-                        active && 'font-medium'
-                    )}
-                >
-                    {title}
-                </span>
-                <span className="text-muted-foreground text-[11px]">
-                    {intl.formatDate(
-                        conversation.updatedAt,
-                        timeOnly
-                            ? { hour: 'numeric', minute: '2-digit' }
-                            : { month: 'short', day: 'numeric' }
-                    )}
-                </span>
+                <span className="w-full truncate">{title}</span>
             </button>
 
             <DropdownMenu>
@@ -127,7 +121,7 @@ export function AgentsRailRow({
                         ref={menuRef}
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground absolute top-1 right-1 size-6 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
+                        className="text-muted-foreground absolute top-1/2 right-1 size-6 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
                         aria-label={intl.formatMessage(messages.actions, {
                             title
                         })}

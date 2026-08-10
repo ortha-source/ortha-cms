@@ -9,7 +9,6 @@ import {
     Skeleton
 } from '@ortha-cms/design-system';
 import { useAgentThread } from '../../../application/useAgentThread';
-import type { CopilotModelChoice } from '../../../application/useCopilotModels';
 import type { RouteContext } from '../../../application/readRouteContext';
 import { Composer } from '../../Composer';
 import { ContextChip } from '../../ContextChip';
@@ -62,16 +61,12 @@ export function AgentsThread({
 }: AgentsThreadProps) {
     const intl = useIntl();
     const composerRef = useRef<HTMLTextAreaElement>(null);
-    const { chat, loading, failed, retry } = useAgentThread(workspaceId);
+    const { chat, loading, failed, retry, choice, setChoice } =
+        useAgentThread(workspaceId);
 
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
     const [attached, setAttached] = useState<RouteContext | null>(null);
-    // `null` means "let the host's resolver pick", which is a real choice rather
-    // than the absence of one — see ModelPicker. Held here, beside the composer
-    // whose control sets it, because it applies to the **next turn** rather than
-    // to the thread: a conversation can start cheap and escalate.
-    const [choice, setChoice] = useState<CopilotModelChoice | null>(null);
 
     const send = (text: string) =>
         chat.send(

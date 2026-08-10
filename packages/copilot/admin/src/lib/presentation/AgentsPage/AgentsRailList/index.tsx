@@ -110,9 +110,6 @@ const GROUP_LABELS: Record<ConversationGroupId, MessageDescriptor> = {
     older: messages.older
 };
 
-/** Buckets whose heading already states the day, so rows show a clock time. */
-const SAME_DAY_GROUPS = new Set<ConversationGroupId>(['today', 'yesterday']);
-
 export interface AgentsRailListProps {
     /** The workspace whose threads are listed. */
     workspaceId: string;
@@ -306,8 +303,8 @@ export function AgentsRailList({
                 )}
 
                 {groups.map((group) => (
-                    <section key={group.id} className="mb-3">
-                        <h3 className="text-muted-foreground px-2 pb-1 text-[11px] font-medium tracking-wide uppercase">
+                    <section key={group.id} className="mb-4">
+                        <h3 className="text-muted-foreground px-2.5 pb-1 text-[10px] font-semibold tracking-[0.08em] uppercase">
                             {intl.formatMessage(GROUP_LABELS[group.id])}
                         </h3>
                         <ul className="space-y-0.5">
@@ -316,7 +313,6 @@ export function AgentsRailList({
                                     key={conversation.id}
                                     conversation={conversation}
                                     active={conversation.id === activeId}
-                                    timeOnly={SAME_DAY_GROUPS.has(group.id)}
                                     onSelect={() => {
                                         select(conversation.id);
                                         onNavigate?.();

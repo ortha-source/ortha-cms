@@ -1,3 +1,5 @@
+import type { CopilotModelChoice } from './useCopilotModels';
+
 /**
  * One chat the user has going — a window, whether or not it is on screen.
  *
@@ -38,6 +40,21 @@ export interface CopilotSession {
      * started on the page keep streaming while you work somewhere else.
      */
     presented: 'dock' | 'page';
+    /**
+     * Which backend this chat's **next turn** runs on, or `null` for the host's
+     * resolver ("Default").
+     *
+     * On the session rather than in the component that draws the picker, for
+     * the reason everything else here is: components unmount. Held in
+     * `useState` it was lost by minimizing a window, and by navigating away from
+     * the Agents view — the user picked a model, came back, and silently got the
+     * default again.
+     *
+     * Still **per turn, not per thread**: it is sent with each message and can
+     * be changed between them, so a conversation can start cheap and escalate.
+     * What this fixes is forgetting the choice, which nobody chose.
+     */
+    choice: CopilotModelChoice | null;
 }
 
 /**
@@ -62,6 +79,8 @@ export type SessionsAction =
           title?: string;
           /** Where it starts life. Defaults to the dock. */
           presented?: 'dock' | 'page';
+          /** The model it starts on — seeded from the last one picked. */
+          choice?: CopilotModelChoice | null;
       }
     /** Close a chat for good — its window unmounts and its run is cancelled. */
     | { type: 'close'; id: string }
@@ -83,7 +102,9 @@ export type SessionsAction =
     /** The run is, or is no longer, parked on a permission prompt. */
     | { type: 'awaiting'; id: string; value: boolean }
     /** Move a chat between the full-page surface and the dock. */
-    | { type: 'present'; id: string; presented: 'dock' | 'page' };
+    | { type: 'present'; id: string; presented: 'dock' | 'page' }
+    /** Route this chat's next turn to a different backend. */
+    | { type: 'model'; id: string; choice: CopilotModelChoice | null };
 
 /**
  * Folds an action into the set of open chats.
@@ -107,7 +128,8 @@ export function sessionsReducer(
                 minimized: false,
                 unread: false,
                 awaiting: false,
-                presented
+                presented,
+                choice: action.choice ?? null
             };
             // Reopening a thread that is already open focuses it instead of
             // showing the same conversation in two windows, which would give it
@@ -172,6 +194,11 @@ export function sessionsReducer(
                               : {})
                       }
                     : s
+            );
+
+        case 'model':
+            return state.map((s) =>
+                s.id === action.id ? { ...s, choice: action.choice } : s
             );
 
         case 'present': {

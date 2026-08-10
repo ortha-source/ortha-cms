@@ -1,5 +1,6 @@
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { HoneycombBackdrop } from './HoneycombBackdrop';
 
 // The product is **Ortha AI**; the code keeps `copilot`. See the naming note in
 // `docs/design/copilot.md`.
@@ -70,16 +71,30 @@ export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
     const intl = useIntl();
 
     return (
-        <div className="flex flex-1 items-center justify-center overflow-y-auto px-6 py-10">
-            <div className="w-full max-w-2xl">
+        // `relative` + `overflow-hidden` so the lattice is clipped to this
+        // panel rather than bleeding under the composer below it.
+        <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-10">
+            <HoneycombBackdrop />
+
+            {/* Above the backdrop. Without the stacking context the greeting
+                would be painted under it at these opacities — invisible, but
+                only just. */}
+            <div className="relative w-full max-w-2xl">
                 <div className="flex flex-col items-center text-center">
+                    {/* A hexagon, cut from the same shape as the lattice behind
+                        it — the mark belongs to the pattern rather than sitting
+                        on top of an unrelated one. */}
                     <span
-                        className="bg-primary/10 text-primary mb-4 grid size-11 place-items-center rounded-xl"
+                        className="bg-brand-soft text-brand-soft-foreground mb-5 grid size-12 place-items-center"
+                        style={{
+                            clipPath:
+                                'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)'
+                        }}
                         aria-hidden
                     >
                         <Sparkles className="size-5" />
                     </span>
-                    <h2 className="text-xl font-semibold text-balance">
+                    <h2 className="text-2xl font-semibold tracking-tight text-balance">
                         {intl.formatMessage(messages.title, {
                             workspace: workspaceName
                         })}
@@ -89,7 +104,7 @@ export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
                     </p>
                 </div>
 
-                <h3 className="text-muted-foreground mt-8 mb-2 text-[11px] font-medium tracking-wide uppercase">
+                <h3 className="text-muted-foreground mt-9 mb-2.5 text-[10px] font-semibold tracking-[0.08em] uppercase">
                     {intl.formatMessage(messages.suggestions)}
                 </h3>
                 {/* Buttons, not links or cards: picking one *sends a message*,
@@ -102,7 +117,7 @@ export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
                                 <button
                                     type="button"
                                     onClick={() => onPick(text)}
-                                    className="hover:bg-accent/60 focus-visible:ring-ring group flex h-full w-full items-start gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                                    className="bg-card hover:border-brand/40 hover:bg-accent/40 focus-visible:ring-ring group flex h-full w-full items-start gap-2 rounded-xl border px-3.5 py-3 text-left text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
                                 >
                                     <span className="flex-1 text-pretty">
                                         {text}

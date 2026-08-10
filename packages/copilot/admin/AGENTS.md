@@ -205,6 +205,20 @@ Four things about how that is wired are load-bearing:
 
 ### The rail
 
+**A row is its name and nothing else.** It carried a timestamp under the title
+once; it was true and it was noise, because the group heading above already says
+Today / Yesterday / Previous 7 days — the second line spent half the row's height
+restating the section it sat in. Dropping it halves the row, which is what makes
+twice as many conversations scannable at a glance, and scanning is the only thing
+this list is for. Hierarchy carries the selection rather than an accent bar: an
+inactive row is muted, the open one is solid on a filled ground, `aria-current`
+announces it, and the weight changes too.
+
+The group headings use the full `text-muted-foreground`, **not** an opacity of
+it. `/80` at 10px is a serious contrast failure, and the admin-e2e axe scan is
+what says so — the token is the one that was verified against AA, so tinting it
+further is undoing that check by hand.
+
 `groupConversations` buckets threads by **calendar day**, not by elapsed
 milliseconds — a thread from 11pm last night is *yesterday* at 1am, not "today",
 and normalising through a UTC midnight of each local date keeps the DST
@@ -259,6 +273,28 @@ answer for.
   is no message on screen either; submitting an invalid name is what surfaces
   the reason. The field also carries no `maxLength`, so a pasted title too long
   gets an explanation instead of a silent truncation.
+
+### The empty state has a honeycomb behind it
+
+`HoneycombBackdrop` — an SVG lattice of large hexagons in the brand orange at
+very low alpha, masked by a radial fade centred on the mark. A honeycomb because
+it is what the surface *is*: a workspace's content is a lattice of small things
+that fit together. Three things keep it a backdrop rather than decoration:
+
+- **Big cells.** At half the size it tiled into texture — legible as pattern but
+  not as hexagons, which is the difference between a backdrop and a shade of
+  grey.
+- **The fade ends before the cards do.** It haloes the mark and the greeting and
+  has dissolved by the time the suggestions start, so they sit on clean ground.
+  Tuned by looking at it; the first pass reached them and the panel read as graph
+  paper.
+- **`currentColor` off a token class**, so it follows the theme instead of being
+  a light-mode flourish that turns into scratches on the dark canvas.
+
+The pattern ids come from `useId()`: two of these can be on screen at once, and
+duplicate SVG ids make the second reference the first's pattern. The greeting's
+mark is clipped to a hexagon from the same lattice, so it belongs to the pattern
+rather than sitting on an unrelated one.
 
 ### One bar, not two
 
@@ -605,7 +641,16 @@ resolver picks", which can differ per run; it is not a synonym for today's
 default provider. The picker hides itself when the deployment offers one
 backend.
 
-**On the Agents page it lives inside the composer, bottom-left** — passed as the
+**The choice lives on the session, not in the component that draws the picker.**
+Held in `useState` it was lost by collapsing a window *and* by leaving the Agents
+view — the user picked a model, came back, and silently got the default again.
+It is still per turn (sent with each message, changeable between them); what was
+broken was forgetting it, which nobody chose. A new chat inherits the last model
+picked, remembered per tab — so someone who always wants the bigger model does
+not re-pick it every time, and it can never become a setting nobody remembers
+turning on.
+
+**On the Agents page the picker lives inside the composer, bottom-left** — passed as the
 `Composer`'s `controls`, which is the slot for anything that acts on the *next
 turn*. Its first home was the page's top bar, and that was the wrong statement:
 chrome above the transcript reads as a property of the conversation, and the

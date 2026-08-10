@@ -137,6 +137,9 @@ export function CopilotLauncher() {
                             onAwaiting={(value) =>
                                 sessions.setAwaiting(session.id, value)
                             }
+                            onChoiceChange={(choice) =>
+                                sessions.setModel(session.id, choice)
+                            }
                         />
                     ))}
 

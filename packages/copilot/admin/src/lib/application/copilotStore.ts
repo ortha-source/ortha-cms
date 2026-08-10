@@ -5,6 +5,7 @@ import {
     type SessionsAction
 } from './sessions';
 import type { ChatState } from '../domain/types/chat';
+import type { CopilotModelChoice } from './useCopilotModels';
 
 /** Every chat the tab has going, and the transcript of each. */
 export interface CopilotStoreState {
@@ -55,6 +56,17 @@ const controllers = new Map<string, AbortController>();
 
 /** Session ids are a plain counter — see {@link nextSessionId}. */
 let counter = 0;
+
+/**
+ * The last model the user picked, seeded into the next chat they start.
+ *
+ * Someone who switches to a bigger model does not want to re-pick it on every
+ * new chat — and someone who picked it for one hard question can switch back,
+ * which is why this is a **per-tab** memory rather than a stored preference: it
+ * dies with the tab, like every chat here, so it can never become a setting
+ * nobody remembers turning on.
+ */
+let lastChoice: CopilotModelChoice | null = null;
 
 /** Publishes `next` and wakes subscribers, unless nothing actually changed. */
 function commit(next: CopilotStoreState): void {
@@ -158,6 +170,16 @@ export function dispatchChat(sessionId: string, action: ChatAction): void {
     });
 }
 
+/** The model a newly opened chat should start on. */
+export function seedChoice(): CopilotModelChoice | null {
+    return lastChoice;
+}
+
+/** Records the user's pick, so the next chat they start inherits it. */
+export function rememberChoice(choice: CopilotModelChoice | null): void {
+    lastChoice = choice;
+}
+
 /** The controller of this chat's in-flight run, or `null` when it is idle. */
 export function runController(sessionId: string): AbortController | null {
     return controllers.get(sessionId) ?? null;
@@ -198,6 +220,7 @@ export function resetCopilotStore(): void {
     }
     controllers.clear();
     counter = 0;
+    lastChoice = null;
     listeners.clear();
     state = { sessions: [], chats: {} };
 }

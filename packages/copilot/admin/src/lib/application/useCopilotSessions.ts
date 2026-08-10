@@ -4,8 +4,11 @@ import {
     copilotStoreState,
     dispatchSessions,
     nextSessionId,
+    rememberChoice,
+    seedChoice,
     subscribeToCopilotStore
 } from './copilotStore';
+import type { CopilotModelChoice } from './useCopilotModels';
 import { dockSessions, visibleSessions, type CopilotSession } from './sessions';
 
 /** What the dock, the windows and the Agents page all read. */
@@ -49,6 +52,8 @@ export interface CopilotSessions {
     noteActivity(id: string): void;
     /** Records whether the chat is parked on a permission prompt. */
     setAwaiting(id: string, value: boolean): void;
+    /** Routes this chat's next turn to a different backend. */
+    setModel(id: string, choice: CopilotModelChoice | null): void;
 }
 
 /**
@@ -67,7 +72,7 @@ export function useCopilotSessions(): CopilotSessions {
 
     const start = useCallback((presented: 'dock' | 'page' = 'dock') => {
         const id = nextSessionId();
-        dispatchSessions({ type: 'open', id, presented });
+        dispatchSessions({ type: 'open', id, presented, choice: seedChoice() });
         return id;
     }, []);
 
@@ -86,6 +91,7 @@ export function useCopilotSessions(): CopilotSessions {
                 id,
                 conversationId,
                 presented,
+                choice: seedChoice(),
                 ...(title ? { title } : {})
             });
             const landed = copilotStoreState().sessions.find(
@@ -138,6 +144,16 @@ export function useCopilotSessions(): CopilotSessions {
         );
     }, []);
 
+    const setModel = useCallback(
+        (id: string, choice: CopilotModelChoice | null) => {
+            // Both: this chat routes here from now on, and the next chat the
+            // user starts inherits it.
+            rememberChoice(choice);
+            dispatchSessions({ type: 'model', id, choice });
+        },
+        []
+    );
+
     const describe = useCallback(
         (
             id: string,
@@ -172,6 +188,7 @@ export function useCopilotSessions(): CopilotSessions {
         release,
         describe,
         noteActivity,
-        setAwaiting
+        setAwaiting,
+        setModel
     };
 }

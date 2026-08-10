@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useCopilotChat } from '../../application/useCopilotChat';
 import type { CopilotSession as Session } from '../../application/sessions';
+import type { CopilotModelChoice } from '../../application/useCopilotModels';
 import type { RouteContext } from '../../application/readRouteContext';
 import { CopilotPanel } from '../CopilotPanel';
 
@@ -30,7 +31,8 @@ export function CopilotSession({
     onNewChat,
     onDescribe,
     onActivity,
-    onAwaiting
+    onAwaiting,
+    onChoiceChange
 }: {
     session: Session;
     workspaceId: string;
@@ -43,6 +45,7 @@ export function CopilotSession({
     onDescribe(meta: { conversationId?: string | null; title?: string }): void;
     onActivity(): void;
     onAwaiting(value: boolean): void;
+    onChoiceChange(choice: CopilotModelChoice | null): void;
 }) {
     const chat = useCopilotChat(session.id, workspaceId, session.minimized);
 
@@ -107,6 +110,10 @@ export function CopilotSession({
             onMinimize={onMinimize}
             onClose={onClose}
             onNewChat={onNewChat}
+            // From the session, so collapsing this chat to the dock and
+            // reopening it does not quietly put it back on the default model.
+            choice={session.choice}
+            onChoiceChange={onChoiceChange}
         />
     );
 }
