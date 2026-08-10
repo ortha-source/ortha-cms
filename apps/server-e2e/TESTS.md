@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_736 test cases across 46 spec files._
+_737 test cases across 46 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -924,6 +924,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | --- |
 | filters on a scalar field with the query-builder grammar |
 | combines free-text search with a filter |
+| separates entries with unpublished changes from never-published drafts |
 | turns an unknown filter path into a tool error |
 | searches the requested locale, not the default one |
 | rejects an unknown locale rather than silently using the default |

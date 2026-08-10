@@ -51,7 +51,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 5;
+export const SYSTEM_PROMPT_VERSION = 6;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -197,8 +197,9 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
  * assistant may do without ever saying what it is looking at. Each line below
  * is here because getting it wrong produces a confident, wrong answer rather
  * than a tool error: "there is no such article" (when the type is merely
- * ungranted), "it is archived" (no such state), or treating a localized
- * entry's translations as fields on one row. Per-tool mechanics stay in the
+ * ungranted), "it is archived" (no such state), counting every draft as an
+ * entry with unpublished edits, or treating a localized entry's translations
+ * as fields on one row. Per-tool mechanics stay in the
  * tool's own `description`, where they arrive in context and cost nothing on a
  * run that never calls it.
  */
@@ -210,6 +211,19 @@ function describeContentModel(toolNames: readonly string[]): string {
             'not exist.',
         'A publishable entry is either a draft or published — there is no archived ' +
             'or unpublished state. Unpublishing returns an entry to draft.',
+        // The line above is about the `status` column and is true; on its own it
+        // reads as "there are two states", which is the wrong prior. Editing a
+        // published entry sets status back to draft but KEEPS publishedAt, so
+        // the live/edited distinction lives in the pair — and a model that never
+        // learns this answers "how many are edited but not published?" with a
+        // count of every draft, which is a confident wrong answer rather than a
+        // tool error. See `EntryRecord.publishedAt` in content-server.
+        'What is live is the PAIR status + publishedAt, not status alone: ' +
+            '`published` = live and current; `draft` WITH a publishedAt = live ' +
+            'content carrying unpublished changes (the admin shows “Modified”); ' +
+            '`draft` with no publishedAt = never published. So “modified”, ' +
+            '“edited but not published” and “has unpublished changes” all mean ' +
+            'draft AND publishedAt is not null — never draft alone.',
         'Every saved change to an entry captures a numbered version, so what ' +
             'changed, when, and by whom are answerable rather than guesses.',
         'On a localized type each locale is its own entry, with its own id, status ' +

@@ -154,7 +154,12 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                 'bodies and a page of them is very large. Results are paginated and the response ' +
                 'reports the true total, so you can state how many matched even when you have ' +
                 'only read the first page. On a localized type, pass `locale` — omitting it ' +
-                'searches the default locale, which is rarely what the user meant.',
+                'searches the default locale, which is rarely what the user meant. ' +
+                'Publish state is two fields, so `status` alone conflates two different ' +
+                'things: entries with live content plus unpublished changes (“modified”, ' +
+                '“edited but not published”) are `status` eq "draft" AND `publishedAt` ' +
+                'op "null" value false, while never-published ones are `status` eq "draft" ' +
+                'AND `publishedAt` op "null" value true.',
             inputSchema: {
                 type: 'object',
                 properties: {
