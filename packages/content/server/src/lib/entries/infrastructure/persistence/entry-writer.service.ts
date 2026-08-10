@@ -393,7 +393,8 @@ export class EntryWriterService {
                         type,
                         inserted as Row,
                         coerced,
-                        workspaceId
+                        workspaceId,
+                        { created: true }
                     );
                     // Snapshot the just-created document as its first revision,
                     // inside this same transaction.
@@ -644,7 +645,8 @@ export class EntryWriterService {
                 type,
                 updated as Row,
                 coerced,
-                workspaceId
+                workspaceId,
+                { created: false }
             );
             // Snapshot the updated document as a new draft revision, inside this
             // same transaction — unless the caller is re-applying a version that

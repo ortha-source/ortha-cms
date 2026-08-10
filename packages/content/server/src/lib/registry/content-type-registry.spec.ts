@@ -205,3 +205,121 @@ describe('ContentTypeRegistry', () => {
         });
     });
 });
+
+describe('locale sync', () => {
+    const plainTag = collection('plain_tag', {
+        fields: { name: field.text() }
+    });
+    const localTag = collection('local_tag', {
+        i18n: true,
+        fields: { name: field.text() }
+    });
+
+    /** Serialize one field of a registered type. */
+    const fieldOf = (types: AnyContentType[], type: string, name: string) =>
+        new ContentTypeRegistry(types)
+            .serialize(type)
+            ?.fields.find((entry) => entry.name === name);
+
+    describe('the unique + shared collision', () => {
+        it('rejects a unique relation that would be copied into every locale', () => {
+            // The same `seo_id` in every sibling row against a UNIQUE column is
+            // a constraint violation waiting for the second translation, so it
+            // fails boot rather than the first save.
+            const story = collection('story', {
+                i18n: true,
+                fields: {
+                    seo: field.relation({ to: () => plainTag, unique: true })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([plainTag, story])
+            ).toThrow(/would be synced into every locale row/);
+        });
+
+        it('accepts it when the relation opts out of syncing', () => {
+            const story = collection('story', {
+                i18n: true,
+                fields: {
+                    seo: field.relation({
+                        to: () => plainTag,
+                        unique: true,
+                        syncAcrossLocales: false
+                    })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([plainTag, story])
+            ).not.toThrow();
+        });
+
+        it('accepts it when the target is localized, so the ids differ anyway', () => {
+            // Mirrored: each locale points at that record's own translation, so
+            // no two siblings hold the same id and UNIQUE is satisfied.
+            const story = collection('story', {
+                i18n: true,
+                fields: {
+                    seo: field.relation({ to: () => localTag, unique: true })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([localTag, story])
+            ).not.toThrow();
+        });
+
+        it('leaves a unique relation on a non-localized type alone', () => {
+            const story = collection('story', {
+                fields: {
+                    seo: field.relation({ to: () => plainTag, unique: true })
+                }
+            });
+            expect(
+                () => new ContentTypeRegistry([plainTag, story])
+            ).not.toThrow();
+        });
+    });
+
+    describe('serialization', () => {
+        const story = collection('story', {
+            i18n: true,
+            fields: {
+                shared: field.relation({ to: () => plainTag }),
+                mirrored: field.relation({ to: () => localTag }),
+                unsynced: field.relation({
+                    to: () => plainTag,
+                    syncAcrossLocales: false
+                })
+            }
+        });
+        const types = [plainTag, localTag, story];
+
+        it('reports the mode so the editor can say what a save will do', () => {
+            expect(fieldOf(types, 'story', 'shared')?.relation?.localeSync).toBe(
+                'shared'
+            );
+            expect(
+                fieldOf(types, 'story', 'mirrored')?.relation?.localeSync
+            ).toBe('mirrored');
+            expect(
+                fieldOf(types, 'story', 'unsynced')?.relation?.localeSync
+            ).toBe('none');
+        });
+
+        it('omits the mode on a type with no locales to speak of', () => {
+            const flat = collection('flat', {
+                fields: { tag: field.relation({ to: () => plainTag }) }
+            });
+            expect(
+                fieldOf([plainTag, flat], 'flat', 'tag')?.relation?.localeSync
+            ).toBeUndefined();
+        });
+
+        it('marks per-locale relations localized, but not shared ones', () => {
+            // `localized` means "this row's value differs from its siblings'",
+            // which is true of a mirrored id and false of a shared one.
+            expect(fieldOf(types, 'story', 'shared')?.localized).toBeUndefined();
+            expect(fieldOf(types, 'story', 'mirrored')?.localized).toBe(true);
+            expect(fieldOf(types, 'story', 'unsynced')?.localized).toBe(true);
+        });
+    });
+});

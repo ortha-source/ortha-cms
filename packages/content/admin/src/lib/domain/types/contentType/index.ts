@@ -54,6 +54,12 @@ export type ContentType = {
 };
 
 /**
+ * How a relation propagates across a record's translations. Mirrors the
+ * server's `RelationLocaleSync` without importing across the boundary.
+ */
+export type RelationLocaleSync = 'shared' | 'mirrored' | 'none';
+
+/**
  * Wire shape of one field, as served by `GET /api/content-schema/:name`.
  * Mirrors the server's `SerializedField`
  * (`packages/content/server/src/lib/registry/content-type-registry.ts`)
@@ -80,6 +86,20 @@ export type ContentField = {
         many: boolean;
         onDelete?: string;
         unique?: boolean;
+        /**
+         * How this link behaves across the record's locales — present only on a
+         * localized type:
+         *
+         * - `shared` — one target for the whole record; editing it in any
+         *   locale edits it in all of them.
+         * - `mirrored` — each locale links the target's own translation, and
+         *   the server resolves which row that is.
+         * - `none` — each locale keeps its own links.
+         *
+         * The editor renders this so a save's reach is visible **before** it
+         * happens, rather than discovered afterwards in another language.
+         */
+        localeSync?: RelationLocaleSync;
         /**
          * Present when this field is the **inverse** side of a two-way relation:
          * `field` is the storage-owning relation on `to`. The picker treats it

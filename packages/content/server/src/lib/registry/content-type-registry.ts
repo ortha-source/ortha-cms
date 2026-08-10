@@ -7,7 +7,12 @@
 
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
-import { isPerLocaleRelation } from '../extension/per-locale-relation';
+import {
+    isPerLocaleField,
+    relationLocaleSync,
+    RELATION_LOCALE_SYNC,
+    type RelationLocaleSync
+} from '../extension/relation-locale-sync';
 
 /** Wire shape of a field, as served to the admin / frontends. */
 export interface SerializedField {
@@ -30,6 +35,14 @@ export interface SerializedField {
         many: boolean;
         onDelete?: string;
         unique?: boolean;
+        /**
+         * How this link behaves across the record's locales — `shared` (one
+         * target for the whole group), `mirrored` (each locale links the
+         * target's own translation), or `none` (each locale keeps its own).
+         * Present only on a localized owner, where it is the difference between
+         * "editing this changes every language" and "this is yours alone".
+         */
+        localeSync?: RelationLocaleSync;
         /** Present when this field is the inverse side of a two-way relation. */
         inverse?: { field: string };
     };
@@ -60,6 +73,43 @@ export interface SerializedContentTypeSummary {
 /** Wire shape of a content type with its full field schema. */
 export interface SerializedContentType extends SerializedContentTypeSummary {
     fields: SerializedField[];
+}
+
+/**
+ * Reject a **one-to-one** relation that would be copied verbatim onto every
+ * locale sibling — `unique: true` plus {@link RELATION_LOCALE_SYNC.Shared}.
+ *
+ * The two are contradictory: a shared link writes the *same* `<field>_id` into
+ * every row of the translation group, and the `UNIQUE` constraint that makes
+ * the relation one-to-one permits exactly one row to hold that value. The
+ * second locale is a constraint violation, not a design decision — so it fails
+ * boot rather than the first save of a translated record.
+ *
+ * Both escapes are real modelling choices, and which one fits depends on the
+ * content: `syncAcrossLocales: false` gives each locale its own target record
+ * (right for SEO metadata, which is per-language anyway), while localizing the
+ * target makes the relation *mirrored*, so each sibling points at that record's
+ * own translation and the ids differ by construction.
+ *
+ * Lives here rather than in `assertFields` because it has to resolve the target
+ * thunk, which is only safe once every type is registered.
+ */
+function assertSyncableUnique(
+    type: AnyContentType,
+    fieldName: string,
+    spec: AnyFieldSpec
+): void {
+    if (!spec.relation?.unique) return;
+    if (relationLocaleSync(type, spec) !== RELATION_LOCALE_SYNC.Shared) return;
+    throw new Error(
+        `Relation "${type.name}.${fieldName}" is unique: true on a localized ` +
+            `type, but targets "${spec.relation.to().name}", which is not ` +
+            `localized — so the same id would be synced into every locale row ` +
+            `and collide on the UNIQUE constraint. Either set ` +
+            `syncAcrossLocales: false (each locale gets its own record), or ` +
+            `set i18n: true on "${spec.relation.to().name}" (each locale links ` +
+            `its own translation).`
+    );
 }
 
 export class ContentTypeRegistry {
@@ -113,6 +163,7 @@ export class ContentTypeRegistry {
                         );
                     }
                 }
+                assertSyncableUnique(type, fieldName, spec);
             }
         }
     }
@@ -147,11 +198,12 @@ export class ContentTypeRegistry {
         fieldName: string,
         spec: AnyFieldSpec
     ): SerializedField {
-        // A single relation to an i18n target is per-locale (can't share a
-        // cross-locale FK), so it serializes as `localized` — the admin then
-        // treats it like any other localized field (skips it in the translation
-        // prefill, marks it with the icon).
-        const localized = spec.localized || isPerLocaleRelation(type, spec);
+        // A relation whose stored id differs per locale row — mirrored (each
+        // sibling points at the target's own translation) or unsynced —
+        // serializes as `localized`, so the admin treats it like any other
+        // per-locale field. A *shared* relation does not: every sibling
+        // genuinely holds the same id.
+        const localized = isPerLocaleField(type, spec);
         return {
             name: fieldName,
             type: spec.type,
@@ -171,6 +223,12 @@ export class ContentTypeRegistry {
                       relation: {
                           to: spec.relation.to().name,
                           many: spec.relation.many,
+                          // Omitted off a localized type, where every relation
+                          // would report the inert `none` and the admin has no
+                          // locales to say anything about.
+                          ...(type.i18n
+                              ? { localeSync: relationLocaleSync(type, spec) }
+                              : {}),
                           // An inverse owns no column/table, so onDelete/unique
                           // are inert — report the back-reference instead.
                           ...(spec.relation.inverse

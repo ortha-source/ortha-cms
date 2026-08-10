@@ -121,30 +121,39 @@ export const article = collection('article', {
 
         // ---- relations ---------------------------------------------------
         // many-to-one, required → ON DELETE RESTRICT (a required single
-        // relation cannot be SET NULL). Target is non-i18n ⇒ shared FK.
+        // relation cannot be SET NULL). Target is non-i18n ⇒ **shared**: one
+        // author for the record, the same FK in every locale row.
         author: field.relation({
             to: (): AnyContentType => author,
             required: true,
             onDelete: 'restrict'
         }),
-        // one-to-one: UNIQUE constraint on the FK column.
+        // one-to-one: UNIQUE constraint on the FK column — which is exactly why
+        // this one must NOT sync. A shared FK writes the same `seo_id` into
+        // every locale row and the UNIQUE constraint admits one, so the second
+        // translation would be a constraint violation (the registry rejects the
+        // combination at boot). Per-locale is the right model anyway: a meta
+        // title and description are written per language.
         seo: field.relation({
             to: (): AnyContentType => seo_meta,
             unique: true,
             onDelete: 'set null',
+            syncAcrossLocales: false,
             admin: { label: 'SEO metadata' }
         }),
-        // many-to-one, optional → ON DELETE SET NULL.
+        // many-to-one, optional → ON DELETE SET NULL. Non-i18n target ⇒ shared.
         category: field.relation({
             to: (): AnyContentType => category,
             onDelete: 'set null'
         }),
-        // many-to-many (join table). Target is i18n ⇒ per-locale relation.
+        // many-to-many (join table). Target is i18n ⇒ **mirrored**: tagging the
+        // English article tags the German one with the German tag.
         tags: field.relation({
             to: (): AnyContentType => tag,
             many: true
         }),
-        // many-to-many to SELF (a "related articles" graph).
+        // many-to-many to SELF (a "related articles" graph). Self ⇒ i18n target
+        // ⇒ mirrored: each locale links its own language's related articles.
         related: field.relation({
             to: (): AnyContentType => article,
             many: true,

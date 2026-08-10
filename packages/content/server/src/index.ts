@@ -25,6 +25,10 @@ export { WorkspaceGrantsQuery } from './lib/content-types/queries/workspace-gran
 // use-case, so an applier reaching for anything else is the bug the port
 // exists to prevent.
 export { EntryWriterService } from './lib/entries/infrastructure/persistence/entry-writer.service';
+// Exported for the bound CONTENT_ENTRY_EXTENSION, which syncs relation links
+// across locale siblings and must write them through the same service the
+// entries pipeline does.
+export { RelationLinkService } from './lib/entries/infrastructure/persistence/relation-link.service';
 
 export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
 export type {
@@ -32,9 +36,16 @@ export type {
     EntryFilterContext,
     EntryFilterExtension,
     EntryScopeParams,
-    EntryTransaction
+    EntryTransaction,
+    EntryWriteContext
 } from './lib/extension/entry-extension';
-export { isPerLocaleRelation } from './lib/extension/per-locale-relation';
+export {
+    RELATION_LOCALE_SYNC,
+    relationLocaleSync,
+    isPerLocaleField,
+    isJoinBackedRelation,
+    type RelationLocaleSync
+} from './lib/extension/relation-locale-sync';
 
 export {
     MEDIA_ASSET_RESOLVER,

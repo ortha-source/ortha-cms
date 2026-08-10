@@ -349,3 +349,77 @@ describe('inverse relations', () => {
         expect(post.fields.articles.relation?.many).toBe(true);
     });
 });
+
+describe('syncAcrossLocales', () => {
+    const tag = collection('tag', { fields: { name: field.text() } });
+
+    it('defaults to true, so a relation belongs to the record', () => {
+        const post = collection('post', {
+            i18n: true,
+            fields: { tag: field.relation({ to: () => tag }) }
+        });
+        expect(post.fields.tag.relation?.syncAcrossLocales).toBe(true);
+    });
+
+    it('defaults to false when the field is marked localized', () => {
+        // The two say the same thing, so `localized` picks the default rather
+        // than being honoured as a second, independent flag.
+        const post = collection('post', {
+            i18n: true,
+            fields: {
+                tag: field.relation({ to: () => tag, localized: true })
+            }
+        });
+        expect(post.fields.tag.relation?.syncAcrossLocales).toBe(false);
+    });
+
+    it('is always false on an inverse, which owns no storage of its own', () => {
+        const post = collection('post', {
+            i18n: true,
+            fields: {
+                tags: field.relation({ to: () => tag, many: true }),
+                mirror: field.relationInverse({ of: () => tag, field: 'x' })
+            }
+        });
+        expect(post.fields.mirror.relation?.syncAcrossLocales).toBe(false);
+    });
+
+    it('rejects opting out on a type that has no locale siblings', () => {
+        expect(() =>
+            collection('post', {
+                fields: {
+                    tag: field.relation({
+                        to: () => tag,
+                        syncAcrossLocales: false
+                    })
+                }
+            })
+        ).toThrow(/does not set i18n: true/);
+    });
+
+    it('rejects localized: true together with syncAcrossLocales: true', () => {
+        // Opposite requests — one would have to win silently.
+        expect(() =>
+            collection('post', {
+                i18n: true,
+                fields: {
+                    tag: field.relation({
+                        to: () => tag,
+                        localized: true,
+                        syncAcrossLocales: true
+                    })
+                }
+            })
+        ).toThrow(/localized: true with syncAcrossLocales: true/);
+    });
+
+    it('leaves an ordinary non-localized type alone', () => {
+        // The default is `true`, which is inert without locale siblings — it
+        // must not be mistaken for an explicit opt-in and rejected.
+        expect(() =>
+            collection('post', {
+                fields: { tag: field.relation({ to: () => tag }) }
+            })
+        ).not.toThrow();
+    });
+});

@@ -99,6 +99,43 @@ function assertFields(
             );
         }
 
+        // `syncAcrossLocales` describes propagation across a translation
+        // group, so on a type with no locale siblings it can only mislead —
+        // an author setting it there believes something is happening. The
+        // builder defaults it to `true`, so only an explicit `false` (which
+        // an author can only have written deliberately) is detectable here.
+        if (
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
+            spec.relation &&
+            !spec.relation.inverse &&
+            !spec.relation.syncAcrossLocales &&
+            !spec.localized &&
+            !i18n
+        ) {
+            throw new Error(
+                `Relation "${typeName}.${name}" sets syncAcrossLocales, but ` +
+                    `"${typeName}" does not set i18n: true — it has no locale ` +
+                    `siblings to propagate to.`
+            );
+        }
+
+        // `localized: true` on a relation IS `syncAcrossLocales: false` (the
+        // builder reads it as the default), so declaring both in contradiction
+        // asks for two opposite things and one would have to win silently.
+        if (
+            spec.type === CONTENT_FIELD_TYPE.Relation &&
+            spec.relation &&
+            !spec.relation.inverse &&
+            spec.localized &&
+            spec.relation.syncAcrossLocales
+        ) {
+            throw new Error(
+                `Relation "${typeName}.${name}" sets localized: true with ` +
+                    `syncAcrossLocales: true — localized means each locale keeps ` +
+                    `its own links, which is the opposite. Drop one of them.`
+            );
+        }
+
         // A required single relation with ON DELETE SET NULL is a
         // contradiction: the FK column is NOT NULL, so nulling it on a
         // parent delete always fails — the delete can never succeed. (An

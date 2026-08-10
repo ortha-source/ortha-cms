@@ -428,10 +428,13 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(await revisionCount(de.id)).toBe(beforeDe);
         });
 
-        it('does not sync a relation to a localizable target across locales', async () => {
+        it('leaves a mirrored relation unset where the target has no translation', async () => {
             const agent = await login();
-            // `author` is now an i18n type, so `article.author` is a per-locale
-            // relation — a shared FK would be a cross-locale link.
+            // `test_author` is localized, so `article.author` is **mirrored**:
+            // each sibling links that author's row in its own language. Ada
+            // exists only in English here, so the German article gets nothing —
+            // a content gap on the author, and explicitly not a reason to fail
+            // the English save.
             const authorEn = (
                 await agent
                     .post('/api/content/test_author')
@@ -464,8 +467,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             ).body as { id: string; values: Record<string, unknown> };
             expect(de.values.author ?? null).toBeNull();
 
-            // Edit a shared field on en — it syncs — but the author must NOT be
-            // pushed onto the de sibling.
+            // Edit a shared field on en — it syncs — but the English author must
+            // NOT be pushed onto the de sibling: that would be a cross-locale
+            // link, which the writer rejects outright.
             await agent
                 .patch(`/api/content/test_article/${en.id}`)
                 .send({
@@ -626,6 +630,337 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.body.status).toBe('draft');
             // Never published → still null, so it reads as a plain Draft.
             expect(deAfter.body.publishedAt).toBeNull();
+        });
+    });
+
+    describe('relation locale sync', () => {
+        /** A tag — a NON-localized target, so `article.tags` is **shared**. */
+        async function createTag(agent: request.Agent, name: string) {
+            const res = await agent
+                .post('/api/content/test_tag')
+                .send({ values: { name, slug: name.toLowerCase() } })
+                .expect(201);
+            return res.body as { id: string };
+        }
+
+        /**
+         * An author — a LOCALIZED target, so `article.author` /
+         * `article.contributors` are **mirrored**. Pass `groupOf` to create the
+         * translation of an existing author rather than a new person.
+         */
+        async function createAuthor(
+            agent: request.Agent,
+            name: string,
+            locale?: string,
+            groupOf?: { localeGroupId: string }
+        ) {
+            const res = await agent
+                .post('/api/content/test_author')
+                .send({
+                    values: { name },
+                    ...(locale ? { locale } : {}),
+                    ...(groupOf
+                        ? { localeGroupId: groupOf.localeGroupId }
+                        : {})
+                })
+                .expect(201);
+            return res.body as { id: string; localeGroupId: string };
+        }
+
+        /** The ordered link ids of one relation field on one entry. */
+        async function linkIds(
+            agent: request.Agent,
+            entryId: string,
+            fieldName: string
+        ): Promise<string[]> {
+            const res = await agent
+                .get(
+                    `/api/content/test_article/${entryId}/relations/${fieldName}?page=1&pageSize=50`
+                )
+                .expect(200);
+            return (res.body as { items: { id: string }[] }).items.map(
+                (item) => item.id
+            );
+        }
+
+        /** Link ids into a relation field of an article. */
+        async function link(
+            agent: request.Agent,
+            entryId: string,
+            fieldName: string,
+            ids: string[]
+        ) {
+            return agent
+                .patch(`/api/content/test_article/${entryId}`)
+                .send({ values: VALID, relations: { [fieldName]: { link: ids } } })
+                .expect(200);
+        }
+
+        it('syncs a shared many-relation to every sibling', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const design = await createTag(agent, 'Design');
+            const build = await createTag(agent, 'Build');
+
+            await link(agent, en.id, 'tags', [design.id, build.id]);
+
+            // A tag has no locales, so one row is the tag for every language:
+            // the German article holds the very same ids, in the same order.
+            expect(await linkIds(agent, de.id, 'tags')).toEqual([
+                design.id,
+                build.id
+            ]);
+        });
+
+        it('unlinks across the group too, not just links', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const design = await createTag(agent, 'Design');
+            const build = await createTag(agent, 'Build');
+            await link(agent, en.id, 'tags', [design.id, build.id]);
+
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: VALID,
+                    relations: { tags: { unlink: [build.id] } }
+                })
+                .expect(200);
+
+            expect(await linkIds(agent, de.id, 'tags')).toEqual([design.id]);
+        });
+
+        it('gives a new translation the links the group already had', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const design = await createTag(agent, 'Design');
+            await link(agent, en.id, 'tags', [design.id]);
+
+            // A create body carries no relation links at all, so without the
+            // inward half of the sync a translation would be born with none —
+            // exactly the manual re-linking this feature removes.
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            expect(await linkIds(agent, de.id, 'tags')).toEqual([design.id]);
+        });
+
+        it('does not let a new translation wipe the links it arrives without', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const design = await createTag(agent, 'Design');
+            await link(agent, en.id, 'tags', [design.id]);
+
+            await createTranslation(agent, en, 'de');
+
+            // The regression this guards: treating the new (link-less) row as
+            // the authority and propagating its emptiness outward.
+            expect(await linkIds(agent, en.id, 'tags')).toEqual([design.id]);
+        });
+
+        it('mirrors a localized many-relation into each sibling locale', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+
+            await link(agent, en.id, 'contributors', [adaEn.id]);
+
+            // The flagship case: the English article links the English Ada, so
+            // the German article links the GERMAN Ada — same person, resolved
+            // through the translation group.
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                adaDe.id
+            ]);
+        });
+
+        it('mirrors a localized single relation into each sibling locale', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+            const en = await createArticle(agent, {
+                values: { ...VALID, author: adaEn.id }
+            });
+            // The create body deliberately omits `author`. A mirrored relation
+            // serializes as `localized`, so the admin's translation prefill
+            // drops it — and it has to: sending the English author id into a
+            // German row is a cross-locale link, which the writer rejects with
+            // a 422. Resolving it is the server's job, not the client's.
+            const de = (
+                await agent
+                    .post('/api/content/test_article')
+                    .send({
+                        values: VALID,
+                        locale: 'de',
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201)
+            ).body as { id: string; values: Record<string, unknown> };
+
+            // Resolved during the create, so the translation opens already
+            // pointing at the right row — and it is in the response, not only
+            // in the database, because the first revision snapshots it.
+            expect(de.values.author).toBe(adaDe.id);
+
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as { values: Record<string, unknown> };
+            expect(deAfter.values.author).toBe(adaDe.id);
+        });
+
+        it('drops a mirrored link whose target is untranslated, and still saves', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const adaEn = await createAuthor(agent, 'Ada');
+            const grace = await createAuthor(agent, 'Grace');
+            const graceDe = await createAuthor(agent, 'Grace (DE)', 'de', grace);
+
+            // Ada has no German row; Grace does. The save succeeds either way.
+            await link(agent, en.id, 'contributors', [adaEn.id, grace.id]);
+
+            expect(await linkIds(agent, en.id, 'contributors')).toEqual([
+                adaEn.id,
+                grace.id
+            ]);
+            // Only the resolvable one crosses, and never an English row.
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                graceDe.id
+            ]);
+        });
+
+        it('keeps an unsynced relation independent per locale', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const seo = (
+                await agent
+                    .post('/api/content/test_seo')
+                    .send({ values: { metaTitle: 'EN meta' } })
+                    .expect(201)
+            ).body as { id: string };
+
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { ...VALID, seo: seo.id } })
+                .expect(200);
+
+            // `test_article.seo` sets syncAcrossLocales: false — required,
+            // since its FK is UNIQUE and a shared id would collide on the
+            // second locale.
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as { values: Record<string, unknown> };
+            expect(deAfter.values.seo ?? null).toBeNull();
+        });
+
+        it('leaves siblings — and their history — alone when links are resent unchanged', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const design = await createTag(agent, 'Design');
+            await link(agent, en.id, 'tags', [design.id]);
+
+            const revisionCount = async (id: string) =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+            const before = await revisionCount(de.id);
+
+            // Re-link the same tag. The link set does not move, so the sibling
+            // must not be rewritten — otherwise every save re-versions the
+            // whole translation group.
+            await link(agent, en.id, 'tags', [design.id]);
+
+            expect(await revisionCount(de.id)).toBe(before);
+        });
+
+        it('versions a sibling and moves it to Modified when only its links change', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .send({})
+                .expect(201);
+
+            const revisionCount = async (id: string) =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+            const before = await revisionCount(de.id);
+
+            const design = await createTag(agent, 'Design');
+            await link(agent, en.id, 'tags', [design.id]);
+
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as { status: string; publishedAt: string | null };
+            // A links-only change is still a change: the sibling earns a
+            // version, drops back to draft, and keeps `publishedAt` — the
+            // admin's **Modified** state (live content, unpublished edits).
+            expect(await revisionCount(de.id)).toBe(before + 1);
+            expect(deAfter.status).toBe('draft');
+            expect(deAfter.publishedAt).not.toBeNull();
+        });
+
+        it('reports the sync mode on the schema so the editor can explain itself', async () => {
+            const agent = await login();
+            const res = await agent
+                .get('/api/content-schema/test_article')
+                .expect(200);
+            const fields = (
+                res.body as {
+                    fields: {
+                        name: string;
+                        localized?: boolean;
+                        relation?: { localeSync?: string };
+                    }[];
+                }
+            ).fields;
+            const byName = (name: string) =>
+                fields.find((entry) => entry.name === name);
+
+            expect(byName('tags')?.relation?.localeSync).toBe('shared');
+            expect(byName('contributors')?.relation?.localeSync).toBe(
+                'mirrored'
+            );
+            expect(byName('seo')?.relation?.localeSync).toBe('none');
+            // A shared relation holds the same id in every locale, so it is not
+            // a per-locale value; a mirrored one is.
+            expect(byName('tags')?.localized).toBeUndefined();
+            expect(byName('contributors')?.localized).toBe(true);
         });
     });
 

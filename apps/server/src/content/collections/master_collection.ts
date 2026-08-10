@@ -125,11 +125,14 @@ export const master_collection = collection('master_collection', {
             required: true,
             onDelete: 'restrict'
         }),
-        // one-to-one (UNIQUE FK)
+        // one-to-one (UNIQUE FK). Per-locale: a shared FK would write the same
+        // `seo_id` into every locale row and collide on the UNIQUE constraint
+        // (rejected at boot), and SEO copy is written per language regardless.
         seo: field.relation({
             to: (): AnyContentType => seo_meta,
             unique: true,
-            onDelete: 'set null'
+            onDelete: 'set null',
+            syncAcrossLocales: false
         }),
         // many-to-many, per-locale (tag is i18n)
         tags: field.relation({

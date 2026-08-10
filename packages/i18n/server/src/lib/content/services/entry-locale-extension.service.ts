@@ -22,7 +22,10 @@ import {
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import {
     EntryValidationService,
-    isPerLocaleRelation,
+    RelationLinkService,
+    RELATION_LOCALE_SYNC,
+    isJoinBackedRelation,
+    relationLocaleSync,
     toColumns,
     toRecord,
     type AnyContentType,
@@ -30,7 +33,8 @@ import {
     type EntryFilterContext,
     type EntryFilterExtension,
     type EntryScopeParams,
-    type EntryTransaction
+    type EntryTransaction,
+    type EntryWriteContext
 } from '@ortha-cms/content-server';
 import {
     FilterOperator,
@@ -99,7 +103,12 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
     constructor(
         @InjectDatabase() private readonly db: Database,
         private readonly locales: LocaleRegistryService,
-        private readonly validation: EntryValidationService
+        private readonly validation: EntryValidationService,
+        // Relation storage is content's, not ours: reading a link set and
+        // replacing one are the same operations the entries pipeline performs,
+        // and a second implementation here is how the join table's ordering
+        // and de-duplication rules would drift.
+        private readonly relations: RelationLinkService
     ) {}
 
     /** @inheritdoc */
@@ -207,120 +216,399 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         type: AnyContentType,
         row: Record<string, unknown>,
         values: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        context: EntryWriteContext
     ): Promise<Record<string, unknown>[]> {
         if (!type.i18n) return [];
-        const sharedColumns = this.sharedColumns(type, values);
-        if (!sharedColumns) return [];
 
+        // A newly-created sibling arrives carrying the source's shared *values*
+        // (the client copies them) but none of its **relations** — those never
+        // travel in a create body. Propagating outward from it would therefore
+        // push emptiness onto rows that were already right, wiping the group's
+        // links. So a create pulls its relations in from the group instead, and
+        // only its columns propagate outward (which the client has already made
+        // a no-op in the common case, and which is what makes a deliberately
+        // different shared value on a create win — long-standing behavior).
+        if (context.created) {
+            await this.inheritRelationsFromGroup(tx, type, row, workspaceId);
+        }
+        return this.propagateToSiblings(tx, type, row, values, workspaceId, {
+            relations: !context.created
+        });
+    }
+
+    /**
+     * Push this row's state onto every sibling in its translation group, and
+     * return the rows actually rewritten (the pipeline appends a revision for
+     * each — their content moved in this transaction, and without a version
+     * their history would skip the change and a later restore would silently
+     * undo it).
+     *
+     * Three kinds of state travel, each computed once and applied per sibling:
+     * shared **columns** (identical everywhere), **mirrored** single-relation
+     * FKs (resolved into each sibling's own locale), and the **link sets** of
+     * join-backed relations. A sibling whose every one of those already matches
+     * is left completely untouched — that guard is what stops one save
+     * re-versioning the whole group.
+     */
+    private async propagateToSiblings(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        values: Record<string, unknown>,
+        workspaceId: string,
+        options: { relations: boolean }
+    ): Promise<Record<string, unknown>[]> {
         const table = type.table as unknown as ContentTable;
+        // Every sibling, locked. We need each row's own `locale` (to resolve a
+        // mirrored link into it), and its **pre-write** publish status — the
+        // re-validation below has to read the status from before the demotion,
+        // since the UPDATE sets every touched row to `draft`. Soft-deleted
+        // siblings are included, so a later restore comes back consistent with
+        // the group. The lock also serializes two concurrent saves in different
+        // locales of the same record, which would otherwise interleave.
+        const siblings = (await tx
+            .select()
+            .from(type.table)
+            .where(
+                and(
+                    eq(table['localeGroupId'], row['localeGroupId'] as string),
+                    ne(table['id'], row['id'] as string),
+                    eq(table['workspaceId'], workspaceId)
+                )
+            )
+            .for('update')) as Record<string, unknown>[];
+        if (!siblings.length) return [];
+
+        const locales = [
+            ...new Set(siblings.map((sibling) => sibling['locale'] as string))
+        ];
         // Only the columns this save actually carries. A field the caller
         // omitted is `undefined`, which `.set()` skips — so it must be left out
         // of the change predicate too, or it would compare against a missing
         // bind parameter.
-        const written = Object.entries(sharedColumns).filter(
-            ([, value]) => value !== undefined
-        );
-        if (!written.length) return [];
+        const shared = Object.entries(this.sharedColumns(type, values) ?? {})
+            .filter(([, value]) => value !== undefined)
+            .map(([column, value]) => [column, value] as const);
+        const mirrored = options.relations
+            ? await this.mirroredColumnsByLocale(
+                  tx,
+                  type,
+                  values,
+                  locales,
+                  workspaceId
+              )
+            : new Map<string, Record<string, unknown>>();
+        const links = options.relations
+            ? await this.linkSetsByLocale(
+                  tx,
+                  type,
+                  row['id'] as string,
+                  locales,
+                  workspaceId
+              )
+            : new Map<string, Map<string, string[]>>();
 
-        // Only touch siblings whose shared values actually differ. The save's
-        // values bag carries every field the caller sent, so an unconditional
-        // UPDATE rewrote — and, now that the pipeline appends a revision per
-        // touched row, re-versioned — every sibling on every save, even one
-        // that only changed a localized field. `IS DISTINCT FROM` rather than
-        // `<>` so a NULL on either side compares correctly.
-        //
-        // Each value is bound with **its column's own encoder** (`sql.param`),
-        // the same mapping `.set()` applies below. Interpolating it bare made an
-        // array-valued field (a `jsonb` multiselect, json, or a multiple media
-        // field) expand into a parameter *list* — `IS DISTINCT FROM ($1, $2, $3)`
-        // — which Postgres reads as a record and rejects with
-        // `operator does not exist: jsonb = record`, failing every save of an
-        // i18n type that carried one.
-        const differs = or(
-            ...written.map(
-                ([column, value]) =>
-                    sql`${table[column]} IS DISTINCT FROM ${sql.param(value, table[column])}`
-            )
-        );
-        // Sync every sibling — including soft-deleted ones, so a later restore
-        // comes back consistent with the group.
-        //
-        // A **published** sibling moves back to `draft`, exactly as the entry
-        // the user edited does. Its shared values just changed, so its published
-        // *version* is no longer what the row holds — leaving it `published`
-        // made the same shared edit live in the untouched locales while still
-        // pending in the edited one, and left its freshly-appended draft version
-        // describing a row that claimed to be live. `published_at` is kept, so
-        // the sibling reads as **Modified** (live content, unpublished changes)
-        // rather than as a never-published draft. Publishing any locale is still
-        // per-row; this only stops one from silently going live on another's save.
-        const wasPublished = new Set(
-            type.publishable
-                ? (
-                      (await tx
-                          .select({ id: sql<string>`${table['id']}` })
-                          .from(type.table)
-                          .where(
-                              and(
-                                  eq(
-                                      table['localeGroupId'],
-                                      row['localeGroupId'] as string
-                                  ),
-                                  ne(table['id'], row['id'] as string),
-                                  eq(table['workspaceId'], workspaceId),
-                                  eq(table['status'], ENTRY_STATUS.Published),
-                                  differs
-                              )
-                          )
-                          .for('update')) as { id: string }[]
-                  ).map((r) => r.id)
-                : []
-        );
-        const siblings = (await tx
-            .update(type.table)
-            .set({
-                ...sharedColumns,
-                ...(type.publishable ? { status: ENTRY_STATUS.Draft } : {}),
-                updatedAt: new Date()
-            } as never)
+        const rewritten: Record<string, unknown>[] = [];
+        for (const sibling of siblings) {
+            const siblingId = sibling['id'] as string;
+            const locale = sibling['locale'] as string;
+
+            // Links first, so a links-only change still reaches the row write
+            // below — that is what stamps `updatedAt`, demotes a published
+            // sibling, and earns the row its revision.
+            let linksMoved = false;
+            for (const [field, byLocale] of links) {
+                const moved = await this.relations.replaceLinks(
+                    tx,
+                    type,
+                    siblingId,
+                    field,
+                    byLocale.get(locale) ?? []
+                );
+                linksMoved ||= moved;
+            }
+
+            const columns = [
+                ...shared,
+                ...Object.entries(mirrored.get(locale) ?? {})
+            ];
+            // Nothing to write and nothing moved — leave the row (and its
+            // history) completely alone. Guarding here matters: an empty
+            // `differs` collapses to `undefined`, which would widen the UPDATE
+            // to every sibling unconditionally.
+            if (!columns.length && !linksMoved) continue;
+
+            // Only rewrite a sibling whose columns actually differ. The save's
+            // values bag carries every field the caller sent, so an
+            // unconditional UPDATE re-versioned every sibling on every save,
+            // even one that only changed a localized field. `IS DISTINCT FROM`
+            // rather than `<>` so a NULL on either side compares correctly.
+            //
+            // Each value is bound with **its column's own encoder**
+            // (`sql.param`), the same mapping `.set()` applies. Interpolating it
+            // bare made an array-valued field (a `jsonb` multiselect, json, or a
+            // multiple media field) expand into a parameter *list* —
+            // `IS DISTINCT FROM ($1, $2, $3)` — which Postgres reads as a record
+            // and rejects with `operator does not exist: jsonb = record`,
+            // failing every save of an i18n type that carried one.
+            const differs = or(
+                ...columns.map(
+                    ([column, value]) =>
+                        sql`${table[column]} IS DISTINCT FROM ${sql.param(value, table[column])}`
+                )
+            );
+            // When the links moved the row has already changed, so it is
+            // written regardless of whether any column did.
+            const where = linksMoved
+                ? eq(table['id'], siblingId)
+                : and(eq(table['id'], siblingId), differs);
+
+            // A **published** sibling moves back to `draft`, exactly as the
+            // entry the user edited does. Its content just changed, so its
+            // published *version* is no longer what the row holds — leaving it
+            // `published` made the same edit live in the untouched locales
+            // while still pending in the edited one, and left its
+            // freshly-appended draft version describing a row that claimed to
+            // be live. `published_at` is kept, so the sibling reads as
+            // **Modified** (live content, unpublished changes) rather than as a
+            // never-published draft. Publishing any locale is still per-row;
+            // this only stops one going live on another's save.
+            const [updated] = (await tx
+                .update(type.table)
+                .set({
+                    ...Object.fromEntries(columns),
+                    ...(type.publishable ? { status: ENTRY_STATUS.Draft } : {}),
+                    updatedAt: new Date()
+                } as never)
+                .where(where)
+                .returning()) as Record<string, unknown>[];
+            if (!updated) continue; // nothing differed after all
+
+            // A sibling that **was** published must stay valid once the synced
+            // state lands — re-validate and abort the whole save otherwise.
+            // Drafts may be temporarily invalid (the same rule as saving a
+            // draft directly). This reads the pre-write status captured in the
+            // locked SELECT, not the row's current one: the UPDATE has just
+            // demoted it to `draft`, so testing the returned status would
+            // silently skip every sibling.
+            if (
+                type.publishable &&
+                sibling['status'] === ENTRY_STATUS.Published
+            ) {
+                const result = this.validation.validate(
+                    type,
+                    toRecord(type, updated).values
+                );
+                if (!result.valid) {
+                    throw new UnprocessableEntityException({
+                        message:
+                            `Shared fields would invalidate the published ` +
+                            `"${locale}" translation`,
+                        issues: result.issues
+                    });
+                }
+            }
+            rewritten.push(updated);
+        }
+        return rewritten;
+    }
+
+    /**
+     * Fill a **newly created** sibling's propagating relations from the group
+     * it just joined — the half of the sync that runs inward.
+     *
+     * A translation is created through the ordinary create route with a
+     * `localeGroupId`, and a create body carries no relation links at all: they
+     * are join-backed (never in the values bag) or per-locale (deliberately
+     * dropped by the client, since the source's id names another language's
+     * row). So without this a translation is born with none of the record's
+     * links, which is exactly the manual per-locale re-linking this sync
+     * exists to remove.
+     *
+     * The donor is one existing sibling — any of them agree on a shared link,
+     * and a mirrored one resolves through the same translation group whichever
+     * is asked — picked deterministically (the default locale where the group
+     * has it) so two creates never inherit from different rows.
+     *
+     * Columns it derives are also written back onto `row` **in place**: the
+     * caller snapshots that object as the new entry's first revision *after*
+     * this call, so a database-only write would leave version 1 describing
+     * something the row never held.
+     */
+    private async inheritRelationsFromGroup(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<void> {
+        const table = type.table as unknown as ContentTable;
+        const locale = row['locale'] as string;
+        const donors = (await tx
+            .select()
+            .from(type.table)
             .where(
                 and(
                     eq(table['localeGroupId'], row['localeGroupId'] as string),
                     ne(table['id'], row['id'] as string),
                     eq(table['workspaceId'], workspaceId),
-                    differs
+                    ...(type.paranoid ? [isNull(table['deletedAt'])] : [])
                 )
-            )
-            .returning()) as Record<string, unknown>[];
+            )) as Record<string, unknown>[];
+        if (!donors.length) return; // a fresh group: nothing to inherit
 
-        // A sibling that **was** published must stay valid after the shared
-        // values land — re-validate its merged row and abort the whole save
-        // otherwise. Drafts may be temporarily invalid (same rule as saving a
-        // draft directly). The check reads the pre-write status captured above,
-        // not the row's current one: the UPDATE has just demoted these to
-        // `draft`, so testing the returned status would silently skip every one.
-        for (const sibling of siblings) {
-            if (!wasPublished.has(sibling['id'] as string)) continue;
-            const result = this.validation.validate(
+        const fallback = this.locales.default().slug;
+        const donor =
+            donors.find((candidate) => candidate['locale'] === fallback) ??
+            [...donors].sort((a, b) =>
+                (a['locale'] as string).localeCompare(b['locale'] as string)
+            )[0];
+
+        // Reuse the outward machinery with the roles swapped: the donor is the
+        // source, and this new row is the only "sibling" being written to.
+        const mirrored = await this.mirroredColumnsByLocale(
+            tx,
+            type,
+            toRecord(type, donor).values,
+            [locale],
+            workspaceId
+        );
+        const links = await this.linkSetsByLocale(
+            tx,
+            type,
+            donor['id'] as string,
+            [locale],
+            workspaceId
+        );
+
+        for (const [field, byLocale] of links) {
+            await this.relations.replaceLinks(
+                tx,
                 type,
-                toRecord(type, sibling).values
+                row['id'] as string,
+                field,
+                byLocale.get(locale) ?? []
             );
-            if (!result.valid) {
-                throw new UnprocessableEntityException({
-                    message:
-                        `Shared fields would invalidate the published ` +
-                        `"${sibling['locale'] as string}" translation`,
-                    issues: result.issues
-                });
-            }
         }
 
-        // Hand the rewritten siblings back so the entries pipeline appends a
-        // revision for each. Their values moved in this transaction; without a
-        // revision their history would skip the change entirely, and a later
-        // "restore" of an older version would silently undo it.
-        return siblings;
+        const columns = Object.entries(mirrored.get(locale) ?? {});
+        if (!columns.length) return;
+        const [updated] = (await tx
+            .update(type.table)
+            .set(Object.fromEntries(columns) as never)
+            .where(eq(table['id'], row['id'] as string))
+            .returning()) as Record<string, unknown>[];
+        // Keep the caller's row object in step with what was just stored (see
+        // the note above about the first revision).
+        if (updated) Object.assign(row, updated);
+    }
+
+    /**
+     * Per locale, the **mirrored** single-relation FK columns a sibling in that
+     * locale should hold: the source's linked record, resolved to that record's
+     * own translation in the sibling's language.
+     *
+     * An unresolvable link becomes `null` rather than being skipped. Leaving
+     * the sibling's existing value would keep it pointing at the *previous*
+     * record's translation — silently wrong data, which is worse than an empty
+     * field that the editor can see and the publish gate can block on.
+     */
+    private async mirroredColumnsByLocale(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        locales: string[],
+        workspaceId: string
+    ): Promise<Map<string, Record<string, unknown>>> {
+        const out = new Map<string, Record<string, unknown>>();
+        for (const locale of locales) out.set(locale, {});
+
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (
+                relationLocaleSync(type, spec) !==
+                    RELATION_LOCALE_SYNC.Mirrored ||
+                isJoinBackedRelation(spec)
+            ) {
+                continue;
+            }
+            // A field this save didn't carry says nothing about what the
+            // siblings should hold (a merge-patch names only what changed).
+            if (!(name in values)) continue;
+            const sourceId = values[name];
+            if (typeof sourceId !== 'string' || !sourceId) {
+                for (const locale of locales)
+                    (out.get(locale) as Record<string, unknown>)[name] = null;
+                continue;
+            }
+            const equivalents = await this.relations.equivalentIdsByLocale(
+                tx,
+                spec.relation?.to() as AnyContentType,
+                [sourceId],
+                locales,
+                workspaceId
+            );
+            for (const locale of locales) {
+                (out.get(locale) as Record<string, unknown>)[name] =
+                    equivalents.get(locale)?.get(sourceId) ?? null;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Per join-backed relation field, per locale, the ordered link ids a
+     * sibling in that locale should hold.
+     *
+     * A **shared** relation hands every sibling the source's ids verbatim — the
+     * target has no locales, so there is one right row for the whole group. A
+     * **mirrored** one maps each id through its translation group into the
+     * sibling's language, preserving the source's order and dropping links
+     * whose target has no translation there (a content gap on the target, not a
+     * reason to fail this save).
+     */
+    private async linkSetsByLocale(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        sourceId: string,
+        locales: string[],
+        workspaceId: string
+    ): Promise<Map<string, Map<string, string[]>>> {
+        const out = new Map<string, Map<string, string[]>>();
+        for (const [name, spec] of Object.entries(type.fields)) {
+            const mode = relationLocaleSync(type, spec);
+            if (mode === RELATION_LOCALE_SYNC.None) continue;
+            if (!isJoinBackedRelation(spec)) continue;
+
+            const ids = await this.relations.linkIdsOf(
+                tx,
+                type,
+                sourceId,
+                name
+            );
+            const byLocale = new Map<string, string[]>();
+            if (mode === RELATION_LOCALE_SYNC.Shared) {
+                for (const locale of locales) byLocale.set(locale, ids);
+            } else {
+                const equivalents = await this.relations.equivalentIdsByLocale(
+                    tx,
+                    spec.relation?.to() as AnyContentType,
+                    ids,
+                    locales,
+                    workspaceId
+                );
+                for (const locale of locales) {
+                    const map = equivalents.get(locale);
+                    byLocale.set(
+                        locale,
+                        ids
+                            .map((id) => map?.get(id))
+                            .filter((id): id is string => !!id)
+                    );
+                }
+            }
+            out.set(name, byLocale);
+        }
+        return out;
     }
 
     /** @inheritdoc */
@@ -406,28 +694,31 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
     }
 
     /**
-     * The column bag of the type's **shared** (non-`localized`) fields, drawn
-     * from a save's coerced values — what {@link afterUpdate} propagates to
-     * siblings. `null` when the type has no shared column-backed field (then
-     * there's nothing to sync). Join-backed relation links are per-row in this
-     * milestone (copied at translation creation, not synced) — only fields
-     * with a main-table column participate. A **single relation to an i18n
-     * target** is per-locale (a shared FK would be a cross-locale link), so it's
-     * excluded too — its FK stays independent per sibling.
+     * The column bag of the fields whose value is **identical in every locale**,
+     * drawn from a save's coerced values — the part of the sync that is the
+     * same for every sibling.
+     *
+     * Scalars and media qualify unless marked `localized`. A relation qualifies
+     * only when it is column-backed *and* {@link RELATION_LOCALE_SYNC.Shared}:
+     * a join-backed relation has no column to copy (its links go through
+     * {@link linkSetsByLocale}), and a mirrored one stores a different id in
+     * every locale by design (see {@link mirroredColumnsByLocale}), so copying
+     * one verbatim would be exactly the cross-locale link the writer rejects.
+     *
+     * `null` when the type has no such field at all.
      */
     private sharedColumns(
         type: AnyContentType,
         values: Record<string, unknown>
     ): Record<string, unknown> | null {
-        const sharedFields = Object.entries(type.fields).filter(
-            ([, spec]) =>
-                !spec.localized &&
-                !(
-                    spec.type === CONTENT_FIELD_TYPE.Relation &&
-                    (spec.relation?.many || spec.relation?.inverse)
-                ) &&
-                !isPerLocaleRelation(type, spec)
-        );
+        const sharedFields = Object.entries(type.fields).filter(([, spec]) => {
+            if (spec.localized) return false;
+            if (spec.type !== CONTENT_FIELD_TYPE.Relation) return true;
+            if (spec.relation?.many || spec.relation?.inverse) return false;
+            return (
+                relationLocaleSync(type, spec) === RELATION_LOCALE_SYNC.Shared
+            );
+        });
         if (!sharedFields.length) return null;
         const allColumns = toColumns(type, values);
         const shared: Record<string, unknown> = {};
