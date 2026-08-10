@@ -16,6 +16,7 @@ import { MediaFieldPage } from './pages/MediaFieldPage';
 import { WysiwygFieldPage } from './pages/WysiwygFieldPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { CopilotDockPage } from './pages/CopilotDockPage';
+import { InsightsPage } from './pages/InsightsPage';
 
 interface Fixtures {
     loginPage: LoginPage;
@@ -34,6 +35,7 @@ interface Fixtures {
     wysiwygFieldPage: WysiwygFieldPage;
     agentsPage: AgentsPage;
     copilotDockPage: CopilotDockPage;
+    insightsPage: InsightsPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, pre-tagged for
      * WCAG 2.1 A/AA (the team's best-practice target). Call it per assertion so
@@ -94,6 +96,9 @@ export const test = base.extend<Fixtures>({
     },
     copilotDockPage: async ({ page }, use) => {
         await use(new CopilotDockPage(page));
+    },
+    insightsPage: async ({ page }, use) => {
+        await use(new InsightsPage(page));
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>

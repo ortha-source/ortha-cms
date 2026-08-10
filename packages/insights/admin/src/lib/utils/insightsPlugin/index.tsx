@@ -5,9 +5,13 @@ import {
     WORKSPACE_NAV_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { BarChart3 } from 'lucide-react';
+import {
+    INSIGHTS_SECTION_IDS,
+    INSIGHTS_SECTION_SLOT
+} from '../../presentation/slots/insightsSlots';
 
 const InsightsPage = lazy(() =>
-    import('../../pages/InsightsPage').then((module) => ({
+    import('../../presentation/pages/InsightsPage').then((module) => ({
         default: module.InsightsPage
     }))
 );
@@ -19,11 +23,21 @@ const InsightsPage = lazy(() =>
 export type InsightsAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side Insights plugin. It lives **strictly inside a
- * workspace**: it contributes no top-level route and no top-toolbar nav entry,
- * only a rail button (`order: 30`) + a route to the workspace shell's slots
- * (owned by `@ortha-cms/workspaces-admin`). Register it after
- * `WorkspacesPlugin()` so those slots exist.
+ * Creates the admin-side Insights plugin.
+ *
+ * It lives **strictly inside a workspace**: no top-level route, no global nav
+ * entry — just a rail button (`order: 30`) and an `insights/*` route on the
+ * workspace shell's slots (owned by `@ortha-cms/workspaces-admin`).
+ *
+ * The four sections it registers are the page's furniture, not its content. The
+ * plugin contributes **no widgets** — every card on the page arrives through
+ * `INSIGHTS_WIDGET_SLOT` from whichever package owns that data. A section with
+ * no widgets renders nothing, so an install without `media-admin` simply has no
+ * "Localisation & media" band.
+ *
+ * Registration order against other plugins does not matter: `createAdmin` walks
+ * every plugin's contributions in one pass *after* all factories have run, so a
+ * package contributing widgets here is free to be registered before it.
  */
 export function InsightsPlugin(): InsightsAdminPlugin {
     return {
@@ -52,6 +66,35 @@ export function InsightsPlugin(): InsightsAdminPlugin {
                                 <InsightsPage />
                             </Suspense>
                         )
+                    }
+                ]
+            },
+            {
+                slot: INSIGHTS_SECTION_SLOT,
+                items: [
+                    {
+                        id: INSIGHTS_SECTION_IDS.Overview,
+                        order: 10,
+                        titleId: 'insights.section.overview',
+                        defaultTitle: 'Overview'
+                    },
+                    {
+                        id: INSIGHTS_SECTION_IDS.Content,
+                        order: 20,
+                        titleId: 'insights.section.content',
+                        defaultTitle: 'Content'
+                    },
+                    {
+                        id: INSIGHTS_SECTION_IDS.Reach,
+                        order: 30,
+                        titleId: 'insights.section.reach',
+                        defaultTitle: 'Localisation & media'
+                    },
+                    {
+                        id: INSIGHTS_SECTION_IDS.Team,
+                        order: 40,
+                        titleId: 'insights.section.team',
+                        defaultTitle: 'Team'
                     }
                 ]
             }

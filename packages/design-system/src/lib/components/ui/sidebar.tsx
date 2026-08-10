@@ -395,9 +395,18 @@ function SidebarInset({
         >
             <div data-slot="sidebar-inset-bar" ref={setBarHost} />
             <InsetTopBarContext.Provider value={barHost}>
+                {/* `tabIndex={0}` because this is the app's scroll container:
+                    a region that scrolls must be reachable by keyboard (WCAG
+                    2.1.1), and a mouse user's wheel is not a substitute. It
+                    matters most exactly when the page has nothing else to focus
+                    — every page is a wall of skeletons while it loads, and
+                    without this a keyboard user cannot scroll it at all. Not a
+                    landmark role: `<main>` above already is one, and a second
+                    would just add noise to the landmark list. */}
                 <div
                     data-slot="sidebar-inset-scroll"
-                    className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+                    tabIndex={0}
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:outline-none"
                 >
                     {children}
                 </div>
