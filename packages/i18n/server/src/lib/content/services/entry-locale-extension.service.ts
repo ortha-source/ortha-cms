@@ -260,6 +260,34 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         options: { relations: boolean }
     ): Promise<Record<string, unknown>[]> {
         const table = type.table as unknown as ContentTable;
+        // Only the columns this save actually carries. A field the caller
+        // omitted is `undefined`, which `.set()` skips — so it must be left out
+        // of the change predicate too, or it would compare against a missing
+        // bind parameter.
+        const shared = Object.entries(this.sharedColumns(type, values) ?? {})
+            .filter(([, value]) => value !== undefined)
+            .map(([column, value]) => [column, value] as const);
+        // Decide whether anything CAN travel before reading — and, more to the
+        // point, before locking — anything. Both inputs are free: the columns
+        // come from the save's own values bag, and whether a relation
+        // propagates is a property of the schema.
+        //
+        // Skipping the query is not just an optimization. The read below takes
+        // `FOR UPDATE` on every sibling of the group, so running it
+        // unconditionally would make each save of a localized type lock rows it
+        // has no intention of writing — on a type with no shared field and no
+        // syncing relation, permanently and for nothing. The pre-relation code
+        // had this property (it returned before touching the database when
+        // there were no shared columns); restoring it keeps the lock footprint
+        // proportional to what the save actually propagates.
+        const canSyncRelations =
+            options.relations &&
+            Object.values(type.fields).some(
+                (spec) =>
+                    relationLocaleSync(type, spec) !== RELATION_LOCALE_SYNC.None
+            );
+        if (!shared.length && !canSyncRelations) return [];
+
         // Every sibling, locked. We need each row's own `locale` (to resolve a
         // mirrored link into it), and its **pre-write** publish status — the
         // re-validation below has to read the status from before the demotion,
@@ -283,13 +311,6 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         const locales = [
             ...new Set(siblings.map((sibling) => sibling['locale'] as string))
         ];
-        // Only the columns this save actually carries. A field the caller
-        // omitted is `undefined`, which `.set()` skips — so it must be left out
-        // of the change predicate too, or it would compare against a missing
-        // bind parameter.
-        const shared = Object.entries(this.sharedColumns(type, values) ?? {})
-            .filter(([, value]) => value !== undefined)
-            .map(([column, value]) => [column, value] as const);
         const mirrored = options.relations
             ? await this.mirroredColumnsByLocale(
                   tx,

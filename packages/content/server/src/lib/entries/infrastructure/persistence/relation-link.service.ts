@@ -101,14 +101,15 @@ export interface RelationTargetVisibility {
 }
 
 /**
- * How many relation fields a page preview resolves at once. `relationFields` is
+ * How many relation fields are resolved at once — by the page preview and by
+ * the per-entry {@link RelationLinkService.readAll}. `relationFields` is
  * bounded in bytes but not in count, so a type with many relation columns could
  * otherwise fan out one concurrent query per field — and each field takes a
  * connection twice (its window query, then `refsFor`). The pool is small and
  * app-wide, so cap the fan-out and let the remainder queue in-process rather
  * than in the pool, where it would block unrelated requests.
  */
-const PREVIEW_FIELD_CONCURRENCY = 3;
+const RELATION_FIELD_CONCURRENCY = 3;
 
 /**
  * A private advisory-lock class (the first `pg_advisory_xact_lock` key)
@@ -196,15 +197,38 @@ export class RelationLinkService {
         // Each relation field is an independent read, so fan them out
         // concurrently rather than awaiting one before starting the next — a
         // type with several relations pays one field's latency, not their sum.
+        //
+        // Bounded by the same cap as `previewForEntries`, and for the same
+        // reason: the pool is small (10 by default) and app-wide, while each
+        // field takes a connection for its page + count and then again for
+        // `refsFor`. Unbounded, a type with several relation fields could let a
+        // couple of concurrent editor opens occupy every connection and queue
+        // unrelated traffic behind them — the exact hazard the preview path
+        // already guards, which this read simply hadn't caught up with.
         const fields = Object.entries(type.fields).filter(
             ([, spec]) =>
                 spec.type === CONTENT_FIELD_TYPE.Relation && spec.relation
         );
-        const views = await Promise.all(
-            fields.map(([name, spec]) =>
-                this.readField(type, row, name, spec, 1, pageSize, workspaceId)
-            )
-        );
+        const views: RelationFieldView[] = [];
+        for (let i = 0; i < fields.length; i += RELATION_FIELD_CONCURRENCY) {
+            views.push(
+                ...(await Promise.all(
+                    fields
+                        .slice(i, i + RELATION_FIELD_CONCURRENCY)
+                        .map(([name, spec]) =>
+                            this.readField(
+                                type,
+                                row,
+                                name,
+                                spec,
+                                1,
+                                pageSize,
+                                workspaceId
+                            )
+                        )
+                ))
+            );
+        }
         const out: Record<string, RelationFieldView> = {};
         fields.forEach(([name], i) => {
             out[name] = views[i];
@@ -263,8 +287,8 @@ export class RelationLinkService {
         // couple of list requests occupy every connection, queueing unrelated
         // traffic behind a records table's previews.
         const views: Map<string, RelationFieldView>[] = [];
-        for (let i = 0; i < specs.length; i += PREVIEW_FIELD_CONCURRENCY) {
-            const batch = specs.slice(i, i + PREVIEW_FIELD_CONCURRENCY);
+        for (let i = 0; i < specs.length; i += RELATION_FIELD_CONCURRENCY) {
+            const batch = specs.slice(i, i + RELATION_FIELD_CONCURRENCY);
             views.push(
                 ...(await Promise.all(
                     batch.map(([name, spec]) =>
@@ -1228,7 +1252,10 @@ export class RelationLinkService {
         const byGroupLocale = new Map<string, string>();
         for (const row of siblingRows) {
             byGroupLocale.set(
-                `${row['localeGroupId'] as string} ${row['locale'] as string}`,
+                groupLocaleKey(
+                    row['localeGroupId'] as string,
+                    row['locale'] as string
+                ),
                 row['id'] as string
             );
         }
@@ -1238,7 +1265,9 @@ export class RelationLinkService {
             for (const id of unique) {
                 const group = groupOf.get(id);
                 if (!group) continue;
-                const equivalent = byGroupLocale.get(`${group} ${locale}`);
+                const equivalent = byGroupLocale.get(
+                    groupLocaleKey(group, locale)
+                );
                 if (equivalent) bucket.set(id, equivalent);
             }
         }
@@ -1472,6 +1501,18 @@ export class RelationLinkService {
             target: owner
         };
     }
+}
+
+/**
+ * The composite map key for "this translation group, in this locale".
+ *
+ * A named helper rather than an inline template so the two call sites cannot
+ * drift apart on the separator — and so the separator is a visible character.
+ * `|` cannot appear in either half: a `locale_group_id` is a uuid, and a locale
+ * slug is `^[a-z]{2,3}(-[a-z0-9]+)*$`, so the pair is unambiguous.
+ */
+function groupLocaleKey(localeGroupId: string, locale: string): string {
+    return `${localeGroupId}|${locale}`;
 }
 
 /** De-duplicate a list of ids, preserving order and dropping empties. */
