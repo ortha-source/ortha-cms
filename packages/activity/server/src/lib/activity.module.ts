@@ -34,7 +34,7 @@ export class ActivityModule {
                 // The copilot's audit-log read. Both no-op when no copilot
                 // plugin is registered — the registrar injects the registry
                 // optionally.
-                ActivityCopilotToolProvider,
+                ActivityCopilotToolProvider
             ],
             exports: [ActivityService, ACTIVITY_RECORDER]
         };

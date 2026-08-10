@@ -26,8 +26,8 @@ running Docker daemon for testcontainers).
 3. **`src/support/copilot.ts`** — the copilot harness. `scriptCopilot(...turns)`
    scripts the fake model for one test; `copilotCalls()` returns every
    `ModelRequest` served, which is the assertion target for the negative path
-   ADR-0005 makes mandatory (*a viewer's run must be verified not to be offered
-   write tools* — an assertion about `calls[0].tools`, made without a model).
+   ADR-0005 makes mandatory (_a viewer's run must be verified not to be offered
+   write tools_ — an assertion about `calls[0].tools`, made without a model).
    The object registered with `CopilotPlugin` is a **stable delegating facade**,
    because the plugin list is built once per spec file while each test needs its
    own script, and `createFakeProvider` takes its script at construction.

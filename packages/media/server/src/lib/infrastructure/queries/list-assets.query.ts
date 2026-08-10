@@ -1,14 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-    and,
-    asc,
-    desc,
-    eq,
-    ilike,
-    isNull,
-    sql,
-    type SQL
-} from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNull, sql, type SQL } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { mediaAsset, mediaKind } from '../schema/media-asset';
 import type { AssetListView } from '../../types/asset-view';
@@ -64,7 +55,9 @@ export class ListAssetsQuery {
             );
         }
         if (params.kind && params.kind !== 'all') {
-            conditions.push(eq(mediaAsset.kind, params.kind as MediaKindColumn));
+            conditions.push(
+                eq(mediaAsset.kind, params.kind as MediaKindColumn)
+            );
         }
         const search = params.search?.trim();
         if (search) {

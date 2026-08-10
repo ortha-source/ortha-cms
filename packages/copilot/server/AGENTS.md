@@ -19,15 +19,15 @@ profile, and the transcript this plugin now owns and migrates
 
 ### Routes
 
-| Route                                | Guards                                              | Notes                                                       |
-| ------------------------------------ | --------------------------------------------------- | ----------------------------------------------------------- |
-| `POST /api/copilot/runs`             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | SSE. One turn.                                              |
-| `GET /api/copilot/models`            | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
-| `GET /api/copilot/conversations`     | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads. `?archived=true` for the filed ones.   |
-| `GET /api/copilot/conversations/:id` | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript. Serves archived threads too.           |
-| `PATCH /api/copilot/conversations/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | Rename and/or archive.                                    |
-| `GET /api/copilot/proposals`         | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
-| `GET /api/copilot/proposals/:id`     | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
+| Route                                  | Guards                                              | Notes                                                       |
+| -------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/copilot/runs`               | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | SSE. One turn.                                              |
+| `GET /api/copilot/models`              | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
+| `GET /api/copilot/conversations`       | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads. `?archived=true` for the filed ones.   |
+| `GET /api/copilot/conversations/:id`   | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript. Serves archived threads too.           |
+| `PATCH /api/copilot/conversations/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | Rename and/or archive.                                      |
+| `GET /api/copilot/proposals`           | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
+| `GET /api/copilot/proposals/:id`       | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
 
 All require `copilot:use`.
 

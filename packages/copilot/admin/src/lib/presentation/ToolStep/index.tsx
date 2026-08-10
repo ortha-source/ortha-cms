@@ -66,9 +66,12 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
     const phrase = toolPhrase(step.name, running ? 'running' : 'done');
     const label = phrase
         ? intl.formatMessage(phrase)
-        : intl.formatMessage(running ? messages.runningOther : messages.doneOther, {
-              tool: humanizeToolName(step.name)
-          });
+        : intl.formatMessage(
+              running ? messages.runningOther : messages.doneOther,
+              {
+                  tool: humanizeToolName(step.name)
+              }
+          );
 
     return (
         <Collapsible className="border-border/60 bg-muted/40 rounded-md border">
