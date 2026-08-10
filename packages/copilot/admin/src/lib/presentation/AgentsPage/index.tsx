@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Lock } from 'lucide-react';
 import {
@@ -11,7 +10,6 @@ import {
 } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import type { CopilotModelChoice } from '../../application/useCopilotModels';
 import { useRouteContext } from '../../application/useRouteContext';
 import { COPILOT_USE, agentsPath } from '../../domain/agentsRoute';
 import { AgentsRail } from './AgentsRail';
@@ -59,10 +57,6 @@ export function AgentsPage() {
     const workspace = useCurrentWorkspace();
     const canUse = useHasPermission(COPILOT_USE);
     const routeContext = useRouteContext();
-    // Which backend the next turn runs on. Held here rather than in the thread
-    // because the control that sets it lives in the top bar — and per *page*
-    // rather than per thread, so a conversation can start cheap and escalate.
-    const [choice, setChoice] = useState<CopilotModelChoice | null>(null);
 
     if (!canUse) {
         return (
@@ -91,8 +85,6 @@ export function AgentsPage() {
             <AgentsTopBar
                 workspaceId={workspace.id}
                 basePath={agentsPath(workspace.id)}
-                choice={choice}
-                onChoiceChange={setChoice}
             />
             {/* `min-h-0` against the shell's bounded column: the rail and the
                 transcript each run their own inner scroll, and without it both
@@ -103,7 +95,6 @@ export function AgentsPage() {
                     workspaceId={workspace.id}
                     workspaceName={workspace.name}
                     routeContext={routeContext}
-                    choice={choice}
                 />
             </div>
         </>

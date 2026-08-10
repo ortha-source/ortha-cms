@@ -167,11 +167,23 @@ Four things about how that is wired are load-bearing:
   always-mounted component reading `readAgentThreadId(pathname)` has no such
   seam. Same reason `useCopilotChat` is called once per page and the transcript
   is swapped underneath it, rather than keying a component by thread.
-- **Only the *base* URL adopts a minted id.** Guarding on "the chat's id differs
-  from the URL's" looks equivalent and is not: clicking another thread while an
-  answer streams makes them differ, and that effect then shoves the URL back to
-  the running chat and undoes the user's own navigation. When the URL names a
-  thread it is the authority.
+- **Load, clear and adopt are one effect, and the last two are told apart by
+  whether the URL just changed.** All three are guarded on `urlId`, and the two
+  obvious formulations are both wrong:
+    - guarding adoption on "the chat's id differs from the URL's" breaks
+      *switching*: clicking another thread while an answer streams makes them
+      differ, so the URL gets shoved back to the running chat and the user's own
+      navigation is undone. When the URL names a thread, the URL is the
+      authority.
+    - splitting clear and adopt into two effects breaks *New chat*: both run in
+      the same commit, so the adopt effect still reads the **pre-reset**
+      conversation id — a state update lands on the next render, not inside the
+      effect that asked for it — decides the URL is missing an id, and navigates
+      straight back into the thread you just left.
+
+  Hence one effect and a `lastUrlIdRef`: the URL *changed* to the base means New
+  chat (clear); the URL was *already* the base and an id appeared means the first
+  turn started (adopt).
 - **Opening a thread is a query here, a mutation in the panel.** A mutation's
   per-call `onSuccess` runs only while the component that called `mutate` is
   still mounted, and this load is kicked off by an effect — React's StrictMode
@@ -502,6 +514,30 @@ model and escalate. "Default" is a real option meaning "whatever the host's
 resolver picks", which can differ per run; it is not a synonym for today's
 default provider. The picker hides itself when the deployment offers one
 backend.
+
+**On the Agents page it lives inside the composer, bottom-left** — passed as the
+`Composer`'s `controls`, which is the slot for anything that acts on the *next
+turn*. Its first home was the page's top bar, and that was the wrong statement:
+chrome above the transcript reads as a property of the conversation, and the
+model is not one. The panel keeps its picker in its own header row, where it sits
+beside the history dropdown; there is no room in a 420px composer for both.
+
+## The composer grows
+
+The field starts at two rows and grows with what you type, capped at `MAX_HEIGHT`
+(152px, about six lines) after which it scrolls. Two fixed rows is fine for "how
+many authors are there?" and wrong for the paragraph of context that makes a
+question answerable — you end up editing through a letterbox. Three details are
+load-bearing:
+
+- **`useLayoutEffect`, not `useEffect`.** Measuring after paint shows one frame
+  at the old height, which reads as a flicker on every keystroke that wraps.
+- **Collapse to `auto` before measuring.** `scrollHeight` never reports less than
+  the height already set, so without it the field can grow and never shrink.
+- **The border and focus ring are on the wrapper**, not the field — the field is
+  stripped of both. The controls row is inside that wrapper, so it reads as one
+  box; two nested rings on focus is the giveaway that a composer was assembled
+  rather than designed.
 
 ## Conventions
 

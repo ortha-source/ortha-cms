@@ -20,9 +20,7 @@ import {
     TopBarIcon
 } from '@ortha-cms/design-system';
 import { useConversations } from '../../../application/useConversations';
-import type { CopilotModelChoice } from '../../../application/useCopilotModels';
 import { readAgentThreadId } from '../../../domain/agentsRoute';
-import { ModelPicker } from '../../ModelPicker';
 import { AgentsRailList } from '../AgentsRailList';
 
 // The product is **Ortha AI**; the code keeps `copilot`. See the naming note in
@@ -55,10 +53,6 @@ export interface AgentsTopBarProps {
     workspaceId: string;
     /** Where the "Ortha AI" crumb links — a new chat. */
     basePath: string;
-    /** The current model routing, owned by the page. */
-    choice: CopilotModelChoice | null;
-    /** Picks a different backend for the next turn. */
-    onChoiceChange(choice: CopilotModelChoice | null): void;
 }
 
 /**
@@ -76,12 +70,7 @@ export interface AgentsTopBarProps {
  * it: the title is a property of the saved thread, and the list is already
  * invalidated as each turn lands.
  */
-export function AgentsTopBar({
-    workspaceId,
-    basePath,
-    choice,
-    onChoiceChange
-}: AgentsTopBarProps) {
+export function AgentsTopBar({ workspaceId, basePath }: AgentsTopBarProps) {
     const intl = useIntl();
     const { pathname } = useLocation();
     const { data: conversations } = useConversations(workspaceId);
@@ -158,8 +147,6 @@ export function AgentsTopBar({
                         />
                     </SheetContent>
                 </Sheet>
-
-                <ModelPicker value={choice} onChange={onChoiceChange} />
             </TopBarActions>
         </TopBar>
     );

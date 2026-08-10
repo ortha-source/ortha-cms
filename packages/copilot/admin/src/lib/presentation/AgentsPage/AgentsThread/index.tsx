@@ -14,6 +14,7 @@ import type { RouteContext } from '../../../application/readRouteContext';
 import { Composer } from '../../Composer';
 import { ContextChip } from '../../ContextChip';
 import { MessageList } from '../../MessageList';
+import { ModelPicker } from '../../ModelPicker';
 import { AgentsWelcome } from '../AgentsWelcome';
 
 const messages = defineMessages({
@@ -42,12 +43,6 @@ export interface AgentsThreadProps {
      * can be pinned to the page they were last on — see {@link ContextChip}.
      */
     routeContext: RouteContext;
-    /**
-     * Which backend the next turn runs on, or `null` for the host's resolver.
-     * Owned by the page because the control that sets it lives in the top bar,
-     * and it applies to the next turn rather than to the thread.
-     */
-    choice: CopilotModelChoice | null;
 }
 
 /**
@@ -63,8 +58,7 @@ export interface AgentsThreadProps {
 export function AgentsThread({
     workspaceId,
     workspaceName,
-    routeContext,
-    choice
+    routeContext
 }: AgentsThreadProps) {
     const intl = useIntl();
     const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -73,6 +67,11 @@ export function AgentsThread({
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
     const [attached, setAttached] = useState<RouteContext | null>(null);
+    // `null` means "let the host's resolver pick", which is a real choice rather
+    // than the absence of one — see ModelPicker. Held here, beside the composer
+    // whose control sets it, because it applies to the **next turn** rather than
+    // to the thread: a conversation can start cheap and escalate.
+    const [choice, setChoice] = useState<CopilotModelChoice | null>(null);
 
     const send = (text: string) =>
         chat.send(
@@ -146,8 +145,13 @@ export function AgentsThread({
                 />
                 <Composer
                     busy={chat.busy}
-                    rows={3}
                     inputRef={composerRef}
+                    // In the box, bottom-left: the model applies to the turn
+                    // being written, not to the conversation, so it belongs
+                    // with the thing that writes it.
+                    controls={
+                        <ModelPicker value={choice} onChange={setChoice} />
+                    }
                     // The page already centres and pads its own column, so the
                     // composer drops the panel's divider and gutters and
                     // contributes only the box itself.

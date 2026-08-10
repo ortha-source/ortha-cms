@@ -39,11 +39,19 @@ export interface AgentThread {
  *
  * - the URL names a thread the chat is not on → the query fetches it, and the
  *   effect below loads it into the transcript
- * - the URL is the bare base → clear the transcript, because that path *is* the
- *   new-chat surface
- * - the chat learns an id the URL does not have → `replace` the URL with it
- *   (replace, not push: "new chat" and "that chat" are one step in the user's
- *   history, not two)
+ * - the URL *changed* to the bare base → clear the transcript, because that path
+ *   *is* the new-chat surface
+ * - the URL was *already* the base and the chat minted an id → `replace` the URL
+ *   with it (replace, not push: "new chat" and "that chat" are one step in the
+ *   user's history, not two)
+ *
+ * **All three live in one effect, and the last two are told apart by whether the
+ * URL just changed.** They were two effects, and that was a bug you could see:
+ * both run in the same commit, so when New chat cleared the transcript the
+ * second effect still read the *pre-reset* conversation id — a state update
+ * lands on the next render, not inside the effect that asked for it — decided
+ * the URL was missing an id, and pushed you straight back into the thread you
+ * had just left.
  *
  * **The load is a query, not a mutation.** A mutation's per-call `onSuccess`
  * fires only while the component that called `mutate` is still mounted, and this
@@ -76,38 +84,48 @@ export function useAgentThread(workspaceId: string): AgentThread {
     chatRef.current = chat;
 
     const loaded = detail.data;
+    const mintedId = chat.conversationId;
+    /**
+     * The thread the URL named last time this ran.
+     *
+     * It is what tells "the user just navigated to the base" apart from "we were
+     * already at the base and the chat minted an id" — two situations that look
+     * identical in a single render, and that call for opposite responses.
+     */
+    const lastUrlIdRef = useRef(urlId);
+
     useEffect(() => {
-        // The base path is the new-chat surface. Arriving here from a thread —
-        // the rail's New chat button, or Back — has to clear the transcript, or
-        // "new chat" would show the old one.
+        const previous = lastUrlIdRef.current;
+        lastUrlIdRef.current = urlId;
+
         if (!urlId) {
-            if (chatRef.current.conversationId) {
+            // Arriving at the base **from a thread** is the New chat button (or
+            // Back). Clear the transcript, or "new chat" would show the old one.
+            if (previous !== null) {
                 chatRef.current.stop();
                 chatRef.current.reset();
+                return;
+            }
+            // Already at the base, and an id has appeared: the first turn of an
+            // unsaved chat just started. Put it in the URL — `replace`, because
+            // "new chat" and "that chat" are one step in the user's history.
+            if (mintedId) {
+                navigate(agentThreadPath(workspaceId, mintedId), {
+                    replace: true
+                });
             }
             return;
         }
 
-        if (!loaded || chatRef.current.conversationId === urlId) {
+        // The URL names a thread the chat is not on: load it, once the query has
+        // it. `loaded` is undefined until then, and undefined again the moment
+        // the chat catches up and the query switches off.
+        if (!loaded || mintedId === urlId) {
             return;
         }
         chatRef.current.stop();
         chatRef.current.load(urlId, loaded.messages);
-    }, [urlId, loaded]);
-
-    const mintedId = chat.conversationId;
-    useEffect(() => {
-        // Only from the **base** path. Guarding on `mintedId !== urlId` instead
-        // looks equivalent and is not: clicking another thread while an answer
-        // streams makes the two differ, and this effect would then shove the URL
-        // back to the running chat and undo the user's own navigation. When the
-        // URL names a thread it is the authority; only the bare new-chat path
-        // has an id to learn.
-        if (!mintedId || urlId) {
-            return;
-        }
-        navigate(agentThreadPath(workspaceId, mintedId), { replace: true });
-    }, [mintedId, urlId, navigate, workspaceId]);
+    }, [urlId, mintedId, loaded, navigate, workspaceId]);
 
     const { refetch } = detail;
     const retry = useCallback(() => void refetch(), [refetch]);
