@@ -7,9 +7,9 @@
         "dev": "nx run-many -t dev,dev:build,dev:run,dev:typecheck -p server admin",
         "start:server": "nx serve server",
         "start:admin": "nx serve admin",
-        "release": "nx release --yes",
-        "release:dry-run": "nx release --dry-run",
-        "release:publish": "nx release publish"
+        "release": "node tools/release/release.mjs",
+        "release:dry-run": "node tools/release/release.mjs --dry-run",
+        "release:publish": "node tools/release/release.mjs --publish-only"
     },
     "private": true,
     "repository": {
