@@ -480,10 +480,26 @@ buttons. That inverts what it is guarding against: it used to exist to stop a
 user reading "drafted" as "done", and now exists because it is the _only_ place
 they learn their content changed at all.
 
-- **The card lives in the transcript**, attached to the turn that produced it and
-  rendered _after_ the prose. A change is part of an answer ("here is what I
-  changed"), and a result above its own explanation is a result with no account
-  of itself.
+- **The card lives in the transcript, exactly where the change happened.** A
+  turn is an ordered `ChatBlock[]` — prose, tool steps and cards interleaved —
+  not three buckets sorted by kind. It *was* three buckets, and the layout could
+  not say when anything occurred: a model that explains, saves, and keeps writing
+  produced a card pinned to the bottom while the new text appeared above it, so
+  the transcript showed the change happening after the sentences written after
+  it. The rule it replaces ("the card renders after the prose") was right about
+  the common case and wrong as a layout — chronology gets both.
+- **A `text-delta` merges into the newest block only while that block is text.**
+  That is the mechanism: a step or a card ends the paragraph, so whatever the
+  model writes next starts a new one *below* it.
+- **A reopened thread rebuilds the same order from `content`**, which is the
+  model port's block list as the run produced it — so the stored order is the
+  order, and each proposal is emitted straight after the `tool_use` that made
+  it. Sorting by kind here is what used to strand a card at the bottom of a
+  reopened thread too.
+- **`ChatBlock` wraps rather than intersects.** `{ kind: 'step' } & ChatToolStep`
+  is tidier and silently clobbers `ChatProposal.kind` — the applier that carried
+  the change out, `content.entry.update`, which the card renders. The extra
+  `.step` / `.proposal` hop is the price of not overwriting a field.
 - **`pending` means the apply failed.** Nothing waits any more, so the card
   reads that status as a failure: a destructive badge, "Not saved", and the
   server's own reason. It falls back to a generic line when a reopened row

@@ -2,9 +2,9 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@ortha-cms/utils-admin';
 import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
 import type {
+    ChatBlock,
     ChatMessage,
-    ChatProposal,
-    ChatToolStep
+    ChatProposal
 } from '../domain/types/chat';
 import type { CopilotConversation } from './useConversations';
 
@@ -164,33 +164,60 @@ function toChatMessages(
     }
 
     return messages.flatMap((message) => {
-        const text = message.content
-            .filter((block) => block.type === 'text')
-            .map((block) => block.text)
-            .join('');
+        // **The stored order is the order.** `content` is the model port's
+        // block list exactly as the run produced it, so walking it rebuilds the
+        // interleaving a live run shows — prose, the step that interrupted it,
+        // the change that step made, then the prose written afterwards. Sorting
+        // by kind here is what used to strand a card at the bottom of a
+        // reopened thread.
+        const blocks: ChatBlock[] = [];
+        for (const part of message.content) {
+            if (part.type === 'text') {
+                if (part.text) {
+                    blocks.push({
+                        kind: 'text',
+                        id: `text-${blocks.length}`,
+                        text: part.text
+                    });
+                }
+                continue;
+            }
+            if (part.type !== 'tool_use') {
+                // `tool_result` rides on the *following* turn and is folded
+                // onto the call it answers, below — it is not a block of its
+                // own in the transcript.
+                continue;
+            }
 
-        const steps: ChatToolStep[] = message.content
-            .filter((block) => block.type === 'tool_use')
-            .map((block) => {
-                const result = resultsById.get(block.id);
-                return {
-                    id: block.id,
-                    name: block.name,
-                    input: block.input,
+            const result = resultsById.get(part.id);
+            blocks.push({
+                kind: 'step',
+                id: part.id,
+                step: {
+                    id: part.id,
+                    name: part.name,
+                    input: part.input,
                     status: result ? (result.isError ? 'error' : 'ok') : 'ok',
                     ...(result?.isError
                         ? { error: result.content }
                         : { output: result?.content })
-                };
+                }
             });
 
-        const turnProposals = steps.flatMap(
-            (step) => proposalsByCall.get(step.id) ?? []
-        );
+            // Directly after the call that produced it, which is where the run
+            // emitted it and where the reader last saw the change discussed.
+            for (const proposal of proposalsByCall.get(part.id) ?? []) {
+                blocks.push({
+                    kind: 'proposal',
+                    id: proposal.id,
+                    proposal
+                });
+            }
+        }
 
         // A turn that carried only tool results (no prose, no calls) is
         // plumbing, not something a reader should see as an empty bubble.
-        if (!text && steps.length === 0) {
+        if (blocks.length === 0) {
             return [];
         }
 
@@ -198,11 +225,18 @@ function toChatMessages(
             {
                 id: message.id,
                 role: message.role,
-                text,
-                steps,
-                ...(turnProposals.length > 0
-                    ? { proposals: turnProposals }
-                    : {}),
+                // Assistant prose lives in `blocks`; a user turn's is one
+                // string, and the persisted shape gives it as text parts.
+                text:
+                    message.role === 'user'
+                        ? blocks
+                              .filter((block) => block.kind === 'text')
+                              .map((block) =>
+                                  block.kind === 'text' ? block.text : ''
+                              )
+                              .join('')
+                        : '',
+                blocks: message.role === 'user' ? [] : blocks,
                 ...(message.stopReason
                     ? { stopReason: message.stopReason }
                     : {})

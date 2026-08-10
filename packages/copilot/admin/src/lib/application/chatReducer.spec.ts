@@ -1,5 +1,10 @@
 import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
-import type { ChatState } from '../domain/types/chat';
+import type {
+    ChatMessage,
+    ChatProposal,
+    ChatState,
+    ChatToolStep
+} from '../domain/types/chat';
 
 /** Applies a sequence of actions, so a test reads as a run's timeline. */
 function play(...actions: ChatAction[]): ChatState {
@@ -28,7 +33,146 @@ const done: ChatAction = {
     }
 };
 
+/** The prose of an assistant turn, in order — what `text` used to hold. */
+function prose(message: ChatMessage): string {
+    return message.blocks
+        .filter((block) => block.kind === 'text')
+        .map((block) => (block.kind === 'text' ? block.text : ''))
+        .join('');
+}
+
+/** Its tool steps, in order — what `steps` used to hold. */
+function steps(message: ChatMessage): ChatToolStep[] {
+    return message.blocks.flatMap((block) =>
+        block.kind === 'step' ? [block.step] : []
+    );
+}
+
+/** Its change cards, in order — what `proposals` used to hold. */
+function proposals(message: ChatMessage): ChatProposal[] {
+    return message.blocks.flatMap((block) =>
+        block.kind === 'proposal' ? [block.proposal] : []
+    );
+}
+
 describe('chatReducer', () => {
+    describe('the order things happened in', () => {
+        /** The kinds of a turn's blocks, in order — the shape of the answer. */
+        const shape = (state: ChatState) =>
+            state.messages[1].blocks.map((block) => block.kind);
+
+        const delta = (text: string): ChatAction => ({
+            type: 'event',
+            event: { type: 'text-delta', text }
+        });
+
+        const call: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'tool-call',
+                id: 'call-1',
+                name: 'content_propose_update',
+                input: {}
+            }
+        };
+
+        const result: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'tool-result',
+                id: 'call-1',
+                ok: true,
+                summary: 'Applied',
+                durationMs: 12
+            }
+        };
+
+        const card: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'proposal',
+                id: 'p-1',
+                toolCallId: 'call-1',
+                toolName: 'content_propose_update',
+                kind: 'content.entry.update',
+                summary: 'Set a summary',
+                target: {},
+                status: 'accepted'
+            }
+        };
+
+        it('keeps a change card where the change happened', () => {
+            // The reported bug: the model explains, saves, and keeps writing —
+            // and the card was pinned below the sentences written after it,
+            // because the turn was three buckets rather than a sequence.
+            const state = play(
+                submit,
+                started,
+                delta('I will set it. '),
+                call,
+                result,
+                card,
+                delta('Done — the summary is in.')
+            );
+
+            expect(shape(state)).toEqual(['text', 'step', 'proposal', 'text']);
+        });
+
+        it('starts a new paragraph after a step rather than growing the old one', () => {
+            // What puts the later prose *below* the card: deltas merge into the
+            // newest block only while it is still text.
+            const state = play(
+                submit,
+                started,
+                delta('before '),
+                delta('the call. '),
+                call,
+                delta('after '),
+                delta('the call.')
+            );
+
+            const text = state.messages[1].blocks.flatMap((block) =>
+                block.kind === 'text' ? [block.text] : []
+            );
+            expect(text).toEqual(['before the call. ', 'after the call.']);
+        });
+
+        it('resolves a step in place, without shuffling what came after it', () => {
+            const state = play(
+                submit,
+                started,
+                call,
+                delta('meanwhile'),
+                result
+            );
+
+            expect(shape(state)).toEqual(['step', 'text']);
+            const [step] = state.messages[1].blocks;
+            expect(step.kind === 'step' && step.step.status).toBe('ok');
+        });
+
+        it('keeps two changes in the order they were made', () => {
+            const second: ChatAction = {
+                type: 'event',
+                event: {
+                    type: 'proposal',
+                    id: 'p-2',
+                    toolCallId: 'call-1',
+                    toolName: 'content_propose_update',
+                    kind: 'content.entry.update',
+                    summary: 'And another',
+                    target: {},
+                    status: 'accepted'
+                }
+            };
+            const state = play(submit, started, call, result, card, second);
+            const ids = state.messages[1].blocks.flatMap((block) =>
+                block.kind === 'proposal' ? [block.proposal.id] : []
+            );
+            expect(ids).toEqual(['p-1', 'p-2']);
+        });
+    });
+
     it('appends the user turn and a pending assistant turn on submit', () => {
         const state = play(submit);
 
@@ -58,7 +202,7 @@ describe('chatReducer', () => {
             { type: 'event', event: { type: 'text-delta', text: 'there' } }
         );
 
-        expect(state.messages[1].text).toBe('Hello there');
+        expect(prose(state.messages[1])).toBe('Hello there');
     });
 
     it('adds a running step on tool-call and resolves it on tool-result', () => {
@@ -88,7 +232,7 @@ describe('chatReducer', () => {
             }
         );
 
-        expect(state.messages[1].steps).toEqual([
+        expect(steps(state.messages[1])).toEqual([
             {
                 id: 't1',
                 name: 'admin_content_search',
@@ -128,7 +272,7 @@ describe('chatReducer', () => {
             }
         );
 
-        expect(state.messages[1].steps.map((s) => s.status)).toEqual([
+        expect(steps(state.messages[1]).map((s) => s.status)).toEqual([
             'running',
             'error'
         ]);
@@ -165,7 +309,7 @@ describe('chatReducer', () => {
             { type: 'event', event: { type: 'error', message: 'boom' } }
         );
 
-        expect(state.messages[1].text).toBe('partial');
+        expect(prose(state.messages[1])).toBe('partial');
         expect(state.messages[1].error).toBe('boom');
     });
 
@@ -292,7 +436,7 @@ describe('chatReducer', () => {
         it('retires it on a refused result too', () => {
             const state = play(submit, started, asks, result(false));
             expect(state.messages[1].permissions?.[0].answered).toBe(true);
-            expect(state.messages[1].steps).toEqual([]);
+            expect(steps(state.messages[1])).toEqual([]);
         });
 
         it('ignores an answer for a request it does not have', () => {
@@ -326,7 +470,7 @@ describe('chatReducer', () => {
         it('attaches a change to the assistant turn', () => {
             const state = play(submit, started, proposed());
 
-            expect(state.messages[1].proposals).toEqual([
+            expect(proposals(state.messages[1])).toEqual([
                 expect.objectContaining({
                     id: 'p1',
                     summary: 'Fix the headline',
@@ -347,7 +491,7 @@ describe('chatReducer', () => {
                 }
             });
 
-            expect(state.messages[1].proposals?.[0]).toMatchObject({
+            expect(proposals(state.messages[1])[0]).toMatchObject({
                 status: 'accepted',
                 entityId: 'e1'
             });
@@ -364,7 +508,7 @@ describe('chatReducer', () => {
                 proposed('pending', 'Entry validation failed')
             );
 
-            expect(state.messages[1].proposals?.[0]).toMatchObject({
+            expect(proposals(state.messages[1])[0]).toMatchObject({
                 status: 'pending',
                 error: 'Entry validation failed'
             });
@@ -372,7 +516,7 @@ describe('chatReducer', () => {
 
         it('leaves the error unset when the change applied', () => {
             const state = play(submit, started, proposed());
-            expect(state.messages[1].proposals?.[0].error).toBeUndefined();
+            expect(proposals(state.messages[1])[0].error).toBeUndefined();
         });
 
         it('appends several changes from one turn in order', () => {
@@ -389,7 +533,7 @@ describe('chatReducer', () => {
             };
             const state = play(submit, started, proposed(), second);
 
-            expect(state.messages[1].proposals?.map((p) => p.id)).toEqual([
+            expect(proposals(state.messages[1]).map((p) => p.id)).toEqual([
                 'p1',
                 'p2'
             ]);

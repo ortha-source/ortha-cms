@@ -1,5 +1,6 @@
 import type { CopilotRunEvent } from '@ortha-cms/copilot-domain';
 import type {
+    ChatBlock,
     ChatMessage,
     ChatPermissionRequest,
     ChatProposal,
@@ -62,7 +63,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                         id: `local-user-${action.localId}`,
                         role: 'user',
                         text: action.text,
-                        steps: []
+                        blocks: []
                     },
                     // The assistant turn is created up front and empty, so the
                     // UI has something to show a pending state on before the
@@ -71,7 +72,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                         id: `local-assistant-${action.localId}`,
                         role: 'assistant',
                         text: '',
-                        steps: [],
+                        blocks: [],
                         streaming: true
                     }
                 ]
@@ -124,7 +125,7 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 ...state,
                 messages: mapLastAssistant(state.messages, (message) => ({
                     ...message,
-                    text: message.text + event.text
+                    blocks: appendText(message.blocks, event.text)
                 }))
             };
 
@@ -133,13 +134,17 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 ...state,
                 messages: mapLastAssistant(state.messages, (message) => ({
                     ...message,
-                    steps: [
-                        ...message.steps,
+                    blocks: [
+                        ...message.blocks,
                         {
+                            kind: 'step',
                             id: event.id,
-                            name: event.name,
-                            input: event.input,
-                            status: 'running'
+                            step: {
+                                id: event.id,
+                                name: event.name,
+                                input: event.input,
+                                status: 'running'
+                            }
                         }
                     ]
                 }))
@@ -173,17 +178,23 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                     ...state,
                     messages: mapLastAssistant(state.messages, (message) => ({
                         ...message,
-                        steps: message.steps.map((step) =>
-                            step.id === event.id
+                        // **In place.** The step keeps the position it was
+                        // called at, so a result landing does not shuffle the
+                        // answer written since.
+                        blocks: message.blocks.map((block) =>
+                            block.kind === 'step' && block.id === event.id
                                 ? {
-                                      ...step,
-                                      status: event.ok ? 'ok' : 'error',
-                                      summary: event.summary,
-                                      output: event.output,
-                                      error: event.error,
-                                      durationMs: event.durationMs
+                                      ...block,
+                                      step: {
+                                          ...block.step,
+                                          status: event.ok ? 'ok' : 'error',
+                                          summary: event.summary,
+                                          output: event.output,
+                                          error: event.error,
+                                          durationMs: event.durationMs
+                                      }
                                   }
-                                : step
+                                : block
                         )
                     }))
                 },
@@ -195,30 +206,36 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 ...state,
                 messages: mapLastAssistant(state.messages, (message) => ({
                     ...message,
-                    proposals: [
-                        ...(message.proposals ?? []),
+                    // Appended where it happened — after the step that made the
+                    // change, before whatever the model writes next.
+                    blocks: [
+                        ...message.blocks,
                         {
+                            kind: 'proposal',
                             id: event.id,
-                            toolCallId: event.toolCallId,
-                            toolName: event.toolName,
-                            kind: event.kind,
-                            summary: event.summary,
-                            target: event.target as Record<string, unknown>,
-                            ...(event.changes
-                                ? {
-                                      changes:
-                                          event.changes as ChatProposal['changes']
-                                  }
-                                : {}),
-                            status: event.status,
-                            ...(event.entityId
-                                ? { entityId: event.entityId }
-                                : {}),
-                            // `pending` now means the apply failed, so the
-                            // reason travels with it — the card is a receipt,
-                            // and a receipt that cannot say "this did not
-                            // happen" is worse than none.
-                            ...(event.error ? { error: event.error } : {})
+                            proposal: {
+                                id: event.id,
+                                toolCallId: event.toolCallId,
+                                toolName: event.toolName,
+                                kind: event.kind,
+                                summary: event.summary,
+                                target: event.target as Record<string, unknown>,
+                                ...(event.changes
+                                    ? {
+                                          changes:
+                                              event.changes as ChatProposal['changes']
+                                      }
+                                    : {}),
+                                status: event.status,
+                                ...(event.entityId
+                                    ? { entityId: event.entityId }
+                                    : {}),
+                                // `pending` now means the apply failed, so the
+                                // reason travels with it — the card is a
+                                // receipt, and a receipt that cannot say "this
+                                // did not happen" is worse than none.
+                                ...(event.error ? { error: event.error } : {})
+                            }
                         }
                     ]
                 }))
@@ -250,6 +267,22 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
         default:
             return state;
     }
+}
+
+/**
+ * Appends prose, growing the newest block when it is already text.
+ *
+ * A `text-delta` arrives dozens of times per answer, and merging into the last
+ * block is what keeps one sentence one paragraph instead of one block per
+ * token — while still starting a *new* block after a tool step, which is what
+ * puts the words written after a change below the card for it.
+ */
+function appendText(blocks: ChatBlock[], text: string): ChatBlock[] {
+    const last = blocks[blocks.length - 1];
+    if (last?.kind === 'text') {
+        return [...blocks.slice(0, -1), { ...last, text: last.text + text }];
+    }
+    return [...blocks, { kind: 'text', id: `text-${blocks.length}`, text }];
 }
 
 /** Applies `change` to one permission request, wherever it sits. */
