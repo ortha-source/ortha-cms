@@ -974,6 +974,55 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.publishedAt).not.toBeNull();
         });
 
+        it('frees a one-to-one target once the holder is soft-deleted', async () => {
+            const agent = await login();
+            const seo = (
+                await agent
+                    .post('/api/content/test_seo')
+                    .send({ values: { metaTitle: 'Recycled' } })
+                    .expect(201)
+            ).body as { id: string };
+            const first = await createArticle(agent, {
+                values: { ...VALID, seo: seo.id }
+            });
+            await agent
+                .delete(`/api/content/test_article/${first.id}`)
+                .expect(204);
+
+            // The index is partial (`WHERE deleted_at IS NULL`), like the
+            // (group, locale) pair — a trashed row must not hold a target
+            // hostage forever.
+            await agent
+                .post('/api/content/test_article')
+                .send({ values: { ...VALID, seo: seo.id } })
+                .expect(201);
+        });
+
+        it('says nothing about locales when the type has none', async () => {
+            const agent = await login();
+            const seo = (
+                await agent
+                    .post('/api/content/test_seo')
+                    .send({ values: { metaTitle: 'Page meta' } })
+                    .expect(201)
+            ).body as { id: string };
+            await agent
+                .post('/api/content/test_page')
+                .send({ values: { title: 'First', seo: seo.id } })
+                .expect(201);
+
+            // `test_page` is NOT localized, so its one-to-one keeps the plain
+            // column-wide UNIQUE and the message must not mention a locale the
+            // type does not have.
+            const res = await agent
+                .post('/api/content/test_page')
+                .send({ values: { title: 'Second', seo: seo.id } })
+                .expect(422);
+            expect(res.body.issues).toEqual([
+                { field: 'seo', message: 'is already linked to another entry' }
+            ]);
+        });
+
         it('reports the sync mode on the schema so the editor can explain itself', async () => {
             const agent = await login();
             const res = await agent

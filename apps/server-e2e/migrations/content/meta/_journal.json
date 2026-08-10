@@ -50,6 +50,13 @@
       "when": 1786366993953,
       "tag": "0006_article_pinned_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786370630077,
+      "tag": "0007_page_seo_one_to_one",
+      "breakpoints": true
     }
   ]
 }

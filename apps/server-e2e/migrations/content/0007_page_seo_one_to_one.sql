@@ -1,0 +1,3 @@
+ALTER TABLE "content_test_page" ADD COLUMN "seo_id" uuid;--> statement-breakpoint
+ALTER TABLE "content_test_page" ADD CONSTRAINT "content_test_page_seo_id_content_test_seo_id_fk" FOREIGN KEY ("seo_id") REFERENCES "public"."content_test_seo"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "content_test_page" ADD CONSTRAINT "content_test_page_seo_id_unique" UNIQUE("seo_id");
