@@ -3,26 +3,48 @@
 Every package under `packages/` is published to the `@ortha-cms` scope in one
 lockstep release: one version, one tag, one GitHub Release, 37 tarballs.
 
-## Running a release
+## Running a release from your machine
 
-From the **Actions** tab, run the **Release** workflow. It typechecks, builds,
-versions, tags, publishes, and opens the GitHub Release. Leave the version
-input empty to let the conventional commits since the last tag pick the bump,
-or type an explicit one (`1.2.0`, `minor`, `prerelease`). Tick **dry-run** to
-rehearse the whole thing without publishing or pushing.
-
-Locally, the same pipeline runs as:
+Check out `main`, pull, and run:
 
 ```sh
-npm run release:dry-run     # rehearse — writes nothing, publishes nothing
-npm run release             # version → changelog → tag → publish → GitHub Release
-npm run release:publish     # publish only, e.g. after a partly failed release
+npm run release:dry-run     # rehearse — writes nothing, pushes nothing, publishes nothing
+npm run release             # version → changelog → tag → push → publish → GitHub Release
+npm run release:publish     # publish only, to finish a partly failed release
+npm run release -- 1.2.0    # force a version instead of deriving one
 ```
 
-A local run needs `npm login` for the `@ortha-cms` scope and a `GITHUB_TOKEN`
-in the environment for the GitHub Release step. The workflow is the normal
-path; the local commands exist for recovery and for looking at what a release
-would do.
+`nx release` asks for confirmation before it publishes. **Read that prompt.**
+A publish cannot be undone and a version number can never be reused; the
+prompt is the last point at which a mistake is free. Pass `--yes` only for an
+unattended run.
+
+### Credentials
+
+Both live in `.env` at the workspace root, which is git-ignored.
+[`.env.example`](../.env.example) documents them. `tools/release/release.mjs`
+loads the file before handing off; anything already exported in your shell
+wins over it.
+
+|                |                                                                                                                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NPM_TOKEN`    | An npm automation token with publish rights on the `@ortha-cms` scope. It is handed to npm as configuration in the child process, never written to an `.npmrc`. Leave it empty to publish as whoever `npm login` logged in as. |
+| `GITHUB_TOKEN` | A token with `repo` access. `nx release` creates the GitHub Release with it.                                                                                                                                                   |
+
+### What it refuses to do
+
+`nx release` commits, tags and **pushes** the new version before it publishes
+or creates the release, so a problem found at that point leaves a tagged
+commit and an empty registry. The preflight checks therefore run first and
+refuse to start when you are not on `main` (override with `--allow-branch`),
+the working tree is dirty, the branch is behind `origin/main`, npm has no
+usable credentials, or `GITHUB_TOKEN` is missing.
+
+## Running it from CI
+
+The **Release** workflow in the Actions tab does the same thing unattended:
+leave the version input empty to derive the bump, or type an explicit one, and
+tick **dry-run** to rehearse. It needs one repository secret, `NPM_TOKEN`.
 
 ## What is released
 
