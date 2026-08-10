@@ -31,6 +31,17 @@ export type {
 } from './lib/application/runStream';
 export { useCopilotChat } from './lib/application/useCopilotChat';
 export type { CopilotChat } from './lib/application/useCopilotChat';
+// The chats themselves. Exported so a future surface can show one without
+// owning it — which is the whole reason they live outside React.
+export {
+    copilotStoreState,
+    subscribeToCopilotStore,
+    resetCopilotStore
+} from './lib/application/copilotStore';
+export type { CopilotStoreState } from './lib/application/copilotStore';
+export { useCopilotSessions } from './lib/application/useCopilotSessions';
+export type { CopilotSessions } from './lib/application/useCopilotSessions';
+export type { CopilotSession } from './lib/application/sessions';
 export {
     useConversations,
     conversationsKey,

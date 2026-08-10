@@ -10,12 +10,11 @@ const TITLE_LENGTH = 40;
 /**
  * One chat, always mounted — window or not.
  *
- * **This component exists so a chat can run while you are not looking at it.**
- * `useCopilotChat` lives here rather than inside `CopilotPanel`, because the
- * panel unmounts when its chat is collapsed to the dock, and a hook inside an
- * unmounted panel takes its `AbortController` cleanup with it: minimizing would
- * silently cancel the run. Lifting it one level is the whole mechanism behind
- * "ask three things at once and watch the dock".
+ * **A view of a chat, not its owner.** The transcript and the run live in the
+ * module store (`copilotStore`), so this component unmounting cancels nothing —
+ * which is what lets the same chat be a window here and a full page in the
+ * Agents view, and survive moving between the two. It used to own the chat, and
+ * the mounting rules that came with that are gone.
  *
  * It also owns the two things the dock needs to know and the chat is the only
  * one who can tell it: what this thread is **called**, and when something
@@ -45,7 +44,7 @@ export function CopilotSession({
     onActivity(): void;
     onAwaiting(value: boolean): void;
 }) {
-    const chat = useCopilotChat(workspaceId, session.minimized);
+    const chat = useCopilotChat(session.id, workspaceId, session.minimized);
 
     // The thread id the first turn created, reported up so the dock can tell
     // two windows apart and refuse to open the same thread twice.

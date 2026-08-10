@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { defineMessages, useIntl, type IntlShape } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@ortha-cms/design-system';
-import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
+import {
+    abortRun,
+    beginRun,
+    chatStateOf,
+    dispatchChat,
+    endRun,
+    runController,
+    subscribeToCopilotStore
+} from './copilotStore';
+import type { ChatAction } from './chatReducer';
 import { conversationsScopeKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideToolPermission } from './useDecideToolPermission';
@@ -76,20 +85,27 @@ export interface CopilotChat {
  * running server-side either way.
  */
 export function useCopilotChat(
+    /** Which chat in the store this is a view of. */
+    sessionId: string,
     workspaceId: string,
     /**
-     * True when the panel is collapsed to its title bar. A run keeps streaming
-     * while minimized, so this is the one state where a failure can happen with
-     * nobody able to see the alert — and therefore the only state that warrants
-     * a toast.
+     * True when the chat is not on screen — collapsed to the dock, or on a page
+     * the user has navigated away from. A run keeps streaming either way, so
+     * this is the one state where a failure can happen with nobody able to see
+     * the alert, and therefore the only state that warrants a toast.
      */
     hidden = false
 ): CopilotChat {
-    const [state, dispatch] = useReducer(chatReducer, initialChatState);
+    const state = useSyncExternalStore(subscribeToCopilotStore, () =>
+        chatStateOf(sessionId)
+    );
     const intl = useIntl();
     const queryClient = useQueryClient();
     const decidePermission = useDecideToolPermission();
-    const abortRef = useRef<AbortController | null>(null);
+    const dispatch = useCallback(
+        (action: ChatAction) => dispatchChat(sessionId, action),
+        [sessionId]
+    );
     // Read through a ref, never the captured value: `send`'s async closure is
     // created when the message is sent, but the failure it handles can land
     // seconds later, by which time the user may well have minimized the panel —
@@ -98,15 +114,11 @@ export function useCopilotChat(
     const hiddenRef = useRef(hidden);
     hiddenRef.current = hidden;
 
-    // Cancel an in-flight run when the panel goes away. Without this the
-    // generator keeps reading into a dispatch nobody is listening to, and the
-    // server keeps paying for an answer nobody will see.
-    useEffect(
-        () => () => {
-            abortRef.current?.abort();
-        },
-        []
-    );
+    // **No abort-on-unmount.** It used to live here, and it is what made
+    // navigating away from the Agents view a disguised cancel: a hook inside an
+    // unmounting component took the run's cleanup with it. A run now ends only
+    // when someone ends it — `stop()`, or closing the chat — and the store keeps
+    // it alive in between. See `copilotStore`.
 
     const send = useCallback(
         (
@@ -115,23 +127,26 @@ export function useCopilotChat(
             options?: CopilotChatOptions
         ) => {
             const trimmed = text.trim();
-            if (!trimmed || abortRef.current) {
+            if (!trimmed || runController(sessionId)) {
                 return;
             }
 
             const controller = new AbortController();
-            abortRef.current = controller;
+            beginRun(sessionId, controller);
             const localId = String(Date.now());
             dispatch({ type: 'submit', text: trimmed, localId });
 
             void (async () => {
                 try {
+                    // Read at send time, not from the render that created this
+                    // closure: the thread id can be minted by a run that is
+                    // still in flight when the next turn is queued.
+                    const conversationId =
+                        chatStateOf(sessionId).conversationId;
                     const events = streamRun(
                         {
                             message: trimmed,
-                            ...(state.conversationId
-                                ? { conversationId: state.conversationId }
-                                : {}),
+                            ...(conversationId ? { conversationId } : {}),
                             uiLocale: intl.locale,
                             // Omitted rather than sent as null: the strict
                             // server pipe accepts an absent optional field but
@@ -151,7 +166,7 @@ export function useCopilotChat(
                         // means a *different thread's* transcript is now in the
                         // reducer, so a cancelled answer would append itself to
                         // someone else's conversation.
-                        if (abortRef.current !== controller) {
+                        if (runController(sessionId) !== controller) {
                             break;
                         }
                         dispatch({ type: 'event', event });
@@ -160,7 +175,7 @@ export function useCopilotChat(
                     // Same reason as above: a run nobody is listening to any
                     // more must not write its failure into the transcript that
                     // replaced it.
-                    if (abortRef.current !== controller) {
+                    if (runController(sessionId) !== controller) {
                         return;
                     }
                     const failure = describe(error, intl);
@@ -184,13 +199,7 @@ export function useCopilotChat(
                         );
                     }
                 } finally {
-                    // Only if this run is still the current one. A run that was
-                    // cancelled and immediately replaced must not clear the
-                    // *replacement's* controller on its way out — that would
-                    // hand the old loop's identity check back to the new run.
-                    if (abortRef.current === controller) {
-                        abortRef.current = null;
-                    }
+                    endRun(sessionId, controller);
                     // The thread list's titles and ordering both change with a
                     // turn, and a brand-new thread doesn't exist in it at all
                     // until now.
@@ -200,17 +209,10 @@ export function useCopilotChat(
                 }
             })();
         },
-        [intl, queryClient, state.conversationId, workspaceId]
+        [dispatch, intl, queryClient, sessionId, workspaceId]
     );
 
-    const stop = useCallback(() => {
-        abortRef.current?.abort();
-        // Cleared here rather than only in the run's own `finally`, which lands
-        // a tick or more later: until it does, `send` would refuse to start the
-        // next turn, and the loop's identity check above is what makes dropping
-        // the cancelled run's remaining frames safe.
-        abortRef.current = null;
-    }, []);
+    const stop = useCallback(() => abortRun(sessionId), [sessionId]);
 
     const answer = useCallback(
         (runId: string, callId: string, decision: ToolPermissionDecision) => {
@@ -234,11 +236,6 @@ export function useCopilotChat(
         [decidePermission, workspaceId]
     );
 
-    const dispatchAction = useCallback(
-        (action: ChatAction) => dispatch(action),
-        []
-    );
-
     return {
         conversationId: state.conversationId,
         messages: state.messages,
@@ -252,9 +249,9 @@ export function useCopilotChat(
         awaitingPermission: state.messages.some((message) =>
             message.permissions?.some((request) => !request.answered)
         ),
-        reset: () => dispatchAction({ type: 'reset' }),
+        reset: () => dispatch({ type: 'reset' }),
         load: (conversationId, messages) =>
-            dispatchAction({ type: 'load', conversationId, messages })
+            dispatch({ type: 'load', conversationId, messages })
     };
 }
 

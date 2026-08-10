@@ -1,5 +1,6 @@
 import {
     MAX_OPEN_WINDOWS,
+    dockSessions,
     sessionsReducer,
     visibleSessions,
     type CopilotSession,
@@ -22,7 +23,8 @@ describe('sessionsReducer', () => {
                 title: null,
                 minimized: false,
                 unread: false,
-                awaiting: false
+                awaiting: false,
+                presented: 'dock'
             }
         ]);
     });
@@ -197,6 +199,76 @@ describe('sessionsReducer', () => {
                     value: true
                 })
             ).toBe(before);
+        });
+    });
+
+    describe('the full-page surface', () => {
+        const present = (
+            id: string,
+            presented: 'dock' | 'page'
+        ): SessionsAction => ({ type: 'present', id, presented });
+
+        it('takes a chat out of the dock entirely', () => {
+            // Presented full-page it is on screen, so the dock draws neither a
+            // window nor a pill — both would be a second copy of one chat.
+            const state = play(open('a'), present('a', 'page'));
+            expect(dockSessions(state)).toEqual([]);
+            expect(visibleSessions(state)).toEqual([]);
+        });
+
+        it('hands it back as a pill, never as a window', () => {
+            // A window popping open over whatever page the user just navigated
+            // to would be the surface following them around.
+            const state = play(
+                open('a'),
+                present('a', 'page'),
+                present('a', 'dock')
+            );
+            expect(state[0]).toMatchObject({
+                presented: 'dock',
+                minimized: true
+            });
+            expect(visibleSessions(state)).toEqual([]);
+        });
+
+        it('takes no window slot, so it cannot displace one', () => {
+            // Three windows is the cap; a page-presented chat is not a window,
+            // and opening one must not minimize somebody's window to make room.
+            const state = play(
+                open('a'),
+                open('b'),
+                open('c'),
+                open('d'),
+                present('d', 'page')
+            );
+            expect(visibleSessions(state).map((s) => s.id)).toEqual(['b', 'c']);
+            expect(state.find((s) => s.id === 'd')?.minimized).toBe(false);
+        });
+
+        it('marks a handed-back chat that then finishes', () => {
+            // The whole point of the hand-off: you navigated away mid-answer,
+            // and the pill has to tell you when it lands.
+            const state = play(
+                open('a'),
+                present('a', 'page'),
+                present('a', 'dock'),
+                { type: 'activity', id: 'a' }
+            );
+            expect(state[0].unread).toBe(true);
+        });
+
+        it('does not mark one that finishes while you are reading it', () => {
+            const state = play(open('a'), present('a', 'page'), {
+                type: 'activity',
+                id: 'a'
+            });
+            expect(state[0].unread).toBe(false);
+        });
+
+        it('returns the very same array when it is already there', () => {
+            // Same reason as `awaiting`: reported from an effect.
+            const before = play(open('a'), present('a', 'page'));
+            expect(sessionsReducer(before, present('a', 'page'))).toBe(before);
         });
     });
 

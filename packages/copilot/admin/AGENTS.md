@@ -41,9 +41,12 @@ domain/
   agentsRoute.ts           # pure: the Agents view's paths + `readAgentThreadId`
   types/chat.ts            # the transcript's view types
 application/
+  copilotStore.ts          # THE chats — module state, outside React (see below)
   runStream.ts             # the fetch-based SSE transport
   chatReducer.ts           # pure reducer folding run events into a transcript
-  useCopilotChat.ts        # owns the transcript, drives + cancels the stream
+  useCopilotChat.ts        # a view of one chat in the store; drives its stream
+  tabBadge.ts              # pure: what the tab's (n) counts (tested)
+  useTabBadge.ts           # the effect over it: title + favicon dot
   useConversations.ts      # thread list (query)
   useConversation.ts       # one thread: a query (the page) + a mutation (the panel)
   groupConversations.ts    # pure: the rail's date buckets + its filter (tested)
@@ -67,7 +70,7 @@ presentation/
     AgentsWelcome/         #   the empty thread: greeting + four openers
   CopilotLauncher/         # ⌘J + the dock, permission-gated
   CopilotDock/             # the bottom bar: one pill per chat, + new chat
-  CopilotSession/          # one always-mounted chat; owns useCopilotChat
+  CopilotSession/          # a dock chat's window + its markers
   CopilotPanel/            # the window a visible chat renders in
   PanelResizeHandles/      # the eight grab strips
   MessageList/             # the transcript
@@ -192,15 +195,13 @@ Four things about how that is wired are load-bearing:
   thread, which also stops a new chat from fetching back the conversation it is
   streaming into. Read `isFetching`, never `isPending`: a disabled query is
   "pending" forever.
-- **Switching threads stops the run in flight**, because the transcript it is
-  writing into is about to be replaced. That made a latent bug in
-  `useCopilotChat` visible and it is fixed there rather than here: `abort()` is
-  not instantaneous, so the run loop now checks that its own `AbortController` is
-  still the current one before dispatching each frame — otherwise a cancelled
-  answer appends itself to whichever conversation replaced it. Its `catch` and
-  `finally` are guarded the same way, so a cancelled run can neither write its
-  "Stopped." into a stranger's thread nor clear its replacement's controller on
-  the way out.
+- **Switching threads parks the one you leave; it no longer stops it.** The
+  chat goes back to the dock as a live pill (see the store, below). While it
+  *did* stop, it exposed a latent bug in `useCopilotChat` that is still fixed
+  and still worth having: `abort()` is not instantaneous, so the run loop checks
+  that its own `AbortController` is the current one before dispatching each
+  frame, and its `catch`/`finally` are guarded the same way — otherwise a
+  cancelled answer appends itself to whichever conversation replaced it.
 
 ### The rail
 
@@ -269,6 +270,54 @@ when the app sidebar is collapsed, and what makes the shell's floating fallback
 toggle stand down. It hoists itself into the inset's fixed strip, so it spans the
 rail and the thread both and neither scrolls under it.
 
+### A run keeps going when you leave
+
+Start an answer on the Agents view, navigate to the CMS, and the chat becomes a
+**dock pill that is still streaming**. When it lands, the pill says "finished"
+and the browser tab shows `(1)`. Come back to that thread from the rail and the
+page takes it over again, answer and all.
+
+- **The mechanism is `copilotStore`, not a second copy of anything.** Chats live
+  in module state, so no component owns one and unmounting cancels nothing. The
+  page *presents* a chat (`presented: 'page'`); the dock draws neither a window
+  nor a pill for it, because it is already on screen and larger than either.
+- **`release` decides what survives.** A chat with an answer in flight, or one
+  parked on a permission prompt, becomes a pill; **anything else is closed.**
+  Keeping every thread you glanced at would fill the dock with conversations you
+  merely read — and they are persisted server-side and one click away in the
+  rail, so nothing is lost.
+- **A chat handed back is a pill, never a window.** A window popping open over
+  the page you just navigated to is the surface following you around.
+- **The base path still means a new chat.** Going to the Agents view does not
+  hoover up whatever is in the dock; opening the *thread* (from the rail) does,
+  and that is the affordance for "put this back on the big screen".
+- **The markers were already right.** `unread` is only ever set on a chat that
+  is off screen and `awaiting` is live state, so the dock pill and the tab badge
+  needed no new rules — just a chat that is still there to report them. Whoever
+  is mounted does the reporting: the page while it presents, `CopilotSession`
+  once the dock has it back.
+- **The ceiling is the tab, and that is not a shortcut.** The server treats a
+  client disconnect as an abort (`stopReason: 'aborted'`), so a run cannot
+  outlive the page that started it. Surviving a reload or a closed tab needs the
+  server to keep the run detached and replay frames on reconnect — plus sticky
+  routing, since the permission broker is in-memory. Different, much larger
+  feature.
+
+### The tab badge
+
+`(2) Ortha CMS` on the title, and a dot on the favicon, for chats that want you
+back — `unread` or `awaiting`, counted **once** per chat. Deliberately no
+`Notification.requestPermission()`: it is the only thing that reaches someone who
+has switched application, and it costs a prompt you get one chance at, so it is a
+product decision rather than a default.
+
+- **The base title is captured once**, at mount. Re-reading `document.title` each
+  time stacks `(1) (2) Ortha CMS` — there is a test for it.
+- **The favicon is best-effort.** If the icon cannot be drawn (no `<link
+rel=icon>`, a format the canvas refuses, a cross-origin taint) the dot is
+  skipped and the title still carries the count. Degrading to the title alone is
+  fine; blanking someone's favicon is not.
+
 ### The dock stands down here — the bar only
 
 On the Agents view the dock's button offers to open the page you are already on,
@@ -283,14 +332,14 @@ reachable.
 Ask three things, go back to work, come back when the dock says one finished.
 That is the feature; everything below is what it costs.
 
-- **`useCopilotChat` lives in `CopilotSession`, not in `CopilotPanel`.** This is
-  the load-bearing bit. The panel unmounts when its chat collapses to the dock,
-  and a hook inside an unmounted panel takes its `AbortController` cleanup with
-  it — so minimizing used to be, and would silently become again, a disguised
-  cancel. Lifting the hook one level is the whole mechanism. **Do not move it
-  back into the panel.**
-- **Every chat stays mounted for as long as its pill exists.** Closing a pill is
-  what cancels a run; collapsing one never does.
+- **Chat state lives in `copilotStore`, outside React.** It used to live in
+  `CopilotSession`, one level above the panel, because a hook inside an
+  unmounting panel took its `AbortController` cleanup with it — so minimizing
+  was a disguised cancel. That fix only ever moved the problem: the Agents page
+  hit the same wall one level up, where the unmounting thing was the *route*.
+  Now nothing owns a chat. Components are views, and **cancelling is something
+  you do — closing a chat — never something that happens to you because a route
+  changed.**
 - **The window cap minimizes rather than refuses.** Three windows fit side by
   side on a 1440px screen without covering the content the chat is _about_ —
   which is why the panel is non-modal in the first place. A fourth minimizes the

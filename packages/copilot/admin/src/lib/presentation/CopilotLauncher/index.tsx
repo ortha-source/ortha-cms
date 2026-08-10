@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { useRouteContext } from '../../application/useRouteContext';
+import { badgeCount } from '../../application/tabBadge';
+import { useTabBadge } from '../../application/useTabBadge';
 import { COPILOT_USE, isAgentsPath } from '../../domain/agentsRoute';
 import { CopilotDock } from '../CopilotDock';
 import { CopilotSession } from '../CopilotSession';
@@ -48,12 +50,17 @@ export function CopilotLauncher() {
     const available = canUse && !!workspaceId;
 
     // On the Agents view the dock's own button offers to open the page the user
-    // is already on, so it stands down — but only the **bar**. Any chats already
-    // open keep their pills, because they are windows that have to stay
-    // reachable, and every session stays mounted either way: unmounting one is
-    // what cancels its run, and navigating between two copilot surfaces must
-    // never be a disguised Stop.
-    const dockRedundant = isAgentsPath(pathname) && sessions.all.length === 0;
+    // is already on, so it stands down — but only the **bar**, and only while
+    // the dock owns nothing. A chat the page handed back (you navigated away
+    // mid-answer) is a pill that has to stay reachable.
+    const dockRedundant = isAgentsPath(pathname) && sessions.dock.length === 0;
+
+    // The tab badge lives here for the same reason the dock does: this is the
+    // one copilot component mounted for the whole session, so it can count
+    // chats that want the user back no matter which page is open. It counts
+    // **every** chat, not just the dock's — a page-presented one cannot be
+    // awaiting and unseen, but it costs nothing to be right about it.
+    useTabBadge(badgeCount(sessions.all));
 
     const { start, visible } = sessions;
     // ⌘J / Ctrl+J starts a chat (design §2). Registered only while the launcher
@@ -110,7 +117,7 @@ export function CopilotLauncher() {
                     {/* Keyed by session **and** workspace: navigating to another
                         workspace must not hand an in-flight run a new
                         `X-Workspace-Id` half way through. */}
-                    {sessions.all.map((session) => (
+                    {sessions.dock.map((session) => (
                         <CopilotSession
                             key={`${workspaceId}:${session.id}`}
                             session={session}
@@ -135,7 +142,7 @@ export function CopilotLauncher() {
 
                     {!dockRedundant && (
                         <CopilotDock
-                            sessions={sessions.all}
+                            sessions={sessions.dock}
                             onToggle={sessions.toggle}
                             onClose={sessions.close}
                             onNewChat={() => sessions.start()}
