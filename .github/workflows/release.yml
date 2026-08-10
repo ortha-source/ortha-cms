@@ -1,0 +1,63 @@
+name: Release
+
+# Publishes every package under `packages/` to npm, tags the commit, and
+# opens the GitHub Release. Run it by hand from the Actions tab — nothing
+# here fires on push.
+#
+# Requires one repository secret: `NPM_TOKEN`, an npm automation token for an
+# account with publish rights on the `@ortha-cms` scope.
+on:
+    workflow_dispatch:
+        inputs:
+            specifier:
+                description: 'Version to release (e.g. 1.2.0, or "minor"). Leave empty to derive it from the conventional commits since the last tag.'
+                required: false
+                type: string
+            dry-run:
+                description: 'Rehearse: build, pack and diff the versions, but publish nothing and push nothing.'
+                type: boolean
+                default: false
+
+permissions:
+    # The version bump is committed, the tag pushed, the Release created.
+    contents: write
+    # npm provenance is signed with the workflow's OIDC identity.
+    id-token: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # `nx release` reads the commit history to pick the version
+                  # and write the changelog, so a shallow clone will not do.
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+                  registry-url: https://registry.npmjs.org
+
+            - run: npm ci
+
+            - name: Configure git identity
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            # A published package is compiled TypeScript, so a type error is a
+            # broken release. `nx release` builds again on its own; this just
+            # fails the run before anything is versioned or tagged.
+            - name: Typecheck
+              run: npx nx run-many -t typecheck
+
+            - name: Release
+              run: npx nx release ${{ inputs.specifier }} --yes ${{ inputs.dry-run && '--dry-run' || '' }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # Links each tarball back to this workflow run. Needs the
+                  # repository to be public; drop it if the repo goes private.
+                  NPM_CONFIG_PROVENANCE: true

@@ -133,6 +133,12 @@ package; the admin app's Vite transpiles the design-system source directly.
   `/reference/json`). On outside production; `API_DOCS=true|false` overrides.
   See [`packages/bootstrap/server/AGENTS.md`](packages/bootstrap/server/AGENTS.md)
 - `npx nx sync` — run after changing cross-project dependencies (updates TS project references)
+- **Releasing to npm** — every `packages/` package publishes together, in
+  lockstep, from the **Release** GitHub Actions workflow. `npm run
+release:dry-run` rehearses it locally. A package's tarball is not its
+  checked-in manifest: `build` compiles it and `pack` stages a rewritten
+  manifest under `dist/pack/`, because the workspace resolves from source and
+  a consumer cannot. See [`docs/releasing.md`](docs/releasing.md)
 - **Database / migrations** (provided by `@ortha-cms/nx`; needs a `.env` with
   `DATABASE_URL`, and Postgres via `docker compose up -d`):
     - `npx nx run <plugin>:db:generate --name=<name>` — generate that plugin's

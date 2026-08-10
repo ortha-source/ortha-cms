@@ -18,6 +18,12 @@ alongside the `@nx/*` plugins in the root `nx.json`.
     - a project with a `drizzle.config.ts` gets a cacheable **`db:generate`**
     - a project with an `ortha.config.ts` (the host) gets **`db:migrate`** and
       **`db:studio`**
+    - a package under `packages/` with a `tsconfig.lib.json` gets a cacheable
+      **`build`** (`tsc --build`, emitting JS + `.d.ts` to `dist/`), and a
+      publishable one also gets **`pack`** and an **`nx-release-publish`**
+      pointed at what `pack` staged. `@nx/js` infers no `build` here because
+      our manifests point at source rather than output, which is exactly the
+      thing a release has to undo — see [`docs/releasing.md`](../../docs/releasing.md)
 - **Executors** (`executors.json`):
     - `db-generate` — runs `drizzle-kit generate` for one plugin's schema.
       Cacheable (inputs: schema files; outputs: the `migrations` dir). Needs
