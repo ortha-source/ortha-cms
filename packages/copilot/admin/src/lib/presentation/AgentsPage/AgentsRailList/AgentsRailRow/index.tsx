@@ -111,7 +111,10 @@ export function AgentsRailRow({
                 <span className="w-full truncate">{title}</span>
             </button>
 
-            <DropdownMenu>
+            {/* `modal={false}` so the open menu doesn't aria-hide the page root
+                (which holds focusable content) — a row menu needs no background
+                trap, and axe fails the modal one as `aria-hidden-focus`. */}
+            <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                     {/* Hidden until hover **or focus** — `focus-visible` alone
                         would leave it invisible while its own menu is open, and

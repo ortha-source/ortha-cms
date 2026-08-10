@@ -65,7 +65,12 @@ export function ModelPicker({ value, onChange }: ModelPickerProps) {
     const current = value ? modelChoiceKey(value) : null;
 
     return (
-        <DropdownMenu>
+        // `modal={false}`, like every other menu in the admin: a modal one
+        // `aria-hidden`s the page root, which holds focusable content, and axe
+        // fails it as `aria-hidden-focus`. It is doubly wrong here — the chat
+        // surfaces this sits in are non-modal on purpose, and a picker for the
+        // *next* turn has no business trapping the page behind it.
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
@@ -93,9 +98,7 @@ export function ModelPicker({ value, onChange }: ModelPickerProps) {
                 <DropdownMenuItem onSelect={() => onChange(null)}>
                     <Check
                         className={
-                            current === null
-                                ? 'size-3.5'
-                                : 'size-3.5 opacity-0'
+                            current === null ? 'size-3.5' : 'size-3.5 opacity-0'
                         }
                     />
                     {intl.formatMessage(messages.default)}

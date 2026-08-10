@@ -19,7 +19,7 @@ The admin-side copilot plugin — **two surfaces onto one chat**.
   `/workspaces/:id/agents` — history as a column, the transcript with the width
   to render a table or a diff. See [Agents view](#the-agents-view) below.
 
-Both render the *same* transcript, composer, tool steps, permission prompts and
+Both render the _same_ transcript, composer, tool steps, permission prompts and
 change cards. Two chat surfaces that diverge is two chat surfaces to keep
 correct.
 
@@ -27,7 +27,7 @@ It contributes **no top-level route and no global nav entry**. Runs are
 workspace-scoped (`X-Workspace-Id` is required by `WorkspaceGuard`), so
 everything here lives strictly inside a workspace: the page and the switcher go
 into the workspace shell's own `WORKSPACE_ROUTE_SLOT` / `WORKSPACE_SECTION_SLOT`,
-and the launcher renders nothing outside one. There *was* a top-level route once,
+and the launcher renders nothing outside one. There _was_ a top-level route once,
 for the workspace's auto-apply policy;
 [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) deleted the
 policy along with the screen, the table, the two routes and `copilot:configure`.
@@ -151,9 +151,9 @@ default section. Someone who breaks off mid-entry to ask a question should not
 have to navigate back to it; that round trip is the whole reason both surfaces
 exist.
 
-Why a page at all, when the panel exists: the panel is for a question *about the
-page you are on*, and it is deliberately small and non-modal. The page is for the
-work where the conversation *is* the task — a long thread, a change to read
+Why a page at all, when the panel exists: the panel is for a question _about the
+page you are on_, and it is deliberately small and non-modal. The page is for the
+work where the conversation _is_ the task — a long thread, a change to read
 carefully, something you asked yesterday. History is a column instead of a
 dropdown, and a content-type table or a diff gets the width it needs.
 
@@ -174,19 +174,20 @@ Four things about how that is wired are load-bearing:
   whether the URL just changed.** All three are guarded on `urlId`, and the two
   obvious formulations are both wrong:
     - guarding adoption on "the chat's id differs from the URL's" breaks
-      *switching*: clicking another thread while an answer streams makes them
+      _switching_: clicking another thread while an answer streams makes them
       differ, so the URL gets shoved back to the running chat and the user's own
       navigation is undone. When the URL names a thread, the URL is the
       authority.
-    - splitting clear and adopt into two effects breaks *New chat*: both run in
+    - splitting clear and adopt into two effects breaks _New chat_: both run in
       the same commit, so the adopt effect still reads the **pre-reset**
       conversation id — a state update lands on the next render, not inside the
       effect that asked for it — decides the URL is missing an id, and navigates
       straight back into the thread you just left.
 
-  Hence one effect and a `lastUrlIdRef`: the URL *changed* to the base means New
-  chat (clear); the URL was *already* the base and an id appeared means the first
-  turn started (adopt).
+    Hence one effect and a `lastUrlIdRef`: the URL _changed_ to the base means New
+    chat (clear); the URL was _already_ the base and an id appeared means the first
+    turn started (adopt).
+
 - **Opening a thread is a query here, a mutation in the panel.** A mutation's
   per-call `onSuccess` runs only while the component that called `mutate` is
   still mounted, and this load is kicked off by an effect — React's StrictMode
@@ -197,7 +198,7 @@ Four things about how that is wired are load-bearing:
   "pending" forever.
 - **Switching threads parks the one you leave; it no longer stops it.** The
   chat goes back to the dock as a live pill (see the store, below). While it
-  *did* stop, it exposed a latent bug in `useCopilotChat` that is still fixed
+  _did_ stop, it exposed a latent bug in `useCopilotChat` that is still fixed
   and still worth having: `abort()` is not instantaneous, so the run loop checks
   that its own `AbortController` is the current one before dispatching each
   frame, and its `catch`/`finally` are guarded the same way — otherwise a
@@ -220,7 +221,7 @@ what says so — the token is the one that was verified against AA, so tinting i
 further is undoing that check by hand.
 
 `groupConversations` buckets threads by **calendar day**, not by elapsed
-milliseconds — a thread from 11pm last night is *yesterday* at 1am, not "today",
+milliseconds — a thread from 11pm last night is _yesterday_ at 1am, not "today",
 and normalising through a UTC midnight of each local date keeps the DST
 transition out of it. Empty buckets are dropped: a "Yesterday" heading with
 nothing under it reads as a loading failure. The filter appears only past five
@@ -236,7 +237,7 @@ about the URL.
 ### Renaming and archiving
 
 Each row carries a `⋯` menu — **Rename…** and **Archive** (or **Unarchive**) —
-revealed on hover *or focus*, and positioned over the title rather than in a
+revealed on hover _or focus_, and positioned over the title rather than in a
 column of its own: a permanent second column would truncate every title in an
 18rem rail to make room for a control most rows never need.
 
@@ -255,13 +256,13 @@ answer for.
 - **Archiving the thread you are reading starts a new chat.** Otherwise you are
   left looking at a conversation that is in no visible list.
 - **Invalidate `conversationsScopeKey`, never `conversationsKey`.** Every write
-  here moves a thread *between* the two lists, and `conversationsKey(id)`
+  here moves a thread _between_ the two lists, and `conversationsKey(id)`
   defaults `archived` to `false`, so it is the exact key of the active list and
   nothing else — invalidating with it refreshes the list you are looking at and
   leaves the other stale. This was a real bug: archiving worked, and the
   "Archived" link never appeared.
 - **Renaming is a dialog, and its focus return is hand-wired.** The dialog is
-  opened *from a menu item*, which unmounts with its menu — so Radix has nothing
+  opened _from a menu item_, which unmounts with its menu — so Radix has nothing
   to restore focus to and drops it on `<body>`. The row hands up a callback that
   focuses its own menu button, and the dialog calls it from `onCloseAutoFocus`
   with the default prevented. The callback lives in a **ref**, not in state:
@@ -278,7 +279,7 @@ answer for.
 
 `HoneycombBackdrop` — an SVG lattice of large hexagons in the brand orange at
 very low alpha, masked by a radial fade centred on the mark. A honeycomb because
-it is what the surface *is*: a workspace's content is a lattice of small things
+it is what the surface _is_: a workspace's content is a lattice of small things
 that fit together. Three things keep it a backdrop rather than decoration:
 
 - **Big cells.** At half the size it tiled into texture — legible as pattern but
@@ -315,7 +316,7 @@ page takes it over again, answer and all.
 
 - **The mechanism is `copilotStore`, not a second copy of anything.** Chats live
   in module state, so no component owns one and unmounting cancels nothing. The
-  page *presents* a chat (`presented: 'page'`); the dock draws neither a window
+  page _presents_ a chat (`presented: 'page'`); the dock draws neither a window
   nor a pill for it, because it is already on screen and larger than either.
 - **`release` decides what survives.** A chat with an answer in flight, or one
   parked on a permission prompt, becomes a pill; **anything else is closed.**
@@ -325,7 +326,7 @@ page takes it over again, answer and all.
 - **A chat handed back is a pill, never a window.** A window popping open over
   the page you just navigated to is the surface following you around.
 - **The base path still means a new chat.** Going to the Agents view does not
-  hoover up whatever is in the dock; opening the *thread* (from the rail) does,
+  hoover up whatever is in the dock; opening the _thread_ (from the rail) does,
   and that is the affordance for "put this back on the big screen".
 - **The markers were already right.** `unread` is only ever set on a chat that
   is off screen and `awaiting` is live state, so the dock pill and the tab badge
@@ -359,7 +360,7 @@ rel=icon>`, a format the canvas refuses, a cross-origin taint) the dot is
 On the Agents view the dock's button offers to open the page you are already on,
 so it is not rendered. **Only the bar**: every `CopilotSession` stays mounted
 regardless, because unmounting one is what cancels its run, and navigating
-between two copilot surfaces must never be a disguised Stop. If chats *are*
+between two copilot surfaces must never be a disguised Stop. If chats _are_
 already open their pills stay, since they are windows that have to remain
 reachable.
 
@@ -372,7 +373,7 @@ That is the feature; everything below is what it costs.
   `CopilotSession`, one level above the panel, because a hook inside an
   unmounting panel took its `AbortController` cleanup with it — so minimizing
   was a disguised cancel. That fix only ever moved the problem: the Agents page
-  hit the same wall one level up, where the unmounting thing was the *route*.
+  hit the same wall one level up, where the unmounting thing was the _route_.
   Now nothing owns a chat. Components are views, and **cancelling is something
   you do — closing a chat — never something that happens to you because a route
   changed.**
@@ -482,7 +483,7 @@ they learn their content changed at all.
 
 - **The card lives in the transcript, exactly where the change happened.** A
   turn is an ordered `ChatBlock[]` — prose, tool steps and cards interleaved —
-  not three buckets sorted by kind. It *was* three buckets, and the layout could
+  not three buckets sorted by kind. It _was_ three buckets, and the layout could
   not say when anything occurred: a model that explains, saves, and keeps writing
   produced a card pinned to the bottom while the new text appeared above it, so
   the transcript showed the change happening after the sentences written after
@@ -490,7 +491,7 @@ they learn their content changed at all.
   the common case and wrong as a layout — chronology gets both.
 - **A `text-delta` merges into the newest block only while that block is text.**
   That is the mechanism: a step or a card ends the paragraph, so whatever the
-  model writes next starts a new one *below* it.
+  model writes next starts a new one _below_ it.
 - **A reopened thread rebuilds the same order from `content`**, which is the
   model port's block list as the run produced it — so the stored order is the
   order, and each proposal is emitted straight after the `tool_use` that made
@@ -575,6 +576,15 @@ Three presentations, chosen by what the user can actually see and do:
   under the answer, which is exactly where "this is incomplete" goes unread. A
   deliberate cancel is neither, and gets a quiet line instead of a banner
   telling the user about their own action.
+- **Stop is the one ending the _client_ has to write for itself.** Every other
+  one arrives as a frame; cancelling closes the connection, so the server's
+  matching `stopReason: 'aborted'` is recorded on its side and can never reach
+  us. And the run loop deliberately bails out of its own `catch` once the
+  controller is no longer the chat's current one — which the abort has just made
+  true. So `stop()` aborts **and** dispatches `cancelled`; without the second
+  half the turn stayed `streaming` forever, `busy` never cleared, and the
+  composer's button stayed Stop for the rest of the session. Found by the
+  admin-e2e suite, not by reading it.
 - **A system condition → `toast.error`, but only while minimized.** The toast
   exists to reach someone who _cannot see_ the alert, and the only such state is
   a minimized panel (a run keeps streaming while it is). Toasting with the panel
@@ -658,7 +668,7 @@ default provider. The picker hides itself when the deployment offers one
 backend.
 
 **The choice lives on the session, not in the component that draws the picker.**
-Held in `useState` it was lost by collapsing a window *and* by leaving the Agents
+Held in `useState` it was lost by collapsing a window _and_ by leaving the Agents
 view — the user picked a model, came back, and silently got the default again.
 It is still per turn (sent with each message, changeable between them); what was
 broken was forgetting it, which nobody chose. A new chat inherits the last model
@@ -667,8 +677,8 @@ not re-pick it every time, and it can never become a setting nobody remembers
 turning on.
 
 **On the Agents page the picker lives inside the composer, bottom-left** — passed as the
-`Composer`'s `controls`, which is the slot for anything that acts on the *next
-turn*. Its first home was the page's top bar, and that was the wrong statement:
+`Composer`'s `controls`, which is the slot for anything that acts on the _next
+turn_. Its first home was the page's top bar, and that was the wrong statement:
 chrome above the transcript reads as a property of the conversation, and the
 model is not one. The panel keeps its picker in its own header row, where it sits
 beside the history dropdown; there is no room in a 420px composer for both.
@@ -710,10 +720,25 @@ that reason; `usePanelFrame` should stay thin enough to be obviously correct.
 The dock and the windows were driven in a real Chromium against a harness of
 the actual components — tiling, the cap, titles, the marker's true _and_ false
 positives, toggling, closing, drag persistence, Escape, and axe — but **that
-harness is not checked in and does not run in CI**. **The panel still has no
-`admin-e2e` coverage**:
-`admin-e2e` mocks `/api` with `page.route` and cannot currently fulfil an
-event-stream body. That gap is tracked in `docs/design/copilot.md` §8.
+harness is not checked in and does not run in CI**.
+
+**The Agents view has `admin-e2e` coverage** — `apps/admin-e2e/src/copilot/`,
+seeded by `support/api/copilot.ts`. The claim that it could not, because
+`page.route` cannot fulfil an event-stream body, was wrong: it can. The whole
+body arrives in one read, so what is lost is only the _progressive_ arrival of
+frames — everything about a finished turn, including the **order** of its prose,
+steps and change cards, is asserted against the same reducer a live server
+drives. Only "watch it type" is out of reach.
+
+The suites are shaped around the bugs this feature actually had, because those
+are the ones that come back: New chat not bouncing into the thread you left, the
+model choice surviving a trip through the CMS, the transcript's block order both
+live and reopened, a run outliving the page as a dock pill and badging the tab,
+the archive link appearing at all, the rename dialog's focus return, and an axe
+scan of every state. **The docked panel is still uncovered** — the page and the
+panel share their components, so most of the risk is now under test, but the
+window's own chrome (tiling, the cap, drag persistence, Escape) is not. That
+remainder is tracked in `docs/design/copilot.md` §8.
 
 ## Commands
 

@@ -287,6 +287,26 @@ describe('chatReducer', () => {
         expect(state.messages[1].stopReason).toBe('end');
     });
 
+    it('ends the turn when the user stops it, keeping what arrived', () => {
+        const state = play(
+            submit,
+            started,
+            { type: 'event', event: { type: 'text-delta', text: 'partial' } },
+            { type: 'cancelled' }
+        );
+
+        // Cancelling closes the connection, so the server's own
+        // `stopReason: 'aborted'` can never reach the client — this is the one
+        // ending the reducer has to write itself, or the turn streams forever.
+        expect(state.busy).toBe(false);
+        expect(state.messages[1].streaming).toBe(false);
+        expect(state.messages[1].stopReason).toBe('aborted');
+        expect(state.messages[1].error).toBeUndefined();
+        expect(state.messages[1].blocks).toEqual([
+            { kind: 'text', id: expect.any(String), text: 'partial' }
+        ]);
+    });
+
     it('keeps the local id when done carries none', () => {
         const state = play(submit, started, {
             type: 'event',

@@ -212,7 +212,27 @@ export function useCopilotChat(
         [dispatch, intl, queryClient, sessionId, workspaceId]
     );
 
-    const stop = useCallback(() => abortRun(sessionId), [sessionId]);
+    /**
+     * Ends the run in flight, and **says so in the transcript itself.**
+     *
+     * Aborting alone is not enough: the run loop's `catch` deliberately bails
+     * out when the controller is no longer the chat's current one, so a cancel
+     * dispatched nothing at all — the turn stayed `streaming`, `busy` stayed
+     * true, and the composer's button stayed Stop for the rest of the session.
+     * The server records `stopReason: 'aborted'` for the same event, but it
+     * learns of it *by the connection closing*, so that frame can never arrive
+     * here. This is the one ending the client has to write for itself.
+     *
+     * Guarded on there being a run: without it, a stray Stop would mark the last
+     * answer of a finished thread as cancelled.
+     */
+    const stop = useCallback(() => {
+        if (!runController(sessionId)) {
+            return;
+        }
+        abortRun(sessionId);
+        dispatch({ type: 'cancelled' });
+    }, [dispatch, sessionId]);
 
     const answer = useCallback(
         (runId: string, callId: string, decision: ToolPermissionDecision) => {

@@ -15,6 +15,8 @@ export type ChatAction =
     | { type: 'event'; event: CopilotRunEvent }
     /** The run failed before or outside the stream. */
     | { type: 'failed'; message: string }
+    /** The user pressed Stop; the turn ends where it got to. */
+    | { type: 'cancelled' }
     /** Load a persisted transcript, replacing whatever is shown. */
     | { type: 'load'; conversationId: string | null; messages: ChatMessage[] }
     /** Start an empty new chat. */
@@ -86,6 +88,22 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                     ...message,
                     streaming: false,
                     error: action.message
+                }))
+            };
+
+        // Stop is the one ending the **client** has to write itself. Every
+        // other one arrives as a frame, but cancelling closes the connection —
+        // so the server's `stopReason: 'aborted'` is recorded on its side and
+        // can never reach us. Without this the turn stayed `streaming`, the
+        // composer's button stayed Stop, and pressing it again did nothing.
+        case 'cancelled':
+            return {
+                ...state,
+                busy: false,
+                messages: mapLastAssistant(state.messages, (message) => ({
+                    ...message,
+                    streaming: false,
+                    stopReason: 'aborted'
                 }))
             };
 
