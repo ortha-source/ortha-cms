@@ -1,35 +1,40 @@
 import { useMemo } from 'react';
 import { AuthStatus, useAuth } from '@ortha-cms/identity-admin';
-import { byOrder } from '@ortha-cms/utils-admin';
 import {
     INSIGHTS_SECTION_SLOT,
-    INSIGHTS_WIDGET_SLOT,
-    type InsightsSection,
-    type InsightsWidget
+    INSIGHTS_WIDGET_SLOT
 } from '../../presentation/slots/insightsSlots';
+import {
+    resolveInsightsLayout,
+    type InsightsBand
+} from '../../utils/resolveInsightsLayout';
 
-/** One section plus the widgets that are actually visible inside it. */
-export type InsightsBand = {
-    /** The section's registration. */
-    section: InsightsSection;
-    /** Its widgets, ordered, already filtered by permission. */
-    widgets: InsightsWidget[];
+export type { InsightsBand } from '../../utils/resolveInsightsLayout';
+
+/**
+ * The band that catches widgets naming a section nobody registered.
+ *
+ * Named "More" rather than something apologetic: to a reader it is simply the
+ * last group on the page, and nothing about it should suggest a fault. It only
+ * ever appears when a plugin's `section` id doesn't match a registration.
+ */
+const FALLBACK_SECTION = {
+    id: 'other',
+    titleId: 'insights.section.other',
+    defaultTitle: 'More'
 };
 
 /**
  * Resolves the Insights page layout: every registered section, in order, with
  * the widgets the signed-in user is allowed to see.
  *
- * Permissions are read **once** from the auth state rather than by calling
- * `useHasPermission` per widget. Slot registration is frozen at boot so a hook
- * per item would technically be safe, but resolving the set up front is what
- * lets the page decide whether a section has any visible widgets *before*
- * rendering its heading — otherwise a viewer without `content:read` gets a
- * "Content" band sitting over nothing.
- *
- * Bands with no visible widgets are dropped entirely, so a deployment that
- * doesn't register `media-admin` simply has no media band rather than an empty
- * labelled gap.
+ * A thin adapter — it reads the two slots and the auth state and hands them to
+ * the pure {@link resolveInsightsLayout}, which owns every rule that could
+ * otherwise quietly lose a contributed card. Permissions are read **once** from
+ * the auth state rather than by calling `useHasPermission` per widget: slot
+ * registration is frozen at boot so a hook per item would be safe, but resolving
+ * the set up front is what lets the page decide whether a section has any
+ * visible widgets *before* rendering its heading.
  */
 export function useInsightsLayout(): InsightsBand[] {
     const auth = useAuth();
@@ -40,33 +45,14 @@ export function useInsightsLayout(): InsightsBand[] {
     // contents rather than its identity keeps the layout stable across renders.
     const permissionKey = permissions.join(',');
 
-    return useMemo(() => {
-        const granted = new Set(permissionKey ? permissionKey.split(',') : []);
-        const sections = byOrder(INSIGHTS_SECTION_SLOT.getItems());
-        const widgets = byOrder(INSIGHTS_WIDGET_SLOT.getItems());
-
-        const visible = widgets.filter(
-            (widget) => !widget.permission || granted.has(widget.permission)
-        );
-
-        if (process.env.NODE_ENV !== 'production') {
-            const known = new Set(sections.map((section) => section.id));
-            for (const widget of visible) {
-                if (!known.has(widget.section)) {
-                    console.warn(
-                        `[insights] widget "${widget.id}" targets unknown section "${widget.section}" and will not render.`
-                    );
-                }
-            }
-        }
-
-        return sections
-            .map((section) => ({
-                section,
-                widgets: visible.filter(
-                    (widget) => widget.section === section.id
-                )
-            }))
-            .filter((band) => band.widgets.length > 0);
-    }, [permissionKey]);
+    return useMemo(
+        () =>
+            resolveInsightsLayout({
+                sections: INSIGHTS_SECTION_SLOT.getItems(),
+                widgets: INSIGHTS_WIDGET_SLOT.getItems(),
+                permissions: permissionKey ? permissionKey.split(',') : [],
+                fallback: FALLBACK_SECTION
+            }),
+        [permissionKey]
+    );
 }

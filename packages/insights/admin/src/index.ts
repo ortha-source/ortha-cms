@@ -1,5 +1,11 @@
-export { InsightsPlugin } from './lib/utils/insightsPlugin';
-export type { InsightsAdminPlugin } from './lib/utils/insightsPlugin';
+export {
+    InsightsPlugin,
+    DEFAULT_INSIGHTS_SECTIONS
+} from './lib/utils/insightsPlugin';
+export type {
+    InsightsAdminPlugin,
+    InsightsPluginConfig
+} from './lib/utils/insightsPlugin';
 
 /* The extension point. A package contributes widgets by adding items to
    INSIGHTS_WIDGET_SLOT from its own plugin factory. */
@@ -8,11 +14,20 @@ export {
     INSIGHTS_SECTION_SLOT,
     INSIGHTS_SECTION_IDS
 } from './lib/presentation/slots/insightsSlots';
+export { DEFAULT_INSIGHTS_ORDER } from './lib/presentation/slots/insightsSlots';
 export type {
     InsightsWidget,
     InsightsSection,
     InsightsWidgetSize
 } from './lib/presentation/slots/insightsSlots';
+
+/* The pure layout fold — exported so a host or a test can reason about how
+   sections merge and where an orphaned widget lands, without a browser. */
+export { resolveInsightsLayout } from './lib/utils/resolveInsightsLayout';
+export type {
+    InsightsBand,
+    ResolveInsightsLayoutInput
+} from './lib/utils/resolveInsightsLayout';
 
 /* The shared window every widget reports against. */
 export {

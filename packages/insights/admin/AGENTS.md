@@ -36,13 +36,52 @@ Two details are load-bearing:
   when the component throws, because "Gone quiet stopped working" is a far more
   useful failure than an anonymous broken card.
 
-The plugin registers four sections — `overview`, `content`, `reach`, `team`
-(`INSIGHTS_SECTION_IDS`). A band with no visible widgets renders nothing at all,
-so an install without `media-admin` simply has no "Localisation & media" band.
+### Sections are contributions too
 
-**Registration order does not matter.** `createAdmin` walks every plugin's
-contributions in one pass _after_ all factories have run, so a package
-contributing widgets here may be registered before `InsightsPlugin()`.
+There is **no privileged set of bands**. The four the plugin ships —
+`overview`, `content`, `reach`, `team` (`INSIGHTS_SECTION_IDS`) — go through
+`INSIGHTS_SECTION_SLOT` exactly like anyone else's, so opening a new band and
+replacing a built-in are the same act. Three ways to change the page's shape:
+
+- **Add a band.** Contribute an `InsightsSection` with a fresh `id`. The
+  built-ins are ordered 10/20/30/40, leaving gaps of ten so a new band can slot
+  between two of them without renumbering anything. `order` is optional and
+  defaults to `DEFAULT_INSIGHTS_ORDER` (100), so a contributor with no opinion
+  lands after the standard bands rather than in the middle of them.
+- **Override a band.** Contribute the **same `id`**. Contributions merge by id
+  with the last one winning, **field by field** — `{ id: 'team', defaultTitle:
+'People' }` renames the band without resetting its order, description or icon,
+  and without moving it. This is why `InsightsPlugin()` must be registered
+  _before_ any package that overrides one of its bands (it is first among the
+  workspace-interior plugins in `apps/admin/src/main.tsx` for exactly that
+  reason). Widget contributions are order-independent.
+- **Replace them all.** `InsightsPlugin({ sections })` swaps the default set;
+  `DEFAULT_INSIGHTS_SECTIONS` is exported to spread and extend, and
+  `sections: []` gives a page whose every band comes from contributing plugins.
+
+A section carries an optional `descriptionId`/`defaultDescription` and an
+`icon`, so a contributed band can explain itself rather than being a bare label.
+
+**Nothing is silently dropped.** A widget naming a section nobody registered
+does _not_ vanish — it lands in a trailing catch-all band ("More"). A missing
+card with no error anywhere is the worst failure mode a plugin system can have,
+and the previous behaviour (drop it, warn in dev only) was exactly that. The
+band carries `data-section-fallback="true"`, so its presence on a
+correctly-wired page is a bug worth asserting against.
+
+A band with no visible widgets renders nothing at all, heading included — so an
+install without `media-admin` simply has no "Localisation & media" band.
+
+## The rules live in a pure function
+
+`utils/resolveInsightsLayout` owns every rule that could quietly lose a
+contributed card — the permission filter, the section merge, the ordering, the
+catch-all — and takes plain data, so all of it is unit-tested (`jest`, node
+environment) without a browser, a slot registry or an auth session.
+`useInsightsLayout` is a thin adapter that reads the two slots and the auth
+state and calls it. Ordering is stable, so two plugins contributing at the same
+`order` produce a deterministic page rather than one that depends on iteration
+order.
 
 ## Layout — layered (ADR-0003)
 
@@ -54,7 +93,8 @@ src/lib/
   utils/insightsPlugin/        # the AdminPlugin factory
   utils/chartTone/             # palette ROLES (series-1/2, the q0..q5 ramp)
   hooks/useInsightsRange/      # the shared window + its provider
-  hooks/useInsightsLayout/     # sections × permitted widgets, ordered
+  utils/resolveInsightsLayout/ # the PURE fold — merge, gate, order, catch-all
+  hooks/useInsightsLayout/     # thin adapter: slots + auth -> the fold above
   presentation/
     slots/insightsSlots/       # the two extension points
     pages/InsightsPage/
@@ -188,3 +228,4 @@ partially-failed states.
 
 - `npm exec nx typecheck @ortha-cms/insights-admin`
 - `npm exec nx lint @ortha-cms/insights-admin`
+- `npm exec nx test @ortha-cms/insights-admin` — the layout fold's unit tests

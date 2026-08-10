@@ -34,6 +34,24 @@ export class InsightsPage extends BasePage {
         return this.page.getByRole('heading', { name, level: 2 });
     }
 
+    /**
+     * A section band by the **id** its contribution registered. Sections come
+     * through `INSIGHTS_SECTION_SLOT` like widgets do, so asserting on the id
+     * is asserting on the slot contract rather than on the heading copy.
+     */
+    sectionBand(id: string): Locator {
+        return this.page.locator(`[data-section-id="${id}"]`);
+    }
+
+    /**
+     * The catch-all band that holds widgets naming an unregistered section. It
+     * should not exist on a correctly-wired page — its presence means a
+     * contribution's `section` id doesn't match any registration.
+     */
+    fallbackBand(): Locator {
+        return this.page.locator('[data-section-fallback="true"]');
+    }
+
     /** The grid cell of one contributed widget, by its slot id. */
     widget(id: string): Locator {
         return this.page.locator(`[data-widget-id="${id}"]`);

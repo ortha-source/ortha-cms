@@ -74,6 +74,27 @@ test.describe('Insights', () => {
         ).toBeVisible();
     });
 
+    test('renders each section band under its registered id', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+        await expect(insightsPage.card('Gone quiet')).toBeVisible();
+
+        // Sections are slot contributions too — the Insights plugin registers
+        // these four through the same slot any package would use, so a band is
+        // addressable by the id its contribution carried.
+        await expect(insightsPage.sectionBand('overview')).toBeVisible();
+        await expect(insightsPage.sectionBand('content')).toBeVisible();
+        await expect(insightsPage.sectionBand('reach')).toBeVisible();
+        await expect(insightsPage.sectionBand('team')).toBeVisible();
+
+        // Every widget names a registered section, so nothing should have
+        // fallen through to the catch-all band.
+        await expect(insightsPage.fallbackBand()).toHaveCount(0);
+    });
+
     test('renders the headline figures from the API', async ({
         page,
         insightsPage

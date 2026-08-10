@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_378 test cases across 41 spec files._
+_379 test cases across 41 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -601,6 +601,7 @@ _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
 | --- |
 | renders every contributed widget in its section |
 | each widget contributes its slot id to the grid |
+| renders each section band under its registered id |
 | renders the headline figures from the API |
 | each widget calls its own endpoint |
 | a failing widget does not take down the rest of the page |

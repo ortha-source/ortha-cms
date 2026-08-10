@@ -11,7 +11,13 @@
         "types": ["node"]
     },
     "include": ["src/**/*.ts", "src/**/*.tsx"],
-    "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
+    "exclude": [
+        "dist",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+    ],
     "references": [
         {
             "path": "../../identity/admin/tsconfig.lib.json"

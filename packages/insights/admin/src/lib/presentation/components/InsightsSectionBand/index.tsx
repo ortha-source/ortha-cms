@@ -1,7 +1,7 @@
 import { useIntl } from 'react-intl';
 import { cn } from '@ortha-cms/design-system';
 import type { InsightsWidgetSize } from '../../slots/insightsSlots';
-import type { InsightsBand } from '../../../hooks/useInsightsLayout';
+import type { InsightsBand } from '../../../utils/resolveInsightsLayout';
 import { WidgetBoundary } from '../WidgetBoundary';
 
 /**
@@ -38,17 +38,36 @@ export type InsightsSectionBandProps = {
  */
 export function InsightsSectionBand({ band }: InsightsSectionBandProps) {
     const intl = useIntl();
+    const { section } = band;
+    const Icon = section.icon;
+
     const heading = intl.formatMessage({
-        id: band.section.titleId,
-        defaultMessage: band.section.defaultTitle
+        id: section.titleId,
+        defaultMessage: section.defaultTitle
     });
+    const description = section.defaultDescription
+        ? intl.formatMessage({
+              id: section.descriptionId ?? `${section.titleId}.description`,
+              defaultMessage: section.defaultDescription
+          })
+        : null;
 
     return (
-        <section className="flex flex-col gap-3">
+        <section
+            className="flex flex-col gap-3"
+            data-section-id={section.id}
+            data-section-fallback={band.isFallback ? 'true' : undefined}
+        >
             <div className="border-b pb-1">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                    {Icon ? <Icon className="size-3.5 shrink-0" /> : null}
                     {heading}
                 </h2>
+                {description ? (
+                    <p className="mt-1 pb-1 text-xs normal-case tracking-normal text-muted-foreground">
+                        {description}
+                    </p>
+                ) : null}
             </div>
 
             <div className="grid grid-cols-12 gap-3">

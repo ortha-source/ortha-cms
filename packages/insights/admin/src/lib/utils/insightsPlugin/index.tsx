@@ -7,7 +7,8 @@ import {
 import { BarChart3 } from 'lucide-react';
 import {
     INSIGHTS_SECTION_IDS,
-    INSIGHTS_SECTION_SLOT
+    INSIGHTS_SECTION_SLOT,
+    type InsightsSection
 } from '../../presentation/slots/insightsSlots';
 
 const InsightsPage = lazy(() =>
@@ -15,6 +16,54 @@ const InsightsPage = lazy(() =>
         default: module.InsightsPage
     }))
 );
+
+/**
+ * The bands the Insights page ships with.
+ *
+ * Exported because they are **defaults, not a fixed set**: a host can pass a
+ * different list to {@link InsightsPlugin}, spread these and append, or drop
+ * them entirely with `sections: []` and let contributing plugins define every
+ * band. The orders leave gaps of ten so a contributed section can slot between
+ * two built-ins without renumbering anything.
+ */
+export const DEFAULT_INSIGHTS_SECTIONS: InsightsSection[] = [
+    {
+        id: INSIGHTS_SECTION_IDS.Overview,
+        order: 10,
+        titleId: 'insights.section.overview',
+        defaultTitle: 'Overview'
+    },
+    {
+        id: INSIGHTS_SECTION_IDS.Content,
+        order: 20,
+        titleId: 'insights.section.content',
+        defaultTitle: 'Content'
+    },
+    {
+        id: INSIGHTS_SECTION_IDS.Reach,
+        order: 30,
+        titleId: 'insights.section.reach',
+        defaultTitle: 'Localisation & media'
+    },
+    {
+        id: INSIGHTS_SECTION_IDS.Team,
+        order: 40,
+        titleId: 'insights.section.team',
+        defaultTitle: 'Team'
+    }
+];
+
+/** Options for {@link InsightsPlugin}. */
+export type InsightsPluginConfig = {
+    /**
+     * The sections to register. Defaults to {@link DEFAULT_INSIGHTS_SECTIONS}.
+     *
+     * These go through `INSIGHTS_SECTION_SLOT` exactly like any other plugin's
+     * contributions — there is no privileged set — so a host replacing them is
+     * doing the same thing a plugin adding one does.
+     */
+    sections?: InsightsSection[];
+};
 
 /**
  * Admin-side insights plugin shape. A thin alias of {@link AdminPlugin}, kept
@@ -29,17 +78,21 @@ export type InsightsAdminPlugin = AdminPlugin;
  * entry — just a rail button (`order: 30`) and an `insights/*` route on the
  * workspace shell's slots (owned by `@ortha-cms/workspaces-admin`).
  *
- * The four sections it registers are the page's furniture, not its content. The
- * plugin contributes **no widgets** — every card on the page arrives through
- * `INSIGHTS_WIDGET_SLOT` from whichever package owns that data. A section with
- * no widgets renders nothing, so an install without `media-admin` simply has no
- * "Localisation & media" band.
+ * The plugin contributes **no widgets**. Every card on the page arrives through
+ * `INSIGHTS_WIDGET_SLOT` from whichever package owns that data, and every band
+ * through `INSIGHTS_SECTION_SLOT` — including the four below. A section with no
+ * visible widgets renders nothing, so an install without `media-admin` simply
+ * has no "Localisation & media" band.
  *
- * Registration order against other plugins does not matter: `createAdmin` walks
- * every plugin's contributions in one pass *after* all factories have run, so a
- * package contributing widgets here is free to be registered before it.
+ * **Register this before any plugin that overrides one of its sections.**
+ * Section contributions merge by `id` with the last one winning, so a package
+ * renaming or reordering a built-in has to be registered after this. Widget
+ * contributions are unaffected — `createAdmin` collects every plugin's slots in
+ * one pass after all factories have run, so their order never matters.
  */
-export function InsightsPlugin(): InsightsAdminPlugin {
+export function InsightsPlugin({
+    sections = DEFAULT_INSIGHTS_SECTIONS
+}: InsightsPluginConfig = {}): InsightsAdminPlugin {
     return {
         name: 'insights',
         slots: [
@@ -71,32 +124,7 @@ export function InsightsPlugin(): InsightsAdminPlugin {
             },
             {
                 slot: INSIGHTS_SECTION_SLOT,
-                items: [
-                    {
-                        id: INSIGHTS_SECTION_IDS.Overview,
-                        order: 10,
-                        titleId: 'insights.section.overview',
-                        defaultTitle: 'Overview'
-                    },
-                    {
-                        id: INSIGHTS_SECTION_IDS.Content,
-                        order: 20,
-                        titleId: 'insights.section.content',
-                        defaultTitle: 'Content'
-                    },
-                    {
-                        id: INSIGHTS_SECTION_IDS.Reach,
-                        order: 30,
-                        titleId: 'insights.section.reach',
-                        defaultTitle: 'Localisation & media'
-                    },
-                    {
-                        id: INSIGHTS_SECTION_IDS.Team,
-                        order: 40,
-                        titleId: 'insights.section.team',
-                        defaultTitle: 'Team'
-                    }
-                ]
+                items: sections
             }
         ]
     };
