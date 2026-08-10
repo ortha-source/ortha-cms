@@ -131,6 +131,18 @@ export interface MediaUploadSpy {
     readonly count: number;
 }
 
+/** Knobs for the upload route, so a spec can drive its slow and failed paths. */
+export interface MockMediaOptions {
+    /**
+     * Hold each upload open this long before answering. The composer blocks
+     * send while one is in flight, and without a delay the upload resolves
+     * before a test can observe the blocked state at all.
+     */
+    uploadDelayMs?: number;
+    /** Answer uploads with this status instead of 201, e.g. 413 for too-large. */
+    uploadStatus?: number;
+}
+
 /**
  * Fail every media **read** (`/api/media/folders`, `/api/media/assets`) with a
  * 500. Register **after** {@link mockMediaApi} so it wins the match — for
@@ -153,7 +165,10 @@ export async function failMediaReads(page: Page): Promise<void> {
  * folder (409 when non-empty), patch/duplicate/bulk-delete assets, and the
  * `/raw` byte route (a 1px PNG). Returns an upload spy.
  */
-export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
+export async function mockMediaApi(
+    page: Page,
+    options: MockMediaOptions = {}
+): Promise<MediaUploadSpy> {
     const folders = MEDIA_SEED.folders.map((f) => ({ ...f }));
     const assets = MEDIA_SEED.assets.map((a) => ({ ...a }));
     let uploads = 0;
@@ -264,6 +279,20 @@ export async function mockMediaApi(page: Page): Promise<MediaUploadSpy> {
         }
         if (method === 'POST') {
             uploads += 1;
+            if (options.uploadDelayMs) {
+                await new Promise((resolve) =>
+                    setTimeout(resolve, options.uploadDelayMs)
+                );
+            }
+            if (options.uploadStatus) {
+                await route.fulfill(
+                    json(
+                        { message: 'That file is too large to upload.' },
+                        options.uploadStatus
+                    )
+                );
+                return;
+            }
             const body = request.postData() ?? '';
             const nameMatch = body.match(/filename="([^"]+)"/);
             const folderMatch = body.match(
