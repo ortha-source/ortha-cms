@@ -9,6 +9,7 @@ import {
     Skeleton
 } from '@ortha-cms/design-system';
 import { useAgentThread } from '../../../application/useAgentThread';
+import { useComposerAttachments } from '../../../application/useComposerAttachments';
 import type { RouteContext } from '../../../application/readRouteContext';
 import { Composer } from '../../Composer';
 import { ContextChip } from '../../ContextChip';
@@ -63,15 +64,18 @@ export function AgentsThread({
     const composerRef = useRef<HTMLTextAreaElement>(null);
     const { chat, loading, failed, retry, choice, setChoice } =
         useAgentThread(workspaceId);
+    // Files staged for the next turn. Held here rather than inside `Composer`
+    // so `send` can read what was staged and clear it once the turn is away.
+    const files = useComposerAttachments();
 
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
     const [attached, setAttached] = useState<RouteContext | null>(null);
 
-    const send = (text: string) =>
-        chat.send(
+    const send = (text: string) => {
+        chat.sendWith({
             text,
-            {
+            context: {
                 // Nothing attached means a plain chat turn — the model is told
                 // where the user is only when they said so.
                 surface: attached?.surface ?? 'chat',
@@ -81,11 +85,17 @@ export function AgentsThread({
                 ...(attached?.entryId ? { entryId: attached.entryId } : {}),
                 ...(attached?.locale ? { locale: attached.locale } : {})
             },
-            {
+            options: {
                 provider: choice?.provider ?? null,
                 model: choice?.model ?? null
-            }
-        );
+            },
+            attachments: files.sent
+        });
+        // Cleared on send, not on the run finishing: the files belong to the
+        // turn that was just sent, and leaving them staged would silently
+        // attach them to the next question too.
+        files.clear();
+    };
 
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -153,6 +163,7 @@ export function AgentsThread({
                     className="border-t-0 p-0"
                     onSend={send}
                     onStop={chat.stop}
+                    attachments={files}
                 />
             </div>
         </div>

@@ -16,7 +16,7 @@ import { conversationsScopeKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideToolPermission } from './useDecideToolPermission';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
-import type { ChatMessage } from '../domain/types/chat';
+import type { ChatAttachment, ChatMessage } from '../domain/types/chat';
 
 const messages = defineMessages({
     generic: {
@@ -36,6 +36,22 @@ const messages = defineMessages({
         defaultMessage: 'Could not reach the server. Check your connection.'
     }
 });
+
+/** One turn, with everything that can ride along with it. */
+export interface SendInput {
+    /** What the user typed. */
+    text: string;
+    /** Where the user is. */
+    context?: StartRunRequest['context'];
+    /** How the turn should be routed. */
+    options?: CopilotChatOptions;
+    /**
+     * Files staged in the composer, already uploaded to the media library.
+     * Carried whole rather than as ids alone so the optimistic user turn can
+     * render its chips before the server has echoed anything back.
+     */
+    attachments?: ChatAttachment[];
+}
 
 /** How one turn should be routed, when the user has picked. */
 export interface CopilotChatOptions {
@@ -59,6 +75,8 @@ export interface CopilotChat {
         context?: StartRunRequest['context'],
         options?: CopilotChatOptions
     ): void;
+    /** Sends a message carrying attached files, already uploaded. */
+    sendWith(input: SendInput): void;
     /** Cancels the run in flight. */
     stop(): void;
     /** Starts an empty new chat. */
@@ -120,12 +138,8 @@ export function useCopilotChat(
     // when someone ends it — `stop()`, or closing the chat — and the store keeps
     // it alive in between. See `copilotStore`.
 
-    const send = useCallback(
-        (
-            text: string,
-            context?: StartRunRequest['context'],
-            options?: CopilotChatOptions
-        ) => {
+    const sendWith = useCallback(
+        ({ text, context, options, attachments }: SendInput) => {
             const trimmed = text.trim();
             if (!trimmed || runController(sessionId)) {
                 return;
@@ -134,7 +148,12 @@ export function useCopilotChat(
             const controller = new AbortController();
             beginRun(sessionId, controller);
             const localId = String(Date.now());
-            dispatch({ type: 'submit', text: trimmed, localId });
+            dispatch({
+                type: 'submit',
+                text: trimmed,
+                localId,
+                ...(attachments?.length ? { attachments } : {})
+            });
 
             void (async () => {
                 try {
@@ -155,7 +174,19 @@ export function useCopilotChat(
                                 ? { provider: options.provider }
                                 : {}),
                             ...(options?.model ? { model: options.model } : {}),
-                            ...(context ? { context } : {})
+                            ...(context ? { context } : {}),
+                            // Ids only. The server resolves everything else
+                            // from the row, so a client cannot describe an
+                            // asset as something it is not.
+                            ...(attachments?.length
+                                ? {
+                                      attachments: attachments.map(
+                                          (attachment) => ({
+                                              assetId: attachment.assetId
+                                          })
+                                      )
+                                  }
+                                : {})
                         },
                         { workspaceId, signal: controller.signal }
                     );
@@ -256,11 +287,30 @@ export function useCopilotChat(
         [decidePermission, workspaceId]
     );
 
+    // The three-argument form every existing caller uses. Kept as a shim over
+    // `sendWith` rather than duplicated: one send path means one place where a
+    // run's body is assembled.
+    const send = useCallback(
+        (
+            text: string,
+            context?: StartRunRequest['context'],
+            options?: CopilotChatOptions
+        ) => {
+            sendWith({
+                text,
+                ...(context ? { context } : {}),
+                ...(options ? { options } : {})
+            });
+        },
+        [sendWith]
+    );
+
     return {
         conversationId: state.conversationId,
         messages: state.messages,
         busy: state.busy,
         send,
+        sendWith,
         stop,
         answer,
         // Drives the dock's marker: a chat parked on a question is exactly the

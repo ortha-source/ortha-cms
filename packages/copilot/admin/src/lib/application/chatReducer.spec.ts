@@ -560,3 +560,71 @@ describe('chatReducer', () => {
         });
     });
 });
+
+describe('attachments on a user turn', () => {
+    // `delta` is scoped to the block-order describe above; this suite needs
+    // only the one frame, so it declares its own rather than hoisting that.
+    const delta = (text: string): ChatAction => ({
+        type: 'event',
+        event: { type: 'text-delta', text }
+    });
+
+    const file = {
+        assetId: 'a1',
+        name: 'notes.md',
+        mimeType: 'text/markdown',
+        kind: 'document',
+        size: 42,
+        readable: true
+    };
+
+    // Rendered from what the composer staged rather than waiting for the
+    // server to echo them back: the chips were on screen a moment ago, and
+    // having them disappear until the first frame lands reads as a failed send.
+    it('puts staged files on the optimistic turn immediately', () => {
+        const state = play({
+            type: 'submit',
+            text: 'what is in this file?',
+            localId: '1',
+            attachments: [file]
+        });
+
+        expect(state.messages[0].attachments).toEqual([file]);
+    });
+
+    it('leaves the key off entirely when nothing was attached', () => {
+        const state = play(submit);
+
+        expect(state.messages[0]).not.toHaveProperty('attachments');
+    });
+
+    it('never puts them on the assistant turn', () => {
+        const state = play({
+            type: 'submit',
+            text: 'read it',
+            localId: '1',
+            attachments: [file]
+        });
+
+        expect(state.messages[1].role).toBe('assistant');
+        expect(state.messages[1].attachments).toBeUndefined();
+    });
+
+    // The turn keeps its own files as the answer streams in: an attachment
+    // belongs to the message it was sent with, not to the run.
+    it('survives the run that follows', () => {
+        const state = play(
+            {
+                type: 'submit',
+                text: 'summarise it',
+                localId: '1',
+                attachments: [file]
+            },
+            started,
+            delta('Reading the file. '),
+            done
+        );
+
+        expect(state.messages[0].attachments).toEqual([file]);
+    });
+});

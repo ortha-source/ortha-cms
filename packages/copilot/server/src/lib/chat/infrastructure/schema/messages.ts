@@ -8,7 +8,10 @@ import {
     timestamp,
     uuid
 } from 'drizzle-orm/pg-core';
-import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
+import type {
+    AttachmentRef,
+    ModelContentBlock
+} from '@ortha-cms/copilot-domain';
 import { copilotConversations } from './conversations';
 
 /** Who produced a turn. Mirrors the port's `ModelMessage['role']`. */
@@ -48,6 +51,22 @@ export const copilotMessages = pgTable(
          * provider's, so a transcript survives switching provider.
          */
         content: jsonb('content').$type<ModelContentBlock[]>().notNull(),
+        /**
+         * Files the user attached to this turn, resolved at send time. Null on
+         * an assistant turn and on a user turn with none.
+         *
+         * Its own column rather than another `content` block, for two reasons.
+         * The port's `ModelContentBlock` union is what every adapter switches
+         * on, so a sixth member would be a change to three adapters for
+         * something no provider needs to see; and the transcript read wants
+         * this **structured** — the panel renders attachments as chips, and
+         * recovering them by sniffing a text block's prefix is the kind of
+         * parsing that works until someone types the prefix.
+         *
+         * The engine folds them back into a fenced text block when it builds
+         * model messages, so a follow-up turn still knows what was attached.
+         */
+        attachments: jsonb('attachments').$type<AttachmentRef[]>(),
         /** Which model produced an assistant turn; null on a user turn. */
         model: text('model'),
         /** Which registered provider served it; null on a user turn. */

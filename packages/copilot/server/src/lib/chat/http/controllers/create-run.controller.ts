@@ -21,6 +21,7 @@ import {
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { CreateRunDto } from '../../application/dto/create-run.dto';
 import {
+    AttachmentError,
     CopilotDisabledError,
     RunEngine,
     UnknownModelChoiceError
@@ -95,6 +96,13 @@ export class CreateRunController {
                 workspaceId,
                 conversationId: body.conversationId,
                 message: body.message,
+                ...(body.attachments?.length
+                    ? {
+                          attachments: body.attachments.map(
+                              (attachment) => attachment.assetId
+                          )
+                      }
+                    : {}),
                 context: body.context ?? {},
                 uiLocale: body.uiLocale ?? 'en',
                 ...(body.provider || body.model
@@ -126,10 +134,12 @@ export class CreateRunController {
                         'Ortha AI is turned off for this deployment. An administrator can enable it.'
                 });
             } else if (
+                error instanceof AttachmentError ||
                 error instanceof UnknownModelChoiceError ||
                 error instanceof UnknownModelError
             ) {
-                // A bad provider/model is the caller's mistake, and its own
+                // A bad attachment or a bad provider/model is the caller's
+                // mistake, and its own
                 // message already names what was asked for and what exists —
                 // far more useful than a generic failure, and safe to show
                 // because the catalogue is public to anyone with `copilot:use`.

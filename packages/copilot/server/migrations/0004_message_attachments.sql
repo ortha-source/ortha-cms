@@ -1,0 +1,1 @@
+ALTER TABLE "copilot_messages" ADD COLUMN "attachments" jsonb;

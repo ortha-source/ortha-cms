@@ -45,6 +45,7 @@ application/
   runStream.ts             # the fetch-based SSE transport
   chatReducer.ts           # pure reducer folding run events into a transcript
   useCopilotChat.ts        # a view of one chat in the store; drives its stream
+  useComposerAttachments.ts # staged files for the next turn; uploads on add
   tabBadge.ts              # pure: what the tab's (n) counts (tested)
   useTabBadge.ts           # the effect over it: title + favicon dot
   useConversations.ts      # thread list (query)
@@ -76,6 +77,7 @@ presentation/
   MessageList/             # the transcript
   ToolStep/                # one call, as a sentence; `labels.ts` holds both tenses
   Composer/  ModelPicker/  ConversationPicker/
+  AttachmentChip/          # one attached file — staged in the composer, sent in the transcript
   ContextChip/             # what context is attached to the next turn
   PermissionPrompt/        # "may I?" — the inline gate before a write runs
   ProposalCard/            # the receipt for a change, and its diff
@@ -704,6 +706,48 @@ load-bearing:
   stripped of both. The controls row is inside that wrapper, so it reads as one
   box; two nested rings on focus is the giveaway that a composer was assembled
   rather than designed.
+
+## Attaching files
+
+A paperclip in the composer, plus drag-and-drop onto the box and paste from the
+clipboard. `useComposerAttachments` stages them; the chips render through the
+same `AttachmentChip` the transcript uses, because an attachment does not change
+once sent and two components would be two chances for staged and sent to drift.
+
+- **The upload goes through `apiClient`, not the run.** It is an ordinary
+  `POST /media/assets` on the user's own session with their own `media:create` —
+  the same request the Media Library page makes, from a different button. The
+  copilot gains no write path, and a user who cannot upload cannot attach.
+- **An attachment is a permanent library asset**, not a blob that dies with the
+  conversation: findable later by `media_assets_search`, attachable to a content
+  record, subject to the same retention as anything else.
+- **Uploading happens on add, not on send**, so the wait is spent while the
+  person is still typing and a file that will be rejected is rejected before
+  they have written a question about it. Send is blocked while any upload is in
+  flight — sending then would drop the file from the turn silently, and once the
+  message is gone there is no way to tell "attached" from "still uploading".
+- **Removing a chip does not delete the asset.** It means "don't send this with
+  my message"; a delete would need `media:delete`, which a contributor who may
+  upload does not hold.
+- **The run body carries ids only.** The server resolves the name, kind and size
+  from the row, because that is the only part it can verify. The optimistic turn
+  still renders the full staged refs — the chips were on screen a moment ago,
+  and having them vanish until the first frame lands reads as a failed send.
+- **`useComposerAttachments` keeps a ref beside its state**, and does its
+  arithmetic against the ref. React invokes a `setState` updater twice under
+  StrictMode, so counting how many files fit *inside* one would advance the id
+  counter twice per file and pair every upload with the wrong chip.
+- **The drag highlight counts enter/leave.** Drag events fire per element, so
+  entering a child fires `dragleave` on the parent; without the counter the
+  overlay flickers across every child the pointer crosses.
+- Paste is intercepted **only when the clipboard carries files** — a normal text
+  paste has an empty `files` and must not be swallowed.
+- The composer renders no attach control at all when the surface passes no
+  `attachments` prop, rather than offering a button that fails.
+
+The hint line under the box doubles as the live region for this: the count
+refusal and the "waiting for uploads" state are both reasons a send did not
+happen, which a screen-reader user otherwise meets as silence.
 
 ## Conventions
 

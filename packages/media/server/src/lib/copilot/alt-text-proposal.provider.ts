@@ -4,12 +4,7 @@ import type { ProposalDraft } from '@ortha-cms/copilot-domain';
 import { ToolRegistry } from '@ortha-cms/tools-server';
 import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { AssetViewQuery } from '../infrastructure/queries/asset-view.query';
-
-/** The proposal kind this plugin declares and applies. */
-export const MEDIA_PROPOSAL_KINDS = {
-    /** Set an asset's alternative text. */
-    setAltText: 'media.asset.setAlt'
-} as const;
+import { MEDIA_PROPOSAL_KINDS } from './proposal-kinds';
 
 /**
  * `media_propose_alt_text` — the alt-text tool ADR-0005 §6 names as the

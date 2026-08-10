@@ -119,6 +119,21 @@ genuinely belongs to a framework-free core:
   applier holding only an id would have to look it up — a query per apply, in
   the one path where getting the actor wrong is least acceptable.
 
+### Attachments
+
+- `AttachmentRef` / `AttachmentResolver` / `COPILOT_ATTACHMENT_RESOLVER` — how a
+  run learns what the files someone attached to a message are. Inverted exactly
+  like `ProposalApplier`, so `copilot/server` still never imports a feature
+  plugin: `media/server` binds it. A **single** binding rather than a runtime
+  registration list — there is one media library, so unlike the appliers there
+  is nothing to merge across dynamic modules.
+- `AttachmentRef` is metadata only, deliberately: the bytes stay in storage and
+  a tool reads them when a question needs them. `readable` is answered by the
+  binding plugin rather than derived from `mimeType` here, because the answer is
+  that plugin's allowlist and a second copy of it would drift.
+- The interface's contract is one sentence: **scope to the workspace and omit
+  what does not match**. An id in a request body is proven by nothing.
+
 ### The run (phase 1)
 
 - `CopilotRunEvent` — the engine's output vocabulary and exactly what the SSE

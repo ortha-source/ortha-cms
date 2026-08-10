@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
-import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
+import type {
+    AttachmentRef,
+    ModelContentBlock
+} from '@ortha-cms/copilot-domain';
 import { copilotConversations } from '../schema/conversations';
 import { copilotMessages } from '../schema/messages';
 import { copilotToolCalls } from '../schema/tool-calls';
@@ -23,6 +26,8 @@ export interface MessageView {
     runId: string;
     role: 'user' | 'assistant';
     content: ModelContentBlock[];
+    /** Files attached to a user turn; null on an assistant turn and when none. */
+    attachments: AttachmentRef[] | null;
     model: string | null;
     provider: string | null;
     stopReason: string | null;
@@ -242,6 +247,7 @@ export class ConversationRepository {
                 runId: copilotMessages.runId,
                 role: copilotMessages.role,
                 content: copilotMessages.content,
+                attachments: copilotMessages.attachments,
                 model: copilotMessages.model,
                 provider: copilotMessages.provider,
                 stopReason: copilotMessages.stopReason,
@@ -267,6 +273,7 @@ export class ConversationRepository {
         runId: string;
         role: 'user' | 'assistant';
         content: ModelContentBlock[];
+        attachments?: AttachmentRef[] | null;
         model?: string | null;
         provider?: string | null;
         stopReason?: string | null;
@@ -286,6 +293,12 @@ export class ConversationRepository {
                 runId: input.runId,
                 role: input.role,
                 content: input.content,
+                // Null rather than `[]` for "none": the column is read as
+                // "did this turn carry files", and an empty array answers that
+                // question with a value that has to be length-checked.
+                attachments: input.attachments?.length
+                    ? input.attachments
+                    : null,
                 model: input.model ?? null,
                 provider: input.provider ?? null,
                 stopReason: input.stopReason ?? null,

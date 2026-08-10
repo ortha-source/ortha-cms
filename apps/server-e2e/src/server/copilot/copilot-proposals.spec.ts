@@ -190,7 +190,8 @@ describe('Copilot changes', () => {
                     'content_propose_create',
                     'content_propose_update',
                     'i18n_propose_translation',
-                    'media_propose_alt_text'
+                    'media_propose_alt_text',
+                    'media_propose_file'
                 ])
             );
         });

@@ -115,7 +115,7 @@ same service the HTTP controllers call:
 | ---------- | ------------------------------------------------------------------------------------------------------------------- |
 | `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` |
 | `i18n`     | `i18n_locales_list`, `i18n_translations_get`                                                                        |
-| `media`    | `media_assets_search`                                                                                               |
+| `media`    | `media_assets_search`, `media_folders_list`, `media_asset_read`                                                     |
 | `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                   |
 | `users`    | `workspace_members_list` — scoped to the run's workspace                                                            |
 
@@ -127,6 +127,52 @@ Plus the `propose` half — the write tools, all of which **write nothing**:
 | `content` | `content_propose_update`   | `content.entry.update` |
 | `i18n`    | `i18n_propose_translation` | `i18n.entry.translate` |
 | `media`   | `media_propose_alt_text`   | `media.asset.setAlt`   |
+| `media`   | `media_propose_file`       | `media.asset.create`   |
+
+## Attachments
+
+A turn may carry files the user attached in the composer. Three things settle
+how, and each one is the reason a piece of this looks the way it does.
+
+- **The upload is not part of the run.** The browser posts to
+  `POST /api/media/assets` first, on the user's own session with their own
+  `media:create` — the same request the Media Library page makes. By the time a
+  run starts the asset exists, and `CreateRunDto.attachments` only names it.
+  That is why attachments needed **no new permission and no new write path**: a
+  user who cannot upload to the library cannot attach a file to a chat either.
+- **Ids only, and the server resolves the rest.** The client has the whole asset
+  view in hand and sending the name along would save a lookup; it deliberately
+  does not, because the id is the only part the server can verify. Everything
+  the model is told about a file comes from the row, so a caller cannot describe
+  an asset — theirs or anyone else's — as something it is not.
+- **`COPILOT_ATTACHMENT_RESOLVER` is how the lookup happens.** Declared in
+  `copilot-domain`, injected `@Optional()` here, bound by `media/server`. Same
+  inversion as the applier port and for the same reason: this package must not
+  import media. A deployment with no media plugin binds nothing, and attaching a
+  file then fails with a sentence rather than a boot error.
+
+The resolver is **workspace-scoped and omits what it cannot see**, so an id
+belonging to another workspace is indistinguishable from a deleted one. The
+engine turns any shortfall into a single `AttachmentError` naming the count —
+never which id — because saying *which* would be an asset-id oracle in the one
+place the caller picks the ids. Resolution runs **before the conversation is
+touched**, so a bad attachment cannot leave a thread holding a turn that
+references a file the model was never told about.
+
+`copilot_messages.attachments` is a jsonb column rather than a sixth
+`ModelContentBlock`: the union is what every adapter switches on, so a new
+member would be a change to three adapters for something no provider needs to
+see, and the transcript read wants this structured — the panel draws chips, and
+recovering them by sniffing a text block's prefix works until someone types the
+prefix. `loadHistory` folds them back into a **fenced** text block, which is what
+carries them into later turns ("summarise the file I sent", three turns on) and
+what treats a user-authored file name as the untrusted text it is.
+
+Metadata only — no bytes. A chat that pastes every attached file into the prompt
+spends the context window on files nobody asked about, and `media_asset_read`
+exists for when the question needs the contents. `AttachmentRef.readable` is
+answered by media's own allowlist so the model does not spend a step discovering
+a PDF cannot be decoded.
 
 ## Asking before a write runs
 
@@ -288,7 +334,7 @@ Four tables, migrated under `__drizzle_migrations_copilot`:
 | Table                   | Holds                                                                                                                                                                                                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `copilot_conversations` | Thread per user × workspace. FKs cascade from both.                                                                                                                                                                                                                      |
-| `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond.                                                                                                  |
+| `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond. `attachments` holds a user turn's files (see above).                                             |
 | `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.                                                                                                                                                                                                                 |
 | `copilot_proposals`     | Every change the copilot made, written before the write. `target`/`patch` are opaque jsonb — their shape belongs to the applier that declared the `kind`, and teaching this table about content entries would make the copilot the thing that changes when content does. |
 

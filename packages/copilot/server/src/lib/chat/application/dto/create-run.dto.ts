@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+    ArrayMaxSize,
+    IsArray,
     IsIn,
     IsObject,
     IsOptional,
@@ -13,6 +15,15 @@ import {
 
 /** Longest message we accept. Bounds the prompt before the model bounds it. */
 export const MAX_MESSAGE_LENGTH = 8_000;
+
+/**
+ * Files one turn may carry.
+ *
+ * A ceiling rather than none, because each attachment costs a resolve and a
+ * line of prompt, and a request naming two hundred ids would spend both before
+ * the model is ever called.
+ */
+export const MAX_RUN_ATTACHMENTS = 8;
 
 /** The surfaces a run can be started from (design §2). */
 export const RUN_SURFACES = ['chat', 'palette', 'entry', 'records'] as const;
@@ -55,6 +66,28 @@ export class RunContextDto {
     @IsString()
     @MaxLength(35)
     locale?: string;
+}
+
+/**
+ * One file attached to a turn — an **id only**.
+ *
+ * The client has the whole asset view in hand after uploading, and sending the
+ * name and size along would save the server a lookup. It deliberately does not:
+ * the id is the only part the server can verify, and everything the model is
+ * told about a file has to come from the row rather than from the request, or a
+ * caller could describe someone else's asset — or their own — as anything they
+ * liked.
+ *
+ * A class rather than a bare string array for the same reason `RunContextDto`
+ * is a class: the strict pipe traverses a nested array only with
+ * `@ValidateNested({ each: true })` + `@Type()`, and it leaves room for a
+ * per-attachment field later without changing the wire shape.
+ */
+export class RunAttachmentDto {
+    /** The media asset's id, as returned by the upload it came from. */
+    @ApiProperty({ type: String, format: 'uuid' })
+    @IsUUID()
+    assetId!: string;
 }
 
 /**
@@ -126,4 +159,23 @@ export class CreateRunDto {
     @ValidateNested()
     @Type(() => RunContextDto)
     context?: RunContextDto;
+
+    /**
+     * Files the user attached to this turn, already uploaded to the media
+     * library through `POST /api/media/assets`.
+     *
+     * Uploading is **not** part of the run: it happens first, over the ordinary
+     * media route, with the user's own session and their own `media:create`.
+     * That is what keeps the authority model intact — attaching a file is the
+     * person uploading it, exactly as they would from the Media Library, from a
+     * different button. The copilot never gains a write path; by the time a run
+     * starts, the asset already exists and this names it.
+     */
+    @ApiPropertyOptional({ type: [RunAttachmentDto] })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(MAX_RUN_ATTACHMENTS)
+    @ValidateNested({ each: true })
+    @Type(() => RunAttachmentDto)
+    attachments?: RunAttachmentDto[];
 }

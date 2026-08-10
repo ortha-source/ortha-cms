@@ -154,25 +154,31 @@ the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's
 `EntryWriterService` resolves the binding regardless of registration order.
 
-## The copilot tool (`src/lib/copilot/`)
+## The copilot tools (`src/lib/copilot/`)
 
 This package binds the copilot's tool port — `copilot/server` declares
-`COPILOT_TOOL_PROVIDER` (in `copilot-domain`) and never imports media.
-`MediaCopilotToolProvider` ships one read tool, `media_assets_search`, wrapping
-the same `ListAssetsQuery` the library route calls. Registration is the
-`copilotToolsRegistrar('media', …)` one-liner in `MediaModule.forRoot`, which
-injects the registry **optionally** — a deployment without `CopilotPlugin` is
-normal, and media must boot without it.
+`COPILOT_TOOL_PROVIDER` (in `copilot-domain`) and never imports media. Each
+binder injects `ToolRegistry` **`@Optional()`** and registers itself from
+`onModuleInit`: a deployment without `CopilotPlugin` is normal, and media must
+boot without it.
 
-It also binds `media_propose_alt_text` (`effect: 'propose'`) — the tool ADR-0005
-§6 names as the motivating case for auto-apply, since a team that trusts alt-text
-generation should not click twice a hundred times a day. Like every propose tool
-it writes nothing; `AltTextProposalApplier` carries an accepted one out through
-`UpdateAssetUseCase`, the same use-case the PATCH route calls, so the change runs
-in the same unit of work and raises the same domain event with the accepting
-human as actor. That use-case's `actor` parameter was widened from `PublicUser`
-to `EventActor` (`{ id, email }`) — all `attachActor` reads — so the applier can
-reach it without fabricating a user to satisfy a wider type.
+| Tool                  | Effect    | Requires       | Wraps                             |
+| --------------------- | --------- | -------------- | --------------------------------- |
+| `media_assets_search` | `read`    | `media:read`   | `ListAssetsQuery`                 |
+| `media_folders_list`  | `read`    | `media:read`   | `ListFoldersQuery`                |
+| `media_asset_read`    | `read`    | `media:read`   | `DownloadAssetQuery`              |
+| `media_propose_alt_text` | `propose` | `media:update` | → `UpdateAssetUseCase`         |
+| `media_propose_file`  | `propose` | `media:create` | → `UploadAssetUseCase`            |
+
+The three reads live in `MediaCopilotToolProvider`; each propose tool has its
+own provider + applier pair, and both appliers are registered by the single
+`copilotAppliersRegistrar('media', …)` call in `MediaModule.forRoot`. The kinds
+they declare live in `proposal-kinds.ts` rather than beside either tool, because
+a `kind` is matched **exactly** against `ProposalApplier.kind` and nothing
+type-checks the pair — a typo in either half produces a change that is drafted,
+approved, recorded, and then fails to apply.
+
+### Searching and listing
 
 Two departures from the library's own list, each answering something a model
 needs and a person browsing does not:
@@ -184,9 +190,115 @@ needs and a person browsing does not:
   folder to look in and would get "no" for an asset that exists. The query tests
   the key with `in`, not truthiness, so the two stay distinguishable.
 - **It returns a narrowed projection** — id, name, kind, MIME type, size, alt,
-  tags, folder, created — dropping `url`, `variants` and the intrinsic
-  dimensions. `url` in particular is a session-gated route a model cannot fetch,
-  so it costs prompt tokens and answers nothing.
+  tags, folder, created, plus a `downloadPath` — dropping `variants` and the
+  intrinsic dimensions. It still drops the full `url`: that is a session-gated
+  route the *model* cannot fetch, so it costs prompt tokens and answers nothing.
+  The **path** is kept for a different reader — the person who asked "list the
+  files in the library" wants links they can click, and their browser is signed
+  in. `GET /media/assets/:id/raw` derives its scope from membership precisely so
+  a browser can load it directly, which is what makes handing the path out safe.
+
+`media_folders_list` is what makes `folderId` usable at all. Nothing else in the
+catalogue told a model that folders have ids, so before it "what's in the Brand
+folder?" was unanswerable however the search tool was described. It is flat with
+`parentId` pointers (a model rebuilds the tree from those for fewer tokens than
+nesting costs) and takes no arguments — a workspace has tens of folders, and the
+paging metadata would outweigh the list.
+
+### Reading a file's bytes
+
+`media_asset_read` is the one tool here that reads bytes rather than rows, and
+the one that widens the **prompt-injection** surface: until it, the copilot read
+content the team authored; now it reads a file anyone holding `media:create` put
+in the library, and a `.md` file is a fine vehicle for "ignore your previous
+instructions". The defence is the one every tool result already gets — the run
+engine wraps the output in `fenceUntrusted` (ADR-0005 §8) — and the real ceiling
+stays the capability profile: a viewer whose copilot reads a hostile file still
+cannot write anything, because it was never offered a write tool.
+
+Four constraints, all load-bearing, in `asset-text.ts` (framework-free, so the
+awkward paths are unit-tested without Nest):
+
+- **An allowlist on the MIME type, never a blocklist.** `MediaKind.classify`
+  files a PDF, a Word document and a Markdown file all as `document`, so the
+  coarse kind cannot be the filter — naming what we *can* read refuses a new
+  binary format by default.
+- **The byte cap is applied while reading.** Buffering a whole asset and slicing
+  afterwards would put a 50 MB upload in memory before deciding we wanted 256 KB
+  of it, which is memory pressure anyone with upload rights could trigger. The
+  stream is destroyed as soon as the cap is passed.
+- **Decoding is fatal.** A MIME type is a claim, not a fact; an error naming the
+  problem beats a page of replacement characters the model earnestly summarises.
+  The exception is a truncated read, where `stream: true` holds back an
+  incomplete trailing sequence — the cap lands at an arbitrary byte, and halving
+  a three-byte codepoint must not fail an otherwise valid file.
+- **`DownloadAssetQuery.locate` is deliberately unscoped**, because the download
+  route derives the workspace from the row (an `<img>` tag cannot send
+  `X-Workspace-Id`). Nothing upstream scopes this call, so the tool compares
+  `location.workspaceId` itself — and reports a mismatch with the **same** "no
+  such asset" as a missing row, or it would be an asset-id oracle.
+
+### Authoring a file
+
+`media_propose_file` writes a report, summary or CSV into the library as an
+ordinary asset. Generated files get no store of their own: that would have meant
+a second copy of the storage seam, the workspace scoping, the audit trail and
+the blob reclamation, and none of them would be better for it. The file that
+results is movable, renamable, deletable and attachable to a content record's
+media field like anything someone uploaded by hand.
+
+- **The model picks a `format` from a closed enum, never a MIME type.** Handed a
+  free-text `contentType` a model eventually produces something like
+  `application/x-msdownload`, and `MediaKind.classify` would file it under
+  `document` without complaint. `file-formats.ts` owns the format → MIME +
+  extension map and is the only thing that decides how bytes are stored.
+- **The extension follows from the format**, replacing one this module owns
+  (`summary.txt` proposed as `md` becomes `summary.md`, not `summary.txt.md`)
+  and leaving one it does not (`2026.q3` keeps its `.q3`).
+- **A path is rejected, not flattened.** A model asked for a report proposes
+  `reports/2026/q3.md` readily, and `FileName` rejects separators anyway.
+  Silently dropping the directories would file the report at the root while the
+  model told the user otherwise, so this throws and the message names `folderId`.
+- **Every check that can happen at propose time does.** The folder is verified,
+  the name resolved, the size bounded — all *before* the permission prompt,
+  because after approval there is nobody left to retry for. `MAX_AUTHORED_BYTES`
+  (1 MB) sits far below `maxUploadBytes`: the content arrived as a tool argument
+  generated token by token, so a megabyte of it is a malfunction, not a report.
+- **`CreateFileProposalApplier` calls `UploadAssetUseCase`** — the same one the
+  upload route calls, which is the whole point of the port. It inherits the
+  atomic row + `media.asset.uploaded` event, the `FOR SHARE` lock on the
+  destination folder, blob reclamation on rollback, and provider routing, none
+  of which is reimplemented here.
+
+Both `UpdateAssetUseCase` and `UploadAssetUseCase` take an `EventActor`
+(`{ id, email }`) rather than a `PublicUser` — all `attachActor` reads — so an
+applier can reach them without fabricating a user to satisfy a wider type.
+
+### Binds the copilot's attachment port
+
+`AttachmentResolverQuery` binds **`COPILOT_ATTACHMENT_RESOLVER`** (declared in
+`copilot-domain`), so a run can be told what the files someone attached to a
+chat message are. A plain provider binding, exported from the global module —
+unlike the appliers there is one media library, so there is nothing to merge
+across dynamic modules.
+
+Workspace-scoped, and it **omits rather than reports**: an asset belonging to
+another workspace comes back absent, indistinguishable from a deleted one, and
+the engine turns the shortfall into one error naming the count. Saying *which*
+id exists elsewhere would be an asset-id oracle in the one place a caller
+chooses the ids. `readable` reuses `isReadableMimeType` — the same allowlist
+`media_asset_read` enforces — so the two can never disagree about what a run is
+able to open.
+
+Note what this is **not**: attaching a file is not a copilot write. The browser
+uploads through the ordinary `POST /media/assets` first, on the user's own
+session, and the run only names the id afterwards.
+
+**Not offered, deliberately: deleting anything.** A folder delete cascades the
+whole subtree with the blobs reclaimed post-commit, so there is no undo, and the
+permission prompt has no way to render "this will delete 4 folders and 213
+files". Handing that to a non-deterministic tool picker needs its own ADR, not a
+provider.
 
 ## Register with the host
 
