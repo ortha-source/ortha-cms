@@ -28,15 +28,15 @@ describe('parseBlocks', () => {
     // paragraph branch, which joins lines with a space — producing one
     // unreadable run-on line.
     it('does not collapse a table into a paragraph', () => {
-        const blocks = parseBlocks(
-            '| a | b |\n|---|---|\n| 1 | 2 |'
-        );
+        const blocks = parseBlocks('| a | b |\n|---|---|\n| 1 | 2 |');
 
         expect(blocks.map((block) => block.kind)).toEqual(['table']);
     });
 
     it('reads column alignment from the separator', () => {
-        const blocks = parseBlocks('| a | b | c |\n|:---|:--:|---:|\n| 1 | 2 | 3 |');
+        const blocks = parseBlocks(
+            '| a | b | c |\n|:---|:--:|---:|\n| 1 | 2 | 3 |'
+        );
 
         expect(blocks[0]).toMatchObject({
             align: ['left', 'center', 'right']
@@ -55,7 +55,9 @@ describe('parseBlocks', () => {
     // A row that is still streaming in, or that the model got wrong, must not
     // shift every cell after it.
     it('pads a short row and trims a long one to the header width', () => {
-        const blocks = parseBlocks('| a | b |\n|---|---|\n| 1 |\n| 1 | 2 | 3 |');
+        const blocks = parseBlocks(
+            '| a | b |\n|---|---|\n| 1 |\n| 1 | 2 | 3 |'
+        );
 
         expect(blocks[0]).toMatchObject({
             rows: [

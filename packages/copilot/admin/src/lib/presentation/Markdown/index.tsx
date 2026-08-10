@@ -42,7 +42,6 @@ export function Markdown({ text }: { text: string }) {
     );
 }
 
-
 function renderBlock(block: Block): ReactNode {
     switch (block.kind) {
         case 'heading': {
@@ -76,7 +75,8 @@ function renderBlock(block: Block): ReactNode {
                                         key={index}
                                         className="px-2.5 py-1.5 font-semibold whitespace-nowrap"
                                         style={{
-                                            textAlign: block.align[index] ?? 'left'
+                                            textAlign:
+                                                block.align[index] ?? 'left'
                                         }}
                                     >
                                         {renderInline(cell)}

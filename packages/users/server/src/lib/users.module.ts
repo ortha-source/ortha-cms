@@ -71,7 +71,10 @@ export class UsersModule {
                 // registry optionally.
                 WorkspaceCopilotToolProvider,
                 // Infrastructure — port adapters + persistence.
-                { provide: MEMBER_REPOSITORY, useClass: DrizzleMemberRepository },
+                {
+                    provide: MEMBER_REPOSITORY,
+                    useClass: DrizzleMemberRepository
+                },
                 { provide: SESSION_REVOKER, useClass: DrizzleSessionRevoker },
                 { provide: WORKSPACE_LINKER, useClass: DrizzleWorkspaceLinker },
                 MemberMapper,

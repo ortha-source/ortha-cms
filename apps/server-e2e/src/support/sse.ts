@@ -27,12 +27,10 @@ function parseBlock(block: string): CopilotRunEvent | undefined {
  * buffering cannot serve — see {@link streamSse}.
  */
 export function parseSse(body: string): CopilotRunEvent[] {
-    return body
-        .split('\n\n')
-        .flatMap((block) => {
-            const event = parseBlock(block);
-            return event ? [event] : [];
-        });
+    return body.split('\n\n').flatMap((block) => {
+        const event = parseBlock(block);
+        return event ? [event] : [];
+    });
 }
 
 /**

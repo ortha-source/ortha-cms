@@ -55,7 +55,10 @@ export function ConversationPicker({
     const open = useOpenConversation();
 
     return (
-        <DropdownMenu>
+        // `modal={false}`: the panel this sits in is non-modal by design, and a
+        // modal menu `aria-hidden`s the page root — focusable content included,
+        // which axe fails as `aria-hidden-focus`.
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"

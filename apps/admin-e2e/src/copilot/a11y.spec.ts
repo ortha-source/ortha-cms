@@ -1,0 +1,83 @@
+import { test } from '../support/fixtures';
+import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces } from '../support/api/workspaces';
+import { mockContentSchema } from '../support/api/content';
+import { mockCopilotApi } from '../support/api/copilot';
+import { expectNoA11yViolations } from '../support/a11y';
+
+const WORKSPACE_ID = 'ws_marketing';
+const THREAD = 'Which articles are missing a summary?';
+
+/**
+ * Accessibility scans (axe, WCAG 2.1 A/AA) of the Agents view and its dynamic
+ * states — the empty thread with its honeycomb backdrop, a loaded transcript
+ * with a tool step and a change card, the archived list, and the rename dialog.
+ * A regression guard, not a conformance claim.
+ *
+ * The rail's group headings are 10px uppercase, which is exactly the size at
+ * which a tinted `text-muted-foreground/80` stops clearing AA — this scan is
+ * what says so, and the reason the headings use the full token.
+ */
+test.describe('Agents view accessibility (axe, WCAG 2.1 A/AA)', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+        await mockCopilotApi(page);
+    });
+
+    test('the empty thread, its openers and the rail', async ({
+        agentsPage,
+        makeAxe
+    }) => {
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+        await agentsPage.railRow(THREAD).waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('a transcript with a tool step and a change card', async ({
+        agentsPage,
+        makeAxe
+    }) => {
+        await agentsPage.gotoThread(WORKSPACE_ID, 'c_summary');
+        await agentsPage.proposalCard(/Set a summary on/).waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('an expanded tool step', async ({ agentsPage, makeAxe }) => {
+        await agentsPage.gotoThread(WORKSPACE_ID, 'c_summary');
+        await agentsPage.toolStep(/Updated an entry/).click();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('the archived list', async ({ agentsPage, makeAxe }) => {
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.railRow(THREAD).waitFor();
+        await agentsPage.chooseRowAction(THREAD, 'Archive');
+        await agentsPage.archivedLink().click();
+        await agentsPage.railRow(THREAD).waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('the rename dialog', async ({ agentsPage, makeAxe }) => {
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.railRow(THREAD).waitFor();
+        await agentsPage.chooseRowAction(THREAD, 'Rename…');
+        await agentsPage.renameInput().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('a rail row’s menu, open', async ({ agentsPage, makeAxe }) => {
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.railRow(THREAD).waitFor();
+        await agentsPage.openRowMenu(THREAD);
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('the model picker, open', async ({ agentsPage, makeAxe }) => {
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.modelPicker().click();
+        await expectNoA11yViolations(makeAxe());
+    });
+});

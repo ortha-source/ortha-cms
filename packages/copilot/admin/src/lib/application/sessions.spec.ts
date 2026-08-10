@@ -1,5 +1,6 @@
 import {
     MAX_OPEN_WINDOWS,
+    dockSessions,
     sessionsReducer,
     visibleSessions,
     type CopilotSession,
@@ -22,7 +23,9 @@ describe('sessionsReducer', () => {
                 title: null,
                 minimized: false,
                 unread: false,
-                awaiting: false
+                awaiting: false,
+                presented: 'dock',
+                choice: null
             }
         ]);
     });
@@ -197,6 +200,158 @@ describe('sessionsReducer', () => {
                     value: true
                 })
             ).toBe(before);
+        });
+    });
+
+    describe('the model a chat runs on', () => {
+        const pick = (id: string, model: string | null): SessionsAction => ({
+            type: 'model',
+            id,
+            choice: model ? { provider: 'anthropic', model } : null
+        });
+
+        it('remembers the pick on the chat, not on whatever drew the picker', () => {
+            // The bug this exists for: held in component state it was lost by
+            // collapsing a window or leaving the Agents view, and the user
+            // silently got the default back.
+            const state = play(open('a'), pick('a', 'claude-opus-5'));
+            expect(state[0].choice).toEqual({
+                provider: 'anthropic',
+                model: 'claude-opus-5'
+            });
+        });
+
+        it('survives being minimized and brought back', () => {
+            const state = play(
+                open('a'),
+                pick('a', 'claude-opus-5'),
+                { type: 'minimize', id: 'a' },
+                { type: 'focus', id: 'a' }
+            );
+            expect(state[0].choice?.model).toBe('claude-opus-5');
+        });
+
+        it('survives the round trip between the page and the dock', () => {
+            const state = play(
+                open('a'),
+                { type: 'present', id: 'a', presented: 'page' },
+                pick('a', 'claude-opus-5'),
+                { type: 'present', id: 'a', presented: 'dock' },
+                { type: 'present', id: 'a', presented: 'page' }
+            );
+            expect(state[0].choice?.model).toBe('claude-opus-5');
+        });
+
+        it('is per chat — picking for one leaves the others alone', () => {
+            const state = play(open('a'), open('b'), pick('a', 'gpt-5.2'));
+            expect(state[0].choice?.model).toBe('gpt-5.2');
+            expect(state[1].choice).toBeNull();
+        });
+
+        it('takes null back, because Default is a real choice', () => {
+            const state = play(
+                open('a'),
+                pick('a', 'claude-opus-5'),
+                pick('a', null)
+            );
+            expect(state[0].choice).toBeNull();
+        });
+
+        it('starts a chat on the model it was opened with', () => {
+            // How a new chat inherits the last one the user picked.
+            const state = play({
+                type: 'open',
+                id: 'a',
+                choice: { provider: 'openai', model: 'gpt-5.2' }
+            });
+            expect(state[0].choice?.model).toBe('gpt-5.2');
+        });
+
+        it('does not overwrite the model of a thread already open', () => {
+            // Reopening focuses the existing chat; the seed must not stamp the
+            // model it is already running on.
+            const state = play(
+                { type: 'open', id: 'a', conversationId: 'c1' },
+                pick('a', 'claude-opus-5'),
+                {
+                    type: 'open',
+                    id: 'b',
+                    conversationId: 'c1',
+                    choice: { provider: 'openai', model: 'gpt-5.2' }
+                }
+            );
+            expect(state).toHaveLength(1);
+            expect(state[0].choice?.model).toBe('claude-opus-5');
+        });
+    });
+
+    describe('the full-page surface', () => {
+        const present = (
+            id: string,
+            presented: 'dock' | 'page'
+        ): SessionsAction => ({ type: 'present', id, presented });
+
+        it('takes a chat out of the dock entirely', () => {
+            // Presented full-page it is on screen, so the dock draws neither a
+            // window nor a pill — both would be a second copy of one chat.
+            const state = play(open('a'), present('a', 'page'));
+            expect(dockSessions(state)).toEqual([]);
+            expect(visibleSessions(state)).toEqual([]);
+        });
+
+        it('hands it back as a pill, never as a window', () => {
+            // A window popping open over whatever page the user just navigated
+            // to would be the surface following them around.
+            const state = play(
+                open('a'),
+                present('a', 'page'),
+                present('a', 'dock')
+            );
+            expect(state[0]).toMatchObject({
+                presented: 'dock',
+                minimized: true
+            });
+            expect(visibleSessions(state)).toEqual([]);
+        });
+
+        it('takes no window slot, so it cannot displace one', () => {
+            // Three windows is the cap; a page-presented chat is not a window,
+            // and opening one must not minimize somebody's window to make room.
+            const state = play(
+                open('a'),
+                open('b'),
+                open('c'),
+                open('d'),
+                present('d', 'page')
+            );
+            expect(visibleSessions(state).map((s) => s.id)).toEqual(['b', 'c']);
+            expect(state.find((s) => s.id === 'd')?.minimized).toBe(false);
+        });
+
+        it('marks a handed-back chat that then finishes', () => {
+            // The whole point of the hand-off: you navigated away mid-answer,
+            // and the pill has to tell you when it lands.
+            const state = play(
+                open('a'),
+                present('a', 'page'),
+                present('a', 'dock'),
+                { type: 'activity', id: 'a' }
+            );
+            expect(state[0].unread).toBe(true);
+        });
+
+        it('does not mark one that finishes while you are reading it', () => {
+            const state = play(open('a'), present('a', 'page'), {
+                type: 'activity',
+                id: 'a'
+            });
+            expect(state[0].unread).toBe(false);
+        });
+
+        it('returns the very same array when it is already there', () => {
+            // Same reason as `awaiting`: reported from an effect.
+            const before = play(open('a'), present('a', 'page'));
+            expect(sessionsReducer(before, present('a', 'page'))).toBe(before);
         });
     });
 

@@ -39,7 +39,11 @@ const messages = defineMessages({
 
 /** Icon + copy per mode — one lookup, so the three can't drift apart. */
 const MARKS = {
-    shared: { Icon: Globe, name: messages.sharedName, hint: messages.sharedHint },
+    shared: {
+        Icon: Globe,
+        name: messages.sharedName,
+        hint: messages.sharedHint
+    },
     mirrored: {
         Icon: Languages,
         name: messages.mirroredName,
@@ -78,9 +82,7 @@ export function RelationSyncMark({ mode }: { mode?: RelationLocaleSync }) {
                     className="inline-flex shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <Icon aria-hidden className="size-3.5" />
-                    <span className="sr-only">
-                        {intl.formatMessage(name)}
-                    </span>
+                    <span className="sr-only">{intl.formatMessage(name)}</span>
                 </button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">

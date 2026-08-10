@@ -1,3 +1,5 @@
+import type { CopilotModelChoice } from './useCopilotModels';
+
 /**
  * One chat the user has going — a window, whether or not it is on screen.
  *
@@ -27,6 +29,32 @@ export interface CopilotSession {
      * would have put on the pill — it is the opposite.
      */
     awaiting: boolean;
+    /**
+     * Which surface is showing this chat.
+     *
+     * `dock` is the ordinary case — a floating window, or a pill when
+     * `minimized`. `page` means the **Agents view** has it full-screen, so the
+     * dock draws neither a window nor a pill for it: it is already on screen,
+     * larger than either. Leaving the page hands the chat back to the dock
+     * (see `release` in `useCopilotSessions`), which is what lets an answer you
+     * started on the page keep streaming while you work somewhere else.
+     */
+    presented: 'dock' | 'page';
+    /**
+     * Which backend this chat's **next turn** runs on, or `null` for the host's
+     * resolver ("Default").
+     *
+     * On the session rather than in the component that draws the picker, for
+     * the reason everything else here is: components unmount. Held in
+     * `useState` it was lost by minimizing a window, and by navigating away from
+     * the Agents view — the user picked a model, came back, and silently got the
+     * default again.
+     *
+     * Still **per turn, not per thread**: it is sent with each message and can
+     * be changed between them, so a conversation can start cheap and escalate.
+     * What this fixes is forgetting the choice, which nobody chose.
+     */
+    choice: CopilotModelChoice | null;
 }
 
 /**
@@ -49,6 +77,10 @@ export type SessionsAction =
           id: string;
           conversationId?: string;
           title?: string;
+          /** Where it starts life. Defaults to the dock. */
+          presented?: 'dock' | 'page';
+          /** The model it starts on — seeded from the last one picked. */
+          choice?: CopilotModelChoice | null;
       }
     /** Close a chat for good — its window unmounts and its run is cancelled. */
     | { type: 'close'; id: string }
@@ -68,7 +100,11 @@ export type SessionsAction =
     /** A run finished here. Marks it only if nobody is looking. */
     | { type: 'activity'; id: string }
     /** The run is, or is no longer, parked on a permission prompt. */
-    | { type: 'awaiting'; id: string; value: boolean };
+    | { type: 'awaiting'; id: string; value: boolean }
+    /** Move a chat between the full-page surface and the dock. */
+    | { type: 'present'; id: string; presented: 'dock' | 'page' }
+    /** Route this chat's next turn to a different backend. */
+    | { type: 'model'; id: string; choice: CopilotModelChoice | null };
 
 /**
  * Folds an action into the set of open chats.
@@ -84,13 +120,16 @@ export function sessionsReducer(
 ): CopilotSession[] {
     switch (action.type) {
         case 'open': {
+            const presented = action.presented ?? 'dock';
             const session: CopilotSession = {
                 id: action.id,
                 conversationId: action.conversationId ?? null,
                 title: action.title ?? null,
                 minimized: false,
                 unread: false,
-                awaiting: false
+                awaiting: false,
+                presented,
+                choice: action.choice ?? null
             };
             // Reopening a thread that is already open focuses it instead of
             // showing the same conversation in two windows, which would give it
@@ -102,7 +141,12 @@ export function sessionsReducer(
                 return capVisible(
                     state.map((s) =>
                         s.id === existing.id
-                            ? { ...s, minimized: false, unread: false }
+                            ? {
+                                  ...s,
+                                  minimized: false,
+                                  unread: false,
+                                  presented
+                              }
                             : s
                     ),
                     existing.id
@@ -152,6 +196,38 @@ export function sessionsReducer(
                     : s
             );
 
+        case 'model':
+            return state.map((s) =>
+                s.id === action.id ? { ...s, choice: action.choice } : s
+            );
+
+        case 'present': {
+            const target = state.find((s) => s.id === action.id);
+            // The same array back when nothing changed, for the reason the
+            // `awaiting` case documents: this is reported from an effect.
+            if (!target || target.presented === action.presented) {
+                return state as CopilotSession[];
+            }
+            return capVisible(
+                state.map((s) =>
+                    s.id === action.id
+                        ? {
+                              ...s,
+                              presented: action.presented,
+                              // Handed back to the dock, a chat becomes a
+                              // **pill**, not a window that pops open over
+                              // whatever page the user just navigated to.
+                              // Taken by the page it is neither, and
+                              // `minimized: false` keeps the marker rule below
+                              // honest — a chat on screen is never "unread".
+                              minimized: action.presented === 'dock'
+                          }
+                        : s
+                ),
+                action.id
+            );
+        }
+
         case 'awaiting': {
             const target = state.find((s) => s.id === action.id);
             // **The same array back when nothing changed**, so `useReducer`
@@ -192,18 +268,35 @@ function capVisible(
     keep: string
 ): CopilotSession[] {
     const next = [...sessions];
-    let visible = next.filter((s) => !s.minimized).length;
+    let visible = visibleSessions(next).length;
     for (let i = 0; i < next.length && visible > MAX_OPEN_WINDOWS; i += 1) {
-        if (next[i].minimized || next[i].id === keep) continue;
+        if (
+            next[i].minimized ||
+            next[i].presented === 'page' ||
+            next[i].id === keep
+        )
+            continue;
         next[i] = { ...next[i], minimized: true };
         visible -= 1;
     }
     return next;
 }
 
-/** The chats on screen, in open order — index is the window's slot. */
+/**
+ * The chats **in a dock window**, in open order — index is the window's slot.
+ *
+ * A page-presented chat is on screen but is not a window, so it takes no slot
+ * and never displaces one.
+ */
 export function visibleSessions(
     sessions: readonly CopilotSession[]
 ): CopilotSession[] {
-    return sessions.filter((s) => !s.minimized);
+    return sessions.filter((s) => !s.minimized && s.presented === 'dock');
+}
+
+/** The chats the dock lists as pills — everything it owns. */
+export function dockSessions(
+    sessions: readonly CopilotSession[]
+): CopilotSession[] {
+    return sessions.filter((s) => s.presented === 'dock');
 }

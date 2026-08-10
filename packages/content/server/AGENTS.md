@@ -147,20 +147,20 @@ decide what actually happens, and only one of them is the author's:
 by the schema serializer, the i18n sibling sync, and the copilot's translation
 applier so the three cannot drift:
 
-| `relationLocaleSync` | when                                    | stored                                     |
-| -------------------- | --------------------------------------- | ------------------------------------------ |
-| `shared`             | sync on, target not `i18n`              | the same target id in every sibling        |
-| `mirrored`           | sync on, target `i18n`                  | that target's **group**, resolved per locale |
-| `none`               | sync off, an inverse, or a non-`i18n` owner | nothing propagates                      |
+| `relationLocaleSync` | when                                        | stored                                       |
+| -------------------- | ------------------------------------------- | -------------------------------------------- |
+| `shared`             | sync on, target not `i18n`                  | the same target id in every sibling          |
+| `mirrored`           | sync on, target `i18n`                      | that target's **group**, resolved per locale |
+| `none`               | sync off, an inverse, or a non-`i18n` owner | nothing propagates                           |
 
 Cardinality does **not** enter into it — a single FK, an owning many-to-many and
 their join tables all follow the same rule. An **inverse** is always `none`: it
 reuses the owning side's rows, so syncing from both ends would write them twice.
 
-`isPerLocaleField` (also exported) is the *other* question — does this row's
+`isPerLocaleField` (also exported) is the _other_ question — does this row's
 value differ from its siblings' — and it is what the serializer reports as
 `localized`. Note the two are not opposites: a **mirrored** relation is
-per-locale *and* propagated, the id differing per row precisely so each row
+per-locale _and_ propagated, the id differing per row precisely so each row
 points at the right translation. `relation.localeSync` is serialized on the wire
 (on localized types only) so the editor can say what a save will reach.
 

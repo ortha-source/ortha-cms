@@ -1,62 +1,62 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1784404930852,
-      "tag": "0000_init_test_content",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1784662320879,
-      "tag": "0001_test_page",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1784927369657,
-      "tag": "0002_content_entry_revisions",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1784990797227,
-      "tag": "0003_media_fields",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1786358779539,
-      "tag": "0004_article_contributors",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1786366948957,
-      "tag": "0005_one_to_one_unique_per_locale",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1786366993953,
-      "tag": "0006_article_pinned_tag",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1786370630077,
-      "tag": "0007_page_seo_one_to_one",
-      "breakpoints": true
-    }
-  ]
+    "version": "7",
+    "dialect": "postgresql",
+    "entries": [
+        {
+            "idx": 0,
+            "version": "7",
+            "when": 1784404930852,
+            "tag": "0000_init_test_content",
+            "breakpoints": true
+        },
+        {
+            "idx": 1,
+            "version": "7",
+            "when": 1784662320879,
+            "tag": "0001_test_page",
+            "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "7",
+            "when": 1784927369657,
+            "tag": "0002_content_entry_revisions",
+            "breakpoints": true
+        },
+        {
+            "idx": 3,
+            "version": "7",
+            "when": 1784990797227,
+            "tag": "0003_media_fields",
+            "breakpoints": true
+        },
+        {
+            "idx": 4,
+            "version": "7",
+            "when": 1786358779539,
+            "tag": "0004_article_contributors",
+            "breakpoints": true
+        },
+        {
+            "idx": 5,
+            "version": "7",
+            "when": 1786366948957,
+            "tag": "0005_one_to_one_unique_per_locale",
+            "breakpoints": true
+        },
+        {
+            "idx": 6,
+            "version": "7",
+            "when": 1786366993953,
+            "tag": "0006_article_pinned_tag",
+            "breakpoints": true
+        },
+        {
+            "idx": 7,
+            "version": "7",
+            "when": 1786370630077,
+            "tag": "0007_page_seo_one_to_one",
+            "breakpoints": true
+        }
+    ]
 }

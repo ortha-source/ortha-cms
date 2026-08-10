@@ -97,19 +97,25 @@ export function MessageList({
 
     return (
         <div
-            className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+            className="flex-1 overflow-y-auto px-4 py-4"
             role="log"
             aria-label={intl.formatMessage(messages.transcript)}
             aria-live="polite"
         >
-            {turns.map((turn) => (
-                <Turn
-                    key={turn.id}
-                    turn={turn}
-                    {...(onAnswer ? { onAnswer } : {})}
-                />
-            ))}
-            <div ref={endRef} />
+            {/* The scroller runs the full width so the scrollbar sits at the
+                edge of the surface, but the text does not: a transcript read
+                across a 1400px page is a transcript nobody finishes a line of.
+                A no-op in the 420px docked panel, which never reaches the cap. */}
+            <div className="mx-auto w-full max-w-3xl space-y-4">
+                {turns.map((turn) => (
+                    <Turn
+                        key={turn.id}
+                        turn={turn}
+                        {...(onAnswer ? { onAnswer } : {})}
+                    />
+                ))}
+                <div ref={endRef} />
+            </div>
         </div>
     );
 }
@@ -145,15 +151,26 @@ function Turn({
 
     return (
         <div className="space-y-2">
-            {turn.steps.length > 0 && (
-                <div className="space-y-1.5">
-                    {turn.steps.map((step) => (
-                        <ToolStep key={step.id} step={step} />
-                    ))}
-                </div>
-            )}
-
-            {turn.text && <Markdown text={turn.text} />}
+            {/* **In the order the run produced them.** These were three
+                buckets — every step, then all the prose, then every change card
+                — and the layout could not say when anything happened: a model
+                that explained, saved, and kept writing showed the card pinned
+                below text that was written after it. */}
+            {turn.blocks.map((block) => {
+                if (block.kind === 'text') {
+                    return block.text ? (
+                        <Markdown key={block.id} text={block.text} />
+                    ) : null;
+                }
+                if (block.kind === 'step') {
+                    return <ToolStep key={block.id} step={block.step} />;
+                }
+                // After the prose that introduces it and before whatever comes
+                // next — a receipt where the change was made.
+                return (
+                    <ProposalCard key={block.id} proposal={block.proposal} />
+                );
+            })}
 
             {/* Before the change cards and after the steps: this is the one
                 thing in the transcript the run is *blocked* on, so it belongs
@@ -171,17 +188,6 @@ function Turn({
                     />
                 ))}
 
-            {/* After the answer, not before it: the prose is where the model
-                explains what it did, and a receipt above its own explanation
-                is a result with no account of itself. */}
-            {turn.proposals && turn.proposals.length > 0 && (
-                <div className="space-y-2">
-                    {turn.proposals.map((proposal) => (
-                        <ProposalCard key={proposal.id} proposal={proposal} />
-                    ))}
-                </div>
-            )}
-
             {/* Also **between** tool calls, not only before the first one.
                 The old condition bailed as soon as a step existed, so a turn
                 that searched and then thought for three seconds showed a
@@ -189,8 +195,13 @@ function Turn({
                 running step has its own spinner, so this stands down for it
                 rather than doubling up. */}
             {turn.streaming &&
-                !turn.text &&
-                !turn.steps.some((step) => step.status === 'running') && (
+                !turn.blocks.some(
+                    (block) => block.kind === 'text' && block.text
+                ) &&
+                !turn.blocks.some(
+                    (block) =>
+                        block.kind === 'step' && block.step.status === 'running'
+                ) && (
                     <p className="text-muted-foreground animate-pulse text-sm">
                         {intl.formatMessage(messages.thinking)}
                     </p>

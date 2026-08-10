@@ -56,10 +56,17 @@ export interface ToolCallRecord {
 export class ConversationRepository {
     constructor(@InjectDatabase() private readonly db: Database) {}
 
-    /** This user's threads in this workspace, most recently used first. */
+    /**
+     * This user's threads in this workspace, most recently used first.
+     *
+     * `archived` selects **one of two disjoint sets** rather than widening the
+     * result: archiving means "hide this from the list", so an archived thread
+     * appearing beside its active siblings would defeat the flag entirely.
+     */
     async list(
         userId: string,
-        workspaceId: string
+        workspaceId: string,
+        archived = false
     ): Promise<ConversationView[]> {
         return this.db
             .select({
@@ -75,10 +82,55 @@ export class ConversationRepository {
                 and(
                     eq(copilotConversations.userId, userId),
                     eq(copilotConversations.workspaceId, workspaceId),
-                    eq(copilotConversations.archived, false)
+                    eq(copilotConversations.archived, archived)
                 )
             )
             .orderBy(desc(copilotConversations.updatedAt));
+    }
+
+    /**
+     * Renames a thread and/or files it away, returning the updated row — or
+     * `null` when the id is not this user's in this workspace.
+     *
+     * **`updatedAt` is deliberately not touched.** It means "last used", and the
+     * list sorts by it: bumping it here would send a thread you merely renamed
+     * to the top of the rail, above conversations you actually had since.
+     *
+     * The ownership predicate is part of the `UPDATE` rather than a read
+     * beforehand, so there is no window between checking and writing — and a
+     * miss is reported as `null` for "not yours" and "no such id" alike, so an
+     * id cannot be probed for existence.
+     */
+    async update(
+        conversationId: string,
+        userId: string,
+        workspaceId: string,
+        patch: { title?: string; archived?: boolean }
+    ): Promise<ConversationView | null> {
+        const [row] = await this.db
+            .update(copilotConversations)
+            .set({
+                ...(patch.title !== undefined ? { title: patch.title } : {}),
+                ...(patch.archived !== undefined
+                    ? { archived: patch.archived }
+                    : {})
+            })
+            .where(
+                and(
+                    eq(copilotConversations.id, conversationId),
+                    eq(copilotConversations.userId, userId),
+                    eq(copilotConversations.workspaceId, workspaceId)
+                )
+            )
+            .returning({
+                id: copilotConversations.id,
+                title: copilotConversations.title,
+                surface: copilotConversations.surface,
+                archived: copilotConversations.archived,
+                createdAt: copilotConversations.createdAt,
+                updatedAt: copilotConversations.updatedAt
+            });
+        return row ?? null;
     }
 
     /**

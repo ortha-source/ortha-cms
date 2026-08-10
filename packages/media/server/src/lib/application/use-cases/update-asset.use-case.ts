@@ -62,7 +62,10 @@ export class UpdateAssetUseCase {
                     // concurrent delete of that folder so the moved asset can't
                     // land in a folder that is being removed.
                     if (
-                        !(await this.folders.existsForShare(target, workspaceId))
+                        !(await this.folders.existsForShare(
+                            target,
+                            workspaceId
+                        ))
                     ) {
                         throw new FolderNotFoundError(patch.folderId);
                     }

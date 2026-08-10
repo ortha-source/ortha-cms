@@ -142,6 +142,16 @@ export interface CopilotPanelProps {
     onClose(): void;
     /** Starts another chat alongside this one. */
     onNewChat(): void;
+    /**
+     * Which backend the next turn runs on, or `null` for the host's resolver.
+     *
+     * A **prop, from the session** — it used to be `useState` in this file's
+     * `PanelBody`, which unmounts the moment the panel collapses to the dock, so
+     * minimizing a chat silently reset its model to Default.
+     */
+    choice: CopilotModelChoice | null;
+    /** Routes the next turn elsewhere. */
+    onChoiceChange(choice: CopilotModelChoice | null): void;
     /** Focused when the panel closes, so keyboard focus doesn't fall to `<body>`. */
     returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
@@ -177,6 +187,8 @@ export function CopilotPanel({
     onMinimize,
     onClose,
     onNewChat,
+    choice,
+    onChoiceChange,
     returnFocusRef
 }: CopilotPanelProps) {
     const intl = useIntl();
@@ -372,6 +384,8 @@ export function CopilotPanel({
                     chat={chat}
                     workspaceId={workspaceId}
                     routeContext={routeContext}
+                    choice={choice}
+                    onChoiceChange={onChoiceChange}
                 />
             </div>
         </div>
@@ -443,21 +457,20 @@ function IconButton({
 function PanelBody({
     chat,
     workspaceId,
-    routeContext
+    routeContext,
+    choice,
+    onChoiceChange
 }: {
     chat: CopilotChat;
     workspaceId: string;
     routeContext: RouteContext;
+    choice: CopilotModelChoice | null;
+    onChoiceChange(choice: CopilotModelChoice | null): void;
 }) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
     const [attached, setAttached] = useState<RouteContext | null>(null);
-    // `null` means "let the host's resolver pick", which is a real choice
-    // rather than the absence of one — see ModelPicker. Held here, not on the
-    // thread: the model applies to the next turn, so a conversation can start
-    // cheap and escalate.
-    const [choice, setChoice] = useState<CopilotModelChoice | null>(null);
 
     // The panel is opened to type into, so put the cursor where it is needed.
     useEffect(() => {
@@ -467,7 +480,7 @@ function PanelBody({
     return (
         <>
             <div className="flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5">
-                <ModelPicker value={choice} onChange={setChoice} />
+                <ModelPicker value={choice} onChange={onChoiceChange} />
                 <ConversationPicker
                     workspaceId={workspaceId}
                     onOpen={(conversationId, loaded) =>
