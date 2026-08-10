@@ -8,8 +8,13 @@ import { Markdown } from '../Markdown';
 import { ToolStep } from '../ToolStep';
 import { ProposalCard } from '../ProposalCard';
 import { PermissionPrompt } from '../PermissionPrompt';
+import { AttachmentChip } from '../AttachmentChip';
 
 const messages = defineMessages({
+    attachments: {
+        id: 'copilot.messages.attachments',
+        defaultMessage: 'Attached files'
+    },
     empty: {
         id: 'copilot.chat.empty',
         defaultMessage: 'Ask about the content in this workspace.'
@@ -141,10 +146,35 @@ function Turn({
 
     if (turn.role === 'user') {
         return (
-            <div className="flex justify-end">
+            <div className="flex flex-col items-end gap-1.5">
                 <div className="bg-primary text-primary-foreground max-w-[85%] rounded-lg rounded-br-sm px-3 py-2 text-sm whitespace-pre-wrap">
                     {turn.text}
                 </div>
+                {/* Below the bubble rather than inside it: a chip on the
+                    primary fill would need its own colour pair to stay legible,
+                    and the file is a companion to the message, not part of the
+                    sentence. */}
+                {turn.attachments?.length ? (
+                    <ul
+                        className="flex max-w-[85%] flex-wrap justify-end gap-1.5"
+                        aria-label={intl.formatMessage(messages.attachments)}
+                    >
+                        {turn.attachments.map((attachment) => (
+                            <li key={attachment.assetId}>
+                                <AttachmentChip
+                                    name={attachment.name}
+                                    size={attachment.size}
+                                    kind={attachment.kind}
+                                    // The library's own download route. It
+                                    // derives its scope from membership, so the
+                                    // link works for anyone who can see the
+                                    // thread and 404s for anyone who cannot.
+                                    href={`/api/media/assets/${attachment.assetId}/raw`}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
             </div>
         );
     }

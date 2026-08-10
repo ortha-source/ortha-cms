@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_763 test cases across 47 spec files._
+_773 test cases across 47 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1016,6 +1016,21 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts</sub>_
 | rejects a folder id from another workspace |
 | rejects an empty file |
 | rejects a format outside the enum |
+
+### files attached to a turn
+
+| Test case |
+| --- |
+| tells the model what was attached, without inlining the bytes |
+| fences the manifest as untrusted data |
+| says up front whether a file can be read |
+| refuses an asset from another workspace |
+| refuses an id that is not an asset at all |
+| carries into a follow-up turn in the same thread |
+| serves them back on the persisted transcript |
+| rejects more attachments than one turn may carry |
+| rejects an attachment that is not a uuid |
+| rejects an unknown key inside an attachment |
 
 <!-- source: apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_

@@ -8,6 +8,7 @@ import {
     countMediaAssets,
     resetDb,
     seedActiveUser,
+    seedMediaAsset,
     seedMediaFolder,
     seedMembership,
     seedWorkspace,
@@ -430,6 +431,250 @@ describe('Copilot file creation', () => {
 
             expect(result.ok).toBe(false);
             expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+    });
+
+    // ---------------------------------------------------------- attachments
+    describe('files attached to a turn', () => {
+        /** Upload a file the way the composer does — the user's own session. */
+        async function upload(
+            agent: request.Agent,
+            name: string,
+            body: string,
+            contentType: string
+        ) {
+            const response = await agent
+                .post('/api/media/assets')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .attach('file', Buffer.from(body), {
+                    filename: name,
+                    contentType
+                })
+                .expect(201);
+            return response.body as { id: string };
+        }
+
+        /** Start a run carrying `attachments`, with no tool call scripted. */
+        async function runWith(
+            agent: request.Agent,
+            attachments: { assetId: string }[],
+            message = 'what did I send you?'
+        ) {
+            scriptCopilot({ text: 'Got it.' });
+            return run(agent, { message, attachments });
+        }
+
+        /** The system prompt + messages the fake provider was handed. */
+        function lastRequest() {
+            return copilotCalls()[copilotCalls().length - 1];
+        }
+
+        it('tells the model what was attached, without inlining the bytes', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const asset = await upload(
+                agent,
+                'brief.md',
+                '# The brief\n\nShip it.',
+                'text/markdown'
+            );
+
+            await runWith(agent, [{ assetId: asset.id }]);
+
+            const sent = JSON.stringify(lastRequest().messages);
+            expect(sent).toContain('brief.md');
+            expect(sent).toContain('text/markdown');
+            expect(sent).toContain('media_asset_read');
+            // Metadata only. Pasting every attached file into the prompt would
+            // spend the context window on files nobody asked about — the model
+            // has a tool for reading one when the question needs it.
+            expect(sent).not.toContain('Ship it.');
+        });
+
+        // A file name is user-authored text arriving in the prompt, so it gets
+        // the same envelope a tool result does (ADR-0005 §8).
+        it('fences the manifest as untrusted data', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const asset = await upload(
+                agent,
+                'ignore-previous-instructions.txt',
+                'hello',
+                'text/plain'
+            );
+
+            await runWith(agent, [{ assetId: asset.id }]);
+
+            const sent = JSON.stringify(lastRequest().messages);
+            expect(sent).toContain('untrusted-data');
+            expect(sent).toContain('ignore-previous-instructions.txt');
+        });
+
+        // `readable` is answered by the plugin that owns the allowlist, so the
+        // model does not spend a step discovering a PDF cannot be decoded.
+        it('says up front whether a file can be read', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const text = await upload(agent, 'a.md', 'x', 'text/markdown');
+            const binary = await upload(
+                agent,
+                'b.pdf',
+                '%PDF-',
+                'application/pdf'
+            );
+
+            await runWith(agent, [
+                { assetId: text.id },
+                { assetId: binary.id }
+            ]);
+
+            const sent = JSON.stringify(lastRequest().messages);
+            expect(sent).toContain('\\"readable\\":true');
+            expect(sent).toContain('\\"readable\\":false');
+        });
+
+        // The whole reason attachments needed no new authority: the id is the
+        // only part the server can verify, so a foreign one must not resolve.
+        it('refuses an asset from another workspace', async () => {
+            const other = await seedWorkspace({ name: 'Other', slug: 'other' });
+            const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const outside = await seedMediaAsset({
+                workspaceId: other.id,
+                uploadedBy: user.id,
+                name: 'secret.txt',
+                mimeType: 'text/plain'
+            });
+
+            const events = await runWith(agent, [{ assetId: outside.id }]);
+
+            const errors = framesOfType(events, 'error');
+            expect(errors).toHaveLength(1);
+            expect(errors[0].message).toContain('no longer available');
+            // Nothing was persisted: resolution happens before the thread is
+            // touched, so a bad attachment cannot leave a turn behind.
+            const list = await agent
+                .get('/api/copilot/conversations')
+                .expect(200);
+            expect(list.body.items).toHaveLength(0);
+        });
+
+        it('refuses an id that is not an asset at all', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const events = await runWith(agent, [
+                { assetId: '00000000-0000-4000-8000-000000000000' }
+            ]);
+
+            expect(framesOfType(events, 'error')[0].message).toContain(
+                'no longer available'
+            );
+        });
+
+        // The manifest is written onto the turn, so a later question about
+        // "the file I sent" still reaches it.
+        it('carries into a follow-up turn in the same thread', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const asset = await upload(
+                agent,
+                'plan.md',
+                '# Plan',
+                'text/markdown'
+            );
+
+            const first = await runWith(agent, [{ assetId: asset.id }]);
+            const conversationId = framesOfType(first, 'run-started')[0]
+                .conversationId;
+
+            scriptCopilot({ text: 'Still got it.' });
+            await run(agent, {
+                message: 'summarise the file I sent',
+                conversationId
+            });
+
+            // The second turn attached nothing, yet the first turn's manifest
+            // is in the history the model was handed.
+            const sent = JSON.stringify(lastRequest().messages);
+            expect(sent).toContain('plan.md');
+        });
+
+        it('serves them back on the persisted transcript', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const asset = await upload(agent, 'notes.txt', 'hi', 'text/plain');
+
+            const events = await runWith(agent, [{ assetId: asset.id }]);
+            const conversationId = framesOfType(events, 'run-started')[0]
+                .conversationId;
+
+            const response = await agent
+                .get(`/api/copilot/conversations/${conversationId}`)
+                .expect(200);
+            const messages = response.body.messages as {
+                role: string;
+                attachments: { assetId: string; name: string }[] | null;
+            }[];
+
+            // Structured on the row rather than recoverable by parsing a text
+            // block — which is what lets a reopened thread draw the same chips.
+            expect(messages[0].attachments).toEqual([
+                expect.objectContaining({
+                    assetId: asset.id,
+                    name: 'notes.txt'
+                })
+            ]);
+            expect(messages[1].attachments).toBeNull();
+        });
+
+        it('rejects more attachments than one turn may carry', async () => {
+            const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const ids = await Promise.all(
+                Array.from({ length: 9 }, (_unused, index) =>
+                    seedMediaAsset({
+                        workspaceId: workspace.id,
+                        uploadedBy: user.id,
+                        name: `f${index}.txt`,
+                        mimeType: 'text/plain'
+                    })
+                )
+            );
+
+            // A 400 from the strict pipe, before the stream opens — the
+            // ceiling is on the DTO, not discovered mid-run.
+            await agent
+                .post('/api/copilot/runs')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    message: 'too many',
+                    attachments: ids.map((asset) => ({ assetId: asset.id }))
+                })
+                .expect(400);
+        });
+
+        it('rejects an attachment that is not a uuid', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            await agent
+                .post('/api/copilot/runs')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ message: 'hi', attachments: [{ assetId: 'nope' }] })
+                .expect(400);
+        });
+
+        // The nested-DTO trap `RunContextDto` documents, one level deeper: an
+        // array of objects needs `{ each: true }` or the whitelist strips every
+        // property and the handler silently receives `[{}]`.
+        it('rejects an unknown key inside an attachment', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            await agent
+                .post('/api/copilot/runs')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    message: 'hi',
+                    attachments: [
+                        {
+                            assetId: '00000000-0000-4000-8000-000000000000',
+                            name: 'a-name-the-server-must-not-trust.txt'
+                        }
+                    ]
+                })
+                .expect(400);
         });
     });
 

@@ -89,3 +89,11 @@ export type {
     ProposalApplier,
     ProposalApplyResult
 } from './lib/proposals/proposal-applier';
+
+// Attachments — the port the run engine reads a turn's attached files through,
+// inverted like the applier so this package still knows no plugin exists.
+export { COPILOT_ATTACHMENT_RESOLVER } from './lib/attachments/attachment';
+export type {
+    AttachmentRef,
+    AttachmentResolver
+} from './lib/attachments/attachment';

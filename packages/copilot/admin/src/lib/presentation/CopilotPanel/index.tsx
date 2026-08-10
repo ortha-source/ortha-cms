@@ -17,6 +17,7 @@ import {
     type PanelFrameControls
 } from '../../application/usePanelFrame';
 import { Composer } from '../Composer';
+import { useComposerAttachments } from '../../application/useComposerAttachments';
 import { MessageList } from '../MessageList';
 import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
@@ -471,6 +472,10 @@ function PanelBody({
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
     const [attached, setAttached] = useState<RouteContext | null>(null);
+    // Files staged for the next turn. Lives in the body, which unmounts when
+    // the window collapses to the dock — deliberately: a half-written turn's
+    // attachments are part of that draft, and the draft text goes with it too.
+    const files = useComposerAttachments();
 
     // The panel is opened to type into, so put the cursor where it is needed.
     useEffect(() => {
@@ -503,10 +508,10 @@ function PanelBody({
             <Composer
                 busy={chat.busy}
                 inputRef={composerRef}
-                onSend={(text) =>
-                    chat.send(
+                onSend={(text) => {
+                    chat.sendWith({
                         text,
-                        {
+                        context: {
                             // Nothing attached means a plain chat turn — the
                             // model is told where the user is only when they
                             // said so.
@@ -521,13 +526,18 @@ function PanelBody({
                                 ? { locale: attached.locale }
                                 : {})
                         },
-                        {
+                        options: {
                             provider: choice?.provider ?? null,
                             model: choice?.model ?? null
-                        }
-                    )
-                }
+                        },
+                        attachments: files.sent
+                    });
+                    // Cleared on send, not on the run finishing: the files
+                    // belong to the turn just sent.
+                    files.clear();
+                }}
                 onStop={chat.stop}
+                attachments={files}
             />
         </>
     );

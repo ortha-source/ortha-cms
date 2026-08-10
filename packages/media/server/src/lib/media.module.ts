@@ -17,12 +17,14 @@ import { FolderMapper } from './infrastructure/persistence/folder.mapper';
 import { DrizzleAssetRepository } from './infrastructure/persistence/drizzle-asset.repository';
 import { DrizzleFolderRepository } from './infrastructure/persistence/drizzle-folder.repository';
 import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
+import { COPILOT_ATTACHMENT_RESOLVER } from '@ortha-cms/copilot-domain';
 import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
 import { MediaCopilotToolProvider } from './copilot/media-tool.provider';
 import { AltTextProposalToolProvider } from './copilot/alt-text-proposal.provider';
 import { AltTextProposalApplier } from './copilot/alt-text-proposal.applier';
 import { CreateFileProposalToolProvider } from './copilot/create-file-proposal.provider';
 import { CreateFileProposalApplier } from './copilot/create-file-proposal.applier';
+import { AttachmentResolverQuery } from './copilot/attachment-resolver.query';
 import { ListFoldersQuery } from './infrastructure/queries/list-folders.query';
 import { AssetViewQuery } from './infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from './infrastructure/queries/download-asset.query';
@@ -133,6 +135,16 @@ export class MediaModule {
                     AltTextProposalApplier,
                     CreateFileProposalApplier
                 ),
+                // Binds the copilot's attachment port, so a run can be told
+                // what the files someone attached to a message are. A plain
+                // binding rather than a runtime registration: there is one
+                // media library, so unlike the appliers there is nothing to
+                // merge across dynamic modules.
+                AttachmentResolverQuery,
+                {
+                    provide: COPILOT_ATTACHMENT_RESOLVER,
+                    useExisting: AttachmentResolverQuery
+                },
                 AssetViewQuery,
                 DownloadAssetQuery,
                 // Binds content-server's media-asset resolver port, so a content
@@ -145,7 +157,7 @@ export class MediaModule {
                     useExisting: MediaAssetResolverQuery
                 }
             ],
-            exports: [MEDIA_ASSET_RESOLVER]
+            exports: [MEDIA_ASSET_RESOLVER, COPILOT_ATTACHMENT_RESOLVER]
         };
     }
 }

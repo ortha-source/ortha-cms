@@ -274,6 +274,26 @@ Both `UpdateAssetUseCase` and `UploadAssetUseCase` take an `EventActor`
 (`{ id, email }`) rather than a `PublicUser` — all `attachActor` reads — so an
 applier can reach them without fabricating a user to satisfy a wider type.
 
+### Binds the copilot's attachment port
+
+`AttachmentResolverQuery` binds **`COPILOT_ATTACHMENT_RESOLVER`** (declared in
+`copilot-domain`), so a run can be told what the files someone attached to a
+chat message are. A plain provider binding, exported from the global module —
+unlike the appliers there is one media library, so there is nothing to merge
+across dynamic modules.
+
+Workspace-scoped, and it **omits rather than reports**: an asset belonging to
+another workspace comes back absent, indistinguishable from a deleted one, and
+the engine turns the shortfall into one error naming the count. Saying *which*
+id exists elsewhere would be an asset-id oracle in the one place a caller
+chooses the ids. `readable` reuses `isReadableMimeType` — the same allowlist
+`media_asset_read` enforces — so the two can never disagree about what a run is
+able to open.
+
+Note what this is **not**: attaching a file is not a copilot write. The browser
+uploads through the ordinary `POST /media/assets` first, on the user's own
+session, and the run only names the id afterwards.
+
 **Not offered, deliberately: deleting anything.** A folder delete cascades the
 whole subtree with the blobs reclaimed post-commit, so there is no undo, and the
 permission prompt has no way to render "this will delete 4 folders and 213

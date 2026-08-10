@@ -19,6 +19,12 @@ export interface StartRunRequest {
         entryId?: string;
         locale?: string;
     };
+    /**
+     * Media asset ids attached to this turn. Ids only — the server resolves the
+     * name, kind and size from the row, because that is the only part it can
+     * verify.
+     */
+    attachments?: { assetId: string }[];
 }
 
 /** Everything the transport needs beyond the request body. */

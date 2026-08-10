@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
+    COPILOT_ATTACHMENT_RESOLVER,
     DEFAULT_RUN_LIMITS,
     MODEL_REGISTRY,
     MODEL_RESOLVER,
@@ -9,6 +10,8 @@ import {
     isProposalDraft,
     resolveModel,
     validateToolInput,
+    type AttachmentRef,
+    type AttachmentResolver,
     type CopilotRunEvent,
     type ModelContentBlock,
     type ModelMessage,
@@ -60,6 +63,12 @@ export interface StartRunInput {
     conversationId?: string;
     /** What the user typed. */
     message: string;
+    /**
+     * Media asset ids the user attached, already uploaded under their own
+     * authority. Resolved against the run's workspace before anything is
+     * persisted; an id that does not resolve ends the run.
+     */
+    attachments?: readonly string[];
     /** Where the user is. */
     context: SurfaceContext;
     /** The admin UI's locale — the language to answer in. */
@@ -124,6 +133,13 @@ export class RunEngine {
         private readonly proposals: ProposalRepository,
         private readonly decisions: DecideProposalService,
         private readonly permissions: ToolPermissionBroker,
+        // Optional and named explicitly: a deployment with no media plugin
+        // binds nothing here, and a parameter typed `X | null` emits `Object`
+        // for `design:paramtypes`, so an unnamed token would silently inject
+        // `undefined` even when a binding exists.
+        @Optional()
+        @Inject(COPILOT_ATTACHMENT_RESOLVER)
+        private readonly attachments: AttachmentResolver | null = null,
         @Optional()
         @Inject(COPILOT_RUN_LIMITS)
         limits: RunLimits | null = null
@@ -146,6 +162,15 @@ export class RunEngine {
         const runId = randomUUID();
         const startedAt = Date.now();
 
+        // Resolved BEFORE the conversation is touched. An unresolvable
+        // attachment is a bad request, and doing it here means it cannot leave
+        // a thread holding a turn that references a file the model was never
+        // told about — the one ordering that makes the transcript trustworthy.
+        const attachments = await this.resolveAttachments(
+            input.attachments,
+            input.workspaceId
+        );
+
         const conversation = input.conversationId
             ? await this.conversations.findOrFail(
                   input.conversationId,
@@ -165,7 +190,8 @@ export class RunEngine {
             conversationId: conversation.id,
             runId,
             role: 'user',
-            content: [{ type: 'text', text: input.message }]
+            content: [{ type: 'text', text: input.message }],
+            attachments
         });
 
         yield {
@@ -928,11 +954,104 @@ export class RunEngine {
         }
     }
 
-    /** The persisted transcript, as the port's message shape. */
+    /**
+     * Turns the attached asset ids into what the model is told about them.
+     *
+     * Three refusals, each a different wrong thing to do:
+     *
+     * - **No resolver bound** — the deployment has no media plugin, so there is
+     *   nothing that could have produced these ids. Failing beats describing
+     *   files nobody can look up.
+     * - **An id that did not resolve** — it belongs to another workspace, or to
+     *   a file deleted between the upload and the send. The resolver is
+     *   workspace-scoped and omits what it cannot see, so the two are
+     *   indistinguishable here, which is deliberate: telling a caller *which*
+     *   of their ids exists elsewhere is an oracle.
+     * - Neither case is reported per-id. One message names the count, because
+     *   the user's recourse is the same either way — re-attach the file.
+     */
+    private async resolveAttachments(
+        assetIds: readonly string[] | undefined,
+        workspaceId: string
+    ): Promise<AttachmentRef[]> {
+        if (!assetIds?.length) {
+            return [];
+        }
+        if (!this.attachments) {
+            throw new AttachmentError(
+                'Files cannot be attached in this deployment.'
+            );
+        }
+
+        // De-duplicated first: the same file attached twice is a client slip,
+        // not a reason to spend two lines of prompt on it — and it would make
+        // the count check below fail on a request that is otherwise fine.
+        const unique = [...new Set(assetIds)];
+        const resolved = await this.attachments.resolve(unique, workspaceId);
+
+        if (resolved.length !== unique.length) {
+            const missing = unique.length - resolved.length;
+            throw new AttachmentError(
+                missing === 1
+                    ? 'One of the attached files is no longer available.'
+                    : `${missing} of the attached files are no longer available.`
+            );
+        }
+        // Returned in the order they were attached rather than the order the
+        // resolver happened to answer in, so the prompt and the chips agree.
+        const byId = new Map(resolved.map((ref) => [ref.assetId, ref]));
+        return unique
+            .map((id) => byId.get(id))
+            .filter((ref): ref is AttachmentRef => ref !== undefined);
+    }
+
+    /**
+     * The persisted transcript, as the port's message shape.
+     *
+     * A turn's attachments are folded back in as a **fenced text block**, which
+     * is what makes them survive into later turns: "summarise the file I sent"
+     * on turn three has to reach a manifest written on turn one, and the
+     * transcript is the only thing carried forward. Fenced because a file name
+     * is user-authored text arriving in the prompt — the same treatment a tool
+     * result gets, for the same reason.
+     */
     private async loadHistory(conversationId: string): Promise<ModelMessage[]> {
         const rows = await this.conversations.messages(conversationId);
-        return rows.map((row) => ({ role: row.role, content: row.content }));
+        return rows.map((row) => ({
+            role: row.role,
+            content: row.attachments?.length
+                ? [
+                      ...row.content,
+                      {
+                          type: 'text' as const,
+                          text: attachmentManifest(row.attachments)
+                      }
+                  ]
+                : row.content
+        }));
     }
+}
+
+/**
+ * Thrown when a turn's attachments cannot be resolved. Surfaced by the
+ * controller as an error frame rather than a 500 — like `UnknownModelChoiceError`
+ * it is a bad request, and by the time we know, the stream is already open.
+ */
+export class AttachmentError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'AttachmentError';
+    }
+}
+
+/** The prompt line describing a turn's attached files. */
+function attachmentManifest(attachments: readonly AttachmentRef[]): string {
+    return (
+        'The user attached these files to the message above. They are in the ' +
+        'media library — use media_asset_read with an assetId to read one whose ' +
+        '`readable` is true.\n' +
+        fenceUntrusted('attachments', attachments)
+    );
 }
 
 /** The prompt version this engine builds with, for the run record. */

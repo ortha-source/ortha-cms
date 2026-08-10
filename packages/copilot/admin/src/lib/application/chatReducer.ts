@@ -1,5 +1,6 @@
 import type { CopilotRunEvent } from '@ortha-cms/copilot-domain';
 import type {
+    ChatAttachment,
     ChatBlock,
     ChatMessage,
     ChatPermissionRequest,
@@ -10,7 +11,12 @@ import type {
 /** Everything that can change the panel's state. */
 export type ChatAction =
     /** The user submitted a message; an optimistic turn is appended. */
-    | { type: 'submit'; text: string; localId: string }
+    | {
+          type: 'submit';
+          text: string;
+          localId: string;
+          attachments?: ChatAttachment[];
+      }
     /** One frame arrived from the run stream. */
     | { type: 'event'; event: CopilotRunEvent }
     /** The run failed before or outside the stream. */
@@ -65,7 +71,14 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                         id: `local-user-${action.localId}`,
                         role: 'user',
                         text: action.text,
-                        blocks: []
+                        blocks: [],
+                        // Rendered from what the composer staged rather than
+                        // waiting for the server to echo them back: the chips
+                        // were on screen a moment ago, and having them vanish
+                        // until the first frame lands reads as a failed send.
+                        ...(action.attachments?.length
+                            ? { attachments: action.attachments }
+                            : {})
                     },
                     // The assistant turn is created up front and empty, so the
                     // UI has something to show a pending state on before the

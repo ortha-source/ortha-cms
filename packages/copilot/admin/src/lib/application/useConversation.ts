@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@ortha-cms/utils-admin';
 import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
 import type {
+    ChatAttachment,
     ChatBlock,
     ChatMessage,
     ChatProposal
@@ -14,6 +15,8 @@ interface PersistedMessage {
     runId: string;
     role: 'user' | 'assistant';
     content: ModelContentBlock[];
+    /** Files attached to a user turn; null otherwise. */
+    attachments: ChatAttachment[] | null;
     stopReason: string | null;
 }
 
@@ -237,6 +240,12 @@ function toChatMessages(
                               .join('')
                         : '',
                 blocks: message.role === 'user' ? [] : blocks,
+                // Its own column on the row rather than something recovered by
+                // parsing a text block, which is what lets a reopened thread
+                // render the same chips the live turn did.
+                ...(message.attachments?.length
+                    ? { attachments: message.attachments }
+                    : {}),
                 ...(message.stopReason
                     ? { stopReason: message.stopReason }
                     : {})

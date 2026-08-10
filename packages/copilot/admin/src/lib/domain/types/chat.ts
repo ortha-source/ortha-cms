@@ -108,6 +108,29 @@ export type ChatBlock =
 // discriminant. The extra `.step` / `.proposal` hop is the price of not
 // clobbering a field the card renders.
 
+/**
+ * A file the user attached to a turn, as the transcript renders it.
+ *
+ * Mirrors the server's `AttachmentRef`. It is a media asset like any other —
+ * attaching a file uploads it to the library first, under the user's own
+ * `media:create`, so the chip links somewhere real and the file outlives the
+ * conversation.
+ */
+export interface ChatAttachment {
+    /** The media asset's id. */
+    assetId: string;
+    /** The file's name, as stored. */
+    name: string;
+    /** Its MIME type. */
+    mimeType: string;
+    /** The coarse category: image, video, audio, document, archive. */
+    kind: string;
+    /** Size in bytes. */
+    size: number;
+    /** Whether Ortha AI can read the contents, or only see that it exists. */
+    readable: boolean;
+}
+
 /** One turn as the transcript renders it. */
 export interface ChatMessage {
     /** Stable key. The server's message id once persisted, else a local id. */
@@ -125,6 +148,8 @@ export interface ChatMessage {
      * Empty on a user turn.
      */
     blocks: ChatBlock[];
+    /** Files the user attached to this turn. Absent on an assistant turn. */
+    attachments?: ChatAttachment[];
     /** Tool calls waiting on the user, in order. */
     permissions?: ChatPermissionRequest[];
     /** True while this turn is still streaming. */

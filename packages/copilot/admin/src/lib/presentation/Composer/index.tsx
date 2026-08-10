@@ -3,12 +3,16 @@ import {
     useLayoutEffect,
     useRef,
     useState,
+    type ClipboardEvent,
+    type DragEvent,
     type KeyboardEvent,
     type ReactNode
 } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp, Paperclip, Square } from 'lucide-react';
 import { Button, Textarea, cn } from '@ortha-cms/design-system';
+import { AttachmentChip } from '../AttachmentChip';
+import type { ComposerAttachments } from '../../application/useComposerAttachments';
 
 const messages = defineMessages({
     placeholder: {
@@ -26,6 +30,22 @@ const messages = defineMessages({
     hint: {
         id: 'copilot.composer.hint',
         defaultMessage: 'Enter to send, Shift+Enter for a new line'
+    },
+    attach: {
+        id: 'copilot.composer.attach',
+        defaultMessage: 'Attach files'
+    },
+    dropHere: {
+        id: 'copilot.composer.dropHere',
+        defaultMessage: 'Drop files to attach them'
+    },
+    attachedFiles: {
+        id: 'copilot.composer.attachedFiles',
+        defaultMessage: 'Attached files'
+    },
+    uploadingHint: {
+        id: 'copilot.composer.uploadingHint',
+        defaultMessage: 'Waiting for uploads to finish…'
     }
 });
 
@@ -44,6 +64,12 @@ export interface ComposerProps {
     busy: boolean;
     /** Sends the typed message. */
     onSend(text: string): void;
+    /**
+     * Staged attachments, when the surface supports them. Omit and the
+     * composer renders no attach control at all — which is what a surface
+     * without a media library should do, rather than offer a button that fails.
+     */
+    attachments?: ComposerAttachments;
     /** Cancels the run in flight. */
     onStop(): void;
     /**
@@ -90,11 +116,18 @@ export function Composer({
     onStop,
     inputRef,
     controls,
-    className
+    className,
+    attachments
 }: ComposerProps) {
     const intl = useIntl();
     const [value, setValue] = useState('');
+    const [dragging, setDragging] = useState(false);
     const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+    const fileRef = useRef<HTMLInputElement | null>(null);
+    // Drag events fire per element, so entering a child fires `dragleave` on
+    // the parent. Counting keeps the highlight on until the pointer has really
+    // left the box, instead of flickering across every child it crosses.
+    const dragDepth = useRef(0);
 
     // The caller may want the field too (the page focuses it on mount), and an
     // element has one `ref` — so this fans the node out to both.
@@ -126,13 +159,37 @@ export function Composer({
         field.style.height = `${Math.min(field.scrollHeight, MAX_HEIGHT)}px`;
     }, [value]);
 
+    // Blocked while an upload is in flight: sending now would drop the file
+    // from the turn silently, and the person has no way to know the difference
+    // between "attached" and "still uploading" once the message is gone.
+    const blocked = busy || attachments?.uploading === true;
+
     const submit = () => {
         const text = value.trim();
-        if (!text || busy) {
+        if (!text || blocked) {
             return;
         }
         onSend(text);
         setValue('');
+    };
+
+    const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+        // Only when the clipboard actually carries files. A normal text paste
+        // has an empty `files`, and intercepting it would break paste.
+        const files = Array.from(event.clipboardData?.files ?? []);
+        if (files.length > 0 && attachments) {
+            event.preventDefault();
+            attachments.add(files);
+        }
+    };
+
+    const onDrop = (event: DragEvent<HTMLDivElement>) => {
+        setDragging(false);
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        if (files.length > 0 && attachments) {
+            event.preventDefault();
+            attachments.add(files);
+        }
     };
 
     const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -147,17 +204,74 @@ export function Composer({
     };
 
     return (
-        <div className={cn('border-border/60 border-t p-3', className)}>
+        <div
+            className={cn('border-border/60 relative border-t p-3', className)}
+            onDragEnter={(event) => {
+                if (!attachments || !hasFiles(event)) {
+                    return;
+                }
+                dragDepth.current += 1;
+                setDragging(true);
+            }}
+            onDragOver={(event) => {
+                // Without this the browser navigates to the dropped file, and
+                // the drop handler never runs.
+                if (attachments && hasFiles(event)) {
+                    event.preventDefault();
+                }
+            }}
+            onDragLeave={() => {
+                dragDepth.current = Math.max(dragDepth.current - 1, 0);
+                if (dragDepth.current === 0) {
+                    setDragging(false);
+                }
+            }}
+            onDrop={(event) => {
+                dragDepth.current = 0;
+                onDrop(event);
+            }}
+        >
+            {dragging ? (
+                <div className="border-primary bg-primary/5 text-primary pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-lg border-2 border-dashed text-xs font-medium">
+                    {intl.formatMessage(messages.dropHere)}
+                </div>
+            ) : null}
             {/* The border and the focus ring live on this wrapper rather than on
                 the field, so the controls below read as part of one box. The
                 field itself is stripped of both — two nested rings on focus is
                 the giveaway that a composer was assembled rather than designed. */}
             <div className="border-input bg-card focus-within:border-primary focus-within:ring-primary/15 rounded-lg border shadow-xs transition-colors focus-within:ring-2">
+                {attachments && attachments.items.length > 0 ? (
+                    <ul
+                        className="flex flex-wrap gap-1.5 px-2 pt-2"
+                        aria-label={intl.formatMessage(messages.attachedFiles)}
+                    >
+                        {attachments.items.map((item) => (
+                            <li key={item.id}>
+                                <AttachmentChip
+                                    name={item.name}
+                                    size={item.size}
+                                    {...(item.asset
+                                        ? { kind: item.asset.kind }
+                                        : {})}
+                                    progress={item.progress}
+                                    uploading={item.status === 'uploading'}
+                                    failed={item.status === 'failed'}
+                                    {...(item.error
+                                        ? { error: item.error }
+                                        : {})}
+                                    onRemove={() => attachments.remove(item.id)}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
                 <Textarea
                     ref={attachField}
                     value={value}
                     onChange={(event) => setValue(event.target.value)}
                     onKeyDown={onKeyDown}
+                    onPaste={onPaste}
                     placeholder={intl.formatMessage(messages.placeholder)}
                     aria-label={intl.formatMessage(messages.placeholder)}
                     rows={2}
@@ -168,6 +282,36 @@ export function Composer({
                         button keeps its place instead of jumping when a
                         deployment offers one model and the picker hides. */}
                     <div className="flex min-w-0 items-center gap-1">
+                        {attachments ? (
+                            <>
+                                <input
+                                    ref={fileRef}
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(event) => {
+                                        if (event.target.files) {
+                                            attachments.add(event.target.files);
+                                        }
+                                        // Cleared so picking the same file
+                                        // twice in a row still fires `change`.
+                                        event.target.value = '';
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 shrink-0"
+                                    onClick={() => fileRef.current?.click()}
+                                    aria-label={intl.formatMessage(
+                                        messages.attach
+                                    )}
+                                >
+                                    <Paperclip className="size-4" />
+                                </Button>
+                            </>
+                        ) : null}
                         {controls}
                     </div>
                     <Button
@@ -175,7 +319,11 @@ export function Composer({
                         size="icon"
                         className="size-7 shrink-0"
                         onClick={busy ? onStop : submit}
-                        disabled={!busy && value.trim().length === 0}
+                        disabled={
+                            !busy &&
+                            (value.trim().length === 0 ||
+                                attachments?.uploading === true)
+                        }
                         aria-label={intl.formatMessage(
                             busy ? messages.stop : messages.send
                         )}
@@ -188,9 +336,29 @@ export function Composer({
                     </Button>
                 </div>
             </div>
-            <p className="text-muted-foreground mt-1.5 text-[11px]">
-                {intl.formatMessage(messages.hint)}
+            <p
+                className={cn(
+                    'mt-1.5 text-[11px]',
+                    attachments?.error
+                        ? 'text-destructive'
+                        : 'text-muted-foreground'
+                )}
+                // A live region so the count refusal and the upload wait are
+                // announced, not just drawn — both are the reason a send did
+                // not happen, which a screen-reader user otherwise meets as
+                // silence.
+                role="status"
+            >
+                {attachments?.error ??
+                    (attachments?.uploading
+                        ? intl.formatMessage(messages.uploadingHint)
+                        : intl.formatMessage(messages.hint))}
             </p>
         </div>
     );
+}
+
+/** Whether a drag actually carries files, rather than selected text or a link. */
+function hasFiles(event: DragEvent<HTMLDivElement>): boolean {
+    return Array.from(event.dataTransfer?.types ?? []).includes('Files');
 }
