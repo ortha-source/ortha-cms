@@ -68,8 +68,8 @@ function hexagon(cx: number, cy: number, side: number): string {
  *   rest of the admin. Not the muted ink either — at this size that still read
  *   as a drawn grid rather than as ground.
  * - **A radial mask fades it out before the content starts.** The lattice haloes
- *   the mark and the greeting and has dissolved by the time the suggestion cards
- *   begin — the cards sit on clean ground, not on a grid.
+ *   the greeting and has dissolved by the time the suggestion cards begin — the
+ *   cards sit on clean ground, not on a grid.
  * - **`currentColor` and a token class**, so it follows the theme instead of
  *   being a light-mode decoration that turns into scratches on the dark canvas.
  *
@@ -107,7 +107,7 @@ export function HoneycombBackdrop() {
                     ))}
                 </pattern>
 
-                {/* Centred on the mark, and gone by ~45% of the radius — which
+                {/* Centred above the greeting, and gone by ~45% of the radius — which
                     is where the suggestion cards start. Tuned by looking at it:
                     a fade that reached them made the whole panel read as graph
                     paper rather than as a halo behind the greeting. */}

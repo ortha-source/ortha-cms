@@ -279,28 +279,28 @@ answer for.
 
 `HoneycombBackdrop` — an SVG lattice of large hexagons in `text-border`, the
 same hairline grey as every divider in the admin, masked by a radial fade centred
-on the mark. **Not the brand orange**, which is what it was first: a lattice
-covering the whole panel plus an orange mark and an orange card hover is far
-more surface than a single accent is meant to carry, and the empty state read as
-a different product from the rest of the admin. The mark is `bg-secondary`, the
-same light grey tile the app uses elsewhere. A honeycomb because
+above the greeting. **Not the brand orange**, which is what it was first: a
+lattice covering the whole panel plus an orange hexagon mark and an orange card
+hover is far more surface than a single accent is meant to carry, and the empty
+state read as a different product from the rest of the admin. **And the mark is
+gone entirely** — it was one more thing to read before the question it sat on
+top of, and the lattice already carries the motif. The greeting is the first
+thing on the screen. A honeycomb because
 it is what the surface _is_: a workspace's content is a lattice of small things
 that fit together. Three things keep it a backdrop rather than decoration:
 
 - **Big cells.** At half the size it tiled into texture — legible as pattern but
   not as hexagons, which is the difference between a backdrop and a shade of
   grey.
-- **The fade ends before the cards do.** It haloes the mark and the greeting and
-  has dissolved by the time the suggestions start, so they sit on clean ground.
+- **The fade ends before the cards do.** It haloes the greeting and has
+  dissolved by the time the suggestions start, so they sit on clean ground.
   Tuned by looking at it; the first pass reached them and the panel read as graph
   paper.
 - **`currentColor` off a token class**, so it follows the theme instead of being
   a light-mode flourish that turns into scratches on the dark canvas.
 
 The pattern ids come from `useId()`: two of these can be on screen at once, and
-duplicate SVG ids make the second reference the first's pattern. The greeting's
-mark is clipped to a hexagon from the same lattice, so it belongs to the pattern
-rather than sitting on an unrelated one.
+duplicate SVG ids make the second reference the first's pattern.
 
 ### One bar, not two
 

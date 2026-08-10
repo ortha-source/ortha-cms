@@ -1,5 +1,5 @@
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { HoneycombBackdrop } from './HoneycombBackdrop';
 
 // The product is **Ortha AI**; the code keeps `copilot`. See the naming note in
@@ -81,19 +81,10 @@ export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
                 only just. */}
             <div className="relative w-full max-w-2xl">
                 <div className="flex flex-col items-center text-center">
-                    {/* A hexagon, cut from the same shape as the lattice behind
-                        it — the mark belongs to the pattern rather than sitting
-                        on top of an unrelated one. */}
-                    <span
-                        className="bg-secondary text-secondary-foreground mb-5 grid size-12 place-items-center"
-                        style={{
-                            clipPath:
-                                'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)'
-                        }}
-                        aria-hidden
-                    >
-                        <Sparkles className="size-5" />
-                    </span>
+                    {/* No mark above the greeting. It was a hexagon cut from the
+                        lattice's own shape, and it was still one more thing to
+                        read before the question it sat on top of — the lattice
+                        already carries the motif. */}
                     <h2 className="text-2xl font-semibold tracking-tight text-balance">
                         {intl.formatMessage(messages.title, {
                             workspace: workspaceName
