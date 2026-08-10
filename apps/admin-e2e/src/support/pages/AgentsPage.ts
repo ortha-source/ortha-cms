@@ -282,6 +282,178 @@ export class AgentsPage extends BasePage {
         return box?.height ?? 0;
     }
 
+    /**
+     * The line under the box. It is the composer's live region as well as its
+     * hint, so it carries the attach limit and the "waiting for uploads" state.
+     */
+    composerHint(): Locator {
+        return this.main.getByRole('status');
+    }
+
+    // --- attachments ------------------------------------------------------
+
+    /** The paperclip. Absent on a surface that passes no attachment state. */
+    attachButton(): Locator {
+        return this.main.getByRole('button', { name: 'Attach files' });
+    }
+
+    /**
+     * The staged-file row inside the composer.
+     *
+     * Named apart from the transcript's sent list on purpose — see the
+     * composer's own message — so this handle cannot resolve a turn that has
+     * already been sent.
+     */
+    stagedList(): Locator {
+        return this.main.getByRole('list', { name: 'Files to send' });
+    }
+
+    /** Every staged chip, in the order it was added. */
+    stagedChips(): Locator {
+        return this.stagedList().getByRole('listitem');
+    }
+
+    /** One turn's sent chips, by the turn's position in the transcript. */
+    sentAttachments(): Locator {
+        return this.main.getByRole('list', { name: 'Attached files' });
+    }
+
+    /** Remove a staged file. The name is in the control's accessible name. */
+    removeAttachment(name: string): Locator {
+        return this.main.getByRole('button', { name: `Remove ${name}` });
+    }
+
+    /**
+     * Attach files through the hidden `<input type=file>`.
+     *
+     * `setInputFiles` on the input rather than a click on the paperclip: the
+     * click opens the OS picker, which Playwright cannot drive. The input is
+     * `hidden`, so this needs no visibility wait.
+     */
+    async attachFiles(
+        ...files: { name: string; mimeType: string; body: string }[]
+    ) {
+        await this.main.locator('input[type=file]').setInputFiles(
+            files.map((file) => ({
+                name: file.name,
+                mimeType: file.mimeType,
+                buffer: Buffer.from(file.body)
+            }))
+        );
+    }
+
+    /**
+     * Build a `DataTransfer` carrying files, in the page.
+     *
+     * Drag and paste both need one, and neither can be produced from Node —
+     * a `File` has to be constructed in the browser realm the handler will read
+     * it in. Returned as a handle so the caller can pass it into `dispatchEvent`.
+     */
+    private async fileTransfer(
+        files: { name: string; mimeType: string; body: string }[]
+    ) {
+        return this.page.evaluateHandle((items) => {
+            // Reached through `globalThis` and typed by hand: this package's
+            // tsconfig has no DOM lib (the specs drive a browser, they do not
+            // compile against one), so bare `DataTransfer` and `File` do not
+            // resolve here even though they exist in the page. Same idiom as
+            // `CopilotDockPage.storedFrame`.
+            const scope = globalThis as unknown as {
+                DataTransfer: new () => {
+                    items: { add(file: unknown): void };
+                };
+                File: new (
+                    parts: string[],
+                    name: string,
+                    options: { type: string }
+                ) => unknown;
+            };
+            const transfer = new scope.DataTransfer();
+            for (const item of items) {
+                transfer.items.add(
+                    new scope.File([item.body], item.name, {
+                        type: item.mimeType
+                    })
+                );
+            }
+            return transfer;
+        }, files);
+    }
+
+    /** Drag files over the composer without dropping — for the highlight. */
+    async dragFilesOver(
+        ...files: { name: string; mimeType: string; body: string }[]
+    ) {
+        const transfer = await this.fileTransfer(files);
+        await this.composer().dispatchEvent('dragenter', {
+            dataTransfer: transfer
+        });
+    }
+
+    /** Drop files onto the composer. */
+    async dropFiles(
+        ...files: { name: string; mimeType: string; body: string }[]
+    ) {
+        const transfer = await this.fileTransfer(files);
+        await this.composer().dispatchEvent('dragenter', {
+            dataTransfer: transfer
+        });
+        await this.composer().dispatchEvent('drop', {
+            dataTransfer: transfer
+        });
+    }
+
+    /**
+     * Paste files into the composer, as pasting a screenshot does.
+     *
+     * Dispatched **inside the page** rather than through
+     * `locator.dispatchEvent`, which builds the event from a name→constructor
+     * map that has no `ClipboardEvent` in it: the event arrives as a plain
+     * `Event` and `clipboardData` is dropped, so the handler sees no files and
+     * the test passes for the wrong reason. Drop is unaffected — `DragEvent`
+     * *is* in that map, which is why `dropFiles` above can stay declarative.
+     */
+    async pasteFiles(
+        ...files: { name: string; mimeType: string; body: string }[]
+    ) {
+        await this.composer().evaluate((element, items) => {
+            const scope = globalThis as unknown as {
+                DataTransfer: new () => { items: { add(file: unknown): void } };
+                File: new (
+                    parts: string[],
+                    name: string,
+                    options: { type: string }
+                ) => unknown;
+                ClipboardEvent: new (
+                    type: string,
+                    init: Record<string, unknown>
+                ) => unknown;
+            };
+            const transfer = new scope.DataTransfer();
+            for (const item of items) {
+                transfer.items.add(
+                    new scope.File([item.body], item.name, {
+                        type: item.mimeType
+                    })
+                );
+            }
+            (
+                element as unknown as { dispatchEvent(event: unknown): void }
+            ).dispatchEvent(
+                new scope.ClipboardEvent('paste', {
+                    clipboardData: transfer,
+                    bubbles: true,
+                    cancelable: true
+                })
+            );
+        }, files);
+    }
+
+    /** The drop overlay, shown only while files are dragged over the box. */
+    dropOverlay(): Locator {
+        return this.main.getByText('Drop files to attach them');
+    }
+
     // --- the model picker (bottom-left of the composer) --------------------
 
     /** The picker's trigger. It shows the current choice, or "Default". */
