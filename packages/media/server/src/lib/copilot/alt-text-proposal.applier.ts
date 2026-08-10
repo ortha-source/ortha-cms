@@ -6,7 +6,7 @@ import type {
     ProposalTarget
 } from '@ortha-cms/copilot-domain';
 import { UpdateAssetUseCase } from '../application/use-cases/update-asset.use-case';
-import { MEDIA_PROPOSAL_KINDS } from './alt-text-proposal.provider';
+import { MEDIA_PROPOSAL_KINDS } from './proposal-kinds';
 
 /**
  * Applies `media.asset.setAlt` through {@link UpdateAssetUseCase} — the same

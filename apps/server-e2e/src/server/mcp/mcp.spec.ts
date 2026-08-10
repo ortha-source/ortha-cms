@@ -391,12 +391,15 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
                     'i18n_locales_list',
                     'i18n_translations_get',
                     'media_assets_search',
+                    'media_folders_list',
+                    'media_asset_read',
                     'activity_recent',
                     'workspace_members_list',
                     'content_propose_create',
                     'content_propose_update',
                     'i18n_propose_translation',
-                    'media_propose_alt_text'
+                    'media_propose_alt_text',
+                    'media_propose_file'
                 ])
             );
         });
@@ -409,6 +412,24 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
 
             const { isError } = await callTool(secret, 'admin_content_search', {
                 typeName: 'test_article'
+            });
+
+            expect(isError).toBe(true);
+        });
+
+        // The media propose tool is the sharper half of the same rule: it
+        // *writes*, and a token holds `media:create` under the `full` scope, so
+        // permissions alone would let this through. Only `surfaces` stops it —
+        // and it has to, because an MCP client has no way to answer the
+        // permission prompt the write is gated behind.
+        it('refuses copilot-only file creation, which a full token could otherwise afford', async () => {
+            const { secret } = await mintToken({ scope: 'full' });
+
+            const { isError } = await callTool(secret, 'media_propose_file', {
+                fileName: 'backdoor',
+                format: 'md',
+                content: '# Written without a prompt',
+                summary: 'Backdoor'
             });
 
             expect(isError).toBe(true);

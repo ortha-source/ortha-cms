@@ -115,7 +115,7 @@ same service the HTTP controllers call:
 | ---------- | ------------------------------------------------------------------------------------------------------------------- |
 | `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` |
 | `i18n`     | `i18n_locales_list`, `i18n_translations_get`                                                                        |
-| `media`    | `media_assets_search`                                                                                               |
+| `media`    | `media_assets_search`, `media_folders_list`, `media_asset_read`                                                     |
 | `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                   |
 | `users`    | `workspace_members_list` — scoped to the run's workspace                                                            |
 
@@ -127,6 +127,7 @@ Plus the `propose` half — the write tools, all of which **write nothing**:
 | `content` | `content_propose_update`   | `content.entry.update` |
 | `i18n`    | `i18n_propose_translation` | `i18n.entry.translate` |
 | `media`   | `media_propose_alt_text`   | `media.asset.setAlt`   |
+| `media`   | `media_propose_file`       | `media.asset.create`   |
 
 ## Asking before a write runs
 

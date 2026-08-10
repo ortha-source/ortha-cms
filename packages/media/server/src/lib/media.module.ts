@@ -21,6 +21,8 @@ import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
 import { MediaCopilotToolProvider } from './copilot/media-tool.provider';
 import { AltTextProposalToolProvider } from './copilot/alt-text-proposal.provider';
 import { AltTextProposalApplier } from './copilot/alt-text-proposal.applier';
+import { CreateFileProposalToolProvider } from './copilot/create-file-proposal.provider';
+import { CreateFileProposalApplier } from './copilot/create-file-proposal.applier';
 import { ListFoldersQuery } from './infrastructure/queries/list-folders.query';
 import { AssetViewQuery } from './infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from './infrastructure/queries/download-asset.query';
@@ -115,16 +117,22 @@ export class MediaModule {
                 // Read models.
                 ListAssetsQuery,
                 ListFoldersQuery,
-                // The copilot's read-only asset search. Both no-op when no
-                // copilot plugin is registered — the registrar injects the
-                // registry optionally.
+                // The copilot's read tools — asset search, folder listing and
+                // reading a text asset. All no-op when no copilot plugin is
+                // registered: they inject the registry optionally.
                 MediaCopilotToolProvider,
                 AltTextProposalToolProvider,
-                // The applier for the kind that propose tool produces. Next to
-                // it on purpose: a missing applier surfaces only when a human
-                // clicks Accept.
+                CreateFileProposalToolProvider,
+                // The appliers for the kinds those propose tools produce. Next
+                // to them on purpose: a missing applier surfaces only when a
+                // human approves the change it was meant to carry out.
                 AltTextProposalApplier,
-                copilotAppliersRegistrar('media', AltTextProposalApplier),
+                CreateFileProposalApplier,
+                copilotAppliersRegistrar(
+                    'media',
+                    AltTextProposalApplier,
+                    CreateFileProposalApplier
+                ),
                 AssetViewQuery,
                 DownloadAssetQuery,
                 // Binds content-server's media-asset resolver port, so a content

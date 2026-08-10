@@ -1,0 +1,439 @@
+import request from 'supertest';
+import {
+    closeTestApp,
+    createTestApp,
+    type TestApp
+} from '../../support/test-app';
+import {
+    countMediaAssets,
+    resetDb,
+    seedActiveUser,
+    seedMediaFolder,
+    seedMembership,
+    seedWorkspace,
+    type SeededWorkspace
+} from '../../support/seed';
+import { copilotCalls, scriptCopilot } from '../../support/copilot';
+import { framesOfType, parseSse, streamSse } from '../../support/sse';
+import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
+
+const ADMIN_EMAIL = 'media-file-admin@example.com';
+const VIEWER_EMAIL = 'media-file-viewer@example.com';
+const CONTRIBUTOR_EMAIL = 'media-file-contributor@example.com';
+const PASSWORD = 'SecurePass123!';
+
+/**
+ * `media_propose_file` end to end — Ortha AI authoring a report into the media
+ * library, from the offer through the permission prompt to a real asset with
+ * real bytes behind it.
+ *
+ * The suite is separate from `copilot-proposals.spec.ts` because the property
+ * under test is different. That one is about the *mechanism* — a change asks
+ * first, is recorded before it is made, and runs the ordinary use-case. This
+ * one is about the mechanism reaching **storage**: a proposal whose apply ends
+ * in a blob, a MIME type derived from a closed enum rather than from the model,
+ * and the failure paths that have to land *before* approval to be recoverable.
+ */
+describe('Copilot file creation', () => {
+    let harness: TestApp;
+    let workspace: SeededWorkspace;
+
+    beforeAll(async () => {
+        harness = await createTestApp();
+    });
+
+    afterAll(async () => {
+        await closeTestApp(harness);
+    });
+
+    beforeEach(async () => {
+        await resetDb();
+        workspace = await seedWorkspace({ name: 'Docs', slug: 'docs' });
+    });
+
+    async function login(email: string) {
+        const agent = request.agent(harness.server);
+        await agent
+            .post('/api/auth/login')
+            .send({ email, password: PASSWORD })
+            .expect(201);
+        agent.set('X-Workspace-Id', workspace.id);
+        return agent;
+    }
+
+    async function signIn(
+        email: string,
+        role: 'admin' | 'contributor' | 'viewer'
+    ) {
+        const user = await seedActiveUser(harness.app, {
+            email,
+            password: PASSWORD,
+            role
+        });
+        await seedMembership(user.id, workspace.id);
+        return { user, agent: await login(email) };
+    }
+
+    async function run(agent: request.Agent, body: Record<string, unknown>) {
+        const response = await agent
+            .post('/api/copilot/runs')
+            .set('Origin', TEST_ALLOWED_ORIGIN)
+            .send(body)
+            .expect(200);
+        return parseSse(response.text);
+    }
+
+    /** Answer one parked call. Fire-and-forget: the run is awaiting this. */
+    function decide(
+        agent: request.Agent,
+        runId: string,
+        callId: string,
+        decision: 'once' | 'chat' | 'deny'
+    ): void {
+        void agent
+            .post(`/api/copilot/runs/${runId}/permission`)
+            .set('Origin', TEST_ALLOWED_ORIGIN)
+            .send({ callId, decision })
+            .expect(204)
+            .catch((error: Error) => {
+                throw new Error(`answering ${callId} failed: ${error.message}`);
+            });
+    }
+
+    /**
+     * Script one `media_propose_file` call, answer the prompt it parks on, and
+     * return the frames.
+     *
+     * The answer has to go out **mid-stream** — a propose tool suspends the run
+     * until `POST /runs/:runId/permission` resolves it, so buffering the whole
+     * SSE body first would deadlock waiting for an ending that cannot arrive.
+     */
+    async function proposeFile(
+        agent: request.Agent,
+        input: Record<string, unknown>,
+        decision: 'once' | 'chat' | 'deny' = 'once'
+    ) {
+        scriptCopilot(
+            { toolCalls: [{ name: 'media_propose_file', input }] },
+            { text: 'Written for you.' }
+        );
+        const request$ = agent
+            .post('/api/copilot/runs')
+            .set('Origin', TEST_ALLOWED_ORIGIN)
+            .send({ message: 'write me a report' })
+            .expect(200);
+        const events = await streamSse(request$, (event) => {
+            if (event.type === 'tool-permission-request') {
+                decide(agent, event.runId, event.id, decision);
+            }
+        });
+        return {
+            events,
+            result: framesOfType(events, 'tool-result')[0],
+            proposal: framesOfType(events, 'proposal')[0],
+            permission: framesOfType(events, 'tool-permission-request')[0]
+        };
+    }
+
+    /** The workspace's assets, as the library's own route reports them. */
+    async function listAssets(agent: request.Agent) {
+        const response = await agent.get('/api/media/assets').expect(200);
+        return response.body.items as {
+            id: string;
+            name: string;
+            mimeType: string;
+            size: number;
+            kind: string;
+            folderId: string | null;
+        }[];
+    }
+
+    // ------------------------------------------------------------- the offer
+    describe('the offer', () => {
+        it('offers file creation to a contributor, who holds media:create', async () => {
+            scriptCopilot({ text: 'ok' });
+            const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
+
+            await run(agent, { message: 'hello' });
+
+            expect(
+                (copilotCalls()[0].tools ?? []).map((t) => t.name)
+            ).toContain('media_propose_file');
+        });
+
+        // The property no new permission was introduced in order to preserve:
+        // a viewer holds `media:read` and not `media:create`, so their copilot
+        // is offered every media read tool and no way to write one.
+        it('withholds it from a viewer, whose copilot stays read-only', async () => {
+            scriptCopilot({ text: 'ok' });
+            const { agent } = await signIn(VIEWER_EMAIL, 'viewer');
+
+            await run(agent, { message: 'hello' });
+
+            const offered = (copilotCalls()[0].tools ?? []).map((t) => t.name);
+            expect(offered).not.toContain('media_propose_file');
+            expect(offered).toContain('media_assets_search');
+            expect(offered).toContain('media_asset_read');
+        });
+
+        // Withheld at offer time is a usability filter; `ToolRegistry.call` is
+        // the boundary. A model can name a tool it was never shown.
+        it('refuses the call from a viewer who names it anyway', async () => {
+            const { agent } = await signIn(VIEWER_EMAIL, 'viewer');
+
+            const { result } = await proposeFile(agent, {
+                fileName: 'audit',
+                format: 'md',
+                content: '# Audit',
+                summary: 'Audit'
+            });
+
+            expect(result.ok).toBe(false);
+            expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+    });
+
+    // ------------------------------------------------------- the happy path
+    describe('an approved file lands in the library', () => {
+        it('creates a real asset with the bytes the model wrote', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const content = '# Q3 audit\n\n- 12 drafts\n- 3 stale entries\n';
+
+            const { result, proposal } = await proposeFile(agent, {
+                fileName: 'Q3 audit',
+                format: 'md',
+                content,
+                summary: 'Q3 content audit as Markdown'
+            });
+
+            expect(result.ok).toBe(true);
+            expect(proposal.status).toBe('accepted');
+
+            const [asset] = await listAssets(agent);
+            expect(asset).toMatchObject({
+                name: 'Q3 audit.md',
+                // Derived from `format`, never from anything the model said.
+                mimeType: 'text/markdown',
+                kind: 'document',
+                size: Buffer.byteLength(content, 'utf8'),
+                folderId: null
+            });
+
+            // The bytes are really in storage, not just a row describing them.
+            const download = await agent
+                .get(`/api/media/assets/${asset.id}/raw`)
+                .expect(200);
+            expect(download.text).toBe(content);
+        });
+
+        it('files it in the folder the model chose', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            const folder = await seedMediaFolder({
+                workspaceId: workspace.id,
+                name: 'Reports'
+            });
+
+            await proposeFile(agent, {
+                fileName: 'weekly',
+                format: 'csv',
+                content: 'type,count\narticle,12\n',
+                folderId: folder.id,
+                summary: 'Weekly counts'
+            });
+
+            const [asset] = await listAssets(agent);
+            expect(asset.folderId).toBe(folder.id);
+            expect(asset.name).toBe('weekly.csv');
+            expect(asset.mimeType).toBe('text/csv');
+        });
+
+        // The extension follows from `format`, so a model that puts the wrong
+        // one in `fileName` cannot make the name disagree with the MIME type.
+        it('replaces an extension that contradicts the chosen format', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            await proposeFile(agent, {
+                fileName: 'summary.txt',
+                format: 'md',
+                content: '# Summary',
+                summary: 'Summary'
+            });
+
+            const [asset] = await listAssets(agent);
+            expect(asset.name).toBe('summary.md');
+            expect(asset.mimeType).toBe('text/markdown');
+        });
+
+        // ADR-0009's gate: the arguments are shown *before* the call runs, so
+        // the person approving is reading the report rather than discovering it.
+        it('shows the file’s text in the prompt before anything is written', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { permission } = await proposeFile(agent, {
+                fileName: 'draft',
+                format: 'md',
+                content: '# The whole report',
+                summary: 'Draft'
+            });
+
+            expect(permission.name).toBe('media_propose_file');
+            expect(JSON.stringify(permission.input)).toContain(
+                'The whole report'
+            );
+        });
+
+        it('writes nothing when the user refuses', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { result } = await proposeFile(
+                agent,
+                {
+                    fileName: 'unwanted',
+                    format: 'md',
+                    content: '# No',
+                    summary: 'Unwanted'
+                },
+                'deny'
+            );
+
+            expect(result.ok).toBe(false);
+            expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+
+        // The row written before the write is the only thing carrying
+        // ADR-0005 §5's "undoable, never invisible" now that nothing waits for
+        // review. A file with no receipt would be a change nobody can trace.
+        it('records the change as a proposal joined to the new asset', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { proposal } = await proposeFile(agent, {
+                fileName: 'traceable',
+                format: 'txt',
+                content: 'hello',
+                summary: 'A traceable file'
+            });
+
+            const [asset] = await listAssets(agent);
+            expect(proposal.entityId).toBe(asset.id);
+
+            const response = await agent
+                .get('/api/copilot/proposals')
+                .expect(200);
+            const rows = response.body.items as {
+                toolName: string;
+                kind: string;
+                status: string;
+                result: Record<string, unknown> | null;
+            }[];
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+                toolName: 'media_propose_file',
+                kind: 'media.asset.create',
+                status: 'accepted'
+            });
+            // The applier's own return value, recorded on the row — the receipt
+            // that ties this change to the file it produced.
+            expect(rows[0].result).toMatchObject({
+                entityId: asset.id,
+                detail: expect.objectContaining({
+                    fileName: 'traceable.txt',
+                    format: 'txt'
+                })
+            });
+        });
+    });
+
+    // ------------------------------------------------------ failing early
+    describe('failures land before approval, where they are recoverable', () => {
+        /**
+         * A refused draft never reaches the permission prompt, so there is
+         * nothing to answer — the run just ends with a tool error the model can
+         * act on. Buffering the body is safe here for exactly that reason.
+         */
+        async function attempt(
+            agent: request.Agent,
+            input: Record<string, unknown>
+        ) {
+            scriptCopilot(
+                { toolCalls: [{ name: 'media_propose_file', input }] },
+                { text: 'I could not.' }
+            );
+            const events = await run(agent, { message: 'write me a report' });
+            return framesOfType(events, 'tool-result')[0];
+        }
+
+        // A model asked for a report proposes `reports/2026/q3.md` readily.
+        // Flattening it silently would file the report at the root while the
+        // model told the user it went to `reports/2026`.
+        it('rejects a path and names the parameter that does the job', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const result = await attempt(agent, {
+                fileName: 'reports/2026/q3',
+                format: 'md',
+                content: '# Q3',
+                summary: 'Q3'
+            });
+
+            expect(result.ok).toBe(false);
+            expect(result.error).toContain('folderId');
+            expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+
+        it('rejects a folder id from another workspace', async () => {
+            const other = await seedWorkspace({ name: 'Other', slug: 'other' });
+            const outside = await seedMediaFolder({
+                workspaceId: other.id,
+                name: 'Elsewhere'
+            });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const result = await attempt(agent, {
+                fileName: 'stray',
+                format: 'md',
+                content: '# Stray',
+                summary: 'Stray',
+                folderId: outside.id
+            });
+
+            expect(result.ok).toBe(false);
+            expect(result.error).toContain('No folder');
+            expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+
+        it('rejects an empty file', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const result = await attempt(agent, {
+                fileName: 'blank',
+                format: 'md',
+                content: '',
+                summary: 'Blank'
+            });
+
+            expect(result.ok).toBe(false);
+            expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+
+        // The closed enum is what stops a generated file being stored as
+        // something executable — `MediaKind.classify` would file
+        // `application/x-msdownload` under `document` without complaint.
+        it('rejects a format outside the enum', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const result = await attempt(agent, {
+                fileName: 'payload',
+                format: 'exe',
+                content: 'MZ',
+                summary: 'Payload'
+            });
+
+            expect(result.ok).toBe(false);
+            expect(await countMediaAssets(workspace.id)).toBe(0);
+        });
+    });
+
+    // The other half of the surface split — that an MCP client cannot reach
+    // this tool even holding `media:create` — is asserted in `mcp.spec.ts`,
+    // where the bearer-token harness lives.
+});

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_739 test cases across 46 spec files._
+_763 test cases across 47 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -984,6 +984,39 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts</sub>_
 | 401s an unauthenticated request |
 | 403s a cross-origin write — `OriginGuard` is on this route |
 
+<!-- source: apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts -->
+_<sub>apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts</sub>_
+
+## Copilot file creation
+
+### the offer
+
+| Test case |
+| --- |
+| offers file creation to a contributor, who holds media:create |
+| withholds it from a viewer, whose copilot stays read-only |
+| refuses the call from a viewer who names it anyway |
+
+### an approved file lands in the library
+
+| Test case |
+| --- |
+| creates a real asset with the bytes the model wrote |
+| files it in the folder the model chose |
+| replaces an extension that contradicts the chosen format |
+| shows the file’s text in the prompt before anything is written |
+| writes nothing when the user refuses |
+| records the change as a proposal joined to the new asset |
+
+### failures land before approval, where they are recoverable
+
+| Test case |
+| --- |
+| rejects a path and names the parameter that does the job |
+| rejects a folder id from another workspace |
+| rejects an empty file |
+| rejects a format outside the enum |
+
 <!-- source: apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_
 
@@ -1083,6 +1116,26 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | filters by kind |
 | does not see another workspace’s assets |
 | omits the storage URL, which a model cannot fetch anyway |
+| carries a download path the asking user’s browser can follow |
+
+### media_folders_list
+
+| Test case |
+| --- |
+| turns a folder name into the id the search tool takes |
+| returns a nested tree flat, with parent pointers |
+| does not see another workspace’s folders |
+
+### media_asset_read
+
+| Test case |
+| --- |
+| decodes a text file the model can then work with |
+| refuses a binary file instead of decoding it |
+| refuses bytes that are not valid UTF-8 despite a text MIME type |
+| reports another workspace’s asset as missing, not forbidden |
+| cuts a file longer than the cap short and says so |
+| is available to a viewer, whose copilot still cannot write |
 
 ### activity_recent
 
@@ -1231,6 +1284,7 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | annotates read-only and destructive tools |
 | shows no copilot-only tool, whatever the scope |
 | refuses a copilot-only tool invoked by name |
+| refuses copilot-only file creation, which a full token could otherwise afford |
 | gives every tool an object input schema |
 
 ### authorization
