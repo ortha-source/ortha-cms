@@ -123,13 +123,23 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                     // is never advertised. The list query itself enforces a
                     // wider (unpruned) schema, so advertising less is safe —
                     // the reverse would offer paths the engine then rejects.
-                    const { fields } = buildEntryFilterSurface(type, {
+                    const { schema, fields } = buildEntryFilterSurface(type, {
                         workspaceId: ctx.workspaceId,
                         grantedTypes: granted
                     });
                     return {
                         type: this.registry.serialize(type.name),
-                        filterableFields: describeFilterFields(fields)
+                        // `fields` is the admin PICKER's list, which omits the
+                        // envelope timestamps a person reads off a badge —
+                        // `publishedAt` most of all, without which a model
+                        // cannot ask "published, with unpublished edits". The
+                        // root of `schema` is the SQL whitelist itself, so
+                        // unioning it advertises exactly what the engine will
+                        // accept. See `describeFilterFields`.
+                        filterableFields: describeFilterFields(
+                            fields,
+                            schema.fields
+                        )
                     };
                 }
 

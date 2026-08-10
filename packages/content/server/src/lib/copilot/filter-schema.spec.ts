@@ -102,4 +102,78 @@ describe('describeFilterFields', () => {
     it('drops the picker’s breadcrumb, which is noise in a prompt', () => {
         expect(describeFilterFields(fields)[1]).not.toHaveProperty('group');
     });
+
+    // The picker's list is narrower than the SQL whitelist, and the gap is
+    // where the copilot's publish-state answers went wrong: without
+    // `publishedAt` a model cannot express "live content with unpublished
+    // changes" and falls back to `status eq draft`, which also counts drafts
+    // that were never published.
+    describe('unioning the SQL whitelist', () => {
+        const sqlFields = {
+            id: { type: 'uuid' },
+            createdAt: { type: 'date' },
+            updatedAt: { type: 'date' },
+            publishedAt: { type: 'date' },
+            status: { type: 'enum', enumValues: ['draft', 'published'] },
+            text: { type: 'string' },
+            locale: { type: 'string' },
+            localeGroupId: { type: 'uuid' }
+        } as unknown as Parameters<typeof describeFilterFields>[1];
+
+        const paths = () =>
+            describeFilterFields(fields, sqlFields).map((f) => f.path);
+
+        it('advertises publishedAt, which the picker omits', () => {
+            expect(paths()).toContain('publishedAt');
+            expect(
+                describeFilterFields(fields, sqlFields).find(
+                    (f) => f.path === 'publishedAt'
+                )
+            ).toEqual({ path: 'publishedAt', type: 'date' });
+        });
+
+        it('advertises the envelope timestamps too', () => {
+            expect(paths()).toEqual(
+                expect.arrayContaining(['createdAt', 'updatedAt', 'id'])
+            );
+        });
+
+        // Both spellings of one idea, and the model would pick the broken
+        // one: `locale` is a tool PARAMETER the entry extension scopes with,
+        // so a filter rule on it ANDs against a scope already pinned to
+        // another locale and reads zero rows from a valid query.
+        it('withholds the fields that already have a tool parameter', () => {
+            expect(paths()).not.toContain('locale');
+            expect(paths()).not.toContain('localeGroupId');
+        });
+
+        it('does not duplicate a field the picker already offered', () => {
+            expect(paths().filter((path) => path === 'status')).toHaveLength(1);
+            expect(paths().filter((path) => path === 'text')).toHaveLength(1);
+        });
+
+        it('keeps the picker’s richer entry when both describe a field', () => {
+            const status = describeFilterFields(fields, sqlFields).find(
+                (f) => f.path === 'status'
+            );
+            expect(status).toEqual({
+                path: 'status',
+                type: 'enum',
+                values: ['draft', 'published']
+            });
+        });
+
+        it('leaves relation paths to the picker’s traversal', () => {
+            // `author.publishedAt` is SQL-filterable but unadvertised: listing
+            // every hop's envelope costs more prompt than it buys.
+            expect(paths()).toContain('author.name');
+            expect(paths()).not.toContain('author.publishedAt');
+        });
+
+        it('is unchanged when no SQL whitelist is passed', () => {
+            expect(describeFilterFields(fields)).toEqual(
+                describeFilterFields(fields, undefined)
+            );
+        });
+    });
 });

@@ -247,16 +247,25 @@ thin wrappers over them. No query logic is duplicated and no refactor was needed
   and sparse fieldsets — so "which German articles has Ada not published?" is
   one tool call rather than a page-by-page crawl the run's step limit ends
   first.
-- **`status` alone is not the publish state, and the search tool's description
-  says so.** The envelope carries `status` _and_ `publishedAt` (`projectEntry`
-  always keeps both — `fields` narrows `values` only), and
-  `buildEntryFilterSurface` advertises both on a publishable type, so
-  "modified" is expressible: `status eq draft` AND `publishedAt op null value
-false`. Nothing in `filterableFields` can say that, though — `describeFilterFields`
-  trims to `{path, type}` and has no slot for a description — so a model that
-  filters on `status` alone counts never-published drafts as unpublished edits.
-  The description names the filter; the system prompt (v6) carries the concept,
-  since the pair is true of every publishable type rather than of one tool.
+- **`status` alone is not the publish state, and three things had to agree
+  before the copilot could say so.** The envelope carries `status` _and_
+  `publishedAt` (`projectEntry` always keeps both — `fields` narrows `values`
+  only), so "modified" is expressible as `status eq draft` AND `publishedAt op
+null value false`. It was not _reachable_, though: **`admin_content_types`
+  advertises the admin PICKER's list**, and `scalarWireOf` pushes `status` plus
+  the type's own fields, deliberately leaving the envelope timestamps out — a
+  person reading a **Modified** badge does not need `publishedAt` in a picker.
+  The filter grammar meanwhile tells the model only listed paths are accepted,
+  so it fell back to `status eq draft` (counting never-published drafts as
+  edits) or invented `status eq "modified"` (an enum error). Fixed by having
+  `describeFilterFields` union the **root of the SQL `FilterSchema`** — the
+  security boundary itself, so a field added to `scalarFieldsOf` is offered
+  automatically — minus `locale`/`localeGroupId`, which have a dedicated tool
+  parameter and whose filter spelling would AND against the extension's own
+  scope and read zero rows from a valid query. The picker is untouched. On top
+  of that the search tool's description names the filter, and the system prompt
+  (v6) carries the concept, since the pair is true of every publishable type
+  rather than of one tool.
 - **`filter` is the query builder's own grammar** (`copilot/filter-schema.ts`):
   a node is a group (`{and: […]}` / `{or: […]}`) or a rule
   (`{field, op, value}`), so the model emits exactly what the admin's UI emits

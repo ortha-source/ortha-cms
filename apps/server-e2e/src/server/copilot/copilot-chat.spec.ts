@@ -1048,6 +1048,41 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(paths.filter((p) => p.startsWith('author.'))).toEqual([]);
         });
 
+        // The bug behind a copilot that answered "how many articles are
+        // modified but not published?" with a count of every draft. The filter
+        // grammar tells the model only listed paths are accepted, and
+        // `scalarWireOf` — which builds the admin's picker — lists `status`
+        // and the type's own fields, never the envelope timestamps. So the one
+        // path that expresses "live content with unpublished changes" was
+        // missing, and the model fell back to `status` alone.
+        it('advertises publishedAt, which the admin’s picker omits', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const paths = await filterablePaths(agent);
+
+            expect(paths).toContain('publishedAt');
+            // The pair, both halves offered — one without the other cannot
+            // separate a modified entry from a never-published one.
+            expect(paths).toContain('status');
+            expect(paths).toEqual(
+                expect.arrayContaining(['createdAt', 'updatedAt'])
+            );
+        });
+
+        // `test_article` is i18n, so `locale` IS in the SQL whitelist — and
+        // must still not be advertised: `admin_content_search` takes it as a
+        // parameter the entry extension scopes with, so a filter rule on it
+        // ANDs against a scope already pinned elsewhere and reads zero rows
+        // from a valid query.
+        it('withholds locale, which is a tool parameter rather than a filter', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const paths = await filterablePaths(agent);
+
+            expect(paths).not.toContain('locale');
+            expect(paths).not.toContain('localeGroupId');
+        });
+
         it('advertises a relation hop once its target type is granted', async () => {
             await seedContentGrants(workspace.id, ['test_author']);
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');

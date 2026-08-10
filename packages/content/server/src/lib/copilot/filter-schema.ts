@@ -1,3 +1,4 @@
+import type { FieldSchema } from '@ortha-cms/utils-server';
 import type { WireFilterField } from '../entries/types/filter-surface';
 
 /**
@@ -75,25 +76,74 @@ export function filterTreeSchema(): Record<string, unknown> {
 }
 
 /**
+ * Root envelope columns the SQL whitelist accepts but that must NOT be
+ * advertised, because each already has a dedicated tool **parameter**.
+ *
+ * `admin_content_search` takes `locale`, which the bound entry extension
+ * validates and scopes with; a model that filtered `locale eq "de"` instead
+ * would AND that onto the extension's own scope — already pinned to the
+ * default locale — and read zero rows from a perfectly valid query. Offering
+ * both spellings of one idea is how a model picks the broken one.
+ */
+const PARAMETER_BACKED_FIELDS: ReadonlySet<string> = new Set([
+    'locale',
+    'localeGroupId'
+]);
+
+/**
  * The filterable paths, flattened for a model.
  *
  * `WireFilterField` carries a `group` breadcrumb for the admin's picker UI,
  * which is noise here — a model wants the dotted path, the coercion type, and
  * the allowed values for an enum. Trimming it also keeps `admin_content_types`
  * affordable on a type with a wide relation graph.
+ *
+ * **`wire` alone is the picker's list, which is narrower than what SQL
+ * accepts** — and the gap is not cosmetic. `scalarWireOf` pushes `status` and
+ * the type's own fields; the envelope timestamps, `publishedAt` above all, are
+ * whitelisted for SQL and deliberately kept out of the admin UI. A person does
+ * not need `publishedAt` in a picker — they have a **Modified** badge in front
+ * of them. A model has no badge, and without this path cannot express
+ * "published content with unpublished changes" at all: it falls back to
+ * `status eq draft` and counts never-published drafts as edits, or invents
+ * `status eq "modified"` and gets an enum error. Both answers are confidently
+ * wrong, which is exactly what the filter grammar's "only paths listed by
+ * admin_content_types are accepted" is supposed to prevent.
+ *
+ * So `sqlFields` — the ROOT level of the very `FilterSchema` that is the
+ * security boundary — is unioned in. Reading the boundary is the opposite of
+ * a second source of truth: a field added to `scalarFieldsOf` later is offered
+ * here automatically, with {@link PARAMETER_BACKED_FIELDS} the one stated
+ * exception. Relation-level envelope paths (`author.publishedAt`) stay
+ * unadvertised: SQL still accepts them, and listing every hop's envelope would
+ * cost more prompt than it buys.
  */
 export function describeFilterFields(
-    fields: readonly WireFilterField[]
+    fields: readonly WireFilterField[],
+    sqlFields?: FieldSchema
 ): Array<{
     path: string;
     type: string;
     values?: readonly string[];
     relationTo?: string;
 }> {
-    return fields.map((field) => ({
+    const described = fields.map((field) => ({
         path: field.path,
-        type: field.type,
+        type: field.type as string,
         ...(field.enumValues ? { values: field.enumValues } : {}),
         ...(field.relationTarget ? { relationTo: field.relationTarget } : {})
     }));
+
+    if (!sqlFields) return described;
+
+    const advertised = new Set(described.map((field) => field.path));
+    for (const [name, spec] of Object.entries(sqlFields)) {
+        if (advertised.has(name) || PARAMETER_BACKED_FIELDS.has(name)) continue;
+        described.push({
+            path: name,
+            type: spec.type as string,
+            ...(spec.enumValues ? { values: spec.enumValues } : {})
+        });
+    }
+    return described;
 }
