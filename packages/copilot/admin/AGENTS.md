@@ -277,8 +277,13 @@ answer for.
 
 ### The empty state has a honeycomb behind it
 
-`HoneycombBackdrop` — an SVG lattice of large hexagons in the brand orange at
-very low alpha, masked by a radial fade centred on the mark. A honeycomb because
+`HoneycombBackdrop` — an SVG lattice of large hexagons in neutral grey
+(`text-muted-foreground/30`) at very low alpha, masked by a radial fade centred
+on the mark. **Not the brand orange**, which is what it was first: a lattice
+covering the whole panel plus an orange mark and an orange card hover is far
+more surface than a single accent is meant to carry, and the empty state read as
+a different product from the rest of the admin. The mark is `bg-secondary`, the
+same light grey tile the app uses elsewhere. A honeycomb because
 it is what the surface _is_: a workspace's content is a lattice of small things
 that fit together. Three things keep it a backdrop rather than decoration:
 
