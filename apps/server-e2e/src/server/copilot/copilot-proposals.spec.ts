@@ -358,9 +358,9 @@ describe('Copilot changes', () => {
 
             // The allow-list is read per call rather than per run, so the
             // answer to the first stops the second in the *same* turn asking.
-            expect(framesOfType(events, 'tool-permission-request')).toHaveLength(
-                1
-            );
+            expect(
+                framesOfType(events, 'tool-permission-request')
+            ).toHaveLength(1);
             expect(
                 framesOfType(events, 'tool-result').map((frame) => frame.ok)
             ).toEqual([true, true]);

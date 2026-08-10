@@ -343,14 +343,20 @@ export class EntryWriterService {
         coerced = coerceValues(type, folded.values);
         relations = folded.relations;
         await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
-        await this.assertUniqueRelations(type, coerced, workspaceId, rowLocale, {
-            id: '',
-            // The group the new row joins, when it joins one. Absent means a
-            // fresh group, so every existing claimant is a different record.
-            localeGroupId: extensionColumns['localeGroupId'] as
-                | string
-                | undefined
-        });
+        await this.assertUniqueRelations(
+            type,
+            coerced,
+            workspaceId,
+            rowLocale,
+            {
+                id: '',
+                // The group the new row joins, when it joins one. Absent means a
+                // fresh group, so every existing claimant is a different record.
+                localeGroupId: extensionColumns['localeGroupId'] as
+                    | string
+                    | undefined
+            }
+        );
         await this.assertMediaTargets(type, coerced, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced);
         // One transaction: take the workspace's shared content lock (coordinates

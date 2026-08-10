@@ -101,32 +101,33 @@ The extension owns all locale _behavior_:
   `SELECT … FOR UPDATE` before the sync. A no-op when the
   group has no other members (a fresh create).
 
-  **Relations sync too**, per content-server's `relationLocaleSync` (the rule
-  lives there; this is only the machinery). Three kinds of state travel,
-  computed once and applied per sibling: shared **columns** (identical
-  everywhere), **mirrored** single-relation FKs (the source's target resolved
-  into each sibling's own locale), and the **link sets** of join-backed
-  relations (verbatim when shared, mapped through the target's translation group
-  when mirrored, order preserved). A sibling matching on all three is left
-  completely untouched — that guard is what stops one save re-versioning the
-  whole group; a links-only change still writes the row, so it earns its
-  revision and its draft demotion.
+    **Relations sync too**, per content-server's `relationLocaleSync` (the rule
+    lives there; this is only the machinery). Three kinds of state travel,
+    computed once and applied per sibling: shared **columns** (identical
+    everywhere), **mirrored** single-relation FKs (the source's target resolved
+    into each sibling's own locale), and the **link sets** of join-backed
+    relations (verbatim when shared, mapped through the target's translation group
+    when mirrored, order preserved). A sibling matching on all three is left
+    completely untouched — that guard is what stops one save re-versioning the
+    whole group; a links-only change still writes the row, so it earns its
+    revision and its draft demotion.
 
-  A **create** runs the sync inward instead (`inheritRelationsFromGroup`): a new
-  translation carries none of the record's links, so it fills them from a donor
-  sibling — deterministically the default-locale row where the group has one —
-  and columns it derives are written back onto the row object, since the caller
-  snapshots it as version 1. Columns still propagate outward on a create, which
-  is what makes a deliberately different shared value on a create win.
+    A **create** runs the sync inward instead (`inheritRelationsFromGroup`): a new
+    translation carries none of the record's links, so it fills them from a donor
+    sibling — deterministically the default-locale row where the group has one —
+    and columns it derives are written back onto the row object, since the caller
+    snapshots it as version 1. Columns still propagate outward on a create, which
+    is what makes a deliberately different shared value on a create win.
 
-  A **mirrored link whose target has no translation in a sibling's locale is
-  left unset**, never a failed save: an English save must not be blocked because
-  a German tag doesn't exist yet. That is what
-  `RelationLinkService.equivalentIdsByLocale` is for — the lenient counterpart
-  of `resolveLocaleGroups`, which throws 422 (right for an explicit API call
-  naming a group, wrong for an implicit sync). An unresolvable mirrored FK is
-  nulled rather than left pointing at the _previous_ record's translation, which
-  would be silently wrong data.
+    A **mirrored link whose target has no translation in a sibling's locale is
+    left unset**, never a failed save: an English save must not be blocked because
+    a German tag doesn't exist yet. That is what
+    `RelationLinkService.equivalentIdsByLocale` is for — the lenient counterpart
+    of `resolveLocaleGroups`, which throws 422 (right for an explicit API call
+    naming a group, wrong for an implicit sync). An unresolvable mirrored FK is
+    nulled rather than left pointing at the _previous_ record's translation, which
+    would be silently wrong data.
+
 - **`filterExtension`** — the virtual filter fields `hasLocale` /
   `missingLocale` (enum of slugs) and `localeCount` (number), resolved to
   `EXISTS` / correlated-count subqueries over the group (ridden by the
@@ -168,7 +169,7 @@ the extension validates + stamps the group, and the row lands as a fresh draft.
 A duplicate locale in the group is a **409** (the `(locale_group_id, locale)`
 unique index is the arbiter); an unknown group is a **404**. The new row's
 relations are filled in by the extension from the group it joined, so the client
-sends none — and a **mirrored** one it *did* send would be rejected as a
+sends none — and a **mirrored** one it _did_ send would be rejected as a
 cross-locale link (the source's id names another language's row).
 
 ## The copilot tools (`src/lib/copilot/`)

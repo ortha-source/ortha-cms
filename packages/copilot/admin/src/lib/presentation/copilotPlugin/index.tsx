@@ -1,6 +1,19 @@
+import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
 import { SIDEBAR_FOOTER_SLOT } from '@ortha-cms/shell-admin';
+import {
+    WORKSPACE_ROUTE_SLOT,
+    WORKSPACE_SECTION_SLOT
+} from '@ortha-cms/workspaces-admin';
+import { AGENTS_SEGMENT } from '../../domain/agentsRoute';
 import { CopilotLauncher } from '../CopilotLauncher';
+import { ViewSwitcher } from '../ViewSwitcher';
+
+const AgentsPage = lazy(() =>
+    import('../AgentsPage').then((module) => ({
+        default: module.AgentsPage
+    }))
+);
 
 /**
  * Admin-side copilot plugin shape. A thin alias of {@link AdminPlugin}, kept
@@ -10,26 +23,29 @@ import { CopilotLauncher } from '../CopilotLauncher';
 export type CopilotAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side copilot plugin.
+ * Creates the admin-side copilot plugin — **two surfaces onto one chat**.
  *
- * **The chat panel's entry point, and nothing else.** It fills the shell's
- * sidebar footer with a launcher that opens the panel (or `⌘J`) — the panel
- * itself is a docked window over whatever page you are on, which is the point
- * of it being a persistent surface rather than a destination.
+ * - The **docked panel**, from the shell's sidebar footer (or `⌘J`): a window
+ *   over whatever page you are on, for a question *about that page*. Several can
+ *   run at once behind the dock.
+ * - The **Agents view**, a full page inside the workspace at
+ *   `/workspaces/:id/agents`: history as a column, the transcript with room to
+ *   render a table or a diff, for the work where the conversation *is* the task.
+ *   The `ViewSwitcher` at the top of the workspace sidebar moves between it and
+ *   the CMS in one click, in both directions.
  *
- * It contributes **no routes and no nav entry**. It used to contribute one, for
- * the workspace's auto-apply policy, and
- * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
- * deleted the policy: what the copilot may do is what the caller's role may do,
- * so there is nothing left to configure per workspace and no screen that could
- * honestly be built for it.
+ * It contributes **no top-level route and no global nav entry**. Runs are
+ * workspace-scoped (`X-Workspace-Id` is required by `WorkspaceGuard`), so every
+ * surface here lives strictly inside a workspace — the launcher renders nothing
+ * outside one, and the page and the switcher are contributed to the workspace
+ * shell's own slots.
  *
- * The launcher renders nothing outside a workspace and nothing without
- * `copilot:use`, so registering it globally costs nothing where it doesn't
- * apply.
+ * The Agents route carries a **high `order`**, so it is not the workspace's
+ * default landing: the Content Library (order 10) stays what
+ * `/workspaces/:id` redirects to. Reaching the copilot is a choice.
  *
- * Register it **after** `ShellPlugin()` (whose slot it fills) and
- * `WorkspacesPlugin()` (whose current-workspace context it reads).
+ * Register it **after** `ShellPlugin()` (whose footer slot it fills) and
+ * `WorkspacesPlugin()` (whose route and section slots it fills).
  *
  * @example
  * ```typescript
@@ -53,6 +69,38 @@ export function CopilotPlugin(): CopilotAdminPlugin {
                 // copilot is a tool you reach for, not an identity control.
                 items: [
                     { id: 'copilot', order: 10, Component: CopilotLauncher }
+                ]
+            },
+            {
+                slot: WORKSPACE_SECTION_SLOT,
+                // The lowest order in the region, so the mode switch sits
+                // directly under the workspace switcher and above the Content
+                // nav — it governs which of the two views everything below it
+                // belongs to.
+                items: [
+                    {
+                        id: 'copilot.viewSwitcher',
+                        order: 5,
+                        Component: ViewSwitcher
+                    }
+                ]
+            },
+            {
+                slot: WORKSPACE_ROUTE_SLOT,
+                items: [
+                    {
+                        // A trailing `/*` because the page reads the open thread
+                        // out of the path itself (`/agents/:conversationId`)
+                        // rather than through a nested route — see
+                        // `readAgentThreadId` for why that seam matters.
+                        path: `${AGENTS_SEGMENT}/*`,
+                        order: 50,
+                        element: (
+                            <Suspense fallback={null}>
+                                <AgentsPage />
+                            </Suspense>
+                        )
+                    }
                 ]
             }
         ]

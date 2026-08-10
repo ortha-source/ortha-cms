@@ -1,10 +1,10 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@ortha-cms/utils-admin';
 import type { ModelContentBlock } from '@ortha-cms/copilot-domain';
 import type {
+    ChatBlock,
     ChatMessage,
-    ChatProposal,
-    ChatToolStep
+    ChatProposal
 } from '../domain/types/chat';
 import type { CopilotConversation } from './useConversations';
 
@@ -22,38 +22,72 @@ interface ConversationDetail {
     messages: PersistedMessage[];
 }
 
+/** One thread, in the shape the transcript renders. */
+export interface OpenedConversation {
+    conversation: CopilotConversation;
+    messages: ChatMessage[];
+}
+
 /**
- * Opens a persisted thread.
+ * Reads one thread and the changes made in it, and maps both to the transcript.
  *
- * A **mutation, not a query**: opening a thread is an explicit user action with
- * a target that changes per invocation, and its result is folded into the
- * panel's reducer rather than rendered from cache. Modelling it as a query
- * would mean a key per thread and a cache that has to be invalidated on every
- * turn to stay honest.
+ * Two reads, concurrently. The proposals are a separate table and a separate
+ * route, and a thread with no changes in it must not pay for a serial round trip
+ * to learn that.
+ */
+async function fetchConversation(
+    conversationId: string
+): Promise<OpenedConversation> {
+    const [detail, proposals] = await Promise.all([
+        apiClient.get<ConversationDetail>(
+            `/copilot/conversations/${conversationId}`
+        ),
+        apiClient.get<{ items: PersistedProposal[] }>('/copilot/proposals', {
+            params: { conversationId }
+        })
+    ]);
+    return {
+        conversation: detail.data.conversation,
+        messages: toChatMessages(detail.data.messages, proposals.data.items)
+    };
+}
+
+/** Query key for one thread's transcript. */
+export const conversationKey = (conversationId: string) =>
+    ['copilot', 'conversation', conversationId] as const;
+
+/**
+ * Opens a persisted thread, as a **mutation** — the docked panel's history
+ * dropdown, where opening a thread is an explicit click with a different target
+ * each time and the result is folded straight into the panel's reducer.
+ *
+ * Prefer {@link useConversationDetail} anywhere the *URL* says which thread is
+ * open. A mutation's per-call `onSuccess` only runs while the component that
+ * called `mutate` is still mounted, which makes it the wrong tool for a load
+ * kicked off by an effect — React's StrictMode remount alone is enough to
+ * swallow the callback and strand the page on its skeleton.
  */
 export function useOpenConversation() {
-    return useMutation({
-        mutationFn: async (conversationId: string) => {
-            // Two reads, concurrently. The proposals are a separate table and a
-            // separate route, and a thread with no changes in it must not pay
-            // for a serial round trip to learn that.
-            const [detail, proposals] = await Promise.all([
-                apiClient.get<ConversationDetail>(
-                    `/copilot/conversations/${conversationId}`
-                ),
-                apiClient.get<{ items: PersistedProposal[] }>(
-                    '/copilot/proposals',
-                    { params: { conversationId } }
-                )
-            ]);
-            return {
-                conversation: detail.data.conversation,
-                messages: toChatMessages(
-                    detail.data.messages,
-                    proposals.data.items
-                )
-            };
-        }
+    return useMutation({ mutationFn: fetchConversation });
+}
+
+/**
+ * The transcript of the thread the URL points at, as a **query**.
+ *
+ * Pass `null` to disable it — the Agents page does exactly that once its chat is
+ * already on the thread, so the answer streaming into the reducer is never
+ * fetched back out from under itself, and so returning to a thread you are
+ * already reading costs nothing.
+ *
+ * Cached per thread, which is what makes flicking between two conversations
+ * instant on the second visit. The cache is only ever *read* when arriving at a
+ * thread the chat is not on; while you are in one, the reducer is the truth.
+ */
+export function useConversationDetail(conversationId: string | null) {
+    return useQuery({
+        queryKey: conversationKey(conversationId ?? ''),
+        enabled: !!conversationId,
+        queryFn: () => fetchConversation(conversationId as string)
     });
 }
 
@@ -130,33 +164,60 @@ function toChatMessages(
     }
 
     return messages.flatMap((message) => {
-        const text = message.content
-            .filter((block) => block.type === 'text')
-            .map((block) => block.text)
-            .join('');
+        // **The stored order is the order.** `content` is the model port's
+        // block list exactly as the run produced it, so walking it rebuilds the
+        // interleaving a live run shows — prose, the step that interrupted it,
+        // the change that step made, then the prose written afterwards. Sorting
+        // by kind here is what used to strand a card at the bottom of a
+        // reopened thread.
+        const blocks: ChatBlock[] = [];
+        for (const part of message.content) {
+            if (part.type === 'text') {
+                if (part.text) {
+                    blocks.push({
+                        kind: 'text',
+                        id: `text-${blocks.length}`,
+                        text: part.text
+                    });
+                }
+                continue;
+            }
+            if (part.type !== 'tool_use') {
+                // `tool_result` rides on the *following* turn and is folded
+                // onto the call it answers, below — it is not a block of its
+                // own in the transcript.
+                continue;
+            }
 
-        const steps: ChatToolStep[] = message.content
-            .filter((block) => block.type === 'tool_use')
-            .map((block) => {
-                const result = resultsById.get(block.id);
-                return {
-                    id: block.id,
-                    name: block.name,
-                    input: block.input,
+            const result = resultsById.get(part.id);
+            blocks.push({
+                kind: 'step',
+                id: part.id,
+                step: {
+                    id: part.id,
+                    name: part.name,
+                    input: part.input,
                     status: result ? (result.isError ? 'error' : 'ok') : 'ok',
                     ...(result?.isError
                         ? { error: result.content }
                         : { output: result?.content })
-                };
+                }
             });
 
-        const turnProposals = steps.flatMap(
-            (step) => proposalsByCall.get(step.id) ?? []
-        );
+            // Directly after the call that produced it, which is where the run
+            // emitted it and where the reader last saw the change discussed.
+            for (const proposal of proposalsByCall.get(part.id) ?? []) {
+                blocks.push({
+                    kind: 'proposal',
+                    id: proposal.id,
+                    proposal
+                });
+            }
+        }
 
         // A turn that carried only tool results (no prose, no calls) is
         // plumbing, not something a reader should see as an empty bubble.
-        if (!text && steps.length === 0) {
+        if (blocks.length === 0) {
             return [];
         }
 
@@ -164,11 +225,18 @@ function toChatMessages(
             {
                 id: message.id,
                 role: message.role,
-                text,
-                steps,
-                ...(turnProposals.length > 0
-                    ? { proposals: turnProposals }
-                    : {}),
+                // Assistant prose lives in `blocks`; a user turn's is one
+                // string, and the persisted shape gives it as text parts.
+                text:
+                    message.role === 'user'
+                        ? blocks
+                              .filter((block) => block.kind === 'text')
+                              .map((block) =>
+                                  block.kind === 'text' ? block.text : ''
+                              )
+                              .join('')
+                        : '',
+                blocks: message.role === 'user' ? [] : blocks,
                 ...(message.stopReason
                     ? { stopReason: message.stopReason }
                     : {})

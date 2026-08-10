@@ -85,18 +85,46 @@ export interface ChatPermissionRequest {
     answered?: boolean;
 }
 
+/**
+ * One piece of an assistant turn, in the order it happened.
+ *
+ * **Order is the point.** These used to be three separate buckets on the turn —
+ * every tool step, then all the prose, then every change card — which meant the
+ * layout could not say *when* anything occurred. A model that explains, saves,
+ * and then keeps writing produced a card pinned to the bottom while new text
+ * appeared above it: the transcript showed the change happening after the
+ * sentences that were written after it.
+ */
+export type ChatBlock =
+    /** A run of prose. Grows delta by delta while it is the newest block. */
+    | { kind: 'text'; id: string; text: string }
+    /** A tool call, and its result once it lands. */
+    | { kind: 'step'; id: string; step: ChatToolStep }
+    /** The receipt for a change, where the change happened. */
+    | { kind: 'proposal'; id: string; proposal: ChatProposal };
+// Wrapped rather than intersected (`{ kind: 'step' } & ChatToolStep`): a
+// proposal already *has* a `kind` — the applier that carried it out,
+// `content.entry.update` — and an intersection silently overwrites it with the
+// discriminant. The extra `.step` / `.proposal` hop is the price of not
+// clobbering a field the card renders.
+
 /** One turn as the transcript renders it. */
 export interface ChatMessage {
     /** Stable key. The server's message id once persisted, else a local id. */
     id: string;
     /** Who produced the turn. */
     role: 'user' | 'assistant';
-    /** The prose. Grows delta by delta while an answer streams. */
+    /**
+     * A **user** turn's message — a single string, because a person types one
+     * thing. An assistant turn leaves this empty and uses {@link blocks}.
+     */
     text: string;
-    /** Tool calls made during this turn, in order. */
-    steps: ChatToolStep[];
-    /** Changes proposed during this turn, in order. */
-    proposals?: ChatProposal[];
+    /**
+     * An **assistant** turn's content, in the order the run produced it: prose,
+     * tool steps and change cards interleaved rather than sorted into kinds.
+     * Empty on a user turn.
+     */
+    blocks: ChatBlock[];
     /** Tool calls waiting on the user, in order. */
     permissions?: ChatPermissionRequest[];
     /** True while this turn is still streaming. */

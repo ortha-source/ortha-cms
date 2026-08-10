@@ -54,7 +54,12 @@ const ALL_PERMISSIONS = [
     'media:read',
     'media:create',
     'media:update',
-    'media:delete'
+    'media:delete',
+    // Without this the copilot renders nothing at all — no sidebar switcher, no
+    // dock, and the Agents view answers "No access". It was missing, so every
+    // suite claiming "an admin holding every permission" was quietly blind to
+    // that whole surface.
+    'copilot:use'
 ];
 
 /**

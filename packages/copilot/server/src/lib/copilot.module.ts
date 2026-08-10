@@ -26,6 +26,7 @@ import { ListConversationsController } from './chat/http/controllers/list-conver
 import { ListModelsController } from './chat/http/controllers/list-models.controller';
 import { ProposalsController } from './chat/http/controllers/proposals.controller';
 import { ToolPermissionController } from './chat/http/controllers/tool-permission.controller';
+import { UpdateConversationController } from './chat/http/controllers/update-conversation.controller';
 
 /** Options `CopilotModule.forRoot` binds into DI. */
 export interface CopilotModuleOptions {
@@ -71,6 +72,10 @@ export class CopilotModule {
                 // the read routes grouped after the run route.
                 ListModelsController,
                 ListConversationsController,
+                // `PATCH conversations/:id`. No ordering hazard with the `GET`
+                // wildcard below — Express matches method and path together —
+                // but it reads with the other conversation routes.
+                UpdateConversationController,
                 // Before `GetConversationController`, whose `conversations/:id`
                 // is the only wildcard here — Express matches in declaration
                 // order, so the literal-prefixed routes go first.

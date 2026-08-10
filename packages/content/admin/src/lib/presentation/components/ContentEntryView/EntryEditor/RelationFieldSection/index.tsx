@@ -126,9 +126,7 @@ export function RelationFieldSection({
                             server's derived mode answers that (an opted-out
                             relation to a localized target reads `none`). It
                             also saves waiting on the target schema fetch. */}
-                        <RelationSyncMark
-                            mode={field.relation?.localeSync}
-                        />
+                        <RelationSyncMark mode={field.relation?.localeSync} />
                         {changed ? <ChangedBadge /> : null}
                         {error ? (
                             <AlertCircle

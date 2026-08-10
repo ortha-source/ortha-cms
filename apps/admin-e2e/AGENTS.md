@@ -68,6 +68,20 @@ the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
   errors by their message text, not the bare role.
 - **Pending state is brief.** To observe the spinner/disabled button, hold the
   response open with `mockLogin(page, { delayMs })`.
+- **`page.route` _can_ fulfil an event-stream body.** The copilot suites stub
+  `POST /api/copilot/runs` as `text/event-stream` and the reducer folds the
+  frames exactly as it would live (`support/api/copilot.ts`). The whole body
+  arrives in one read, so what is lost is only the _progressive_ arrival of
+  frames — not the finished transcript, and not the order of its parts. The
+  earlier note that this was impossible was wrong, and it cost the whole surface
+  its coverage for a while.
+- **A Radix menu that is `modal` fails axe.** It `aria-hidden`s the page root,
+  which holds focusable content, so `aria-hidden-focus` fires. Every row menu and
+  picker in the admin passes `modal={false}`; a new one that doesn't will fail
+  its scan rather than the assertion you were writing.
+- **A query's error state is ~7s away.** TanStack Query retries 3× with
+  exponential backoff before `isError`, so an error-state assertion needs an
+  explicit `{ timeout: 15_000 }`.
 - **The submit button's name changes.** Idle it reads "Login"; while submitting
   the label is the `sr-only` "Signing in…". `LoginPage.submit` matches either
   (`name: /Login|Signing in/`) so one handle works across both states.

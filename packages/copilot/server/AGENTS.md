@@ -19,16 +19,38 @@ profile, and the transcript this plugin now owns and migrates
 
 ### Routes
 
-| Route                                | Guards                                              | Notes                                                       |
-| ------------------------------------ | --------------------------------------------------- | ----------------------------------------------------------- |
-| `POST /api/copilot/runs`             | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | SSE. One turn.                                              |
-| `GET /api/copilot/models`            | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
-| `GET /api/copilot/conversations`     | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads.                                        |
-| `GET /api/copilot/conversations/:id` | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript.                                        |
-| `GET /api/copilot/proposals`         | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
-| `GET /api/copilot/proposals/:id`     | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
+| Route                                  | Guards                                              | Notes                                                       |
+| -------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/copilot/runs`               | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | SSE. One turn.                                              |
+| `GET /api/copilot/models`              | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
+| `GET /api/copilot/conversations`       | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads. `?archived=true` for the filed ones.   |
+| `GET /api/copilot/conversations/:id`   | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript. Serves archived threads too.           |
+| `PATCH /api/copilot/conversations/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | Rename and/or archive.                                      |
+| `GET /api/copilot/proposals`           | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
+| `GET /api/copilot/proposals/:id`       | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
 
-All require `copilot:use`. The proposal routes are **reads only** — the
+All require `copilot:use`.
+
+**Archiving is the only removal, and there is deliberately no delete.** A
+thread's `copilot_proposals` rows are the receipts for changes that were actually
+made to the caller's content (ADR-0009), so dropping a conversation would take
+the only record of those edits with it. `PATCH` sets `archived`, which moves the
+thread between two **disjoint** lists — `GET /conversations` serves one or the
+other, never both, or the flag would mean nothing to whoever reads the list. The
+transcript is untouched and `GET /conversations/:id` still serves it, so a link
+to an archived thread keeps working. If a hard delete is ever added it has to
+answer for the proposals first.
+
+Two things in the PATCH worth keeping:
+
+- **`updatedAt` is not bumped.** It means "last used" and the list sorts by it;
+  a rename would otherwise send a thread nobody has spoken to in a week to the
+  top. Covered by a case in `copilot-conversations.spec.ts`.
+- **The ownership predicate is in the `UPDATE`**, not a read beforehand, so
+  there is no check-then-write window — and a miss is a flat 404 for "not yours"
+  and "no such id" alike, matching the read routes.
+
+The proposal routes are **reads only** — the
 accept/reject pair and the `GET/PUT /api/copilot/policy` pair were deleted by
 [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md), along with
 `copilot:configure` itself. Whether a caller may make a change is decided once,

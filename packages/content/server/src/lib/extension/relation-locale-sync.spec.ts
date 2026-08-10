@@ -31,7 +31,10 @@ const article = collection('article', {
         // many → localized target
         writers: field.relation({ to: () => author, many: true }),
         // opted out
-        featuredTag: field.relation({ to: () => tag, syncAcrossLocales: false }),
+        featuredTag: field.relation({
+            to: () => tag,
+            syncAcrossLocales: false
+        }),
         // opted out via the `localized` alias
         localTag: field.relation({ to: () => tag, localized: true }),
         // the inverse side owns no storage

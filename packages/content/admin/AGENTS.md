@@ -210,7 +210,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   words** (an empty `<p></p>`) falls back to the em-dash — `isEmpty` can't see
   that case, since the string isn't blank. The excerpt is only ever rendered as
   text, so tag-stripping by regex carries no injection risk; rendering rich text
-  as *markup* is a different problem with a different answer
+  as _markup_ is a different problem with a different answer
   (`@ortha-cms/wysiwyg-admin`'s `renderRichText`).
 - Column **order and visibility** are both chosen in
   `CollectionRecordsColumnPicker` — a `Popover` (not a `DropdownMenu`, whose menu
@@ -389,7 +389,7 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
       in a text field, which is the one save path that never goes through a
       button.
     - A **`ReadOnlyNotice`** banner sits under the record title. It is
-      deliberately *not* the design-system `Alert`, whose `role="alert"` is a
+      deliberately _not_ the design-system `Alert`, whose `role="alert"` is a
       live region — this is page furniture present from first paint, not an
       event.
     - The rich-text field is the one place expansion survives: its collapsed
@@ -723,7 +723,7 @@ fetching internally.
       a control that portals a dialog or popover is moved in the DOM but **not**
       in the React tree — and React bubbles synthetic events along that tree. A
       Save button inside the WYSIWYG's alt-text popover therefore arrived at
-      this handler and saved-and-*published* the whole record. Contributed
+      this handler and saved-and-_published_ the whole record. Contributed
       overlays should `stopPropagation` on their own submit as well; the guard
       here is what makes the seam safe for the ones that forget.
 

@@ -659,9 +659,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .send({
                     values: { name },
                     ...(locale ? { locale } : {}),
-                    ...(groupOf
-                        ? { localeGroupId: groupOf.localeGroupId }
-                        : {})
+                    ...(groupOf ? { localeGroupId: groupOf.localeGroupId } : {})
                 })
                 .expect(201);
             return res.body as { id: string; localeGroupId: string };
@@ -692,7 +690,10 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         ) {
             return agent
                 .patch(`/api/content/test_article/${entryId}`)
-                .send({ values: VALID, relations: { [fieldName]: { link: ids } } })
+                .send({
+                    values: VALID,
+                    relations: { [fieldName]: { link: ids } }
+                })
                 .expect(200);
         }
 
@@ -827,7 +828,12 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             };
             const adaEn = await createAuthor(agent, 'Ada');
             const grace = await createAuthor(agent, 'Grace');
-            const graceDe = await createAuthor(agent, 'Grace (DE)', 'de', grace);
+            const graceDe = await createAuthor(
+                agent,
+                'Grace (DE)',
+                'de',
+                grace
+            );
 
             // Ada has no German row; Grace does. The save succeeds either way.
             await link(agent, en.id, 'contributors', [adaEn.id, grace.id]);

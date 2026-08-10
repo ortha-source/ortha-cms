@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_306 test cases across 33 spec files._
+_360 test cases across 39 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -460,6 +460,113 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | the collapsed field has no violations |
 | the expanded editor has no violations |
 | the field is reachable and openable from the keyboard |
+
+<!-- source: apps/admin-e2e/src/copilot/a11y.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/a11y.spec.ts</sub>_
+
+## Agents view accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| the empty thread, its openers and the rail |
+| a transcript with a tool step and a change card |
+| an expanded tool step |
+| the archived list |
+| the rename dialog |
+| a rail row’s menu, open |
+| the model picker, open |
+
+<!-- source: apps/admin-e2e/src/copilot/agents-chat.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/agents-chat.spec.ts</sub>_
+
+## Agents view — asking
+
+| Test case |
+| --- |
+| asks, promotes the URL to the new thread, and answers in order |
+| switching threads is navigation, so Back moves between them |
+| sends the picked model, and still has it after a trip through the CMS |
+| the composer grows with what you type, up to a ceiling |
+| a run outlives the page it started on, and says so |
+| stopping a run leaves a note rather than an error |
+
+<!-- source: apps/admin-e2e/src/copilot/agents-manage.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/agents-manage.spec.ts</sub>_
+
+## Agents view — renaming and archiving
+
+| Test case |
+| --- |
+| renames a thread, and the rail and the bar both follow |
+| refuses a blank name with a reason, not a dead Save button |
+| says so when the server refuses the rename |
+| gives focus back to the row that opened the dialog |
+| archives a thread, and only then offers the archive |
+| restores a thread from the archived list |
+| archiving the thread you are reading starts a new chat |
+| the row menu offers no way to destroy a thread |
+
+<!-- source: apps/admin-e2e/src/copilot/agents-view.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/agents-view.spec.ts</sub>_
+
+## Agents view — the rail and the thread
+
+| Test case |
+| --- |
+| lists the workspace threads under recency headings |
+| filters by title, and an untitled thread matches nothing |
+| a failed list says so instead of claiming there are no chats |
+| opens a thread from the rail and announces which one is current |
+| a reopened thread rebuilds the order the run produced |
+| New chat leaves the thread instead of bouncing back into it |
+| the empty thread offers openers, and picking one asks it |
+| a thread that will not open offers a retry |
+| without copilot:use there is no page and no switcher |
+
+<!-- source: apps/admin-e2e/src/copilot/dock.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/dock.spec.ts</sub>_
+
+## Ortha AI dock
+
+| Test case |
+| --- |
+| is the entry point, and opens a window focused on the composer |
+| ⌘J starts a chat too |
+| renders nothing outside a workspace |
+| tiles three windows, and a fourth collapses the oldest |
+| a pill toggles its window, and says which state it is in |
+| Escape collapses to the dock; it does not close |
+| closing discards the chat and hands focus to the dock |
+| an untitled pill is “Untitled chat”, never “New chat” |
+| names a pill after what was asked in it |
+| a run that finishes off screen marks its pill and the tab |
+| opens a saved thread from the history dropdown |
+| Expand and Shrink are the same control, relabelled |
+| a moved window stays where it was put, and survives reopening |
+| Expand is the way out of a bad drag |
+| the arrow keys move a focused window |
+| the model choice survives collapsing and reopening |
+
+## Ortha AI dock accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| the dock, with nothing open |
+| an open window over the page it is about |
+| three tiled windows |
+| a transcript with a change card in it |
+
+<!-- source: apps/admin-e2e/src/copilot/view-switcher.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/view-switcher.spec.ts</sub>_
+
+## CMS ⇄ Agents switcher
+
+| Test case |
+| --- |
+| says which view you are in, in both of them |
+| goes back to the CMS page you left, not the workspace root |
+| clicking the view you are already in is not a third state |
+| the dock stands down on the Agents view while it owns nothing |
 
 <!-- source: apps/admin-e2e/src/home/dashboard.spec.ts -->
 _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_

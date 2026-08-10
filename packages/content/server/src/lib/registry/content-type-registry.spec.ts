@@ -173,9 +173,7 @@ describe('ContentTypeRegistry', () => {
         });
 
         it('constructs when the inverse mirrors a real owning relation', () => {
-            expect(
-                () => new ContentTypeRegistry([cat, story])
-            ).not.toThrow();
+            expect(() => new ContentTypeRegistry([cat, story])).not.toThrow();
         });
 
         it('serializes the back-reference marker', () => {
@@ -199,9 +197,9 @@ describe('ContentTypeRegistry', () => {
                     })
                 }
             });
-            expect(
-                () => new ContentTypeRegistry([cat, story, bad])
-            ).toThrow(/not a storage-owning relation field/);
+            expect(() => new ContentTypeRegistry([cat, story, bad])).toThrow(
+                /not a storage-owning relation field/
+            );
         });
     });
 });
@@ -268,9 +266,9 @@ describe('locale sync', () => {
         const types = [plainTag, localTag, story];
 
         it('reports the mode so the editor can say what a save will do', () => {
-            expect(fieldOf(types, 'story', 'shared')?.relation?.localeSync).toBe(
-                'shared'
-            );
+            expect(
+                fieldOf(types, 'story', 'shared')?.relation?.localeSync
+            ).toBe('shared');
             expect(
                 fieldOf(types, 'story', 'mirrored')?.relation?.localeSync
             ).toBe('mirrored');
@@ -291,7 +289,9 @@ describe('locale sync', () => {
         it('marks per-locale relations localized, but not shared ones', () => {
             // `localized` means "this row's value differs from its siblings'",
             // which is true of a mirrored id and false of a shared one.
-            expect(fieldOf(types, 'story', 'shared')?.localized).toBeUndefined();
+            expect(
+                fieldOf(types, 'story', 'shared')?.localized
+            ).toBeUndefined();
             expect(fieldOf(types, 'story', 'mirrored')?.localized).toBe(true);
             expect(fieldOf(types, 'story', 'unsynced')?.localized).toBe(true);
         });

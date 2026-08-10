@@ -65,13 +65,19 @@ export const testArticle = collection('test_article', {
             }
         }),
         boolean: field.boolean({
-            admin: { label: 'Boolean', description: 'Toggle this article on/off.' }
+            admin: {
+                label: 'Boolean',
+                description: 'Toggle this article on/off.'
+            }
         }),
         date: field.date({
             admin: { label: 'Date', description: 'A calendar date, no time.' }
         }),
         datetime: field.datetime({
-            admin: { label: 'Datetime', description: 'A specific point in time.' }
+            admin: {
+                label: 'Datetime',
+                description: 'A specific point in time.'
+            }
         }),
         select: field.select({
             options: ['article', 'tutorial', 'changelog'] as const,
@@ -132,7 +138,8 @@ export const testArticle = collection('test_article', {
             unique: true,
             admin: {
                 label: 'SEO metadata',
-                description: 'Search-engine metadata for this article (one-to-one).'
+                description:
+                    'Search-engine metadata for this article (one-to-one).'
             }
         }),
         // The **opt-out**: a tag pinned for this language only. Same
