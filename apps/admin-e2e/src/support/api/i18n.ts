@@ -81,6 +81,13 @@ const LOCALIZED_SCHEMA = {
 interface LocalizedRow {
     id: string;
     status: 'draft' | 'published';
+    /**
+     * When the row last went live, `null` if never. Stamped on publish and
+     * cleared only by unpublish — a `draft` that has one is the admin's
+     * **Modified** state (live content with unpublished edits on top), which is
+     * a different badge from a plain draft and so has to be modelled here.
+     */
+    publishedAt: string | null;
     locale: string;
     localeGroupId: string;
     createdAt: string;
@@ -90,11 +97,16 @@ interface LocalizedRow {
 
 const ISO = '2026-02-01T00:00:00.000Z';
 
+/** What a publish stamps as `publishedAt` — later than {@link ISO}, so a row
+ * that went live during a test is distinguishable from the seeded state. */
+const PUBLISHED_AT = '2026-03-01T00:00:00.000Z';
+
 /** The seed rows across the two translation groups. */
 const ROWS: LocalizedRow[] = [
     {
         id: 'lp-en-1',
         status: 'published',
+        publishedAt: ISO,
         locale: 'en',
         localeGroupId: 'G1',
         createdAt: ISO,
@@ -102,8 +114,12 @@ const ROWS: LocalizedRow[] = [
         values: { title: 'Winter boots', category: 'guide' }
     },
     {
+        // Published once and edited since — `draft` **with** a `publishedAt`, so
+        // this row reads **Modified**. That is the state the all-locales publish
+        // is normally reached from: you save, then publish every language.
         id: 'lp-de-1',
         status: 'draft',
+        publishedAt: ISO,
         locale: 'de',
         localeGroupId: 'G1',
         createdAt: ISO,
@@ -113,6 +129,7 @@ const ROWS: LocalizedRow[] = [
     {
         id: 'lp-en-2',
         status: 'draft',
+        publishedAt: null,
         locale: 'en',
         localeGroupId: 'G2',
         createdAt: ISO,
@@ -229,6 +246,7 @@ export async function mockI18n(page: Page): Promise<void> {
             const row: LocalizedRow = {
                 id: `lp-${locale}-new`,
                 status: 'draft',
+                publishedAt: null,
                 locale,
                 // A create without a group id starts a fresh translation group;
                 // a sibling create carries the source row's group forward.
@@ -310,7 +328,10 @@ export async function mockI18n(page: Page): Promise<void> {
             const segments = new URL(route.request().url()).pathname.split('/');
             const id = segments[segments.length - 2];
             const row = allRows().find((candidate) => candidate.id === id);
-            if (row) row.status = 'published';
+            if (row) {
+                row.status = 'published';
+                row.publishedAt = PUBLISHED_AT;
+            }
             await route.fulfill({
                 status: row ? 200 : 404,
                 contentType: 'application/json',
@@ -367,7 +388,10 @@ export async function mockI18n(page: Page): Promise<void> {
                 const published = rows.filter(
                     (row) => row.status !== 'published'
                 );
-                for (const row of published) row.status = 'published';
+                for (const row of published) {
+                    row.status = 'published';
+                    row.publishedAt = PUBLISHED_AT;
+                }
                 return route.fulfill({
                     status: 200,
                     contentType: 'application/json',
@@ -377,8 +401,12 @@ export async function mockI18n(page: Page): Promise<void> {
                     })
                 });
             }
-            // unpublish
-            for (const row of rows) row.status = 'draft';
+            // unpublish — the one thing that clears `publishedAt`, so the row
+            // goes back to a plain **Draft** rather than **Modified**.
+            for (const row of rows) {
+                row.status = 'draft';
+                row.publishedAt = null;
+            }
             return route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -396,6 +424,33 @@ export async function mockI18n(page: Page): Promise<void> {
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({ relations: {} })
+            });
+        }
+    );
+
+    // GET /api/content/:name/:id/{revisions,media} — the editor's other
+    // per-entry reads. This suite asserts nothing about either, but they must
+    // still be **answered**: every entry write refreshes them along with the
+    // record (`refreshEntryCaches`) and awaits the refetch, so leaving them to
+    // fall through to a dead dev-server proxy makes a save or a publish wait out
+    // TanStack Query's retry backoff before it reports done.
+    await page.route(
+        /\/api\/content\/[^/]+\/[^/]+\/revisions(\?.*)?$/,
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ items: [], total: 0 })
+            });
+        }
+    );
+    await page.route(
+        /\/api\/content\/[^/]+\/[^/]+\/media(\?.*)?$/,
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ media: {} })
             });
         }
     );
@@ -418,13 +473,19 @@ export async function mockI18n(page: Page): Promise<void> {
             };
             const groups: Record<
                 string,
-                { locale: string; entryId: string; status: string }[]
+                {
+                    locale: string;
+                    entryId: string;
+                    status: string;
+                    publishedAt: string | null;
+                }[]
             > = {};
             for (const groupId of body.groupIds) {
                 groups[groupId] = liveGroupRows(groupId).map((row) => ({
                     locale: row.locale,
                     entryId: row.id,
-                    status: row.status
+                    status: row.status,
+                    publishedAt: row.publishedAt
                 }));
             }
             await route.fulfill({
@@ -460,6 +521,7 @@ export async function mockI18n(page: Page): Promise<void> {
                                 ? {
                                       id: member.id,
                                       status: member.status,
+                                      publishedAt: member.publishedAt,
                                       updatedAt: member.updatedAt
                                   }
                                 : null

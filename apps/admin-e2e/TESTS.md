@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_360 test cases across 39 spec files._
+_361 test cases across 39 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -301,6 +301,7 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | --- |
 | the ⋯ menu groups the built-ins and the locale actions |
 | publish all locales pre-flights every sibling, named by locale |
+| publishing all locales refreshes the open record’s own status |
 | unpublish all locales confirms, naming the live locales |
 | neither action is offered on an unsaved record |
 
