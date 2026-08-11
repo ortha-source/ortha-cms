@@ -91,6 +91,27 @@
     "targetDefaults": {
         "test": {
             "dependsOn": ["^build"]
+        },
+        "nx-release-publish": {
+            "dependsOn": ["pack"]
+        }
+    },
+    "release": {
+        "projects": ["@ortha-cms/*", "!@ortha-cms/nx"],
+        "projectsRelationship": "fixed",
+        "releaseTagPattern": "v{version}",
+        "version": {
+            "conventionalCommits": true,
+            "preVersionCommand": "npx nx run-many -t build --projects=@ortha-cms/*",
+            "fallbackCurrentVersionResolver": "disk"
+        },
+        "changelog": {
+            "workspaceChangelog": {
+                "file": "CHANGELOG.md",
+                "createRelease": "github"
+            },
+            "projectChangelogs": false,
+            "automaticFromRef": true
         }
     },
     "generators": {
