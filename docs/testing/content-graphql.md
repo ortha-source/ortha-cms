@@ -67,7 +67,7 @@ than the first request from a workspace granted both.
   none, the schema has only `Query.contentTypes` and no content fields at all.
 - `X-Workspace-Id` is **required** when the token covers more than one
   workspace, optional when it covers exactly one.
-- The playground needs `API_DOCS=true` (`apps/server/src/plugins.ts:74` passes
+- The playground needs `API_DOCS=true` (`apps/server/src/plugins.ts:73` passes
   `config.docs.enabled`), which is off in production.
 - Limits are host-tunable via `GRAPHQL_MAX_DEPTH` / `GRAPHQL_MAX_COMPLEXITY` /
   `GRAPHQL_MAX_FIELDS` / `GRAPHQL_MAX_QUERY_LENGTH`
@@ -626,7 +626,7 @@ per-usage alt text, a caption, or a language marker**
   **Does Not Support** (schema-level)
 - **Location:** the generated `MediaAsset` type
   (`packages/content/graphql/src/lib/schema/shared-types.ts:42-74`) and the entry
-  envelope built in `schema/build-schema.ts:220-320`. Alt text lives on the
+  envelope built in `schema/build-schema.ts:220-300`. Alt text lives on the
   **asset** (`MediaRef.alt`, mirrored from
   `packages/content/admin/src/lib/domain/types/contentType/index.ts:144`), not on
   the *usage*; the entry envelope carries `id / createdAt / updatedAt / status /
@@ -922,7 +922,7 @@ clamped to `MAX_PAGE_SIZE`, so the outer `LIMIT` really is 500.
 Expected: the estimator reads the default and refuses the document.
 3. A related, milder variant: give a content type a **relation field named
    `items`**. `CONTAINER_FIELDS` matches on the field *name*
-   (`limits.ts:323,387`), so that field is treated as the parent's page envelope
+   (`limits.ts:214,278`), so that field is treated as the parent's page envelope
    and its own `pageSize` is never multiplied — a second way to slip a nested
    list past the budget. Field names are author-chosen and `items` is not in
    `ENVELOPE_FIELDS` (`build-schema.ts:208-217`), so nothing prevents it.
@@ -940,8 +940,8 @@ field name.
 
 ### 🐞 BUG-content-graphql-04 — `maxAliases` counts every field, so the default of 30 refuses ordinary documents while its name and docs promise otherwise · Severity: Medium
 
-**Location:** `packages/content/graphql/src/lib/execution/limits.ts:186-194`
-and `countFields` (`:261-295`); default at `types/config.ts:452`; env var
+**Location:** `packages/content/graphql/src/lib/execution/limits.ts:77-85`
+and `countFields` (`:152-186`); default at `types/config.ts:69`; env var
 `GRAPHQL_MAX_FIELDS` at `apps/server/ortha.config.ts:181`
 **Category:** correctness / ux
 
@@ -960,7 +960,7 @@ including envelope fields, `__typename`, and every field inside every fragment
 spread (once per spread site).
 
 **Why it is wrong:** the name says aliases, the config JSDoc says "Field
-selections allowed per operation" (`types/config.ts:412-417`) — two different
+selections allowed per operation" (`types/config.ts:29-34`) — two different
 contracts in the same package — and the AGENTS.md limits table says it catches
 "aliasing one expensive field N times" (`AGENTS.md`, Cost limits). The **host's
 env var is named `GRAPHQL_MAX_FIELDS`**, which is the accurate one, so the
@@ -1003,7 +1003,7 @@ larger field count.
 
 ### 🐞 BUG-content-graphql-05 — The playground's memo cache is keyed on the raw request URL, so ~9 MB is re-rendered and retained per URL spelling · Severity: Medium · 🔒 SECURITY
 
-**Location:** `packages/content/graphql/src/lib/http/controllers/graphql-playground.controller.ts:230,238-250,262-267`
+**Location:** `packages/content/graphql/src/lib/http/controllers/graphql-playground.controller.ts:41,49-61,73-78`
 **Category:** perf / denial-of-service (unauthenticated)
 
 **What the code does:**
@@ -1058,7 +1058,7 @@ a non-default global prefix.
    pointed at `/api/v1/graphql` rather than the derived sibling path.
 
 **Blast radius:** bounded by the playground being **off in production by
-default** (`apps/server/src/plugins.ts:74` gates it on `docs.enabled`), which is
+default** (`apps/server/src/plugins.ts:73` gates it on `docs.enabled`), which is
 why this is Medium rather than High. But where it *is* on — every dev and
 staging environment — the route is `@Public()` and completely unauthenticated,
 so this is a remote, credential-free OOM of a shared environment.
@@ -1071,9 +1071,9 @@ the map entirely in favour of a single lazily-rendered page plus a derived
 
 ### 🐞 BUG-content-graphql-06 — A content field colliding with the GraphQL envelope fails at request time, not at boot · Severity: Medium
 
-**Location:** `packages/content/graphql/src/lib/schema/build-schema.ts:272-277`,
+**Location:** `packages/content/graphql/src/lib/schema/build-schema.ts:274-278`,
 versus the boot-time check in
-`packages/content/graphql/src/lib/utils/content-graphql-plugin.ts:541-545`
+`packages/content/graphql/src/lib/utils/content-graphql-plugin.ts:71`
 **Category:** correctness / availability
 
 **What the code does:** `entryFields` throws while **building** a schema:
@@ -1087,7 +1087,7 @@ for (const [fieldName, spec] of Object.entries(type.fields)) {
 ```
 
 Schema building happens lazily, per grant set, inside a request
-(`graphql.controller.ts:118-119` → `SchemaCache.get` → `buildContentSchema`), and
+(`graphql.controller.ts:120` → `SchemaCache.get` → `buildContentSchema`), and
 graphql-js runs field thunks lazily on top of that. The plugin's boot-time
 assertion checks only **type-name** collisions
 (`assertNoNameCollisions`), not field-vs-envelope ones.
@@ -1096,7 +1096,7 @@ assertion checks only **type-name** collisions
 registry is taken by value "so the **name check below runs at composition
 time**: two content types that would collide in a GraphQL schema should fail the
 host's boot, not the first request from the one workspace granted both"
-(`content-graphql-plugin.ts:488-494`). The envelope check is the same class of
+(`content-graphql-plugin.ts:16-21`). The envelope check is the same class of
 modelling bug and gets the opposite treatment. `ENVELOPE_FIELDS` includes
 `id`, `createdAt`, `updatedAt`, `status`, `publishedAt`, `locale`,
 `localeGroupId` and `translations` (`build-schema.ts:208-217`) — `status` and
@@ -1134,8 +1134,8 @@ request, since a failed build is never cached.
 site in `content-server` for an `HttpException` carrying an internal message, so
 I cannot say whether this is currently reachable.
 
-**Location:** `packages/content/graphql/src/lib/execution/errors.ts:484-493`,
-`messageOf` at `:534-548`
+**Location:** `packages/content/graphql/src/lib/execution/errors.ts:54-63`,
+`messageOf` at `:104-118`
 **Category:** information disclosure
 
 **What the code does:** the mapper branches on the *type* of the error, not on
@@ -1153,11 +1153,11 @@ return new GraphQLError('Internal server error.', { … });
 
 Anything that is *not* an `HttpException` is correctly masked — the file's own
 doc calls that out: "a Postgres error text or a stack trace is exactly the sort
-of thing that turns a token into a reconnaissance tool" (`:456-459`), and
+of thing that turns a token into a reconnaissance tool" (`:26-29`), and
 `errors.spec.ts:70` pins it. But an `InternalServerErrorException(err.message)`
 or a `BadRequestException` built from a driver message *is* an `HttpException`,
 so its text is relayed to the caller unchanged — including through
-`codeFor`'s 5xx branch (`:529`), which happily produces
+`codeFor`'s 5xx branch (`:99`), which happily produces
 `INTERNAL_SERVER_ERROR` with a populated message.
 
 **Why it is wrong:** the mapper's stated contract is "what a client never sees:
@@ -1202,11 +1202,11 @@ Behaviours I specifically read and found **correct**:
   only theoretical hole is the space delimiter noted in EC-28.
 - **The TTL is not the authorization.** `resolveType` → `resolveGrantedType`
   runs on every read and write resolver against the live grant set
-  (`entry-resolvers.ts:345-355`, called at `:99,117,143,243,260,293,320` and
+  (`entry-resolvers.ts:280-288`, called at `:34,52,78,178,195,228,255` and
   from all four mutation resolvers), so a stale schema can describe a revoked
   type but never read it.
 - **The draft rule is correctly wired.** `assertVisibility` compares against
-  `'draft'` / `'any'` (`entry-resolvers.ts:370`), which are exactly the
+  `'draft'` / `'any'` (`entry-resolvers.ts:301`), which are exactly the
   **values** `EntryVisibilityEnum` maps its `DRAFT`/`ANY` names to
   (`schema/field-types.ts:86-90`) — the classic case-mismatch bug is not present.
   It is asserted on all three read entry points (single, list, page).
@@ -1223,9 +1223,9 @@ Behaviours I specifically read and found **correct**:
   map is instance state, so no request can be served another's rows.
 - **Unexpected errors are masked.** Non-`HttpException` failures are logged with
   their stack and replaced with a fixed message and a 500
-  (`errors.ts:495-504`), unit-pinned.
+  (`errors.ts:65-74`), unit-pinned.
 - **Multi-operation documents.** Refused unless `operationName` names one
-  (`limits.ts:145-158`), so one request cannot multiply every other budget.
+  (`limits.ts:40-49`), so one request cannot multiply every other budget.
 - **Batched-array request bodies.** `GraphqlRequestDto` is a single object under
   a `forbidNonWhitelisted` pipe, so the GraphQL-over-HTTP array-batching
   amplification vector is closed by construction (EC-46).
