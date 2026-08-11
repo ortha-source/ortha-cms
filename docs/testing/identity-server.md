@@ -624,6 +624,147 @@ The v1 matrix (`rbac/system-roles.ts:76-105`) is global — there is no per-work
   `✅ E2E` implied by `api-tokens-management.spec.ts:167`; the second call is unasserted → `⚠️ PARTIAL`.
 - **EC-67 — Replay `DELETE /users/:id/sessions/:sid`.** `✅ E2E` (`user-sessions.spec.ts:105`).
 
+### 4A. Accessibility & Section 508 Conformance
+
+**Scope.** This unit renders no UI — it is a NestJS plugin serving JSON. Under Revised
+Section 508 (36 CFR Part 1194) its output is not "electronic content" a user perceives
+directly, so the perceivable/operable criteria are **Not Applicable** here and belong to
+`identity-admin`. What *does* apply, and is assessed below, is (a) whether the **error
+payloads** this API returns carry enough information for a client to satisfy 3.3.1 / 3.3.3
+on its behalf, (b) whether validation errors identify the offending field
+**programmatically** rather than only in prose, and (c) the **504 (Authoring Tools)
+data-model** question — whether the schema this plugin owns has anywhere to store the
+accessibility-relevant information a conformant client needs.
+
+**Not Applicable, with justification (one line each):** 1.1.1, 1.3.1–1.3.5, 1.4.1–1.4.13,
+2.1.1/2.1.2, 2.4.1–2.4.7, 3.1.2, 3.2.1/3.2.2, 4.1.2, 4.1.3, 502.2/502.3, 503.4 — all
+require a rendered user interface, a focusable control, or an accessibility tree; this
+plugin produces none of these. 2.2.1 Timing Adjustable is **Not Applicable** in the WCAG
+sense (the 7-day session TTL and the 10/min login throttle are security limits, which
+2.2.1 exempts), but see `♿ A11Y-identity-server-03` for the client-facing consequence.
+504.3 (prompt for accessibility information) is Not Applicable — no authoring UI here.
+
+---
+
+#### ♿ A11Y-identity-server-01 — Validation failures identify the offending field only inside an English prose sentence, never as a machine-readable field name
+
+**SC:** 3.3.1 Error Identification (A), 3.3.3 Error Suggestion (AA)
+**508:** E205.4 (WCAG 2.0 A/AA by reference) · 502.3.1 Object Information (via the client)
+**Verdict:** **Partially Supports**
+**Location:** `packages/bootstrap/server/src/lib/create-server.ts:28-34` (the global
+`ValidationPipe`, no `exceptionFactory`); consumed by
+`packages/identity/server/src/lib/auth/dto/accept-invite.dto.ts:16-35` and
+`packages/identity/server/src/lib/preferences/dto/update-preferences.dto.ts:14-25`
+
+The host constructs `new ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`
+with **no `exceptionFactory`**, and `grep -rn "ExceptionFilter|exceptionFactory" packages
+apps --include=*.ts` finds only `media/server`'s upload filter — nothing global. So a
+`class-validator` failure serialises as Nest's default:
+`{ "statusCode": 400, "error": "Bad Request", "message": ["password must be longer than or
+equal to 12 characters", "confirmPassword must match password"] }`. The property name is
+present, but only as the first token of a free-text English sentence.
+
+**Repro:** `POST /api/auth/invite/accept` with a 5-character `password` and a mismatched
+`confirmPassword`; inspect the response body.
+
+**What a client can and cannot do:** to wire `aria-describedby` from the `password` input
+to its own error node — the mechanism 3.3.1 actually depends on — the client must
+**string-parse** `message[i]` to work out which field each entry belongs to. Nothing in the
+payload states it. A screen-reader user therefore hears whatever the client managed to
+guess: today `identity-admin` sidesteps this entirely by validating client-side and
+mapping the server 400 to one generic banner, so the two per-field messages above are
+announced as a single undifferentiated alert with no association to either input.
+The strings are also English-only with no message key, so a localised client cannot
+translate them — 3.1.2 is unreachable for any text sourced from here.
+
+**Remediation:** give the host's `ValidationPipe` an `exceptionFactory` that emits
+`{ field, code, message }` triples (the `constraints` keys `class-validator` already
+produces), so a client can bind each error to its input and localise it. This is a
+**bootstrap-server** change; filed here because identity's DTOs are the highest-traffic
+consumer.
+
+---
+
+#### ♿ A11Y-identity-server-02 — The invite endpoints return a bodiless 404, so the client has no server-supplied text to present at all
+
+**SC:** 3.3.1 Error Identification (A), 3.3.3 Error Suggestion (AA)
+**508:** E205.4
+**Verdict:** **Partially Supports**
+**Location:** `packages/identity/server/src/lib/auth/controllers/invite.controller.ts:88-94`
+
+```ts
+/** Collapses an invalid-token failure to a bare 404; passes the rest through. */
+private toHttpError(error: unknown): Error {
+    if (error instanceof InvalidInviteTokenError) {
+        return new NotFoundException();
+    }
+    …
+}
+```
+
+`new NotFoundException()` with no argument serialises as
+`{ "statusCode": 404, "message": "Not Found" }` — the bare HTTP reason phrase. Unknown,
+expired, already-consumed and revoked invites are deliberately indistinguishable
+(anti-enumeration, and correct — see the "Checked and cleared" list in §6).
+
+**Consequence:** the security requirement and 3.3.3 genuinely conflict, and security
+rightly wins. The residual accessibility duty therefore falls entirely on the client: it
+must render its own explanatory text plus a recovery route ("ask your administrator for a
+new invite"). `identity-admin` does render a dead-link state, but a *different* client
+built against this API from the OpenAPI document alone would have literally nothing to
+show. Verdict is Partially Supports rather than Supports because the contract does not
+document that obligation.
+
+**Remediation:** keep the flat 404, but document in the OpenAPI description for both invite
+routes that the response body is intentionally uninformative and that clients MUST supply
+their own user-facing message and recovery path.
+
+---
+
+#### ♿ A11Y-identity-server-03 — The schema this plugin owns can store a theme preference but has nowhere to store a user's language
+
+**SC:** 3.1.1 Language of Page (A), 3.1.2 Language of Parts (AA)
+**508:** 504.2 (Authoring Tools — accessibility information preserved) · 503.2 (user
+preferences)
+**Verdict:** **Does Not Support** (for the language half) / **Supports** (for the theme
+half)
+**Location:** `packages/identity/server/src/lib/schema/user-preferences.ts:23-38`,
+`packages/identity/server/src/lib/preferences/dto/update-preferences.dto.ts:14-25`
+
+`user_preferences` has exactly one preference column — `theme` (`light`/`dark`/`system`) —
+and `UpdatePreferencesDto` accepts exactly one field, `theme`, under
+`forbidNonWhitelisted`. There is **no locale, language, reduced-motion, or contrast
+column**, and no other table in this plugin's schema (`users`, `roles`, `permissions`,
+`role_permissions`, `sessions`, `tokens`, `api_tokens`) carries one.
+
+**Why this is the server's finding, not the admin's:** `<html lang>` must reflect the
+language the user actually reads. With no durable per-user locale, the admin can only ever
+emit a build-time constant or a per-session browser guess, and a user's language choice
+cannot survive a device change — a 508 §504.2 "accessibility information is not preserved"
+gap at the data-model level, which is precisely the class of finding the spec calls out as
+more valuable than a missing `aria-label`.
+
+**The theme half is fine:** `system` is the column default
+(`user-preferences.ts:29`) and the DTO's enum includes it, so the platform
+`prefers-color-scheme` preference is honoured by default rather than overridden — 503.2
+**Supports**. Reduced-motion and forced-colors need no persistence (pure CSS media
+queries), so their absence here is correct, not a gap.
+
+**Remediation:** add a nullable `locale` column to `user_preferences` (BCP-47, null =
+"follow the browser"), widen `UpdatePreferencesDto`, and return it from
+`GET /api/preferences` so the admin can set `<html lang>` from it.
+
+---
+
+**a11y verdict tally: 3 findings · 1 Supports (503.2, within A11Y-03) · 2 Partially
+Supports · 1 Does Not Support (3.1.1, within A11Y-03) · the remaining WCAG 2.1 AA criteria
+Not Applicable (no rendered UI), enumerated above.**
+**a11y coverage: `❌ NONE`.** No suite asserts anything about this API's error-payload
+shape. `apps/server-e2e` asserts status codes, never the body's field-level structure, and
+axe has nothing to scan on a JSON endpoint.
+**WCAG 2.2 (advisory only — 508 references 2.0):** 2.4.11 and 2.5.8 are Not Applicable
+(no UI).
+
 ## 5. E2E Coverage Map
 
 | Feature | Spec | Asserts | Verdict |
@@ -669,7 +810,14 @@ The v1 matrix (`rbac/system-roles.ts:76-105`) is global — there is no per-work
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-identity-server-01 — API-token mint and revoke are completely unaudited · Severity: High · 🔒
+### 🐞 BUG-identity-server-01 — API-token mint and revoke are completely unaudited · Severity: Medium · 🔒
+
+> **Verified 2026-08-11.** Claim confirmed against source; **severity downgraded High →
+> Medium** and the blast radius corrected — revocation is soft
+> (`drizzle-api-token.repository.ts:154-160` sets `revoked_at`, it does not delete), so the
+> `api_tokens` row and its `created_by` survive. The defect is a detection/forensics gap in
+> the surface operators actually read, not a loss of all provenance, and it crosses no
+> privilege boundary on its own.
 
 **Location:** `packages/identity/server/src/lib/api-tokens/http/controllers/api-tokens.controller.ts:64-105`,
 `packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:87-154`
@@ -709,9 +857,12 @@ rows naming the actor, the token id, its scope, and its workspace bucket.
 
 **Blast radius:** a compromised or malicious admin session can mint a `full`-scope token
 for every workspace, exfiltrate through the public content API, and revoke the token —
-leaving **zero** evidence in the audit log. Incident response has no way to answer
-"who created this token?" beyond the surviving `created_by` column, which is gone once
-the row is hard-deleted or the creator's account is removed.
+leaving **zero** evidence in the audit log, which is the only surface an operator reviews.
+Provenance is not entirely lost: `revoke` is a soft update
+(`drizzle-api-token.repository.ts:154-160`), so `api_tokens.created_by`, `created_at`,
+`revoked_at`, `name`, `scope` and the bucket rows persist and can be read straight from the
+database. What is missing is the timeline: nothing correlates the mint with the session,
+IP, or user-agent that requested it, and nothing surfaces it to `GET /api/activity`.
 
 **Suggested fix:** append `token.created` / `token.revoked` domain events to the outbox
 inside a `UnitOfWork.run` in `ApiTokenService`, and add the two mappers to
@@ -819,7 +970,7 @@ Do NOT implement.
 ### 🐞 BUG-identity-server-04 — Every signed-in role can read any member's session list, including IP addresses · Severity: Medium · 🔒
 
 **Location:** `packages/identity/server/src/lib/auth/controllers/user-sessions.controller.ts:67-79`,
-matrix at `packages/identity/server/src/lib/rbac/system-roles.ts:82,99`
+matrix at `packages/identity/server/src/lib/rbac/system-roles.ts:83,99`
 **Category:** tenant-leak / privacy
 
 **What the code does:**
@@ -983,6 +1134,12 @@ Do NOT implement.
 - **Cookie attribute drift** — `clearSession` mirrors `setSession`'s `secure`/`sameSite`/
   `path`, so the browser matches and drops the cookie (`cookie.service.ts:41-49`).
 - **`AccessPolicy`** — pure all-of membership test, framework-free, unit-tested.
+
+**Defect tally:** `6 🐞 · 0 Critical · 1 High · 4 Medium · 1 Low · 5 🔒`
+**Accessibility tally:** `3 ♿ · 1 Supports · 2 Partially Supports · 1 Does Not Support ·
+the rest Not Applicable (server unit, no rendered UI)`
+(A11Y-03 carries two verdicts — Supports for 503.2, Does Not Support for 3.1.1 — so the
+verdict counts exceed the finding count by one.)
 
 ## 7. Recommended E2E Tests
 

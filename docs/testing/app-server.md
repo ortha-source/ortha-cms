@@ -316,6 +316,99 @@ so **disabling a capability is only possible for those two**; and (b) the two ho
 routes are outside every guard, so "unauthenticated" is a real role here — covered as
 `🐞 BUG-app-server-02`.
 
+### 4A. Accessibility & Section 508 Conformance
+
+`apps/server` renders **no user interface**. It is a NestJS composition root: a config file,
+a plugin list, and a code-defined content model. Almost every WCAG 2.1 AA success criterion
+is therefore **Not Applicable** here and is assessed on `apps/admin`, `bootstrap-admin` and
+`packages/design-system` instead. Two things genuinely belong to this unit, and both are
+Chapter 5 / 504 concerns rather than 1.x–4.x ones:
+
+**Not Applicable — with justification, not padding.** 1.1.1, 1.3.x, 1.4.x, 2.1.x, 2.2.1,
+2.4.x, 3.2.x, 3.3.x and 4.1.2/4.1.3 all describe rendered content and interactive controls;
+this app emits JSON. 503.4 (captions/audio controls) — no media player. 502.2/502.3
+(platform AT interoperability, reduced motion, forced colors) — no platform UI. The two
+**HTML** surfaces the app does cause to exist are third-party pages it only switches on:
+the Scalar reference (`apps/server/ortha.config.ts:87-89` → the host's
+`setup-api-docs.ts:141`) and GraphiQL
+(`apps/server/src/plugins.ts:73` → `graphql-playground.controller.ts:44`). Their conformance
+belongs to Scalar and to `@graphql-yoga/render-graphiql`; this app neither styles nor
+markup-controls them. Recorded as inherited, unverified, and out of scope for remediation
+here — but note that both are on by default outside an explicit `NODE_ENV=production`
+(`🐞 BUG-app-server-02`), so a deployment publishes two pages whose accessibility it has
+never assessed.
+
+#### ♿ A11Y-app-server-01 — An asset's alt text is one global column, so it cannot vary per usage or per locale
+
+**WCAG:** 1.1.1 Non-text Content (A) · **508:** E205.4, **504.2.1** (preservation of
+accessibility information) · **Verdict: Partially Supports**
+**Location:** `packages/media/server/src/lib/infrastructure/schema/media-asset.ts:62`
+(`alt: text('alt')`) versus the host's media fields
+`apps/server/src/content/collections/article.ts:103-120` (`coverImage`, `localizedHero`,
+`gallery`).
+
+The data model *can* carry alt text — which is the important half, and better than many
+CMSes manage. What it cannot do is carry **more than one**. `alt` hangs off the asset row,
+not off the field occurrence, so:
+
+- The same image used as `coverImage` on one article and inside `body` richtext on another
+  carries identical alt text in both, though the two contexts need different sentences.
+- `alt` has no `locale` column, while the entries that reference it do
+  (`packages/content/server/src/lib/collection/table-builder.ts:204`). A German translation
+  of an article therefore ships English alt text — 3.1.2 Language of Parts fails at the data
+  layer, and no admin edit can fix it.
+- There is no `decorative` flag, so "this image is decorative, emit `alt=''`" is
+  indistinguishable from "nobody filled the field in". A consumer rendering the API cannot
+  tell which, and will guess wrong in one direction or the other.
+
+**Repro:** 1) upload one image, 2) set it as `coverImage` on an `article` and as a `gallery`
+item on a second, 3) create the `de` translation of the first, 4) read
+`GET /api/v1/content/article?relations=preview&media=preview` for all three.
+→ Observed: one `alt` string in all four places. → Expected: per-occurrence and per-locale
+alt, plus an explicit decorative marker.
+
+**Keyboard-only user:** unaffected. **Screen-reader user of a site built on this API:**
+hears the same, often wrong-language, description for every use of an image, or hears a
+filename where a decorative image should have been skipped silently.
+
+**Remediation:** add `alt` (and a `decorative` boolean) to the media *reference* — the
+per-field join/value — falling back to the asset-level `alt`, and localize it on i18n types
+the way every other localized value already is.
+
+#### ♿ A11Y-app-server-02 — The shipped content types model no table caption, no heading structure and no per-field language, so 504.2 conformance rests entirely on the richtext editor
+
+**WCAG:** 1.3.1 Info and Relationships (A) · **508: 504.2 / 504.4** (authoring tool: can an
+author produce conformant content; do shipped templates default to conformant output) ·
+**Verdict: Unverified — Partially Supports**
+**Location:** `apps/server/src/content/collections/article.ts:30-100`,
+`apps/server/src/content/index.ts`
+
+The kitchen-sink `article` type is the repo's *reference* content model, so what it can
+express is what a 508 auditor will read as the product's ceiling. It has exactly one
+structured field — `body: field.richtext()`
+(`apps/server/src/content/collections/article.ts:56-60`) — and every other field is a
+scalar. Whether an author can produce real headings, lists and `<th>` cells is therefore
+entirely a property of the WYSIWYG and its stored format, not of this app; **and whether
+that markup survives save → reload → locale copy → revision restore (504.2.1) is not
+asserted anywhere in `apps/server-e2e`.** `field.json` and `field.multiselect` carry no
+language marker, so a mixed-language field cannot be marked up at all (3.1.2).
+
+What this unit *does* get right and should be credited with: the row-per-locale model gives
+every entry an explicit, non-null language (`table-builder.ts:204`), which is the single
+most valuable thing a CMS data model can do for 3.1.2 downstream.
+
+**Unverified — what could not be confirmed from `apps/server` alone:** whether richtext
+round-trips heading levels, list semantics and table header cells intact. That belongs to
+`docs/testing/wysiwyg-admin.md` and `docs/testing/content-server.md`; this entry exists so
+the 504.2/504.2.1 question is asked of the shipped model rather than assumed.
+
+**Remediation:** none in this app beyond adding a 504.2.1 round-trip assertion to
+`apps/server-e2e` for the richtext field; the real fix (if the round-trip loses semantics)
+is in the editor and the stored document format.
+
+**♿ tally:** `2 findings — 0 Supports · 1 Partially Supports · 0 Does Not Support · 1 Unverified`
+(everything else Not Applicable: this app renders no UI).
+
 ## 5. E2E Coverage Map
 
 `apps/server-e2e` boots the **real** plugin graph through a parallel composition root
@@ -346,10 +439,10 @@ work and weak evidence that **this app's** wiring is right — the two files can
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-app-server-01 — Every security-critical secret defaults to the empty string, so a misconfigured deployment boots and runs with no signing key · Severity: High · 🔒
+### 🐞 BUG-app-server-01 — Every security-critical setting defaults to the empty string and nothing validates it, so a misconfigured deployment boots silently · Severity: Medium · 🔒
 
-**Location:** `apps/server/ortha.config.ts:80-82,105-107,136-140`
-**Category:** permission-bypass
+**Location:** `apps/server/ortha.config.ts:80-82,106-107,136-140`
+**Category:** correctness
 
 **What the code does:**
 
@@ -362,36 +455,49 @@ identity: {
 ```
 
 There is no validation step anywhere between `process.env` and the plugins — the file's own
-header calls itself "the single place that reads `process.env`" (`:11-12`) and hands the
-result on unchecked. `main.ts:5-10` adds nothing.
+header calls itself "the single place that reads `process.env`" (`:4-5`) and hands the
+result on unchecked. `main.ts:5-9` adds nothing.
 
-**Why it is wrong:** `sessionSecret` and `tokenSecret` are what make a session cookie
-unforgeable and an invite/reset token unguessable (`ARCHITECTURE.md` §7: "Sessions: DB-backed,
-revocable, **signed** token in an httpOnly cookie"; "Invite/reset tokens: SHA-256 hashed at
-rest"). An empty key is a *known* key: anyone who can read this open-source repository knows
-the value the server is signing with. Because it is a default rather than an error, the
-failure mode is a server that boots cleanly, logs its friendly `🚀` line, and serves traffic
-— the operator has no signal at all. The same applies to `DATABASE_URL`, where `''` makes
-`pg` silently fall back to libpq environment defaults instead of failing.
+**Why it is wrong:** the concrete, *today* failure is `DATABASE_URL`. `''` reaches
+`new Pool({ connectionString: '' })` (`packages/database/src/lib/utils/db.ts:18`), and an
+empty string is falsy to `pg`, so the pool silently falls back to libpq environment defaults
+(`PGHOST`/`PGUSER`/current user, localhost) instead of failing. The server then boots
+cleanly, logs its `🚀` line, and fails only on the first query — or, worse, connects to
+whatever local database the ambient environment names.
+
+The two secrets are a **latent** trap rather than a live one, and the artifact previously
+overstated them: `sessionSecret` and `tokenSecret` are declared in
+`packages/identity/server/src/lib/types/index.ts:8,20` and **read nowhere** — a repo-wide
+search finds no consumer outside the type, `ortha.config.ts` and
+`apps/server-e2e/src/support/test-config.ts:75-76`. Sessions are unsigned opaque 256-bit
+tokens stored as SHA-256 (`packages/identity/server/src/lib/auth/services/hashing.service.ts:48-50`),
+which identity's `AGENTS.md` records as deliberate ("Session cookie is unsigned, token hashed
+at rest (#8) … Consequently `sessionSecret` stays **unconsumed** for now"). So there is no
+forgery path from an empty secret. What is wrong is that the same `AGENTS.md` states
+"fail-fast validation **must** be added when signing is introduced (#10)" — and because the
+config supplies `''` rather than throwing, the first consumer to start signing will inherit
+an empty key from every deployment that never set the variable, with no boot signal.
 
 **Repro:**
 1. `unset SESSION_SECRET TOKEN_SECRET DATABASE_URL` (or deploy a container that forgot them).
 2. `npx nx serve server`
 → Observed: boots normally, `🚀 Application is running on: http://localhost:3000/api`, no
-warning; sessions are minted with an empty signing secret.
-→ Expected: the process refuses to start — `SESSION_SECRET is required` — or, at minimum,
+warning; the pg pool is pointed at libpq defaults rather than the intended database.
+→ Expected: the process refuses to start — `DATABASE_URL is required` — or, at minimum,
 logs a prominent `Logger.error` and exits non-zero.
 
-**Blast radius:** any deployment missing an env var. With an empty `sessionSecret`, session
-token forgery is a public-knowledge operation; with an empty `tokenSecret`, invite and reset
-tokens lose their unguessability. Both are full authentication bypasses.
+**Blast radius:** any deployment missing an env var. Today: a server that appears healthy
+while connected to the wrong database (or to none). Tomorrow: whichever ticket introduces
+signing silently inherits an empty key across every such deployment. No authentication
+bypass exists at this commit.
 **Suggested fix:** validate the config once at the bottom of `ortha.config.ts` — throw for
-absent/empty `SESSION_SECRET`, `TOKEN_SECRET` and `DATABASE_URL` (and reject a minimum
-length), so a misconfiguration fails loudly at boot rather than silently at runtime.
+an absent/empty `DATABASE_URL`, and throw (or warn loudly with a minimum length) for
+`SESSION_SECRET` / `TOKEN_SECRET` now, so the fail-fast is in place before the first signing
+consumer rather than after it.
 
-### 🐞 BUG-app-server-02 — The API reference and GraphiQL both default to *on* unless `NODE_ENV=production` is explicitly set · Severity: High · 🔒
+### 🐞 BUG-app-server-02 — The API reference and GraphiQL both default to *on* unless `NODE_ENV=production` is explicitly set · Severity: Medium · 🔒
 
-**Location:** `apps/server/ortha.config.ts:86-89` and `apps/server/src/plugins.ts:70-73`
+**Location:** `apps/server/ortha.config.ts:87-89` and `apps/server/src/plugins.ts:70-73`
 **Category:** data-leak
 
 **What the code does:**
@@ -413,34 +519,44 @@ playground: config.docs.enabled === true
 is a development tool" — but `NODE_ENV` is not set by Node, by Docker, or by most process
 managers. So the effective default in a plain deployment is **enabled**, and the reference
 routes deliberately sit outside every guard
-(`packages/bootstrap/server/src/lib/utils/setup-api-docs.ts:139,141`). The result is an
+(`packages/bootstrap/server/src/lib/utils/setup-api-docs.ts:139,141` register both routes
+straight on the `httpAdapter`, below Nest's guard pipeline). The result is an
 unauthenticated, complete, machine-readable description of the API — plus an interactive
-GraphiQL client — published by default. Cross-reference
+GraphiQL page — published by default. Cross-reference
 `docs/testing/bootstrap-server.md` `🐞 BUG-bootstrap-server-01`, which is the same defect at
 the host layer; this entry records that the app-level config *repeats* rather than corrects
 it, and additionally couples the GraphQL playground to it.
 
+Scope, precisely: the GraphiQL route is `GET /api/v1/graphql/playground`
+(`packages/content/graphql/src/lib/http/controllers/graphql-playground.controller.ts:29-44`),
+and it is `@Public()` **by design** — it is a static, ~9 MB self-contained page that reads
+nothing and carries no schema. `POST /api/v1/graphql` and the SDL `GET` remain behind
+`ApiTokenGuard` + `ApiTokenWorkspaceGuard`, so introspection is *not* exposed by this
+default: the per-grant-set schema of `ADR-0008` still needs a bearer token. What leaks is
+the OpenAPI document and the existence of the tooling.
+
 **Repro:**
 1. `docker run -e DATABASE_URL=… <image>` with no `NODE_ENV` and no `API_DOCS`.
 2. `curl -s https://<host>/reference/json | jq '.paths | keys | length'`
-3. `curl -sD- -o/dev/null https://<host>/api/v1/graphql`
+3. `curl -sD- -o/dev/null https://<host>/api/v1/graphql/playground`
 → Observed: full OpenAPI document, `200`; GraphiQL HTML, `200`. Neither requires a
 credential. → Expected: `404` for both.
 
-**Blast radius:** every self-hosted deployment that does not set `NODE_ENV`. It is
-reconnaissance, not direct compromise — but it also exposes the GraphQL schema shape, which
-`ADR-0008` deliberately builds per-workspace-grant-set precisely so introspection cannot
-enumerate ungranted types.
+**Blast radius:** every self-hosted deployment that does not set `NODE_ENV`. Reconnaissance
+only — it enumerates routes, DTO shapes and the two security schemes, and it invites a
+pasted credential on a page the operator did not intend to publish. No authenticated data
+is reachable through either surface, which is why this is Medium and not High.
 **Suggested fix:** make the docs switch opt-**in** (`process.env['API_DOCS'] === 'true'`,
 full stop) and drop the `NODE_ENV` fallback, or log a startup warning naming both surfaces
 when `NODE_ENV` is unset.
 
 ### 🐞 BUG-app-server-03 — `Number(x) || default` silently rejects `0` and silently accepts negatives for every numeric setting · Severity: Medium
 
-**Location:** `apps/server/ortha.config.ts:78,118,124,128,133-134,169,178-183,189,200,208-211,239`
+**Location:** `apps/server/ortha.config.ts:78,117-118,124-125,128,132-134,168-169,178-183,188-189,199-200,208-211`
 **Category:** correctness
 
-**What the code does:** the same idiom, sixteen times:
+**What the code does:** the same idiom — 15 `Number(process.env…)` reads covering 14
+settings (`COPILOT_MAX_STEPS` is read twice, at `:208` and `:211`):
 
 ```ts
 port: Number(process.env['PORT']) || 3000,
@@ -530,8 +646,11 @@ idiom for `ALLOWED_ORIGINS` and the model lists is correct
 leaves plugin defaults untouched when the variable is absent (with the `0` caveat recorded
 in `🐞 BUG-app-server-03`); `cookieSecure` correctly tracks production and `SameSite=lax`
 is the right choice for a same-origin admin (`:120-121`); and `main.ts` is a faithful
-five-line delegation with no logic of its own — its only flaw (no `.catch`) belongs to the
+nine-line delegation with no logic of its own — its only flaw (no `.catch`) belongs to the
 host and is filed there.
+
+**Tally:** `4 🐞 — 0 Critical · 0 High · 3 Medium · 1 Low (2 🔒)` ·
+`♿ 2 findings — 0 Supports · 1 Partially Supports · 0 Does Not Support · 1 Unverified`
 
 ## 7. Recommended E2E Tests
 
