@@ -22,6 +22,28 @@ export interface LocaleCoverageView {
 }
 
 /**
+ * One localized content type's own coverage.
+ *
+ * The same four figures as the workspace envelope, scoped to a type — which is
+ * what turns "122 records need translating" into "and 88 of them are articles".
+ * A workspace-wide total says work exists; only the per-type split says where.
+ */
+export interface ContentTypeCoverageView {
+    /** The type's machine name. */
+    name: string;
+    /** Its human label. */
+    label: string;
+    /** Translation groups of this type. */
+    records: number;
+    /** Of those, the ones present in every configured locale. */
+    localized: number;
+    /** Of those, the ones present in exactly one locale. */
+    notLocalized: number;
+    /** Of those, the ones missing at least one locale. */
+    requiresLocalization: number;
+}
+
+/**
  * Localization coverage across every `i18n: true` content type.
  *
  * The unit is a **record**, not a row: a localized entry is one row per
@@ -51,6 +73,13 @@ export interface I18nCoverageView {
     notLocalized: number;
     /** Records missing at least one configured locale (`records - localized`). */
     requiresLocalization: number;
-    /** Localized content types counted, so an empty answer can explain itself. */
-    types: number;
+    /**
+     * Per-type coverage, most records first.
+     *
+     * A type the workspace has never used is **omitted** rather than listed at
+     * zero — the same rule the content pipeline applies. A permanently empty row
+     * is noise on a chart about where the outstanding work sits, and it would
+     * push the types that do hold work further down the list.
+     */
+    types: ContentTypeCoverageView[];
 }

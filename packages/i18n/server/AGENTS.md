@@ -170,9 +170,17 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
 
 The aggregate behind the **Translation coverage** card on the Insights page:
 per configured locale, how many of the workspace's localized records exist in
-it, plus the fully-translated / untranslated / part-way totals. `content:read` +
-`WorkspaceGuard`, read-only, no `?days=` (an untranslated record is
-untranslated regardless of when it was written).
+it; the same four figures again **per content type**; and the workspace totals.
+`content:read` + `WorkspaceGuard`, read-only, no `?days=` (an untranslated
+record is untranslated regardless of when it was written).
+
+**One payload serves both of the card's breakdowns**, by language and by type.
+They are different questions — "which language is behind?" and "which content
+type is the work in?" — asked by the same person a moment apart, and the
+per-type figures cost **no extra queries**: the method already loops per type to
+build the workspace totals, so it now keeps what it was throwing away. A type
+the workspace has never used is **omitted** rather than listed at zero, the same
+rule the content pipeline applies.
 
 **Mounted under `insights/`, not this plugin's `i18n/` prefix** — the Insights
 endpoints are grouped by what they are, beside content's and media's, so a
@@ -185,7 +193,7 @@ a locale means, so it can report which slugs appear in the data but not which
 ones are **missing** — and missing is the entire widget.
 `LocaleRegistryService` is the source of that set, and it is here.
 
-Three rules `LocalizationCoverageQuery` encodes:
+Four rules `LocalizationCoverageQuery` encodes:
 
 - **The unit is a record, not a row.** A localized entry is one row per
   language, so counting rows would report 40 stories in 3 languages as 120
@@ -203,6 +211,11 @@ Three rules `LocalizationCoverageQuery` encodes:
   configured `notLocalized` is forced to `0` — there is nowhere to translate to,
   so every record would otherwise be reported as both fully localized and not
   localized at all.
+- **The per-type rows partition the workspace figures.** Each type's
+  `requiresLocalization` sums to the envelope's, and so on for the rest — which
+  is what makes the card's two breakdowns tell the same story rather than two.
+  A server-e2e case asserts the sum, because a per-type figure that drifts from
+  the total is exactly the kind of wrongness a dashboard is believed on.
 
 Implementation note: the group spread (`records` / complete / single) is one
 grouped subquery folded by an outer aggregate. Reading a row per group and

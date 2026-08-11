@@ -126,8 +126,25 @@ slots the content plugin owns).
 
 The one contribution that is **not** to a content-admin slot. **Translation
 coverage** sits in the Insights page's _Localisation & media_ band (`full`
-width, `order: 5`, so media's three `sm` cards fill their own row below it) and
-shows a bar per configured locale plus three headline counts.
+width, `order: 5`, so media's three `sm` cards fill their own row below it):
+three headline counts beside a bar list that switches between **By language**
+and **By type**.
+
+**The two breakdowns are a view swap over one payload, not two cards and not a
+second request.** "Which language is behind?" and "which content type is the
+work in?" are asked by the same person a moment apart; splitting them across
+cards would put the shared headline figures on one of them arbitrarily. The
+figures are workspace-wide and stay put when the axis changes — only the bars,
+the legend and the card's subtitle move, and all three have to move together or
+the card describes a chart that is no longer on screen.
+
+The two axes use the same palette roles for the same meaning — `series-1` is
+work done, `series-2` is work outstanding — but the *denominator* differs, which
+is what the legend swap is for. By language every bar is scaled against the
+workspace's record count, so a bar's length is that language's reach. By type it
+is the biggest type's record count, so length reads as how much content the type
+holds and the blue portion as how much of it is finished; that is what makes
+"the debt is in Article" visible at a glance.
 
 **This plugin owns the card because it owns the question.** Coverage is about
 the _configured_ locale set — content-admin knows which slugs appear on a row

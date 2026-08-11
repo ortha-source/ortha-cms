@@ -129,7 +129,35 @@ export const I18N_COVERAGE_SEED = {
     localized: 18,
     notLocalized: 44,
     requiresLocalization: 122,
-    types: 3
+    // The per-type rows partition the workspace figures — 12 + 4 + 2 = 18 and
+    // 76 + 34 + 12 = 122 — which is what makes the card's two breakdowns tell
+    // the same story rather than two. Ordered by records, as the server sorts.
+    types: [
+        {
+            name: 'article',
+            label: 'Article',
+            records: 88,
+            localized: 12,
+            notLocalized: 30,
+            requiresLocalization: 76
+        },
+        {
+            name: 'changelog',
+            label: 'Changelog',
+            records: 38,
+            localized: 4,
+            notLocalized: 11,
+            requiresLocalization: 34
+        },
+        {
+            name: 'landing_page',
+            label: 'Landing page',
+            records: 14,
+            localized: 2,
+            notLocalized: 3,
+            requiresLocalization: 12
+        }
+    ]
 };
 
 /**
@@ -275,7 +303,9 @@ const EMPTY: Record<string, unknown> = {
         localized: 0,
         notLocalized: 0,
         requiresLocalization: 0,
-        types: 3
+        // Empty, not a row of zeros per type: the server omits a type the
+        // workspace has never used.
+        types: []
     }
 };
 

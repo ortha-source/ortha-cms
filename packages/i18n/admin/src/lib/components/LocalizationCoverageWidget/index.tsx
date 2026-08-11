@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, Languages } from 'lucide-react';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@ortha-cms/insights-admin';
 import { useLocalizationCoverage } from '../../api/useLocalizationCoverage';
 import { CoverageFigure } from './CoverageFigure';
+import { CoverageModeToggle, type CoverageMode } from './CoverageModeToggle';
 
 /** Intl descriptors for the coverage widget, co-located here. */
 const messages = defineMessages({
@@ -19,6 +21,10 @@ const messages = defineMessages({
     description: {
         id: 'i18n.insights.coverage.description',
         defaultMessage: 'How far each language has been taken'
+    },
+    descriptionByType: {
+        id: 'i18n.insights.coverage.descriptionByType',
+        defaultMessage: 'Where the outstanding translation work sits'
     },
     complete: {
         id: 'i18n.insights.coverage.complete',
@@ -60,6 +66,14 @@ const messages = defineMessages({
         id: 'i18n.insights.coverage.missingLegend',
         defaultMessage: 'Missing'
     },
+    doneLegend: {
+        id: 'i18n.insights.coverage.doneLegend',
+        defaultMessage: 'Fully localized'
+    },
+    outstandingLegend: {
+        id: 'i18n.insights.coverage.outstandingLegend',
+        defaultMessage: 'Needs translation'
+    },
     defaultLocale: {
         id: 'i18n.insights.coverage.defaultLocale',
         defaultMessage: '{name} (default)'
@@ -72,6 +86,14 @@ const messages = defineMessages({
         id: 'i18n.insights.coverage.tipMissing',
         defaultMessage: '{locale} — {count, number} records missing'
     },
+    tipTypeDone: {
+        id: 'i18n.insights.coverage.tipTypeDone',
+        defaultMessage: '{type} — {count, number} records in every language'
+    },
+    tipTypeOutstanding: {
+        id: 'i18n.insights.coverage.tipTypeOutstanding',
+        defaultMessage: '{type} — {count, number} records still to translate'
+    },
     footer: {
         id: 'i18n.insights.coverage.footer',
         defaultMessage:
@@ -80,7 +102,14 @@ const messages = defineMessages({
 });
 
 /**
- * How much of the workspace's localized content exists in each language.
+ * How much of the workspace's localized content has been translated, broken
+ * down **by language or by content type**.
+ *
+ * Two questions off one payload, which is why they are a view swap rather than
+ * two cards: "which language is behind?" and "which content type is the work
+ * in?" are asked by the same person a moment apart, and splitting them across
+ * cards would put the shared headline figures on one of them arbitrarily. The
+ * three figures are workspace-wide and stay put when the axis changes.
  *
  * **The unit is a record, not a row.** A localized entry is one row per
  * language sharing a translation group, so a bar counting rows would report a
@@ -95,13 +124,15 @@ const messages = defineMessages({
  */
 export function LocalizationCoverageWidget() {
     const intl = useIntl();
+    const [mode, setMode] = useState<CoverageMode>('locale');
     const { data, isPending, isError } = useLocalizationCoverage();
 
     const records = data?.records ?? 0;
     const locales = data?.locales ?? [];
+    const types = data?.types ?? [];
     const requires = data?.requiresLocalization ?? 0;
 
-    const rows: BarRowSpec[] = locales.map((locale) => {
+    const localeRows: BarRowSpec[] = locales.map((locale) => {
         const name = locale.isDefault
             ? intl.formatMessage(messages.defaultLocale, { name: locale.name })
             : locale.name;
@@ -129,17 +160,54 @@ export function LocalizationCoverageWidget() {
                 }
             ],
             readout: intl.formatNumber(locale.translated),
-            secondary:
-                records > 0
-                    ? `${Math.round((locale.translated / records) * 100)}%`
-                    : undefined
+            secondary: share(locale.translated, records)
         };
     });
+
+    const typeRows: BarRowSpec[] = types.map((type) => ({
+        id: type.name,
+        label: type.label,
+        segments: [
+            {
+                id: 'localized',
+                value: type.localized,
+                tone: 'series-1',
+                label: intl.formatMessage(messages.tipTypeDone, {
+                    type: type.label,
+                    count: type.localized
+                })
+            },
+            {
+                id: 'outstanding',
+                value: type.requiresLocalization,
+                tone: 'series-2',
+                label: intl.formatMessage(messages.tipTypeOutstanding, {
+                    type: type.label,
+                    count: type.requiresLocalization
+                })
+            }
+        ],
+        readout: intl.formatNumber(type.localized),
+        secondary: share(type.localized, type.records)
+    }));
+
+    const byLocale = mode === 'locale';
+    // Every bar is scaled against one denominator so lengths compare. By locale
+    // that is the workspace's record count (each language could reach all of
+    // them); by type it is the biggest type, so a row's length reads as how much
+    // content that type holds and its blue portion as how much is done.
+    const max = byLocale
+        ? records
+        : Math.max(...types.map((type) => type.records), 0);
 
     return (
         <WidgetCard
             title={intl.formatMessage(messages.title)}
-            description={intl.formatMessage(messages.description)}
+            // The subtitle moves with the axis too — left on the locale copy it
+            // would describe a chart that is no longer on screen.
+            description={intl.formatMessage(
+                byLocale ? messages.description : messages.descriptionByType
+            )}
             action={
                 requires === 0 ? (
                     <WidgetChip tone="ok" icon={Check}>
@@ -155,7 +223,7 @@ export function LocalizationCoverageWidget() {
             }
             footer={intl.formatMessage(messages.footer, {
                 records,
-                types: data?.types ?? 0
+                types: types.length
             })}
             isPending={isPending}
             isError={isError}
@@ -182,23 +250,42 @@ export function LocalizationCoverageWidget() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                            <span
-                                className={`block size-2 rounded-[2px] ${toneBackground('series-1')}`}
-                            />
-                            {intl.formatMessage(messages.translatedLegend)}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                            <span
-                                className={`block size-2 rounded-[2px] ${toneBackground('series-2')}`}
-                            />
-                            {intl.formatMessage(messages.missingLegend)}
-                        </span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1.5">
+                                <span
+                                    className={`block size-2 rounded-[2px] ${toneBackground('series-1')}`}
+                                />
+                                {intl.formatMessage(
+                                    byLocale
+                                        ? messages.translatedLegend
+                                        : messages.doneLegend
+                                )}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span
+                                    className={`block size-2 rounded-[2px] ${toneBackground('series-2')}`}
+                                />
+                                {intl.formatMessage(
+                                    byLocale
+                                        ? messages.missingLegend
+                                        : messages.outstandingLegend
+                                )}
+                            </span>
+                        </div>
+                        <CoverageModeToggle value={mode} onChange={setMode} />
                     </div>
-                    <BarRows rows={rows} max={records} />
+                    <BarRows
+                        rows={byLocale ? localeRows : typeRows}
+                        max={max}
+                    />
                 </div>
             </div>
         </WidgetCard>
     );
+}
+
+/** A count as a whole-percent share of its total, or nothing when there is none. */
+function share(value: number, total: number): string | undefined {
+    return total > 0 ? `${Math.round((value / total) * 100)}%` : undefined;
 }

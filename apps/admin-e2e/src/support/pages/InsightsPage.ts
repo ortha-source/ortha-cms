@@ -64,6 +64,17 @@ export class InsightsPage extends BasePage {
             .locator('xpath=ancestor::*[contains(@class,"rounded-xl")][1]');
     }
 
+    /**
+     * A breakdown option inside a widget card (e.g. "By type").
+     *
+     * `radio`, not `button` — a card's breakdown switch is the same design-system
+     * `SegmentedControl` the range picker uses, and its Radix root takes radio
+     * semantics so arrow keys move the selection.
+     */
+    cardBreakdown(title: string, option: string): Locator {
+        return this.card(title).getByRole('radio', { name: option });
+    }
+
     /** The error message a widget shows when its own request failed. */
     cardError(title: string): Locator {
         return this.card(title).getByRole('alert');

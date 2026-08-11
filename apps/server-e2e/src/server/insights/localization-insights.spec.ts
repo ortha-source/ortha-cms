@@ -207,6 +207,67 @@ describe('Localization insights (/api/insights/i18n)', () => {
             expect(body.locales[1]).toMatchObject({ missing: 2 });
         });
 
+        it('reports the same figures per content type', async () => {
+            // The workspace total says translation work exists; only the
+            // per-type split says where it is.
+            const agent = await login();
+            const complete = await createRecord(agent);
+            await translate(agent, complete, 'de');
+            await translate(agent, complete, 'fr');
+            await createRecord(agent);
+
+            const body = await coverage(agent);
+            expect(body.types).toEqual([
+                {
+                    name: 'test_article',
+                    label: expect.any(String),
+                    records: 2,
+                    localized: 1,
+                    notLocalized: 1,
+                    requiresLocalization: 1
+                }
+            ]);
+
+            // The per-type rows are the workspace figures, partitioned — the
+            // one property that makes the card's two breakdowns tell the same
+            // story rather than two.
+            const summed = body.types.reduce(
+                (
+                    total: number,
+                    type: { requiresLocalization: number }
+                ): number => total + type.requiresLocalization,
+                0
+            );
+            expect(summed).toBe(body.requiresLocalization);
+        });
+
+        it('omits a localized type the workspace has never used', async () => {
+            // `test_author` and `test_landing` are localized too. A row of
+            // zeros for each would be noise on a chart about where the
+            // outstanding work sits, and would push the real rows down.
+            const agent = await login();
+            await createRecord(agent);
+
+            const body = await coverage(agent);
+            const names = body.types.map((type: { name: string }) => type.name);
+            expect(names).toEqual(['test_article']);
+        });
+
+        it('orders types by how much content they hold', async () => {
+            const agent = await login();
+            await createRecord(agent);
+            await createRecord(agent);
+            await agent
+                .post('/api/content/test_author')
+                .send({ values: { name: 'Ada' } })
+                .expect(201);
+
+            const body = await coverage(agent);
+            expect(
+                body.types.map((type: { name: string }) => type.name)
+            ).toEqual(['test_article', 'test_author']);
+        });
+
         it('drops a soft-deleted translation from its record’s coverage', async () => {
             // A tombstoned sibling is still a row. Counting it would report a
             // language as translated when the translation is in the trash.
@@ -242,10 +303,11 @@ describe('Localization insights (/api/insights/i18n)', () => {
                     (l: { translated: number }) => l.translated === 0
                 )
             ).toBe(true);
-            // Localized types still exist — the workspace just hasn't used
-            // them. The card needs that to say "nothing yet" rather than
-            // "localization isn't set up".
-            expect(body.types).toBeGreaterThan(0);
+            // Localized types exist — the workspace just hasn't used them — but
+            // a row of zeros per type is not a report, so the breakdown is
+            // empty and `records: 0` is what tells the card to say "nothing
+            // yet".
+            expect(body.types).toEqual([]);
         });
 
         it('counts only the workspace named by the header', async () => {
