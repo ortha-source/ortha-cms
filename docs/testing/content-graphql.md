@@ -705,8 +705,8 @@ e2e verdicts, so the columns overlap by design.)
 
 ### 🐞 BUG-content-graphql-01 — An ~800-byte fragment bomb wedges the server, because the cost checker itself is exponential · Severity: Critical · 🔒 SECURITY
 
-**Location:** `packages/content/graphql/src/lib/execution/limits.ts:222-258`
-(`depthOf`), `:261-295` (`countFields`), `:309-372` (`estimateComplexity`)
+**Location:** `packages/content/graphql/src/lib/execution/limits.ts:113-149`
+(`depthOf`), `:152-186` (`countFields`), `:200-263` (`estimateComplexity`)
 **Category:** perf / denial-of-service
 
 **What the code does:** all three walkers recurse into a fragment spread with a
@@ -727,7 +727,7 @@ reachable by many distinct paths and is therefore re-walked once per path.
 
 **Why it is wrong:** `checkLimits` runs *before* `validate`
 (`execute-operation.ts:71-88`), deliberately, "so an expensive document is
-refused as early as possible" (`limits.ts:218-221`). That ordering means
+refused as early as possible" (`limits.ts:105-112`). That ordering means
 graphql-js's own protections never get a chance — the cost checker is the first
 and only thing standing between an authenticated caller and the event loop, and
 it is itself the expensive operation. The module's own header states the goal:
@@ -745,13 +745,26 @@ fragment F1 on Query { ...F2 ...F2 ...F2 ...F2 ...F2 ...F2 ...F2 ...F2 ...F2 ...
 fragment F9 on Query { __typename }
 ```
 
-→ Observed: `depthOf`, `countFields` and `estimateComplexity` each perform
-**10⁹** recursive calls (fan-out ^ levels; there is no memo, so the shared
-fragments do not collapse). Measured on this machine: a bare 10⁹-deep recursion
-of that shape takes **~4.3 s** with no allocation at all; the real walkers
-additionally build a `new Set([...visiting, name])` at every one of those calls,
-so the true cost is far higher and heavily GC-bound. Node is single-threaded, so
-the whole API — every tenant, every route — is blocked for the duration.
+→ Observed: `depthOf` alone — the **first** of the three walks, at
+`limits.ts:67` — performs **10⁹** recursive calls (fan-out ^ levels; there is no
+memo, so the shared fragments do not collapse), each one allocating a
+`new Set([...visiting, name])`. `checkLimits` never returns, so the depth error
+it is computing is never reported.
+**Measured**, by running `depthOf`'s exact body over a hand-built AST of this
+shape (this repo has no `node_modules`, so the walker was transcribed rather
+than imported; the recursion and the per-call `Set` copy are identical):
+
+| levels × fan-out | document bytes | calls | wall time |
+| --- | --- | --- | --- |
+| 4 × 10 | 386 | 10⁴ | 14 ms |
+| 5 × 10 | 471 | 10⁵ | 21 ms |
+| 6 × 10 | 556 | 10⁶ | 232 ms |
+| 7 × 10 | 641 | 10⁷ | 2 244 ms |
+
+Growth is linear in the call count past 10⁶, so the 811-byte 9 × 10 document
+above is ~10⁹ calls ≈ **3–4 minutes** of blocked event loop, and 10 × 10 (896
+bytes) is ~35 minutes. Node is single-threaded, so the whole API — every tenant,
+every route, the admin session endpoints included — is frozen for the duration.
 Expected: the document is refused in microseconds, or the walk is linear in the
 document.
 → **Scaling:** the budget is 16 384 characters. At ~85 bytes per fragment
@@ -776,9 +789,9 @@ total spread count before walking anything.
 
 ### 🐞 BUG-content-graphql-02 — Read arguments bypass the DTO validation the REST route enforces, so a token reaches further over GraphQL than over REST · Severity: High · 🔒 SECURITY
 
-**Location:** `packages/content/graphql/src/lib/resolvers/selection.ts:234-259`
-(`listDtoFrom`), `:261-272` (`entryDtoFrom`), and
-`packages/content/graphql/src/lib/resolvers/entry-resolvers.ts:235-271`
+**Location:** `packages/content/graphql/src/lib/resolvers/selection.ts:237-260`
+(`listDtoFrom`), `:263-274` (`entryDtoFrom`), and
+`packages/content/graphql/src/lib/resolvers/entry-resolvers.ts:163-206`
 (`loadRelationView`)
 **Category:** permission-bypass (resource limits) / perf
 
@@ -796,8 +809,10 @@ if (typeof args['search'] === 'string') dto.search = args['search'];
 The class it is cast to carries the constraints the public API relies on —
 `@Min(1)` on `page`, `@Min(1) @Max(MAX_PAGE_SIZE)` on `pageSize`, `@MaxLength`
 on `search`, `filter` and `locale`
-(`packages/content/server/src/lib/public-api/http/dto/public-list-entries-query.dto.ts:203-274`)
-— and **none of them run**, because the host's global `ValidationPipe` only sees
+(`packages/content/server/src/lib/public-api/http/dto/public-list-entries-query.dto.ts:228-274`
+— `@MaxLength(SEARCH_MAX_LENGTH)` on `search` at `:228`, `@MaxLength(FILTER_MAX_LENGTH)`
+at `:246`, `@Min(1)` on `page` at `:258`, `@Min(1) @Max(MAX_PAGE_SIZE)` on
+`pageSize` at `:272-273`) — and **none of them run**, because the host's global `ValidationPipe` only sees
 an HTTP body, never a GraphQL argument. Downstream, `PublicEntriesQuery.list`
 does no clamping of its own:
 
@@ -811,10 +826,12 @@ const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
 (`packages/content/server/src/lib/public-api/infrastructure/public-entries.query.ts:120-121,161-162`).
 
 The same gap exists on the nested path: `loadRelationView` reads
-`numberArg(args['pageSize'])` and passes it straight through as the loader's
-`limit` (`entry-resolvers.ts:236,249`) and as `relationField`'s page size
-(`:266`), where `applySelection`'s `clampPageSize` (`selection.ts:322-328`, which
-does clamp to `[1, MAX_PAGE_SIZE]`) never reaches.
+`numberArg(args['pageSize'])` (`entry-resolvers.ts:171`) and passes it straight
+through as the loader's `limit` (`:184`) and as `relationField`'s page size
+(`:201`), where `applySelection`'s `clampPageSize` (`selection.ts:324-329`, which
+does clamp to `[1, MAX_PAGE_SIZE]`) never reaches. `PublicEntriesQuery.relationField`
+(`packages/content/server/src/lib/public-api/infrastructure/public-entries.query.ts:609-649`)
+takes `pageSize` as a plain parameter and clamps nothing either.
 
 **Why it is wrong:** the package **already recognises this exact problem for
 writes** and fixes it — `mutation-resolvers.ts:159-171` runs `validateSync` on
@@ -858,8 +875,8 @@ through the existing `clampPageSize`.
 
 ### 🐞 BUG-content-graphql-03 — A variable's *default value* defeats the complexity budget · Severity: High · 🔒 SECURITY
 
-**Location:** `packages/content/graphql/src/lib/execution/limits.ts:390-417`
-(`pageSizeOf`), called from `estimateComplexity` (`:336`)
+**Location:** `packages/content/graphql/src/lib/execution/limits.ts:281-308`
+(`pageSizeOf`), called from `estimateComplexity` (`:227`)
 **Category:** permission-bypass (resource limits) / perf
 
 **What the code does:** the estimator resolves a `pageSize` argument written as a
@@ -881,9 +898,9 @@ estimator falls back to 20 while graphql-js applies 500 at execution.
 
 **Why it is wrong:** `maxComplexity` is described as "the one limit that catches a
 shallow-but-enormous query, which a depth cap alone lets straight through"
-(`types/config.ts:405-411`), and the estimator is documented as deliberately
+(`types/config.ts:22-28`), and the estimator is documented as deliberately
 **pessimistic** — "it assumes every list comes back full … the point is to refuse
-the shapes that *can* be enormous" (`limits.ts:300-308`). A default value makes it
+the shapes that *can* be enormous" (`limits.ts:188-199`). A default value makes it
 *optimistic* instead, which inverts the stated bias. The unit suite tests the
 supplied-variable case (`limits.spec.ts:86`) and not the default case, which is
 how the gap survived.
