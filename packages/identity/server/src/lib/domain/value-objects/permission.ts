@@ -2,10 +2,14 @@ import { InvalidPermissionError } from '../errors';
 
 /**
  * A `resource:action` permission key — lower-case `resource`, a colon, and a
- * lower-case `action` (e.g. `workspaces:create`). The catalogue of valid keys
- * lives in `rbac/system-roles.ts`; this only asserts the shape.
+ * lower-case `action` (e.g. `workspaces:create`), with an optional
+ * sub-resource segment between them for a resource that owns a distinct
+ * sub-thing (e.g. `copilot:skills:manage`). The extra segment is naming only:
+ * a key is compared whole, so `copilot:skills:manage` implies nothing about
+ * `copilot:use`. The catalogue of valid keys lives in `rbac/system-roles.ts`;
+ * this only asserts the shape.
  */
-const PERMISSION_RE = /^[a-z]+:[a-z_]+$/;
+const PERMISSION_RE = /^[a-z]+:[a-z_]+(?::[a-z_]+)?$/;
 
 /**
  * A single permission, wrapping its `resource:action` key. A value object:

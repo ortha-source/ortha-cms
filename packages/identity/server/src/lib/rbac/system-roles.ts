@@ -31,7 +31,12 @@ export const PERMISSIONS = {
     COPILOT_SKILLS_MANAGE: 'copilot:skills:manage'
 } as const;
 
-/** A `resource:action` permission key drawn from {@link PERMISSIONS}. */
+/**
+ * A `resource:action` permission key drawn from {@link PERMISSIONS} — with an
+ * optional sub-resource segment (`copilot:skills:manage`). Every key must pass
+ * `Permission.create`'s shape check, or the guard 500s on the route requiring
+ * it.
+ */
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 /** Every permission key — the catalogue seeded into the `permissions` table. */
