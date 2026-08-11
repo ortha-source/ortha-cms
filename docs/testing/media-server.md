@@ -26,7 +26,7 @@ workspace membership (identity + workspaces); and **any HTTP security headers**
 - **Entry points**
   - Session routes (all `PermissionsGuard` + `WorkspaceGuard`, state-changing ones
     also `OriginGuard`):
-    - `GET /api/media/folders` — `packages/media/server/src/lib/http/controllers/list-folders.controller.ts:379`
+    - `GET /api/media/folders` — `packages/media/server/src/lib/http/controllers/list-folders.controller.ts:22`
     - `POST /api/media/folders` — `.../create-folder.controller.ts:192`
     - `PATCH /api/media/folders/:id` — `.../rename-folder.controller.ts:240`
     - `DELETE /api/media/folders/:id` (204, cascades) — `.../delete-folder.controller.ts:290`
@@ -91,7 +91,7 @@ workspace membership (identity + workspaces); and **any HTTP security headers**
 
 | # | Feature | Where it lives | Coverage |
 | --- | --- | --- | --- |
-| F1 | List the workspace's folders + per-folder and root asset counts | `packages/media/server/src/lib/infrastructure/queries/list-folders.query.ts:169` | ✅ E2E |
+| F1 | List the workspace's folders + per-folder and root asset counts | `packages/media/server/src/lib/infrastructure/queries/list-folders.query.ts:14` | ✅ E2E |
 | F2 | Create a folder (optional `parentId`, `FOR SHARE` on the parent) | `packages/media/server/src/lib/application/use-cases/create-folder.use-case.ts:33` | ✅ E2E |
 | F3 | Rename a folder | `packages/media/server/src/lib/application/use-cases/rename-folder.use-case.ts:29` | ✅ E2E |
 | F4 | Delete a folder — cascading the whole subtree + its assets + blobs | `packages/media/server/src/lib/application/use-cases/delete-folder.use-case.ts:103` | ✅ E2E |
@@ -102,9 +102,9 @@ workspace membership (identity + workspaces); and **any HTTP security headers**
 | F9 | List one folder's assets — `?folderId=&search=&kind=&sort=&page=&pageSize=` | `packages/media/server/src/lib/infrastructure/queries/list-assets.query.ts:44` | ⚠️ PARTIAL |
 | F10 | Download the bytes, membership-derived scope, `?variant=` | `packages/media/server/src/lib/http/controllers/download-asset.controller.ts:48` | ✅ E2E |
 | F11 | `?variant=` falls back to the original (`Object.hasOwn` guard) | `packages/media/server/src/lib/infrastructure/queries/download-asset.query.ts:66-81` | ✅ E2E |
-| F12 | Patch an asset — rename / move / retag / set alt | `packages/media/server/src/lib/application/use-cases/update-asset.use-case.ts:186` | ⚠️ PARTIAL |
-| F13 | Duplicate an asset (bytes + derivatives + row) | `packages/media/server/src/lib/application/use-cases/duplicate-asset.use-case.ts:334` | ✅ E2E |
-| F14 | Bulk delete assets (≤100 ids), blobs reclaimed post-commit | `packages/media/server/src/lib/application/use-cases/delete-assets.use-case.ts:264` | ✅ E2E |
+| F12 | Patch an asset — rename / move / retag / set alt | `packages/media/server/src/lib/application/use-cases/update-asset.use-case.ts:36` | ⚠️ PARTIAL |
+| F13 | Duplicate an asset (bytes + derivatives + row) | `packages/media/server/src/lib/application/use-cases/duplicate-asset.use-case.ts:44` | ✅ E2E |
+| F14 | Bulk delete assets (≤100 ids), blobs reclaimed post-commit | `packages/media/server/src/lib/application/use-cases/delete-assets.use-case.ts:31` | ✅ E2E |
 | F15 | `media.*` domain events written to the outbox in the same transaction | `packages/media/server/src/lib/domain/events/media-events.ts` | ❌ NONE |
 | F16 | Token upload `POST /api/v1/media/assets`, attributed to the token's creator | `packages/media/server/src/lib/http/controllers/public-media.controller.ts:109` | ❌ NONE |
 | F17 | Token download `GET /api/v1/media/assets/:id/raw`, token-workspace scoped | `.../public-media.controller.ts:163` | ❌ NONE |
@@ -132,7 +132,7 @@ Every block assumes: Postgres up, migrations applied, `npm run dev`, a workspace
 | --- | --- | --- |
 | 1 | `GET /api/media/folders` with `X-Workspace-Id: $WS` | `200`, body `{ folders: [...], rootAssetCount: 2 }` |
 | 2 | Inspect a folder object | `{ id, name, parentId, assetCount, createdAt }`; `parentId` is `null` for a top-level folder |
-| 3 | Confirm ordering | folders are sorted by `name` ascending (`list-folders.query.ts:173`) |
+| 3 | Confirm ordering | folders are sorted by `name` ascending (`list-folders.query.ts:20`) |
 | 4 | Repeat with a workspace the caller is not a member of | `403` from `WorkspaceGuard` |
 
 **Keyboard-only path / screen reader:** N/A (JSON route). The consuming UI is
@@ -385,7 +385,7 @@ so this cannot be exercised against `apps/server` as-is.
 - **EC-08 — 255-char filename, then duplicate it.** `❌ NONE`
   `duplicateName` appends `" copy"` → 260 chars → `FileName.create` throws
   `InvalidFileNameError` → `400` from a route the user expected to succeed
-  (`duplicate-asset.use-case.ts:348, 406`). Unhelpful but not dangerous.
+  (`duplicate-asset.use-case.ts:24, 115`). Unhelpful but not dangerous.
 - **EC-09 — Unicode / emoji / RTL filename.** `❌ NONE`
   Stored verbatim in `media_asset.name`; `provider-local` reduces every non-`\w.-`
   run to `_`, so `логотип.png` and `商標.png` both key as `_.png` — **distinct
@@ -492,7 +492,7 @@ so this cannot be exercised against `apps/server` as-is.
   (`upload-asset.use-case.ts:141`), serializing against the delete's `FOR UPDATE`.
   One of the two loses cleanly. Correct.
 - **EC-38 — Move an asset into a folder being deleted.** `❌ NONE` Same guard
-  (`update-asset.use-case.ts:215`). Correct.
+  (`update-asset.use-case.ts:61-69`). Correct.
 - **EC-39 — Storage `put` succeeds, then the transaction fails.** `❌ NONE`
   Reclaimed by the `catch`. But with the **S3 stub** registered, `provider.remove`
   throws *synchronously*, which escapes the `catch` block and replaces the original

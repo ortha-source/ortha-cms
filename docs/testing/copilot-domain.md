@@ -477,7 +477,7 @@ function of `actor.grantedPermissions`. The role axis materialises downstream.
   `❌ NONE` The port says providers buffer internally and emit "only once the
   arguments parse" (`model-provider.ts:56-59`). `provider-openai` complies by
   returning `{}` on malformed JSON
-  (`packages/copilot/provider-openai/src/lib/wire/tool-call-accumulator.ts:435-444`),
+  (`packages/copilot/provider-openai/src/lib/wire/tool-call-accumulator.ts:29-38`),
   which satisfies the letter and loses the arguments. Nothing checks.
 - **EC-41 — An adapter that never emits `done`.** `❌ NONE`
   `streamTurn`'s `for await` simply ends with `stopReason: 'end'` and zero usage

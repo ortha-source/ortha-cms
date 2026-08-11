@@ -68,7 +68,7 @@ boundary — `.cursor/BUGBOT.md`).
 | # | Feature | Where it lives | Coverage |
 | --- | --- | --- | --- |
 | F1 | Media Library page renders folders + assets for the open workspace | `packages/media/admin/src/lib/pages/MediaLibraryPage/index.tsx:173` | ✅ E2E |
-| F2 | Folder sidebar tree (depth-first, name-sorted, indented) | `packages/media/admin/src/lib/utils/folderTree/index.ts:266`, `.../components/MediaFoldersNav/index.tsx` | ⚠️ PARTIAL |
+| F2 | Folder sidebar tree (depth-first, name-sorted, indented) | `packages/media/admin/src/lib/utils/folderTree/index.ts:15`, `.../components/MediaFoldersNav/index.tsx` | ⚠️ PARTIAL |
 | F3 | Navigate into a folder / breadcrumbs back out | `.../hooks/useMediaLibrary/index.ts:105,178` | ⚠️ PARTIAL |
 | F4 | Create a folder | `.../components/NewFolderDialog/index.tsx` → `useMediaLibrary:239` | ✅ E2E |
 | F5 | Rename a folder or an asset | `.../components/RenameDialog/index.tsx` → `useMediaLibrary:245,253` | ❌ NONE |
@@ -410,7 +410,7 @@ selection count is announced from the `sr-only aria-live="polite"` paragraph at
   `🐞 BUG-media-admin-03`.
 - **EC-23 — A folder whose `parentId` names a folder not in the list.** `❌ NONE`
   `flattenFolderTree` only emits folders reachable from the root sentinel
-  (`utils/folderTree/index.ts:266-278`), so an orphan is **silently invisible** in
+  (`utils/folderTree/index.ts:15-27`), so an orphan is **silently invisible** in
   both the sidebar and the move dialog, while its assets are still counted. No
   cycle guard either — a cyclic response would recurse until the stack blows. Not
   reachable via the API today (there is no move-folder route), so Low.
