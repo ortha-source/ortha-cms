@@ -13,3 +13,8 @@ export type {
     LocaleSummaryItem,
     LocaleSummaryView
 } from './lib/content/services/locale-group.service';
+export type {
+    ContentTypeCoverageView,
+    I18nCoverageView,
+    LocaleCoverageView
+} from './lib/insights/types/i18n-insights-view';

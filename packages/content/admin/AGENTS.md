@@ -592,9 +592,12 @@ This plugin contributes the **content cards** on the Insights page via
 it owns the widgets; the Insights plugin ships only the page, the grid and the
 card shell and knows nothing about entries.
 
-Seven contributions: three Overview stat tiles (Entries / Published / Drafts),
+Eight contributions: three Overview stat tiles (Entries / Published / Drafts),
 **Gone quiet** (staleness buckets), **Draft and published, by type**,
-**Publishing velocity**, and the Team **punchcard**. Data layer mirrors the rest
+**Publishing velocity**, **Waiting to go live**, and the Team **punchcard**.
+Velocity is `lg` (8/12) rather than `full` so **Waiting to go live** (`sm`, 4/12)
+shares its row — the grid is twelfths, and 8 + 4 is what makes that one row
+instead of two. Data layer mirrors the rest
 of the package — `infrastructure/contentInsightsGateway` (the port),
 `httpContentInsightsGateway` (the only `apiClient` use),
 `contentInsightsKeys`, and the read hooks in
@@ -615,6 +618,14 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 - **The velocity widget takes its bucket width from the response**, rather than
   re-deriving it from the range: two places computing the same rule is two
   places to get it wrong, and the axis would silently mislabel.
+- **Waiting to go live counts against _live_ records, not all of them.** "94 of
+  1,046 live records have pending edits" is a backlog someone can clear; the
+  same 94 against the whole content set says nothing about how far behind the
+  site is. Never-published drafts are a footnote under the card rather than part
+  of the headline — finishing a draft and pressing publish are different jobs,
+  which is the same distinction the **Modified** badge exists to draw. Its empty
+  state is `live === 0`: with nothing ever published, "0 pending" would claim a
+  publishing habit the workspace does not have yet.
 
 ## Extension slots
 

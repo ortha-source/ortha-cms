@@ -19,6 +19,7 @@
         "@ortha-cms/content-admin": "*",
         "@ortha-cms/design-system": "*",
         "@ortha-cms/identity-admin": "*",
+        "@ortha-cms/insights-admin": "*",
         "@ortha-cms/query-builder-admin": "*",
         "@ortha-cms/utils-admin": "*",
         "@ortha-cms/workspaces-admin": "*",

@@ -158,10 +158,69 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
 - `GET /api/i18n/content/:typeName/:id/locales` — one entry's **locale panel**:
   one item per configured locale with the group's row (id, status,
   **publishedAt**, updatedAt) or null (`content:read`).
+- `GET /api/insights/i18n/coverage` — localization coverage for the Insights
+  card (`content:read`). Under `insights/` rather than `i18n/` on purpose — see
+  the section below.
 - `POST /api/i18n/content/:typeName/locale-summary` — the records table's
   **batched** per-page read: `{ groupIds }` (cap 100) → per-group live members
   with status **+ publishedAt**. A POST because a page of uuids outgrows a query string; it reads,
   so no `OriginGuard` (`content:read`).
+
+## Insights read-model (`/api/insights/i18n/coverage`, `src/lib/insights/`)
+
+The aggregate behind the **Translation coverage** card on the Insights page:
+per configured locale, how many of the workspace's localized records exist in
+it; the same four figures again **per content type**; and the workspace totals.
+`content:read` + `WorkspaceGuard`, read-only, no `?days=` (an untranslated
+record is untranslated regardless of when it was written).
+
+**One payload serves both of the card's breakdowns**, by language and by type.
+They are different questions — "which language is behind?" and "which content
+type is the work in?" — asked by the same person a moment apart, and the
+per-type figures cost **no extra queries**: the method already loops per type to
+build the workspace totals, so it now keeps what it was throwing away. A type
+the workspace has never used is **omitted** rather than listed at zero, the same
+rule the content pipeline applies.
+
+**Mounted under `insights/`, not this plugin's `i18n/` prefix** — the Insights
+endpoints are grouped by what they are, beside content's and media's, so a
+reader looking for a card's data finds it next to the other cards'.
+
+**Why the query lives here rather than in content-server.** Coverage is a
+question about a set content deliberately does not know: the _configured_
+locales. content-server owns the `locale` column's shape and nothing about what
+a locale means, so it can report which slugs appear in the data but not which
+ones are **missing** — and missing is the entire widget.
+`LocaleRegistryService` is the source of that set, and it is here.
+
+Four rules `LocalizationCoverageQuery` encodes:
+
+- **The unit is a record, not a row.** A localized entry is one row per
+  language, so counting rows would report 40 stories in 3 languages as 120
+  things and make every share on the card wrong. Everything counts
+  `locale_group_id`s.
+- **Rows in an unconfigured locale are filtered out**, and that is what makes
+  "complete" mean what it says. A slug the host has since dropped is not
+  coverage of anything, and leaving it in would push a group's distinct-locale
+  count past the configured total — so a record could be over-covered and still
+  not counted as complete. A group made entirely of such rows drops out, which
+  is the right answer rather than a record with zero languages.
+- **`notLocalized` is a subset of `requiresLocalization`, not a second slice.**
+  A record in one of four languages both has no translations and needs some.
+  They are separate figures because they are separate jobs. With a single locale
+  configured `notLocalized` is forced to `0` — there is nowhere to translate to,
+  so every record would otherwise be reported as both fully localized and not
+  localized at all.
+- **The per-type rows partition the workspace figures.** Each type's
+  `requiresLocalization` sums to the envelope's, and so on for the rest — which
+  is what makes the card's two breakdowns tell the same story rather than two.
+  A server-e2e case asserts the sum, because a per-type figure that drifts from
+  the total is exactly the kind of wrongness a dashboard is believed on.
+
+Implementation note: the group spread (`records` / complete / single) is one
+grouped subquery folded by an outer aggregate. Reading a row per group and
+counting in JS would pull the workspace's whole content set over the wire to
+produce three integers.
 
 **Creating a sibling translation:** `POST /api/content/:typeName` with
 `{ values, locale, localeGroupId }` — the client supplies the source's values,
@@ -265,4 +324,7 @@ Two rules the tools apply that the HTTP path does not:
 
 - `npx nx typecheck @ortha-cms/i18n-server` / `npx nx lint @ortha-cms/i18n-server`
 - `npx nx test @ortha-cms/i18n-server` (config-validation unit tests)
-- End-to-end: `apps/server-e2e/src/server/i18n/` (needs Docker).
+- End-to-end: `apps/server-e2e/src/server/i18n/` (needs Docker), plus
+  `apps/server-e2e/src/server/insights/localization-insights.spec.ts` for the
+  coverage aggregate — the record-vs-row fold is exactly what a mocked admin
+  test cannot exercise.

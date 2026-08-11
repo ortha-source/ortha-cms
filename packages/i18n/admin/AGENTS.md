@@ -25,10 +25,11 @@
   importing across the boundary (the FE anti-corruption convention).
 
 The admin counterpart to `@ortha-cms/i18n-server` — content localization in the
-Content Library UI. It contributes **only** to `@ortha-cms/content-admin`'s
-extension slots: **no routes, no layout, no nav item**. Register it in
-`createAdmin({ plugins })` **after** `ContentPlugin()` (it fills slots the
-content plugin owns).
+Content Library UI. It contributes **no routes, no layout, no nav item**: eight
+of its nine contributions fill `@ortha-cms/content-admin`'s extension slots, and
+the ninth is the **Translation coverage** card on the Insights page (see below).
+Register it in `createAdmin({ plugins })` **after** `ContentPlugin()` (it fills
+slots the content plugin owns).
 
 ## What it contributes (the eight slots)
 
@@ -121,6 +122,55 @@ content plugin owns).
   `source.params` (a translation draft has no `entry` yet), so the picker stays
   in-locale in **both** modes.
 
+## The Insights card (`INSIGHTS_WIDGET_SLOT` → `LocalizationCoverageWidget`)
+
+The one contribution that is **not** to a content-admin slot. **Translation
+coverage** sits in the Insights page's _Localisation & media_ band (`full`
+width, `order: 5`, so media's three `sm` cards fill their own row below it):
+three headline counts beside a bar list that switches between **By language**
+and **By type**.
+
+**The two breakdowns are a view swap over one payload, not two cards and not a
+second request.** "Which language is behind?" and "which content type is the
+work in?" are asked by the same person a moment apart; splitting them across
+cards would put the shared headline figures on one of them arbitrarily. The
+figures are workspace-wide and stay put when the axis changes — only the bars,
+the legend and the card's subtitle move, and all three have to move together or
+the card describes a chart that is no longer on screen.
+
+The two axes use the same palette roles for the same meaning — `series-1` is
+work done, `series-2` is work outstanding — but the *denominator* differs, which
+is what the legend swap is for. By language every bar is scaled against the
+workspace's record count, so a bar's length is that language's reach. By type it
+is the biggest type's record count, so length reads as how much content the type
+holds and the blue portion as how much of it is finished; that is what makes
+"the debt is in Article" visible at a glance.
+
+**This plugin owns the card because it owns the question.** Coverage is about
+the _configured_ locale set — content-admin knows which slugs appear on a row
+and nothing about which ones are missing, and missing is the whole widget. Same
+reasoning as the server side; the endpoint is `GET /api/insights/i18n/coverage`,
+read by `api/useLocalizationCoverage` (workspace-scoped key, `retry: 1`, the
+Insights convention).
+
+Three things the widget is careful about:
+
+- **The unit is a record, not a row.** A localized entry is one row per
+  language, so a bar counting rows would report 40 stories in 3 languages as 120
+  things. The server folds by translation group; the widget just renders it.
+- **The three figures are not a partition, and the copy says so.** "Not
+  localized" is a subset of "needs translation" — a record in one of four
+  languages both has no translations and needs some. Each figure carries a hint
+  (`in every language` / `no translations started` / `missing at least one`)
+  precisely so a reader doesn't subtract one from another. They are three
+  questions, not three slices, which is also why this is not a pie.
+- **`permission: CONTENT_READ`**, even though the plugin is i18n. It counts
+  content, and a reader who may not see entries must not learn how many there
+  are by counting the gaps.
+
+It is the reason this package depends on `@ortha-cms/insights-admin` — the same
+direction as any slot filler.
+
 ## Switch flourish (`LocaleSwitchOverlay` + `utils/localeTransition`)
 
 Both the toolbar switcher **and** the editor's locale widget trigger a
@@ -189,6 +239,10 @@ TanStack Query key:
   ids key the cache. Feeds the **Locales column** (a page's unique group ids)
   **and** the **widget in create mode** (the single `localeGroupId` a translation
   draft carries in its URL).
+- `useLocalizationCoverage` — `GET /api/insights/i18n/coverage`, for the
+  Insights card. Workspace-scoped key (the workspace reaches the server only as
+  an ambient header, never sent on a cache hit), `retry: 1`, gated on
+  `content:read`.
   There is **no** create-translation hook — a sibling is created through the
   Content Library's own editor Save/Publish (the widget navigates to a draft form;
   `createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The
@@ -217,4 +271,5 @@ TanStack Query key:
 ## Commands
 
 - `npx nx typecheck @ortha-cms/i18n-admin` / `npx nx lint @ortha-cms/i18n-admin`
-- E2E: `apps/admin-e2e/src/content/i18n.spec.ts` (mocked API, no backend).
+- E2E: `apps/admin-e2e/src/content/i18n.spec.ts` (mocked API, no backend), plus
+  the coverage card in `apps/admin-e2e/src/insights/insights.spec.ts`.

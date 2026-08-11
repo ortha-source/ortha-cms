@@ -1166,23 +1166,40 @@ a browsable version history and can be restored. Layered per ADR-0003
 ## Insights read-model (`/api/insights/content/*`, `src/lib/insights/`)
 
 The aggregates behind the content widgets on the Insights page
-(`@ortha-cms/insights-admin`). Five routes, all `content:read` +
+(`@ortha-cms/insights-admin`). Six routes, all `content:read` +
 `WorkspaceGuard`, all read-only:
 
-| Route | Answers |
-| --- | --- |
-| `totals` | entry / published / draft counts, the change over `?days=`, and a short history for the stat tiles' sparklines |
-| `stale` | published entries bucketed by time since last edit (30/90/180/365/older) |
-| `pipeline` | draft-vs-published per content type |
-| `velocity` | entries published per time bucket across `?days=` |
-| `punchcard` | edits by weekday and hour, from `content_entry_revisions` |
+| Route       | Answers                                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------- |
+| `totals`    | entry / published / draft counts, the change over `?days=`, and a short history for the stat tiles' sparklines |
+| `stale`     | published entries bucketed by time since last edit (30/90/180/365/older)                                       |
+| `pipeline`  | draft-vs-published per content type                                                                            |
+| `velocity`  | entries published per time bucket across `?days=`                                                              |
+| `punchcard` | edits by weekday and hour, from `content_entry_revisions`                                                      |
+| `unshipped` | live entries carrying unpublished edits (the admin's **Modified**), per type and in total                      |
 
-Five endpoints rather than one combined payload because **each widget owns its
+Six endpoints rather than one combined payload because **each widget owns its
 own request** — a slow or failing aggregate degrades one card instead of
-blanking the dashboard. `stale` and `pipeline` deliberately take no `?days=`:
-the staleness buckets *are* the time axis, and the pipeline is a snapshot of
-what exists, so windowing either would answer a different question under the
-same name.
+blanking the dashboard. `stale`, `pipeline` and `unshipped` deliberately take no
+`?days=`: the staleness buckets _are_ the time axis, the pipeline is a snapshot
+of what exists, and a pending edit is pending whether it was made this morning
+or last spring — so windowing any of them would answer a different question
+under the same name.
+
+**`unshipped` is the one figure `status` alone cannot express**, which is why it
+is an endpoint rather than a filter on an existing one. The publish state is two
+stored values carrying three meanings (see _Generated storage_ above):
+`draft` + a `published_at` is live content with unpublished changes, `draft` + no
+`published_at` is a draft nobody ever shipped, and counting them together turns a
+fresh workspace into a backlog. Two further rules:
+
+- **A non-publishable type contributes nothing at all**, not even to `live`. It
+  has no draft stage, so every row is trivially current; folding those rows into
+  the denominator would make "3 of 900 live records have pending edits" a
+  statement about always-live singletons nobody can publish.
+- **The three counts come out of one grouped query per type**, not three
+  `countOf` calls: they partition the same rows, so a scan that has already
+  found a row can decide which of the three it belongs to.
 
 Four things worth knowing before changing `ContentInsightsQuery`:
 
@@ -1207,7 +1224,7 @@ Four things worth knowing before changing `ContentInsightsQuery`:
   buckets.
 
 There is deliberately **no draft delta** in `totals`. Nothing records an entry
-moving *back* to draft — `published_at` says when something went live and never
+moving _back_ to draft — `published_at` says when something went live and never
 that it stopped — so a change figure for drafts could only be invented.
 
 ## Architecture

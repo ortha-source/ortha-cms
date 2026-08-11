@@ -70,6 +70,97 @@ export const CONTENT_VELOCITY_SEED = {
 };
 
 /**
+ * Live records carrying unpublished edits.
+ *
+ * 94 of 1046 live is exactly 9%, and the per-type rows deliberately do **not**
+ * add up to the workspace total: the server omits a type with nothing pending,
+ * so a suite that summed the rows and expected the headline would be asserting
+ * a bug rather than the contract.
+ */
+export const CONTENT_UNSHIPPED_SEED = {
+    types: [
+        { name: 'article', label: 'Article', modified: 51, published: 361 },
+        { name: 'changelog', label: 'Changelog', modified: 28, published: 373 },
+        {
+            name: 'landing_page',
+            label: 'Landing page',
+            modified: 15,
+            published: 81
+        }
+    ],
+    modified: 94,
+    live: 1046,
+    neverPublished: 144
+};
+
+/**
+ * Localization coverage. English is complete, German part-way, French barely
+ * started — the three shapes the widget's figures have to tell apart.
+ *
+ * `localized` (18) + `notLocalized` (44) is deliberately less than `records`
+ * (140): the two are not slices of a partition, and a fixture where they added
+ * up would let a wrong reading of the contract pass.
+ */
+export const I18N_COVERAGE_SEED = {
+    locales: [
+        {
+            locale: 'en',
+            name: 'English',
+            isDefault: true,
+            translated: 140,
+            missing: 0
+        },
+        {
+            locale: 'de',
+            name: 'Deutsch',
+            isDefault: false,
+            translated: 62,
+            missing: 78
+        },
+        {
+            locale: 'fr',
+            name: 'Français',
+            isDefault: false,
+            translated: 21,
+            missing: 119
+        }
+    ],
+    records: 140,
+    localized: 18,
+    notLocalized: 44,
+    requiresLocalization: 122,
+    // The per-type rows partition the workspace figures — 12 + 4 + 2 = 18 and
+    // 76 + 34 + 12 = 122 — which is what makes the card's two breakdowns tell
+    // the same story rather than two. Ordered by records, as the server sorts.
+    types: [
+        {
+            name: 'article',
+            label: 'Article',
+            records: 88,
+            localized: 12,
+            notLocalized: 30,
+            requiresLocalization: 76
+        },
+        {
+            name: 'changelog',
+            label: 'Changelog',
+            records: 38,
+            localized: 4,
+            notLocalized: 11,
+            requiresLocalization: 34
+        },
+        {
+            name: 'landing_page',
+            label: 'Landing page',
+            records: 14,
+            localized: 2,
+            notLocalized: 3,
+            requiresLocalization: 12
+        }
+    ]
+};
+
+/**
  * A sparse punchcard, as the server sends it — only non-empty slots.
  *
  * Deliberately sparse in the fixture too: the widget rebuilds the dense 7 × 14
@@ -168,9 +259,11 @@ const SEEDS: Record<string, unknown> = {
     'content/pipeline': CONTENT_PIPELINE_SEED,
     'content/velocity': CONTENT_VELOCITY_SEED,
     'content/punchcard': CONTENT_PUNCHCARD_SEED,
+    'content/unshipped': CONTENT_UNSHIPPED_SEED,
     'media/storage': MEDIA_STORAGE_SEED,
     'media/uploads': MEDIA_UPLOADS_SEED,
-    'media/alt': MEDIA_ALT_SEED
+    'media/alt': MEDIA_ALT_SEED,
+    'i18n/coverage': I18N_COVERAGE_SEED
 };
 
 /** The empty answer each route gives for a workspace with nothing in it. */
@@ -188,9 +281,32 @@ const EMPTY: Record<string, unknown> = {
     'content/pipeline': { types: [] },
     'content/velocity': { granularity: 'week', points: [] },
     'content/punchcard': { cells: [], max: 0, total: 0 },
+    'content/unshipped': {
+        types: [],
+        modified: 0,
+        live: 0,
+        neverPublished: 0
+    },
     'media/storage': { kinds: [], totalBytes: 0, totalCount: 0 },
     'media/uploads': { granularity: 'week', points: [], total: 0 },
-    'media/alt': { images: 0, withAlt: 0, missing: 0 }
+    'media/alt': { images: 0, withAlt: 0, missing: 0 },
+    // The locale list survives an empty workspace — the locales are
+    // configuration, not data, so a workspace with no content still has three
+    // languages nobody has written in.
+    'i18n/coverage': {
+        locales: I18N_COVERAGE_SEED.locales.map((locale) => ({
+            ...locale,
+            translated: 0,
+            missing: 0
+        })),
+        records: 0,
+        localized: 0,
+        notLocalized: 0,
+        requiresLocalization: 0,
+        // Empty, not a row of zeros per type: the server omits a type the
+        // workspace has never used.
+        types: []
+    }
 };
 
 /** Records which Insights routes were requested, and with what `?days=`. */
@@ -214,10 +330,10 @@ export interface InsightsApiOptions {
 /**
  * Stub every Insights endpoint the page's widgets call.
  *
- * One helper for all eight routes because the page's defining behaviour is that
- * each widget owns its **own** request: a suite has to be able to fail or empty
- * exactly one of them and assert the other seven still render. `failing` and
- * `empty` take route suffixes for precisely that.
+ * One helper for every route because the page's defining behaviour is that each
+ * widget owns its **own** request: a suite has to be able to fail or empty
+ * exactly one of them and assert the rest still render. `failing` and `empty`
+ * take route suffixes for precisely that.
  */
 export async function mockInsightsApi(
     page: Page,

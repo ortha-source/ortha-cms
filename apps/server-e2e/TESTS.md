@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_830 test cases across 50 spec files._
+_851 test cases across 51 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1331,6 +1331,18 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | splits each type into published and draft |
 | omits a type the workspace has never used |
 
+### GET /unshipped
+
+| Test case |
+| --- |
+| counts a published-then-edited entry as modified |
+| does not count a draft that was never published |
+| does not count an entry that is live and current |
+| stops counting an entry once it is unpublished |
+| excludes soft-deleted entries |
+| ignores a non-publishable type entirely |
+| counts only the workspace named by the header |
+
 ### GET /velocity
 
 | Test case |
@@ -1355,6 +1367,35 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | 403s for a workspace the caller is not a member of |
 | 403s a viewer, who holds no content:read |
 | refuses every route without a session |
+
+<!-- source: apps/server-e2e/src/server/insights/localization-insights.spec.ts -->
+_<sub>apps/server-e2e/src/server/insights/localization-insights.spec.ts</sub>_
+
+## Localization insights (/api/insights/i18n)
+
+### GET /coverage
+
+| Test case |
+| --- |
+| lists every configured locale, translated or not |
+| counts records, not rows |
+| counts a single-locale record as untranslated AND needing work |
+| counts a part-way record as needing work but not untranslated |
+| adds up across records at different stages |
+| reports the same figures per content type |
+| omits a localized type the workspace has never used |
+| orders types by how much content they hold |
+| drops a soft-deleted translation from its record’s coverage |
+| is empty for a workspace with no content |
+| counts only the workspace named by the header |
+
+### authorization
+
+| Test case |
+| --- |
+| 401s without a session |
+| 400s without a workspace header |
+| 403s for a workspace the caller is not a member of |
 
 <!-- source: apps/server-e2e/src/server/insights/media-insights.spec.ts -->
 _<sub>apps/server-e2e/src/server/insights/media-insights.spec.ts</sub>_
