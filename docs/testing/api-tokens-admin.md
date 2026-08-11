@@ -513,7 +513,7 @@ origin, on a denied permission, and when the document is not focused. There is n
 `try`/`catch`, so the promise rejects, `setCopied(true)` and the toast never run, and the
 user gets **no signal whatsoever**. `InviteLinkPanel` catches exactly this and toasts
 actionable copy — "Couldn't reach the clipboard. Select the link and copy it manually."
-(`packages/users/admin/.../InviteLinkPanel/index.tsx:64-69`).
+(`packages/users/admin/src/lib/presentation/components/InviteLinkPanel/index.tsx:64-69`).
 
 **Repro:** deny clipboard permission (or serve over plain `http://` from a non-localhost
 host), create a token, press Copy.
@@ -542,7 +542,7 @@ kebab, and paging replaces the entire table body — all without a navigation an
 any announcement**. There is no `role="status"` region on this page.
 
 Two sibling pages do it correctly and are the model:
-`packages/users/admin/.../MembersPage/index.tsx:235-241` and
+`packages/users/admin/src/lib/presentation/pages/MembersPage/index.tsx:235-241` and
 `packages/activity/admin/.../ActivityLogPage` each render an `sr-only`
 `role="status" aria-live="polite"` region carrying the result count, with a comment citing
 WCAG 4.1.3.
@@ -791,7 +791,7 @@ out in a comment:
     toast.error(intl.formatMessage(messages.copyFailed));
 }
 ```
-(`packages/users/admin/.../InviteLinkPanel/index.tsx:64-69`)
+(`packages/users/admin/src/lib/presentation/components/InviteLinkPanel/index.tsx:64-69`)
 
 **Repro:**
 1. Serve the admin over plain `http://` from a non-`localhost` host (or deny
@@ -844,7 +844,7 @@ unbreakable token string widening the dialog past `max-w-lg`. That is a real lay
 and the reasoning is sound — but `InviteLinkPanel` solves the *same* problem for the *same
 class of secret* without losing access to the value: a `readOnly` `<input>` that is
 `min-w-0 flex-1 truncate`, focusable, `aria-label`led, and `onFocus`-selecting
-(`packages/users/admin/.../InviteLinkPanel/index.tsx:78-86`). The input truncates visually
+(`packages/users/admin/src/lib/presentation/components/InviteLinkPanel/index.tsx:78-86`). The input truncates visually
 while still holding, exposing and selecting the whole value.
 
 **Repro:**
@@ -944,7 +944,7 @@ that decides **what a credential can reach**. An admin who sees "No workspaces f
 reasonably concludes there are none, and either abandons the flow or — if the list
 partially loads on a retry — mints a token bucketed to whatever subset happened to arrive.
 
-The repo has the correct pattern in `packages/users/admin/.../UserPreferencesPage/index.tsx:174-185`,
+The repo has the correct pattern in `packages/users/admin/src/lib/presentation/pages/UserPreferencesPage/index.tsx:174-185`,
 which renders a dedicated warning when the preferences read fails, with a comment
 explaining exactly this reasoning: *"A failed read gets its own state rather than being
 folded into 'no preference saved': without it the picker would confidently present the
@@ -978,8 +978,8 @@ submission while it holds. Do NOT implement.
 single source of truth, with the rationale stated in their JSDoc — *"The URL query string is
 the single source of truth for search, the query-builder filter, and the page … so a
 filtered view can be shared or bookmarked"*
-(`packages/users/admin/.../MembersPage/index.tsx:70-73`;
-`packages/activity/admin/.../ActivityLogPage/index.tsx:74-76`). This page silently opts out.
+(`packages/users/admin/src/lib/presentation/pages/MembersPage/index.tsx:70-73`;
+`packages/activity/admin/src/lib/presentation/pages/ActivityLogPage/index.tsx:74-76`). This page silently opts out.
 
 Consequences: a reload returns to page 1; a shared link always opens page 1; the browser
 Back button does not step back through pages; and a newly created token added to page 1

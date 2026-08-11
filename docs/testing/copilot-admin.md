@@ -1153,7 +1153,7 @@ report) on `incomplete`.
 **508 provision:** 502.3.1, 502.3.3 (Row, Column, and Headers — n/a), 502.3.14
 **Verdict:** **Partially Supports**
 **Location:** `ToolStep/index.tsx:129-137`, `PermissionPrompt/index.tsx:133-137`;
-the primitive is `packages/design-system/.../spinner.tsx`.
+the primitive is `packages/design-system/src/lib/components/ui/spinner.tsx`.
 
 The design-system `Spinner` renders `role="status"` and its own JSDoc says
 "Inside a button, pair it with an `sr-only` label so the busy state is

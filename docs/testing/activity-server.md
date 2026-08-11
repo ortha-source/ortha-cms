@@ -337,7 +337,7 @@ this API). Allow ≤ 5 s after any mutation for the outbox to drain.
   tab (`packages/users/admin/.../UserActivityPage`) calls the same global endpoint with
   `?subjectId=`, so a non-admin never reaches it — and the tab itself is hidden behind
   `useHasPermission('activity:read')`
-  (`packages/users/admin/.../UserDetailTabs/index.tsx:113`). `✅ E2E`
+  (`packages/users/admin/src/lib/presentation/components/UserDetailLayout/UserDetailTabs/index.tsx:113`). `✅ E2E`
   (`activity.spec.ts:262,272`).
 - **EC-23 — Is the actor spoofable?** **No.** The actor is stamped by the producer via
   `attachActor(events, actor)` from `@CurrentUser()` — e.g.
@@ -795,7 +795,7 @@ back to anyone.
    payload: { email: 'x@y.z' } }` — no `userId`.
 2. Wait for the drain; `select subject_id from activity_events where kind='workspace.member_added'`.
 → Observed: `''`. The admin's Subject cell renders `user · ` with nothing after it
-(`packages/activity/admin/.../ActivitySubjectCell/index.tsx`). / Expected: the delivery
+(`packages/activity/admin/src/lib/presentation/components/ActivityTable/ActivitySubjectCell/index.tsx`). / Expected: the delivery
 fails and the event is retried/parked, so the gap is visible rather than papered over.
 
 **Blast radius:** low — the producer

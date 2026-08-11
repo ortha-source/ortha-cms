@@ -755,7 +755,7 @@ Two things to verify rather than assume:
 - Whether the design-system root applies a CSS transition on the theme swap. If it does, it
   must be gated on `prefers-reduced-motion` (503.2). The activity plugin demonstrates the
   idiom the repo already uses — `motion-reduce:transition-none`
-  (`packages/activity/admin/.../ActivityRow/index.tsx:89,114`).
+  (`packages/activity/admin/src/lib/presentation/components/ActivityTable/ActivityRow/index.tsx:89,114`).
 - The `MembersSkeleton` / `MembersTableSkeleton` use Tailwind `animate-pulse` with no
   `motion-reduce:` variant, same as the auth skeletons (♿ A11Y-identity-admin-06).
 

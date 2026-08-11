@@ -22,7 +22,7 @@ It does **NOT** own:
   boundary (`.cursor/BUGBOT.md` §Admin).
 - The members / user-detail / preferences screens — those are `users/admin`.
 - The `AccountMenu` and its Logout button — that is `users/admin`
-  (`packages/users/admin/.../AccountMenu/index.tsx`), which merely calls this package's
+  (`packages/users/admin/src/lib/presentation/components/AccountMenu/index.tsx`), which merely calls this package's
   `useLogoutMutation`.
 - Password reset, sign-up, terms, or privacy pages. **None exist** — see 🐞 BUG-identity-admin-02.
 
@@ -280,7 +280,7 @@ and a field error are visible simultaneously.
   `false` for everything; every gated affordance hides. The user still reaches the shell.
 - **EC-04 — `name: null` on the current user.** `❌ NONE` — `AuthUser.name` is
   `string | null` (`authContext/index.ts:13`); `AccountMenu` falls back to the email
-  (`packages/users/admin/.../AccountMenu/index.tsx:56`). Confirm nothing else renders `null`.
+  (`packages/users/admin/src/lib/presentation/components/AccountMenu/index.tsx:56`). Confirm nothing else renders `null`.
 
 ### Boundary
 
@@ -621,7 +621,7 @@ scanned in dark mode** — and it is the one page every user must pass through.
 
 `Skeleton` uses Tailwind's `animate-pulse`. The activity plugin pairs its transitions with
 `motion-reduce:transition-none`
-(`packages/activity/admin/.../ActivityRow/index.tsx:89,114`), showing the repo knows the
+(`packages/activity/admin/src/lib/presentation/components/ActivityTable/ActivityRow/index.tsx:89,114`), showing the repo knows the
 idiom; the auth skeletons do not. Under 508 **503.2** an application must not override
 user preferences for motion.
 
@@ -883,7 +883,7 @@ collapses unknown/expired/consumed/revoked into one bare 404
 token. `.cursor/BUGBOT.md` names this exactly: *"**Error masquerading as empty.**
 Distinguish a failed query from a genuinely empty result. Rendering the empty state on
 error hides outages."* The same file gets the equivalent decision right elsewhere —
-`packages/users/admin/.../UserPreferencesPage/index.tsx:178-185` renders a distinct
+`packages/users/admin/src/lib/presentation/pages/UserPreferencesPage/index.tsx:178-185` renders a distinct
 warning for `preferences.isError` precisely so a failed read is not presented as a stored
 choice.
 
