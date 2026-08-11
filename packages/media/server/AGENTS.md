@@ -291,8 +291,13 @@ media field like anything someone uploaded by hand.
   Silently dropping the directories would file the report at the root while the
   model told the user otherwise, so this throws and the message names `folderId`.
 - **Every check that can happen at propose time does.** The folder is verified,
-  the name resolved, the size bounded — all *before* the permission prompt,
-  because after approval there is nobody left to retry for. `MAX_AUTHORED_BYTES`
+  the name resolved, the size bounded — all in the handler, so a bad draft comes
+  back as a tool error the model can correct and re-propose. The run engine asks
+  for permission *before* it calls a write tool at all (ADR-0009's injection
+  mitigation), so these failures land after the prompt, not before it; what they
+  stay ahead of is the write. Leaving them to the applier is what would make
+  them unrecoverable — it runs once the change is recorded, with nobody left to
+  retry for. `MAX_AUTHORED_BYTES`
   (1 MB) sits far below `maxUploadBytes`: the content arrived as a tool argument
   generated token by token, so a megabyte of it is a malfunction, not a report.
 - **`CreateFileProposalApplier` calls `UploadAssetUseCase`** — the same one the

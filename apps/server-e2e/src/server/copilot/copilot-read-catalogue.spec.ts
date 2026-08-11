@@ -483,12 +483,21 @@ describe('Copilot read catalogue', () => {
         // signed in — which is exactly the case the raw route already serves by
         // deriving its scope from membership rather than a header.
         it('carries a download path the asking user’s browser can follow', async () => {
-            const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
-            const asset = await seedMediaAsset({
-                workspaceId: workspace.id,
-                uploadedBy: user.id,
-                name: 'terms.pdf'
-            });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            // Uploaded rather than seeded: this is the one media case in the
+            // suite that follows the link, and a seeded row points at a
+            // storage key with no blob behind it, so `raw` would 500 on a
+            // missing object however well the path was assembled.
+            const upload = await agent
+                .post('/api/media/assets')
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .attach('file', Buffer.from('%PDF-1.7\n'), {
+                    filename: 'terms.pdf',
+                    contentType: 'application/pdf'
+                })
+                .expect(201);
+            const asset = upload.body as { id: string };
 
             const result = await callTool(agent, 'media_assets_search', {});
 

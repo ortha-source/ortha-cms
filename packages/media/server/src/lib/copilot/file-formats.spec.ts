@@ -109,8 +109,8 @@ describe('resolveFileName', () => {
         });
 
         // Checked here rather than left to `FileName`, so the failure arrives
-        // as a tool error the model can shorten and retry — after approval
-        // there is nobody left to retry for.
+        // as a tool error the model can shorten and retry — inside the applier
+        // the change is already recorded and there is nobody left to retry for.
         it('rejects a name that would exceed the storable length', () => {
             const name = 'a'.repeat(MAX_FILE_NAME_LENGTH);
             expect(() => resolveFileName(name, 'md')).toThrow(

@@ -159,13 +159,15 @@ export class CreateFileProposalToolProvider
                 // `resolveFileName` throws a message the model can act on — a
                 // path gets named as a path, an over-long name as too long.
                 // Doing it here rather than in the applier is what keeps that
-                // failure recoverable: after approval there is nobody left to
-                // retry for.
+                // failure recoverable: the model can correct the draft and
+                // propose again, whereas an applier that threw would have a
+                // recorded change nobody can retry.
                 const fileName = resolveFileName(args.fileName, format);
 
                 // Same reason the alt-text tool re-reads its asset: a bad
                 // folder id must fail while the model can still fix it, not
-                // after a human has approved a file that cannot be filed.
+                // inside the applier, where the change is already recorded and
+                // the file simply cannot be filed.
                 const folderId = args.folderId ?? null;
                 if (folderId !== null) {
                     const { folders } = await this.folders.execute(

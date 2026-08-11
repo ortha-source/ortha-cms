@@ -136,9 +136,15 @@ describe('Copilot file creation', () => {
         };
     }
 
-    /** The workspace's assets, as the library's own route reports them. */
-    async function listAssets(agent: request.Agent) {
-        const response = await agent.get('/api/media/assets').expect(200);
+    /**
+     * The library's own listing of one folder — `folderId` omitted lists the
+     * workspace **root**, which is what the route means by an absent filter.
+     */
+    async function listAssets(agent: request.Agent, folderId?: string) {
+        const response = await agent
+            .get('/api/media/assets')
+            .query(folderId ? { folderId } : {})
+            .expect(200);
         return response.body.items as {
             id: string;
             name: string;
@@ -242,7 +248,7 @@ describe('Copilot file creation', () => {
                 summary: 'Weekly counts'
             });
 
-            const [asset] = await listAssets(agent);
+            const [asset] = await listAssets(agent, folder.id);
             expect(asset.folderId).toBe(folder.id);
             expect(asset.name).toBe('weekly.csv');
             expect(asset.mimeType).toBe('text/csv');
@@ -344,23 +350,26 @@ describe('Copilot file creation', () => {
         });
     });
 
-    // ------------------------------------------------------ failing early
-    describe('failures land before approval, where they are recoverable', () => {
+    // ----------------------------------------------- failing before the write
+    describe('a bad draft fails before anything is written', () => {
         /**
-         * A refused draft never reaches the permission prompt, so there is
-         * nothing to answer — the run just ends with a tool error the model can
-         * act on. Buffering the body is safe here for exactly that reason.
+         * Approve the call, then assert it failed anyway.
+         *
+         * The run engine asks **before** it runs a write tool (ADR-0009's
+         * injection mitigation), so a bad draft still parks on the permission
+         * prompt — the checks in `media_propose_file` run when the approved
+         * call reaches the handler. That is still ahead of every write: the
+         * failure lands as a tool error the model can act on, with no asset,
+         * no blob and no `copilot_proposals` row behind it. Which is why the
+         * prompt has to be answered here too, exactly as the happy path does
+         * it — buffering the body would deadlock on a run that is waiting.
          */
         async function attempt(
             agent: request.Agent,
             input: Record<string, unknown>
         ) {
-            scriptCopilot(
-                { toolCalls: [{ name: 'media_propose_file', input }] },
-                { text: 'I could not.' }
-            );
-            const events = await run(agent, { message: 'write me a report' });
-            return framesOfType(events, 'tool-result')[0];
+            const { result } = await proposeFile(agent, input);
+            return result;
         }
 
         // A model asked for a report proposes `reports/2026/q3.md` readily.
@@ -379,6 +388,12 @@ describe('Copilot file creation', () => {
             expect(result.ok).toBe(false);
             expect(result.error).toContain('folderId');
             expect(await countMediaAssets(workspace.id)).toBe(0);
+            // The draft never became a change: a proposal row is written from
+            // the handler's return value, and this call had none.
+            const proposals = await agent
+                .get('/api/copilot/proposals')
+                .expect(200);
+            expect(proposals.body.items).toHaveLength(0);
         });
 
         it('rejects a folder id from another workspace', async () => {

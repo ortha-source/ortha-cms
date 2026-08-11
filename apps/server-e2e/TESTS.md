@@ -1008,7 +1008,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts</sub>_
 | writes nothing when the user refuses |
 | records the change as a proposal joined to the new asset |
 
-### failures land before approval, where they are recoverable
+### a bad draft fails before anything is written
 
 | Test case |
 | --- |
