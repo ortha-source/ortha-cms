@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/design-system` · **Package:** `@ortha-cms/design-system` · **Kind:** library
 > **Source of truth:** `packages/design-system/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 4 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -781,15 +782,21 @@ Concretely unverified:
   adjacent colours. At 40% alpha over `bg-primary` this is very likely below 3:1
   in at least one theme.
 - **`forced-colors` / Windows High Contrast.** Nothing in the package emits
-  `forced-colors` media rules. Components that convey state purely through
-  `background-color` — `SegmentedControlItem`'s `data-[state=on]:bg-primary`
-  (`segmented-control.tsx:57`), `SidebarMenuButton`'s
-  `data-[active=true]:bg-sidebar-accent` (`sidebar.tsx:588`) — lose their
-  selected state entirely under forced colors.
-- **`prefers-reduced-motion`.** Honoured by `WizardStepCard`
-  (`packages/design-system/src/styles.css`) and by the shell's panel, but **not**
-  by `Dialog`/`Sheet`/`Drawer`, whose `animate-in`/`slide-in` classes are
-  unconditional (`dialog.tsx:39`, `sheet.tsx:32`).
+  `forced-colors` media rules, so any state drawn only as a `background-color` is
+  flattened by the forced palette. Two components to check first —
+  `SegmentedControlItem` (`segmented-control.tsx:57`) and `SidebarMenuButton`
+  (`sidebar.tsx:588`). **Correction to an earlier draft:** these do *not* lose
+  their selected state "entirely". Both pair the fill with a **font-weight bump**
+  on the same line (`data-[state=on]:font-semibold`,
+  `data-[active=true]:font-medium`), and the comment at `segmented-control.tsx:55-56`
+  says that is deliberate — "so the selection is distinguishable without relying
+  on color alone". Weight survives forced colors, so the residual risk is reduced
+  salience, not a total loss, and 1.4.1 Use of Colour is satisfied by design.
+- **`prefers-reduced-motion`.** Honoured by the dropdown motion utility
+  (`packages/design-system/src/styles.css:74-79`) and the wizard step entrance
+  (`:98-102`), but **not** by `Dialog`/`Sheet`/`Drawer`, whose
+  `animate-in`/`slide-in` classes are unconditional (`dialog.tsx:39`,
+  `sheet.tsx:32`).
 - **Text spacing / reflow.** Never tested; `whitespace-nowrap` on `Button`
   (`button.tsx:8`) and on `PageTopBar`'s crumbs is where `1.4.12` typically breaks.
 
@@ -813,7 +820,10 @@ via `aria-expanded` on whichever trigger is visible.
 
 #### ♿ A11Y-design-system-08 — `Tooltip` focus behaviour and `1.4.13` dismissibility are unverified
 
-**WCAG:** `1.4.13 Content on Hover or Focus (AA)` · **508:** `E205.4` · **Verdict: Not tested**
+Unverified — Radix's default focus/`Esc` behaviour and the effect of `hidden` on the
+accessibility tree were both read from the component's props, not observed in a browser.
+
+**WCAG:** `1.4.13 Content on Hover or Focus (AA)` · **508:** `E205.4` · **Verdict: Unverified**
 
 **Location:** `packages/design-system/src/lib/components/ui/tooltip.tsx`; consumed at `packages/design-system/src/lib/components/ui/sidebar.tsx:651-661`
 
@@ -1003,7 +1013,7 @@ display/model divergence is a latent source of "I set it and it didn't save".
 
 ### 🐞 BUG-design-system-03 — Hard-coded English strings in `Pagination`, `Dialog`, `Sheet`, `Sidebar`, `Command` and `ConfirmDialog` cannot be localized · Severity: Medium
 
-**Location:** `packages/design-system/src/lib/components/ui/pagination.tsx:10, 67, 73, 84, 88, 104`; `dialog.tsx:47`; `sheet.tsx:67`; `sidebar.tsx:235-238, 320, 333, 336`; `command.tsx:40-41`; `confirm-dialog.tsx:49`
+**Location:** `packages/design-system/src/lib/components/ui/pagination.tsx:10, 67, 73, 83, 88, 104`; `dialog.tsx:47`; `sheet.tsx:67`; `sidebar.tsx:235-238, 320, 333, 336`; `command.tsx:40-41`; `confirm-dialog.tsx:49`
 **Category:** correctness (i18n)
 
 **What the code does:**
@@ -1037,7 +1047,7 @@ untranslated text; the others render untranslated *accessible names* (see
 optional label props defaulting to today's strings, and do the same for the
 `Dialog`/`Sheet` close buttons and the sidebar's mobile title.
 
-### 🐞 BUG-design-system-04 — The `Table` scroll container cannot be scrolled by keyboard · Severity: Medium · 🔒 no
+### 🐞 BUG-design-system-04 — The `Table` scroll container cannot be scrolled by keyboard · Severity: Medium
 
 **Location:** `packages/design-system/src/lib/components/ui/table.tsx:5-16`
 **Category:** a11y
@@ -1109,7 +1119,7 @@ of nothing, and the `invalid={false}` behaviour contradicts the prop docs at
 **Suggested fix:** in `FieldError`, return `null` when the mapped list is empty;
 and document (or change) the `invalid={false}` suppression.
 
-### 🐞 BUG-design-system-06 — `MultiSelect` keys cmdk items by `label`, so two options sharing a label collide · Severity: Low
+### 🐞 BUG-design-system-06 — `MultiSelect` keys cmdk items by `label`, so two options sharing a label collide · Severity: Medium
 
 **Location:** `packages/design-system/src/lib/components/ui/multi-select.tsx:128-144`
 **Category:** correctness
@@ -1137,8 +1147,18 @@ precisely because they differ.
 `Editor`. → Observed: one highlightable row, and toggling it is ambiguous.
 Expected: two rows.
 
-**Blast radius:** zero today — `MultiSelect` is exported but mounted nowhere in
-the shipped admin (verified by grep). It is a trap for the first consumer.
+**Blast radius:** **live, not latent.** An earlier draft of this artifact claimed
+`MultiSelect` is "mounted nowhere in the shipped admin"; that is wrong — grep finds
+two consumers, and one of them can genuinely produce duplicate labels:
+`packages/api-tokens/admin/src/lib/presentation/components/CreateApiTokenDialog/index.tsx:187-192`
+maps `{ value: workspace.id, label: workspace.name }`, and **nothing prevents two
+workspaces from sharing a name** (the uniqueness constraint is on the slug, not the
+name), so an admin scoping a token to one of two same-named workspaces sees a single
+row and cannot tell which id it selects — on a security-scoping control. The second
+consumer,
+`packages/content/admin/src/lib/presentation/components/EntryFieldInput/index.tsx:336-338`,
+renders a `multiselect` field's declared options, whose labels are author-controlled
+and equally free to repeat. Severity raised from Low to Medium on that basis.
 **Suggested fix:** `value={option.value}` and pass `keywords={[option.label]}`
 so search still matches the label.
 
@@ -1241,8 +1261,8 @@ step `id`.
 - **`byOrder` mutation safety** (used by consumers of this unit's `Sidebar`):
   copies before sorting (`packages/utils/admin/src/lib/byOrder/index.ts:6-8`).
 
-**Tally:** 9 🐞 (0 Critical · 1 High · 3 Medium · 5 Low) · 8 ♿
-(0 Supports · 5 Partially Supports · 2 Does Not Support · 1 Not tested)
+**Tally:** `9 🐞 — 0 Critical · 0 High · 5 Medium · 4 Low (0 🔒)` ·
+`♿ 8 findings — 0 Supports · 4 Partially Supports · 3 Does Not Support · 1 Unverified`
 
 ---
 

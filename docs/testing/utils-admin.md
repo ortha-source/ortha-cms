@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/utils/admin` · **Package:** `@ortha-cms/utils-admin` · **Kind:** library (shared admin plumbing)
 > **Source of truth:** `packages/utils/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 10 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

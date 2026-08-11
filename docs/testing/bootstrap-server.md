@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/bootstrap/server` · **Package:** `@ortha-cms/bootstrap-server` · **Kind:** host
 > **Source of truth:** `packages/bootstrap/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

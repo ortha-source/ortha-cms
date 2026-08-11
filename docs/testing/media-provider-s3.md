@@ -127,7 +127,7 @@ Every block below assumes the temporary registration from §1.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Bulk-delete an asset whose `storage_provider = 's3'` | the row is deleted (the transaction commits first); `reclaimAssetBlobs` catches the throw and swallows it (`reclaim-asset-blobs.ts:448-453`) → `200 { deleted: 1 }` |
+| 1 | Bulk-delete an asset whose `storage_provider = 's3'` | the row is deleted (the transaction commits first); `reclaimAssetBlobs` catches the throw and swallows it (`reclaim-asset-blobs.ts:18-23`) → `200 { deleted: 1 }` |
 | 2 | Cascade-delete a folder holding such an asset | same — the cascade succeeds, the "blob" is never reclaimed |
 | 3 | Trigger the **upload rollback** path with `s3` (see EC-05) | the synchronous throw escapes `Promise.all`'s callback → `🐞 BUG-media-provider-s3-01` |
 
@@ -170,11 +170,11 @@ Every block below assumes the temporary registration from §1.
   Works identically for both adapters — the synchronous throw is caught by the same
   `catch`. This is why the divergence hides: the *common* call shape masks it.
 - **EC-03 — `provider.remove(key).catch(() => undefined)`.** `❌ NONE`
-  `upload-asset.use-case.ts:174-176` and `duplicate-asset.use-case.ts:425` both use
+  `upload-asset.use-case.ts:174-176` and `duplicate-asset.use-case.ts:134` both use
   exactly this shape. With `s3`, `provider.remove(key)` throws **before** `.catch`
   is attached, so the suppression never runs. → `🐞 BUG-media-provider-s3-01`.
 - **EC-04 — `Promise.all(keys.map(k => provider.remove(k)))`.** `❌ NONE`
-  `reclaim-asset-blobs.ts:450` — but that one is wrapped in an outer `try/catch`
+  `reclaim-asset-blobs.ts:20` — but that one is wrapped in an outer `try/catch`
   (`:448`), so it is safe. Only the two upload/duplicate rollback sites are exposed.
 - **EC-05 — Upload rollback with `s3` after a successful `put`.** `❌ NONE`
   Unreachable today (`put` never succeeds), and that is exactly why the bug will

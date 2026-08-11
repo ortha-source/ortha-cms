@@ -2,6 +2,7 @@
 
 > **Unit:** `apps/server` · **Package:** `@ortha-cms/server` (private) · **Kind:** app (composition root + migration host)
 > **Source of truth:** `apps/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 1 confirmed · 0 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

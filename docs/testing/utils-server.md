@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/utils/server` · **Package:** `@ortha-cms/utils-server` · **Kind:** library
 > **Source of truth:** `packages/utils/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 3 confirmed · 1 deleted · 0 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

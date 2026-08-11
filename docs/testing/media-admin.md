@@ -30,7 +30,7 @@ boundary — `.cursor/BUGBOT.md`).
     `MediaAltTextWidget`), and wysiwyg's `WYSIWYG_MEDIA_SLOT`
     (`WysiwygLibrarySource`, `WysiwygUploadSource`).
   - Data layer: `httpMediaGateway`
-    (`packages/media/admin/src/lib/infrastructure/httpMediaGateway/index.ts:338`)
+    (`packages/media/admin/src/lib/infrastructure/httpMediaGateway/index.ts:34`)
     behind the `MediaGateway` port; `useMediaLibrary`
     (`packages/media/admin/src/lib/hooks/useMediaLibrary/index.ts:44`);
     `useUploadQueue` (`.../hooks/useUploadQueue/index.ts:43`); `useMediaInsights`.
@@ -320,7 +320,7 @@ selection count is announced from the `sr-only aria-live="polite"` paragraph at
   Trigger: upload 250 files into one folder.
   Expected: a pager, or infinite scroll.
   Suspected: one fixed request `pageSize: 100`
-  (`infrastructure/httpMediaGateway/index.ts:325, 359`), the `total` in the
+  (`infrastructure/httpMediaGateway/index.ts:21, 55`), the `total` in the
   response **discarded** (`:361` maps `data.items` only), and a truncation notice
   with no way to reach the rest → `🐞 BUG-media-admin-01`.
 - **EC-02 — Search for an asset outside the loaded page.** `❌ NONE` Same bug; the

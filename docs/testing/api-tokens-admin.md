@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/api-tokens/admin` · **Package:** `@ortha-cms/api-tokens-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/api-tokens/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 6 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

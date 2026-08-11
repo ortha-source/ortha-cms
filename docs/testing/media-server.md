@@ -273,7 +273,7 @@ so this cannot be exercised against `apps/server` as-is.
 | 3 | `{"ids":[]}` | `400` — `@ArrayNotEmpty` |
 | 4 | `{"ids":[<101 uuids>]}` | `400` — `@ArrayMaxSize(100)` |
 | 5 | `{"ids":["nope"]}` | `400` — `@IsUUID('all', { each: true })` |
-| 6 | Check disk | both assets' originals **and** derivatives are gone (`reclaim-asset-blobs.ts:450`) |
+| 6 | Check disk | both assets' originals **and** derivatives are gone (`reclaim-asset-blobs.ts:20`) |
 
 ### F15 — Outbox events
 
@@ -443,7 +443,7 @@ so this cannot be exercised against `apps/server` as-is.
   `readonly` (`domain/folder.ts:140`) and no route sets it. Cycles cannot be
   created through the API. Checked and cleared.
 - **EC-25 — Two folders with the same name under one parent.** `❌ NONE`
-  Allowed — no unique index (`media-folder.ts:99-101`). `CreateFolderDto`'s JSDoc
+  Allowed — no unique index (`media-folder.ts:24-26`). `CreateFolderDto`'s JSDoc
   claims "unique among its siblings" (`create-folder.dto.ts:12`), which is false →
   documentation drift, filed as `🐞 BUG-media-server-08`.
 - **EC-26 — Delete a folder while a sibling request creates a subfolder under a descendant.** `❌ NONE`
@@ -563,7 +563,7 @@ carry it into the resolver ref so both the editor and the public API can emit
 
 #### ♿ A11Y-media-server-03 — Alt text is never required, and nothing at the API layer prompts for it
 **WCAG:** 1.1.1 Non-text Content (A) · **508:** 504.3 · **Verdict: Partially Supports**
-**Location:** `packages/media/server/src/lib/application/dto/upload-asset.dto.ts:157`
+**Location:** `packages/media/server/src/lib/application/dto/upload-asset.dto.ts:13-24`, with `packages/media/server/src/lib/infrastructure/schema/media-asset.ts:62` (`alt: text('alt')` — nullable, no default, no NOT NULL)
 The upload DTO's only field is `folderId`. An image can be created with `alt: null`
 and stays that way forever; nothing in `UploadAssetUseCase` warns, blocks, or flags.
 The **only** thing pushing back is the read-only Insights aggregate

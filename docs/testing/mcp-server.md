@@ -445,7 +445,7 @@ skill.
 
 **What genuinely applies:**
 
-- ♿ **A11Y-mcp-server-01 — Tool failures reach the client as readable prose and
+- **♿ A11Y-mcp-server-01 — Tool failures reach the client as readable prose and
   a machine code, not a bare status.** WCAG **3.3.1 Error Identification (A)** ·
   508 **E205.4** · Verdict: **Supports**
   `src/lib/protocol/build-mcp-server.ts:76-88` returns a failure as an `isError`
@@ -458,7 +458,7 @@ skill.
   wrong". Screen-reader experience: whatever the MCP client renders — this unit
   supplies text, which is the prerequisite.
 
-- ♿ **A11Y-mcp-server-02 — Authentication and workspace errors name the
+- **♿ A11Y-mcp-server-02 — Authentication and workspace errors name the
   remedy.** WCAG **3.3.3 Error Suggestion (AA)** · 508 **E205.4** · Verdict:
   **Supports**
   `src/lib/http/mcp-auth.service.ts:71-73` says exactly which header is missing;
@@ -469,7 +469,7 @@ skill.
   non-enumeration, and it is the correct trade; recorded so the tension is
   visible rather than accidental.
 
-- ♿ **A11Y-mcp-server-03 — Tool `description` text is the only documentation an
+- **♿ A11Y-mcp-server-03 — Tool `description` text is the only documentation an
   assistive path gets, and it is written for a model.** WCAG **3.1.5 Reading
   Level (AAA, advisory)** · 508 **E205.4** · Verdict: **Partially Supports**
   `ToolDefinition.description` is served verbatim to the client
@@ -482,7 +482,7 @@ skill.
   this layer — the two fields already separate the short name from the long
   prose, and a client is responsible for which it announces.
 
-- ♿ **A11Y-mcp-server-04 — 504 Authoring Tool: this endpoint hands an external
+- **♿ A11Y-mcp-server-04 — 504 Authoring Tool: this endpoint hands an external
   agent content-authoring capability.** WCAG n/a · 508 **504.2 / 504.3** ·
   Verdict: **Does Not Support**
   Section 508 §504 applies to authoring tools, and `content_create` /
@@ -508,7 +508,7 @@ skill.
   ♿ A11Y-copilot-server-02 and ♿ A11Y-copilot-admin-10, which are the same
   defect on the other surface. Do NOT implement.
 
-- ♿ **A11Y-mcp-server-05 — Progress and status structure for a client to
+- **♿ A11Y-mcp-server-05 — Progress and status structure for a client to
   announce.** WCAG **4.1.3 Status Messages (AA)** · 508 **502.3** · Verdict:
   **Not Applicable**
   `enableJsonResponse: true` (`mcp.controller.ts:95`) means one request, one

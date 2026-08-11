@@ -2,6 +2,7 @@
 
 > **Unit:** `apps/admin` · **Package:** `@ortha-cms/admin` (private) · **Kind:** app (composition root)
 > **Source of truth:** `apps/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 4 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

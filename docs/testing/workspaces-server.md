@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/workspaces/server` · **Package:** `@ortha-cms/workspaces-server` · **Kind:** server plugin
 > **Source of truth:** `packages/workspaces/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -609,6 +610,20 @@ with the 508 provision cited alongside.
   reversal-of-harm half: delete and revoke both refuse with 409 while data would
   be orphaned (`domain/workspace.ts:258-291`). The *confirmation* half is the
   admin's. **Supports** for the server's share.
+  **Caveat added on verification:** that 409 is only as good as the count behind it, and
+  `countWorkspaceEntries` returns `0` when the counter port is unbound
+  (`application/content/content-entry-counter.reader.ts:27-32`) — see
+  🐞 BUG-workspaces-server-04. With no content plugin registered the 3.3.4 protection is a
+  no-op.
+
+**a11y verdict tally: 1 finding · 0 Supports · 1 Partially Supports · 0 Does Not Support ·
+0 Not Applicable.** The provision table above records four further **Not Applicable**
+verdicts and three **Supports** verdicts that are assessments rather than findings, so they
+are not counted here.
+**a11y coverage: `❌ NONE`.** No spec asserts anything about this API's error-payload shape
+or about what a written row can be rendered as; axe has nothing to scan on a JSON endpoint.
+**WCAG 2.2 (advisory only — 508 references 2.0):** 2.4.11 and 2.5.8 are Not Applicable (no
+UI).
 
 ## 5. E2E Coverage Map
 
@@ -993,9 +1008,14 @@ async byId(workspaceId: string): Promise<WorkspaceView | null> {
 No membership join. Its own comment says so: *"Unscoped by itself — every caller
 sits behind `WorkspaceMemberGuard`"*.
 
-**Why it is wrong:** it is not a live defect — all five callers
-(`create`/`update`/`set-status`/`add-member`/`add-content`/`remove-content`
-controllers) are guarded, and I verified each `@UseGuards` line. But the
+**Why it is wrong:** it is not a live defect. **Correction after verification:** there are
+**six** callers, not five, and one of them — `create-workspace.controller.ts:36` — carries
+`@UseGuards(OriginGuard, PermissionsGuard)` **without** `WorkspaceMemberGuard`, so the
+original blanket claim that every caller sits behind that guard is inaccurate. It is still
+safe: the create controller passes `byId` the id its own use case has just minted, so there
+is no attacker-supplied id to leak with. The other five
+(`update:38`, `set-status:35`, `add-member:37`, `add-content:39`, `remove-content:38`) do
+carry it, each verified line by line. But the
 sibling read on the same class deliberately bakes the scope **into the query**
 (`listForMember`, line 34-43) precisely so it cannot be forgotten, and the
 package's own AGENTS.md frames that as the design rule
@@ -1006,8 +1026,9 @@ disclosure with no other line of defence.
 
 **Repro:** none today — this is a latent hazard, reported per the spec's
 "report it, say what you could not confirm" rule. The concrete check performed:
-`grep -n 'views.byId' packages/workspaces/server/src` returns six call sites,
-all in controllers whose class carries `WorkspaceMemberGuard`.
+`grep -rn '\.byId(' packages/workspaces/server/src --include=*.ts` returns six call sites;
+five sit in controllers whose class carries `WorkspaceMemberGuard`, and the sixth
+(`create-workspace.controller.ts:52`) is safe for the structural reason above.
 
 **Blast radius:** zero today; a full member-roster leak on any future
 unguarded caller.
@@ -1044,6 +1065,10 @@ unguarded caller.
 - **Guard drift** — both guards funnel into one `authorizeWorkspaceAccess`
   (`http/guards/workspace-access.ts:27`), so header- and path-scoped routes
   cannot diverge on what access means.
+
+**Defect tally:** `8 🐞 · 0 Critical · 2 High · 2 Medium · 4 Low · 3 🔒`
+**Accessibility tally:** `1 ♿ · 0 Supports · 1 Partially Supports · 0 Does Not Support ·
+the rest Not Applicable (server unit, no rendered UI)`
 
 ## 7. Recommended E2E Tests
 

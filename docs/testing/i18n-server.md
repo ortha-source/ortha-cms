@@ -21,14 +21,14 @@ stays on content's side, serialized by an advisory lock), publish state, or
 authorization (identity's guards).
 
 - **Entry points**
-  - `GET /api/i18n/locales` — `packages/i18n/server/src/lib/locales/controllers/list-locales.controller.ts:667`
+  - `GET /api/i18n/locales` — `packages/i18n/server/src/lib/locales/controllers/list-locales.controller.ts:21`
     (session only, **no `WorkspaceGuard`, no `@RequirePermissions`** — the global
     `AuthGuard` is the whole gate; locales carry no per-workspace data)
-  - `GET /api/i18n/content/:typeName/:id/locales` — `.../content/controllers/get-entry-locales.controller.ts:541`
+  - `GET /api/i18n/content/:typeName/:id/locales` — `.../content/controllers/get-entry-locales.controller.ts:41`
     (`content:read` + `WorkspaceGuard`)
-  - `POST /api/i18n/content/:typeName/locale-summary` — `.../content/controllers/locale-summary.controller.ts:587`
+  - `POST /api/i18n/content/:typeName/locale-summary` — `.../content/controllers/locale-summary.controller.ts:37`
     (`content:read` + `WorkspaceGuard`, **no `OriginGuard`** — it reads)
-  - `GET /api/insights/i18n/coverage` — `.../insights/http/controllers/localization-coverage.controller.ts:262`
+  - `GET /api/insights/i18n/coverage` — `.../insights/http/controllers/localization-coverage.controller.ts:32`
     (`content:read` + `WorkspaceGuard`)
   - DI port **bound**: `CONTENT_ENTRY_EXTENSION` ← `EntryLocaleExtensionService`
     (`.../content/services/entry-locale-extension.service.ts:102`), in a
@@ -48,7 +48,7 @@ authorization (identity's guards).
     an `i18n: true` type has no extension bound.
   - Config is validated **eagerly at construction**: ≥1 locale, unique
     well-formed slugs (`^[a-z]{2,3}(-[a-z0-9]+)*$`, ≤35 chars), **exactly one**
-    default (`LocaleSet.create`, `domain/value-objects/locale-set.ts:165`).
+    default (`LocaleSet.create`, `domain/value-objects/locale-set.ts:30`).
   - `content:read` for every route. `content:create` (via content's own route) to
     create a sibling translation.
 
@@ -79,8 +79,8 @@ authorization (identity's guards).
 
 | # | Feature | Where it lives | Coverage |
 | --- | --- | --- | --- |
-| F1 | Eager config validation (≥1, unique, well-formed, exactly one default) | `packages/i18n/server/src/lib/domain/value-objects/locale-set.ts:165-187`, `.../value-objects/locale.ts:99-114` | 🧪 UNIT |
-| F2 | `GET /api/i18n/locales` — the configured set in display order | `.../locales/controllers/list-locales.controller.ts:667` | ✅ E2E |
+| F1 | Eager config validation (≥1, unique, well-formed, exactly one default) | `packages/i18n/server/src/lib/domain/value-objects/locale-set.ts:30-52`, `.../value-objects/locale.ts:33-48` | 🧪 UNIT |
+| F2 | `GET /api/i18n/locales` — the configured set in display order | `.../locales/controllers/list-locales.controller.ts:21` | ✅ E2E |
 | F3 | `listScope` — strict `locale = X`, defaulting when absent | `.../content/services/entry-locale-extension.service.ts:115-132` | ✅ E2E |
 | F4 | `listScope` — `?localeFallback=default` widens to the default row | `.../entry-locale-extension.service.ts:133-151` | ✅ E2E |
 | F5 | Unknown `?locale=` → 400 | `.../locales/services/locale-registry.service.ts:56-65` | ✅ E2E |
@@ -99,9 +99,9 @@ authorization (identity's guards).
 | F18 | Virtual filters `hasLocale` / `missingLocale` / `localeCount` | `.../entry-locale-extension.service.ts:636-715` | ✅ E2E |
 | F19 | Unsupported operator on a virtual field → 400 | `.../entry-locale-extension.service.ts:660-665` | ❌ NONE |
 | F20 | Every method no-ops for a non-i18n type | `.../entry-locale-extension.service.ts:120, 168, 222, 637` | ✅ E2E |
-| F21 | `GET …/:id/locales` — one item per **configured** locale, present or null | `.../content/services/locale-group.service.ts:370-426` | ✅ E2E |
-| F22 | `POST …/locale-summary` — batched per-group members, capped at 100 | `.../locale-group.service.ts:433-479` | ✅ E2E |
-| F23 | A non-localized `:typeName` on either route → 400; unknown → 404 | `.../content/controllers/resolve-type.ts:609-623` | ✅ E2E |
+| F21 | `GET …/:id/locales` — one item per **configured** locale, present or null | `.../content/services/locale-group.service.ts:74-130` | ✅ E2E |
+| F22 | `POST …/locale-summary` — batched per-group members, capped at 100 | `.../locale-group.service.ts:137-183` | ✅ E2E |
+| F23 | A non-localized `:typeName` on either route → 400; unknown → 404 | `.../content/controllers/resolve-type.ts:13-27` | ✅ E2E |
 | F24 | Coverage: per-locale translated/missing, workspace-wide | `.../insights/infrastructure/queries/localization-coverage.query.ts:57-127` | ✅ E2E |
 | F25 | Coverage: the unit is a **record** (`locale_group_id`), never a row | `.../localization-coverage.query.ts:138-157` | ✅ E2E |
 | F26 | Coverage: rows in an **unconfigured** locale are filtered out | `.../localization-coverage.query.ts:218-229` | ❌ NONE |
@@ -265,7 +265,7 @@ with `title` **localized** and `slug`/`category` **shared**; locales `en` (defau
 ### Locale resolution
 
 - **EC-01 — `?locale=` absent.** `✅ E2E` Defaults to the configured default
-  (`LocalePolicy.resolve`, `domain/locale-policy.ts:257-262`).
+  (`LocalePolicy.resolve`, `domain/locale-policy.ts:20-25`).
 - **EC-02 — `?locale=zz`.** `✅ E2E` `400`, uniform message.
 - **EC-03 — `?locale=` present but empty.** `❌ NONE` `''` is not `undefined`, so it
   is looked up, misses, and `400`s. Arguably right; undocumented.
@@ -288,7 +288,7 @@ with `title` **localized** and `slug`/`category` **shared**; locales `en` (defau
   Verified by reading each: the list goes through `listScope`
   (`entry-locale-extension.service.ts:115`); the public API AND-s it into
   `readableWhere`; `entryLocales` and `summaries` are **deliberately** unscoped by
-  locale because they *are* the group view (`locale-group.service.ts:370, 433`).
+  locale because they *are* the group view (`locale-group.service.ts:74, 433`).
   There is no list path that forgets the filter and returns one row per locale.
   **Checked and cleared** — this is the bug the brief flags as common, and it is not
   present.
@@ -449,7 +449,7 @@ findings below are schema/model-level.
 
 #### ♿ A11Y-i18n-server-01 — A configured locale cannot express text direction, so an RTL locale is unrepresentable
 **WCAG:** 1.3.2 Meaningful Sequence (A), 1.4.10 Reflow (AA) · **508:** 504.2, E205.4 · **Verdict: Does Not Support**
-**Location:** `packages/i18n/server/src/lib/domain/value-objects/locale.ts:71-78` (`LocaleInput = { slug, name, isDefault? }`), `packages/i18n/server/src/lib/types/locale.ts` (`LocaleDef`), `packages/i18n/server/src/lib/locales/controllers/list-locales.controller.ts:669-677`
+**Location:** `packages/i18n/server/src/lib/domain/value-objects/locale.ts:5-12` (`LocaleInput = { slug, name, isDefault? }`), `packages/i18n/server/src/lib/types/locale.ts` (`LocaleDef`), `packages/i18n/server/src/lib/locales/controllers/list-locales.controller.ts:23-31`
 A locale is three fields: `slug`, `name`, `isDefault`. There is no `dir`, no
 `direction`, and no way to derive one — the slug regex `^[a-z]{2,3}(-[a-z0-9]+)*$`
 happily accepts `ar` and `he`, so an RTL locale can be *configured*, and nothing
@@ -474,7 +474,7 @@ editor surface and the previews.
 
 #### ♿ A11Y-i18n-server-02 — A locale slug is never propagated as a `lang` value onto rendered content
 **WCAG:** 3.1.1 Language of Page (A), 3.1.2 Language of Parts (AA) · **508:** 504.2, E205.4 · **Verdict: Does Not Support**
-**Location:** `packages/i18n/server/src/lib/content/services/locale-group.service.ts:400-425` (the panel's wire shape), `packages/i18n/server/src/lib/insights/types/i18n-insights-view.ts` — and by omission, everything the plugin returns
+**Location:** `packages/i18n/server/src/lib/content/services/locale-group.service.ts:104-129` (the panel's wire shape), `packages/i18n/server/src/lib/insights/types/i18n-insights-view.ts` — and by omission, everything the plugin returns
 The plugin's slugs (`en`, `de`, `pt-br`) are already BCP-47-shaped, so they *could*
 be `lang` values directly. Nothing does it: no response carries a `lang` field, the
 `richtext` HTML stored per locale carries no `lang` attribute, and there is no hook
@@ -495,7 +495,7 @@ are the two halves that consume it.
 
 #### ♿ A11Y-i18n-server-03 — Coverage figures are counts, not percentages, which is the accessible choice
 **WCAG:** 1.4.1 Use of Colour (A) (indirect) · **508:** E205.4 · **Verdict: Supports**
-**Location:** `packages/i18n/server/src/lib/insights/types/i18n-insights-view.ts:279-353`
+**Location:** `packages/i18n/server/src/lib/insights/types/i18n-insights-view.ts:11-85`
 Every figure the coverage endpoint returns is an integer with a named meaning
 (`translated`, `missing`, `records`, `localized`, `notLocalized`,
 `requiresLocalization`), and each carries documentation explaining that the three
@@ -615,7 +615,7 @@ would close the remaining window, since content's UPDATE always goes first.)
 
 ### 🐞 BUG-i18n-server-02 — `POST …/locale-summary` is a state-changing verb exempted from `OriginGuard`, and it echoes back publish state for arbitrary group ids · Severity: Low · 🔒
 
-**Location:** `packages/i18n/server/src/lib/content/controllers/locale-summary.controller.ts:20-45`
+**Location:** `packages/i18n/server/src/lib/content/controllers/locale-summary.controller.ts:27-46`
 **Category:** correctness / CSRF-surface
 
 **What the code does:**

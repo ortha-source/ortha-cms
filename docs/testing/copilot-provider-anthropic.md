@@ -387,7 +387,7 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
 
 **What genuinely applies:**
 
-- ♿ **A11Y-copilot-provider-anthropic-01 — Stream events carry the structure a
+- **♿ A11Y-copilot-provider-anthropic-01 — Stream events carry the structure a
   client needs to announce progress.** WCAG **4.1.3 Status Messages (AA)** ·
   508 **502.3** · Verdict: **Supports**
   `src/lib/anthropic-provider.ts:61-89` emits the port's three event kinds and
@@ -402,7 +402,7 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
   finding (🐞 BUG-copilot-provider-anthropic-05), and its a11y consequence is
   worth naming here.
 
-- ♿ **A11Y-copilot-provider-anthropic-02 — Error text reaching a person is the
+- **♿ A11Y-copilot-provider-anthropic-02 — Error text reaching a person is the
   vendor's, not ours.** WCAG **3.3.1 Error Identification (A)** ·
   508 **E205.4** · Verdict: **Partially Supports**
   A non-abort throw is re-thrown unchanged (`anthropic-provider.ts:95`), and
@@ -421,13 +421,13 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
   "Your session has expired"). Cross-references 🐞 BUG-copilot-provider-anthropic-04
   and 🐞 BUG-copilot-server-03. Do NOT implement.
 
-- ♿ **A11Y-copilot-provider-anthropic-03 — 504 Authoring Tool.** 508 **504.2** ·
+- **♿ A11Y-copilot-provider-anthropic-03 — 504 Authoring Tool.** 508 **504.2** ·
   Verdict: **Not Applicable**
   This adapter transports a prompt and returns tokens. It neither writes content
   nor decides what is written; the §504 question lives at `copilot/server`'s
   propose/apply path and at the content tools. See ♿ A11Y-copilot-server-02.
 
-- ♿ **A11Y-copilot-provider-anthropic-04 — 2.2.1 Timing Adjustable.** WCAG
+- **♿ A11Y-copilot-provider-anthropic-04 — 2.2.1 Timing Adjustable.** WCAG
   **2.2.1 (A)** · 508 **E205.4** · Verdict: **Not Applicable (this unit)**
   `config.timeoutMs` defaults to the SDK's ten minutes and is operator-set, not
   user-facing; there is no interaction a person must complete against a clock

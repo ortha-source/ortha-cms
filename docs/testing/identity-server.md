@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/identity/server` · **Package:** `@ortha-cms/identity-server` · **Kind:** server plugin
 > **Source of truth:** `packages/identity/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

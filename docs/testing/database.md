@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/database` · **Package:** `@ortha-cms/database` · **Kind:** server plugin (shared infrastructure)
 > **Source of truth:** `packages/database/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 3 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

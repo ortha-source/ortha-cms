@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/identity/admin` · **Package:** `@ortha-cms/identity-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/identity/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

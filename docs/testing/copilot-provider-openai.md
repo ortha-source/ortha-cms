@@ -442,7 +442,7 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
 
 **What genuinely applies:**
 
-- ♿ **A11Y-copilot-provider-openai-01 — Stream events carry the structure a
+- **♿ A11Y-copilot-provider-openai-01 — Stream events carry the structure a
   client needs to announce progress.** WCAG **4.1.3 Status Messages (AA)** ·
   508 **502.3** · Verdict: **Supports**
   `src/lib/openai-provider.ts:79-103` normalises three wire shapes into the
@@ -456,7 +456,7 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
   after all the prose of that turn — the same divergence filed against the
   anthropic adapter (🐞 BUG-copilot-provider-anthropic-05).
 
-- ♿ **A11Y-copilot-provider-openai-02 — Error text reaching a person is an
+- **♿ A11Y-copilot-provider-openai-02 — Error text reaching a person is an
   internal URL plus an upstream payload, not a sentence.** WCAG **3.3.1 Error
   Identification (A)** and **3.3.3 Error Suggestion (AA)** · 508 **E205.4** ·
   Verdict: **Does Not Support**
@@ -484,13 +484,13 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
   🐞 BUG-copilot-provider-openai-01 and 🐞 BUG-copilot-server-03. Do NOT
   implement.
 
-- ♿ **A11Y-copilot-provider-openai-03 — 504 Authoring Tool.** 508 **504.2** ·
+- **♿ A11Y-copilot-provider-openai-03 — 504 Authoring Tool.** 508 **504.2** ·
   Verdict: **Not Applicable**
   This adapter transports a prompt and returns tokens; it neither writes content
   nor decides what is written. The §504 question lives at `copilot/server`'s
   propose/apply path — see ♿ A11Y-copilot-server-02.
 
-- ♿ **A11Y-copilot-provider-openai-04 — 2.2.1 Timing Adjustable.** WCAG
+- **♿ A11Y-copilot-provider-openai-04 — 2.2.1 Timing Adjustable.** WCAG
   **2.2.1 (A)** · 508 **E205.4** · Verdict: **Not Applicable (this unit)**
   `DEFAULT_TIMEOUT_MS` (120 000) bounds a *network* request, not a human
   interaction; nobody is racing it. The genuine 2.2.1 exposure is the permission

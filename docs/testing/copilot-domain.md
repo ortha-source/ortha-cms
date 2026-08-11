@@ -500,7 +500,7 @@ this repo's `accessibility` skill, alongside the 508 provision.
 **What genuinely applies — three things, all about whether a *client* can build
 an accessible experience on top of what this unit defines:**
 
-- ♿ **A11Y-copilot-domain-01 — The run event vocabulary carries enough
+- **♿ A11Y-copilot-domain-01 — The run event vocabulary carries enough
   structure for a client to announce progress accessibly.** WCAG **4.1.3 Status
   Messages (AA)** · 508 **502.3** · Verdict: **Supports**
   `src/lib/run/run-event.ts:186-194` is a closed union of eight discriminated
@@ -516,7 +516,7 @@ an accessible experience on top of what this unit defines:**
   ♿ A11Y-copilot-admin-01, which is a defect in the consumer, not here.
   Screen-reader experience: n/a at this layer.
 
-- ♿ **A11Y-copilot-domain-02 — Stop reasons and errors are human-readable
+- **♿ A11Y-copilot-domain-02 — Stop reasons and errors are human-readable
   sentences, not opaque codes.** WCAG **3.3.1 Error Identification (A)** ·
   508 **E205.4** · Verdict: **Supports**
   `RUN_STOP_EXPLANATIONS` (`src/lib/run/run-limits.ts:58-67`) maps every one of
@@ -533,7 +533,7 @@ an accessible experience on top of what this unit defines:**
   `RunErrorEvent.message`'s contract is violated downstream (see
   `docs/testing/copilot-server.md` 🐞 BUG-copilot-server-03).
 
-- ♿ **A11Y-copilot-domain-03 — 504 Authoring Tool: the proposal contract has no
+- **♿ A11Y-copilot-domain-03 — 504 Authoring Tool: the proposal contract has no
   place for accessibility information.** WCAG n/a · 508 **504.2 / 504.3** ·
   Verdict: **Partially Supports**
   Section 508 §504 applies to authoring tools, and `ProposalDraft`

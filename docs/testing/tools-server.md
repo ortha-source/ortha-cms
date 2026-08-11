@@ -571,7 +571,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
 
 **What genuinely applies:**
 
-- ♿ **A11Y-tools-server-01 — Tool failure messages are human-readable prose,
+- **♿ A11Y-tools-server-01 — Tool failure messages are human-readable prose,
   not opaque codes.** WCAG **3.3.1 Error Identification (A)** · 508 **E205.4** ·
   Verdict: **Supports**
   `src/lib/tool-error.ts:16-23` maps a status to a short machine `code` *and*
@@ -583,7 +583,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   and MCP returns it as a text block (`build-mcp-server.ts:86`).
   Keyboard-only / screen-reader experience: n/a here; the rendering unit owns it.
 
-- ♿ **A11Y-tools-server-02 — The opaque-500 path removes the only actionable
+- **♿ A11Y-tools-server-02 — The opaque-500 path removes the only actionable
   text.** WCAG **3.3.1 Error Identification (A)** · 508 **E205.4** · Verdict:
   **Partially Supports**
   `src/lib/tool-error.ts:73-77` replaces every non-`HttpException` with "The
@@ -594,7 +594,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   opaque message with a correlation id the user can quote, so support can find
   the log line — do not widen the message.
 
-- ♿ **A11Y-tools-server-03 — Nothing here carries structure for progress
+- **♿ A11Y-tools-server-03 — Nothing here carries structure for progress
   announcement.** WCAG **4.1.3 Status Messages (AA)** · 508 **502.3** ·
   Verdict: **Not Applicable (this unit) / see `copilot-admin`**
   `ToolOutput` is `unknown` and `ToolDefinition` carries `title` (a human
@@ -605,7 +605,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   degrades to `humanizeToolName` (`labels.ts`). Recorded here so the dependency
   is visible; the ♿ finding itself belongs to `copilot-admin`.
 
-- ♿ **A11Y-tools-server-04 — 504 Authoring Tool: the registry is the seam
+- **♿ A11Y-tools-server-04 — 504 Authoring Tool: the registry is the seam
   through which an agent writes content.** WCAG n/a · 508 **504.2** ·
   Verdict: **Partially Supports**
   Section 508 Chapter 5 §504 applies to authoring tools, and this registry is

@@ -72,10 +72,10 @@ form's Save/Publish, nor the unsaved-changes guard.
 | F4 | A transparent full-bleed button opens the editor, named `Edit {label}` | `.../WysiwygFieldControl/index.tsx:156-166` | ✅ E2E |
 | F5 | Empty state: the field's `admin.placeholder`, else a default line | `.../WysiwygFieldControl/index.tsx:108-120` | ✅ E2E |
 | F6 | `widget: 'textarea'` opts a field out entirely | `.../domain/constants` (`WYSIWYG_WIDGET`) | ✅ E2E |
-| F7 | Expanding replaces the tab strip with the editor **view**, chrome intact | `.../WysiwygFieldFullView/index.tsx:221` | ✅ E2E |
+| F7 | Expanding replaces the tab strip with the editor **view**, chrome intact | `.../WysiwygFieldFullView/index.tsx:38` | ✅ E2E |
 | F8 | Two exits: **Back to fields** and **Done**; both `onBlur` the field | `.../WysiwygFieldFullView/index.tsx:55-58, 72-81` | ✅ E2E |
 | F9 | Edits write straight to the entry form via `onChange` | `.../WysiwygEditorPanel/index.tsx:117-122` | ✅ E2E |
-| F10 | `normalizeRichText` stores an emptied editor as `''`, not `<p></p>` | `.../domain/richTextValue/index.ts:125-127` | ✅ E2E |
+| F10 | `normalizeRichText` stores an emptied editor as `''`, not `<p></p>` | `.../domain/richTextValue/index.ts:41-43` | ✅ E2E |
 | F11 | Toolbar fits one row; the budget is ~40px | `.../WysiwygToolbar/index.tsx` | ✅ E2E |
 | F12 | Bold / italic / lists / undo / redo with `aria-pressed` | `.../WysiwygToolbar/ToolbarButton/index.tsx:36-64` | ✅ E2E |
 | F13 | Block-type menu: paragraph + H1–H4 | `.../WysiwygToolbar/BlockTypeMenu/index.tsx` | ⚠️ PARTIAL |
@@ -83,20 +83,20 @@ form's Save/Publish, nor the unsaved-changes guard.
 | F15 | Colour + highlight menus (inline, author-chosen, kept on the content) | `.../WysiwygToolbar/ColorMenu/index.tsx` | ⚠️ PARTIAL |
 | F16 | Align menu — 4 alignments, switching to `setMediaAlign` on a media node | `.../WysiwygToolbar/AlignMenu/index.tsx` | ✅ E2E |
 | F17 | More-marks menu — underline, strike, code, quote, clear formatting | `.../WysiwygToolbar/MoreMarksMenu/index.tsx` | ❌ NONE |
-| F18 | Link popover (`openOnClick: false`, `rel="noopener noreferrer nofollow"`) | `.../WysiwygToolbar/LinkPopover/index.tsx`, `.../editorExtensions/index.ts:214-218` | ❌ NONE |
+| F18 | Link popover (`openOnClick: false`, `rel="noopener noreferrer nofollow"`) | `.../WysiwygToolbar/LinkPopover/index.tsx`, `.../editorExtensions/index.ts:39-43` | ❌ NONE |
 | F19 | Insert ▸ Table (3×3 with a header row), plus row/column edits | `.../WysiwygToolbar/InsertMenu/TableItems/index.tsx:50,76` | ✅ E2E |
 | F20 | Insert ▸ Columns (`<div data-columns="n">` of `<div data-column>`) | `.../infrastructure/extensions/columns/index.ts:88,127` | ✅ E2E |
 | F21 | Insert ▸ Callout (`<aside data-callout data-tone>`) | `.../infrastructure/extensions/callout/index.ts:69-77` | ✅ E2E |
 | F22 | Insert ▸ Divider | `.../WysiwygToolbar/InsertMenu/index.tsx` | ❌ NONE |
 | F23 | Insert ▸ Media ▸ **From a URL** (built-in, `order: 100`) | `.../WysiwygToolbar/MediaUrlDialog/index.tsx` | ✅ E2E |
 | F24 | `WYSIWYG_MEDIA_SLOT` — contributed sources mounted by the toolbar | `.../presentation/slots/wysiwygSlots/index.ts:97`, `.../WysiwygToolbar/index.tsx:34-39` | ✅ E2E |
-| F25 | `src` vetted twice — on the dialog and on node insert **and parse** | `.../domain/mediaSrc/index.ts:159-175`, `.../extensions/media/index.ts:78-83` | ✅ E2E |
+| F25 | `src` vetted twice — on the dialog and on node insert **and parse** | `.../domain/mediaSrc/index.ts:27-43`, `.../extensions/media/index.ts:78-83` | ✅ E2E |
 | F26 | Resizable image/video via the `width` attribute, keyboard-operable | `.../extensions/media/MediaNodeView/index.tsx:100-110, 166-172` | ✅ E2E |
 | F27 | Media alignment via `data-align` + margins, never `text-align` | `.../extensions/media/index.ts:110-120` | ✅ E2E |
 | F28 | Alt-text popover with a **decorative** checkbox and a warning chip | `.../extensions/media/MediaNodeView/AltTextPopover/index.tsx:63` | ✅ E2E |
 | F29 | Every overlay `<form>` stops its own submit | `.../AltTextPopover/index.tsx:131-140`, `LinkPopover`, `MediaUrlDialog` | ✅ E2E |
 | F30 | Read-only variant: **View {label}**, no toolbar, `role="region"`, no autofocus | `.../WysiwygEditorPanel/index.tsx:90, 105-111, 157` | ⚠️ PARTIAL |
-| F31 | Word/character count footer, `aria-live="off"` | `.../WysiwygEditorPanel/index.tsx:433-458, 470-477` | ❌ NONE |
+| F31 | Word/character count footer, `aria-live="off"` | `.../WysiwygEditorPanel/index.tsx:125-150, 161-169` | ❌ NONE |
 | F32 | `useLiveEditorState` survives StrictMode's destroyed-editor frame | `.../presentation/hooks/useLiveEditorState/index.ts` | ❌ NONE |
 | F33 | Lazy boundary keeps TipTap out of the entry chunk | `.../presentation/wysiwygPlugin/index.tsx` | ❌ NONE |
 
