@@ -1051,7 +1051,7 @@ unguarded caller.
   through Drizzle's parameter binding, not string concatenation.
 - **Audit-in-transaction** — audit is no longer written in-band; the use cases
   append to the transactional outbox inside `uow.run` and
-  `packages/activity/server/.../audit-event.subscriber.ts:13` is the single
+  `packages/activity/server/src/lib/activity/infrastructure/audit-event.subscriber.ts:13` is the single
   consumer, so the BUGBOT "audit outside the transaction" pattern cannot occur.
   (Note: `packages/workspaces/server/AGENTS.md:121-130` still describes the
   pre-Wave-3 in-band `ACTIVITY_RECORDER` calls that no longer exist in the

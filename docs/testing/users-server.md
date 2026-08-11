@@ -699,9 +699,9 @@ controllers, matching `workspaces/server`'s
 
 Every other plugin imports the constant:
 `@RequirePermissions(PERMISSIONS.WORKSPACES_UPDATE)`
-(`packages/workspaces/server/.../update-workspace.controller.ts:39`),
+(`packages/workspaces/server/src/lib/workspace/http/controllers/update-workspace.controller.ts:39`),
 `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`
-(`packages/activity/server/.../list-activity.controller.ts:17`),
+(`packages/activity/server/src/lib/activity/controllers/list-activity.controller.ts:17`),
 `@RequirePermissions(PERMISSIONS.MEDIA_DELETE)`, `PERMISSIONS.CONTENT_READ`, and so on —
 `grep -rn "@RequirePermissions(" packages --include=*.ts` shows **users/server is the sole
 holdout**, 7 sites out of ~50.

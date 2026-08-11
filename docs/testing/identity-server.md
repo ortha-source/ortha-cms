@@ -958,7 +958,7 @@ succeeds. / Expected: `400`, or the full passphrase actually protecting the acco
 less entropy than they believe. It is not exploitable without knowing the truncation
 point, but it silently defeats the one control the product tells users to rely on
 ("length is what keeps a password hard to guess" —
-`packages/identity/admin/.../useAcceptInviteSchema.ts:20-21`).
+`packages/identity/admin/src/lib/presentation/components/AcceptInviteForm/useAcceptInviteSchema.ts:20-21`).
 `apps/server-e2e/src/server/auth/accept-invite.spec.ts:367` tests only `'a'.repeat(73)`,
 which is 73 bytes and does trip the check, so the suite reads as green.
 

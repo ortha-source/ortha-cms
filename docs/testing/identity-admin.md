@@ -754,7 +754,7 @@ also does not evict: it marks stale and refetches active observers.
 public route. When a second person signs in on the same browser without reloading, every
 list they open is served **from the previous user's cache** while its refetch is in flight,
 and `useMembers` is configured with `placeholderData: keepPreviousData`
-(`packages/users/admin/.../useMembers/index.ts:25`), which deliberately keeps the old rows
+(`packages/users/admin/src/lib/application/useMembers/index.ts:25`), which deliberately keeps the old rows
 on screen. On a slow connection that window is seconds.
 
 The severity is set by *whose* data it is. `['members','detail',<id>,'sessions']` caches
@@ -771,7 +771,7 @@ all three roles, so serving it from cache crosses no permission boundary.
 **What does happen.** Two people of the **same role** sharing a browser. Admin A signs out,
 admin B signs in without reloading; every list B opens is served from A's cache while the
 refetch is in flight, and `useMembers` is configured with `placeholderData: keepPreviousData`
-(`packages/users/admin/.../useMembers/index.ts:25`), which deliberately holds the old rows on
+(`packages/users/admin/src/lib/application/useMembers/index.ts:25`), which deliberately holds the old rows on
 screen. On a slow connection that window is seconds — and `['members','detail',<id>,'sessions']`
 is IP addresses and user-agent strings.
 
@@ -878,7 +878,7 @@ single transient failure lands here immediately.
 
 **Why it is wrong:** the comment's premise is true for **404** — the server deliberately
 collapses unknown/expired/consumed/revoked into one bare 404
-(`packages/identity/server/.../invite.controller.ts:88-95`). It is **not** true for 500,
+(`packages/identity/server/src/lib/auth/controllers/invite.controller.ts:88-95`). It is **not** true for 500,
 502, a network drop, or a CORS/proxy failure, all of which say nothing whatsoever about the
 token. `.cursor/BUGBOT.md` names this exactly: *"**Error masquerading as empty.**
 Distinguish a failed query from a genuinely empty result. Rendering the empty state on
@@ -890,7 +890,7 @@ choice.
 The consequence is worse than a bad message. `InviteUnavailable` tells the invitee
 "Ask whoever invited you to send a fresh one" (`InviteUnavailable/index.tsx:25-26`). If they
 follow that advice, the admin hits **Resend**, which **rotates the token and kills the link
-the invitee is holding** (`packages/users/server/.../invite-token.service.ts:60-70`). A
+the invitee is holding** (`packages/users/server/src/lib/member/infrastructure/persistence/invite-token.service.ts:60-70`). A
 five-second API blip therefore converts a perfectly good invite into a genuinely dead one,
 and the admin must now deliver a new link by hand.
 

@@ -341,7 +341,7 @@ this API). Allow ≤ 5 s after any mutation for the outbox to drain.
   (`activity.spec.ts:262,272`).
 - **EC-23 — Is the actor spoofable?** **No.** The actor is stamped by the producer via
   `attachActor(events, actor)` from `@CurrentUser()` — e.g.
-  `packages/users/server/.../invite-member.use-case.ts:76`. It is never read from a request
+  `packages/users/server/src/lib/member/application/use-cases/invite-member.use-case.ts:76`. It is never read from a request
   body or header, and the read API has no write surface. `toAuditRow` recovers it from the
   event payload only (`audit-event-mapping.ts:217-228`).
 - **EC-24 — Route carries a permission constant?** `✅ verified` —

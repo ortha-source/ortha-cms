@@ -387,7 +387,7 @@ from the real `RadioGroupItem`, which is `sr-only` but present.
   activity read. Verified against `docs/testing/users-server.md` §4 and
   `docs/testing/identity-server.md` §4. **One gap:** the admin gates the *session list* on
   `users:update` while the server gates it on `users:read`
-  (`packages/identity/server/.../user-sessions.controller.ts:68`), so a `viewer` who calls
+  (`packages/identity/server/src/lib/auth/controllers/user-sessions.controller.ts:68`), so a `viewer` who calls
   the API directly gets data the UI would never show them — cross-referenced as
   🐞 BUG-identity-server-04.
 - **EC-17 — Deep-link a gated tab.** `✅ E2E` (`user-detail.spec.ts:159`) — hidden and
@@ -880,7 +880,7 @@ destructiveItem = canRevoke ? (
 
 One `onSelect` → one mutation. `DELETE /api/users/:id/invites` **deletes the user row**
 server-side, cascading its invite token and every workspace membership
-(`packages/users/server/.../revoke-invite.use-case.ts:41`). `POST /:id/disable` locks the
+(`packages/users/server/src/lib/member/application/use-cases/revoke-invite.use-case.ts:41`). `POST /:id/disable` locks the
 person out and revokes all their live sessions in the same transaction.
 
 **Why it is wrong:** the same codebase confirms three *less* consequential actions. The
@@ -930,13 +930,13 @@ name and email, exactly as `UserRolesPage` does. Cross-reference ♿ A11Y-users-
 `Dialog`'s `onOpenChange(false)` fires for **Esc**, an overlay click, and the close button
 just as it does for the "Done" button. All four paths null the link. It exists only in this
 component's state and is never re-fetchable — the server returns the raw token exactly once
-(`packages/users/server/.../resend-invite.use-case.ts:66`).
+(`packages/users/server/src/lib/member/application/use-cases/resend-invite.use-case.ts:66`).
 
 **Why it is wrong:** the dialog's own copy states the stakes — "It's shown once — copy it
 before you close this" — and then provides three ways to close it that a user reaches by
 reflex, with no guard on any of them. Worse, the resend has **already rotated the token**,
 so the invitee's previous link is dead
-(`packages/users/server/.../invite-token.service.ts:60-70`). Losing this dialog does not
+(`packages/users/server/src/lib/member/infrastructure/persistence/invite-token.service.ts:60-70`). Losing this dialog does not
 return you to the status quo; it leaves the invitee with a dead link and the admin with no
 live one. The only recovery is to resend *again*, which rotates *again* — so a nervous
 double-Esc can loop indefinitely.
@@ -1036,7 +1036,7 @@ const locked = !canManage || !roleChange.ok;
 
 `canChangeRole()` mirrors only the **last-admin** guardrail. It does not know who the
 acting user is, so it cannot mirror the server's **self-action** guard
-(`packages/users/server/.../update-member.use-case.ts:66-68`, which 409s
+(`packages/users/server/src/lib/member/application/use-cases/update-member.use-case.ts:66-68`, which 409s
 "You cannot change your own role"). The picker is therefore enabled on your own profile,
 Apply is enabled, the confirm dialog appears, and the PATCH returns 409 — which
 `onError` renders as the generic "Couldn't change the role. Please try again."
@@ -1093,7 +1093,7 @@ that display has been misinformed about someone's privileges.
 
 **Why it is Low, and I want to be precise about this.** No path in the product currently
 creates a role outside the three seeded keys. `seedSystemRoles` writes exactly
-`admin` / `contributor` / `viewer` (`packages/identity/server/.../system-roles.ts:76-105`);
+`admin` / `contributor` / `viewer` (`packages/identity/server/src/lib/rbac/system-roles.ts:76-105`);
 `RolesService` exposes only `delete` and refuses `isSystem` rows
 (`roles.service.ts:21-40`); there is no create-role endpoint anywhere
 (`grep -rn "insert(roles)" packages --include=*.ts` finds only the seeder). So the fallback
@@ -1104,7 +1104,7 @@ false starting point.
 
 It is filed rather than cleared because the server's own `Role.create` deliberately accepts
 any non-empty key ("a loaded member may hold a custom, non-system role" —
-`packages/users/server/.../value-objects/role.ts:23-24`), i.e. the server is explicitly
+`packages/users/server/src/lib/member/domain/value-objects/role.ts:23-24`), i.e. the server is explicitly
 designed for the case the admin silently mangles.
 
 **Repro (requires a manual DB edit today):**

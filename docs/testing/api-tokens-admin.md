@@ -40,7 +40,7 @@ It does **NOT** own:
 ### Runtime prerequisites
 
 - Signed in as an **`admin`**. `tokens:read` / `tokens:create` / `tokens:delete` are
-  granted to `admin` alone (`packages/identity/server/.../system-roles.ts:76-105`), so
+  granted to `admin` alone (`packages/identity/server/src/lib/rbac/system-roles.ts:76-105`), so
   every other role sees the no-access state — and the sidebar entry is hidden.
 - At least two workspaces exist, so the multi-workspace bucket can be exercised.
 - Seed data worth having before testing: one `active` token, one `expired`
@@ -177,7 +177,7 @@ announce **without a label** → ♿ A11Y-api-tokens-admin-02.
 
 **This is the highest-stakes interaction in the unit: the plaintext is returned by the API
 exactly once and is never re-fetchable
-(`packages/identity/server/.../api-token.service.ts:87-101`).**
+(`packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:87-101`).**
 
 | Step | Action | Expected result |
 | --- | --- | --- |
@@ -247,7 +247,7 @@ stable anchor**; in practice the kebab it came from has just been removed
   `tokens:create`.
 - **EC-02 — A token whose workspace bucket is empty.** `❌ NONE` — **cannot happen** by the
   server's contract: the bucket is written in the same transaction as the token and every
-  read returns them together (`packages/identity/server/.../drizzle-api-token.repository.ts:51-53`).
+  read returns them together (`packages/identity/server/src/lib/api-tokens/infrastructure/persistence/drizzle-api-token.repository.ts:51-53`).
   The mapper would render an empty Workspaces cell if it ever did.
 - **EC-03 — No workspaces exist at all.** `❌ NONE` — the `MultiSelect` shows
   "No workspaces found." and the form cannot be submitted validly. Verify the message is
@@ -304,7 +304,7 @@ stable anchor**; in practice the kebab it came from has just been removed
 | Revoke kebab | shown | hidden | hidden | hidden | n/a | n/a |
 
 - **EC-16 — Hidden ≠ enforced.** Every gate has a server counterpart
-  (`packages/identity/server/.../api-tokens.controller.ts:65,84,100`), e2e-proven at
+  (`packages/identity/server/src/lib/api-tokens/http/controllers/api-tokens.controller.ts:65,84,100`), e2e-proven at
   `apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts:183,198`.
 - **EC-17 — Can a bearer token reach these management routes?** **No** — they are
   session-authenticated and gated on `tokens:*`, which `scopePermissions` never mints
@@ -480,7 +480,7 @@ guessing from the values, and "Never" is a particularly opaque orphan. This is t
 
 The consequence is not cosmetic: choosing "Full access" instead of "Read-only" mints a
 credential that can create, update, publish and delete content
-(`packages/identity/server/.../api-token-scope.ts:39-48`).
+(`packages/identity/server/src/lib/api-tokens/domain/api-token-scope.ts:39-48`).
 
 **Remediation:** give each `SelectTrigger` an `id` from `useId()` and point the matching
 `<Label htmlFor>` at it, exactly as the Name field does — or pass `aria-label` to the
@@ -773,7 +773,7 @@ any kind**.
 **Why it is wrong:** the value being copied is a credential the server returns exactly
 once. `ApiTokenService.mint` generates it, stores only its SHA-256, and returns the
 plaintext in the create response and nowhere else
-(`packages/identity/server/.../api-token.service.ts:87-101`); every subsequent read is
+(`packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:87-101`); every subsequent read is
 secret-free by construction (`toView`, `:170-183`). The dialog's own copy says so — "This
 is the only time the token is shown … you won't be able to see it again."
 
@@ -1005,7 +1005,7 @@ Do NOT implement.
   mapper carries it only on the create response (`toCreatedApiToken`), and the list mapper
   has no `secret` field at all (`apiTokenMapper/index.ts:36-49`).
 - **The list never receives a secret.** The server's `toView` strips it
-  (`packages/identity/server/.../api-token.service.ts:170-183`), and the admin's
+  (`packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:170-183`), and the admin's
   `ApiTokenResponse` type has no `secret` member — only `CreatedApiTokenResponse` does.
 - **Only the `lookupPrefix` is displayed.** The Token column renders the non-secret prefix,
   which is exactly what it exists for.
