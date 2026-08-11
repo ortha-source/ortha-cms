@@ -56,11 +56,24 @@ tick **dry-run** to rehearse. It needs one repository secret, `NPM_TOKEN`.
 | Tag        | `v{version}`                                                        |
 | Changelog  | one workspace-level `CHANGELOG.md`, no per-project files            |
 
-`@ortha-cms/nx` is `private` and stays out: it is workspace tooling, wired
-into this repo's `nx.json`, not something a consumer installs.
+That is **38 packages under `packages/`, of which 37 publish**. The one that
+does not is `@ortha-cms/nx`: it is `private`, workspace tooling wired into this
+repo's `nx.json`, not something a consumer installs.
 
 The apps (`apps/admin`, `apps/server`) are private and never publish. They are
 the reference host, not a distributable.
+
+Nesting does not matter to the release. Both shapes the repo uses — flat
+(`packages/database`) and grouped (`packages/content/server`) — are picked up
+the same way, because packages are discovered by walking for `package.json`
+rather than by matching a fixed depth. A package nested deeper still builds,
+packs and publishes correctly.
+
+What a deeper package would _not_ get is npm workspace linking: the root
+`workspaces` globs are `packages/*` and `packages/*/*`, so `packages/a/b/c`
+is never symlinked into `node_modules` and nothing in the repo can import it.
+Keep to the two documented shapes; if a third level is ever wanted, add the
+glob to the root manifest at the same time.
 
 ## How a tarball is built
 

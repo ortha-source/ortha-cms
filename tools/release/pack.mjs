@@ -36,7 +36,6 @@ import {
     readdirSync,
     readFileSync,
     rmSync,
-    statSync,
     writeFileSync
 } from 'node:fs';
 import { builtinModules } from 'node:module';
@@ -234,19 +233,14 @@ function resolveDependencies(dependencies) {
 }
 
 /**
- * Packages are either flat (`packages/<name>`) or grouped
- * (`packages/<group>/<name>`), so both shapes are searched — the same two
- * levels the root `workspaces` globs cover.
+ * Packages are flat (`packages/<name>`) or grouped
+ * (`packages/<group>/<name>`), which is the two levels the root `workspaces`
+ * globs cover — but the search is depth-agnostic on purpose, so that a
+ * dependency is never reported as "not a workspace package" merely because
+ * someone nested it one level further than the convention.
  */
 function workspaceManifest(name) {
-    const packagesDir = join(workspaceRoot, 'packages');
-
-    for (const dir of [
-        ...childDirs(packagesDir),
-        ...childDirs(packagesDir).flatMap(childDirs)
-    ]) {
-        const file = join(dir, 'package.json');
-        if (!existsSync(file)) continue;
+    for (const file of manifestsUnder(join(workspaceRoot, 'packages'))) {
         const manifest = readJson(file);
         if (manifest.name === name) return manifest;
     }
@@ -254,10 +248,22 @@ function workspaceManifest(name) {
     return undefined;
 }
 
-function childDirs(root) {
-    return readdirSync(root)
-        .map((entry) => join(root, entry))
-        .filter((entry) => statSync(entry).isDirectory());
+function manifestsUnder(dir) {
+    if (!existsSync(dir)) return [];
+
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(dir, entry.name);
+
+        // A package's own build output holds a copy of its manifest; walking
+        // into it would match a stale name.
+        if (entry.isDirectory()) {
+            return ['node_modules', 'dist'].includes(entry.name)
+                ? []
+                : manifestsUnder(path);
+        }
+
+        return entry.name === 'package.json' ? [path] : [];
+    });
 }
 
 function assetsIn(dir) {
