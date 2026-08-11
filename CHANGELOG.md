@@ -1,3 +1,14 @@
+## 0.2.2 (2026-08-11)
+
+### 🩹 Fixes
+
+- **release:** tell a slow write apart from a blocked package name ([9ea8e668](https://github.com/ortha-source/ortha-cms/commit/9ea8e668))
+
+### ❤️ Thank You
+
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.2.1 (2026-08-11)
 
 ### 🩹 Fixes
