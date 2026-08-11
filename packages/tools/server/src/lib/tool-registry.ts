@@ -128,7 +128,12 @@ export class ToolRegistry {
                 } does not hold.`
             );
         }
-        return tool.handler(input, context);
+        // Stamped here rather than at the edge that built the context, so the
+        // surface a handler sees is by construction the one its `surfaces` was
+        // narrowed against — a tool cannot be authorized as one consumer and
+        // rendered for the other. See `ToolContext.surface` for what a handler
+        // may and may not do with it.
+        return tool.handler(input, { ...context, surface });
     }
 
     /** Every resource visible to the actor, across providers. */

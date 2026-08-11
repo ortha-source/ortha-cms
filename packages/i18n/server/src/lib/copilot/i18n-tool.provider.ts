@@ -14,6 +14,16 @@ import { LocaleGroupService } from '../content/services/locale-group.service';
  * The i18n plugin's read tools — `i18n_locales_list` and
  * `i18n_translations_get`.
  *
+ * **The two land on different surfaces, which is worth reading before adding a
+ * third here.** `i18n_locales_list` is offered to MCP as well as the copilot:
+ * it returns deployment configuration, identical for every caller, with no
+ * publish state to leak. `i18n_translations_get` stays copilot-only because
+ * `LocaleGroupService.entryLocales` scopes to workspace and soft-delete but
+ * **not** publish state, so it reports a draft sibling and its status — which
+ * an MCP `read` token must not see (the endpoint's own `content_translations`
+ * is published-only). Same folder, same plugin, opposite answers; the deciding
+ * question is always what the tool would show a token holding `content:read`.
+ *
  * **`listLocales` is what makes `admin_content_search`'s `locale` usable.**
  * The configured locale slugs are deployment config, not content, so nothing
  * else tells the model they exist: without this it either omits `locale` and
@@ -74,7 +84,13 @@ export class I18nCopilotToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.CONTENT_READ],
             readOnly: true,
             effect: 'read',
-            surfaces: ['copilot'],
+            // No `surfaces` — offered to both. The tension that splits every
+            // other content tool is about *visibility of drafts* and *who a
+            // write is attributed to*, and a locale list has neither: it
+            // returns the same deployment configuration to every caller, holds
+            // no workspace data, and writes nothing. An MCP client needs it for
+            // exactly the reason the copilot does — `?locale=` on the public
+            // reads takes a slug that appears in no schema and no prompt.
             handler: async () => ({ locales: this.locales.all() })
         };
     }

@@ -1,7 +1,17 @@
-import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    NotFoundException,
+    Optional,
+    type OnModuleInit
+} from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
 import { ToolRegistry } from '@ortha-cms/tools-server';
-import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
+import type {
+    ToolDefinition,
+    ToolProvider,
+    ToolSurface
+} from '@ortha-cms/tools-server';
 import { ListAssetsQuery } from '../infrastructure/queries/list-assets.query';
 import { ListFoldersQuery } from '../infrastructure/queries/list-folders.query';
 import { DownloadAssetQuery } from '../infrastructure/queries/download-asset.query';
@@ -17,8 +27,20 @@ import {
 const MAX_TOOL_PAGE_SIZE = 25;
 
 /**
- * The media plugin's read contribution to the copilot's tool catalogue —
+ * The media plugin's read contribution to the shared tool catalogue —
  * `media_assets_search`, `media_folders_list` and `media_asset_read`.
+ *
+ * **All three are offered to both surfaces** (no `surfaces` field), which makes
+ * them the first tools in the registry that are genuinely shared rather than
+ * split. Nothing here has the tension that keeps the content tools apart: an
+ * asset has no draft/published state to leak, these read nothing, and the
+ * library is workspace-scoped identically for a token and a signed-in user.
+ * Both scopes of API token carry `media:read`, and the MCP endpoint had no
+ * media tools at all — a token could upload an asset over `/api/v1/media` and
+ * then had no way to find it again.
+ *
+ * The one thing that does differ is the **link**, and only because the two
+ * callers hold different credentials: see `downloadPathFor`.
  *
  * Each is a thin wrapper over the same query the library's own route calls,
  * with departures that answer something a model needs and the admin's browser
@@ -47,10 +69,9 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
     ) {}
 
     /**
-     * Register with the shared tool registry once the DI graph is built —
-     * the same catalogue the MCP endpoint serves, narrowed to the `copilot`
-     * surface by each tool's `surfaces`. `@Optional()` because a deployment
-     * may run neither consumer, in which case these simply go unregistered.
+     * Register with the shared tool registry once the DI graph is built.
+     * `@Optional()` because a deployment may run neither consumer, in which
+     * case these simply go unregistered.
      */
     onModuleInit(): void {
         this.toolRegistry?.register(this);
@@ -123,7 +144,6 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.MEDIA_READ],
             readOnly: true,
             effect: 'read',
-            surfaces: ['copilot'],
             handler: async (input, ctx) => {
                 const args = (input ?? {}) as {
                     search?: string;
@@ -158,7 +178,9 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
                     total: result.total,
                     page: result.page,
                     pageSize: result.pageSize,
-                    items: result.items.map(summarizeAsset)
+                    items: result.items.map((asset) =>
+                        summarizeAsset(asset, ctx.surface)
+                    )
                 };
             }
         };
@@ -194,7 +216,6 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.MEDIA_READ],
             readOnly: true,
             effect: 'read',
-            surfaces: ['copilot'],
             handler: async (_input, ctx) =>
                 this.folders.execute(ctx.workspaceId)
         };
@@ -244,7 +265,6 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.MEDIA_READ],
             readOnly: true,
             effect: 'read',
-            surfaces: ['copilot'],
             handler: async (input, ctx) => {
                 const { assetId } = (input ?? {}) as { assetId: string };
 
@@ -257,11 +277,19 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
                 // exist, or the tool becomes an asset-id oracle.
                 const location = await this.download.locate(assetId);
                 if (!location || location.workspaceId !== ctx.workspaceId) {
-                    throw new Error(`No asset "${assetId}".`);
+                    // `HttpException` subclasses rather than bare `Error`s
+                    // because the two surfaces flatten a throw differently:
+                    // the copilot's run engine reports `error.message`, while
+                    // MCP's `toToolError` treats a non-`HttpException` as a
+                    // bug and returns an opaque 500 with the message
+                    // withheld. A shared tool must be legible on both, and a
+                    // model that is told "500" instead of "no such asset"
+                    // retries the same call.
+                    throw new NotFoundException(`No asset "${assetId}".`);
                 }
 
                 if (!isReadableMimeType(location.mimeType)) {
-                    throw new Error(
+                    throw new BadRequestException(
                         `"${location.name}" is ${location.mimeType}, which is not a text format. ` +
                             'Only text files can be read.'
                     );
@@ -286,7 +314,7 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
 }
 
 /** The fields of an asset worth spending prompt tokens on. */
-function summarizeAsset(asset: AssetView) {
+function summarizeAsset(asset: AssetView, surface: ToolSurface | undefined) {
     return {
         id: asset.id,
         name: asset.name,
@@ -297,13 +325,37 @@ function summarizeAsset(asset: AssetView) {
         tags: asset.tags,
         folderId: asset.folderId,
         createdAt: asset.createdAt,
-        // The full `AssetView.url` is still dropped — it is a session-gated
-        // route the *model* cannot fetch, so spending tokens on it buys
-        // nothing. The path is kept because the model is not the only reader:
-        // the person asking "list the files in the library" wants links they
-        // can click, and their browser is signed in. The raw route derives its
-        // scope from workspace membership precisely so a browser can load it
-        // directly, which is what makes this safe to hand out.
-        downloadPath: `/api/media/assets/${asset.id}/raw`
+        downloadPath: downloadPathFor(asset.id, surface)
     };
+}
+
+/**
+ * Where this caller can actually fetch the bytes — the one thing in these
+ * tools that varies by surface, and only because the two callers authenticate
+ * differently.
+ *
+ * The full `AssetView.url` is dropped either way: it is a route the *model*
+ * cannot fetch, so spending tokens on it buys nothing. A path is kept because
+ * the model is not the only reader — the person asking "list the files in the
+ * library" wants links they can click.
+ *
+ * - **Copilot** → `/api/media/assets/:id/raw`, the session route. It derives
+ *   its scope from workspace membership precisely so a browser can load it
+ *   directly, which is what makes handing the path to a signed-in reader safe.
+ * - **MCP** → `/api/v1/media/assets/:id/raw`, which is `media:read` gated and
+ *   fetchable with the very bearer token that made the call. The session route
+ *   would 401 an external agent, so returning it there is worse than returning
+ *   nothing: a broken link reads as a broken library.
+ *
+ * Note this is **presentation, not authority** (see `ToolContext.surface`).
+ * Both routes enforce the same workspace scoping and the same `media:read`;
+ * neither surface is shown an asset the other could not reach.
+ */
+function downloadPathFor(
+    assetId: string,
+    surface: ToolSurface | undefined
+): string {
+    return surface === 'mcp'
+        ? `/api/v1/media/assets/${assetId}/raw`
+        : `/api/media/assets/${assetId}/raw`;
 }

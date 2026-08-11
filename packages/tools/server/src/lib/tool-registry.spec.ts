@@ -66,7 +66,8 @@ describe('ToolRegistry', () => {
                 registry.call(
                     'content_create',
                     {},
-                    contextWith(PERMISSIONS.CONTENT_READ)
+                    contextWith(PERMISSIONS.CONTENT_READ),
+                    'mcp'
                 )
             ).rejects.toBeInstanceOf(ForbiddenException);
             expect(ran.value).toBe(false);
@@ -82,10 +83,10 @@ describe('ToolRegistry', () => {
             const readOnly = contextWith(PERMISSIONS.CONTENT_READ);
 
             // Not listed...
-            expect(registry.visibleTo(readOnly)).toHaveLength(0);
+            expect(registry.visibleTo(readOnly, 'mcp')).toHaveLength(0);
             // ...and still refused when called anyway.
             await expect(
-                registry.call('content_delete', {}, readOnly)
+                registry.call('content_delete', {}, readOnly, 'mcp')
             ).rejects.toBeInstanceOf(ForbiddenException);
             expect(ran.value).toBe(false);
         });
@@ -104,7 +105,8 @@ describe('ToolRegistry', () => {
                 registry.call(
                     'content_media',
                     {},
-                    contextWith(PERMISSIONS.CONTENT_READ)
+                    contextWith(PERMISSIONS.CONTENT_READ),
+                    'mcp'
                 )
             ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -115,7 +117,8 @@ describe('ToolRegistry', () => {
                     contextWith(
                         PERMISSIONS.CONTENT_READ,
                         PERMISSIONS.MEDIA_READ
-                    )
+                    ),
+                    'mcp'
                 )
             ).resolves.toEqual({ ok: true });
         });
@@ -130,7 +133,8 @@ describe('ToolRegistry', () => {
                 registry.call(
                     'content_list',
                     {},
-                    contextWith(PERMISSIONS.CONTENT_READ)
+                    contextWith(PERMISSIONS.CONTENT_READ),
+                    'mcp'
                 )
             ).resolves.toEqual({ ok: true });
             expect(ran.value).toBe(true);
@@ -140,7 +144,7 @@ describe('ToolRegistry', () => {
             registry.register(provider(tool('ping', [])));
 
             await expect(
-                registry.call('ping', {}, contextWith())
+                registry.call('ping', {}, contextWith(), 'mcp')
             ).resolves.toEqual({ ok: true });
         });
     });
@@ -157,7 +161,7 @@ describe('ToolRegistry', () => {
 
             expect(
                 registry
-                    .visibleTo(contextWith(PERMISSIONS.CONTENT_READ))
+                    .visibleTo(contextWith(PERMISSIONS.CONTENT_READ), 'mcp')
                     .map((entry) => entry.name)
             ).toEqual(['content_list']);
         });
@@ -168,8 +172,94 @@ describe('ToolRegistry', () => {
             registry.register(provider(tool('content_list', [])));
 
             await expect(
-                registry.call('content_teleport', {}, contextWith())
+                registry.call('content_teleport', {}, contextWith(), 'mcp')
             ).rejects.toBeInstanceOf(NotFoundException);
+        });
+    });
+
+    // The other half of the boundary `requires` guards. A tool declares who it
+    // is for, and both the listing AND the dispatch have to honour it — a
+    // caller may name a tool it was never shown, which for a cross-surface tool
+    // is the difference between "unknown" and a propose-shaped write an MCP
+    // client has no way to accept.
+    describe('surfaces', () => {
+        /** A tool narrowed to one surface. */
+        function narrowed(
+            name: string,
+            surfaces: ToolDefinition['surfaces'],
+            ran: { value: boolean } = { value: false }
+        ): ToolDefinition {
+            return { ...tool(name, [], ran), surfaces };
+        }
+
+        it('offers a tool that names no surfaces to both', () => {
+            registry.register(provider(tool('i18n_locales_list', [])));
+
+            expect(registry.forSurface('mcp').map((e) => e.name)).toEqual([
+                'i18n_locales_list'
+            ]);
+            expect(registry.forSurface('copilot').map((e) => e.name)).toEqual([
+                'i18n_locales_list'
+            ]);
+        });
+
+        it('withholds a narrowed tool from the other surface', () => {
+            registry.register(
+                provider(
+                    narrowed('content_list', ['mcp']),
+                    narrowed('content_propose_update', ['copilot']),
+                    tool('media_folders_list', [])
+                )
+            );
+
+            expect(registry.forSurface('mcp').map((e) => e.name)).toEqual([
+                'content_list',
+                'media_folders_list'
+            ]);
+            expect(registry.forSurface('copilot').map((e) => e.name)).toEqual([
+                'content_propose_update',
+                'media_folders_list'
+            ]);
+        });
+
+        it('refuses to dispatch a tool the calling surface was never offered', async () => {
+            const ran = { value: false };
+            registry.register(
+                provider(narrowed('content_propose_update', ['copilot'], ran))
+            );
+
+            // "Unknown", not "forbidden": the permissions are irrelevant here,
+            // and an MCP client learning the copilot's propose tools exist
+            // would only invite it to keep naming them.
+            await expect(
+                registry.call('content_propose_update', {}, contextWith(), 'mcp')
+            ).rejects.toBeInstanceOf(NotFoundException);
+            expect(ran.value).toBe(false);
+        });
+
+        // A shared tool may render the same fact differently per caller (a
+        // download link is session-gated for the copilot and bearer-fetchable
+        // for MCP), so the handler has to be told which one it is answering —
+        // and told by the registry, not by the caller, so it is always the
+        // surface the call was authorized against.
+        it('stamps the dispatching surface on the handler’s context', async () => {
+            let seen: ToolContext | undefined;
+            registry.register(
+                provider({
+                    ...tool('media_assets_search', []),
+                    handler: async (_input, context) => {
+                        seen = context;
+                        return { ok: true };
+                    }
+                })
+            );
+
+            await registry.call('media_assets_search', {}, contextWith(), 'mcp');
+
+            expect(seen?.surface).toBe('mcp');
+            // …and the rest of the context is passed through untouched.
+            expect(seen?.workspaceId).toBe('workspace-1');
+            expect(seen?.actor.id).toBe('token-1');
         });
     });
 

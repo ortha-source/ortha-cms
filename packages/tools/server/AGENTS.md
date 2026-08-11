@@ -45,8 +45,8 @@ validates. A new tool needs an authorization test.
 
 `surfaces?: readonly ('mcp' | 'copilot')[]`, and **omitted means both**.
 
-Sharing a registry does not mean every tool suits every caller. Today the split
-is total, for reasons that are not incidental:
+Sharing a registry does not mean every tool suits every caller. The content
+tools are split, for reasons that are not incidental:
 
 |                   | MCP's content tools                   | The copilot's                                  |
 | ----------------- | ------------------------------------- | ---------------------------------------------- |
@@ -64,6 +64,104 @@ for the same reason the permission check is in `call`: a caller may name a tool
 it was never shown. Cross-surface leakage is covered by e2e cases in both
 suites — a `surfaces` omitted from a propose tool would make it callable by an
 MCP client that has no way to accept the resulting proposal.
+
+**But the split is not the default, and it is not total.** These are shared —
+offered to both, with no `surfaces` field:
+
+| Tool                  | Why it is shared                                             |
+| --------------------- | ------------------------------------------------------------ |
+| `i18n_locales_list`   | deployment config; identical for every caller, no publish state |
+| `media_assets_search` | assets have no draft/published state to leak                 |
+| `media_folders_list`  | same, and workspace-scoped identically for a token and a user |
+| `media_asset_read`    | same; both token scopes carry `media:read`                   |
+
+## Adding a tool: decide `surfaces` deliberately
+
+**Every new tool must answer "who is this for?" before it is written**, whether
+it was prompted by the copilot or by MCP. An accidental omission and a
+considered one produce identical code and opposite intentions, so record the
+answer either way: a `surfaces` array with a comment saying what the tension is,
+or no field with a comment saying there is none.
+
+Work these in order; the first **yes** decides it. Note that they are about the
+tool, not about which consumer asked for it — a tool written for the copilot
+that answers "no" to all five belongs to both.
+
+1. **Does the handler write, or return a change for someone else to apply?**
+   → `['copilot']`. A `propose` handler writes nothing and hands back a draft
+   for the run engine to record and apply; MCP has no engine, so the call would
+   look like a success and change nothing at all. A direct `apply` tool is worse
+   — it is gated on a workspace policy MCP cannot evaluate.
+2. **Does it expose unpublished content on `content:read` alone?** Drafts,
+   revision snapshots, sibling translations, anything derived from the admin's
+   services rather than `public-api/`. → `['copilot']`. A **token's**
+   `content:read` is the public API's published-only scope; a **user's** is a
+   viewer who legitimately sees drafts in the admin UI. Same key, two meanings,
+   and this is where that bites.
+3. **Does it need a permission no token scope mints?** `scopePermissions` yields
+   only `content:*` plus `media:read`/`media:create`. Anything requiring
+   `activity:read`, `users:read`, `media:update`… can never list for a token.
+   → `['copilot']`, so the reason is declared rather than left to a coincidence
+   of the scope table that a future scope would silently undo.
+4. **Does it read or write something that only means anything for a signed-in
+   human?** Attribution to the accepting user, the current conversation, a
+   pending proposal. → `['copilot']`.
+5. **Is it built on `public-api/` and therefore published-only?** → `['mcp']`.
+   Offering it to the copilot is the downgrade in the table above.
+
+Otherwise: **omit the field and share it.** That is the path of least
+resistance by design, not a loophole.
+
+### What a shared tool may and may not vary
+
+`ToolContext.surface` is stamped by `call()` — always the surface the call was
+authorized against, never something a caller asserts. Use it for
+**presentation** only:
+
+```typescript
+// Right: same asset, same scoping, a link the caller can actually fetch.
+downloadPath: surface === 'mcp'
+    ? `/api/v1/media/assets/${id}/raw`   // bearer-fetchable
+    : `/api/media/assets/${id}/raw`;     // session + membership
+```
+
+Never for **authority**. A tool that wants `if (surface === 'copilot')` around a
+permission check, a filter, or a field it withholds is two tools — split it, and
+let `requires` and `can()` mean one thing for everybody.
+
+### The rest of the checklist
+
+- **Throw `HttpException` subclasses, not bare `Error`s.** The two surfaces
+  flatten a throw differently: the copilot's run engine reports
+  `error.message`, while `toToolError` treats a non-`HttpException` as a bug and
+  returns an opaque 500 with the message withheld. A shared tool that throws
+  `new Error('No such asset')` is legible in the panel and useless over MCP.
+- **Update both cross-surface e2e suites.** `mcp.spec.ts` asserts which tools a
+  token is and is not shown; `copilot-read-catalogue.spec.ts` does the same for
+  a run. A tool absent from both lists is a tool nobody is checking.
+- **`requires` still needs its own authorization test** (see above). `surfaces`
+  narrows who is *offered* a tool; it is not a substitute for the permission it
+  declares.
+
+### Worked examples of a "no"
+
+Two tools that look shareable and are not, recorded so the question is not
+reopened from scratch:
+
+- **`admin_content_revisions` / `admin_content_diff`** — no MCP analogue exists,
+  and they already re-check workspace content grants, so they read like free
+  capability. They fail (2): a revision timeline *is* the draft history, on
+  `content:read`. Tightening `requires` to include `content:update` would fix
+  MCP and **regress the copilot** — a viewer would lose version history they can
+  see in the admin UI today, which `copilot-read-catalogue.spec.ts` pins. The
+  real fix is an actor-aware visibility mode on `PublicEntriesQuery`
+  ([ADR-0007](../../../docs/adr/0007-one-tool-registry-two-surfaces.md) names
+  it), not a widened `surfaces`.
+- **`i18n_translations_get`** — sits in the same file as the shared
+  `i18n_locales_list`. It fails (2) too, less visibly: `LocaleGroupService`'s
+  `liveWhere` scopes to workspace and soft-delete but **not** publish state, so
+  it reports a draft sibling and its status. The tool next door being shared is
+  not an argument.
 
 ## `effect` vs `readOnly`
 

@@ -479,6 +479,16 @@ careful review checks:
   surfacing pending/disabled accounts as assignable.
 - **No enumeration signal** in security-sensitive responses (also under
   Controllers) — keep "this email exists" out of distinguishable errors/timing.
+- **An agent tool declares who it is for.** If the plugin contributes to the
+  shared `ToolRegistry` (`@ortha-cms/tools-server`), a `ToolDefinition`'s
+  `surfaces` field is security-relevant in both directions and **omitting it
+  means both consumers** — the copilot *and* the MCP endpoint. Getting it wrong
+  either exposes a copilot write to a client that cannot accept it, or keeps a
+  neutral tool needlessly private. It is a decision to make per tool, not a
+  default to copy from the file next door: work the checklist in
+  [`packages/tools/server/AGENTS.md`](../../../packages/tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately)
+  and record the answer in a comment whichever way it goes. `requires` still
+  needs its own authorization test regardless.
 - **Record audit events atomically with the mutation — two mechanisms by mode.**
   The invariant is the same in both layouts: the audit trail commits **iff** the
   mutation does; out-of-band recording (post-commit, or a fire-and-forget

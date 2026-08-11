@@ -61,7 +61,10 @@
   a tool call is authorized. Two consumers import its global `ToolsModule` — the
   MCP endpoint and the copilot's run loop — so both see one instance, and a tool
   declares which `surfaces` it is offered to
-  ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)).
+  ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)). **Omitting the
+  field means both**, so adding a tool anywhere means deciding who it is for —
+  the checklist is in
+  [`packages/tools/server/AGENTS.md`](packages/tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately).
 - `packages/content/graphql` — `@ortha-cms/content-graphql`, the public content
   API over **GraphQL** (`POST /api/v1/graphql`). A protocol **adapter** over
   `content/server`'s `public-api/`, not a second API: same bearer tokens, same

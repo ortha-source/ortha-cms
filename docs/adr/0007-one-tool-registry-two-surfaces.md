@@ -8,6 +8,20 @@
 > [ADR-0006](0006-cms-as-an-mcp-server.md) §2. Neither is reversed; this record
 > settles the seam they both pointed at from opposite sides.
 
+> **Update (2026-08-11).** §2 said "today the split is total". It no longer is,
+> which was the predicted path rather than a change of decision: four tools —
+> `i18n_locales_list` and the three `media_*` reads — now omit `surfaces` and
+> are offered to both consumers. Each answers no to every question in the
+> decision procedure this record implies (no draft visibility on
+> `content:read`, no write, no user-only attribution, no permission the token
+> scopes withhold), and the media three were also a capability the MCP endpoint
+> simply lacked. The procedure itself is written down in
+> [`packages/tools/server/AGENTS.md`](../../packages/tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately);
+> `ToolContext.surface` was added at the same time so a shared tool can vary
+> **presentation** (a download link the caller can actually fetch) without ever
+> varying authority. The revision tools and `i18n_translations_get` were
+> considered and declined; the reasons are recorded there as worked examples.
+
 ## Context
 
 ADR-0006 §2 said the MCP endpoint would be one adapter over a shared
