@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/nx` · **Package:** `@ortha-cms/nx` · **Kind:** library (Nx plugin — developer tooling, no UI)
 > **Source of truth:** `packages/nx/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 7 confirmed · 0 deleted · 6 corrected · 3 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -106,8 +107,8 @@ UI steps, and §4A is short by design.
 | F14 | `runDrizzleKitStudio` — ephemeral config in a temp dir, secret via env only, `--host`/`--port`, cleanup | `packages/nx/src/lib/drizzle/studio.ts:31-68` | ❌ NONE |
 | F15 | `createTsJiti` — swc in **legacy-decorator** mode so the Nest plugin graph loads | `packages/nx/src/lib/jiti.ts:14-49` | ❌ NONE |
 | F16 | `release-publish` — skips a `private` package and one Nx resolved no new version for | `packages/nx/src/executors/release-publish/executor.ts:97-107` | ❌ NONE |
-| F17 | `probeRegistry` — one packument `GET` → `version-published` / `name-exists` / `name-absent` / `unknown` | `packages/nx/src/lib/release/registry.ts:233-268` | ❌ NONE |
-| F18 | `registryTokenFromEnv` — `npm_config_…:_authToken`, then `NPM_TOKEN`, then `NODE_AUTH_TOKEN` | `packages/nx/src/lib/release/registry.ts:276-283` | ❌ NONE |
+| F17 | `probeRegistry` — one packument `GET` → `version-published` / `name-exists` / `name-absent` / `unknown` | `packages/nx/src/lib/release/registry.ts:37-72` | ❌ NONE |
+| F18 | `registryTokenFromEnv` — `npm_config_…:_authToken`, then `NPM_TOKEN`, then `NODE_AUTH_TOKEN` | `packages/nx/src/lib/release/registry.ts:80-87` | ❌ NONE |
 | F19 | `withPublishSlot` — cross-process file lock, spacing gap, pid-liveness + age-based steal | `packages/nx/src/lib/release/throttle.ts:50-152` | ❌ NONE |
 | F20 | Creation-limit circuit breaker + the `blocked-by-peer` outcome | `packages/nx/src/lib/release/throttle.ts:175-196`, executor `:142-169, 220-231` | ❌ NONE |
 | F21 | `publishWithRetry` — retry classification, doubling backoff, the creation exception | `packages/nx/src/lib/release/publish.ts:65-95` | ❌ NONE |
@@ -210,7 +211,7 @@ everything except step 8.
 | 3 | Stage a package whose manifest carries `"private": true` and publish it | `Skipped …, because it is marked private` and `success: true` |
 | 4 | Publish a package Nx resolved no new version for | `Skipped …, because no new version was resolved` (`executor:104-107`) |
 | 5 | Re-run a **real** publish of a version already on the registry | the probe answers `version-published`, so `Skipped …, because that version is already on the registry` — **and no `PUT` is sent** (`executor:127-132`) |
-| 6 | Take the registry offline (block `registry.npmjs.org`) and publish | the probe returns `unknown` and the publish is attempted anyway — a probe that cannot answer never blocks a release (`registry.ts:264-267`) |
+| 6 | Take the registry offline (block `registry.npmjs.org`) and publish | the probe returns `unknown` and the publish is attempted anyway — a probe that cannot answer never blocks a release (`registry.ts:68-71`) |
 | 7 | `ls dist/.release-publish` during a real release | a `lock` file holding the current publisher's pid, and a `last-publish` timestamp |
 | 8 | Run a real release and watch the log | packages publish **one at a time**, ~5 s apart; a queued one prints `waiting for another package to finish publishing` |
 | 9 | `ORTHA_PUBLISH_DELAY=10000 ORTHA_PUBLISH_RETRIES=8 npm run release` | the gap becomes 10 s and the ladder 9 attempts — env beats the target options (`numeric`, `:265-275`) |
@@ -276,10 +277,10 @@ everything except step 8.
 
 ### `db:migrate` — the database URL, ordering and partiality
 
-- **EC-11 — 🔒 `DATABASE_URL` unset.** `❌ NONE`
+- **EC-11 — `DATABASE_URL` unset.** `❌ NONE`
   `ortha.config.ts:81` resolves `''`; `db-migrate` does **not** check it (unlike
   `db-studio`, which does at `:40-45`), so `new Pool({ connectionString: '' })`
-  falls through to libpq's environment defaults — `PGHOST`/`PGUSER`/`PGDATABASE`,
+  falls through to `pg`'s environment defaults — `PGHOST`/`PGUSER`/`PGDATABASE`,
   or localhost + the OS user. Best case ECONNREFUSED with a stack trace; worst
   case a **successful migration of an unintended database** → `🐞 BUG-nx-02`.
 - **EC-12 — `DATABASE_URL` pointing at a production database.** `❌ NONE`
@@ -292,12 +293,14 @@ everything except step 8.
   package's — **Unverified**, and worth pinning, because CI and a developer
   running the same command against a shared database is an ordinary Tuesday.
 - **EC-14 — Plugin order drives migration order.** `❌ NONE`
-  The loop preserves `buildPlugins()` order (`apply.ts:27`). The host's own
-  comment says the order "just keeps migrations and intent legible" because "all
-  modules are global, so DI is order-independent" (`apps/server/src/plugins.ts:36-40`)
-  — while the same file's earlier paragraph explains that workspaces' FK to
-  identity's `users` **requires** identity first. Two contradictory statements
-  about one array → `🐞 BUG-nx-03`.
+  The loop preserves `buildPlugins()` order (`apply.ts:27`). The host documents the
+  constraint — "`WorkspacesPlugin` follows identity (its `memberships` table
+  FK-references identity's `users`, so `users` must be migrated first)"
+  (`apps/server/src/plugins.ts:26-29`) — but only in a comment, and the loop that
+  depends on it lives in another package with no way to read it → `🐞 BUG-nx-03`.
+  (The nearby "all modules are global, so DI is order-independent" parenthetical
+  at `:37-38` is about `ContentPlugin`'s host-owned tables, not the array as a
+  whole — checked, and it is not the contradiction it first looks like.)
 - **EC-15 — A migration fails partway through the plugin list.** `❌ NONE`
   Earlier plugins are committed, later ones never attempted, the pool is closed by
   the `finally`, and the executor rejects. Re-running resumes correctly. The
@@ -384,7 +387,7 @@ everything except step 8.
   Cleared.
 - **EC-34 — A scoped name in the probe URL.** `❌ NONE`
   `name.replace('/', '%2f')` replaces only the first occurrence, which is exactly
-  right for `@scope/name` (`registry.ts:240`). Cleared.
+  right for `@scope/name` (`registry.ts:44`). Cleared.
 - **EC-35 — The probe on a 5xx or a private registry needing auth.** `❌ NONE`
   Anything that is not 404 and not `ok` collapses to `'unknown'` → publish anyway.
   Correct: a probe must never be why a release fails.
@@ -580,10 +583,19 @@ far more expensive than a cold run.
 
 ---
 
-### 🐞 BUG-nx-02 — `db:migrate` never checks that a database URL was resolved, so a missing `DATABASE_URL` silently targets libpq's default database · Severity: High · 🔒
+### 🐞 BUG-nx-02 — `db:migrate` never checks that a database URL was resolved, so a missing `DATABASE_URL` silently targets `pg`'s default connection · Severity: Medium
 
 **Location:** `packages/nx/src/executors/db-migrate/executor.ts:27-46`; `packages/nx/src/lib/drizzle/apply.ts:23`; `apps/server/ortha.config.ts:80-82`
-**Category:** data-loss / correctness
+**Category:** correctness (operational safety)
+
+> **Verified:** the missing guard, the `?? ''` fallback and the asymmetry with `db:studio` are all
+> confirmed from source (both executors read below). **Downgraded from High 🔒** on verification:
+> the operation is CREATE-heavy DDL into an unintended database, which pollutes rather than
+> destroys, it is reachable only on a developer machine (this target exists in no deployed
+> host), and it is neither an auth/authz nor a data-leak concern, so the 🔒 marker does not
+> apply. **Unverified —** `pg`'s exact behaviour for `connectionString: ''` could not be executed
+> here (`node_modules` is absent in this checkout); the claim below rests on reading `pg`'s
+> documented `ConnectionParameters` fallback order, not on a run.
 
 **What the code does:**
 ```typescript
@@ -603,7 +615,7 @@ unset the value handed to `pg` is the **empty string**. `pg` treats a falsy
 `PGHOST` (default `localhost`), `PGPORT` (5432), `PGUSER` (the OS user),
 `PGDATABASE` (defaults to the user name), and `PGPASSWORD`/`~/.pgpass`.
 
-**Why it is wrong:** the sibling executor, five files away, does exactly the
+**Why it is wrong:** the sibling executor in the next directory does exactly the
 check that is missing here:
 ```typescript
 const url = configModule.default.database?.url;
@@ -639,9 +651,12 @@ Two outcomes, both bad:
 → Expected: the same actionable refusal `db:studio` gives.
 
 **Blast radius:** any developer or CI job whose environment is not what they
-assume. The operation is DDL against an unintended database — the one class of
-mistake in this repo that is not recoverable by re-running something. It is
-mitigated in practice only by the convention that `.env` always exists.
+assume. The operation is `CREATE`-heavy DDL against an unintended database: it
+adds this repo's tables and eight `__drizzle_migrations_*` journals to whatever
+`pg` resolved to. That is pollution a `DROP` can undo, not destruction — which is
+why this is Medium and not High. It is mitigated in practice by the convention
+that `.env` always exists, and by `db:migrate` being a developer-machine target
+that no deployed host runs.
 
 **Suggested fix:** hoist `db:studio`'s guard into a shared helper both executors
 call (the config-loading is already shared via `createTsJiti`), and have
@@ -651,10 +666,20 @@ first `migrate()` call, so the output answers "where did this go?".
 
 ---
 
-### 🐞 BUG-nx-03 — Migration order is taken from the host's DI plugin array, whose own documentation says the order is DI-irrelevant · Severity: Medium
+### 🐞 BUG-nx-03 — Migration order is taken from the host's plugin array with no way to declare a migration dependency · Severity: Low
 
-**Location:** `packages/nx/src/lib/drizzle/apply.ts:16, 27-39`; the order it consumes is `apps/server/src/plugins.ts:53-60`
+**Location:** `packages/nx/src/lib/drizzle/apply.ts:16, 27-39`; the order it consumes is `apps/server/src/plugins.ts:54-60`
 **Category:** correctness (ordering invariant)
+
+> **Corrected on verification.** The original filing claimed the host's comment
+> "says the order does not matter", contradicting itself. It does not: the comment
+> block opens `Order matters: DatabasePlugin must come first…` and states the
+> identity→workspaces FK constraint explicitly (`apps/server/src/plugins.ts:26-29`).
+> The `all modules are global, so DI is order-independent` parenthetical
+> (`:37-38`) is scoped to `ContentPlugin`'s host-owned collection tables, not to
+> the array as a whole. With the "contradiction" removed, what remains is a real
+> but much smaller finding — the constraint is prose-only and undeclarable — so
+> the severity drops from Medium to Low.
 
 **What the code does:**
 ```typescript
@@ -668,23 +693,20 @@ for (const plugin of withMigrations) {
 Sequential, in array order, with no declared dependency between plugins and no
 sort.
 
-**Why it is wrong:** the array is the host's **dependency-injection** list, and
-its documentation says the order does not matter for that purpose — "all modules
-are global, so DI is order-independent — the order here just keeps migrations and
-intent legible" (`apps/server/src/plugins.ts:36-40`). The *same* comment block,
-twenty lines earlier, states a hard requirement in the other direction:
+**Why it is wrong:** the ordering constraint is real and is stated only as prose,
+in a different package from the loop that depends on it. The host's comment says
 "`WorkspacesPlugin` follows identity (its `memberships` table FK-references
-identity's `users`, so `users` must be migrated first)". `workspaces-server`'s own
+identity's `users`, so `users` must be migrated first)"
+(`apps/server/src/plugins.ts:26-29`), and `workspaces-server`'s own
 `drizzle.config.ts` repeats it: "the generated SQL references `users(id)` without
 creating it (identity owns and migrates that table, **applied first by the host's
 db:migrate**)".
 
-So a real ordering constraint is encoded only as prose, in a file whose stated
-contract is that order is free, and consumed by a loop in a different package
-that knows nothing about it. A `ServerPlugin` has a `migrations` descriptor with
-a `dir` and a `table` (per the `server-plugin` skill) and **no way to declare that
-its migrations depend on another plugin's**. Nothing detects a bad order until
-Postgres raises `relation "users" does not exist` on a fresh database — and on an
+So a real ordering constraint lives in comments, and is consumed by a loop in a
+different package that knows nothing about it. A `ServerPlugin` has a `migrations`
+descriptor with a `dir` and a `table` (per the `server-plugin` skill) and **no way
+to declare that its migrations depend on another plugin's**. Nothing detects a bad
+order until Postgres raises `relation "users" does not exist` on a fresh database — and on an
 already-migrated database it does not fail at all, so the mistake ships and only
 bites the next person who provisions from scratch.
 
@@ -694,20 +716,20 @@ bites the next person who provisions from scratch.
 2. Drop and recreate the database, then `npx nx run server:db:migrate`.
 → Observed: `Applying migrations: database …`, `Applying migrations: workspaces
 …`, then a Postgres error that `users` does not exist. Nothing beforehand warns
-that the reorder was unsafe, and the DI behaviour the file's comment is about is
-genuinely unaffected.
+that the reorder was unsafe, and the DI behaviour is genuinely unaffected — which
+is exactly why the mistake is easy to make.
 → Expected: either the loop orders by declared dependencies, or the reorder is
 rejected with a message naming the constraint.
 
-**Blast radius:** anyone editing `plugins.ts` — which is the file every new plugin
-is registered in, and the file whose comment tells them ordering is cosmetic.
-Recoverable (fix the order, re-run), but the failure is far from the edit.
+**Blast radius:** anyone editing `plugins.ts` — the file every new plugin is
+registered in. Recoverable (fix the order, re-run) and warned about in the file's
+own comment, which is why this is Low; the cost is that the warning is prose a
+loop in another package cannot read.
 
 **Suggested fix:** let a `migrations` descriptor declare `after: string[]` (plugin
 names) and topologically sort `withMigrations` in `applyPluginMigrations`;
 alternatively, sort by an explicit numeric ordinal on the descriptor. Either way
-the constraint moves out of prose and into the data the loop already reads. Short
-of that, amend the `plugins.ts` comment so it does not describe the order as free.
+the constraint moves out of prose and into the data the loop already reads.
 
 ---
 
@@ -773,8 +795,17 @@ is what `staleAfter` was really for.
 
 ### 🐞 BUG-nx-05 — `db:studio` accepts any `--host`, so one flag exposes an unauthenticated full-access database browser to the network · Severity: Medium · 🔒
 
-**Location:** `packages/nx/src/lib/drizzle/studio.ts:52-58`; `packages/nx/src/executors/db-studio/schema.json:12-15`; documented at `packages/nx/AGENTS.md:102-103` and the root `AGENTS.md:167`
+**Location:** `packages/nx/src/lib/drizzle/studio.ts:52-58`; `packages/nx/src/executors/db-studio/schema.json:12-15`; documented at `packages/nx/AGENTS.md:102-103` and the root `AGENTS.md:162`
 **Category:** permission-bypass (exposure)
+
+> **Unverified —** the half of this finding that sets its severity, that Drizzle
+> Studio's local gateway performs **no authentication of its own**, is a property of
+> `drizzle-kit` and cannot be confirmed from this repository (`node_modules` is
+> absent here and no drizzle-kit source is vendored). What *is* confirmed from
+> source is everything this package controls: `--host` is forwarded verbatim with
+> no allowlist, no default, and no warning (`studio.ts:52-58`), and both AGENTS.md
+> files describe it as a plain convenience. If Studio does authenticate, this drops
+> to a documentation gap.
 
 **What the code does:**
 ```typescript
