@@ -57,12 +57,25 @@ alongside the `@nx/*` plugins in the root `nx.json`.
       through a workspace-wide slot (a file lock under `dist/.release-publish`)
       that serialises them and leaves a gap in between, and a publish refused
       with a 429, a 5xx or a dropped socket is retried with exponential
-      backoff. A version already on the registry counts as success, which is
-      what makes `npm run release:publish` a safe way to finish a half-done
-      release. Defaults — 5s gap, 5 retries from 30s, capped at 5min — are
+      backoff. Defaults — 5s gap, 5 retries from 30s, capped at 5min — are
       target options, overridable per run with `ORTHA_PUBLISH_DELAY`,
       `ORTHA_PUBLISH_RETRIES` and `ORTHA_PUBLISH_RETRY_BACKOFF`. A dry run
       waits for nothing: it writes nothing to rate-limit.
+
+        Each publish is preceded by a registry **probe** (`lib/release/registry.ts`)
+        — a `GET`, which npm does not meter like a write. It answers whether the
+        version is already published (skip, sending nothing), whether the name
+        exists (a version bump), or whether the name is absent (a **creation**).
+
+        That distinction matters, because **creating a name is a different limit
+        from writing too fast** and retrying cannot beat it: 0.1.0 created 25
+        names then hit a wall the next two releases never got past, while bumps
+        on existing names kept succeeding throughout. So a 429 on a creation is
+        terminal — one attempt, an actionable message — and it trips a flag beside
+        the lock so packages queued behind it bow out without spending a request.
+        One blocked release costs one rejected write, not one per package. Only
+        npm support (or waiting out their schedule) clears it; see
+        [`docs/releasing.md`](../../docs/releasing.md#creating-a-package-name-is-a-different-limit).
 
 ## Architecture
 

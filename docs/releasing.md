@@ -125,14 +125,44 @@ nothing — it writes nothing there is a limit on.
 
 Two consequences worth knowing:
 
-- **A version already on the registry counts as success.** npm answers a
-  republish with a 403, which the executor reads as "this one already went
-  out". That is what makes `npm run release:publish` a safe way to finish a
-  release that died halfway: everything already published is skipped, and only
-  the remainder is sent.
+- **A version already on the registry counts as success.** Before publishing,
+  the executor asks the registry what it already has — a `GET`, which npm does
+  not meter the way it meters writes. A version that is already there is
+  skipped without sending anything at all. That is what makes
+  `npm run release:publish` a safe and cheap way to finish a release that died
+  halfway: a resume that only has 12 packages left spends 12 writes, not 37.
+  (A republish that slips through anyway is still caught: npm answers it with a
+  403, which the executor also reads as "this one already went out".)
 - **A failed publish is reported per package.** Nx fails the run, the packages
   that made it are on the registry, and re-running `npm run release:publish`
   picks up the rest.
+
+### Creating a package name is a different limit
+
+Everything above is about how _fast_ an account writes, and spacing fixes it.
+Creating a **brand-new package name** is metered separately and much more
+tightly, and that one no amount of waiting or retrying gets around.
+
+We found this the hard way. The 0.1.0 release created 25 names in 32 seconds
+and then npm refused the remaining 12 — and went on refusing them through 0.2.0
+and 0.2.1, while version bumps on the 25 names that already existed kept going
+through untouched in the same runs. An hour of a completely idle account did
+not clear it; a bump published fine seconds after a creation was refused.
+
+So the executor tells the two apart. The registry probe already knows whether a
+publish would create a name or add a version to one, and:
+
+- a 429 on a **version bump** is transient — retried with backoff, as above;
+- a 429 on a **name creation** is terminal — reported once, with no retry ladder,
+  because twelve minutes of backoff only buys the same answer;
+- the first name to be refused trips a flag beside the lock, so the packages
+  queued behind it bow out without spending a request of their own. One blocked
+  release costs **one** rejected write, not one per package.
+
+When you hit it, the release is telling you something it cannot fix. Either ask
+npm support to raise the new-package limit for the account, or create the
+remaining names by hand as the limit allows, and then finish the release with
+`npm run release:publish`.
 
 ### Two things `pack` refuses to ship
 

@@ -21,6 +21,12 @@ export type PublishOutcome =
     | { status: 'already-published'; output: string }
     /** Worth another try: a 429, a 5xx, or a dropped socket. */
     | { status: 'retryable'; reason: string; output: string }
+    /**
+     * npm refused to let this account create a **new package name**. Not
+     * transient, and not something the release can fix — see
+     * `publishWithRetry`.
+     */
+    | { status: 'creation-blocked'; output: string }
     | { status: 'failed'; output: string };
 
 export interface RetryOptions {
@@ -30,6 +36,11 @@ export interface RetryOptions {
     backoff: number;
     /** Ceiling for the doubling, in milliseconds. */
     maxBackoff: number;
+    /**
+     * Whether this publish would **create** the package name rather than add a
+     * version to one that exists. A 429 means something different for each.
+     */
+    creatingName?: boolean;
     /** Progress reporting; the executor points this at the console. */
     log: (message: string) => void;
 }
@@ -38,11 +49,18 @@ export interface RetryOptions {
  * Publishes one staged package, retrying while the registry is the thing
  * saying no.
  *
- * A rate-limited publish is not a broken package: npm answers 429 when an
- * account writes too fast, and the same tarball succeeds a minute later.
+ * A rate-limited publish is usually not a broken package: npm answers 429 when
+ * an account writes too fast, and the same tarball succeeds a minute later.
  * Anything else — a bad manifest, a missing entry point, a rejected token —
  * fails on the first attempt, because retrying it only makes the release take
  * five minutes longer to tell you the same thing.
+ *
+ * **Creating a name is the exception.** npm meters new package names per
+ * account on its own schedule, and that 429 does not clear on any timescale a
+ * release can wait out — we measured it still refusing an hour into an
+ * otherwise idle account, while version bumps on existing names went through
+ * untouched in between. Retrying it costs twelve minutes to be told the same
+ * thing, per package, so a creation gets one attempt and an honest answer.
  */
 export async function publishWithRetry(
     request: NpmPublishRequest,
@@ -54,6 +72,10 @@ export async function publishWithRetry(
         const outcome = runNpmPublish(request);
 
         if (outcome.status !== 'retryable') return outcome;
+
+        if (options.creatingName && isRateLimit(outcome.output)) {
+            return { status: 'creation-blocked', output: outcome.output };
+        }
 
         if (attempt >= options.retries) {
             options.log(
@@ -129,16 +151,24 @@ function isAlreadyPublished(output: string): boolean {
     );
 }
 
+/** Whether npm's answer was "you are writing too much", in any of its wordings. */
+export function isRateLimit(output: string): boolean {
+    const text = output.toLowerCase();
+
+    return (
+        text.includes('e429') ||
+        text.includes('429 too many requests') ||
+        text.includes('too many requests') ||
+        text.includes('rate limit') ||
+        text.includes('eratelimit')
+    );
+}
+
 /** The failures that are about the registry's mood rather than our tarball. */
 function retryableReason(output: string): string | null {
     const text = output.toLowerCase();
 
-    if (
-        text.includes('429') ||
-        text.includes('too many requests') ||
-        text.includes('rate limit') ||
-        text.includes('eratelimit')
-    ) {
+    if (isRateLimit(output)) {
         return 'rate limited by the registry';
     }
 
