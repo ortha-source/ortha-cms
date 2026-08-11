@@ -25,6 +25,17 @@ export const LOCALES_PATH = '/i18n/locales';
 /** API path prefix of the locale-domain content endpoints. */
 export const I18N_CONTENT_PATH = '/i18n/content';
 
+/**
+ * API path of the localization coverage read.
+ *
+ * Under `insights/`, not this plugin's own `i18n/` prefix — the Insights page's
+ * endpoints are grouped by what they are, beside content's and media's.
+ */
+export const I18N_COVERAGE_PATH = '/insights/i18n/coverage';
+
+/** Permission required to read entries — and so to count translations of them. */
+export const CONTENT_READ = 'content:read';
+
 /** Permission required to create an entry (and thus a translation). */
 export const CONTENT_CREATE = 'content:create';
 
@@ -41,7 +52,8 @@ export const SLOT_ITEM_ID = {
     SwitchOverlay: 'i18n.localeSwitchOverlay',
     EntryParams: 'i18n.entryParams',
     PublishAll: 'i18n.publishAllLocales',
-    UnpublishAll: 'i18n.unpublishAllLocales'
+    UnpublishAll: 'i18n.unpublishAllLocales',
+    CoverageWidget: 'insights.i18n.coverage'
 } as const;
 
 /** Virtual filter field ids — must match the server extension's names. */

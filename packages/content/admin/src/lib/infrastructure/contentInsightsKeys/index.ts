@@ -19,6 +19,8 @@ export const contentInsightsKeys = {
         ['content-insights', workspaceId, 'stale'] as const,
     pipeline: (workspaceId: string) =>
         ['content-insights', workspaceId, 'pipeline'] as const,
+    unshipped: (workspaceId: string) =>
+        ['content-insights', workspaceId, 'unshipped'] as const,
     velocity: (workspaceId: string, days: number) =>
         ['content-insights', workspaceId, 'velocity', days] as const,
     punchcard: (workspaceId: string, days: number) =>

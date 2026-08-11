@@ -9,6 +9,8 @@ import { EntryLocaleExtensionService } from './content/services/entry-locale-ext
 import { LocaleGroupService } from './content/services/locale-group.service';
 import { GetEntryLocalesController } from './content/controllers/get-entry-locales.controller';
 import { LocaleSummaryController } from './content/controllers/locale-summary.controller';
+import { LocalizationCoverageQuery } from './insights/infrastructure/queries/localization-coverage.query';
+import { LocalizationCoverageController } from './insights/http/controllers/localization-coverage.controller';
 import { I18nCopilotToolProvider } from './copilot/i18n-tool.provider';
 import { TranslationProposalToolProvider } from './copilot/translation-proposal.provider';
 import { TranslationProposalApplier } from './copilot/translation-proposal.applier';
@@ -35,12 +37,17 @@ export class I18nModule {
                 // (the extension stamps the group), so this plugin owns no
                 // entry-write route.
                 GetEntryLocalesController,
-                LocaleSummaryController
+                LocaleSummaryController,
+                // The Insights read-model. Mounted under `insights/` with
+                // content's and media's, not this plugin's `i18n/` prefix —
+                // one card, one endpoint, grouped by what they are.
+                LocalizationCoverageController
             ],
             providers: [
                 { provide: I18N_CONFIG, useValue: config },
                 LocaleRegistryService,
                 LocaleGroupService,
+                LocalizationCoverageQuery,
                 EntryLocaleExtensionService,
                 {
                     provide: CONTENT_ENTRY_EXTENSION,

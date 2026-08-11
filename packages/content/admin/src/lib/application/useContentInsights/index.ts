@@ -77,6 +77,30 @@ export function useContentPipeline() {
     });
 }
 
+/**
+ * Loads live entries carrying unpublished edits, per type and in total.
+ *
+ * Takes no range, like `stale`: a pending edit is pending whether it was made
+ * this morning or last spring, so a window could only hide part of the backlog.
+ */
+export function useContentUnshipped() {
+    const workspace = useCurrentWorkspace();
+    const canRead = useHasPermission(CONTENT_READ);
+
+    return useQuery({
+        queryKey: contentInsightsKeys.unshipped(workspace.id),
+        queryFn: () => httpContentInsightsGateway.unshipped(),
+        staleTime: STALE_TIME.Standard,
+        // One retry, not TanStack's default three. A widget that cannot load
+        // must SAY so, and three attempts with exponential backoff leave it
+        // sitting on a skeleton for about seven seconds first — on a page whose
+        // whole premise is that one failing card degrades alone, that reads as
+        // a hang rather than a failure. One retry still covers a transient blip.
+        retry: 1,
+        enabled: canRead
+    });
+}
+
 /** Loads entries published per time bucket across the selected range. */
 export function useContentVelocity() {
     const workspace = useCurrentWorkspace();

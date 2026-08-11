@@ -4,10 +4,13 @@ export { I18nPlugin } from './lib/utils/i18nPlugin';
 export type { I18nAdminPlugin } from './lib/utils/i18nPlugin';
 
 export { useLocales } from './lib/api/useLocales';
+export { useLocalizationCoverage } from './lib/api/useLocalizationCoverage';
 export type {
     EntryLocaleItem,
     EntryLocalesResult,
+    I18nCoverageResult,
     Locale,
+    LocaleCoverage,
     LocaleSummariesResult,
     LocaleSummaryItem,
     LocalesResult

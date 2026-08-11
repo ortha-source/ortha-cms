@@ -64,3 +64,39 @@ export type LocaleSummariesResult = {
     /** Per requested group id: its live members, config-ordered. */
     groups: Record<string, LocaleSummaryItem[]>;
 };
+
+/** How much of the workspace's localized content exists in one locale. */
+export type LocaleCoverage = {
+    locale: string;
+    name: string;
+    isDefault: boolean;
+    /** Records that have a row in this locale. */
+    translated: number;
+    /** Records that do not. */
+    missing: number;
+};
+
+/**
+ * The `GET /api/insights/i18n/coverage` envelope.
+ *
+ * Every figure counts **records** (translation groups), never rows: a localized
+ * entry is one row per language, so counting rows would report 40 stories in 3
+ * languages as 120 things and make every share on the card wrong.
+ *
+ * `notLocalized` is a **subset** of `requiresLocalization`, not a second slice
+ * of it — a record in one of four languages both has no translations and needs
+ * some. They are separate figures because they are separate jobs.
+ */
+export type I18nCoverageResult = {
+    /** One entry per configured locale, in config order. */
+    locales: LocaleCoverage[];
+    records: number;
+    /** Records that exist in every configured locale. */
+    localized: number;
+    /** Records that exist in exactly one locale. Always 0 with one locale configured. */
+    notLocalized: number;
+    /** Records missing at least one configured locale. */
+    requiresLocalization: number;
+    /** Localized content types counted, so an empty answer can explain itself. */
+    types: number;
+};

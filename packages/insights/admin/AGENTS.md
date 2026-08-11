@@ -132,6 +132,11 @@ addressed through `ChartTone` roles rather than by colour name.
 - **No text inside a fill.** Values go in the readout column in an ink token.
   A number printed on a bar has to stay legible against whichever palette step
   it lands on in both themes; moving it out removes the whole class of bug.
+- **A zero segment is dropped, not drawn** (`BarRows`). Segments carry a 3px
+  floor so a small-but-real value stays visible, and that floor turned an absent
+  category into a sliver of colour — a locale with nothing missing rendered a
+  tick of the "missing" hue, i.e. the chart stating the opposite of its data.
+  Filtered inside `BarRows`, so no contributed widget has to know.
 - **Status colours (`WidgetChip`) are separate from the series palette** and
   always ship with an icon, so a chip can never be mistaken for a series.
 
@@ -187,11 +192,20 @@ width, because a heat grid in a third of a phone screen is not a smaller
 dashboard, it is a broken one.
 
 **Who contributes what today.** `content-admin`: three Overview stat tiles, Gone
-quiet, Draft/published by type, Publishing velocity, and the Team punchcard.
-`media-admin`: the storage stat tile, storage by kind, Uploads, and alt-text
-coverage. Their endpoints live in `content-server` (`/api/insights/content/*`)
-and `media-server` (`/api/insights/media/*`) — **live aggregates, no
-projection**; the seam to change that later is those query classes alone.
+quiet, Draft/published by type, Publishing velocity, Waiting to go live, and the
+Team punchcard. `media-admin`: the storage stat tile, storage by kind, Uploads,
+and alt-text coverage. `i18n-admin`: Translation coverage. Their endpoints live
+in `content-server` (`/api/insights/content/*`), `media-server`
+(`/api/insights/media/*`) and `i18n-server` (`/api/insights/i18n/coverage`) —
+**live aggregates, no projection**; the seam to change that later is those query
+classes alone.
+
+`i18n-admin`'s card is the one worth reading as a pattern: it is contributed by
+the plugin that owns the **question** rather than the table. Coverage is about
+the configured locale set, which content-server deliberately does not know, so a
+card built there could report which languages appear in the data but never which
+ones are missing. If a widget's honest answer needs a fact only one package
+holds, that package owns the widget.
 
 ## Not built yet
 

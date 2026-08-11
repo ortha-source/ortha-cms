@@ -18,6 +18,7 @@ import { ContentDraftsStat } from '../components/ContentDraftsStat';
 import { StaleEntriesWidget } from '../components/StaleEntriesWidget';
 import { ContentPipelineWidget } from '../components/ContentPipelineWidget';
 import { PublishingVelocityWidget } from '../components/PublishingVelocityWidget';
+import { UnshippedChangesWidget } from '../components/UnshippedChangesWidget';
 import { ContentPunchcardWidget } from '../components/ContentPunchcardWidget';
 
 const ContentLibraryPage = lazy(() =>
@@ -102,14 +103,27 @@ export function ContentPlugin(): ContentAdminPlugin {
                         Component: ContentPipelineWidget
                     },
                     {
+                        // `lg` rather than `full` so the unshipped tile below
+                        // shares its row — the grid is twelfths, and 8 + 4 is
+                        // what makes that one row instead of two.
                         id: 'insights.content.velocity',
                         section: INSIGHTS_SECTION_IDS.Content,
                         order: 30,
-                        size: 'full',
+                        size: 'lg',
                         permission: CONTENT_READ,
                         titleId: 'content.insights.velocity.title',
                         defaultTitle: 'Publishing velocity',
                         Component: PublishingVelocityWidget
+                    },
+                    {
+                        id: 'insights.content.unshipped',
+                        section: INSIGHTS_SECTION_IDS.Content,
+                        order: 40,
+                        size: 'sm',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.unshipped.title',
+                        defaultTitle: 'Waiting to go live',
+                        Component: UnshippedChangesWidget
                     },
                     {
                         // Team, not Content: the question it answers is about
