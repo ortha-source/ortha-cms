@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_379 test cases across 41 spec files._
+_393 test cases across 42 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -476,6 +476,43 @@ _<sub>apps/admin-e2e/src/copilot/a11y.spec.ts</sub>_
 | the rename dialog |
 | a rail row’s menu, open |
 | the model picker, open |
+
+<!-- source: apps/admin-e2e/src/copilot/agents-attachments.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/agents-attachments.spec.ts</sub>_
+
+## Agents view — attaching files
+
+| Test case |
+| --- |
+| stages a picked file and sends its id with the turn |
+| clears the staged files once the turn is away |
+| shows the file on the turn it was sent with |
+| redraws the chips on a reopened thread |
+| removing a chip drops it from the turn |
+| blocks send while an upload is still in flight |
+| reports a failed upload on the chip and sends without it |
+| refuses more files than one turn may carry, and says so |
+
+### drag and drop
+
+| Test case |
+| --- |
+| highlights once while files are dragged over the box |
+| attaches dropped files |
+
+### paste
+
+| Test case |
+| --- |
+| attaches pasted files |
+| leaves an ordinary text paste alone |
+
+### accessibility
+
+| Test case |
+| --- |
+| names the paperclip and each chip’s remove control |
+| has no axe violations with files staged |
 
 <!-- source: apps/admin-e2e/src/copilot/agents-chat.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/agents-chat.spec.ts</sub>_

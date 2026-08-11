@@ -16,8 +16,43 @@ interface PersistedMessage {
     runId: string;
     role: 'user' | 'assistant';
     content: unknown[];
+    /** Files attached to a user turn; null otherwise. Its own column server-side. */
+    attachments?: unknown[] | null;
     stopReason: string | null;
 }
+
+/**
+ * A thread whose first turn carried a file, so a spec can prove a **reopened**
+ * conversation redraws its chips. The attachment lives on the row rather than
+ * inside `content`, which is exactly what makes that possible.
+ */
+const ATTACHED_TRANSCRIPT: PersistedMessage[] = [
+    {
+        id: 'ma1',
+        runId: 'ra1',
+        role: 'user',
+        content: [{ type: 'text', text: 'What does this brief say?' }],
+        attachments: [
+            {
+                assetId: '44444444-4444-4444-8444-000000000001',
+                name: 'brief.md',
+                mimeType: 'text/markdown',
+                kind: 'document',
+                size: 128,
+                readable: true
+            }
+        ],
+        stopReason: null
+    },
+    {
+        id: 'ma2',
+        runId: 'ra1',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'It asks for a Q3 launch plan.' }],
+        attachments: null,
+        stopReason: null
+    }
+];
 
 /** What a test can assert about the calls the app made. */
 export interface CopilotSpy {
@@ -67,6 +102,7 @@ function seedConversations(): CopilotConversationView[] {
 
     return [
         row('c_summary', 'Which articles are missing a summary?', 0),
+        row('c_attached', 'What does this brief say?', 0),
         row('c_pricing', 'Rewrite the pricing page intro', 0),
         // Untitled, so the filter's "an untitled thread matches nothing" rule
         // has something to drop.
@@ -376,7 +412,12 @@ export async function mockCopilotApi(
         return route.fulfill(
             json({
                 conversation,
-                messages: id === 'c_summary' ? SUMMARY_TRANSCRIPT : []
+                messages:
+                    id === 'c_summary'
+                        ? SUMMARY_TRANSCRIPT
+                        : id === 'c_attached'
+                          ? ATTACHED_TRANSCRIPT
+                          : []
             })
         );
     });

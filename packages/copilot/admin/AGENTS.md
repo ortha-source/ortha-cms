@@ -749,6 +749,22 @@ The hint line under the box doubles as the live region for this: the count
 refusal and the "waiting for uploads" state are both reasons a send did not
 happen, which a screen-reader user otherwise meets as silence.
 
+**The staged list is "Files to send"; a sent turn's is "Attached files".** They
+had one name to begin with, and two lists in one view answering to the same name
+leave a screen-reader user unable to tell a file they are still staging from one
+already on its way. The e2e suite found it by resolving the wrong list, which is
+the same ambiguity in machine form.
+
+`agents-attachments.spec.ts` covers this surface, and it is the only part of the
+feature a browser can answer for: staging, the drag highlight, paste attaching
+files while a text paste still pastes text, send blocked mid-upload, removal,
+the count refusal, and an axe scan with files staged. Two notes for extending it:
+`locator.dispatchEvent('paste', …)` **does not work** — Playwright builds the
+event from a name→constructor map with no `ClipboardEvent` in it, so
+`clipboardData` is dropped and the handler sees no files; the POM constructs and
+dispatches the event inside the page instead. Drop is fine declaratively, since
+`DragEvent` *is* in that map.
+
 ## Conventions
 
 Follow the `admin-plugin` skill and

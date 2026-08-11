@@ -39,9 +39,13 @@ const messages = defineMessages({
         id: 'copilot.composer.dropHere',
         defaultMessage: 'Drop files to attach them'
     },
+    // Deliberately NOT "Attached files" — that is what the *sent* list on a
+    // turn is called, and two lists in one view answering to one name leaves a
+    // screen-reader user unable to tell a file they are still staging from one
+    // already on its way. (Found by the e2e suite resolving the wrong list.)
     attachedFiles: {
         id: 'copilot.composer.attachedFiles',
-        defaultMessage: 'Attached files'
+        defaultMessage: 'Files to send'
     },
     uploadingHint: {
         id: 'copilot.composer.uploadingHint',
