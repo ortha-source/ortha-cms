@@ -329,6 +329,61 @@ render — outbound access to the jsDelivr CDN unless `docs.cdn` points at a loc
   twice; express keeps the first. `setupApiDocs` is exported precisely so a custom host
   can call it (`AGENTS.md` "Key exports"), so double-call is reachable.
 
+### 4A. Accessibility & Section 508 Conformance
+
+`@ortha-cms/bootstrap-server` is the **API** host. It renders no UI, ships no template, and
+emits no HTML of its own — `createServer` sets a prefix, a `ValidationPipe`, mounts docs and
+listens (`packages/bootstrap/server/src/lib/create-server.ts:13-44`). The admin-host
+questions this section usually asks are therefore answered elsewhere and are recorded here
+as Not Applicable so the gap is explicit rather than forgotten:
+
+| Question a host is normally on the hook for | Verdict here | Why |
+| --- | --- | --- |
+| `<html lang>` (3.1.1 / 508 E205.4) | **Not Applicable** | No document is authored. The SPA's `lang` lives in `apps/admin/index.html:2`; the defect that it never tracks `locale` is `docs/testing/bootstrap-admin.md` `♿ A11Y-bootstrap-admin-03`. |
+| Per-route document title (2.4.2) | **Not Applicable** | No routes render pages. See `docs/testing/bootstrap-admin.md` `♿ A11Y-bootstrap-admin-01`. |
+| Landmark structure / bypass blocks (1.3.1, 2.4.1) | **Not Applicable** | Landmarks are contributed by the admin shell — `docs/testing/shell-admin.md` `♿ A11Y-shell-admin-03`. |
+| Global live-region mount point (4.1.3) | **Not Applicable** | The `<Toaster>` is mounted by `bootstrap-admin`, not here — `docs/testing/bootstrap-admin.md` `♿ A11Y-bootstrap-admin-05`. |
+| 502.2/502.3 AT interoperability, reduced motion, forced colors | **Not Applicable** | No platform UI, no CSS, no animation. |
+| 503.4 captions / audio controls | **Not Applicable** | No media playback. |
+| 504.x Authoring tool | **Not Applicable** | The host defines no content model and no editor; 504 bites on `apps/server` (`docs/testing/app-server.md` `♿ A11Y-app-server-01`), `content-server` and `wysiwyg-admin`. |
+
+One thing is genuinely this unit's, and it is the reason the section is not empty:
+
+#### ♿ A11Y-bootstrap-server-01 — The host mounts a third-party HTML page whose conformance it has never assessed, and mounts it by default
+
+**WCAG:** whole-page conformance of the Scalar reference (1.4.3, 2.1.1, 2.4.7, 4.1.2 at
+minimum) · **508:** E205.4 (electronic content), 502.2 · **Verdict: Unverified**
+**Location:** `packages/bootstrap/server/src/lib/utils/setup-api-docs.ts:141-148`
+(`apiReference({ content: document, pageTitle: title, … })`), gated by `:87` /`:96-98`.
+
+`setupApiDocs` is the one place this package puts markup in front of a human: it hands the
+generated document to `@scalar/nestjs-api-reference`, which renders an interactive
+documentation SPA. The host controls the mount path, the title and the `cdn` option and
+nothing else — colours, focus order, keyboard operability and the try-it-out console are all
+Scalar's. Nothing in this repo scans it: `apps/admin-e2e`'s axe suites never load
+`/reference`, and `apps/server-e2e` never calls `setupApiDocs` at all
+(`apps/server-e2e/src/support/test-app.ts:40-53`), so the page has zero automated coverage of
+any kind.
+
+**Repro:** boot with `docs.enabled` (the default outside `NODE_ENV=production`), open
+`http://localhost:3000/reference`, and try to reach the "Test Request" console using only
+`Tab`/`Enter`. **Keyboard-only user:** unknown — untested. **Screen-reader user:** unknown —
+untested.
+
+**Unverified — exactly what could not be confirmed:** whether the rendered Scalar page meets
+WCAG 2.1 AA. That is a property of a pinned upstream version, not of any line in this repo,
+and it cannot be settled by reading source here. What *is* confirmed from source is the part
+that makes it this unit's problem: the page is mounted **by default**
+(`setup-api-docs.ts:87`, `🐞 BUG-bootstrap-server-01`) and sits outside every guard
+(`:139,141`), so a deployment publishes it to anonymous users without deciding to.
+
+**Remediation:** treat `/reference` as shipped content — pin the Scalar version, record an
+axe + keyboard pass against it in the VPAT, and make the mount opt-in so a deployment that
+has not assessed it does not publish it.
+
+**♿ tally:** `1 finding — 0 Supports · 0 Partially Supports · 0 Does Not Support · 1 Unverified`
+(all other criteria Not Applicable per the table above: this host renders no UI).
+
 ## 5. E2E Coverage Map
 
 | Feature | Spec | Asserts | Verdict |
@@ -347,7 +402,7 @@ render — outbound access to the jsDelivr CDN unless `docs.cdn` points at a loc
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-bootstrap-server-01 — The API reference defaults to *on*, so a deployment that forgets `NODE_ENV=production` publishes its full API surface unauthenticated · Severity: High · 🔒
+### 🐞 BUG-bootstrap-server-01 — The API reference defaults to *on*, so a deployment that forgets `NODE_ENV=production` publishes its full API surface unauthenticated · Severity: Medium · 🔒
 
 **Location:** `packages/bootstrap/server/src/lib/utils/setup-api-docs.ts:86-98`, with `apps/server/ortha.config.ts:87-89` and `apps/server/src/plugins.ts:73`
 **Category:** data-leak
@@ -376,7 +431,7 @@ so `AuthGuard`, `PermissionsGuard` and `OriginGuard` never run for them.
 
 **Why it is wrong:** the switch is *fail-open* on an unset variable. `NODE_ENV` is not set
 by Node, by `docker run`, or by most process managers — it is set by the operator. The
-documented intent (`api-docs.ts:11-14`) is "a deployment opts in explicitly rather than
+documented intent (`api-docs.ts:10-13`) is "a deployment opts in explicitly rather than
 leaking its surface by accident", but the implementation makes leaking the accident and
 opting **out** the deliberate act. The same expression also drives the GraphiQL playground
 (`apps/server/src/plugins.ts:73`: `playground: config.docs.enabled === true`), so one
@@ -385,15 +440,21 @@ missing variable exposes two developer surfaces at once.
 **Repro:**
 1. Build and run the server image with no `NODE_ENV` and no `API_DOCS`.
 2. `curl -s https://<host>/reference/json | jq '.paths | keys | length'`
+3. `curl -sD- -o/dev/null https://<host>/api/v1/graphql/playground`
 → Observed: `200` with the complete operation list — every route, every DTO schema, every
-security scheme — to an unauthenticated caller, plus a working GraphiQL at
-`/api/v1/graphql`.
+security scheme — to an unauthenticated caller, plus a working GraphiQL page at
+`/api/v1/graphql/playground`
+(`packages/content/graphql/src/lib/http/controllers/graphql-playground.controller.ts:29-44`,
+`@Public()` by design).
 → Expected: `404` unless the operator set `API_DOCS=true`.
 
 **Blast radius:** every self-hosted deployment that does not explicitly set `NODE_ENV`.
-The document is not itself a credential, but it is a complete, machine-readable map of the
-attack surface (including internal admin routes and the shapes their DTOs accept), and the
-playground is an interactive client for it.
+Reconnaissance, not compromise: the document is not a credential, and the GraphiQL page is a
+static asset — the endpoint it drives (`POST /api/v1/graphql`) still requires a bearer token,
+so GraphQL introspection is *not* exposed by this default. What is exposed is a complete,
+machine-readable map of the attack surface (internal admin routes and the shapes their DTOs
+accept) and an interactive client inviting a pasted credential. Medium rather than High
+because no authenticated data is reachable through either surface.
 **Suggested fix:** invert the default to `enabled = process.env['API_DOCS'] === 'true'`, or
 have the host log a loud warning when the reference mounts and `NODE_ENV` is unset.
 
@@ -432,7 +493,7 @@ would reject it.
 
 ### 🐞 BUG-bootstrap-server-03 — A failing plugin init, or a port clash, surfaces as a raw unhandled promise rejection with no plugin name · Severity: Medium
 
-**Location:** `packages/bootstrap/server/src/lib/create-server.ts:21-23,40` and `apps/server/src/main.ts:5-10`
+**Location:** `packages/bootstrap/server/src/lib/create-server.ts:21-23,40` and `apps/server/src/main.ts:5-9`
 **Category:** ux-state (operability)
 
 **What the code does:**
@@ -484,7 +545,10 @@ and the e2e harness (`apps/server-e2e/src/support/test-app.ts:64`).
 
 **Why it is wrong:** `OutboxDispatcher` implements `OnModuleDestroy` specifically to clear
 its 5-second interval (`outbox-dispatcher.ts:128-133`); without `enableShutdownHooks` that
-method is dead code in production. More seriously, a `SIGTERM` during
+method is dead code in production. (The interval itself is `unref()`d at
+`outbox-dispatcher.ts:124`, so it does *not* hold the process open — the leaked timer is
+harmless on its own, and this finding rests on the drain and the pool, not on the timer.)
+More seriously, a `SIGTERM` during
 `OutboxDispatcher.drain()` kills the process mid-batch: subscribers that already ran are
 not re-marked, the drain transaction is aborted by the connection dying, and the pool's
 sockets are dropped rather than closed. `AGENTS.md` lists this under "Not owned here …
@@ -549,6 +613,9 @@ is no leak here; the absence of `app.enableCors()`, which is correct for the sam
 dev proxy (`apps/admin/vite.config.mts:20-26`) and means no permissive CORS default was
 accidentally shipped; and `ServerModule.forRoot`, which is a faithful one-liner over the
 plugin list.
+
+**Tally:** `5 🐞 — 0 Critical · 0 High · 3 Medium · 2 Low (1 🔒)` ·
+`♿ 1 finding — 0 Supports · 0 Partially Supports · 0 Does Not Support · 1 Unverified`
 
 ## 7. Recommended E2E Tests
 

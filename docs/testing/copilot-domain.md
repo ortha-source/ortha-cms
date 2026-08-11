@@ -911,7 +911,7 @@ its message.
 ### 🐞 BUG-copilot-domain-06 — The port's zero-usage-on-abort clause is stated in `abortedEvent()` but unenforced, and one shipped adapter violates it · Severity: Low
 
 **Location:** `packages/copilot/domain/src/lib/model/abort.ts:16-29` (the
-contract) vs `packages/copilot/provider-fake/src/lib/fake-provider.ts:156-164`
+contract) vs `packages/copilot/provider-fake/src/lib/fake-provider.ts:66-74`
 (the violation)
 **Category:** correctness (contract drift across adapters)
 
@@ -926,9 +926,9 @@ export function abortedEvent(): DoneEvent {
 
 with the docstring "Usage is zero by design: a cancelled call never reaches a
 usage record we can trust, and inventing one would corrupt cost accounting."
-`provider-anthropic` (`anthropic-provider.ts:206-212`) and `provider-openai`
-(`openai-provider.ts:170-174`) both call it. `provider-fake` calls it only for a
-**pre-flight** abort (`fake-provider.ts:149-152`); for a mid-text abort it emits
+`provider-anthropic` (`anthropic-provider.ts:90-96`) and `provider-openai`
+(`openai-provider.ts:104-108`) both call it. `provider-fake` calls it only for a
+**pre-flight** abort (`fake-provider.ts:59-62`); for a mid-text abort it emits
 its own `done` with `usage: estimateUsage(request, text)` and a comment saying
 so.
 

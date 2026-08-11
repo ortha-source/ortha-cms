@@ -883,7 +883,7 @@ render the primitive.
 
 Ranked by severity.
 
-### 🐞 BUG-design-system-01 — The global `⌘B`/`Ctrl+B` sidebar shortcut hijacks the WYSIWYG bold shortcut and drops focus into an `inert` subtree · Severity: High
+### 🐞 BUG-design-system-01 — The global `⌘B`/`Ctrl+B` sidebar shortcut fires from inside text fields and the editor, and collapsing drops focus into an `inert` subtree · Severity: Medium
 
 **Location:** `packages/design-system/src/lib/components/ui/sidebar.tsx:112-125`, and `sidebar.tsx:282-283`
 **Category:** correctness / a11y
@@ -914,28 +914,46 @@ while the caret is inside any text field, textarea, or `contenteditable`.
 `apps/admin-e2e/src/content/wysiwyg-fields.spec.ts` drives it, and
 `WysiwygFieldPage.surface('Body')` is a `contenteditable` region
 (`wysiwyg-fields.spec.ts:150`). `Ctrl+B` / `⌘B` is the universal bold shortcut in
-every such editor. Suppressing it to toggle app chrome makes bolding impossible
-from the keyboard in that field.
+every such editor, and TipTap's `StarterKit`
+(`packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:33`)
+registers `Mod-b` for it. So the two handlers collide on the same chord while the
+caret is in the body field, and app chrome moves during typing.
+
+**Unverified — the collision's exact outcome.** ProseMirror binds its keymap on
+the editable element, so it runs on the bubble path *before* this `window`
+listener; the likely result is that the text **is** bolded **and** the sidebar
+also toggles, rather than bold being suppressed. An earlier draft of this artifact
+asserted the stronger claim (bold silently stops working); that could not be
+confirmed from source and is not asserted here. What **is** confirmed from source
+is the defect proper: a `window` keydown listener with **no `event.target` check
+and an unconditional `preventDefault()`**, which is precisely the pattern the
+sibling `⌘K` palette bug (`docs/testing/shell-admin.md`
+`🐞 BUG-shell-admin-02`) also exhibits, and which means a global chrome shortcut
+fires from inside every input, textarea and editor in the product.
 
 Compounding it, `Sidebar` marks the collapsed panel `inert`
 (`sidebar.tsx:282-283`). The in-header `SidebarTrigger` lives *inside* that panel
 (`packages/shell/admin/src/lib/components/AppSidebar/GlobalSidebar/index.tsx:80`),
 so pressing `Enter` on it — or pressing `⌘B` while focus is anywhere in the
 sidebar — leaves the focused element inside an `inert` subtree. Browsers blur it
-to `<body>`; the user's place in the tab order is gone.
+to `<body>`; the user's place in the tab order is gone. This half needs no
+runtime confirmation: `inert` blurring its focused descendant is specified
+behaviour, and nothing in the collapse path moves focus first.
 
 **Repro:**
 1. `npm run dev`, sign in, open a content entry with a WYSIWYG body field.
 2. Click into the body, type `hello`, select it, press `⌘B`.
-3. → Observed: the sidebar slides shut; `hello` is not bold.
-   Expected: the text is bolded and the sidebar is untouched.
+3. → Observed: the sidebar slides shut mid-edit (and, per the note above, the
+   text is probably also bolded). Expected: the editor consumes the chord and the
+   sidebar is untouched.
 4. Separately: Tab to the sidebar's in-header trigger, press `Enter`.
 5. → Observed: `document.activeElement` is `<body>`. Expected: focus on the
    reveal trigger that replaced it.
 
-**Blast radius:** every content author using the editor, and every keyboard-only
-user of the shell. The bold collision is silent — nothing indicates why the
-shortcut "stopped working".
+**Blast radius:** every keyboard user of the shell (focus loss on collapse — the
+confirmed half) and every content author who uses `⌘B` while editing (unexpected
+chrome movement). Medium rather than High: no data is lost or exposed, and the
+worst confirmed outcome is a lost tab position.
 **Suggested fix:** bail out of the handler when `event.target` is an editable
 element (`isContentEditable`, `INPUT`, `TEXTAREA`), and on collapse move focus to
 the reveal trigger before the panel becomes `inert`.

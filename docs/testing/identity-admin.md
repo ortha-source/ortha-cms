@@ -661,9 +661,12 @@ top, where it becomes unreachable by scrolling.
 
 ---
 
-**a11y verdict tally: 7 findings · 1 Supports · 4 Partially Supports · 1 Does Not Support ·
-1 Not Applicable (reveal toggle, folded into A11Y-05).**
-2.4.2 Page Titled is separately **Does Not Support** within A11Y-03.
+**a11y verdict tally: 7 findings · 1 Supports (A11Y-05) · 5 Partially Supports
+(A11Y-02/03/04/06/07) · 1 Does Not Support (A11Y-01).**
+Sub-verdicts not counted above: 2.4.2 Page Titled is separately **Does Not Support** within
+A11Y-03, and the password-reveal toggle is **Not Applicable** within A11Y-05 (no such
+control exists — `grep -rn "showPassword|reveal|aria-pressed" packages/identity/admin/src`
+returns nothing).
 
 **WCAG 2.2 (advisory only — 508 references 2.0):** 2.4.11 Focus Not Obscured — no sticky
 chrome on the auth screens, so **Supports**. 2.5.8 Target Size (Minimum, 24×24) — the four
@@ -711,7 +714,20 @@ restoration, route-change announcement, dark-theme contrast, reflow, or reduced 
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-identity-admin-01 — Logging out leaves every other user's cached data in the React Query cache · Severity: High · 🔒
+### 🐞 BUG-identity-admin-01 — Logging out leaves every other user's cached data in the React Query cache · Severity: Medium · 🔒
+
+> **Verified 2026-08-11 — mechanism confirmed, exploit path corrected, severity downgraded
+> High → Medium.** The cache genuinely is not cleared (code below re-read and unchanged).
+> But the privilege-crossing repro that set the original severity **does not work**: both
+> admin-only read surfaces gate on `useHasPermission` *before* rendering their table —
+> `packages/activity/admin/src/lib/presentation/pages/ActivityLogPage/index.tsx:156`
+> (`if (!canRead) return <ActivityNoAccess />`, with the query passed `enabled: canRead` at
+> `:136`) and
+> `packages/api-tokens/admin/src/lib/presentation/pages/ApiTokensPage/index.tsx:106`
+> (same shape, `enabled: canRead` at `:79`). `useHasPermission` also fails closed while the
+> post-login `auth/me` probe is in flight, and `['auth','me']` *is* invalidated on logout,
+> so there is no window where the new user holds the old user's permission set. The
+> original "a viewer sees the admin's audit rows" claim has been struck below.
 
 **Location:** `packages/identity/admin/src/lib/application/useLogoutMutation/index.ts:13-21`
 **Category:** tenant-leak (cross-account)
@@ -741,23 +757,41 @@ and `useMembers` is configured with `placeholderData: keepPreviousData`
 on screen. On a slow connection that window is seconds.
 
 The severity is set by *whose* data it is. `['members','detail',<id>,'sessions']` caches
-IP addresses and user agents. `['apiTokens']` caches token metadata. `['activity']` caches
-the audit log, which is admin-only — so a **`viewer` who signs in after an admin** can be
-shown audit rows their own permissions would never fetch, before the refetch 403s and
-(per `ActivityLogPage`) swaps to a no-access state.
+IP addresses and user agents; `['members','list',…]` caches the roster.
+
+**What does NOT happen (checked, and the reason this is Medium not High).** A *lower*-privileged
+user cannot be shown a higher-privileged user's cached data. The only two read surfaces
+whose permission differs between `admin` and `viewer` are `activity:read` and `tokens:read`,
+and both pages render a no-access state ahead of the table and pass `enabled: canRead` into
+the query (`ActivityLogPage/index.tsx:136,156`; `ApiTokensPage/index.tsx:79,106`). Every
+other cached read (`workspaces:read`, `users:read`, `content:read`, `media:read`) is held by
+all three roles, so serving it from cache crosses no permission boundary.
+
+**What does happen.** Two people of the **same role** sharing a browser. Admin A signs out,
+admin B signs in without reloading; every list B opens is served from A's cache while the
+refetch is in flight, and `useMembers` is configured with `placeholderData: keepPreviousData`
+(`packages/users/admin/.../useMembers/index.ts:25`), which deliberately holds the old rows on
+screen. On a slow connection that window is seconds — and `['members','detail',<id>,'sessions']`
+is IP addresses and user-agent strings.
 
 **Repro:**
-1. Sign in as an admin. Visit `/activity` and `/users/<id>/sessions` so both are cached.
+1. Sign in as admin A. Open `/users` and `/users/<id>/sessions` so both are cached.
 2. Sign out via the Account menu. Do **not** reload.
-3. Sign in as a `viewer`.
-4. Navigate to `/activity`.
-→ Observed: the admin's audit rows render from cache for the duration of the refetch,
-after which the 403 replaces them. Same for the sessions tab.
-/ Expected: no data from the previous session is ever rendered.
+3. Sign in as a different admin, B. Throttle the network to Slow 3G.
+4. Navigate to `/users/<id>/sessions`.
+→ Observed: A's cached session rows — including IP addresses — render immediately and stay
+until B's refetch lands. / Expected: no data fetched under a previous session is ever
+rendered.
+
+**Unverified —** whether the same holds *across workspace membership* (user A is a member of
+workspace W, user B is not; W's cached entries/media are still in the `QueryClient` and W may
+still appear in the cached workspace switcher). Confirming it needs the workspace shell's
+membership gate read end-to-end, which was not done for this artifact. If it holds, it is a
+true tenant leak and this finding returns to High.
 
 **Blast radius:** any shared or kiosk workstation, and any support/QA workflow where people
-switch accounts. It is a genuine cross-account disclosure of admin-only data to a
-lower-privileged user, entirely client-side, invisible in the server logs.
+switch accounts. Cross-*account* disclosure within one privilege level, entirely client-side
+and invisible in the server logs. Not a privilege escalation.
 
 **Suggested fix:** call `queryClient.clear()` (or `removeQueries()` scoped to everything but
 `currentUserKey`) in the logout `onSuccess`, and again in `AuthProvider`'s 401 handler.
@@ -988,11 +1022,15 @@ support load and false security reports.
   namespaced `identity.*` id; no bare literals in any branch, including the three error
   branches on each page.
 
+**Defect tally:** `5 🐞 · 0 Critical · 0 High · 3 Medium · 2 Low · 1 🔒`
+**Accessibility tally:** `7 ♿ · 1 Supports · 5 Partially Supports · 1 Does Not Support ·
+0 Not Applicable`
+
 ## 7. Recommended E2E Tests
 
 | Priority | Harness | Proposed spec | Asserts | Closes |
 | --- | --- | --- | --- | --- |
-| 1 | `apps/admin-e2e` (POM + `page.route`) | `auth/logout-cache.spec.ts` | after signing out and signing in as a different user **without a reload**, no request is answered from the previous user's cache: seed `/api/activity` for the admin, log out, log in as a viewer, assert the activity page never renders an admin row | 🐞 BUG-01 |
+| 1 | `apps/admin-e2e` (POM + `page.route`) | `auth/logout-cache.spec.ts` | after signing out and signing in as a **different admin** without a reload, no view is served from the previous user's cache: seed `/api/users/:id/sessions` for admin A, log out, log in as admin B with the sessions request delayed, assert A's IP addresses never render. (Do **not** use the viewer→activity path: `ActivityLogPage/index.tsx:156` gates on `useHasPermission` first, so that variant passes for the wrong reason.) | 🐞 BUG-01 |
 | 2 | `apps/admin-e2e` | extend `auth/accept-invite.spec.ts` | a **500** from `GET /api/auth/invite/:token` renders a retryable error state, not the dead-link card; a **404** still renders the dead-link card | 🐞 BUG-03, EC-26 |
 | 3 | `apps/admin-e2e` | `auth/a11y-focus.spec.ts` (following `apps/admin-e2e/src/support/a11y.ts`) | after a failed login, focus moves to the alert (or the alert is `aria-describedby`-linked to the fields); after the gate redirects, focus is on the sign-in `<h1>` and `document.title` changed | ♿ A11Y-02, ♿ A11Y-03 |
 | 4 | `apps/admin-e2e` | extend `auth/keyboard.spec.ts` | enumerate **every** tab stop on the sign-in page and assert each is operable — this is what would have caught the four dead controls that `a11y.spec.ts:17` passes over | ♿ A11Y-01, 🐞 BUG-02, F25/F26/F27 ❌ |

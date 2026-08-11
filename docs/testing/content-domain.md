@@ -538,12 +538,16 @@ the two halves of the function disagree about what "a field" means.
 ```js
 validateEntryValues(
     { title: { type: 'text', required: true } },
-    { title: 'hello', toString: 'x', constructor: 1, __proto__: 2 },
+    { title: 'hello', toString: 'x', constructor: 1, valueOf: 2 },
     { rejectUnknownKeys: true, typeName: 'article' }
 );
 ```
 → Observed: `{ valid: true, issues: [] }` — three unknown keys accepted.
-Expected: three `unknown field on "article"` issues.
+Expected: three `unknown field on "article"` issues. (`__proto__` written in an
+object **literal** sets the prototype rather than creating an own key, so it is
+not one of the smuggleable names; `Object.defineProperty` or `JSON.parse` are
+the routes that make it one, and `JSON.parse` is exactly how a request body
+arrives.)
 
 **Blast radius:** the impact depends on what `content-server` does with the
 values bag *after* validation. If it writes only schema columns, this is inert

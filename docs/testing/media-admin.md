@@ -607,9 +607,9 @@ unverified here. Kind is conveyed by badge **text** as well as glyph colour, so
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-media-admin-01 — The library loads one fixed page of 100 assets and filters, sorts and searches only within it, so anything beyond is unreachable · Severity: High
+### 🐞 BUG-media-admin-01 — The library loads one fixed page of 100 assets and filters, sorts and searches only within it, so anything beyond is unreachable · Severity: Medium
 
-**Location:** `packages/media/admin/src/lib/infrastructure/httpMediaGateway/index.ts:325, 355-365`; `packages/media/admin/src/lib/hooks/useMediaLibrary/index.ts:63-68, 129-161`
+**Location:** `packages/media/admin/src/lib/infrastructure/httpMediaGateway/index.ts:20-21, 51-61`; `packages/media/admin/src/lib/hooks/useMediaLibrary/index.ts:63-69, 129-161`
 **Category:** correctness / ux-state
 
 **What the code does:**
@@ -641,8 +641,11 @@ consequences compound:
 
 The page does surface the shortfall — `isTruncated` renders "Showing {shown} of
 {total}" in a `role="status"` line (`MediaLibraryPage:202-204, 455-465`), which is
-honest and is why this is High rather than Critical. But the notice says nothing
-about the filters being page-scoped, and there is no control that reaches the rest.
+honest, and — together with the fact that the data is only invisible, never lost or
+exposed — is why this is **Medium rather than High**. But the notice's own wording
+is `'Showing the first {shown} of {total} items. Search or filter to narrow the
+list.'` (`MediaLibraryPage:59`), which points the user at the two controls that are
+themselves page-scoped, and there is no control that reaches the rest.
 
 **Repro:**
 1. Upload 250 files into one folder (any names).
@@ -668,7 +671,7 @@ list. Keep the truncation notice as a fallback.
 
 ### 🐞 BUG-media-admin-02 — Bulk move and bulk duplicate fan out N independent requests with `Promise.all`, so a partial failure leaves a partly-applied operation and reports one error · Severity: Medium
 
-**Location:** `packages/media/admin/src/lib/infrastructure/httpMediaGateway/index.ts:434-455`
+**Location:** `packages/media/admin/src/lib/infrastructure/httpMediaGateway/index.ts:130-151`
 **Category:** correctness / partiality
 
 **What the code does:**
@@ -813,7 +816,7 @@ compensating delete keyed on a client-supplied idempotency id.
 
 ### 🐞 BUG-media-admin-05 — Bulk download fires N synthetic link clicks in a tight loop and reports success for all of them · Severity: Low
 
-**Location:** `packages/media/admin/src/lib/pages/MediaLibraryPage/index.tsx:207-217, 433-441`
+**Location:** `packages/media/admin/src/lib/pages/MediaLibraryPage/index.tsx:206-215, 423-428`
 **Category:** ux-state
 
 **What the code does:**
@@ -895,7 +898,7 @@ effect keyed on `workspaceId`.
 
 ---
 
-**Tally:** 6 🐞 — 0 Critical, 1 High, 3 Medium, 2 Low.
+**Tally:** 6 🐞 — 0 Critical, 0 High, 4 Medium, 2 Low.
 **♿ tally:** 8 — 0 Supports · 5 Partially Supports · 1 Does Not Support · 0 Not Applicable · 2 Unverified.
 
 **Checked and cleared:** the error state is genuinely distinct from the empty state

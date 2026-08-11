@@ -615,7 +615,7 @@ would close the remaining window, since content's UPDATE always goes first.)
 
 ### 🐞 BUG-i18n-server-02 — `POST …/locale-summary` is a state-changing verb exempted from `OriginGuard`, and it echoes back publish state for arbitrary group ids · Severity: Low · 🔒
 
-**Location:** `packages/i18n/server/src/lib/content/controllers/locale-summary.controller.ts:577-596`
+**Location:** `packages/i18n/server/src/lib/content/controllers/locale-summary.controller.ts:20-45`
 **Category:** correctness / CSRF-surface
 
 **What the code does:**
@@ -645,8 +645,8 @@ hold if the workspace ever moved into the body or the path.
 
 Two smaller things in the same route:
 - the request's own group ids are used as **object keys** on a plain `{}`
-  (`locale-group.service.ts:438-439`), which would be a prototype-pollution shape
-  were `@IsUUID` not in front of it;
+  (`locale-group.service.ts:142-143`), which would be a prototype-pollution shape
+  were `@IsUUID` not in front of it (`locale-summary.dto.ts:19-22`);
 - there is no `@ArrayNotEmpty`, so an empty batch is a valid `200` (harmless).
 
 **Repro:** from a page on another origin, `fetch('http://localhost:3000/api/i18n/content/article/locale-summary', { method:'POST', credentials:'include', headers:{'content-type':'text/plain'}, body:'{"groupIds":[…]}' })`.
@@ -665,7 +665,7 @@ unreachable cross-origin, so the next reader does not remove the load-bearing pa
 
 ### 🐞 BUG-i18n-server-03 — Removing a locale from the config silently orphans every row in it · Severity: Low
 
-**Location:** `packages/i18n/server/src/lib/domain/value-objects/locale-set.ts:223-236` (`remove`, never called), `packages/i18n/server/src/lib/locales/services/locale-registry.service.ts:31-34`, `apps/server/ortha.config.ts:147-151`
+**Location:** `packages/i18n/server/src/lib/domain/value-objects/locale-set.ts:88-101` (`remove`, never called), `packages/i18n/server/src/lib/locales/services/locale-registry.service.ts:31-34`, `apps/server/ortha.config.ts:144-152`
 **Category:** data-loss (visibility)
 
 **What the code does:** the configured set is a literal array read once at
@@ -680,8 +680,10 @@ anywhere:
 - `listScope` can never name it — `resolve('de')` now 400s, so the rows cannot be
   listed even deliberately;
 - the locale panel iterates configured locales, so the row does not appear as a
-  slot at all (`locale-group.service.ts:402`);
-- coverage filters it out by design (`configuredScope`, `:226`) and, per the
+  slot at all (`locale-group.service.ts:106`);
+- coverage filters it out by design
+  (`insights/infrastructure/queries/localization-coverage.query.ts:218-229`,
+  `configuredScope`) and, per the
   AGENTS.md rationale, a group made **entirely** of such rows "drops out, which is
   the right answer" — so the *record count itself* silently falls;
 - the rows still occupy the `(locale_group_id, locale)` unique index, so re-adding

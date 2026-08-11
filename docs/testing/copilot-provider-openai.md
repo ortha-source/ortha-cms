@@ -126,7 +126,7 @@ npx nx lint @ortha-cms/copilot-provider-openai
 ### Dependencies that must be healthy
 
 - Node ≥ 20 for `fetch`, `AbortSignal.timeout` and `AbortSignal.any`
-  (`openai-provider.ts:126-127`).
+  (`openai-provider.ts:60-61`).
 - `@ortha-cms/copilot-domain` — the port, `resolveModel`, `isAbortError`,
   `abortedEvent`.
 - The configured endpoint, which must accept `POST /chat/completions` with
@@ -139,35 +139,35 @@ npx nx lint @ortha-cms/copilot-provider-openai
 | # | Feature | Where it lives | Coverage |
 | --- | --- | --- | --- |
 | F1 | `resolveEndpoint` appends `/chat/completions`, trimming trailing slashes | `src/lib/config.ts:52-54` | 🧪 UNIT `src/lib/openai-provider.spec.ts:51` |
-| F2 | `models()` advertises every declared model, first as default | `openai-provider.ts:196`, `:125` | 🧪 UNIT `:386` |
-| F3 | A per-request `model` override is sent | `openai-provider.ts:125` | 🧪 UNIT `:394` |
-| F4 | A model this endpoint does not serve is rejected **before anything is sent** | `openai-provider.ts:122-125` | 🧪 UNIT `:402` |
-| F5 | Text deltas are forwarded in order, as they arrive | `openai-provider.ts:159-161` | 🧪 UNIT `:61` |
-| F6 | Tool-call fragments are accumulated by `index` and emitted **once the stream ends** | `openai-provider.ts:162`, `:168`; `wire/tool-call-accumulator.ts:454-487` | 🧪 UNIT `:83`, `src/lib/wire/tool-call-accumulator.spec.ts:9` |
-| F7 | Parallel calls interleave on the wire and are emitted in `index` order | `tool-call-accumulator.ts:470-472` | 🧪 UNIT `:135`, `tool-call-accumulator.spec.ts:26` |
-| F8 | Malformed argument JSON yields `{}` rather than crashing the run | `tool-call-accumulator.ts:435-444` | 🧪 UNIT `:177`, `tool-call-accumulator.spec.ts:79` |
-| F9 | A missing tool-call `id` is synthesised as `call-<index>` | `tool-call-accumulator.ts:479` | 🧪 UNIT `tool-call-accumulator.spec.ts:52` |
-| F10 | A fragment set that never carried a `name` is **dropped**, not invented | `tool-call-accumulator.ts:473-484` | 🧪 UNIT `tool-call-accumulator.spec.ts:64` |
-| F11 | Usage is requested with `stream_options: { include_usage: true }` and read from the trailing chunk | `wire/request.ts:355-358`; `openai-provider.ts:151-153` | 🧪 UNIT `:212` |
-| F12 | A server that ignores `stream_options` reports **zeros**, not an error | `openai-provider.ts:143` | ⚠️ PARTIAL — the default is set; no case drives a server that omits it |
-| F13 | `cachedInputTokens` is read from `prompt_tokens_details.cached_tokens` when present | `wire/response.ts:400-405` | ❌ NONE |
-| F14 | `finish_reason` mapping: `tool_calls`/`function_call`→`tool_use`, `length`→`max_tokens`, `content_filter`→`refusal`, else→`end` | `wire/response.ts:376-390` | 🧪 UNIT `:240` |
-| F15 | Tool **results** flatten onto their own `role: 'tool'` messages after the assistant turn | `wire/request.ts:284-329` | 🧪 UNIT `:256` |
-| F16 | Tools are sent in the function-calling shape; the key is omitted when there are none | `wire/request.ts:332-341`, `:353` | 🧪 UNIT `:306` |
-| F17 | `system` becomes the first message with `role: 'system'` | `wire/request.ts:288-290` | 🧪 UNIT `:256` |
-| F18 | Headers: `content-type`, optional `authorization: Bearer`, then `config.headers` **overriding** both | `wire/request.ts:363-371` | ❌ NONE |
-| F19 | Every request carries an `AbortSignal.timeout`, combined with the caller's via `AbortSignal.any` | `openai-provider.ts:126-127` | ❌ NONE |
-| F20 | A caller abort ends the stream with `stopReason:'aborted'` | `openai-provider.ts:170-174` | 🧪 UNIT `:347` |
-| F21 | A **timeout** throws with a message naming the endpoint and the budget | `openai-provider.ts:175-179` | ❌ NONE |
-| F22 | A non-2xx response raises an error naming the endpoint, the status, and up to 500 chars of the body | `openai-provider.ts:184-193` | 🧪 UNIT `:337` |
-| F23 | `capabilities()` reports the operator's declaration over the defaults | `config.ts:57-66`; `openai-provider.ts:197-201` | 🧪 UNIT `:369`, `:411` |
+| F2 | `models()` advertises every declared model, first as default | `openai-provider.ts:130`, `:125` | 🧪 UNIT `:386` |
+| F3 | A per-request `model` override is sent | `openai-provider.ts:59` | 🧪 UNIT `:394` |
+| F4 | A model this endpoint does not serve is rejected **before anything is sent** | `openai-provider.ts:56-59` | 🧪 UNIT `:402` |
+| F5 | Text deltas are forwarded in order, as they arrive | `openai-provider.ts:93-95` | 🧪 UNIT `:61` |
+| F6 | Tool-call fragments are accumulated by `index` and emitted **once the stream ends** | `openai-provider.ts:96`, `:168`; `wire/tool-call-accumulator.ts:44-77` | 🧪 UNIT `:83`, `src/lib/wire/tool-call-accumulator.spec.ts:9` |
+| F7 | Parallel calls interleave on the wire and are emitted in `index` order | `tool-call-accumulator.ts:60-62` | 🧪 UNIT `:135`, `tool-call-accumulator.spec.ts:26` |
+| F8 | Malformed argument JSON yields `{}` rather than crashing the run | `tool-call-accumulator.ts:25-34` | 🧪 UNIT `:177`, `tool-call-accumulator.spec.ts:79` |
+| F9 | A missing tool-call `id` is synthesised as `call-<index>` | `tool-call-accumulator.ts:69` | 🧪 UNIT `tool-call-accumulator.spec.ts:52` |
+| F10 | A fragment set that never carried a `name` is **dropped**, not invented | `tool-call-accumulator.ts:63-74` | 🧪 UNIT `tool-call-accumulator.spec.ts:64` |
+| F11 | Usage is requested with `stream_options: { include_usage: true }` and read from the trailing chunk | `wire/request.ts:86-89`; `openai-provider.ts:85-87` | 🧪 UNIT `:212` |
+| F12 | A server that ignores `stream_options` reports **zeros**, not an error | `openai-provider.ts:77` | ⚠️ PARTIAL — the default is set; no case drives a server that omits it |
+| F13 | `cachedInputTokens` is read from `prompt_tokens_details.cached_tokens` when present | `wire/response.ts:25-30` | ❌ NONE |
+| F14 | `finish_reason` mapping: `tool_calls`/`function_call`→`tool_use`, `length`→`max_tokens`, `content_filter`→`refusal`, else→`end` | `wire/response.ts:1-15` | 🧪 UNIT `:240` |
+| F15 | Tool **results** flatten onto their own `role: 'tool'` messages after the assistant turn | `wire/request.ts:15-60` | 🧪 UNIT `:256` |
+| F16 | Tools are sent in the function-calling shape; the key is omitted when there are none | `wire/request.ts:63-72`, `:353` | 🧪 UNIT `:306` |
+| F17 | `system` becomes the first message with `role: 'system'` | `wire/request.ts:19-21` | 🧪 UNIT `:256` |
+| F18 | Headers: `content-type`, optional `authorization: Bearer`, then `config.headers` **overriding** both | `wire/request.ts:94-102` | ❌ NONE |
+| F19 | Every request carries an `AbortSignal.timeout`, combined with the caller's via `AbortSignal.any` | `openai-provider.ts:60-61` | ❌ NONE |
+| F20 | A caller abort ends the stream with `stopReason:'aborted'` | `openai-provider.ts:104-108` | 🧪 UNIT `:347` |
+| F21 | A **timeout** throws with a message naming the endpoint and the budget | `openai-provider.ts:109-113` | ❌ NONE |
+| F22 | A non-2xx response raises an error naming the endpoint, the status, and up to 500 chars of the body | `openai-provider.ts:118-127` | 🧪 UNIT `:337` |
+| F23 | `capabilities()` reports the operator's declaration over the defaults | `config.ts:57-66`; `openai-provider.ts:131-135` | 🧪 UNIT `:369`, `:411` |
 | F24 | The declaration applies to **every** model on the endpoint | `config.ts:57-66` | 🧪 UNIT `:411` |
-| F25 | The SSE reader tolerates `\r\n`, comment lines and keep-alives, and stops at `[DONE]` | `src/lib/sse.ts:219-268` | ⚠️ PARTIAL — no `\r\n` case, no comment case |
-| F26 | A chunk that is not JSON is skipped, not fatal | `openai-provider.ts:206-213` | ❌ NONE |
-| F27 | The reader lock is released so an aborted request tears the socket down | `sse.ts:264-268` | ❌ NONE |
-| F28 | `max_tokens` is sent (not `max_completion_tokens`) | `wire/request.ts:354` | ❌ NONE → 🐞 BUG-copilot-provider-openai-03 |
-| F29 | A multi-line `data:` SSE event | `sse.ts:238-254` | ❌ NONE → 🐞 BUG-copilot-provider-openai-04 |
-| F30 | An unbounded SSE buffer | `sse.ts:232` | ❌ NONE → 🐞 BUG-copilot-provider-openai-05 |
+| F25 | The SSE reader tolerates `\r\n`, comment lines and keep-alives, and stops at `[DONE]` | `src/lib/sse.ts:6-55` | ⚠️ PARTIAL — no `\r\n` case, no comment case |
+| F26 | A chunk that is not JSON is skipped, not fatal | `openai-provider.ts:140-147` | ❌ NONE |
+| F27 | The reader lock is released so an aborted request tears the socket down | `sse.ts:51-55` | ❌ NONE |
+| F28 | `max_tokens` is sent (not `max_completion_tokens`) | `wire/request.ts:85` | ❌ NONE → 🐞 BUG-copilot-provider-openai-03 |
+| F29 | A multi-line `data:` SSE event | `sse.ts:25-41` | ❌ NONE → 🐞 BUG-copilot-provider-openai-04 |
+| F30 | An unbounded SSE buffer | `sse.ts:19` | ❌ NONE → 🐞 BUG-copilot-provider-openai-05 |
 
 ---
 
@@ -199,14 +199,14 @@ request and the persisted run record, both reachable from a terminal. See §4A.
 | 1 | `COPILOT_OPENAI_MODELS=llama3.1,qwen2.5` and `GET /api/copilot/models` | Two `{"provider":"ollama","model":…}` entries, in that order |
 | 2 | Send with `{"provider":"ollama"}` and no model | The wire body has `"model":"llama3.1"`; the persisted turn records it |
 | 3 | Send with `{"provider":"ollama","model":"qwen2.5"}` | Both reflect `qwen2.5` |
-| 4 | Send with `{"provider":"ollama","model":"mistral"}` | An `error` frame naming what is available. **No HTTP request is made** — `resolveModel` runs before `fetch` (`openai-provider.ts:122-125`) |
+| 4 | Send with `{"provider":"ollama","model":"mistral"}` | An `error` frame naming what is available. **No HTTP request is made** — `resolveModel` runs before `fetch` (`openai-provider.ts:56-59`) |
 
 ### F5–F10 — streaming and tool assembly
 
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | `curl -N` a run against a slow local model | `event: text-delta` frames arrive spread over time, not in one burst |
-| 2 | Ask something requiring a tool | The frame order is: all `text-delta`s for the turn, **then** `tool-call`, then `tool-result`, then the next turn's text. Tool calls are emitted only after the stream ends (`openai-provider.ts:168`) — the same ordering as the anthropic adapter, and see 🐞 BUG-copilot-provider-anthropic-05 |
+| 2 | Ask something requiring a tool | The frame order is: all `text-delta`s for the turn, **then** `tool-call`, then `tool-result`, then the next turn's text. Tool calls are emitted only after the stream ends (`openai-provider.ts:102`) — the same ordering as the anthropic adapter, and see 🐞 BUG-copilot-provider-anthropic-05 |
 | 3 | Expand the tool step | `input` is a parsed object |
 | 4 | Force two parallel calls (a model that supports them) | Both steps appear, in `index` order |
 | 5 | Stub a response whose `arguments` fragments never form valid JSON | The step still appears with `input: {}`, then fails schema validation with `Invalid arguments: …` — a recoverable tool error, not a dead stream |
@@ -236,7 +236,7 @@ Watch the wire for every step.
 | 4 | After a tool round trip | The assistant message carries `tool_calls` and `content: ""`; then one `{role:'tool', tool_call_id, content}` message **per result** |
 | 5 | A turn where the profile offers no tools | The `tools` key is **absent**, not `[]` |
 | 6 | Add `headers: { 'x-org': 'acme' }` to the config | The header is present |
-| 7 | Add `headers: { authorization: 'Bearer other' }` **and** an `apiKey` | The spread order (`wire/request.ts:366-370`) means `config.headers` **wins** — the `apiKey` is silently overridden. Deliberate ("letting `config.headers` override the rest") and worth pinning |
+| 7 | Add `headers: { authorization: 'Bearer other' }` **and** an `apiKey` | The spread order (`wire/request.ts:97-101`) means `config.headers` **wins** — the `apiKey` is silently overridden. Deliberate ("letting `config.headers` override the rest") and worth pinning |
 | 8 | Set an Azure-shaped config: `headers: { 'api-key': '…' }`, no `apiKey` | No `authorization` header is sent |
 
 ### F19–F22 — timeouts, aborts and failures
@@ -269,8 +269,8 @@ Drive all of these with the local stub.
 | 2 | A comment line `: keep-alive` | Skipped |
 | 3 | `data: [DONE]` | The generator returns; anything after is ignored |
 | 4 | A chunk boundary splitting a `data:` line mid-JSON | Buffered and joined on the next read |
-| 5 | A `data:` line whose payload is not JSON | Skipped by `parseChunk` (`openai-provider.ts:206-213`); the stream continues |
-| 6 | A stream that ends **without** `[DONE]` | The tail is flushed (`sse.ts:257-263`) and the loop ends normally with `stopReason` from the last `finish_reason` |
+| 5 | A `data:` line whose payload is not JSON | Skipped by `parseChunk` (`openai-provider.ts:140-147`); the stream continues |
+| 6 | A stream that ends **without** `[DONE]` | The tail is flushed (`sse.ts:44-50`) and the loop ends normally with `stopReason` from the last `finish_reason` |
 | 7 | A **multi-line** `data:` event (SSE-legal): `data: {"choices":\ndata: [{"delta":…}]}` | **Observed:** each line is treated as its own event; both fail `JSON.parse` and are dropped silently → 🐞 BUG-copilot-provider-openai-04 |
 | 8 | A stream that emits 50 MB with no `\n` | **Observed:** `buffer` grows unbounded for the whole 120 s budget → 🐞 BUG-copilot-provider-openai-05 |
 
@@ -288,14 +288,14 @@ Drive all of these with the local stub.
   No chunks → `stopReason:'end'`, zero usage, no text. The engine returns
   `'end'` with nothing persisted.
 - **EC-04 — `choices: []` in a chunk.** `❌ NONE`
-  `chunk.choices?.[0]` is undefined → `continue` (`openai-provider.ts:155-158`).
+  `chunk.choices?.[0]` is undefined → `continue` (`openai-provider.ts:89-92`).
   Correct: the usage-only trailing chunk has exactly this shape.
 - **EC-05 — `delta.content: ""`.** `❌ NONE` Falsy, so no `text-delta` is
   emitted. Right — an empty delta is noise.
 - **EC-06 — `delta.content: null`.** `❌ NONE` Same; the type allows it
-  (`wire/types.ts:511`).
+  (`wire/types.ts:34`).
 - **EC-07 — A response with `body: null`.** `❌ NONE`
-  `!response.ok || !response.body` → `requestError` (`openai-provider.ts:137-139`),
+  `!response.ok || !response.body` → `requestError` (`openai-provider.ts:71-73`),
   whose own `response.body ? await response.text() : ''` guard then yields no
   detail. Consistent.
 
@@ -303,7 +303,7 @@ Drive all of these with the local stub.
 
 - **EC-08 — `timeoutMs: 0`.** `❌ NONE` `AbortSignal.timeout(0)` fires
   immediately — every request times out. `?? DEFAULT_TIMEOUT_MS` does not catch
-  `0` because `0` is not nullish (`openai-provider.ts:115`).
+  `0` because `0` is not nullish (`openai-provider.ts:49`).
 - **EC-09 — `timeoutMs` shorter than the model's first token.** `❌ NONE`
   The documented failure: the message names the endpoint and the budget, "because
   that is a misconfiguration the operator needs to see" (AGENTS.md). It also
@@ -326,7 +326,7 @@ Drive all of these with the local stub.
   `JSON.stringify(toRequestBody(...))` serialises the whole conversation per
   turn. See `docs/testing/copilot-domain.md` 🐞 BUG-copilot-domain-02.
 - **EC-15 — A multi-byte character split across two `read()` chunks.**
-  `❌ NONE` `decoder.decode(value, { stream: true })` (`sse.ts:232`) handles it
+  `❌ NONE` `decoder.decode(value, { stream: true })` (`sse.ts:19`) handles it
   correctly — the `stream: true` flag is load-bearing and easy to drop.
 - **EC-16 — Emoji / RTL in a delta.** `❌ NONE` Passed through.
 - **EC-17 — A `data:` payload of 5 MB.** `❌ NONE` Buffered whole, then
@@ -339,7 +339,7 @@ Drive all of these with the local stub.
 - **EC-19 — `max_tokens` vs `max_completion_tokens`.** `❌ NONE`
   → 🐞 BUG-copilot-provider-openai-03.
 - **EC-20 — An assistant message with `content: ""` **and** `tool_calls`.**
-  `❌ NONE` `wire/request.ts:318-323` always sets `content: text.join('\n')`,
+  `❌ NONE` `wire/request.ts:49-54` always sets `content: text.join('\n')`,
   which is `''` when the turn was tool-calls-only. Some servers reject an empty
   string where `null` is expected. → 🐞 BUG-copilot-provider-openai-08
   (**Unverified**).
@@ -360,7 +360,7 @@ Drive all of these with the local stub.
   Correct.
 - **EC-26 — A server that sends `finish_reason` on a chunk **before** the last.**
   `❌ NONE` `stopReason` is overwritten by each non-null `finish_reason`
-  (`openai-provider.ts:163-165`), so the last wins. Reasonable.
+  (`openai-provider.ts:97-99`), so the last wins. Reasonable.
 
 ### Permission matrix
 
@@ -392,7 +392,7 @@ The adapter is permission-agnostic; what varies by role is the request body's
 
 - **EC-30 — Two runs at once on one provider instance.** `❌ NONE`
   The closure holds only `endpoint`, `timeoutMs` and `models` — all immutable.
-  The accumulator is created **per stream** (`openai-provider.ts:141`), which is
+  The accumulator is created **per stream** (`openai-provider.ts:75`), which is
   the important part. Safe.
 - **EC-31 — Two runs sharing a keep-alive socket.** `❌ NONE`
   `fetch` handles it. Each has its own `ReadableStream` and reader.
@@ -414,7 +414,7 @@ The adapter is permission-agnostic; what varies by role is the request body's
   No retry logic at all (unlike the anthropic adapter, which inherits the SDK's).
   → 🐞 BUG-copilot-provider-openai-06.
 - **EC-36 — `AbortSignal.any` on a Node without it.** `❌ NONE`
-  Node < 20 throws a `TypeError` at `openai-provider.ts:127`, which
+  Node < 20 throws a `TypeError` at `openai-provider.ts:61`, which
   `isAbortError` classifies as not-an-abort and re-throws — an obscure failure.
   The repo targets Node 22 (per `sse-stream.ts:88`), so this is theoretical.
 
@@ -422,7 +422,7 @@ The adapter is permission-agnostic; what varies by role is the request body's
 
 - **EC-37 — The same request twice.** Non-deterministic by nature.
 - **EC-38 — `models` mutated after construction.** `❌ NONE`
-  Snapshotted with `[...config.models]` (`openai-provider.ts:116`). Safe.
+  Snapshotted with `[...config.models]` (`openai-provider.ts:50`). Safe.
 - **EC-39 — `config.capabilities` mutated after construction.** `❌ NONE`
   **Not** snapshotted — `resolveCapabilities(config, model)` reads
   `config.capabilities` at call time (`config.ts:57-66`), so a mutation *does*
@@ -445,11 +445,11 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
 - ♿ **A11Y-copilot-provider-openai-01 — Stream events carry the structure a
   client needs to announce progress.** WCAG **4.1.3 Status Messages (AA)** ·
   508 **502.3** · Verdict: **Supports**
-  `src/lib/openai-provider.ts:145-169` normalises three wire shapes into the
+  `src/lib/openai-provider.ts:79-103` normalises three wire shapes into the
   port's three event kinds, keeping `text-delta` separate from `tool-call` and
   from the single terminal `done`. A client can therefore route token noise away
   from an announcement channel. The accumulator guarantees a tool call reaches
-  the consumer **whole** (`wire/tool-call-accumulator.ts:469-486`), so an
+  the consumer **whole** (`wire/tool-call-accumulator.ts:59-76`), so an
   announcement like "Searching content" is never made against half a call.
   Note the ordering property recorded in §3 F5–F10: tool calls arrive only at
   end-of-stream, so a client announcing steps chronologically will place them
@@ -460,7 +460,7 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
   internal URL plus an upstream payload, not a sentence.** WCAG **3.3.1 Error
   Identification (A)** and **3.3.3 Error Suggestion (AA)** · 508 **E205.4** ·
   Verdict: **Does Not Support**
-  `openai-provider.ts:184-193` builds
+  `openai-provider.ts:118-127` builds
   `Copilot model request to <endpoint> failed: <status> <statusText> — <500 chars of body>`
   and `:175-179` builds
   `Copilot model request to <endpoint> timed out after <n>ms.` Both are thrown
@@ -557,7 +557,7 @@ streaming or error-announcement behaviour.
 
 ### 🐞 BUG-copilot-provider-openai-01 — The internal endpoint URL and up to 500 characters of the upstream response body are sent to the browser as a user-facing error · Severity: Medium · 🔒 SECURITY
 
-**Location:** `packages/copilot/provider-openai/src/lib/openai-provider.ts:175-193`,
+**Location:** `packages/copilot/provider-openai/src/lib/openai-provider.ts:109-127`,
 surfacing through `packages/copilot/server/src/lib/chat/application/run-engine.service.ts:1149-1154`
 **Category:** information-disclosure
 
@@ -622,7 +622,7 @@ sentence and log the endpoint and body server-side — and, defensively, make
 ### 🐞 BUG-copilot-provider-openai-02 — An operator-supplied `baseUrl` is fetched server-side with no restriction, and the response body is echoed to the caller · Severity: Medium · 🔒 SECURITY
 
 **Location:** `packages/copilot/provider-openai/src/lib/config.ts:52-54` and
-`src/lib/openai-provider.ts:114`, `:130-135`, `:184-193`
+`src/lib/openai-provider.ts:48`, `:130-135`, `:184-193`
 **Category:** SSRF (operator-scoped)
 
 **What the code does:**
@@ -678,7 +678,7 @@ boot rather than at first failure. Do NOT implement.
 
 ### 🐞 BUG-copilot-provider-openai-03 — Unverified — `max_tokens` is sent where current OpenAI models require `max_completion_tokens` · Severity: Medium
 
-**Location:** `packages/copilot/provider-openai/src/lib/wire/request.ts:343-360`
+**Location:** `packages/copilot/provider-openai/src/lib/wire/request.ts:74-91`
 
 **Unverified —** I cannot exercise `api.openai.com` from this repository, and
 nothing here records which OpenAI models the adapter is expected to work
@@ -729,7 +729,7 @@ implement.
 
 ### 🐞 BUG-copilot-provider-openai-04 — The SSE reader ignores event boundaries, so a legal multi-line `data:` event is silently dropped · Severity: Medium
 
-**Location:** `packages/copilot/provider-openai/src/lib/sse.ts:234-254`
+**Location:** `packages/copilot/provider-openai/src/lib/sse.ts:21-41`
 **Category:** correctness
 
 **What the code does:**
@@ -759,7 +759,7 @@ exactly one `data:` line per event" — an empirical claim about a set of server
 (Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, OpenRouter, Azure, OpenAI) that
 this adapter exists precisely to *not* hard-code assumptions about. When it does
 not hold, each line fails `JSON.parse` in `parseChunk`
-(`openai-provider.ts:206-213`), which returns `undefined`, and the loop
+(`openai-provider.ts:140-147`), which returns `undefined`, and the loop
 `continue`s — so the chunk is **silently dropped**. A stream of such events
 produces an empty answer with `stopReason: 'end'` and no error anywhere: the
 worst available failure shape, because it is indistinguishable from a model that
@@ -793,7 +793,7 @@ same shape the admin's own `streamRun` already uses
 
 ### 🐞 BUG-copilot-provider-openai-05 — The SSE buffer is unbounded, so a server that streams without newlines grows it for the whole timeout window · Severity: Low
 
-**Location:** `packages/copilot/provider-openai/src/lib/sse.ts:226-256`
+**Location:** `packages/copilot/provider-openai/src/lib/sse.ts:13-43`
 **Category:** perf / availability
 
 **What the code does:**
@@ -838,7 +838,7 @@ exceeded. Do NOT implement.
 
 ### 🐞 BUG-copilot-provider-openai-06 — No retry on a transient failure, diverging from the anthropic adapter · Severity: Low
 
-**Location:** `packages/copilot/provider-openai/src/lib/openai-provider.ts:129-181`
+**Location:** `packages/copilot/provider-openai/src/lib/openai-provider.ts:63-115`
 **Category:** correctness (cross-adapter divergence)
 
 **What the code does:** one `fetch`, no retry, no backoff. A 429, a 502 from a
@@ -882,7 +882,7 @@ vs `src/index.ts:1-2` and `src/lib/config.ts:6-38`
 
 **What the code has:** `createOpenAiProvider`, and `models: readonly string[]`
 (plural), not `model`. The example inside the source is stale in the same way —
-`openai-provider.ts:104-108` shows `model: 'llama3.1'` in a `@example` block
+`openai-provider.ts:36-43` shows `model: 'llama3.1'` in a `@example` block
 whose type would not compile.
 
 **Why it is wrong:** AGENTS.md is the canonical context file for agents and the
@@ -900,13 +900,13 @@ that the export list did not follow.
 **Blast radius:** an operator adding a second backend. Low.
 
 **Suggested fix:** update AGENTS.md's export name and config shape, and the
-`@example` at `openai-provider.ts:104-108`. Do NOT implement.
+`@example` at `openai-provider.ts:36-43`. Do NOT implement.
 
 ---
 
 ### 🐞 BUG-copilot-provider-openai-08 — Unverified — an assistant message carrying `tool_calls` is sent with `content: ""`, which some endpoints reject · Severity: Low
 
-**Location:** `packages/copilot/provider-openai/src/lib/wire/request.ts:318-323`
+**Location:** `packages/copilot/provider-openai/src/lib/wire/request.ts:49-54`
 
 **Unverified —** I cannot exercise the various endpoints, and nothing in the
 repo records which of them accept an empty-string `content` alongside
@@ -923,7 +923,7 @@ if (text.length > 0 || toolCalls.length > 0) {
 
 When a turn was tool-calls-only, `text` is empty and `content` is `''`. The
 `ChatMessage` type declares `content: string` as required
-(`wire/types.ts:490-499`), so `null` cannot be expressed.
+(`wire/types.ts:13-22`), so `null` cannot be expressed.
 
 **Why it might be wrong:** the OpenAI schema types an assistant message's
 `content` as nullable, and a tool-calls-only turn conventionally carries
@@ -956,26 +956,26 @@ endpoint fails on the second turn.
 - **Is the abort path correct?** Yes — `isAbortError(error, signal)` checks the
   caller's signal first, so a caller abort wins over a timeout that fired in the
   same tick, and a timeout is distinguished by `timeout.aborted`
-  (`openai-provider.ts:170-179`). Pinned at `:347`.
+  (`openai-provider.ts:104-113`). Pinned at `:347`.
 - **Does a cancelled call invent usage?** No — `abortedEvent()` reports zero,
   matching the port and the anthropic adapter. (The **fake** does not — see
   `docs/testing/copilot-domain.md` 🐞 BUG-copilot-domain-06.)
 - **Is a tool call ever emitted as fragments?** No —
   `toolCalls.drain()` runs only after the read loop ends
-  (`openai-provider.ts:166-168`), and the accumulator is per-stream (`:141`).
+  (`openai-provider.ts:100-102`), and the accumulator is per-stream (`:141`).
   Six unit cases pin it.
 - **Does malformed argument JSON kill the run?** No — `parseArgs` returns `{}`
-  (`tool-call-accumulator.ts:435-444`), the engine's `validateToolInput` then
+  (`tool-call-accumulator.ts:25-34`), the engine's `validateToolInput` then
   fails it as a recoverable tool error. A deliberate, tested chain.
 - **Is a multi-byte character split across chunks handled?**
-  Yes — `decoder.decode(value, { stream: true })` (`sse.ts:232`).
+  Yes — `decoder.decode(value, { stream: true })` (`sse.ts:19`).
 - **Is the reader lock released on abort?** Yes — the `finally` at
-  `sse.ts:264-268`, with the reason in a comment.
+  `sse.ts:51-55`, with the reason in a comment.
 - **Does `models()` return a live reference to the host's array?** No —
-  `[...config.models]` (`openai-provider.ts:116`). (`config.capabilities` **is**
+  `[...config.models]` (`openai-provider.ts:50`). (`config.capabilities` **is**
   read live — EC-39, harmless.)
 - **Is `resolveModel` called before any network I/O?** Yes
-  (`openai-provider.ts:122-125`), and `:402`'s test name asserts it.
+  (`openai-provider.ts:56-59`), and `:402`'s test name asserts it.
 
 ---
 
@@ -999,4 +999,4 @@ local HTTP stub standing in for the endpoint.
 | 10 | unit | `openai-provider.spec.ts` — new case | A 200 response that is **not** an event stream produces an explicit failure rather than a silent empty answer | EC-33 |
 | 11 | unit | `openai-provider.spec.ts` — new case | `cachedInputTokens` is read from `prompt_tokens_details.cached_tokens` and omitted when absent — the same negative-shape assertion the anthropic spec has at `:148` | F13 ❌ |
 | 12 | unit | `openai-provider.spec.ts` — new case | `timeoutMs: 0` behaves sensibly (or is rejected), rather than aborting every request | EC-08 |
-| 13 | doc | `packages/copilot/provider-openai/AGENTS.md` + `openai-provider.ts:104-108` | The export name and the plural `models` shape match the code | 🐞 BUG-copilot-provider-openai-07 |
+| 13 | doc | `packages/copilot/provider-openai/AGENTS.md` + `openai-provider.ts:36-43` | The export name and the plural `models` shape match the code | 🐞 BUG-copilot-provider-openai-07 |

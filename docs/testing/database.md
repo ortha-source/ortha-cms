@@ -357,6 +357,34 @@ builder and `db.transaction` are both drizzle APIs the dispatcher depends on),
   `apps/server-e2e/src/server/activity/activity.spec.ts` (one audit row per action), never
   by forcing a duplicate delivery.
 
+### 4A. Accessibility & Section 508 Conformance
+
+`@ortha-cms/database` renders nothing, serves no route and owns exactly **one** table —
+`outbox_events` (`packages/database/src/lib/schema/outbox-events.ts:22`). Every WCAG 2.1 AA
+success criterion describes perceivable, operable content; none of them reach a connection
+pool, an `AsyncLocalStorage` and an event queue. All of 1.x–4.x, plus 502.2/502.3, 503.2 and
+503.4, are therefore **Not Applicable**, and padding them out one by one would be noise.
+
+The one provision that *could* have bitten this unit is **504 (Authoring Tools)**, because a
+508 audit of a CMS asks whether the data layer can carry accessibility information at all.
+The answer here is that this package is the wrong layer to ask:
+
+| 508 question | Verdict | Justification |
+| --- | --- | --- |
+| 504.2 — can the layer represent conformant content (headings, lists, `<th>`)? | **Not Applicable** | It stores no content. `DatabasePluginConfig` is one field (`src/lib/types/index.ts:15-18`) and the sole owned table holds event envelopes. Content shape is `content-server`'s. |
+| 504.2.1 — is accessibility information preserved across save/reload/copy? | **Not Applicable (pass-through)** | The outbox payload is `jsonb` (`outbox-events.ts:34`) and `DomainEvent.payload` is `Record<string, unknown>` (`src/lib/events/domain-event.ts:20`) — opaque and lossless for anything a producer puts in it. It neither adds nor strips alt text, captions or language markers. Note the JSON round-trip caveat already filed in §4 (a `Date`/`Map`/`BigInt` in a payload does not survive), which would equally mangle a structured accessibility field if a future producer put one there. |
+| Can the layer carry **alt text**? | **Not Applicable here — assessed elsewhere** | `alt` lives on the media asset row (`packages/media/server/src/lib/infrastructure/schema/media-asset.ts:62`); its per-occurrence and per-locale limits are filed as `docs/testing/app-server.md` `♿ A11Y-app-server-01`. |
+| Can the layer carry a **table caption**? | **Not Applicable here** | No content table is defined by this package; the question belongs to `content-server` and the richtext document format (`docs/testing/wysiwyg-admin.md`). |
+| Can the layer carry a **language marker**? | **Not Applicable here — and satisfied upstream** | The non-null `locale` column that gives every i18n entry an explicit language is emitted by `packages/content/server/src/lib/collection/table-builder.ts:204`, not here. |
+| 504.3 — does the tool prompt for accessibility information? | **Not Applicable** | No authoring UI. |
+| 504.4 — do shipped templates default to conformant output? | **Not Applicable** | Ships no template. |
+
+**No accessibility findings.** Specifically checked and cleared: the package defines no
+user-facing string, no colour, no markup and no content column; nothing it stores is
+lossy for accessibility metadata beyond the already-recorded JSON round-trip limitation.
+
+**♿ tally:** `0 findings — 0 Supports · 0 Partially Supports · 0 Does Not Support · 9 Not Applicable`
+
 ## 5. E2E Coverage Map
 
 There is **no spec that names the outbox, `UnitOfWork`, `OutboxWriter` or `OutboxDispatcher`
@@ -436,7 +464,7 @@ logging and repeated side effects on every partially-successful subscriber set.
 introduce a terminal state (or an exponential `nextAttemptAt`) so poison rows leave the
 working set instead of monopolising it.
 
-### 🐞 BUG-database-02 — `UnitOfWork.current()` silently falls back to the base connection, so an outbox append outside `run` loses its atomicity guarantee with no error · Severity: High
+### 🐞 BUG-database-02 — `UnitOfWork.current()` silently falls back to the base connection, so an outbox append outside `run` loses its atomicity guarantee with no error · Severity: Medium
 
 **Location:** `packages/database/src/lib/uow/unit-of-work.ts:65-72` and `packages/database/src/lib/outbox/outbox-writer.ts:21-40`
 **Category:** correctness (data integrity)
@@ -480,7 +508,10 @@ happened. → Expected: either the insert joins a transaction, or `append` throw
 
 **Blast radius:** any future use case or any refactor that moves an `append` out of its
 `run`. Because the failure is silent, it is found only when someone notices the audit log
-disagrees with reality.
+disagrees with reality. **Severity is Medium, not High, because no caller violates the rule
+today** — every one of the 20 `outbox.append(...)` call sites in `identity`, `users`,
+`workspaces`, `media` and `content` sits inside a `uow.run` in the same file (verified by
+grep). This is a latent API footgun, not a live data-integrity failure.
 **Suggested fix:** add a strict accessor — e.g. `UnitOfWork.requireCurrent()` that throws
 when `als.getStore()` is empty — and have `OutboxWriter.append` use it, keeping the lenient
 `current()` for read repositories where auto-commit is legitimate.
@@ -619,6 +650,9 @@ it cannot hold the process open (`:124`); `OutboxWriter.append`'s empty-array sh
 is correct; and the `outbox_events` schema's use of the event id as both PK and idempotency
 key is sound, with `AuditEventSubscriber`'s `onConflictDoNothing` correctly closing the
 at-least-once loop.
+
+**Tally:** `5 🐞 — 0 Critical · 1 High · 3 Medium · 1 Low (0 🔒)` ·
+`♿ 0 findings — 0 Supports · 0 Partially Supports · 0 Does Not Support · 9 Not Applicable`
 
 ## 7. Recommended E2E Tests
 

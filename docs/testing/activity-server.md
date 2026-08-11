@@ -422,6 +422,110 @@ this API). Allow ≤ 5 s after any mutation for the outbox to drain.
   distinct rows. Correct.
 - **EC-40 — Replay a read.** Pure; no side effects.
 
+### 4A. Accessibility & Section 508 Conformance
+
+**Scope.** This unit renders no UI — it is a NestJS plugin with one read route
+(`GET /api/activity`) and one outbox subscriber that writes `activity_events` rows. Under
+Revised Section 508 (36 CFR Part 1194) its output is not electronic content a user
+perceives directly, so the perceivable/operable criteria belong to `activity-admin`. Two
+things genuinely apply and are assessed below: whether the **error payloads** on the read
+route are usable by a client, and — the substantive one — whether the **audit row this
+plugin writes carries enough to be rendered accessibly at all**, which is a 508 §504.2
+data-model question and cannot be fixed downstream.
+
+**Not Applicable, with justification (one line each):** 1.1.1, 1.3.x, 1.4.x, 2.1.x, 2.4.x,
+3.2.x, 3.3.2, 4.1.2 (directly), 4.1.3, 502.2/502.3, 503.2, 503.4, 504.3 — each requires a
+rendered interface, a focusable control, or an accessibility tree, none of which exist
+here. **2.2.1 Timing Adjustable** is Not Applicable: the 5 s `POLL_INTERVAL_MS`
+(`packages/database/src/lib/outbox/outbox-dispatcher.ts:22`) is a background drain
+interval, not a time limit imposed on a user's interaction.
+
+**Inherited, not restated:** the global `ValidationPipe`'s prose-only, field-unassociated
+400 body applies verbatim to `ListActivityQueryDto`
+(`packages/activity/server/src/lib/activity/dto/list-activity-query.dto.ts:32`) — filed
+once as `♿ A11Y-identity-server-01`. Note the route is read-only and admin-gated
+(`list-activity.controller.ts:16-18`), so its 400s are reached by a malformed URL rather
+than by a user filling in a form; the 3.3.1 stake is correspondingly lower than on the
+write routes.
+
+---
+
+#### ♿ A11Y-activity-server-01 — An audit row's subject can be an empty string, producing a row with no accessible name that no client can repair
+
+**SC:** 4.1.2 Name, Role, Value (A) — via the consuming client; 1.3.1 Info and
+Relationships (A)
+**508:** **504.2 (Authoring Tools — accessibility information preserved)**
+**Verdict:** **Does Not Support**
+**Location:** `packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:97-109`
+(`membershipSubject`), schema at
+`packages/activity/server/src/lib/schema/activity-events.ts:26`
+(`subjectId: text('subject_id').notNull()`)
+
+This is the accessibility face of `🐞 BUG-activity-server-05`, filed here rather than
+duplicated because the consequence is different in kind. `membershipSubject` writes
+`subjectId: nullableString(payload.userId) ?? ''`, and `subject_id` is `text NOT NULL`, so
+`''` inserts cleanly.
+
+**Why it is a 508 finding and not just a data bug:** `subject_id` is the *only* identifier
+the audit row carries for the entity it is about — there is no FK, no denormalised name,
+and `actor_email` is the actor's, not the subject's. The admin's Subject cell derives its
+entire accessible text from it. With `''` the cell renders `user ·` followed by nothing, so
+a screen-reader user hears the row type and then silence, with no way to tell *who* the
+entry is about. Unlike a missing `aria-label`, this cannot be fixed in `activity-admin`:
+the information was never written.
+
+**Repro:** append an outbox event `{ kind: 'workspace.member_added', aggregateId: '<ws>',
+payload: { email: 'x@y.z' } }` with no `userId`, wait for the drain, then load `/activity`
+with a screen reader and try to identify the row's subject.
+
+**Remediation:** as in BUG-05 — refuse the mapping rather than substituting `''`, so the
+event is retried or parked and the gap is loud. Additionally consider a `subject_label`
+column so a row remains renderable (and announceable) after its subject is deleted, which
+the package explicitly wants ("the audit genuinely outlives its subjects").
+
+---
+
+#### ♿ A11Y-activity-server-02 — Audit `meta` carries free text in an unknown language with no language marker
+
+**SC:** 3.1.2 Language of Parts (AA)
+**508:** E205.4 · 504.2
+**Verdict:** **Partially Supports**
+**Location:** `packages/activity/server/src/lib/schema/activity-events.ts:20-32`
+(`meta: jsonb('meta')`, no locale column), populated by the mappers at
+`audit-event-mapping.ts:143-206`
+
+Audit rows embed user-authored strings — workspace `name`, member `name`, invitee `email`,
+content-type `slug` — inside `meta`, and the row records no language for any of them. The
+audit log is deployment-wide, so in a multilingual workspace a single page mixes a
+Japanese workspace name, an Arabic member name and an English event label with nothing to
+distinguish them.
+
+**Consequence:** a client cannot emit `<span lang="…">` around the interpolated fragments,
+so a screen reader pronounces every value with the page's language voice. It is Partially
+rather than Does Not Support because the surrounding event label *is* localisable by the
+client (the `kind` is a stable machine key), and mispronunciation is a degradation rather
+than a total barrier.
+
+**Note:** this is a general property of the repo's content model rather than a defect
+unique to this plugin — `activity_events` faithfully records what it was given. It is
+recorded here because the audit log is the one surface that aggregates strings from every
+context in the product, so it is where the absence bites hardest.
+
+**Remediation:** none urgent. If per-workspace or per-user locales are ever introduced (see
+`♿ A11Y-identity-server-03`), carry the source locale alongside each free-text `meta`
+value so a client can mark it up.
+
+---
+
+**a11y verdict tally: 2 findings · 0 Supports · 1 Partially Supports · 1 Does Not Support ·
+the remaining WCAG 2.1 AA criteria Not Applicable (server unit, no rendered UI), enumerated
+above.**
+**a11y coverage: `❌ NONE`.** `apps/server-e2e/src/server/activity/*` asserts rows, filters
+and status codes; nothing asserts that a written row is renderable, and axe has nothing to
+scan on a JSON endpoint.
+**WCAG 2.2 (advisory only — 508 references 2.0):** 2.4.11 and 2.5.8 are Not Applicable (no
+UI).
+
 ## 5. E2E Coverage Map
 
 | Feature | Spec | Asserts | Verdict |
@@ -655,7 +759,7 @@ in the insights/health surface. Do NOT implement.
 
 ### 🐞 BUG-activity-server-05 — A membership event with no `userId` writes an audit row with an empty-string subject instead of failing · Severity: Low
 
-**Location:** `packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:100-111`
+**Location:** `packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:97-109`
 **Category:** correctness
 
 **What the code does:**
@@ -746,6 +850,10 @@ Do NOT implement.
   (`kind,at`) match the three filter shapes the API actually serves.
 - **Schema isolation.** No FK on `actor_id`, `subject_id` is `text`, `actor_email` is a
   frozen snapshot — the audit genuinely outlives its subjects.
+
+**Defect tally:** `5 🐞 · 0 Critical · 0 High · 3 Medium · 2 Low · 1 🔒`
+**Accessibility tally:** `2 ♿ · 0 Supports · 1 Partially Supports · 1 Does Not Support ·
+the rest Not Applicable (server unit, no rendered UI)`
 
 ## 7. Recommended E2E Tests
 

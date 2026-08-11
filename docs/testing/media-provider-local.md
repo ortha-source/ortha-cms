@@ -327,7 +327,7 @@ async remove(storageKey: string): Promise<void> {
 }
 ```
 `storageKey` arrives from `media_asset.storage_key` / `media_asset.variants[*].key`
-(`download-asset.query.ts:57-58`, `domain/asset.ts:435-440`). `join` normalises
+(`download-asset.query.ts:50-62, 69-79`, `domain/asset.ts:208-215`). `join` normalises
 `..` segments, so a key of `../../../../etc/passwd` resolves outside `rootDir` and
 is happily streamed or deleted.
 
@@ -413,7 +413,7 @@ with `type`, `disposition` and `length` headers already computed from the row, a
 Nest begins the response. The `ENOENT` arrives on the stream afterwards.
 
 **Why it is wrong:** the port states "Rejects if the key is gone"
-(`domain/storage-provider.ts:41`). It does not. The observable result is a `200`
+(`domain/storage-provider.ts:40-41`). It does not. The observable result is a `200`
 with a `Content-Length` the body never satisfies — a truncated response rather
 than an error the client can act on. This is exactly the state left behind by the
 orphan-row half of `🐞 BUG-media-server-04` and by any manual blob cleanup.

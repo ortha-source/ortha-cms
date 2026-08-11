@@ -293,7 +293,7 @@ package anywhere in the running system.**
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-media-provider-s3-01 — Every method throws synchronously instead of rejecting, which breaks two rollback paths that are correct against the local provider · Severity: High
+### 🐞 BUG-media-provider-s3-01 — Every method throws synchronously instead of rejecting, which breaks two rollback paths that are correct against the local provider · Severity: Medium
 
 **Location:** `packages/media/provider-s3/src/lib/s3-storage-provider.ts:33-46`
 **Category:** correctness / behavioural divergence between adapters
@@ -330,7 +330,7 @@ await Promise.all(
 );
 throw error;
 ```
-and the identical shape at `duplicate-asset.use-case.ts:424-426`. With a
+and the identical shape at `duplicate-asset.use-case.ts:132-136`. With a
 synchronously-throwing `remove`, `provider.remove(key)` raises **before**
 `.catch(...)` is evaluated, so the "best-effort, never mask the real failure"
 suppression does not run. The exception escapes the `map` callback, escapes
@@ -339,9 +339,9 @@ block — **replacing the original error with `S3NotImplementedError` and skippi
 `throw error` entirely**. The caller then sees the wrong cause, and any partially
 written blobs after the failing key are never reclaimed.
 
-`reclaim-asset-blobs.ts:448-453` gets this right by accident — it wraps the whole
+`reclaim-asset-blobs.ts:18-23` gets this right by accident — it wraps the whole
 `Promise.all` in a `try/catch` — which is exactly how a divergence like this
-survives review: two of three call sites are safe.
+survives review: one of three call sites is safe and two are not.
 
 **Repro (does not require AWS):**
 1. Register both providers with `resolve: () => 's3'` and give the stub a working
@@ -355,10 +355,14 @@ swallowed).
 3. Against `local`, the identical sequence returns `404` and cleans up — proving
 the two adapters are not substitutable.
 
-**Blast radius:** today, latent — S3 is never registered. The moment anyone
-implements `put` (the stated next step in AGENTS.md) and keeps this call style,
-every S3-backed upload rollback reports the wrong error and leaks blobs. Because
-CI runs `local` only, no test will catch it.
+**Blast radius:** today, latent — verified: `apps/server/src/plugins.ts:84` mentions
+`createS3StorageProvider` only inside a comment, so the stub is registered in no
+shipped host and `registry.get('s3')` would throw "Unknown storage provider" before
+any of this is reached. The moment anyone implements `put` (the stated next step in
+AGENTS.md) and keeps this call style, every S3-backed upload rollback reports the
+wrong error and leaks blobs. Because CI runs `local` only, no test will catch it.
+**Severity corrected from High to Medium** on that basis: there is no reachable
+exploit or data-loss path in any shipped configuration.
 
 **Suggested fix:** mark all four methods `async` so a `throw` becomes a rejection —
 a one-word change that makes the stub honest — and, independently, harden the two
@@ -498,7 +502,7 @@ appears only in the server log.
 
 ---
 
-**Tally:** 5 🐞 — 0 Critical, 1 High, 1 Medium, 3 Low. **All five are divergence
+**Tally:** 5 🐞 — 0 Critical, 0 High, 2 Medium, 3 Low. **All five are divergence
 or fail-late findings; none is about S3 itself, because no S3 code exists.**
 **♿ tally:** 2 — 0 Supports · 0 Partially Supports · 0 Does Not Support · 2 Not Applicable.
 

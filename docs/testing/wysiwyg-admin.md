@@ -73,8 +73,8 @@ form's Save/Publish, nor the unsaved-changes guard.
 | F5 | Empty state: the field's `admin.placeholder`, else a default line | `.../WysiwygFieldControl/index.tsx:108-120` | ✅ E2E |
 | F6 | `widget: 'textarea'` opts a field out entirely | `.../domain/constants` (`WYSIWYG_WIDGET`) | ✅ E2E |
 | F7 | Expanding replaces the tab strip with the editor **view**, chrome intact | `.../WysiwygFieldFullView/index.tsx:221` | ✅ E2E |
-| F8 | Two exits: **Back to fields** and **Done**; both `onBlur` the field | `.../WysiwygFieldFullView/index.tsx:238-241, 255-264` | ✅ E2E |
-| F9 | Edits write straight to the entry form via `onChange` | `.../WysiwygEditorPanel/index.tsx:425-430` | ✅ E2E |
+| F8 | Two exits: **Back to fields** and **Done**; both `onBlur` the field | `.../WysiwygFieldFullView/index.tsx:55-58, 72-81` | ✅ E2E |
+| F9 | Edits write straight to the entry form via `onChange` | `.../WysiwygEditorPanel/index.tsx:117-122` | ✅ E2E |
 | F10 | `normalizeRichText` stores an emptied editor as `''`, not `<p></p>` | `.../domain/richTextValue/index.ts:125-127` | ✅ E2E |
 | F11 | Toolbar fits one row; the budget is ~40px | `.../WysiwygToolbar/index.tsx` | ✅ E2E |
 | F12 | Bold / italic / lists / undo / redo with `aria-pressed` | `.../WysiwygToolbar/ToolbarButton/index.tsx:36-64` | ✅ E2E |
@@ -95,7 +95,7 @@ form's Save/Publish, nor the unsaved-changes guard.
 | F27 | Media alignment via `data-align` + margins, never `text-align` | `.../extensions/media/index.ts:110-120` | ✅ E2E |
 | F28 | Alt-text popover with a **decorative** checkbox and a warning chip | `.../extensions/media/MediaNodeView/AltTextPopover/index.tsx:63` | ✅ E2E |
 | F29 | Every overlay `<form>` stops its own submit | `.../AltTextPopover/index.tsx:131-140`, `LinkPopover`, `MediaUrlDialog` | ✅ E2E |
-| F30 | Read-only variant: **View {label}**, no toolbar, `role="region"`, no autofocus | `.../WysiwygEditorPanel/index.tsx:398, 413-419, 465` | ⚠️ PARTIAL |
+| F30 | Read-only variant: **View {label}**, no toolbar, `role="region"`, no autofocus | `.../WysiwygEditorPanel/index.tsx:90, 105-111, 157` | ⚠️ PARTIAL |
 | F31 | Word/character count footer, `aria-live="off"` | `.../WysiwygEditorPanel/index.tsx:433-458, 470-477` | ❌ NONE |
 | F32 | `useLiveEditorState` survives StrictMode's destroyed-editor frame | `.../presentation/hooks/useLiveEditorState/index.ts` | ❌ NONE |
 | F33 | Lazy boundary keeps TipTap out of the entry chunk | `.../presentation/wysiwygPlugin/index.tsx` | ❌ NONE |
@@ -423,7 +423,7 @@ talk over the author; and callouts serialize to a real `<aside>`.
 
 #### ♿ A11Y-wysiwyg-admin-01 — Tab is consumed inside tables and lists, and there is no documented way out of the editor
 **WCAG:** 2.1.2 No Keyboard Trap (A) · **508:** 504.2, 502.2 · **Verdict: Partially Supports**
-**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:206-249` (`StarterKit` + `TableKit`), `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygFieldFullView/index.tsx:216-219` ("There is deliberately no Escape shortcut")
+**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:31-74` (`StarterKit` + `TableKit`), `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygFieldFullView/index.tsx:33-35` ("There is deliberately no Escape shortcut")
 `TableKit` binds Tab/Shift-Tab to next/previous cell and StarterKit's list keymap
 binds Tab to sink a list item. **Unverified —** I did not read the keymaps in
 `node_modules`, so I cannot state from source whether `goToNextCell` returns
@@ -455,7 +455,7 @@ description referenced from the textbox's `aria-describedby`.
 
 #### ♿ A11Y-wysiwyg-admin-02 — The toolbar is 20 sequential tab stops between the author and the text
 **WCAG:** 2.4.3 Focus Order (A) — advisory; 2.1.1 Keyboard (A) is met · **508:** 504.2 · **Verdict: Supports (with a serious usability caveat)**
-**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygToolbar/index.tsx:49-51`
+**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygToolbar/index.tsx:86-90, 128-131` (`role="group"`, not `role="toolbar"` — every control is an ordinary tab stop, and the JSDoc says so)
 ```tsx
 <div role="group" aria-label={intl.formatMessage(messages.toolbar)}>
 ```
@@ -535,7 +535,7 @@ warning chip when a video has none.
 
 #### ♿ A11Y-wysiwyg-admin-05 — Heading levels can be skipped freely, and the editor offers H1 inside a page that already has one
 **WCAG:** 1.3.1 Info and Relationships (A), 2.4.6 Headings and Labels (AA) · **508:** 504.2 · **Verdict: Partially Supports**
-**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:193-194` (`HEADING_LEVELS = [1, 2, 3, 4]`), `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygToolbar/BlockTypeMenu/index.tsx:60-80`
+**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:19, 34` (`HEADING_LEVELS = [1, 2, 3, 4]`), `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygToolbar/BlockTypeMenu/index.tsx:60-80`
 The block-type menu offers Paragraph and H1–H4 as a flat, always-enabled list. An
 author can turn a paragraph following an `<h2>` straight into an `<h4>`, or into a
 second `<h1>` — and the expanded view itself renders the field label as an `<h2>`
@@ -577,7 +577,7 @@ row / Header column" toggle to the table submenu, and add a caption field.
 
 #### ♿ A11Y-wysiwyg-admin-07 — No mechanism to mark the language of a passage
 **WCAG:** 3.1.2 Language of Parts (AA) · **508:** E205.4 · **Verdict: Does Not Support**
-**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:206-249`
+**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:31-74`
 The extension list has no `lang` mark and the toolbar has no control for one, so a
 body containing a quotation in another language cannot declare it. `grep -rn
 "lang=" packages/wysiwyg` returns nothing. The published HTML therefore inherits
@@ -594,7 +594,7 @@ the entry's locale — which requires `i18n-admin` to expose it (see
 
 #### ♿ A11Y-wysiwyg-admin-08 — Focus placement on expand is right; focus **return** on collapse is unspecified
 **WCAG:** 2.4.3 Focus Order (A) · **508:** 502.2 · **Verdict: Unverified**
-**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.tsx:398` (`autofocus: readOnly ? false : 'end'`), `.../WysiwygFieldFullView/index.tsx:238-241` (`collapse`)
+**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.tsx:90` (`autofocus: readOnly ? false : 'end'`), `.../WysiwygFieldFullView/index.tsx:55-58` (`collapse`)
 On **expand**, focus lands in the document — correct, deliberate, and asserted
 (`wysiwyg-fields.spec.ts:672`, `toBeFocused()` on the surface). On **collapse**,
 `collapse()` calls `setExpanded(false)` and `onBlur?.()` and **does nothing about
@@ -669,7 +669,7 @@ a CMS can help an author not publish a 508 failure.
 
 ### 🐞 BUG-wysiwyg-admin-01 — A `richtext` value that is not a string renders as a blank card with no error state, and the first edit destroys it · Severity: Medium
 
-**Location:** `packages/wysiwyg/admin/src/lib/domain/richTextValue/index.ts:113-117, 130-132`; `packages/wysiwyg/admin/src/lib/infrastructure/renderRichText/index.ts:53-54`; `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygFieldControl/index.tsx:94, 108`
+**Location:** `packages/wysiwyg/admin/src/lib/domain/richTextValue/index.ts:29-33, 41-48`; `packages/wysiwyg/admin/src/lib/infrastructure/renderRichText/index.ts:53-54`; `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygFieldControl/index.tsx:94, 108`
 **Category:** data-loss / ux-state
 
 **What the code does:**
@@ -733,7 +733,7 @@ fallback silently become the new truth.
 
 ### 🐞 BUG-wysiwyg-admin-02 — Every keystroke serializes the whole document and writes it into the entry form · Severity: Medium
 
-**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.tsx:425-430`
+**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.tsx:117-122`
 **Category:** perf
 
 **What the code does:**
@@ -775,7 +775,7 @@ risk; the value is correct, just expensively computed.
 
 ### 🐞 BUG-wysiwyg-admin-03 — Undo history is destroyed on every collapse, so Undo silently stops reaching earlier edits · Severity: Low
 
-**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.tsx:389-431` (the editor is created per mount), `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygFieldControl/index.tsx:165` / `.../WysiwygFieldFullView/index.tsx:238-241` (the view mounts only while expanded)
+**Location:** `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.tsx:81-123` (the editor is created per mount), `packages/wysiwyg/admin/src/lib/presentation/components/WysiwygFieldControl/index.tsx:165` / `.../WysiwygFieldFullView/index.tsx:55-58` (the view mounts only while expanded)
 **Category:** ux-state
 
 **What the code does:** `WysiwygFieldFullView` renders `WysiwygEditorPanel` only
@@ -814,7 +814,7 @@ is not read as "nothing happened".
 
 ### 🐞 BUG-wysiwyg-admin-04 — A pasted image silently does nothing · Severity: Low
 
-**Location:** `packages/wysiwyg/admin/src/lib/domain/mediaSrc/index.ts:159-170`, `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:206-249` (no paste handler)
+**Location:** `packages/wysiwyg/admin/src/lib/infrastructure/editorExtensions/index.ts:31-74` (no `handlePaste`/`editorProps.handleDrop` anywhere in the package — grep confirms zero matches for `handlePaste`), `packages/wysiwyg/admin/src/lib/domain/mediaSrc/index.ts:27-43`
 **Category:** ux-state
 
 **What the code does:** `isSafeMediaSrc` allows `http:`/`https:` and same-origin

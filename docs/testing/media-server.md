@@ -909,17 +909,22 @@ and fail boot when the env is set to a non-number.
 
 ### 🐞 BUG-media-server-08 — `CreateFolderDto` documents a sibling-name uniqueness rule that does not exist · Severity: Low
 
-**Location:** `packages/media/server/src/lib/application/dto/create-folder.dto.ts:12`, `packages/media/server/src/lib/infrastructure/schema/media-folder.ts:99-101`
+**Location:** `packages/media/server/src/lib/application/dto/create-folder.dto.ts:12`, `packages/media/server/src/lib/infrastructure/schema/media-folder.ts:24-26`
 **Category:** correctness (documentation drift)
 
 **What the code does:** the DTO's JSDoc reads `/** Folder name, unique among its
-siblings in the workspace. */`, and the property is published in the OpenAPI
-document. The table declares only `index('media_folder_ws_parent_idx')` — an index,
-not a unique constraint — and `CreateFolderUseCase` performs no name check.
+siblings in the workspace. */`. The table declares only
+`index('media_folder_ws_parent_idx')` — an index, not a unique constraint
+(`media-folder.ts:24-26`) — and `CreateFolderUseCase` performs no name check.
 
-**Why it is wrong:** the generated API reference states a guarantee the server does
-not make, so a client written against the docs will not handle two `Brand` folders
-under one parent. The admin's folder tree renders both, indistinguishably.
+**Why it is wrong:** the source states a guarantee the server does not make, so the
+next person to read the DTO will assume a `409` path that does not exist and write
+a client that does not handle two `Brand` folders under one parent. The admin's
+folder tree renders both, indistinguishably. **Corrected scope:** the false clause
+is in the **JSDoc only** — the `@ApiProperty` on the same property carries its own
+`description` (`'Folder name. Non-empty, at most 120 characters.'`,
+`create-folder.dto.ts:18`), which is what reaches the OpenAPI document, so the
+generated API reference does **not** publish the uniqueness claim.
 
 **Repro:** `POST /api/media/folders {"name":"Brand"}` twice → two `201`s, two
 folders named `Brand` at the root.
@@ -933,15 +938,24 @@ folders named `Brand` at the root.
 
 ### 🐞 BUG-media-server-09 — A folder cascade loads every descendant asset and fires one unbounded `Promise.all` of blob deletes · Severity: Low
 
-**Location:** `packages/media/server/src/lib/application/use-cases/delete-folder.use-case.ts:119-129, 144-149`
+**Location:** `packages/media/server/src/lib/application/use-cases/delete-folder.use-case.ts:80-96, 106-110`
 **Category:** perf
 
 **What the code does:**
 ```typescript
-const assets = await this.assets.findManyByFolderIds(tree.map(e => e.id), workspaceId);
-for (const asset of assets) { asset.markDeleted(); await this.assets.delete(asset); … }
+const assets = await this.assets.findManyByFolderIds(
+    tree.map((each) => each.id),
+    workspaceId
+);
+for (const asset of assets) {
+    asset.markDeleted();
+    await this.assets.delete(asset);
+    await this.outbox.append(attachActor(asset.pullEvents(), actor));
+}
 …
-await Promise.all(assets.map((asset) => reclaimAssetBlobs(this.registry, asset)));
+await Promise.all(
+    assets.map((asset) => reclaimAssetBlobs(this.registry, asset))
+);
 ```
 Every asset in the subtree is hydrated into an `Asset` aggregate, each gets its own
 `DELETE` round-trip and its own outbox append inside one transaction, and then

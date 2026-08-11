@@ -521,7 +521,7 @@ indication that it is destructive or immediate (the destructive styling is colou
 first feedback is a success toast after the fact.
 
 The same codebase gets this right three times over: the Role tab wraps a *non*-destructive
-role change in a `ConfirmDialog` (`UserRolesPage/index.tsx:154-169`), the Sessions tab
+role change in a `ConfirmDialog` (`UserRolesPage/index.tsx:156-171`), the Sessions tab
 confirms a revoke (`UserSessionsPage/index.tsx:143-156`), and `api-tokens-admin` confirms a
 token revoke (`ApiTokensTable/index.tsx:276-296`). The two genuinely destructive member
 actions are the only ones that do not.
@@ -625,8 +625,13 @@ Consequences to verify rather than assume:
   that is seven stops before the panel content — acceptable, but it should be a deliberate,
   tested decision.
 - The active tab's state comes from `NavLink`'s `aria-current="page"` (React Router's
-  default). **Confirm the design-system `TabNavLink` does not strip it** — if it does, the
-  active tab has no programmatic state at all, which would flip this to Does Not Support.
+  default). **Verified 2026-08-11 — it survives.** `TabNavLink` renders through Radix
+  `Slot` when `asChild` is set, so it merges its props onto the `NavLink` rather than
+  replacing it, and its own class list keys the active underline off
+  `aria-[current=page]:border-foreground`
+  (`packages/design-system/src/lib/components/ui/tab-nav.tsx:41,48`). The attribute is
+  therefore both present and load-bearing for the styling, so it cannot be dropped without
+  visibly breaking the tabs. Verdict stays **Supports**.
 - The nav landmark is labelled "User detail sections" (`:40`), which is meaningful.
 
 **Repro:** open `/users/<id>/general` with a screen reader, Tab through the tab row, and
@@ -739,7 +744,7 @@ destructive token survives a `forced-colors: active` media query.
 **Location:** `packages/users/admin/src/lib/presentation/pages/UserPreferencesPage/index.tsx:135-163`,
 `ThemePreview.tsx`, `components/MembersSkeleton`
 
-Selecting a theme calls `setTheme(next)` **immediately** (`:142`), re-theming the entire
+Selecting a theme calls `setTheme(next)` **immediately** (`:143`), re-theming the entire
 application while focus is still inside the radio group. Under 3.2.2 On Input this is a
 change of *appearance*, not of *context* (no focus move, no navigation, no new content), so
 it does not fail — but it is a large, unannounced visual change triggered by an arrow key,
@@ -879,7 +884,7 @@ person out and revokes all their live sessions in the same transaction.
 
 **Why it is wrong:** the same codebase confirms three *less* consequential actions. The
 Role tab wraps a reversible role change in a `ConfirmDialog` with an escalation warning
-(`UserRolesPage/index.tsx:154-169`). The Sessions tab confirms revoking a single session
+(`UserRolesPage/index.tsx:156-171`). The Sessions tab confirms revoking a single session
 (`UserSessionsPage/index.tsx:143-156`). `api-tokens-admin` confirms revoking a token
 (`ApiTokensTable/index.tsx:276-296`). The two irreversible member actions are the only
 unconfirmed ones — the pattern is established and these are the omissions.
@@ -1018,7 +1023,7 @@ prefix no longer catches it, or narrow the invalidation to `['members','list']` 
 
 ### 🐞 BUG-users-admin-04 — Your own Role tab lets you press Apply, then fails with a generic error · Severity: Low
 
-**Location:** `packages/users/admin/src/lib/presentation/pages/UserRolesPage/index.tsx:88-90,145-151`
+**Location:** `packages/users/admin/src/lib/presentation/pages/UserRolesPage/index.tsx:86-88,147-152`
 **Category:** ux-state
 
 **What the code does:**
@@ -1081,7 +1086,7 @@ don't paper over it."*
 The consequence chain is real. `MemberRoleChip` renders `member.role`
 (`MembersTable/index.tsx:119`), so a member holding a custom role displays as **Viewer** on
 the roster. `UserRolesPage` seeds `useState<MemberRole>(member.role)`
-(`UserRolesPage/index.tsx:81`) and `RolePicker` puts the "Current" badge on that value, so
+(`UserRolesPage/index.tsx:82`) and `RolePicker` puts the "Current" badge on that value, so
 the Role tab positively asserts that a custom-role member is a Viewer. An admin acting on
 that display has been misinformed about someone's privileges.
 
@@ -1161,6 +1166,10 @@ disabled when it is `null`, rather than inventing a key. Do NOT implement.
   → `httpMemberGateway` and `preferencesGateway` only.
 - **i18n completeness.** Every user-visible string is a namespaced `users.*` descriptor,
   including every error branch and every toast. Spot-checked all 14 message blocks.
+
+**Defect tally:** `5 🐞 · 0 Critical · 1 High · 1 Medium · 3 Low · 0 🔒`
+**Accessibility tally:** `9 ♿ · 3 Supports · 4 Partially Supports · 2 Does Not Support ·
+0 Not Applicable`
 
 ## 7. Recommended E2E Tests
 

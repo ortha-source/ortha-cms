@@ -399,7 +399,7 @@ inconvenience, it is permanent, unrecoverable data loss for the affected user.
 1.3.1 Info and Relationships (A)
 **508:** E205.4 / 502.3.1 (Object Information) / 502.3.13 (Text)
 **Verdict:** **Does Not Support**
-**Location:** `packages/api-tokens/admin/src/lib/presentation/components/RevealSecretDialog/index.tsx:100-103`
+**Location:** `packages/api-tokens/admin/src/lib/presentation/components/RevealSecretDialog/index.tsx:101-103`
 
 ```tsx
 <div className="flex min-w-0 items-center gap-2">
@@ -656,15 +656,32 @@ names the workspace it targets with the X-Workspace-Id header."
 Recorded as **Supports** deliberately, because it is the counter-example to
 ♿ A11Y-api-tokens-admin-02 in the *same dialog*: the two `Select`s should simply copy it.
 
-**One verification required:** `MultiSelect` is a design-system component; confirm it
-forwards `id` to the element that actually receives the accessible name (a Radix-style
-composite may put it on a wrapper). If it does not, this flips to **Does Not Support** and
-joins A11Y-02. Also verify the selected-count state is exposed — a user must be able to
-hear how many workspaces are currently chosen, since the bucket is what the credential can
-reach.
+**Verification resolved 2026-08-11 — the label half genuinely Supports.** `MultiSelect`
+forwards `id` and `aria-describedby` straight onto the trigger, which is a real
+`<Button role="combobox" aria-expanded>` — not a wrapper
+(`packages/design-system/src/lib/components/ui/multi-select.tsx:83-92`). So `htmlFor`
+associates, the hint is described, and the trigger's own content is the selected workspace
+`Badge`s, meaning the current selection is read out as the combobox's value. This does not
+flip to Does Not Support.
 
-**Remediation:** none if `id` lands correctly; add an e2e assertion pinning the accessible
-name so a design-system refactor cannot silently break it.
+**Unverified — the *option-level* selected state inside the popover.** The check mark on a
+chosen option is a `<Check aria-hidden>` toggled by `opacity-0` / `opacity-100`
+(`multi-select.tsx:127-137`), i.e. the per-option selected state is conveyed **visually
+only**, with nothing in the repo's own code exposing it programmatically. Whether that is
+an actual 4.1.2 / 1.4.1 failure depends on what `cmdk`'s `CommandItem` emits — it renders
+`role="option"` and manages `aria-selected`, but in a command palette `aria-selected`
+conventionally tracks the *highlighted* row, not a multi-select choice, in which case it
+would actively misreport the state. `cmdk` is not installed in this checkout
+(`ls node_modules/cmdk` → nothing) and `CommandItem` is a pass-through wrapper
+(`packages/design-system/src/lib/components/ui/command.tsx:136-150`), so this could not be
+settled from source. **Test it against a real screen reader before trusting the Supports
+verdict for the popover.** Note this is a design-system question, not an `api-tokens-admin`
+one — it affects every `MultiSelect` in the repo.
+
+**Remediation:** none for the label/description wiring. If the popover check turns out to be
+visual-only, add `aria-selected` (or `aria-checked` with `role="option"`) reflecting
+membership, and add an e2e assertion pinning both the trigger's accessible name and an
+option's selected state so a design-system refactor cannot silently break either.
 
 ---
 
@@ -719,7 +736,15 @@ concentrated entirely in this package.
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-api-tokens-admin-01 — A failed clipboard write is unhandled, so the one-time secret is silently and permanently lost · Severity: High · 🔒
+### 🐞 BUG-api-tokens-admin-01 — A failed clipboard write is unhandled, so the one-time secret is silently and permanently lost · Severity: High
+
+> **Verified 2026-08-11 — defect confirmed at the cited lines; the `🔒` marker removed.**
+> `copy` at `RevealSecretDialog/index.tsx:64-71` has no `try`/`catch`, exactly as quoted.
+> `🔒` is defined in the artifact spec as an auth / authz / tenant-isolation / **data-leak**
+> concern, and this is none of those — nothing is disclosed, no boundary is crossed. It is
+> a `data-loss` defect that happens to involve a credential, which is what the Category
+> line already says. Severity stays High: the trigger is routine (any non-`localhost`
+> `http://` origin) and the loss is irreversible.
 
 **Location:** `packages/api-tokens/admin/src/lib/presentation/components/RevealSecretDialog/index.tsx:64-71`
 **Category:** data-loss
@@ -785,9 +810,15 @@ actionable copy, exactly as `InviteLinkPanel` does. Do NOT implement.
 
 ---
 
-### 🐞 BUG-api-tokens-admin-02 — The secret cannot be selected or read manually, so there is no fallback when Copy fails · Severity: High · 🔒
+### 🐞 BUG-api-tokens-admin-02 — The secret cannot be selected or read manually, so there is no fallback when Copy fails · Severity: High
 
-**Location:** `packages/api-tokens/admin/src/lib/presentation/components/RevealSecretDialog/index.tsx:100-103`
+> **Verified 2026-08-11 — defect confirmed; the `🔒` marker removed** for the same reason as
+> BUG-01 (data-loss / a11y, not auth, authz, tenant isolation or disclosure). The `<code>`
+> element and its `truncate` class are at `RevealSecretDialog/index.tsx:101-103` as
+> described. Severity stays High: for a keyboard-only or screen-reader user the credential
+> is unobtainable **unconditionally**, not just when Copy fails.
+
+**Location:** `packages/api-tokens/admin/src/lib/presentation/components/RevealSecretDialog/index.tsx:101-103`
 **Category:** data-loss / a11y
 
 **What the code does:**
@@ -836,9 +867,16 @@ need to.
 
 ---
 
-### 🐞 BUG-api-tokens-admin-03 — Nothing warns before the reveal dialog is dismissed uncopied · Severity: Medium · 🔒
+### 🐞 BUG-api-tokens-admin-03 — Nothing warns before the reveal dialog is dismissed uncopied · Severity: Medium
 
-**Location:** `packages/api-tokens/admin/src/lib/presentation/pages/ApiTokensPage/index.tsx:246-254`,
+> **Verified 2026-08-11 — defect confirmed; the `🔒` marker removed** (data-loss, not a
+> disclosure or authorization defect). The `copied` state at
+> `RevealSecretDialog/index.tsx:62` and its reset at `:78` are exactly as described, so the
+> information needed to warn really is present and discarded. The residual security-hygiene
+> angle — an orphaned live, possibly non-expiring `api_tokens` row — is real but not
+> exploitable: the plaintext reached nobody, so the row authenticates no one.
+
+**Location:** `packages/api-tokens/admin/src/lib/presentation/pages/ApiTokensPage/index.tsx:252-260`,
 `components/RevealSecretDialog/index.tsx:74-82`
 **Category:** data-loss
 
@@ -882,12 +920,13 @@ confirmation otherwise. The state is already there. Do NOT implement.
 
 ### 🐞 BUG-api-tokens-admin-04 — A failed workspace fetch renders as "No workspaces found", so a token can be minted against the wrong bucket · Severity: Medium
 
-**Location:** `packages/api-tokens/admin/src/lib/presentation/components/CreateApiTokenDialog/index.tsx:52-55,187-204`,
+**Location:** `packages/api-tokens/admin/src/lib/presentation/components/CreateApiTokenDialog/index.tsx:52-55,118,187-206`,
 `packages/api-tokens/admin/src/lib/application/useWorkspaceOptions/index.ts`
 **Category:** ux-state
 
-**What the code does:** the dialog feeds `MultiSelect` from `useWorkspaceOptions()` and
-supplies a single empty-state message:
+**What the code does:** the dialog destructures **only** `data` from the query —
+`const { data: workspaces = [] } = useWorkspaceOptions(open);` (`:118`) — feeds
+`MultiSelect` from it, and supplies a single empty-state message:
 
 ```ts
 workspaceEmpty: { defaultMessage: 'No workspaces found.' },
@@ -960,7 +999,7 @@ Do NOT implement.
 **Checked and cleared** (examined, no defect found):
 
 - **The secret is never persisted client-side.** It lives only in `ApiTokensPage`'s
-  `secret` state (`:246-254`), never in the query cache, never in `localStorage`, never in
+  `secret` state (`:252-260`), never in the query cache, never in `localStorage`, never in
   a URL. An invalidation cannot surface it and a background refetch cannot clear it. The
   mapper carries it only on the create response (`toCreatedApiToken`), and the list mapper
   has no `secret` field at all (`apiTokenMapper/index.ts:36-49`).
@@ -1002,6 +1041,13 @@ Do NOT implement.
   → `httpApiTokenGateway` only.
 - **i18n completeness.** Every user-visible string is a namespaced `apiTokens.*` descriptor,
   including all four error branches and both empty states.
+
+**Defect tally:** `5 🐞 · 0 Critical · 2 High · 2 Medium · 1 Low · 0 🔒`
+(BUG-01/02/03 carried `🔒` before verification; all three were re-classified as `data-loss`,
+which is what their Category lines already said — nothing here is an auth, authz,
+tenant-isolation or disclosure defect.)
+**Accessibility tally:** `7 ♿ · 1 Supports · 3 Partially Supports · 3 Does Not Support ·
+0 Not Applicable`
 
 ## 7. Recommended E2E Tests
 

@@ -464,6 +464,117 @@ is therefore not a distinct row — every signed-in account sees the full roster
   but an admin who double-clicks hands over a dead link. See
   `docs/testing/users-admin.md` §4A for the UI consequence.
 
+### 4A. Accessibility & Section 508 Conformance
+
+**Scope.** This unit renders no UI — it is a NestJS plugin serving JSON over
+`/api/users`. Under Revised Section 508 (36 CFR Part 1194) its output is not electronic
+content a user perceives directly, so the perceivable/operable criteria belong to
+`users-admin`, not here. Three things genuinely apply and are assessed below: whether the
+**error payloads** carry text a client can present, whether they identify the offending
+**field programmatically**, and the **504 (Authoring Tools) data-model** question — whether
+the member records this plugin writes can hold the information a conformant UI needs.
+
+**Not Applicable, with justification (one line each):** 1.1.1, 1.3.x, 1.4.x, 2.1.x, 2.2.1,
+2.4.x, 3.1.2, 3.2.x, 4.1.2, 4.1.3, 502.2/502.3, 503.2, 503.4, 504.3 — every one requires a
+rendered interface, a focusable control, a timing-bound interaction, or an accessibility
+tree, and this plugin produces none of them.
+
+**Inherited, not restated:** the global `ValidationPipe`'s prose-only, field-unassociated
+400 body applies verbatim to `InviteMemberDto` / `UpdateMemberDto` /
+`ListMembersQueryDto` — filed once as `♿ A11Y-identity-server-01`, not duplicated here.
+Likewise the absence of a per-user locale column is `♿ A11Y-identity-server-03` (identity
+owns that schema).
+
+---
+
+#### ♿ A11Y-users-server-01 — The 409 conflict messages are hard-coded English prose with no error code, so a client cannot localise or field-associate them
+
+**SC:** 3.3.1 Error Identification (A), 3.3.3 Error Suggestion (AA), 3.1.2 Language of
+Parts (AA)
+**508:** E205.4 (WCAG 2.0 A/AA by reference)
+**Verdict:** **Partially Supports**
+**Location:** `packages/users/server/src/lib/member/http/controllers/update-member.controller.ts:60,63-65`;
+same shape at `resend-invite.controller.ts:57` and `revoke-invite.controller.ts:49`
+(`new ConflictException(error.message)`)
+
+```ts
+if (error instanceof SelfActionError) {
+    throw new ConflictException('You cannot change your own role');
+}
+if (error instanceof LastAdminProtectedError) {
+    throw new ConflictException('The last remaining admin cannot be demoted');
+}
+```
+
+The domain distinguishes these precisely — `SelfActionError`, `LastAdminProtectedError`,
+`InvalidMemberStateError`, `EmailTakenError` are separate classes under
+`member/domain/errors/` — and then the HTTP layer flattens each to a `409` whose only
+distinguishing feature is an English sentence in `message`. There is no stable `code`, and
+`revoke-invite`/`resend-invite` pass `error.message` straight through, so the wire format is
+whatever the domain error's constructor happened to write.
+
+**Repro:** `PATCH /api/users/<your own id>` with `{"role":"viewer"}`; inspect the body.
+→ `{ "statusCode": 409, "message": "You cannot change your own role", "error": "Conflict" }`.
+
+**What a client can and cannot do:** to render a localised, actionable message — which is
+what 3.3.3 asks for on a blocked destructive action — a client must either string-match the
+English sentence or maintain its own parallel mapping keyed on nothing more specific than
+`409`. `users-admin` takes the second route and shows one generic error for every 409
+(see `🐞 BUG-users-admin-04`), so the far more useful "you cannot demote the last admin"
+never reaches the user in any language. A screen-reader user in a non-English locale hears
+the generic banner, or nothing specific at all.
+
+**Remediation:** add a stable machine `code` to the response body (e.g.
+`{ code: 'LAST_ADMIN_PROTECTED' }`) alongside the message, and let the client own the
+localised text. Keep the English `message` as a developer-facing fallback.
+
+---
+
+#### ♿ A11Y-users-server-02 — A member's display name may be whitespace-only, so a row can be written whose accessible name is blank
+
+**SC:** 4.1.2 Name, Role, Value (A) — via the consuming client; 3.3.2 Labels or
+Instructions (A)
+**508:** **504.2 (Authoring Tools — accessibility information preserved)**
+**Verdict:** **Partially Supports**
+**Location:** `packages/users/server/src/lib/member/application/dto/invite-member.dto.ts:48-50`,
+`packages/users/server/src/lib/member/application/dto/update-member.dto.ts:21-24`
+
+Both DTOs guard `name` with `@IsOptional() @IsString() @IsNotEmpty()`. `class-validator`'s
+`@IsNotEmpty` rejects `''` but **accepts `'   '`** — it tests emptiness, not blankness, and
+neither DTO trims or applies a `@Matches(/\S/)`. So `PATCH /api/users/:id {"name":"   "}`
+stores a name that is three spaces.
+
+**Repro:** `PATCH /api/users/<id>` with `{"name":"   "}` → `200`; then
+`GET /api/users` → the row's `name` is `"   "`.
+
+**Why this is the server's finding:** the member row is the *only* source of that person's
+human identifier. Every downstream surface — the members table's row header, the avatar's
+`alt`/initials, an `aria-label` on a row action, the audit log's actor column — derives its
+accessible name from it. A blank name therefore produces a control a screen-reader user
+hears as an unnamed button or an unlabelled row, and no amount of client-side care can
+recover a name the data model never held. This is the schema-level class of 508 §504.2
+finding the spec calls out as more valuable than a missing `aria-label`, and it cannot be
+fixed in `users-admin`.
+
+**Note:** the invite path always has an `email`, so a client *can* fall back to it — which is
+why this is Partially rather than Does Not Support. The audit-log actor column and the
+avatar initials have no such fallback.
+
+**Remediation:** trim `name` in the DTO (`@Transform(({ value }) => value?.trim())`) and add
+`@MinLength(1)` after the trim, so a whitespace-only name is a `400` rather than a stored
+blank. Cross-check `EC-18` in §4, which flags the same input as untested.
+
+---
+
+**a11y verdict tally: 2 findings · 0 Supports · 2 Partially Supports · 0 Does Not Support ·
+the remaining WCAG 2.1 AA criteria Not Applicable (server unit, no rendered UI), enumerated
+above.**
+**a11y coverage: `❌ NONE`.** `apps/server-e2e/src/server/users/*` asserts status codes and
+row state; no spec asserts the shape or content of an error body, and axe has nothing to
+scan on a JSON endpoint.
+**WCAG 2.2 (advisory only — 508 references 2.0):** 2.4.11 and 2.5.8 are Not Applicable (no
+UI).
+
 ## 5. E2E Coverage Map
 
 | Feature | Spec | Asserts | Verdict |
@@ -499,7 +610,17 @@ is therefore not a distinct row — every signed-in account sees the full roster
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-users-server-01 — Not one state-changing route in this package carries `OriginGuard`; it is the only plugin in the repo that omits it · Severity: High · 🔒
+### 🐞 BUG-users-server-01 — Not one state-changing route in this package carries `OriginGuard`; it is the only plugin in the repo that omits it · Severity: Medium · 🔒
+
+> **Verified 2026-08-11 — claim fully confirmed, severity downgraded High → Medium.**
+> `grep -rn "OriginGuard" packages/users/server --include=*.ts` returns **zero** hits, and
+> all five cited controllers carry exactly `@UseGuards(PermissionsGuard)` at the cited
+> lines. The downgrade is on exploitability, not on truth: the finding's own "What
+> currently saves it" paragraph is correct — `cookieSameSite: 'lax'`
+> (`apps/server/ortha.config.ts:121`, verified) suppresses the cookie on the cross-site
+> `POST` in the repro, so **there is no working exploit against the shipped
+> configuration**. This is a real defence-in-depth gap that becomes live on a one-line
+> config change, which is Medium, not High.
 
 **Location:** `packages/users/server/src/lib/member/http/controllers/invite-member.controller.ts:28-30`,
 `update-member.controller.ts:33-35`, `set-member-status.controller.ts:33-35`,
@@ -614,7 +735,7 @@ dependency for the guard) and swap the seven literals. Do NOT implement.
 
 ### 🐞 BUG-users-server-03 — Resending an invite is silently destructive and has no idempotency window · Severity: Medium
 
-**Location:** `packages/users/server/src/lib/member/application/use-cases/resend-invite.use-case.ts:50-53`,
+**Location:** `packages/users/server/src/lib/member/application/use-cases/resend-invite.use-case.ts:49-52`,
 `packages/users/server/src/lib/member/infrastructure/persistence/invite-token.service.ts:60-70`
 **Category:** data-loss / ux-state
 
@@ -745,6 +866,10 @@ rename. Do NOT implement.
 - **Copilot tool scoping.** `workspace_members_list` reads through a purpose-built
   `WorkspaceMembersQuery` with a workspace predicate, deliberately not through the
   deployment-wide `MemberViewQuery`, and returns no invite or session data.
+
+**Defect tally:** `4 🐞 · 0 Critical · 0 High · 2 Medium · 2 Low · 2 🔒`
+**Accessibility tally:** `2 ♿ · 0 Supports · 2 Partially Supports · 0 Does Not Support ·
+the rest Not Applicable (server unit, no rendered UI)`
 
 ## 7. Recommended E2E Tests
 

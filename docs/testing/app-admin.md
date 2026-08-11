@@ -9,7 +9,8 @@
 **Owns.** Four small things, and no domain logic:
 
 1. **The plugin registry** — `src/main.tsx:16-48`, the ordered `AdminPlugin[]` handed to
-   `createAdmin`, including the ordering comments that encode real constraints.
+   `createAdmin`, including the ordering comments (which overstate the constraint — see
+   `🐞 BUG-app-admin-02`).
 2. **The HTML entry** — `index.html`, including the pre-paint theme script
    (`:11-35`) and the static `<title>` / `<html lang>`.
 3. **The style entry** — `src/styles.css`, which imports Tailwind, the design-system token
@@ -38,7 +39,7 @@ the chrome (`packages/shell/admin`).
 
 **Runtime prerequisites**
 
-- The API on `http://localhost:3000` (the proxy target, `vite.config.mts:22`) with Postgres
+- The API on `http://localhost:3000` (the proxy target, `vite.config.mts:25`) with Postgres
   up and migrations applied — the admin has no mock mode outside `apps/admin-e2e`.
 - A user account to sign in with (`ORTHA_ROOT_ADMIN_*` on the server).
 - `localStorage['ortha.theme']` optionally set to `light`/`dark`/`system`.
@@ -79,7 +80,7 @@ npx nx e2e admin-e2e -- --project=chromium src/**/a11y.spec.ts src/**/keyboard.s
 | F13 | `@source` globs cover design-system and every `packages/*/admin` package so their classes survive tree-shaking | `src/styles.css:8-10` | ❌ NONE |
 | F14 | The `--color-*` token palette, with a `.dark` re-declaration via `@custom-variant` | `src/styles.css:12-29+` | ⚠️ PARTIAL |
 | F15 | Dev server on `:4200`, host `localhost` | `vite.config.mts:7-8` | ✅ E2E |
-| F16 | `^/api/` **regex** proxy to `:3000` with `changeOrigin` — deliberately not the bare `/api` prefix | `vite.config.mts:10-26` | ⚠️ PARTIAL |
+| F16 | `^/api/` **regex** proxy to `:3000` with `changeOrigin` — deliberately not the bare `/api` prefix | `vite.config.mts:12-28` | ⚠️ PARTIAL |
 | F17 | Production build to `./dist` with `emptyOutDir` | `vite.config.mts:41-48` | ❌ NONE |
 | F18 | Vitest config (jsdom, globals, v8 coverage) | `vite.config.mts:49-62` | ❌ NONE |
 | F19 | `admin:dev:typecheck` target — `tsc --build --watch`, because Vite never typechecks | `apps/admin/package.json` `nx.targets` | ⚠️ PARTIAL |
@@ -109,10 +110,10 @@ announced** — see `♿ A11Y-app-admin-01`.
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | Sign in, open a workspace, look at the workspace sidebar | Entries from content, media, insights and the copilot's CMS ⇄ Agents switch are all present |
-| 2 | Move `ContentPlugin()` **after** `I18nPlugin()` and reload | The locale switcher, Locales column and editor locale panel disappear — i18n contributes into slots content had not yet defined. No error is logged |
-| 3 | Move `InsightsPlugin()` after `ContentPlugin()` and open Insights | Section bands may be renamed/reordered by whichever plugin now registers last — the merge is by id with the last winning (`src/main.tsx:21-26`) |
-| 4 | Move `WorkspacesPlugin()` after `MediaPlugin()` and open a workspace | The Media entry vanishes from the workspace nav |
-| 5 | Restore the original order | Everything returns |
+| 2 | Move `ContentPlugin()` **after** `I18nPlugin()` and reload | The locale switcher, Locales column and editor locale panel are **still present** — slots are module-level singletons and `createAdmin` registers every plugin's contributions before render (`packages/bootstrap/admin/src/lib/createAdmin/index.tsx:51-55`). Only their position **within** each slot changes. The comment at `src/main.tsx:30-31` overstates the constraint — see `🐞 BUG-app-admin-02` |
+| 3 | Move `InsightsPlugin()` after `ContentPlugin()` and open Insights | Section bands may be renamed/re-iconed by whichever plugin now registers last — the merge is by id, field-by-field, last winning, keeping the first position (`packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.ts:49-72`) |
+| 4 | Move `WorkspacesPlugin()` after `MediaPlugin()` and open a workspace | The Media entry is **still present** in the workspace nav, for the same reason as step 2 |
+| 5 | Restore the original order | Everything returns to its documented position |
 
 **Keyboard path:** the workspace nav is a list of links; `Tab` moves through them in DOM
 order, which is slot order (`byOrder`, `packages/utils/admin/src/lib/byOrder/index.ts:6`).
@@ -329,7 +330,7 @@ polite route announcer.
 
 - **WCAG:** `1.4.3 Contrast (Minimum) (AA)`, `1.4.11 Non-text Contrast (AA)` · **508:** `E205.4`
 - **Verdict:** **Partially Supports**
-- **Location:** `apps/admin/src/styles.css:22-29` states that "Every text-on-surface pairing
+- **Location:** `apps/admin/src/styles.css:20-27` states that "Every text-on-surface pairing
   below was verified >= 4.5:1 (WCAG AA) — the admin-e2e axe scan enforces this", and that
   "Dark mode: the `.dark` class on `<html>` … re-declares these `--color-*` tokens with a
   dark palette below". The enforcement claim is only half true: the axe suites
@@ -337,7 +338,7 @@ polite route announcer.
   a single theme, and there is no dark-theme pass anywhere. Media, shell/home, i18n and
   wysiwyg have no axe suite in **either** theme.
 
-The file also records a real, unenforced hazard (`:25-27`): "White text on the brand orange
+The file also records a real, unenforced hazard (`:21-23`): "White text on the brand orange
 does NOT clear AA: never pair `text-*-foreground` white text with `bg-brand`". That is a
 convention held in a comment.
 **Repro:** switch to Dark and run the axe suites; then visually inspect the Media Library,
@@ -352,7 +353,7 @@ media, shell/home, i18n and wysiwyg.
 
 - **WCAG:** `2.4.7 Focus Visible (AA)` · **508:** `E205.4`
 - **Verdict:** **Does Not Support**
-- **Location:** `packages/design-system/src/lib/components/ui/sidebar.tsx:405-410`:
+- **Location:** `packages/design-system/src/lib/components/ui/sidebar.tsx:406-410`:
 
 ```tsx
 <div
@@ -362,7 +363,7 @@ media, shell/home, i18n and wysiwyg.
 >
 ```
 
-The `tabIndex={0}` is deliberate and correct — the comment at `:396-404` argues it well: "a
+The `tabIndex={0}` is deliberate and correct — the comment at `:398-405` argues it well: "a
 region that scrolls must be reachable by keyboard (WCAG 2.1.1), and a mouse user's wheel is
 not a substitute … it matters most exactly when the page has nothing else to focus". But
 `focus-visible:outline-none` then removes the only indication that this stop exists, in
@@ -439,13 +440,13 @@ add a forced-colors emulation pass to the a11y suites.
   visually-hidden-until-focused "Skip to main content" link targeting
   `<SidebarInset id="main-content" tabIndex={-1}>`, and `SidebarInset` is a real `<main>`
   element (`packages/design-system/src/lib/components/ui/sidebar.tsx:386`). The inner
-  scrollport deliberately declines a second landmark role (`sidebar.tsx:403-405`: "`<main>`
+  scrollport deliberately declines a second landmark role (`sidebar.tsx:404-405`: "`<main>`
   above already is one, and a second would just add noise"), so there is exactly one `<main>`
   — the repo's own rule ("Don't add a second `<main>`",
-  `.agents/skills/accessibility/SKILL.md:92-93`) is respected here.
+  `.agents/skills/accessibility/SKILL.md:93-94`) is respected here.
 
 Two caveats worth recording rather than defects: (1) the a11y skill is **stale** on this
-point — `SKILL.md:95-98` says "The app has no skip link yet and `AppShell`'s `<main>` has no
+point — `SKILL.md:95-99` says "The app has no skip link yet and `AppShell`'s `<main>` has no
 `id`", which the code has since fixed; (2) **nothing tests it** — a grep of
 `apps/admin-e2e/src` for `Skip to main` / `main-content` returns no hits, so the sole
 bypass-blocks mechanism has no regression guard. The unsaved-changes guard correctly leaves
@@ -529,7 +530,7 @@ server side, there is no parallel composition root.
 | **a11y — skip link, route focus, title, dark-theme contrast, reflow, forced-colors** | — | — | ❌ NONE |
 
 **Coverage tally:** `19 features · 8 ✅ · 6 ⚠️ · 5 ❌`
-**♿ tally:** `7 findings — 1 Supports · 3 Partially Supports · 2 Does Not Support · 1 Unverified` (plus 1 Not Applicable verdict for public-route bypass blocks and 1 for 503.4).
+**♿ tally:** `7 findings — 1 Supports · 2 Partially Supports · 3 Does Not Support · 1 Unverified` (plus 1 Not Applicable verdict for public-route bypass blocks and 1 for 503.4).
 
 ## 6. 🐞 Potential Bugs
 
@@ -581,10 +582,10 @@ consumer.
 `nx sync`-style lint) that every `@ortha-cms/*` import in an app or package is declared in
 its manifest.
 
-### 🐞 BUG-app-admin-02 — Plugin ordering encodes three load-bearing constraints as comments, and violating any of them fails silently · Severity: Medium
+### 🐞 BUG-app-admin-02 — Plugin order silently decides slot item order and which section override wins, and `main.tsx`'s comments describe a stronger constraint than the code actually has · Severity: Low
 
 **Location:** `apps/admin/src/main.tsx:17-47`
-**Category:** correctness
+**Category:** correctness (documentation vs. behaviour)
 
 **What the code does:** the array carries three ordering rules, each explained in a comment
 and enforced by nothing:
@@ -601,39 +602,62 @@ ContentPlugin(),
 I18nPlugin(),
 ```
 
-**Why it is wrong:** slots are **boot-frozen** (`ARCHITECTURE.md` §6: "Slots are wired once
-at boot") and `createAdmin` wires contributions in plugin order
-(`packages/bootstrap/admin/src/lib/createAdmin/index.tsx:51-55`). A contribution to a slot
-whose owner has not yet been constructed is simply lost — `_register` is an unconditional
-`push` onto an array nobody will read
-(`packages/utils/admin/src/lib/slot/index.ts:36`). So reordering two lines removes a feature
-with **no error, no warning, and no failing type**: the locale switcher, the Locales column,
-the editor locale panel and the locale filters all vanish while the app otherwise works
-perfectly. In a monorepo where `main.tsx` is described as "the file you edit most"
-(`apps/admin/AGENTS.md`), that is a trap with a high hit rate — and the failure looks like a
-bug in `i18n/admin`, not like a misordered list.
+**Why it is wrong — and, importantly, *how much* it is wrong.** Verification of the source
+does **not** support the strong reading these comments invite (that a mis-ordered plugin
+loses its contributions). Two mechanisms rule that out:
 
-The insights rule is worse in kind: it is a *last-wins* merge, so a reorder does not remove a
-feature but silently changes which plugin's section titles and order win.
+- A slot is a **module-level singleton** created at import time, not at plugin-factory time
+  (`packages/content/admin/src/lib/presentation/slots/contentSlots/index.ts:66,109,161,…`,
+  all `export const … = createSlot(…)`), and `createSlot` closes over a plain array
+  (`packages/utils/admin/src/lib/slot/index.ts:31-37`).
+- `createAdmin` registers **every** plugin's contributions in one pass *before* render
+  (`packages/bootstrap/admin/src/lib/createAdmin/index.tsx:51-55`), and consumers read
+  `getItems()` during render. So `I18nPlugin()` placed *before* `ContentPlugin()` still
+  pushes into the same array the Content Library reads — the locale switcher, Locales column,
+  entry sidebar widget and locale filters all still appear.
+
+What order **does** decide is real but narrower:
+
+1. **Item order within a slot** is push order, so moving a plugin reorders the toolbar
+   controls, the records columns and the entry-menu items it contributes. Insights sorts by
+   an explicit `order` first and only falls back to registration order for ties
+   (`packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.ts:104-108`), but the
+   content slots have no such tie-breaker.
+2. **Section overrides are last-wins, field by field**
+   (`resolveInsightsLayout/index.ts:49-72`), so a plugin registered after `InsightsPlugin()`
+   overrides a band's title/icon while keeping its first position. Moving `InsightsPlugin()`
+   after a plugin that overrides a band silently flips which title wins.
+
+So the defect is that three comments assert hard "must follow" constraints that the runtime
+does not enforce **and does not need** — a reader who trusts them will mis-diagnose a real
+ordering bug, and a reader who tests them will find they can be violated with no effect. The
+one genuinely order-sensitive, silent-failure mechanism in the host is `layout` (first plugin
+contributing one wins), filed separately as
+`docs/testing/bootstrap-admin.md` `🐞 BUG-bootstrap-admin-01`.
 
 **Repro:**
 1. Swap `ContentPlugin()` (`:29`) and `I18nPlugin()` (`:32`).
 2. `npm run dev`; open a localized collection.
-→ Observed: no locale switcher, no Locales column, no locale filters; console clean; every
-other feature normal. → Expected: a boot-time error, or an ordering-independent registration.
+→ Observed: **everything still works** — the locale switcher, Locales column and locale
+filters are all present, contradicting the comment at `:30-31`. Only the relative position of
+i18n's contributions inside each slot changes.
+3. Now move `InsightsPlugin()` (`:26`) to the end of the array and reload `/insights`.
+→ Observed: any band title another plugin overrides now resolves to the *built-in* default
+instead of the override, with no warning. → Expected: either an explicit `order` on section
+contributions so the outcome does not depend on array position, or comments that say what is
+actually true.
 
-**Blast radius:** any edit to the registry. Discovered by manual QA rather than by CI,
-because `apps/admin-e2e` asserts the features exist in the **current** order and would
-correctly go red — which is the mitigation, but only for the features that have suites
-(media, shell/home, i18n and wysiwyg surfaces are thinly covered).
-**Suggested fix:** make slot registration order-independent — have `createSlot` accept
-contributions before the slot's owner is constructed (it already can: the array is
-module-level), or have `createAdmin` do two passes, or fail loudly when a contribution
-targets a slot no registered plugin reads.
+**Blast radius:** low. Nothing disappears; a maintainer's mental model and the Insights band
+titles are what is at risk. `apps/admin-e2e` would not catch the Insights case, since no suite
+asserts a band title's provenance.
+**Suggested fix:** correct the three comments to describe ordering as affecting *item order
+and section-override precedence* rather than presence, and give `INSIGHTS_SECTION_SLOT`
+contributions an explicit precedence field so the merge outcome is declared rather than
+positional.
 
 ### 🐞 BUG-app-admin-03 — The API base URL is hard-coded in two places, so the SPA cannot be deployed on a different origin from the API · Severity: Low
 
-**Location:** `apps/admin/vite.config.mts:20-25` (dev) and `packages/utils/admin/src/lib/apiClient/index.ts:14-17` (runtime)
+**Location:** `apps/admin/vite.config.mts:23-28` (dev) and `packages/utils/admin/src/lib/apiClient/index.ts:14-17` (runtime)
 **Category:** correctness (deployability)
 
 **What the code does:**
@@ -665,7 +689,7 @@ the repo.
 1. Start the API on `PORT=3001`.
 2. `npm run dev`, sign in.
 → Observed: every request 502s through the proxy; the only fix is editing
-`vite.config.mts:22`. → Expected: `VITE_API_TARGET` (dev) and a build-time or
+`vite.config.mts:25`. → Expected: `VITE_API_TARGET` (dev) and a build-time or
 runtime-configurable `baseURL` (production), or an explicit documented statement that
 same-origin deployment is required.
 
@@ -678,7 +702,7 @@ requires server CORS.
 
 **Checked and cleared** (no defect found): the `^/api/` **regex** proxy key is correct and its
 reasoning holds — a plain `/api` string key prefix-matches and would swallow the `/api-tokens`
-SPA route on a hard refresh (`vite.config.mts:14-21`); every request `apiClient` makes is
+SPA route on a hard refresh (`vite.config.mts:16-22`); every request `apiClient` makes is
 `baseURL: '/api'` plus a rooted path, so it always carries the trailing slash the regex
 needs. The pre-paint theme script (`index.html:11-35`) is correct: it mirrors
 `AppearanceProvider`'s key and resolution, handles a corrupt stored value by falling back to
@@ -686,12 +710,15 @@ needs. The pre-paint theme script (`index.html:11-35`) is correct: it mirrors
 wraps everything in `try`/`catch` so a blocked `localStorage` cannot break boot. The viewport
 meta (`index.html:8`) permits zoom — no `maximum-scale`, no `user-scalable=no`, which is the
 usual 1.4.4 failure and is absent here. `src/styles.css`'s use of `@theme` rather than
-`@theme inline` is deliberate and correctly explained (`:27-29`) — it is what makes the
+`@theme inline` is deliberate and correctly explained (`:26-27`) — it is what makes the
 runtime dark override work. The `@source` globs (`:8-10`) correctly cover both the flat
 design-system path and the grouped `packages/*/admin` layout. The plugin **list content**
 matches `CONTEXT-MAP.md`'s inventory exactly — no admin plugin is missing from the registry.
 And `apps/admin/AGENTS.md`'s claim that this app "holds almost no logic" is accurate:
 `src/` contains exactly `main.tsx`, `styles.css` and `assets/`.
+
+**Tally:** `3 🐞 — 0 Critical · 0 High · 1 Medium · 2 Low (0 🔒)` ·
+`♿ 7 findings — 1 Supports · 2 Partially Supports · 3 Does Not Support · 1 Unverified`
 
 ## 7. Recommended E2E Tests
 
@@ -700,7 +727,7 @@ And `apps/admin/AGENTS.md`'s claim that this app "holds almost no logic" is accu
 | 1 | `apps/admin-e2e` (POM + `page.route` mock) | `apps/admin-e2e/src/a11y/spa-navigation.spec.ts` | ♿ For each of five routes: `document.title` is unique and non-"Admin", and after a sidebar navigation `document.activeElement` is within `#main-content`. Currently fails on both | `♿ A11Y-app-admin-01`, `♿ A11Y-app-admin-02` |
 | 2 | `apps/admin-e2e` | `apps/admin-e2e/src/media/a11y.spec.ts`, `shell/a11y.spec.ts`, `content/wysiwyg-a11y.spec.ts`, `content/i18n-a11y.spec.ts` | ♿ axe (via `makeAxe`, following `apps/admin-e2e/src/support/a11y.ts`) over the four surfaces with **no** suite today — including the WYSIWYG editor **open**, the media upload dialog **open**, and the locale switcher **open**, since a scan with an overlay closed proves nothing about it | The four ❌ a11y coverage gaps |
 | 3 | `apps/admin-e2e` | extend `apps/admin-e2e/src/auth/keyboard.spec.ts` | ♿ First `Tab` after load focuses a **visible** "Skip to main content" link; `Enter` moves focus into `<main id="main-content">`; the next `Tab` is page content. Also assert every tab stop between them has a visible focus indicator — which will surface `♿ A11Y-app-admin-04` | `♿ A11Y-app-admin-07`, `♿ A11Y-app-admin-04` |
-| 4 | Unit (`apps/admin/src/__test__/plugins.spec.ts`, vitest — the app currently has **zero** tests) | registry invariants | `ShellPlugin` is the only plugin contributing a `layout`; `WorkspacesPlugin` precedes every interior plugin; `ContentPlugin` precedes `I18nPlugin` and `WysiwygPlugin`; `InsightsPlugin` precedes the other interior plugins; every plugin `name` is unique. Turns three comments into three assertions | `🐞 BUG-app-admin-02`, F4, F5, F6 |
+| 4 | Unit (`apps/admin/src/__test__/plugins.spec.ts`, vitest — the app currently has **zero** tests) | registry invariants | `ShellPlugin` is the only plugin contributing a `layout` (the one genuinely order-sensitive slot); every plugin `name` is unique; and — the assertion that matters — reordering `ContentPlugin`/`I18nPlugin` leaves every content slot's item **set** unchanged, so the comments' "must follow" claim is either enforced or corrected | `🐞 BUG-app-admin-02`, F4, F5, F6 |
 | 5 | Unit (`apps/admin/src/__test__/manifest.spec.ts`) | manifest integrity | Every `@ortha-cms/*` specifier imported by `src/main.tsx` appears in `package.json` `dependencies`. Currently fails with two entries | `🐞 BUG-app-admin-01`, EC-05 |
 | 6 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/dark-theme.spec.ts` | ♿ Re-run every existing axe suite with the app forced to Dark, so `color-contrast` is enforced in both palettes — the `styles.css:22-24` claim currently holds for one theme only | `♿ A11Y-app-admin-03`, EC-14 |
 | 7 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/reflow.spec.ts` | ♿ At 320 × 256 CSS px and at 400 % zoom, `document.documentElement.scrollWidth <= clientWidth` on the home, members, records and media pages, and the sidebar remains reachable; plus a text-spacing override pass asserting no clipping | `♿ A11Y-app-admin-05` (1.4.4 / 1.4.10 / 1.4.12) |

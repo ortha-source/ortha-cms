@@ -608,7 +608,7 @@ consumer or absent.
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-utils-admin-01 — The search box overwrites the URL, so Back (and any link that clears the search) is silently undone · Severity: High
+### 🐞 BUG-utils-admin-01 — The search box overwrites the URL, so Back (and any link that clears the search) is silently undone · Severity: Medium
 
 **Location:** `packages/utils/admin/src/lib/useTableUrlState/index.ts:76-77,99-103`
 **Category:** ux-state
@@ -660,7 +660,10 @@ list stays filtered. Repeated Back presses do nothing.
 Library's records views (`apps/admin-e2e/src/users/members-filter.spec.ts`,
 `activity/activity-filter.spec.ts`, `content/records-filter.spec.ts` all exercise these
 pages, forward-only). It is also an accessibility failure for keyboard users
-(`♿ A11Y-utils-admin-04`).
+(`♿ A11Y-utils-admin-04`). **Severity is Medium, not High:** the mechanism is confirmed
+line-for-line, but the harm is navigational — no data is lost, corrupted or exposed, and no
+authorization decision is affected. It is the most user-visible defect in this package, and
+it is still a usability defect.
 **Suggested fix:** track the last value this hook wrote and re-sync `searchInput` from
 `searchParam` whenever `searchParam` changes to something other than that value (an effect
 keyed on `searchParam`), so an externally-driven URL change wins over the stale box.
@@ -1016,6 +1019,9 @@ changing `key` (`:214-218`); and `useUnsavedChangesApi` returning `null` rather 
 outside a provider is the right degradation for tests and Storybook (`:197-204`).
 `asAvatarColor`'s `slate` fallback is a mapper default, but a cosmetic one, so it does not
 meet the `.cursor/BUGBOT.md` "mapper fallbacks that rewrite data" bar.
+
+**Tally:** `8 🐞 — 0 Critical · 0 High · 4 Medium · 4 Low (1 🔒)` ·
+`♿ 4 findings — 0 Supports · 3 Partially Supports · 1 Does Not Support · 0 Unverified`
 
 ## 7. Recommended E2E Tests
 

@@ -395,11 +395,16 @@ the JSON contains characters the shell and URL both mangle.
   returns the first match (`table-helpers.ts:70-72`), which is why the JSDoc says "Only ever
   call this for columns that live on the parent **by construction**". Nothing enforces that
   — it is a comment-level invariant on an internal function.
-- **EC-29 — Self-referential `alias` reused across two rules.** `❌ NONE` `types.ts:145-148`
-  says the alias "Must be unique per **occurrence** in the filter tree, not per relation",
-  but the alias is a static property of the `RelationSchema` — so two rules on the same
-  self-relation in one tree necessarily share it. The schema shape cannot express the stated
-  requirement. → `🐞 BUG-utils-server-02`.
+- **EC-29 — Self-referential `alias` reused across two rules.** `🧪 UNIT` `types.ts:144-147`
+  says the alias "Must be unique per **occurrence** in the filter tree, not per relation".
+  The schema is a **tree** — each nested hop is its own `RelationSchema` object — so the
+  requirement *is* expressible, and the only real producer honours it: `entry-filter-surface.ts:284`
+  derives the alias from the path (`qb_${nextPath.join('__')}`), pinned by
+  `entry-filter-surface.spec.ts:159-177` (`qb_parent` vs `qb_parent__parent`). A hand-written
+  schema that reuses one alias at two nesting levels would shadow the correlation name, but
+  nothing in the repo does, and two *sibling* subqueries sharing a name are legal SQL in
+  separate scopes. **No defect — this package leaves alias uniqueness to the schema author
+  and the one author gets it right.**
 - **EC-30 — Extension field name colliding with a relation name.** `❌ NONE`
   `translateRule` checks `extensionFields` on `path[0]` **before** the length check
   (`tree-to-drizzle.ts:82`), so if both a relation and an extension field are named `role`,
@@ -413,6 +418,34 @@ the JSON contains characters the shell and URL both mangle.
   by use.
 - **EC-32 — `positiveLeaf` on a non-negating leaf.** `🧪 UNIT` Returns the leaf unchanged
   (`negation.ts:55-56`); `negation.spec.ts:217,235` asserts no double-negation.
+
+### 4A. Accessibility & Section 508 Conformance
+
+`@ortha-cms/utils-server` is a pure library: a filter parser/translator, `clampInt`, and two
+Postgres error predicates. It has no module, no route, no schema, no string shown to a user,
+and no markup (`src/index.ts`). Every WCAG 2.1 AA success criterion, and Chapter 5's
+502.2/502.3 and 503.4, are **Not Applicable** on that basis alone — enumerating them
+individually would be padding, so they are dismissed as a class here.
+
+Two questions are worth asking anyway, because they are the ones a 508 audit of a CMS
+actually asks of a data-shaping layer, and both resolve to Not Applicable for a concrete
+reason rather than by default:
+
+| 508 question | Verdict | Justification |
+| --- | --- | --- |
+| 504.2 / 504.2.1 — can the layer carry, and preserve, alt text, a table caption or a language marker? | **Not Applicable** | It carries **no content at all**. It reads a `FilterSchema` and emits a Drizzle `SQL` fragment; it never stores, copies or transforms a content value. The one place a user string passes through is a filter *predicate* value (`resolve-leaf.ts:138-146`), which is bound as a parameter and discarded. There is nothing here for accessibility metadata to be lost in. |
+| Does it make accessibility metadata **queryable**? | **Not Applicable — but note the enabling half** | A schema author can whitelist any column, including a media `alt` (`packages/media/server/src/lib/infrastructure/schema/media-asset.ts:62`) or an entry `locale` (`packages/content/server/src/lib/collection/table-builder.ts:204`), so nothing in this library prevents "find every image with no alt text". Whether such a filter surface is actually exposed is `content-server`'s and `media-server`'s decision, not this package's. |
+| 504.3 — does it prompt for accessibility information? | **Not Applicable** | No UI, no authoring path. |
+| 504.4 — do shipped templates default to conformant output? | **Not Applicable** | Ships no template. |
+
+**No accessibility findings.** Specifically checked and cleared: the package exports no
+user-visible message except `FilterException`'s `filter: <message>` body
+(`filter-exceptions.ts:75`), which is a machine-readable API error consumed by
+`query-builder-admin` and rendered there — so 3.3.1 Error Identification is assessed in
+`docs/testing/query-builder-admin.md`, not here. `clampInt` and the `pg-errors` helpers
+touch nothing perceivable.
+
+**♿ tally:** `0 findings — 0 Supports · 0 Partially Supports · 0 Does Not Support · 6 Not Applicable`
 
 ## 5. E2E Coverage Map
 
@@ -502,65 +535,6 @@ budgets) for what is a 400-shaped input, and an opaque message for the operator.
 **Suggested fix:** convert the four sites to `FilterException` with a new
 `FILTER_SCHEMA_INVALID` code, and/or have `resolveLeaf` reject a target-field path on a
 `many-to-many` whose `table` is absent.
-
-### 🐞 BUG-utils-server-02 — A `self-referential` relation's `alias` is per-schema, but the contract says it must be per-occurrence, so two rules on the same self-relation collide · Severity: Medium
-
-**Location:** `packages/utils/server/src/lib/filters/types.ts:143-149` and `packages/utils/server/src/lib/filters/relation-exists.ts:82`
-**Category:** correctness
-
-**What the code does:** the type documents the requirement:
-
-```ts
-/**
- * Alias used for the self-joined table inside the subquery. Must
- * be unique per occurrence in the filter tree, not per relation:
- * two rules on the same self-relation would otherwise share a
- * correlation name and collide.
- */
-alias: string;
-```
-
-and the translator uses it verbatim, once per rule:
-
-```ts
-const target = alias(rel.table as PgTable, rel.alias);
-```
-
-**Why it is wrong:** `alias` is a static field on the `RelationSchema` object, which is
-declared once per endpoint. The translator receives that same object for every rule that
-traverses the relation, so **the stated invariant is not expressible**: two rules on
-`parent.*` in one tree necessarily produce two `EXISTS` subqueries that both alias the table
-to the same correlation name. The comment even predicts the consequence ("would otherwise
-share a correlation name and collide") without anything preventing it — there is no counter,
-no per-walk suffix, and no validation that would catch a duplicate.
-
-Whether Postgres actually errors depends on nesting: two *sibling* subqueries each with
-`FROM t AS qb_x` are legal SQL (separate scopes), but a rule whose path nests one self-hop
-inside another (`parent.parent.name`, within the default `maxDepth` of 3) produces
-`EXISTS(… FROM t AS qb_x … EXISTS(… FROM t AS qb_x …))`, where the inner alias shadows the
-outer and the correlation silently binds to the wrong row — the exact failure
-`table-helpers.ts:45-58` was written to prevent.
-
-**Repro:**
-1. Declare a `self-referential` relation `parent` with `alias: 'qb_parent'`, and give it a
-   nested `relations: { parent: <same shape, same alias> }`.
-2. `GET /api/<endpoint>?filter={"field":"parent.parent.name","op":"eq","value":"X"}`
-→ Observed: valid SQL with a shadowed correlation name; the predicate resolves against the
-inner alias, so the query answers "whose parent is named X" rather than "whose grandparent
-is named X". No error.
-→ Expected: distinct aliases per hop, or a rejection.
-
-**What I could not confirm:** I did not execute the generated SQL — the reading is from
-`relation-exists.ts:77-95` plus the type's own comment, and
-`relation-nesting.spec.ts:109` covers "binds a nested self-referential FK to the outer
-alias" for a schema whose two levels presumably use *different* aliases. If every existing
-schema in the repo happens to use unique aliases per level, this is latent rather than live.
-**Blast radius:** wrong rows returned, silently, on a nested self-referential filter — the
-worst failure mode a filter engine can have, but reachable only via a schema that reuses an
-alias.
-**Suggested fix:** generate the alias inside the translator from a per-walk counter (e.g.
-`${rel.alias}_${depth}_${index}`) rather than reading a static field, so the invariant is
-enforced by construction.
 
 ### 🐞 BUG-utils-server-03 — `FilterException` spreads caller-supplied `context` over the reserved response keys · Severity: Low
 
@@ -655,14 +629,22 @@ empty-string→`min` behaviour is deliberate and pinned by
 `?pageSize=` yields `min`, worth a caller-side note). `violatedConstraint`'s `cause` walk is
 bounded at 5 and cycle-safe (`pg-errors.ts:38`, asserted at `pg-errors.spec.ts:54`), and its
 `''`-vs-`undefined` distinction is a genuine improvement over a boolean. `parseFilterTree`
-is pure with no shared mutable state.
+is pure with no shared mutable state. **Also cleared during verification:** the
+`self-referential` `alias` uniqueness requirement (`types.ts:144-147`) — the schema is a
+tree, so each hop is its own object, and the only real producer derives the alias from the
+path (`packages/content/server/src/lib/entries/infrastructure/queries/entry-filter-surface.ts:284`,
+pinned by `entry-filter-surface.spec.ts:159-177`). An earlier draft of this artifact filed
+that as a defect; it was withdrawn.
+
+**Tally:** `3 🐞 — 0 Critical · 0 High · 1 Medium · 2 Low (0 🔒)` ·
+`♿ 0 findings — 0 Supports · 0 Partially Supports · 0 Does Not Support · 6 Not Applicable`
 
 ## 7. Recommended E2E Tests
 
 | Priority | Harness | Proposed spec | Asserts | Closes |
 | --- | --- | --- | --- | --- |
 | 1 | Unit (`packages/utils/server/src/lib/filters/__test__/schema-misconfiguration.spec.ts`) | translator error typing | A `many-to-many` relation with `fields` but no `table`, a `fields` entry naming a missing column, and a nested `fields` with no `relations` entry each throw a `FilterException` (400-shaped), not a bare `Error`. Currently fails | `🐞 BUG-utils-server-01`, EC-22, EC-23, EC-24 |
-| 2 | Unit (`.../__test__/self-referential-alias.spec.ts`) | alias uniqueness | A two-hop self-referential path (`parent.parent.name`) produces **two distinct** correlation names in the emitted SQL, and the predicate binds to the outermost hop. Currently fails when both levels share an alias | `🐞 BUG-utils-server-02`, EC-29 |
+| 2 | Unit (`.../__test__/self-referential-alias.spec.ts`) | alias uniqueness | A two-hop self-referential path (`parent.parent.name`) built from **distinct** per-hop aliases produces two distinct correlation names in the emitted SQL and binds the predicate to the outermost hop; a schema that reuses one alias at both levels is shown to shadow it — turning the `types.ts:144-147` comment-level invariant into an executable guard rather than a footnote | EC-29 |
 | 3 | Unit (`.../__test__/resolve-leaf.spec.ts`) | coercion completeness | Boolean (`'1'` → 400), date (`'not-a-date'` → 400, `'2024-01-01'` → `Date`), enum (undeclared → 400 with `allowed`), and **string with `null`/`undefined`/object** are each asserted — closing the biggest gap in an otherwise excellent suite | F14, F15, `🐞 BUG-utils-server-04`, EC-14 |
 | 4 | Unit (`.../__test__/parse-filter-tree.spec.ts`, extend) | at-limit boundaries | Exactly `maxNodes` nodes, exactly `maxGroupDepth` nested groups and exactly `maxDepth` path segments all **pass**; one more of each rejects. Today only the reject side is covered | F8, F9, F10, EC-05, EC-06 |
 | 5 | `apps/server-e2e` (testcontainer + supertest) | extend `apps/server-e2e/src/server/users/list-users-filter.spec.ts` | Each 400 asserts `res.body.code` equals the specific `FilterErrorCode`, not merely the status — pinning the machine-readable contract `FilterException` exists for | F34 |

@@ -426,7 +426,7 @@ page's name. Focus-to-heading is preferable because it fixes the keyboard proble
   `packages/bootstrap/admin/src/lib/createAdmin/index.tsx:43,71` — `locale` is threaded into
   `IntlProvider` and nowhere else. The repo's own a11y guidance calls this out:
   "**Set `<html lang>`** to the active locale (it should track the host `IntlProvider`;
-  WCAG 3.1.1)" (`.agents/skills/accessibility/SKILL.md:124-126`).
+  WCAG 3.1.1)" (`.agents/skills/accessibility/SKILL.md:124-125`).
 
 **Repro:** set `createAdmin({ plugins, locale: 'de' })`, reload, inspect `<html>`.
 **Keyboard-only user:** no impact.
@@ -532,13 +532,13 @@ delegates):
 | 1.3.2 Meaningful Sequence (A) | Supports | DOM order is route order; no CSS reordering at this layer |
 | 1.3.5 Identify Input Purpose (AA) | Not Applicable | No inputs |
 | 1.4.1 Use of Colour (A) | Not Applicable | |
-| 1.4.3 / 1.4.11 Contrast (AA) | Partially Supports | Tokens are the design system's; `SKILL.md:114-119` records `muted-foreground` was darkened to clear AA and that axe enforces `color-contrast`. **Both themes** must be re-verified after any token change; the axe suites run in whatever theme the test defaults to, which is not both |
+| 1.4.3 / 1.4.11 Contrast (AA) | Partially Supports | Tokens are the design system's; `SKILL.md:116-119` records `muted-foreground` was darkened to clear AA and that axe enforces `color-contrast`. **Both themes** must be re-verified after any token change; the axe suites run in whatever theme the test defaults to, which is not both |
 | 1.4.4 Resize Text (AA) / 1.4.10 Reflow (AA) / 1.4.12 Text Spacing (AA) | Partially Supports | Not exercised by any suite; the shell's fixed sidebar + `SidebarInset` scrollport is the risk area at 320 px / 400 % |
 | 1.4.13 Content on Hover/Focus (AA) | Supports | `TooltipProvider` (Radix) is dismissible, hoverable and persistent (`createAdmin/index.tsx:72`) |
 | 2.1.1 Keyboard (A) | Supports | No host-level custom control |
 | 2.1.2 No Keyboard Trap (A) | Supports | The only host overlay is the Radix confirm dialog, which traps and releases correctly |
 | 2.4.6 Headings & Labels (AA) | Not Applicable | Delegated to pages |
-| 2.4.7 Focus Visible (AA) | **Partially Supports** | See `docs/testing/app-admin.md` `♿ A11Y-app-admin-02` — the app-wide scroll container is focusable with its outline removed |
+| 2.4.7 Focus Visible (AA) | **Partially Supports** | See `docs/testing/app-admin.md` `♿ A11Y-app-admin-04` — the app-wide scroll container is focusable with its outline removed |
 | 3.2.1 / 3.2.2 On Focus / On Input (A) | Supports at this layer | But the catch-all redirect (`♿`/`🐞 BUG-bootstrap-admin-02`) is an unannounced change of context on *navigation*, not on focus/input, so it falls outside these SC while still being a usability failure |
 | 3.3.1–3.3.4 (A/AA) | Supports | The unsaved-changes confirm satisfies 3.3.4 for destructive navigation, with a label that states the consequence |
 | 4.1.2 Name, Role, Value (A) | Not Applicable | No host-level custom control |
@@ -580,12 +580,14 @@ lost on navigation — a supporting behaviour for 504 rather than a requirement 
 | **a11y — keyboard** | `apps/admin-e2e/src/auth/keyboard.spec.ts:13,26,45,67`; `users/keyboard.spec.ts:16,25,39`; `workspaces/keyboard.spec.ts:18,31,42,69,84` | First focus stop, keyboard-only completion of login and invite acceptance, source-order reachability, menu/wizard opening, arrow-key chips, Enter-to-open | ✅ E2E for those pages — ❌ NONE for **route-change focus**, which is the host's own behaviour |
 
 **Coverage tally:** `15 features · 8 ✅ · 7 ⚠️ · 0 ❌`
-**♿ tally:** `7 findings — 2 Supports · 3 Partially Supports · 2 Does Not Support` (plus 1
-Not Applicable verdict recorded for public-route bypass blocks).
+**♿ tally:** `7 findings — 1 Supports · 3 Partially Supports · 3 Does Not Support` (plus 1
+Not Applicable verdict recorded for public-route bypass blocks). `-05` is counted as
+Partially Supports: it Supports announcement and Partially Supports placement, and a VPAT
+takes the weaker half.
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-bootstrap-admin-01 — The first plugin to contribute a `layout` wins silently, so a plugin registered before the shell replaces the auth gate with no warning · Severity: High · 🔒
+### 🐞 BUG-bootstrap-admin-01 — The first plugin to contribute a `layout` wins silently, so a plugin registered before the shell replaces the auth gate with no warning · Severity: Medium · 🔒
 
 **Location:** `packages/bootstrap/admin/src/lib/createAdmin/index.tsx:57-61`
 **Category:** permission-bypass
@@ -630,7 +632,13 @@ open-ended with 401s rather than redirecting to sign-in.
 `layout` selection in `CreateAdminOptions` rather than an ordering accident.
 
 **Blast radius:** the whole private route tree, decided by the order of a list in an app file.
-Low likelihood today, maximal impact if it happens, and no signal when it does.
+**Severity is Medium, not High:** verification confirms exactly one plugin in the repo
+contributes a `layout` (`packages/shell/admin/src/lib/utils/shellPlugin/index.tsx:40` — a
+repo-wide grep for a `layout:` key on an `AdminPlugin` returns only that one), so there is no
+collision today and no exploit an attacker can reach. What exists is a silent
+order-dependence with a fail-open default and no diagnostic — a latent hazard whose impact
+would be severe, not a live permission bypass. The server-side guards remain the real
+boundary regardless.
 **Suggested fix:** throw (or `console.error`) when more than one plugin contributes a
 `layout`, and consider making the absence of a layout an error rather than a silent bare
 `<Outlet/>`.
@@ -794,6 +802,9 @@ destination is wrong; `UnsavedChangesGuard`'s injection of `ConfirmDialog` + `us
 label "Leave and discard" correctly states the consequence for WCAG 3.3.4; and the host
 genuinely owns no auth code — a grep for `RequireAuth`/`AuthProvider` in this package returns
 nothing, so the auth-agnostic claim in `AGENTS.md` holds.
+
+**Tally:** `5 🐞 — 0 Critical · 0 High · 3 Medium · 2 Low (1 🔒)` ·
+`♿ 7 findings — 1 Supports · 3 Partially Supports · 3 Does Not Support · 0 Unverified`
 
 ## 7. Recommended E2E Tests
 
