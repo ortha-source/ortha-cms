@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/media/admin` · **Package:** `@ortha-cms/media-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/media/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 10 confirmed · 0 deleted · 4 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

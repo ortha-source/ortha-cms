@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/i18n/server` · **Package:** `@ortha-cms/i18n-server` · **Kind:** server plugin
 > **Source of truth:** `packages/i18n/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 5 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

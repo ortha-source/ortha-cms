@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/media/server` · **Package:** `@ortha-cms/media-server` · **Kind:** server plugin
 > **Source of truth:** `packages/media/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 11 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

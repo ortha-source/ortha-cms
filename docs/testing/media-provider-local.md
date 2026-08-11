@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/media/provider-local` · **Package:** `@ortha-cms/media-provider-local` · **Kind:** adapter (storage provider)
 > **Source of truth:** `packages/media/provider-local/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 5 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

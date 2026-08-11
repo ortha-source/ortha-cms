@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/content/domain` · **Package:** `@ortha-cms/content-domain` · **Kind:** library (shared kernel)
 > **Source of truth:** `packages/content/domain/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

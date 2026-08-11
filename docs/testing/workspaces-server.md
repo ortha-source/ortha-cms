@@ -664,9 +664,8 @@ UI).
 
 **Coverage tally:** `36 features · 22 ✅ · 5 ⚠️ · 9 ❌`
 
-**Accessibility tally:** `1 ♿ · 0 Supports (as a finding) · 1 Partially Supports · 0 Does Not Support`
-(plus 5 provisions assessed **Not Applicable** and 3 **Supports** with no finding — see §4A).
-No axe or keyboard suite applies to this unit; there is no rendered surface to scan.
+**a11y coverage tally:** `❌ NONE` — no axe or keyboard suite applies to this unit; there is
+no rendered surface to scan. (The verdict counts live in §4A and are repeated in §6.)
 
 ## 6. 🐞 Potential Bugs
 

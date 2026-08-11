@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/workspaces/admin` · **Package:** `@ortha-cms/workspaces-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/workspaces/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 17 confirmed · 1 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -637,7 +638,7 @@ produces an authoring surface with nothing in it (EC-03/EC-06). **504.4
 | 1.4.13 Content on Hover or Focus (AA) | **Partially Supports** | Sidebar nav rows use a Radix `tooltip` prop (`WorkspaceNavButton/index.tsx:39`) — dismissible and hoverable via Radix, but not asserted |
 | 2.1.1 Keyboard (A) | **Partially Supports** | Every action has a keyboard route — but see ♿-05 (radiogroup arrows) and ♿-09 (unreachable slug value) |
 | 2.1.2 No Keyboard Trap (A) | **Supports** | All overlays are Radix `Dialog`/`Popover`; Escape closes each |
-| 2.4.1 Bypass Blocks (A) | **Does Not Support** | ♿-11 |
+| 2.4.1 Bypass Blocks (A) | **Supports** | Corrected 2026-08-11. The skip link is the first focusable element and `<main id="main-content" tabIndex={-1}>` is its target (`packages/shell/admin/…/AppShell/index.tsx:49-56`). ♿-11 withdrawn — it had quoted stale skill prose instead of reading the source. Untested, though: see §7 |
 | 2.4.2 Page Titled (AA→A) | **Does Not Support** | ♿-12 |
 | 2.4.3 Focus Order (A) | **Does Not Support** | ♿-03, ♿-04 |
 | 2.4.6 Headings and Labels (AA) | **Partially Supports** | One `<h1>` per page (`ContainerHeader` on the list/wizard, an explicit `<h1>` at `WorkspaceSettingsPage/index.tsx:52`), `<h2>` on each settings card. But ♿-06 |
@@ -853,34 +854,37 @@ produces an authoring surface with nothing in it (EC-03/EC-06). **504.4
 - **Remediation:** on successful removal, explicitly focus the next row's
   Remove button, or the group heading when the list empties.
 
-#### ♿ A11Y-workspaces-admin-11 — No skip link, and the shell's `<main>` has no id
+#### ♿ A11Y-workspaces-admin-11 — WITHDRAWN on verification: the skip link exists and `<main>` has an id
 
-- **WCAG:** `2.4.1 Bypass Blocks (A)` · **508:** `E205.4` · **Verdict:** **Does Not Support**
-- **Location:** owned by `packages/shell/admin` (`AppShell`), but it is *this*
-  unit's persistent sidebar nav — the workspace nav injected at
-  `components/WorkspaceShell/index.tsx:100-103`, plus the global sidebar and
-  quick-list this plugin fills — that constitutes the repeated block a user must
-  bypass.
-- **Repro:** 1) Load `/workspaces/<id>/settings/general`. 2) Press Tab from the
-  address bar.
-- **Keyboard-only:** the first focusable element is the sidebar's "Home" link;
-  reaching the settings form requires traversing the back link, the sidebar
-  trigger, the switcher, every content-type section row and every Tools row —
-  on **every** page load and after **every** wizard step change (♿-04
-  compounds it).
-- **Screen reader:** landmark navigation partially mitigates this, but only if
-  `<main>` exists and is reachable.
-- **Evidence:** the accessibility skill states outright: *"The app has no skip
-  link yet and `AppShell`'s `<main>` has no `id` — add both in the shell
-  `layout` when you next touch it"* (`.agents/skills/accessibility/SKILL.md:96-99`).
-  This is a known, documented gap, not a discovery.
-- **Remediation:** add `<main id="main">` and a first-focusable "Skip to main
-  content" link in the shell layout. Fix belongs in `shell/admin`; recorded here
-  because this unit's nav is the block being bypassed.
+> **Deleted 2026-08-11.** The finding claimed "No skip link, and the shell's `<main>` has no
+> id". **Both halves are false in the source.**
+> `packages/shell/admin/src/lib/components/AppShell/index.tsx:49-54` renders
+> `<a href="#main-content" className="sr-only focus:not-sr-only …">Skip to main content</a>`
+> as the **first focusable element** inside `SidebarProvider`, ahead of `<AppSidebar />`;
+> `:56` renders `<SidebarInset id={MAIN_CONTENT_ID} tabIndex={-1}>` with
+> `MAIN_CONTENT_ID = 'main-content'` (`:18`); and `SidebarInset` is a real `<main>`
+> element (`packages/design-system/src/lib/components/ui/sidebar.tsx:379-393`). The link's
+> target, the landmark's id and the `tabIndex={-1}` that makes the landmark focusable are
+> all present, and the JSDoc at `:38-40` documents the intent.
+>
+> **Why the original finding was wrong — and it is the instructive part.** Its
+> "**Evidence:**" line quoted `.agents/skills/accessibility/SKILL.md:96-99` — *"The app has
+> no skip link yet and `AppShell`'s `<main>` has no `id`"* — and treated that prose as
+> proof, calling it "a known, documented gap, not a discovery". The skill file is **stale**;
+> the shell was fixed and the skill was not updated. The artifact spec's evidence bar exists
+> for exactly this: *"Never speculate from a filename or from AGENTS.md prose alone."*
+>
+> **2.4.1 Bypass Blocks is therefore Supports**, not Does Not Support. The only residual
+> item is that no test pins the skip link, so a refactor could remove it silently — that is
+> a coverage gap, recorded in §7, not a conformance finding.
+>
+> **Separately actionable (outside this artifact's edit scope):**
+> `.agents/skills/accessibility/SKILL.md:96-99` should be corrected, since it will mislead
+> the next agent the same way.
 
 #### ♿ A11Y-workspaces-admin-12 — The document title never changes across routes
 
-- **WCAG:** `2.4.2 Page Titled (A)` · **508:** `E205.4` · **Verdict:** **Does Not Support** *(Unverified — no `document.title` writer found in this unit; a host-level one may exist)*
+- **WCAG:** `2.4.2 Page Titled (A)` · **508:** `E205.4` · **Verdict:** **Does Not Support** *(verified 2026-08-11 — the hedge below is now settled; no longer Unverified)*
 - **Location:** none — `grep -rn "document.title\|useDocumentTitle\|<title" packages/workspaces/admin/src` returns nothing.
 - **Repro:** 1) Navigate `/workspaces` → `/workspaces/new` → `/workspaces/:id/settings/danger`.
   2) Watch the browser tab.
@@ -888,9 +892,16 @@ produces an authoring surface with nothing in it (EC-03/EC-06). **504.4
   most-used orientation cue when switching windows or tabs; a static title makes
   four functionally different pages indistinguishable. It also breaks browser
   history and bookmark labels.
-- **What I could not confirm:** whether `bootstrap-admin` or `shell/admin` sets
-  a per-route title centrally. If it does, this drops to Supports; if it sets
-  only a constant app name, it stays.
+- **Confirmed 2026-08-11 — no central per-route title exists.**
+  `grep -rn "document.title|useDocumentTitle|<title" packages apps --include=*.ts
+  --include=*.tsx --include=*.html` over the whole repo returns exactly three things:
+  `apps/admin/index.html:5` (`<title>Admin</title>` — a build-time constant),
+  `packages/copilot/admin/src/lib/application/useTabBadge.ts:34,36,76` (which *reads*
+  `document.title` and prefixes an unread-count badge onto whatever it already is, then
+  restores it), and a comment in `tabBadge.spec.ts`. Neither `bootstrap-admin` nor
+  `shell/admin` writes a title. So every route in the product shows "Admin", and the
+  copilot badge decorates that one constant string. The verdict stands at **Does Not
+  Support**, and it is a whole-app finding rather than one specific to this unit.
 - **Remediation:** set a per-route title ("Create workspace · Ortha CMS"), owned
   either by each page or by a shell-level route-title mechanism.
 
@@ -1255,7 +1266,9 @@ is built on.
 
 **Defect tally:** `6 🐞 · 0 Critical · 0 High · 3 Medium · 3 Low · 0 🔒`
 
-**Accessibility tally:** `12 ♿ · 0 Supports · 6 Partially Supports · 6 Does Not Support · 0 Not Applicable`
+**Accessibility tally:** `11 ♿ · 0 Supports · 6 Partially Supports · 5 Does Not Support ·
+0 Not Applicable` (was 12; ♿-11 withdrawn on verification — 2.4.1 Bypass Blocks actually
+**Supports**. Ids are left stable, so ♿-11 is a retired number.)
 (2 of the 12 — ♿-10 and ♿-12 — are marked *Unverified*; the provision table in
 §4A additionally records 9 **Supports**, 2 **Not Applicable** and 4 **Not
 verified** criteria that produced no finding.)
@@ -1279,3 +1292,4 @@ verified** criteria that produced no finding.)
 | 13 | `apps/admin-e2e` | `workspaces/workspaces.spec.ts` (new case) | Optimistic create rolls the row back on a failed POST | F22, EC-25 |
 | 14 | `apps/admin-e2e` | `workspaces/settings.spec.ts` (new case) | Removing yourself from a workspace you have open swaps the shell to the no-access screen | EC-21 |
 | 15 | `apps/admin-e2e` | `workspaces/a11y.spec.ts` (new case) | Run the existing scans a second time with `data-theme="dark"` forced | 1.4.3 / 1.4.11 in dark theme |
+| 16 | `apps/admin-e2e` | `workspaces/keyboard.spec.ts` (new case) | From a fresh load of `/workspaces/:id/settings/general`, the **first** Tab stop is the "Skip to main content" link, Enter on it moves focus to `#main-content`, and the next Tab lands inside the settings form — pinning the shell behaviour that ♿-11 wrongly reported as absent, so a refactor cannot remove it silently | 2.4.1 (currently Supports but untested) |

@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/media/provider-s3` · **Package:** `@ortha-cms/media-provider-s3` · **Kind:** adapter (storage provider) — **stub**
 > **Source of truth:** `packages/media/provider-s3/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 5 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -187,7 +188,7 @@ Every block below assumes the temporary registration from §1.
   → `🐞 BUG-media-provider-s3-02`.
 - **EC-07 — The error is a bare `Error`.** `❌ NONE`
   `media-server`'s `toHttp` only recognises its own domain errors and rethrows
-  everything else (`http/to-http.ts:412`), so this becomes a `500`. `.cursor/BUGBOT.md`
+  everything else (`http/to-http.ts:15-29`), so this becomes a `500`. `.cursor/BUGBOT.md`
   makes the analogous point for tools ("Bare `Error` in a shared tool's handler …
   returns an opaque 500 with the message withheld"); the same reasoning applies to
   a provider whose failure is a *configuration* mistake, not a server fault. A
@@ -482,7 +483,7 @@ extends Error` with no `export`, and `src/index.ts` re-exports only
 `createS3StorageProvider` and `S3StorageConfig`.
 
 **Why it is wrong:** `media-server`'s `toHttp` maps only its own domain errors and
-rethrows everything else (`packages/media/server/src/lib/http/to-http.ts:412`), so
+rethrows everything else (`packages/media/server/src/lib/http/to-http.ts:15-29`), so
 this becomes an opaque `500` with the message withheld from the client. A host that
 wants a `501 Not Implemented` — the honest status for "this backend is a stub" —
 has no type to test against and must string-match `error.name`. `.cursor/BUGBOT.md`

@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/copilot/domain` · **Package:** `@ortha-cms/copilot-domain` · **Kind:** library (framework-free core)
 > **Source of truth:** `packages/copilot/domain/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -160,8 +161,8 @@ None at runtime. **Consumers** that must be healthy for the manual plan below:
 | F43 | `SKILL_NAME_PATTERN` = lowercase slug | `skill.ts:92` | ✅ E2E `copilot-skills.spec.ts:287` |
 | F44 | The six bounds (name 64 / title 80 / description 240 / instructions 8 000 / 3 per run / 25 summaries) | `skill.ts:95-129` | ⚠️ PARTIAL — `MAX_RUN_SKILLS` covered (`copilot-skills.spec.ts:428`); the length bounds are unit-only |
 | F45 | `buildSkillRegistry` throws on a malformed or duplicate name at construction | `src/lib/skills/skill-registry.ts:250-260` | 🧪 UNIT `skill-registry.spec.ts` |
-| F46 | It snapshots into a **null-prototype** object and freezes each skill | `skill-registry.ts:234-237`, `:262` | 🧪 UNIT `skill-registry.spec.ts` |
-| F47 | `mergeSkills` — code wins a collision, and the CMS row is **dropped**, not overwritten | `skill-registry.ts:285-291` | 🧪 UNIT `skill-registry.spec.ts` · ✅ E2E `copilot-skills.spec.ts:262` (the write-route half) |
+| F46 | It snapshots into a **null-prototype** object and freezes each skill | `skill-registry.ts:33-38`, `:62` | 🧪 UNIT `skill-registry.spec.ts` |
+| F47 | `mergeSkills` — code wins a collision, and the CMS row is **dropped**, not overwritten | `skill-registry.ts:85-91` | 🧪 UNIT `skill-registry.spec.ts` · ✅ E2E `copilot-skills.spec.ts:262` (the write-route half) |
 | F48 | `toSkillRef` snapshots name/title/source | `skill.ts:198-200` | ✅ E2E `copilot-skills.spec.ts:368` |
 | F49 | The package imports nothing (no `dependencies` block) | `package.json` | ❌ NONE — no lint rule or test enforces it |
 
@@ -836,7 +837,7 @@ The declared types are `ProposalTarget = Readonly<Record<string, unknown>>` and
 `patch: Readonly<Record<string, unknown>>` (`:10`, `:48`) — a `Record`, not an
 array. The engine writes the row unconditionally once the guard passes
 (`run-engine.service.ts:850-863`), into `jsonb` columns
-(`chat/infrastructure/schema/proposals.ts:294-296`), where `[]` is perfectly
+(`chat/infrastructure/schema/proposals.ts:61-63`), where `[]` is perfectly
 valid JSON — so it lands. `ProposalApplier.apply` then receives
 `target: []` and reads `input.target['typeName']`, which is `undefined`, and the
 content applier throws `Unknown content type "" in this workspace.`
@@ -896,7 +897,7 @@ error type, not the controller.
 consumer that builds a `ModelRegistry` without the plugin factory, or by a
 provider whose `models()` returns a **different** (empty) array at call time
 than it did at boot — the anthropic adapter snapshots at construction
-(`anthropic-provider.ts:155`), so today it cannot; a future adapter reading a
+(`anthropic-provider.ts:39`), so today it cannot; a future adapter reading a
 mutable config could.
 
 **Blast radius:** an operator sees a generic failure instead of a sentence
@@ -959,6 +960,9 @@ run — which would also close EC-39, EC-40 and EC-41.
 
 ---
 
+**Defect tally:** `6 🐞 · 0 Critical · 0 High · 2 Medium · 4 Low · 0 🔒`
+**Accessibility tally:** `3 ♿ · 2 Supports · 1 Partially Supports · 0 Does Not Support · 0 Not Applicable`
+
 ### Checked and cleared
 
 - **Does `copilot/domain` import a framework or a vendor SDK?** No.
@@ -991,10 +995,10 @@ run — which would also close EC-39, EC-40 and EC-41.
   namespacing rule. (Unreachable in practice because `ToolRegistry.all()` throws
   first — see `docs/testing/tools-server.md` 🐞 BUG-tools-server-03.)
 - **Does `mergeSkills` let a CMS row shadow a code skill?** No — code wins and
-  the CMS row is dropped rather than overwritten (`skill-registry.ts:285-291`),
+  the CMS row is dropped rather than overwritten (`skill-registry.ts:85-91`),
   and the write routes 409 first so the silent drop only happens after a deploy.
 - **Is `buildSkillRegistry` prototype-safe?** Yes — null-prototype snapshot and
-  `Object.freeze` per skill (`skill-registry.ts:234-237`, `:262`), with
+  `Object.freeze` per skill (`skill-registry.ts:33-38`, `:62`), with
   `hasOwnProperty` lookups. Same discipline as `buildModelRegistry`.
 - **`RUN_STOP_EXPLANATIONS` vs the admin's own map.** The admin declares
   `TRUNCATING_STOP_REASONS`

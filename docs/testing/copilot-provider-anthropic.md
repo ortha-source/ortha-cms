@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/copilot/provider-anthropic` · **Package:** `@ortha-cms/copilot-provider-anthropic` · **Kind:** adapter (`ModelProvider` implementation)
 > **Source of truth:** `packages/copilot/provider-anthropic/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 7 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -767,6 +768,9 @@ within a turn. If it is ever worth fixing, emit at `content_block_stop` using
 the SDK's own accumulated block rather than raw fragments. Do NOT implement.
 
 ---
+
+**Defect tally:** `5 🐞 · 0 Critical · 0 High · 2 Medium · 3 Low · 1 🔒`
+**Accessibility tally:** `4 ♿ · 1 Supports · 1 Partially Supports · 0 Does Not Support · 2 Not Applicable`
 
 ### Checked and cleared
 

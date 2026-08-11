@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/mcp/server` · **Package:** `@ortha-cms/mcp-server` · **Kind:** server plugin (protocol adapter)
 > **Source of truth:** `packages/mcp/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -797,13 +798,18 @@ or 400 on a repeated parameter.
 
 ---
 
-### 🐞 BUG-mcp-server-05 — Unverified — `Bearer` parsing accepts a token containing internal whitespace · Severity: Low
+### 🐞 BUG-mcp-server-05 — `Bearer` parsing silently normalises internal whitespace instead of rejecting it · Severity: Low
 
 **Location:** `packages/mcp/server/src/lib/http/mcp-auth.service.ts:148-158`
 
-**Unverified —** I could not confirm from the repo what character set
-`ApiTokenService` mints, so I cannot say whether a token can contain a space and
-therefore whether this rejoin is ever exercised.
+**Previously filed as `Unverified`; now confirmed and rewritten.** The open
+question was what character set `ApiTokenService` mints. It mints
+`randomBytes(TOKEN_ENTROPY_BYTES).toString('base64url')`
+(`packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:90`),
+which by definition contains no whitespace — so the rejoin is **unreachable for
+any token this system issues**, and the finding is a latent-robustness note, not
+a live defect. Severity stays Low; the "blast radius: none today" line below is
+now a verified statement rather than a guess.
 
 **What the code does:**
 
@@ -819,21 +825,29 @@ collapsed to one. If minted secrets are opaque base64/hex this is unreachable;
 if any future format allows whitespace, a token would verify under a *different*
 string than the one sent.
 
-**Why it might be wrong:** RFC 6750 defines the credential as a single
+**Why it is wrong:** RFC 6750 defines the credential as a single
 `b64token` with no internal whitespace, so the rejoin serves nothing and
 introduces a normalisation the verifier does not know about. `rest.join(' ')`
 also means a *truncated* header (`Bearer abc def`) silently produces a lookup
 key rather than a 400.
 
-**Repro:** send `Authorization: Bearer <valid-token-with-a-space-inserted>` and
-observe whether it 401s (correct) or verifies.
+**Repro:** send `Authorization: Bearer <first-half> <second-half>` splitting a
+valid base64url token across a space.
+→ Observed: `bearerFrom` returns the token with the space preserved, so the
+lookup key differs from the stored secret and the request 401s — the right
+outcome, reached by accident rather than by a length check.
+→ Expected: a 401 because the header is malformed, decided before the lookup.
 
-**Blast radius:** none today, most likely. Recorded because it is the kind of
-input normalisation that becomes a bug when the token format changes.
+**Blast radius:** none today — verified against the minting code, not assumed.
+Recorded because it is the kind of input normalisation that becomes a bug when the
+token format changes.
 
 **Suggested fix:** `const value = rest[0]; if (rest.length !== 1) return undefined;`
 
 ---
+
+**Defect tally:** `5 🐞 · 0 Critical · 0 High · 2 Medium · 3 Low · 2 🔒`
+**Accessibility tally:** `5 ♿ · 2 Supports · 1 Partially Supports · 1 Does Not Support · 1 Not Applicable`
 
 ### Checked and cleared
 

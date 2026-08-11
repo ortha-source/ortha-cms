@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/content/server` · **Package:** `@ortha-cms/content-server` · **Kind:** server plugin
 > **Source of truth:** `packages/content/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 0 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

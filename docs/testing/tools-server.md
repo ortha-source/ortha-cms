@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/tools/server` · **Package:** `@ortha-cms/tools-server` · **Kind:** library (shared registry + authorization point)
 > **Source of truth:** `packages/tools/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 3 confirmed · 0 deleted · 6 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -155,7 +156,7 @@ tool leaks to the copilot. **Checked and cleared** — see §6.
 | F16 | `toToolError` maps 404 → `not_found`, 403 → `forbidden`, 422 → `validation_failed`, 400 → `bad_request`, 401 → `unauthorized`, 409 → `conflict` | `src/lib/tool-error.ts:16-23`, `42-64` | 🧪 UNIT `src/lib/tool-error.spec.ts:351-367` |
 | F17 | `toToolError` carries a 422's per-field `issues` through verbatim | `src/lib/tool-error.ts:56-63` | 🧪 UNIT `tool-error.spec.ts:370-386` · ✅ E2E `mcp.spec.ts:858` |
 | F18 | `toToolError` joins an array `message` into one string | `src/lib/tool-error.ts:51-54` | 🧪 UNIT `tool-error.spec.ts:388-396` |
-| F19 | `toToolError` reduces a non-`HttpException` to an **opaque** 500 and logs the stack | `src/lib/tool-error.ts:67-77` | 🧪 UNIT `tool-error.spec.ts:400-411` |
+| F19 | `toToolError` reduces a non-`HttpException` to an **opaque** 500 and logs the stack | `src/lib/tool-error.ts:67-77` | 🧪 UNIT `tool-error.spec.ts:59-70` |
 | F20 | `ToolsModule` is `@Global()` and yields one instance to both importers | `src/lib/tools.module.ts:22-27` | ❌ NONE (no test asserts instance identity across both modules) |
 | F21 | A capability plugin injects `ToolRegistry` `@Optional()` and boots without either consumer | `src/lib/tool-provider.ts:20-25` (contract); binders e.g. `activity-tool.provider.ts:30` | ❌ NONE |
 | F22 | **Argument validation against `inputSchema`** | *nowhere in this package* | ❌ NONE → 🐞 BUG-tools-server-01 |
@@ -579,7 +580,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   verbatim. A client rendering a failed tool step therefore has a sentence to
   show ("title must be at most 200 characters") rather than `422`. Both
   consumers do render it: `copilot/admin`'s `ToolStep` shows `step.error`
-  (`packages/copilot/admin/src/lib/presentation/ToolStep/index.tsx:560-564`),
+  (`packages/copilot/admin/src/lib/presentation/ToolStep/index.tsx:67-81`),
   and MCP returns it as a text block (`build-mcp-server.ts:86`).
   Keyboard-only / screen-reader experience: n/a here; the rendering unit owns it.
 
@@ -588,7 +589,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   **Partially Supports**
   `src/lib/tool-error.ts:73-77` replaces every non-`HttpException` with "The
   tool failed unexpectedly. See the server logs." — correct for security
-  (`tool-error.spec.ts:400-411` proves no connection string leaks), and it
+  (`tool-error.spec.ts:59-70` proves no connection string leaks), and it
   leaves a user with no recovery step they can take. A screen-reader user hears
   a failed step with a sentence that names no next action. Remediation: pair the
   opaque message with a correlation id the user can quote, so support can find
@@ -661,7 +662,7 @@ indirectly through both consumers' suites.
 | F16 403 mapping | `tool-error.spec.ts:361-367` | `toMatchObject({status:403, code:'forbidden'})` | ✅ |
 | F17 issues | `tool-error.spec.ts:370-386` | `issues` array preserved by reference-equality | ✅ |
 | F18 array message | `tool-error.spec.ts:388-396` | joined with `'; '` | ✅ |
-| F19 opaque 500 | `tool-error.spec.ts:400-411` | Exact opaque shape **and** `JSON.stringify(error)` does not contain `ECONNREFUSED` | ✅ — the negative assertion is what makes this test worth having |
+| F19 opaque 500 | `tool-error.spec.ts:59-70` | Exact opaque shape **and** `JSON.stringify(error)` does not contain `ECONNREFUSED` | ✅ — the negative assertion is what makes this test worth having |
 
 ### Indirect — through the MCP surface
 
@@ -807,11 +808,21 @@ whichever consumer asks, with no way for a provider to say "MCP only".
 → **Observed:** it is listed and readable, whatever the actor holds.
 / **Expected:** the same `requires`-before-dispatch gate tools get.
 
-**Blast radius:** one provider today (`content/server`), correctly scoped, so
-no live exposure. The defect is that the guard rail is missing, and the MCP
-suite's resource cases (`mcp.spec.ts:647`, `:665`) assert only the happy path —
-there is no "an ungranted type is absent from `resources/list`" case, so a
-regression in the provider's own scoping would not be caught either.
+**Blast radius:** one provider today (`content/server`), correctly scoped — verified:
+`content-tools.provider.ts:430-441` prunes `resources()` to `grantedSummaries`, and
+`readResource` (`:445-462`) runs the same `resolveGrantedType` gate as the tools, so
+an ungranted type is a 404 there too. **No live exposure.** The defect is that the
+guard rail lives in the provider rather than in the registry, so the *next* provider
+must remember it.
+
+**Correction to an earlier claim in this artifact:** it previously said the MCP
+suite's resource cases assert only the happy path. That is **wrong** —
+`apps/server-e2e/src/server/mcp/mcp.spec.ts:660-662` explicitly asserts
+`resources.map(e => e.uri)` does **not** contain `ortha://content-type/test_page`,
+i.e. the ungranted type is absent from `resources/list`. A regression in the
+provider's own scoping *would* be caught. What is genuinely untested is a resource
+whose exposure depends on a **permission** rather than a grant, because no such
+resource exists to test.
 
 **Suggested fix:** add `requires?: readonly PermissionKey[]` to
 `ResourceDefinition` and apply `permits()` in both `resources()` and
@@ -852,7 +863,7 @@ codebase's own convention is eager validation at construction —
 `McpPlugin`'s `assertOptions` (`packages/mcp/server/src/lib/utils/mcp-plugin.ts:22-31`),
 `buildModelRegistry`'s duplicate rejection
 (`packages/copilot/server/src/lib/infrastructure/model-registry.ts:46-50`),
-`buildSkillRegistry`'s (`packages/copilot/domain/src/lib/skills/skill-registry.ts:256-260`).
+`buildSkillRegistry`'s (`packages/copilot/domain/src/lib/skills/skill-registry.ts:30-38`).
 All four fail before boot. This one boots green and then breaks **every** tool
 call on **both** surfaces on the first request, as a bare `Error` — which
 `toToolError` will turn into an opaque 500 with the message withheld
@@ -961,6 +972,9 @@ BUG-tools-server-03 so both are caught in one place.
 
 ---
 
+**Defect tally:** `5 🐞 · 0 Critical · 0 High · 3 Medium · 2 Low · 3 🔒`
+**Accessibility tally:** `4 ♿ · 1 Supports · 2 Partially Supports · 0 Does Not Support · 1 Not Applicable`
+
 ### Checked and cleared
 
 Things I specifically went looking for and did **not** find a defect in:
@@ -990,7 +1004,7 @@ Things I specifically went looking for and did **not** find a defect in:
   documented "attribution only, never authorization" (`tool.ts:41-44`); grepped
   every handler and none reads `actor.id`/`actor.userId` for a decision.
 - **`toToolError` leaking internals.** The negative assertion at
-  `tool-error.spec.ts:410` is genuine and the code path matches.
+  `tool-error.spec.ts:59-70` is genuine and the code path matches.
 
 ---
 

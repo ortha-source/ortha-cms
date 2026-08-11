@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/insights/admin` · **Package:** `@ortha-cms/insights-admin` · **Kind:** admin plugin (a frame, no widgets)
 > **Source of truth:** `packages/insights/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 16 confirmed · 0 deleted · 0 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -955,8 +956,8 @@ anything.
 - **Range-independent widgets.** Asserted not to refetch on a range change
   (`insights.spec.ts:265`) — a sharper assertion than most suites make.
 
-**Tally:** 9 🐞 (0 Critical · 0 High · 3 Medium · 6 Low) · 7 ♿
-(0 Supports · 5 Partially Supports · 2 Does Not Support)
+**Tally:** `9 🐞 — 0 Critical · 0 High · 3 Medium · 6 Low (0 🔒)` ·
+`♿ 7 findings — 0 Supports · 5 Partially Supports · 2 Does Not Support · 0 Unverified`
 
 ---
 

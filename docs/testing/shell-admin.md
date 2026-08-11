@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/shell/admin` · **Package:** `@ortha-cms/shell-admin` · **Kind:** admin plugin (the app shell)
 > **Source of truth:** `packages/shell/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 14 confirmed · 1 deleted · 1 corrected · 2 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -61,7 +62,11 @@ Home dashboard's *content* (every tile and panel arrives through
   `Logo`, `Kbd`, `Button`, `useIsMobile`), `@ortha-cms/utils-admin`
   (`createSlot`, `byOrder`), `react-router-dom`, `react-intl`. If
   `bootstrap-admin` stops mounting `layout` as the parent of private routes, the
-  whole gate disappears — see `🐞 BUG-shell-admin-06`.
+  whole gate disappears. **Verified correct today:**
+  `packages/bootstrap/admin/src/lib/createAdmin/index.tsx:83-97` nests every
+  non-`public` route inside `<Route element={layout}>`, and
+  `apps/admin-e2e/src/auth/private-routes.spec.ts:22-40` pins two of those paths.
+  The residual exposure is coverage, not code — see §7 item 2.
 
 ---
 
@@ -686,7 +691,7 @@ stable. Recorded here so the check is on the record.
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-shell-admin-01 — A throw in any slot-contributed component unmounts the entire authenticated app · Severity: High
+### 🐞 BUG-shell-admin-01 — A throw in any slot-contributed component unmounts the entire authenticated app · Severity: Medium
 
 **Location:** `packages/shell/admin/src/lib/components/AppSidebar/index.tsx:41-47`; `packages/shell/admin/src/lib/components/AppSidebar/GlobalSidebar/index.tsx:113-115`; `packages/shell/admin/src/lib/pages/HomePage/index.tsx:63-77`; `packages/shell/admin/src/lib/components/AppSidebar/SidebarSearch/index.tsx:133-135`
 **Category:** ux-state / correctness
@@ -740,7 +745,10 @@ larger, and has none.
 
 **Blast radius:** every signed-in user, on every page, for any render bug in any
 of the 15 admin plugins that fill a shell slot. It converts a one-widget bug into
-a total outage.
+a total outage. **Severity is Medium, not High:** the mechanism is confirmed
+line-for-line, but the harm is availability — no data is lost, corrupted or
+exposed, and no authorization decision changes. It is still the highest-value fix
+in this unit.
 **Suggested fix:** wrap each slot render in a boundary equivalent to
 `WidgetBoundary`, keyed by the item's `id`, with a compact inline fallback. Move
 the boundary into a shared place (`utils-admin`) so both packages use one.
@@ -922,56 +930,6 @@ why it is easy to dismiss as a glitch.
 `{ token, node }`, and have the cleanup clear only if it still owns the slot —
 or ref-count it the way `registerPanel` does.
 
-### 🐞 BUG-shell-admin-06 — The gate depends on the host mounting `layout` as the parent of private routes, with nothing asserting it · Severity: Medium · 🔒
-
-**Location:** `packages/shell/admin/src/lib/utils/shellPlugin/index.tsx:38-47`
-**Category:** permission-bypass (structural)
-
-**What the code does:**
-
-```tsx
-return {
-    name: 'shell',
-    layout: (
-        <AuthProvider>
-            <RequireAuth>
-                <AppShell />
-            </RequireAuth>
-        </AuthProvider>
-    ),
-    routes: [{ path: '/', element: <HomePage /> }],
-    …
-};
-```
-
-The plugin does not gate its own routes. It exports a `layout` and *trusts* that
-`@ortha-cms/bootstrap-admin` mounts it as the single parent of every route
-without a `public` flag. `AGENTS.md` is explicit about the arrangement
-(`packages/shell/admin/AGENTS.md:118-124`), and it is a sound design — but it
-means the entire authentication boundary of the admin SPA rests on one wiring
-decision in another package.
-
-**Why it is wrong:** it is not wrong *today* — the wiring is correct and
-`apps/admin-e2e/src/auth/private-routes.spec.ts:22-40` proves two paths of it.
-It is filed as **Unverified — structural risk** because the failure mode is
-catastrophic and silent: if a future refactor of `createAdmin` mounted plugin
-routes as siblings of the layout rather than children, every private page would
-render for a signed-out user and **nothing in the test suite would fail except
-those two redirect assertions** — which only cover `/` and an unknown path, not
-`/users`, `/workspaces`, or any workspace-scoped route.
-
-**Repro (thought experiment, not observed):** change `createAdmin` to spread
-plugin routes at the top level; `private-routes.spec.ts` still passes for `/`
-(the shell's own route moves with the layout) while `/users` becomes public.
-
-**Blast radius:** total, if it ever regresses. The signed-out user would still
-have no session cookie, so the API would refuse every request — the leak is
-structural (route existence, page chrome, any client-side-only content), not a
-data leak.
-**Suggested fix:** extend `private-routes.spec.ts` to assert the redirect for
-**every** registered private route prefix (`/users`, `/workspaces`, `/activity`),
-so the wiring is pinned rather than sampled.
-
 ### 🐞 BUG-shell-admin-07 — Collapsing the right panel from the keyboard strands focus, and the mobile overlay is not dismissible by keyboard · Severity: Medium
 
 **Location:** `packages/shell/admin/src/lib/components/AppRightPanel/index.tsx:57-66, 70, 109-122`; `packages/shell/admin/src/lib/utils/pageChrome/index.tsx:136-139`
@@ -1066,8 +1024,15 @@ time-of-day variance.
   implementation is right; only the coverage is missing
   (`♿ A11Y-shell-admin-03`).
 
-**Tally:** 9 🐞 (0 Critical · 1 High · 6 Medium · 2 Low) · 7 ♿
-(2 Supports · 3 Partially Supports · 2 Does Not Support)
+**Tally:** `8 🐞 — 0 Critical · 0 High · 6 Medium · 2 Low (0 🔒)` ·
+`♿ 7 findings — 2 Supports · 3 Partially Supports · 2 Does Not Support · 0 Unverified`
+
+(An earlier draft carried a ninth entry, `BUG-shell-admin-06`, claiming the auth gate
+rested on an unasserted host-wiring assumption. Verification found the wiring correct and
+directly readable at `packages/bootstrap/admin/src/lib/createAdmin/index.tsx:83-97`, with
+no code defect — the entry was a test-coverage observation wearing a bug's clothes, so it
+was withdrawn and folded into §7 item 2. Ids are **not** renumbered: `-07`, `-08` and
+`-09` keep their numbers.)
 
 ---
 
@@ -1076,7 +1041,7 @@ time-of-day variance.
 | Priority | Harness | Proposed spec | Asserts | Closes |
 | --- | --- | --- | --- | --- |
 | 1 | `apps/admin-e2e` POM + `page.route` mock | `src/shell/slot-resilience.spec.ts` | With a mocked route forcing a contributed sidebar section / home panel to throw, the rest of the shell still renders and the failure is confined to one card | `🐞 BUG-shell-admin-01`, EC-33 |
-| 2 | `apps/admin-e2e` | extend `src/auth/private-routes.spec.ts` | A signed-out user is redirected from **every** private prefix: `/users`, `/workspaces`, `/workspaces/:id/content/...`, `/activity` — not just `/` and an unknown path | `🐞 BUG-shell-admin-06` |
+| 2 | `apps/admin-e2e` | extend `src/auth/private-routes.spec.ts` | A signed-out user is redirected from **every** private prefix: `/users`, `/workspaces`, `/workspaces/:id/content/...`, `/activity` — not just `/` and an unknown path. The gate is one wiring decision in another package (`createAdmin` nesting private routes under `layout`); today it is correct, and only two paths pin it | F2 ⚠️ (coverage gap, not a defect) |
 | 3 | `apps/admin-e2e` | `src/shell/a11y.spec.ts` (new file — the shell has none) | axe-clean in **five** states: sidebar expanded, sidebar collapsed, palette open, right panel open, right panel collapsed | F3 ⚠️, `♿ A11Y-shell-admin-04` |
 | 4 | `apps/admin-e2e` | `src/shell/keyboard.spec.ts` | `Tab` once from a fresh load focuses the skip link; `Enter` moves `document.activeElement` to `#main-content`; the next `Tab` stays inside `<main>` | F4 ❌, `♿ A11Y-shell-admin-03` |
 | 5 | `apps/admin-e2e` | `src/shell/right-panel.spec.ts` | Registering a panel makes the column and its toggle exist; collapsing swaps the control into the top bar; the state survives a reload; the column is `inert` when absent; **focus lands on the reopen button after collapsing** | F23–F26 ❌, `🐞 BUG-shell-admin-07`, `♿ A11Y-shell-admin-01` |

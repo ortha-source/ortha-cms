@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/query-builder/admin` · **Package:** `@ortha-cms/query-builder-admin` · **Kind:** admin library (pure UI)
 > **Source of truth:** `packages/query-builder/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 14 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -620,7 +621,7 @@ prompting the consumer to report the row count.
 
 **WCAG:** `2.4.3 Focus Order (A)` · **508:** `E205.4 / 502.3.12 (Focus Cursor)` · **Verdict: Does Not Support**
 
-**Location:** `.../RuleRow/index.tsx:180-189`; `.../QueryBuilderSummary/index.tsx:124-133`; `.../QueryBuilderPanel/index.tsx:162-168, 182`
+**Location:** `.../RuleRow/index.tsx:180-189`; `.../QueryBuilderSummary/index.tsx:124-133`; `.../QueryBuilderPanel/index.tsx:162-168, 181`
 
 Three instances of the same defect:
 
@@ -629,10 +630,10 @@ Three instances of the same defect:
 2. **Remove chip.** Identical — `remove(rule.id)` re-commits a tree without that
    rule, unmounting the button that was activated.
 3. **Esc collapses the panel.** `onOpenChange(false)` makes the `<section>`
-   `inert` (`QueryBuilderPanel/index.tsx:182`) while focus is inside it. The
+   `inert` (`QueryBuilderPanel/index.tsx:181`) while focus is inside it. The
    panel does **not** return focus to the toggle that opened it, even though it
    deliberately moves focus *into* the panel on open
-   (`QueryBuilderPanel/index.tsx:133-138`) — so the entry side is handled and the
+   (`QueryBuilderPanel/index.tsx:132-137`) — so the entry side is handled and the
    exit side is not.
 
 **Keyboard-only user:** removing the third of five conditions costs a full
@@ -779,7 +780,7 @@ magnitude. `MS_PER_UNIT.days = 86_400_000`, so `n = 99_999_999_999` gives roughl
 **Why it is wrong:** an uncaught throw during render. And it is not confined to
 Apply: `JsonPreview` calls `treeToJsonNode(tree, now)` on **every render of the
 draft** (`JsonPreview/index.tsx:38`), and `JsonPreview` is mounted
-unconditionally by both hosts (`QueryBuilderPanel/index.tsx:221`,
+unconditionally by both hosts (`QueryBuilderPanel/index.tsx:220`,
 `QueryBuilderDrawer/index.tsx:163`). So the throw happens as soon as the digits
 are typed, before any button is pressed. Neither host has an error boundary, and
 neither does the shell (`🐞 BUG-shell-admin-01`), so the whole page unmounts.
@@ -1063,8 +1064,14 @@ Low severity because the admin runs on `localhost`/HTTPS in practice.
   forms, so it does not fight its own `onChange` echo
   (`CsvValueInput/index.tsx:46-52`). Traced for `a,`, `,`, `a,,b`.
 
-**Tally:** 8 🐞 (0 Critical · 1 High · 2 Medium · 5 Low) · 7 ♿
-(1 Supports · 3 Partially Supports · 3 Does Not Support)
+**Tally:** `8 🐞 — 0 Critical · 1 High · 2 Medium · 5 Low (0 🔒)` ·
+`♿ 7 findings — 1 Supports · 3 Partially Supports · 3 Does Not Support · 0 Unverified`
+
+`BUG-query-builder-admin-01` keeps its **High**: unlike the other availability-class
+findings in this artifact set, it is triggered by ordinary keyboard input into a bounded
+numeric field (no plugin bug, no hand-edited URL required), it throws during **render** of a
+component both hosts mount unconditionally, and the user loses their whole in-progress
+filter draft with no recovery but a reload.
 
 ---
 

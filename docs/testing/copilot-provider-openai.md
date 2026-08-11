@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/copilot/provider-openai` · **Package:** `@ortha-cms/copilot-provider-openai` · **Kind:** adapter (`ModelProvider` implementation)
 > **Source of truth:** `packages/copilot/provider-openai/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 10 corrected · 2 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -594,7 +595,7 @@ names. The 500-character slice is a deliberate bound on *length*, not on
 `toToolError` reduces a non-`HttpException` to an opaque 500 precisely because
 "the message could name a table, a column, or a connection string"
 (`packages/tools/server/src/lib/tool-error.ts:37-40`), and there is a unit test
-asserting `ECONNREFUSED` cannot leak (`tool-error.spec.ts:410`). The model-error
+asserting `ECONNREFUSED` cannot leak (`tool-error.spec.ts:59-70`). The model-error
 path has neither the guard nor the test.
 
 **Repro:**
@@ -944,6 +945,9 @@ endpoint fails on the second turn.
 `null` when a turn is tool-calls-only. Do NOT implement.
 
 ---
+
+**Defect tally:** `8 🐞 · 0 Critical · 0 High · 4 Medium · 4 Low · 2 🔒`
+**Accessibility tally:** `4 ♿ · 1 Supports · 0 Partially Supports · 1 Does Not Support · 2 Not Applicable`
 
 ### Checked and cleared
 

@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/wysiwyg/admin` · **Package:** `@ortha-cms/wysiwyg-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/wysiwyg/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 4 confirmed · 0 deleted · 9 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
