@@ -614,7 +614,7 @@ front end is even buildable.
 | 508 502.2 / 502.3 (AT interoperability, status messages) | **Not Applicable** | No UI objects and no platform accessibility API involvement |
 | 508 503.2 (platform preferences) / 503.4 (captions, audio control) | **Not Applicable** | No rendering, no media playback |
 | **508 504.2 (produce conformant content)** | **Partially Supports** | The API faithfully transports whatever the authoring surface stored. `richtext` values cross as strings holding the semantic HTML `wysiwyg-admin` produces (headings, lists, table header cells), so a consumer receives real structure rather than a flattened blob. Nothing in this package rewrites, sanitises, or downgrades it |
-| **508 504.2.1 (preserve accessibility information)** | **Partially Supports** | Alt text embedded in rich-text HTML round-trips through a read and a write untouched. `MediaAsset` exposes the asset's `alt` — verify it is actually selected in the schema's shared type (`schema/shared-types.ts`) before relying on it; a media field that returns `{ id url mimeType }` with no way to ask for `alt` would be a hard failure for a consumer |
+| **508 504.2.1 (preserve accessibility information)** | **Partially Supports** | Alt text embedded in rich-text HTML round-trips through a read and a write untouched. `MediaAsset` does expose it — `alt: { type: GraphQLString, description: 'Alt text, when set.' }` (`schema/shared-types.ts:74`, on the type declared at `:42`) — so a consumer can ask for it. Verified. What it cannot ask for is a **per-usage** alt, a caption, or a language marker; see the finding below |
 | **508 504.3 (prompt for accessibility information)** | **Not Applicable here** | Prompting is the authoring UI's job. Filed against `content/admin` as `♿ A11Y-content-admin-11` |
 | **508 504.4 (templates)** | **Not Applicable** | Ships no templates |
 
@@ -625,7 +625,7 @@ per-usage alt text, a caption, or a language marker**
   *consumer's* published output · **508:** `504.2 / 504.2.1` · **Verdict:**
   **Does Not Support** (schema-level)
 - **Location:** the generated `MediaAsset` type
-  (`packages/content/graphql/src/lib/schema/shared-types.ts`) and the entry
+  (`packages/content/graphql/src/lib/schema/shared-types.ts:42-74`) and the entry
   envelope built in `schema/build-schema.ts:220-320`. Alt text lives on the
   **asset** (`MediaRef.alt`, mirrored from
   `packages/content/admin/src/lib/domain/types/contentType/index.ts:144`), not on
