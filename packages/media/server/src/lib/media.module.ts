@@ -19,6 +19,8 @@ import { DrizzleFolderRepository } from './infrastructure/persistence/drizzle-fo
 import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
 import { COPILOT_ATTACHMENT_RESOLVER } from '@ortha-cms/copilot-domain';
 import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
+import { MediaInsightsQuery } from './infrastructure/queries/media-insights.query';
+import { MediaInsightsController } from './http/controllers/media-insights.controller';
 import { MediaCopilotToolProvider } from './copilot/media-tool.provider';
 import { AltTextProposalToolProvider } from './copilot/alt-text-proposal.provider';
 import { AltTextProposalApplier } from './copilot/alt-text-proposal.applier';
@@ -75,6 +77,9 @@ export class MediaModule {
             module: MediaModule,
             global: true,
             controllers: [
+                // Insights read-model. Its `insights` first segment can't
+                // collide with the `media/...` routes below.
+                MediaInsightsController,
                 ListFoldersController,
                 CreateFolderController,
                 RenameFolderController,
@@ -118,6 +123,7 @@ export class MediaModule {
                 DeleteFolderUseCase,
                 // Read models.
                 ListAssetsQuery,
+                MediaInsightsQuery,
                 ListFoldersQuery,
                 // The copilot's read tools — asset search, folder listing and
                 // reading a text asset. All no-op when no copilot plugin is

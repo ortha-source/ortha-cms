@@ -55,6 +55,12 @@ import { PublicEntryWritesService } from './public-api/infrastructure/public-ent
 import { DraftVisibilityGuard } from './public-api/http/guards/draft-visibility.guard';
 import { PublicExpansionQuery } from './public-api/infrastructure/public-expansion.query';
 import { ContentToolProvider } from './mcp/content-tools.provider';
+import { ContentInsightsQuery } from './insights/infrastructure/queries/content-insights.query';
+import { ContentTotalsController } from './insights/http/controllers/content-totals.controller';
+import { ContentStaleController } from './insights/http/controllers/content-stale.controller';
+import { ContentPipelineController } from './insights/http/controllers/content-pipeline.controller';
+import { ContentVelocityController } from './insights/http/controllers/content-velocity.controller';
+import { ContentPunchcardController } from './insights/http/controllers/content-punchcard.controller';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -113,7 +119,16 @@ export class ContentModule {
                 // share a shape, and keeping the two controllers' orders
                 // consistent means the group-before-id rule holds across both.
                 PublicEntryWritesController,
-                PublicEntriesController
+                PublicEntriesController,
+                // Insights read-model. Their `insights` first segment can't
+                // collide with the `content/:typeName` routes above, and each
+                // widget on the Insights page owns one of these endpoints so a
+                // slow aggregate degrades a single card.
+                ContentTotalsController,
+                ContentStaleController,
+                ContentPipelineController,
+                ContentVelocityController,
+                ContentPunchcardController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },
@@ -138,6 +153,7 @@ export class ContentModule {
                 EntryValidationService,
                 WorkspaceGrantsQuery,
                 EntriesService,
+                ContentInsightsQuery,
                 // Resolves media field ids → display refs (thumbnails); injected
                 // by the entry-media read endpoint and the revision refs query.
                 // No-ops when the media plugin binds no resolver.

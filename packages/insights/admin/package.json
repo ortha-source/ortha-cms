@@ -21,7 +21,8 @@
         "@ortha-cms/workspaces-admin": "*",
         "@tanstack/react-query": "^5.0.0",
         "lucide-react": "^1.17.0",
-        "react-intl": "^7.0.0"
+        "react-intl": "^7.0.0",
+        "@ortha-cms/identity-admin": "*"
     },
     "peerDependencies": {
         "react": "^19.0.0",

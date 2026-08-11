@@ -585,6 +585,37 @@ types (`RevisionSummary` / `RevisionDetail` / `RevisionListView`) live in
 **read-only compare against the current record** (the `RevisionPreviewDialog`
 above), not an in-form staging preview; restore remains the switch-back path.
 
+## Insights widgets
+
+This plugin contributes the **content cards** on the Insights page via
+`@ortha-cms/insights-admin`'s `INSIGHTS_WIDGET_SLOT` — content owns the data, so
+it owns the widgets; the Insights plugin ships only the page, the grid and the
+card shell and knows nothing about entries.
+
+Seven contributions: three Overview stat tiles (Entries / Published / Drafts),
+**Gone quiet** (staleness buckets), **Draft and published, by type**,
+**Publishing velocity**, and the Team **punchcard**. Data layer mirrors the rest
+of the package — `infrastructure/contentInsightsGateway` (the port),
+`httpContentInsightsGateway` (the only `apiClient` use),
+`contentInsightsKeys`, and the read hooks in
+`application/useContentInsights`.
+
+- **The three stat tiles share one query key**, so TanStack dedupes them into a
+  single `content/totals` request while each widget keeps its own pending and
+  error state. Independent loaders without three round-trips for one aggregate.
+- **Keys are workspace-scoped**, like every other content key: the workspace
+  only reaches the server as an ambient header, which is never sent on a cache
+  hit, so without the id in the key switching workspaces would show the previous
+  one's numbers and never refetch.
+- **`retry: 1`, not TanStack's default 3.** Three attempts with backoff leave a
+  broken widget on a skeleton for ~7s, which reads as a hang rather than a
+  failure on a page whose premise is that one card fails alone.
+- **The Drafts tile shows a share of the total, not a delta** — see
+  content-server's note on why a draft change figure would be invented.
+- **The velocity widget takes its bucket width from the response**, rather than
+  re-deriving it from the range: two places computing the same rule is two
+  places to get it wrong, and the axis would silently mislabel.
+
 ## Extension slots
 
 The library exposes eleven named slots (`presentation/slots/contentSlots`, via

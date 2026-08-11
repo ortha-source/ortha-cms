@@ -42,6 +42,21 @@ running Docker daemon for testcontainers).
    `setUserStatus` for the out-of-band suspension the API never performs (its
    disable endpoint revokes sessions in the same transaction).
 
+### Running without Docker
+
+Set **`E2E_DATABASE_URL`** to point the run at an already-running Postgres and
+`global-setup` skips the container entirely (it still applies every plugin's
+migrations first). For a sandbox or a Docker-less CI runner:
+
+```bash
+E2E_DATABASE_URL=postgres://user@127.0.0.1:5432/ortha_e2e npx nx e2e server-e2e
+```
+
+**The database it names is truncated between every test.** That is why it is its
+own variable rather than reusing `DATABASE_URL`, which is routinely set in a
+developer's `.env` and points at their working database — a name that cannot be
+triggered by accident is the whole point. The testcontainer stays the default.
+
 ## Conventions
 
 - **One suite per endpoint/concern**, grouped by feature folder under

@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_797 test cases across 48 spec files._
+_830 test cases across 50 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1300,6 +1300,99 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | Test case |
 | --- |
 | ignores ?locale= on a non-localized type |
+
+<!-- source: apps/server-e2e/src/server/insights/content-insights.spec.ts -->
+_<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
+
+## Content insights (/api/insights/content)
+
+### GET /totals
+
+| Test case |
+| --- |
+| counts entries, published and drafts |
+| excludes soft-deleted entries from every count |
+| counts only the workspace named by the header |
+| reports the change over the window, not the lifetime total |
+| rejects a window outside 1–365 |
+
+### GET /stale
+
+| Test case |
+| --- |
+| files each entry in the bucket its last edit falls in |
+| places a boundary entry in exactly one bucket |
+| counts only published entries — a draft is not neglected content |
+
+### GET /pipeline
+
+| Test case |
+| --- |
+| splits each type into published and draft |
+| omits a type the workspace has never used |
+
+### GET /velocity
+
+| Test case |
+| --- |
+| buckets entries by when they were published |
+| widens the bucket for a longer window |
+
+### GET /punchcard
+
+| Test case |
+| --- |
+| groups saves by ISO weekday and hour |
+| counts every save, not just publishes |
+| counts only this workspace’s revisions |
+
+### authorization
+
+| Test case |
+| --- |
+| 401s without a session |
+| 400s without a workspace header |
+| 403s for a workspace the caller is not a member of |
+| 403s a viewer, who holds no content:read |
+| refuses every route without a session |
+
+<!-- source: apps/server-e2e/src/server/insights/media-insights.spec.ts -->
+_<sub>apps/server-e2e/src/server/insights/media-insights.spec.ts</sub>_
+
+## Media insights (/api/insights/media)
+
+### GET /storage
+
+| Test case |
+| --- |
+| groups assets and bytes by kind, largest by bytes first |
+| returns byte totals as numbers, not strings |
+| is empty for a workspace with no assets |
+| counts only the workspace named by the header |
+
+### GET /alt
+
+| Test case |
+| --- |
+| counts images with real alt text as covered |
+| does not count a blank alt as covered |
+| ignores non-image assets entirely |
+
+### GET /uploads
+
+| Test case |
+| --- |
+| buckets uploads by when they were added |
+| excludes uploads older than the window |
+| clamps an over-large window rather than rejecting it |
+
+### authorization
+
+| Test case |
+| --- |
+| 401s without a session |
+| 400s without a workspace header |
+| 403s for a workspace the caller is not a member of |
 
 <!-- source: apps/server-e2e/src/server/mcp/mcp.spec.ts -->
 _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
