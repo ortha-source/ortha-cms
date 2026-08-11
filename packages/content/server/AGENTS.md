@@ -1163,6 +1163,53 @@ a browsable version history and can be restored. Layered per ADR-0003
   — which appends a **new** revision — so history is append-only (a restore of v2
   yields a fresh v6 equal to v2, never a rewrite).
 
+## Insights read-model (`/api/insights/content/*`, `src/lib/insights/`)
+
+The aggregates behind the content widgets on the Insights page
+(`@ortha-cms/insights-admin`). Five routes, all `content:read` +
+`WorkspaceGuard`, all read-only:
+
+| Route | Answers |
+| --- | --- |
+| `totals` | entry / published / draft counts, the change over `?days=`, and a short history for the stat tiles' sparklines |
+| `stale` | published entries bucketed by time since last edit (30/90/180/365/older) |
+| `pipeline` | draft-vs-published per content type |
+| `velocity` | entries published per time bucket across `?days=` |
+| `punchcard` | edits by weekday and hour, from `content_entry_revisions` |
+
+Five endpoints rather than one combined payload because **each widget owns its
+own request** — a slow or failing aggregate degrades one card instead of
+blanking the dashboard. `stale` and `pipeline` deliberately take no `?days=`:
+the staleness buckets *are* the time axis, and the pipeline is a snapshot of
+what exists, so windowing either would answer a different question under the
+same name.
+
+Four things worth knowing before changing `ContentInsightsQuery`:
+
+- **Live aggregation, no projection.** Every figure is computed on demand from
+  the collection tables, hitting the existing `(workspace_id, …)` list indexes.
+  A projection would add a table, migrations and a rebuild path to maintain
+  before anything proved it was needed; this class is the only seam that would
+  have to change, since the HTTP contract doesn't say where numbers come from.
+- **Every method fans out per content type.** There is no single table to group
+  over — a collection is its own generated `content_<name>` table — so "entries
+  in this workspace" is inherently a loop plus an in-memory merge.
+- **`scope()` is shared because forgetting `deleted_at` is silent.** A
+  tombstoned entry is still a row, and a count that misses the soft-delete
+  clause reports deleted content as live — exactly the kind of wrong number a
+  dashboard is believed on.
+- **`punchcard` reads revisions, not the activity log.** `activity_events` has
+  no `workspace_id` column, so a workspace-scoped answer is not available from
+  it; a revision is written on every save and carries one. Saves are also the
+  better signal — they cover the editing work, not only publishes. Hours come
+  out in the database session's timezone (UTC), and the widget's caption says
+  so: shifting the labels to local time without regrouping would mislabel the
+  buckets.
+
+There is deliberately **no draft delta** in `totals`. Nothing records an entry
+moving *back* to draft — `published_at` says when something went live and never
+that it stopped — so a change figure for drafts could only be invented.
+
 ## Architecture
 
 - `ContentModule.forRoot(registry)` is **global** and exports the

@@ -137,6 +137,40 @@
     --color-nav-violet: oklch(0.76 0.11 300);
     --color-nav-amber: oklch(0.78 0.13 80);
     --color-nav-teal: oklch(0.75 0.1 190);
+
+    /* Data-visualisation palette (Insights widgets).
+
+       Deliberately hex, not oklch, unlike every token above: these values are
+       the *output* of the colour validator, and re-expressing them in another
+       space would let rounding drift away from the numbers that were actually
+       checked. Treat them as fixed data, not as a palette to hand-tune — if a
+       value changes, re-run the validator against the card surface.
+
+       `chart-1`/`chart-2` are the CATEGORICAL slots: the only pair that clears
+       colourblind separation on BOTH the light card (#ffffff) and the dark card
+       (#19191f). Blue+violet, the obvious alternative, fails at ΔE 1.9 under
+       protanopia in dark mode. Do not add a third slot without re-validating.
+
+       `chart-q0`..`chart-q5` are the SEQUENTIAL ramp, low → high. It is not a
+       tint of the categorical blue and it is NOT the same ramp inverted: on the
+       dark canvas the low end sits near the surface and the high end reads
+       bright, so "more" always means "more visible" in either theme. Anything
+       rendering a caption over this ramp must not say "darker means more".
+
+       `chart-on-deep` is the ink for text sitting ON the two deepest steps —
+       white in light, near-black in dark, because the deep end of the ramp
+       swaps lightness between themes. */
+    --color-chart-1: #2a78d6;
+    --color-chart-2: #1baf7a;
+    --color-chart-q0: #eef2f7;
+    --color-chart-q1: #cde2fb;
+    --color-chart-q2: #9ec5f4;
+    --color-chart-q3: #5598e7;
+    --color-chart-q4: #2a78d6;
+    --color-chart-q5: #184f95;
+    --color-chart-on-deep: #ffffff;
+    --color-chart-grid: oklch(0.93 0.004 285);
+    --color-chart-axis: oklch(0.86 0.006 285);
 }
 
 /* ---------------------------------------------------------------------------
@@ -226,6 +260,22 @@
 
     --color-status-active: oklch(0.7 0.16 149);
     --color-status-invited: oklch(0.74 0.13 70);
+
+    /* Dark data-visualisation palette. Both categorical slots are re-stepped
+       for the dark card, and the sequential ramp runs the other way (q0 sits
+       just above the card surface, q5 is the brightest step) so "more" still
+       reads as "more visible". See the light block for why these are hex. */
+    --color-chart-1: #3987e5;
+    --color-chart-2: #199e70;
+    --color-chart-q0: #1b1b22;
+    --color-chart-q1: #1f3350;
+    --color-chart-q2: #184f95;
+    --color-chart-q3: #256abf;
+    --color-chart-q4: #3987e5;
+    --color-chart-q5: #86b6ef;
+    --color-chart-on-deep: #101016;
+    --color-chart-grid: oklch(0.27 0.006 285);
+    --color-chart-axis: oklch(0.35 0.008 285);
 }
 
 /* Avatar accent palette — richer chroma than the neutrals so avatars pop as

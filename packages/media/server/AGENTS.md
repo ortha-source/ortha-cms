@@ -379,3 +379,29 @@ variant serving, and the admin side has `media-library.spec.ts` +
 ## Commands
 
 - `npx nx typecheck @ortha-cms/media-server` / `npx nx lint @ortha-cms/media-server`
+
+## Insights read-model (`/api/insights/media/*`)
+
+Three read-only aggregates behind the media widgets on the Insights page, all
+`media:read` + `WorkspaceGuard`: `storage` (assets and bytes per kind, plus
+totals), `uploads` (assets added per time bucket across `?days=`), and `alt`
+(alt-text coverage across the workspace's images).
+
+Grouped in **one** controller, unlike content's five: these are three
+projections of a single table with one dependency and one permission between
+them — the read side of one resource rather than three separate use cases. Each
+still gets its own route, so each widget owns its own request.
+
+Three details in `MediaInsightsQuery`:
+
+- **`storage` returns both `count` and `bytes` per kind**, because they
+  routinely tell opposite stories — a handful of videos can be most of the bill
+  while images are most of the library — and a widget with only one of them
+  would let a reader draw the wrong conclusion confidently.
+- **`sum(size)` is cast to `bigint`.** `size` is a bigint, so node-postgres
+  hands the sum over as a *string* to avoid precision loss; the cast keeps that
+  explicit and the `Number()` is safe because a workspace's byte total is
+  nowhere near 2^53.
+- **A blank `alt` does not count as covered.** An empty string is the markup for
+  "decorative", so `withAlt` requires `length(trim(alt)) > 0` — counting it
+  would report accessibility work as done that nobody has done.

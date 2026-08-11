@@ -12,7 +12,15 @@ import {
     type ContentTypeDetail
 } from '@ortha-cms/content-admin';
 import { WYSIWYG_MEDIA_SLOT } from '@ortha-cms/wysiwyg-admin';
+import {
+    INSIGHTS_SECTION_IDS,
+    INSIGHTS_WIDGET_SLOT
+} from '@ortha-cms/insights-admin';
 import { Image, Upload } from 'lucide-react';
+import { MediaStorageStat } from '../../components/MediaStorageStat';
+import { MediaStorageWidget } from '../../components/MediaStorageWidget';
+import { MediaUploadsWidget } from '../../components/MediaUploadsWidget';
+import { MediaAltTextWidget } from '../../components/MediaAltTextWidget';
 import { EntryMediaTab } from '../../components/EntryMediaTab';
 import { WysiwygLibrarySource } from '../../components/WysiwygLibrarySource';
 import { WysiwygUploadSource } from '../../components/WysiwygUploadSource';
@@ -20,6 +28,7 @@ import {
     MEDIA_PRESAVE_ID,
     usePendingMediaUploads
 } from '../../hooks/usePendingMediaUploads';
+import { MEDIA_READ } from '../../constants';
 
 const MediaLibraryPage = lazy(() =>
     import('../../pages/MediaLibraryPage').then((module) => ({
@@ -51,6 +60,54 @@ export function MediaPlugin(): MediaAdminPlugin {
     return {
         name: 'media',
         slots: [
+            {
+                // Insights widgets. Media owns `media_asset`, so it owns the
+                // cards reading it — the Insights plugin knows nothing about
+                // assets, kinds or bytes.
+                slot: INSIGHTS_WIDGET_SLOT,
+                items: [
+                    {
+                        id: 'insights.media.storage',
+                        section: INSIGHTS_SECTION_IDS.Overview,
+                        order: 40,
+                        size: 'xs',
+                        permission: MEDIA_READ,
+                        titleId: 'media.insights.storage.label',
+                        defaultTitle: 'Media storage',
+                        Component: MediaStorageStat
+                    },
+                    {
+                        id: 'insights.media.storageBreakdown',
+                        section: INSIGHTS_SECTION_IDS.Reach,
+                        order: 10,
+                        size: 'sm',
+                        permission: MEDIA_READ,
+                        titleId: 'media.insights.storageBreakdown.title',
+                        defaultTitle: "What's using the storage",
+                        Component: MediaStorageWidget
+                    },
+                    {
+                        id: 'insights.media.uploads',
+                        section: INSIGHTS_SECTION_IDS.Reach,
+                        order: 20,
+                        size: 'sm',
+                        permission: MEDIA_READ,
+                        titleId: 'media.insights.uploads.title',
+                        defaultTitle: 'Uploads',
+                        Component: MediaUploadsWidget
+                    },
+                    {
+                        id: 'insights.media.alt',
+                        section: INSIGHTS_SECTION_IDS.Reach,
+                        order: 30,
+                        size: 'sm',
+                        permission: MEDIA_READ,
+                        titleId: 'media.insights.alt.title',
+                        defaultTitle: 'Images missing alt text',
+                        Component: MediaAltTextWidget
+                    }
+                ]
+            },
             {
                 slot: WORKSPACE_NAV_SLOT,
                 items: [

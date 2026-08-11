@@ -18,6 +18,12 @@ createAdmin({
         IdentityPlugin(),
         ShellPlugin(),
         WorkspacesPlugin(),
+        // Insights goes first among the workspace-interior features: it
+        // registers the dashboard's default sections, and section
+        // contributions merge by id with the LAST one winning — so a plugin
+        // that renames or reorders a band has to come after this. Its widget
+        // slot is order-independent, so nothing else here is affected.
+        InsightsPlugin(),
         // Workspace-interior features — they only contribute to the workspace
         // shell's rail/route slots, so they must follow WorkspacesPlugin().
         ContentPlugin(),
@@ -33,7 +39,6 @@ createAdmin({
         // Belongs with the workspace-interior features: the panel will mount
         // into the workspace shell's sidebar footer.
         CopilotPlugin(),
-        InsightsPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         // Global token-management page in the main sidebar (no workspace

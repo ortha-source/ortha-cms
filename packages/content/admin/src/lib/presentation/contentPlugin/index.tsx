@@ -5,9 +5,20 @@ import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SECTION_SLOT
 } from '@ortha-cms/workspaces-admin';
-import { CONTENT_SEGMENT } from '../../domain/constants';
+import {
+    INSIGHTS_SECTION_IDS,
+    INSIGHTS_WIDGET_SLOT
+} from '@ortha-cms/insights-admin';
+import { CONTENT_READ, CONTENT_SEGMENT } from '../../domain/constants';
 import { ContentNavSection } from '../components/ContentNavSection';
 import { ContentTypeCommands } from '../components/ContentTypeCommands';
+import { ContentEntriesStat } from '../components/ContentEntriesStat';
+import { ContentPublishedStat } from '../components/ContentPublishedStat';
+import { ContentDraftsStat } from '../components/ContentDraftsStat';
+import { StaleEntriesWidget } from '../components/StaleEntriesWidget';
+import { ContentPipelineWidget } from '../components/ContentPipelineWidget';
+import { PublishingVelocityWidget } from '../components/PublishingVelocityWidget';
+import { ContentPunchcardWidget } from '../components/ContentPunchcardWidget';
 
 const ContentLibraryPage = lazy(() =>
     import('../pages/ContentLibraryPage').then((module) => ({
@@ -34,6 +45,86 @@ export function ContentPlugin(): ContentAdminPlugin {
     return {
         name: 'content',
         slots: [
+            {
+                // Insights widgets. Content owns the data behind them, so it
+                // owns the cards — the Insights plugin ships the page, the
+                // grid and the card shell, and knows nothing about entries.
+                slot: INSIGHTS_WIDGET_SLOT,
+                items: [
+                    {
+                        id: 'insights.content.entries',
+                        section: INSIGHTS_SECTION_IDS.Overview,
+                        order: 10,
+                        size: 'xs',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.entries.label',
+                        defaultTitle: 'Entries',
+                        Component: ContentEntriesStat
+                    },
+                    {
+                        id: 'insights.content.published',
+                        section: INSIGHTS_SECTION_IDS.Overview,
+                        order: 20,
+                        size: 'xs',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.published.label',
+                        defaultTitle: 'Published',
+                        Component: ContentPublishedStat
+                    },
+                    {
+                        id: 'insights.content.drafts',
+                        section: INSIGHTS_SECTION_IDS.Overview,
+                        order: 30,
+                        size: 'xs',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.drafts.label',
+                        defaultTitle: 'Drafts',
+                        Component: ContentDraftsStat
+                    },
+                    {
+                        id: 'insights.content.stale',
+                        section: INSIGHTS_SECTION_IDS.Content,
+                        order: 10,
+                        size: 'md',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.stale.title',
+                        defaultTitle: 'Gone quiet',
+                        Component: StaleEntriesWidget
+                    },
+                    {
+                        id: 'insights.content.pipeline',
+                        section: INSIGHTS_SECTION_IDS.Content,
+                        order: 20,
+                        size: 'md',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.pipeline.title',
+                        defaultTitle: 'Draft and published, by type',
+                        Component: ContentPipelineWidget
+                    },
+                    {
+                        id: 'insights.content.velocity',
+                        section: INSIGHTS_SECTION_IDS.Content,
+                        order: 30,
+                        size: 'full',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.velocity.title',
+                        defaultTitle: 'Publishing velocity',
+                        Component: PublishingVelocityWidget
+                    },
+                    {
+                        // Team, not Content: the question it answers is about
+                        // the people, even though the data is content's.
+                        id: 'insights.content.punchcard',
+                        section: INSIGHTS_SECTION_IDS.Team,
+                        order: 10,
+                        size: 'full',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.punchcard.title',
+                        defaultTitle: 'When the work happens',
+                        Component: ContentPunchcardWidget
+                    }
+                ]
+            },
             {
                 slot: WORKSPACE_SECTION_SLOT,
                 items: [

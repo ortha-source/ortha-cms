@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_375 test cases across 40 spec files._
+_393 test cases across 42 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -615,6 +615,40 @@ _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 | --- |
 | shows the greeting, stat tiles, and both panels |
 | the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/insights/a11y.spec.ts -->
+_<sub>apps/admin-e2e/src/insights/a11y.spec.ts</sub>_
+
+## Insights accessibility
+
+| Test case |
+| --- |
+| has no axe violations once every widget has loaded |
+| has no axe violations while widgets are loading |
+| has no axe violations with a failed widget on the page |
+| the range picker is reachable and operable by keyboard |
+| every chart carries a text alternative |
+
+<!-- source: apps/admin-e2e/src/insights/insights.spec.ts -->
+_<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
+
+## Insights
+
+| Test case |
+| --- |
+| renders every contributed widget in its section |
+| each widget contributes its slot id to the grid |
+| renders each section band under its registered id |
+| renders the headline figures from the API |
+| each widget calls its own endpoint |
+| a failing widget does not take down the rest of the page |
+| a stat tile that cannot load shows no figure at all |
+| an empty workspace shows empty states, not errors |
+| shows a skeleton per widget while its request is open |
+| changing the range refetches the range-dependent widgets |
+| hides content widgets from a user without content:read |
+| shows the empty page when no widget is visible |
+| offers a table view for the chart whose values are hover-only |
 
 <!-- source: apps/admin-e2e/src/media/media-library.spec.ts -->
 _<sub>apps/admin-e2e/src/media/media-library.spec.ts</sub>_

@@ -268,6 +268,29 @@ picked fills the Media Library with assets for a record the user then abandons.
 - **Picking an existing library asset is not deferred** — it is already uploaded;
   attaching its id is an ordinary form edit that rides Save like any other.
 
+## Insights widgets
+
+This plugin contributes the **media cards** on the Insights page via
+`@ortha-cms/insights-admin`'s `INSIGHTS_WIDGET_SLOT` — media owns `media_asset`,
+so it owns the cards reading it. Four contributions: a **Media storage** stat
+tile in Overview, **What's using the storage**, **Uploads**, and **Images
+missing alt text**. Data layer follows the package's shape —
+`infrastructure/mediaInsightsGateway` (port), `httpMediaInsightsGateway`
+(the `apiClient` use), and `hooks/useMediaInsights` (keys + read hooks,
+workspace-scoped, `retry: 1`).
+
+Two decisions worth keeping:
+
+- **The storage widget's bars are bytes and only bytes.** An earlier draft
+  scaled the bar by asset count while the readout showed size, which put two
+  measures on one row and made the widget's whole point — that a few videos
+  outweigh thousands of images — impossible to see.
+- **Alt-text coverage takes no range.** Accessibility debt is a standing total,
+  not something that happened in the last 30 days; windowing it would make the
+  number shrink whenever someone narrowed the range. The headline is the
+  **missing count**, not the coverage percentage: "794 images need alt text" is
+  a job someone can pick up, where "68% covered" is a score.
+
 ## Lives strictly inside a workspace
 
 This plugin contributes **no top-level route and no top-toolbar nav item**. It
