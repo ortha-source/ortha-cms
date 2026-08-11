@@ -27,15 +27,15 @@ workspace membership (identity + workspaces); and **any HTTP security headers**
   - Session routes (all `PermissionsGuard` + `WorkspaceGuard`, state-changing ones
     also `OriginGuard`):
     - `GET /api/media/folders` — `packages/media/server/src/lib/http/controllers/list-folders.controller.ts:22`
-    - `POST /api/media/folders` — `.../create-folder.controller.ts:192`
-    - `PATCH /api/media/folders/:id` — `.../rename-folder.controller.ts:240`
-    - `DELETE /api/media/folders/:id` (204, cascades) — `.../delete-folder.controller.ts:290`
+    - `POST /api/media/folders` — `.../create-folder.controller.ts:26`
+    - `PATCH /api/media/folders/:id` — `.../rename-folder.controller.ts:32`
+    - `DELETE /api/media/folders/:id` (204, cascades) — `.../delete-folder.controller.ts:36`
     - `GET /api/media/assets` — `.../list-assets.controller.ts:33`
     - `POST /api/media/assets` (multipart) — `.../upload-asset.controller.ts:64`
     - `GET /api/media/assets/:id/raw?variant=` — `.../download-asset.controller.ts:48` (**no `WorkspaceGuard`** — membership-derived)
-    - `PATCH /api/media/assets/:id` — `.../update-asset.controller.ts:138`
-    - `POST /api/media/assets/:id/duplicate` — `.../duplicate-asset.controller.ts:340`
-    - `DELETE /api/media/assets` (bulk `{ ids }`) — `.../delete-assets.controller.ts:82`
+    - `PATCH /api/media/assets/:id` — `.../update-asset.controller.ts:39`
+    - `POST /api/media/assets/:id/duplicate` — `.../duplicate-asset.controller.ts:37`
+    - `DELETE /api/media/assets` (bulk `{ ids }`) — `.../delete-assets.controller.ts:26`
     - `GET /api/insights/media/{storage,uploads,alt}` — `.../media-insights.controller.ts`
   - Token routes (`ApiTokenGuard` + `ApiTokenWorkspaceGuard`, `@Public()`):
     - `POST /api/v1/media/assets` — `packages/media/server/src/lib/http/controllers/public-media.controller.ts:98`
@@ -117,7 +117,7 @@ workspace membership (identity + workspaces); and **any HTTP security headers**
 | F24 | Agent tools `media_propose_alt_text` / `media_propose_file` (copilot only) | `.../copilot/alt-text-proposal.provider.ts`, `.../create-file-proposal.provider.ts` | ⚠️ PARTIAL |
 | F25 | `COPILOT_ATTACHMENT_RESOLVER` binding (omits foreign assets) | `packages/media/server/src/lib/copilot/attachment-resolver.query.ts` | ✅ E2E |
 | F26 | Permission gating per route (`media:read/create/update/delete`) | every controller's `@RequirePermissions` | ⚠️ PARTIAL |
-| F27 | `OriginGuard` on state-changing routes | `create-folder.controller.ts:185` etc. | ⚠️ PARTIAL |
+| F27 | `OriginGuard` on state-changing routes | `create-folder.controller.ts:19` etc. | ⚠️ PARTIAL |
 
 ## 3. Manual Test Plan
 
@@ -156,7 +156,7 @@ covered in `docs/testing/media-admin.md`.
 | --- | --- | --- |
 | 1 | `PATCH /api/media/folders/<id>` `{"name":"Brand assets"}` | `200`, `{ id }` |
 | 2 | `GET /folders` | the folder's `name` is `Brand assets` |
-| 3 | Rename to the same value | `200`; `Folder.rename` returns early and raises no event (`domain/folder.ts:205-207`) |
+| 3 | Rename to the same value | `200`; `Folder.rename` returns early and raises no event (`domain/folder.ts:104-106`) |
 | 4 | `PATCH` with `{"name":"<121 chars>"}` | `400` — `@MaxLength(120)` |
 | 5 | `PATCH` a folder id from another workspace | `404` |
 
@@ -250,8 +250,8 @@ so this cannot be exercised against `apps/server` as-is.
 | 1 | `PATCH /assets/<id>` `{"name":"hero.png"}` | `200`; the returned view's `name` is `hero.png` |
 | 2 | `{"folderId":"<uuid>"}` | the asset moves; `GET /folders` counts shift |
 | 3 | `{"folderId":null}` | the asset moves to the root |
-| 4 | `{"tags":["  a ","a",""]}` | stored as `["a"]` — trimmed, de-duplicated, blanks dropped (`domain/asset.ts:481-487`) |
-| 5 | `{"alt":"   "}` | stored as `null` (`domain/asset.ts:491`) |
+| 4 | `{"tags":["  a ","a",""]}` | stored as `["a"]` — trimmed, de-duplicated, blanks dropped (`domain/asset.ts:254-257`) |
+| 5 | `{"alt":"   "}` | stored as `null` (`domain/asset.ts:264`) |
 | 6 | `{"name":"a/b.png"}` | `400` — `FileName` rejects separators (`value-objects/file-name.ts:20`) |
 | 7 | `{"tags":[<51 items>]}` | `400` — `@ArrayMaxSize(50)` |
 | 8 | As a `contributor` without `media:update` | `403` |
@@ -441,7 +441,7 @@ so this cannot be exercised against `apps/server` as-is.
 
 - **EC-24 — Move a folder into its own descendant.** `❌ NONE`
   **Not reachable.** `RenameFolderUseCase` only renames; `Folder.parentId` is
-  `readonly` (`domain/folder.ts:140`) and no route sets it. Cycles cannot be
+  `readonly` (`domain/folder.ts:38`) and no route sets it. Cycles cannot be
   created through the API. Checked and cleared.
 - **EC-25 — Two folders with the same name under one parent.** `❌ NONE`
   Allowed — no unique index (`media-folder.ts:24-26`). `CreateFolderDto`'s JSDoc
@@ -450,16 +450,16 @@ so this cannot be exercised against `apps/server` as-is.
 - **EC-26 — Delete a folder while a sibling request creates a subfolder under a descendant.** `❌ NONE`
   Guarded: `findDescendantsForUpdate` re-walks and loops until the subtree stops
   changing, bounded by `SUBTREE_WALK_ROUNDS`. Checked and cleared by reading
-  `drizzle-folder.repository.ts` and `delete-folder.use-case.ts:113`.
+  `drizzle-folder.repository.ts` and `delete-folder.use-case.ts:74`.
 - **EC-27 — Cascade must not escape the workspace.** `✅ E2E`
   `apps/server-e2e/src/server/media/media-folders.spec.ts:157` pins it.
 - **EC-28 — Delete a folder whose asset blob is already missing on disk.** `❌ NONE`
-  `reclaimAssetBlobs` swallows everything (`reclaim-asset-blobs.ts:452`), so the
+  `reclaimAssetBlobs` swallows everything (`reclaim-asset-blobs.ts:18-23`), so the
   rows still go. Correct.
 - **EC-29 — Delete a folder holding 10 000 assets.** `❌ NONE`
   `findManyByFolderIds` loads every `Asset` aggregate into memory, then
   `Promise.all` fires 10 000 concurrent `provider.remove` calls
-  (`delete-folder.use-case.ts:146`). Unbounded fan-out → `🐞 BUG-media-server-09`.
+  (`delete-folder.use-case.ts:107-109`). Unbounded fan-out → `🐞 BUG-media-server-09`.
 
 ### Permission matrix and tenancy
 

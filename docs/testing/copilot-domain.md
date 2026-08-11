@@ -160,7 +160,7 @@ None at runtime. **Consumers** that must be healthy for the manual plan below:
 | F42 | `validateSkillShape` returns **every** problem | `src/lib/skills/skill.ts:140-195` | 🧪 UNIT `src/lib/skills/skill-registry.spec.ts` · ✅ E2E `copilot-skills.spec.ts:287` |
 | F43 | `SKILL_NAME_PATTERN` = lowercase slug | `skill.ts:92` | ✅ E2E `copilot-skills.spec.ts:287` |
 | F44 | The six bounds (name 64 / title 80 / description 240 / instructions 8 000 / 3 per run / 25 summaries) | `skill.ts:95-129` | ⚠️ PARTIAL — `MAX_RUN_SKILLS` covered (`copilot-skills.spec.ts:428`); the length bounds are unit-only |
-| F45 | `buildSkillRegistry` throws on a malformed or duplicate name at construction | `src/lib/skills/skill-registry.ts:250-260` | 🧪 UNIT `skill-registry.spec.ts` |
+| F45 | `buildSkillRegistry` throws on a malformed or duplicate name at construction | `src/lib/skills/skill-registry.ts:50-60` | 🧪 UNIT `skill-registry.spec.ts` |
 | F46 | It snapshots into a **null-prototype** object and freezes each skill | `skill-registry.ts:33-38`, `:62` | 🧪 UNIT `skill-registry.spec.ts` |
 | F47 | `mergeSkills` — code wins a collision, and the CMS row is **dropped**, not overwritten | `skill-registry.ts:85-91` | 🧪 UNIT `skill-registry.spec.ts` · ✅ E2E `copilot-skills.spec.ts:262` (the write-route half) |
 | F48 | `toSkillRef` snapshots name/title/source | `skill.ts:198-200` | ✅ E2E `copilot-skills.spec.ts:368` |
@@ -425,9 +425,9 @@ function of `actor.grantedPermissions`. The role axis materialises downstream.
 
 - **EC-29 — Everything here is pure and stateless**, except
   `buildSkillRegistry`'s closure, which is built once at boot and frozen
-  (`skill-registry.ts:262`). No shared mutable state, so no races.
+  (`skill-registry.ts:62`). No shared mutable state, so no races.
 - **EC-30 — A host mutating its `skills` array after boot.** `🧪 UNIT`
-  The registry snapshots (`skill-registry.ts:234-264`), so a later mutation
+  The registry snapshots (`skill-registry.ts:34-64`), so a later mutation
   cannot change what a run resolves. Same guarantee `buildModelRegistry` gives.
 
 ### State after mutation
