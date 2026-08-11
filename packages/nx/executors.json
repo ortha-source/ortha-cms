@@ -15,6 +15,11 @@
             "implementation": "./src/executors/db-studio/executor",
             "schema": "./src/executors/db-studio/schema.json",
             "description": "Launch Drizzle Studio against the host database."
+        },
+        "release-publish": {
+            "implementation": "./src/executors/release-publish/executor",
+            "schema": "./src/executors/release-publish/schema.json",
+            "description": "Publish one staged package to npm, throttled and retried."
         }
     }
 }

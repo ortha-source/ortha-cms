@@ -24,6 +24,14 @@ alongside the `@nx/*` plugins in the root `nx.json`.
       pointed at what `pack` staged. `@nx/js` infers no `build` here because
       our manifests point at source rather than output, which is exactly the
       thing a release has to undo — see [`docs/releasing.md`](../../docs/releasing.md)
+
+        `nx-release-publish` is the one inferred target that is **also** named in
+        the root `nx.json`, and it has to be: Nx adds an implicit
+        `nx-release-publish` to every non-private package and applies it after
+        inference. Where the two disagree on the executor, Nx's wins outright and
+        drops the inferred `options` with it — so the `executor` is declared in
+        `targetDefaults` as well, and `dependsOn` lives there alone.
+
 - **Executors** (`executors.json`):
     - `db-generate` — runs `drizzle-kit generate` for one plugin's schema.
       Cacheable (inputs: schema files; outputs: the `migrations` dir). Needs
@@ -43,11 +51,24 @@ alongside the `@nx/*` plugins in the root `nx.json`.
       reads `process.env.DATABASE_URL` — the URL is passed through the child's
       env and never written to disk. Studio introspects the live DB, so no
       schema is needed. `cache: false` (side-effecting, long-running).
+    - `release-publish` — publishes one staged package to npm, in place of
+      `@nx/js:release-publish`. npm rate-limits an account's writes and a
+      lockstep release fires ~37 of them, so every publish takes a turn
+      through a workspace-wide slot (a file lock under `dist/.release-publish`)
+      that serialises them and leaves a gap in between, and a publish refused
+      with a 429, a 5xx or a dropped socket is retried with exponential
+      backoff. A version already on the registry counts as success, which is
+      what makes `npm run release:publish` a safe way to finish a half-done
+      release. Defaults — 5s gap, 5 retries from 30s, capped at 5min — are
+      target options, overridable per run with `ORTHA_PUBLISH_DELAY`,
+      `ORTHA_PUBLISH_RETRIES` and `ORTHA_PUBLISH_RETRY_BACKOFF`. A dry run
+      waits for nothing: it writes nothing to rate-limit.
 
 ## Architecture
 
 - **Thin executors over a core lib.** All logic lives in `src/lib/drizzle/`
-  (`generate.ts`, `apply.ts`, `studio.ts`) as plain functions; the executors
+  (`generate.ts`, `apply.ts`, `studio.ts`) and `src/lib/release/`
+  (`publish.ts`, `throttle.ts`) as plain functions; the executors
   are adapters. This keeps the logic testable without Nx and lets a standalone
   CLI reuse it later if prod/CI migrations ever need to run without Nx. The
   shared `src/lib/jiti.ts` builds the `jiti`+`swc` (legacy-decorator) loader

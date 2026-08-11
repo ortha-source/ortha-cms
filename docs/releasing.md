@@ -86,12 +86,53 @@ existing.
    **rewritten `package.json`** whose `exports` point at `./dist` and whose
    workspace dependencies are pinned to the released version instead of `"*"`.
 3. **`nx-release-publish`** — publishes that staging directory rather than the
-   project root, via `packageRoot`.
+   project root, via `packageRoot`. It runs `@ortha-cms/nx:release-publish`
+   rather than the `@nx/js` one, because 37 publishes in a row is more than
+   npm will take at full speed — see [Rate limits](#rate-limits) below.
 
 The staging directory lives at the workspace root, not beside the package, on
 purpose: the root `workspaces` globs cover `packages/*`, so a staging
 directory inside a flat package is read as a second workspace of the same
 name, and npm then refuses to run at all.
+
+## Rate limits
+
+npm rate-limits how fast one account may write, and a lockstep release asks it
+to accept 37 tarballs back to back. Published as fast as Nx can schedule them,
+the registry starts answering **429 Too Many Requests** partway down the list —
+and by then the version is already committed, tagged and pushed, so the repo
+says a release happened that the registry only half has.
+
+So a publish is not a plain `npm publish`. Each one takes a turn through a
+workspace-wide slot — a file lock under `dist/.release-publish` — which
+serialises the publishes no matter what Nx's task parallelism is doing, and
+leaves a gap between them. A publish the registry refuses for its own reasons
+(a 429, a 5xx, a dropped connection) is retried with an exponential backoff; a
+publish refused for ours — a bad manifest, a missing entry point, a rejected
+token — fails on the first attempt, because retrying it just takes longer to
+tell you the same thing.
+
+The defaults are a **5 second gap**, **5 retries** starting at 30 seconds and
+doubling to a 5 minute ceiling. That adds roughly three minutes to a clean
+release. To go slower (or faster) for one run:
+
+```sh
+ORTHA_PUBLISH_DELAY=10000 ORTHA_PUBLISH_RETRIES=8 npm run release
+```
+
+`ORTHA_PUBLISH_RETRY_BACKOFF` moves the first backoff. A dry run waits for
+nothing — it writes nothing there is a limit on.
+
+Two consequences worth knowing:
+
+- **A version already on the registry counts as success.** npm answers a
+  republish with a 403, which the executor reads as "this one already went
+  out". That is what makes `npm run release:publish` a safe way to finish a
+  release that died halfway: everything already published is skipped, and only
+  the remainder is sent.
+- **A failed publish is reported per package.** Nx fails the run, the packages
+  that made it are on the registry, and re-running `npm run release:publish`
+  picks up the rest.
 
 ### Two things `pack` refuses to ship
 

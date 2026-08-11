@@ -139,11 +139,20 @@ function packageTargets(
             cache: false,
             outputs: [`{workspaceRoot}/dist/pack/${projectRoot}`]
         },
-        // `dependsOn` is deliberately absent: Nx installs its own default for
-        // this target after inference and would overwrite it. It lives in
-        // `nx.json`'s `targetDefaults` instead.
+        // Ours rather than `@nx/js:release-publish`, because npm rate-limits
+        // an account's writes and this workspace publishes ~37 packages in one
+        // release — see the executor.
+        //
+        // The executor is named **twice**: here, and in `nx.json`'s
+        // `targetDefaults`. Nx adds an implicit `nx-release-publish` of its own
+        // to every non-private package and applies it after inference, so the
+        // two definitions have to agree on the executor — when they disagree,
+        // Nx's wins outright and takes `packageRoot` with it, and the release
+        // silently publishes the source-pointing project root instead of what
+        // `pack` staged. `dependsOn` is absent for the same reason: Nx would
+        // overwrite it, so it lives in `targetDefaults` alone.
         'nx-release-publish': {
-            executor: '@nx/js:release-publish',
+            executor: '@ortha-cms/nx:release-publish',
             options: { packageRoot: `dist/pack/${projectRoot}` }
         }
     };

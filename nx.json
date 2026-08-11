@@ -93,6 +93,7 @@
             "dependsOn": ["^build"]
         },
         "nx-release-publish": {
+            "executor": "@ortha-cms/nx:release-publish",
             "dependsOn": ["pack"]
         }
     },

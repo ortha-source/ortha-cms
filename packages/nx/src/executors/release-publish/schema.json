@@ -1,0 +1,61 @@
+{
+    "$schema": "https://json-schema.org/schema",
+    "version": 2,
+    "title": "release-publish",
+    "description": "Publish one staged package to npm, throttled and retried so a lockstep release does not trip the registry's rate limit.",
+    "type": "object",
+    "properties": {
+        "packageRoot": {
+            "type": "string",
+            "description": "Staged package root, relative to the workspace root. Defaults to the project root."
+        },
+        "delay": {
+            "type": "number",
+            "description": "Milliseconds to leave between two publishes across the whole release. Overridden by ORTHA_PUBLISH_DELAY.",
+            "default": 5000
+        },
+        "retries": {
+            "type": "number",
+            "description": "Extra attempts a rate-limited or transient failure gets. Overridden by ORTHA_PUBLISH_RETRIES.",
+            "default": 5
+        },
+        "retryBackoff": {
+            "type": "number",
+            "description": "Backoff before the first retry, in milliseconds; doubles after that. Overridden by ORTHA_PUBLISH_RETRY_BACKOFF.",
+            "default": 30000
+        },
+        "maxRetryBackoff": {
+            "type": "number",
+            "description": "Ceiling for the doubling backoff, in milliseconds.",
+            "default": 300000
+        },
+        "registry": {
+            "type": "string",
+            "description": "Registry to publish to. Passed through by `nx release publish --registry`."
+        },
+        "tag": {
+            "type": "string",
+            "description": "dist-tag to publish under. Passed through by `nx release publish --tag`."
+        },
+        "otp": {
+            "type": ["string", "number"],
+            "description": "One-time password for a registry that requires 2FA."
+        },
+        "access": {
+            "type": "string",
+            "description": "npm access level. The staged manifest already sets `publishConfig.access`."
+        },
+        "dryRun": {
+            "type": "boolean",
+            "description": "Run `npm publish --dry-run` instead of publishing."
+        },
+        "firstRelease": {
+            "type": "boolean",
+            "description": "Set by `nx release --first-release`; accepted for compatibility."
+        },
+        "nxReleaseVersionData": {
+            "type": "object",
+            "description": "Version data handed over by the `nx release version` step."
+        }
+    }
+}
