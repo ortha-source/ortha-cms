@@ -5,13 +5,19 @@ import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SECTION_SLOT
 } from '@ortha-cms/workspaces-admin';
-import { AGENTS_SEGMENT } from '../../domain/agentsRoute';
+import { AGENTS_SEGMENT, SKILLS_SEGMENT } from '../../domain/agentsRoute';
 import { CopilotLauncher } from '../CopilotLauncher';
 import { ViewSwitcher } from '../ViewSwitcher';
 
 const AgentsPage = lazy(() =>
     import('../AgentsPage').then((module) => ({
         default: module.AgentsPage
+    }))
+);
+
+const SkillsPage = lazy(() =>
+    import('../SkillsPage').then((module) => ({
+        default: module.SkillsPage
     }))
 );
 
@@ -88,6 +94,21 @@ export function CopilotPlugin(): CopilotAdminPlugin {
             {
                 slot: WORKSPACE_ROUTE_SLOT,
                 items: [
+                    {
+                        // **Before the wildcard below**, and a literal path
+                        // rather than a segment the Agents page interprets:
+                        // React Router ranks a static segment above a splat, so
+                        // `agents/skills` lands here and never on the thread
+                        // page — which would otherwise try to open a
+                        // conversation called "skills".
+                        path: `${AGENTS_SEGMENT}/${SKILLS_SEGMENT}`,
+                        order: 49,
+                        element: (
+                            <Suspense fallback={null}>
+                                <SkillsPage />
+                            </Suspense>
+                        )
+                    },
                     {
                         // A trailing `/*` because the page reads the open thread
                         // out of the path itself (`/agents/:conversationId`)

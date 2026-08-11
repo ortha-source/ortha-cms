@@ -46,6 +46,9 @@ application/
   chatReducer.ts           # pure reducer folding run events into a transcript
   useCopilotChat.ts        # a view of one chat in the store; drives its stream
   useComposerAttachments.ts # staged files for the next turn; uploads on add
+  useSkills.ts             # the workspace's skill catalogue (query)
+  useComposerSkills.ts     # joins that catalogue to the chat's staged selection
+  useManageSkills.ts       # the admin list, one skill, and the three writes
   tabBadge.ts              # pure: what the tab's (n) counts (tested)
   useTabBadge.ts           # the effect over it: title + favicon dot
   useConversations.ts      # thread list (query)
@@ -78,6 +81,10 @@ presentation/
   ToolStep/                # one call, as a sentence; `labels.ts` holds both tenses
   Composer/  ModelPicker/  ConversationPicker/
   AttachmentChip/          # one attached file — staged in the composer, sent in the transcript
+  SkillPicker/             # the composer's skills popover
+  SkillChip/               # one skill — staged, and on the turn it was sent with
+  SkillsPage/              # authoring, at /workspaces/:id/agents/skills
+    SkillFormDialog/       #   create and edit, in one dialog
   ContextChip/             # what context is attached to the next turn
   PermissionPrompt/        # "may I?" — the inline gate before a write runs
   ProposalCard/            # the receipt for a change, and its diff
@@ -735,7 +742,7 @@ once sent and two components would be two chances for staged and sent to drift.
   and having them vanish until the first frame lands reads as a failed send.
 - **`useComposerAttachments` keeps a ref beside its state**, and does its
   arithmetic against the ref. React invokes a `setState` updater twice under
-  StrictMode, so counting how many files fit *inside* one would advance the id
+  StrictMode, so counting how many files fit _inside_ one would advance the id
   counter twice per file and pair every upload with the wrong chip.
 - **The drag highlight counts enter/leave.** Drag events fire per element, so
   entering a child fires `dragleave` on the parent; without the counter the
@@ -763,7 +770,58 @@ the count refusal, and an axe scan with files staged. Two notes for extending it
 event from a name→constructor map with no `ClipboardEvent` in it, so
 `clipboardData` is dropped and the handler sees no files; the POM constructs and
 dispatches the event inside the page instead. Drop is fine declaratively, since
-`DragEvent` *is* in that map.
+`DragEvent` _is_ in that map.
+
+## Skills
+
+A skills button beside the paperclip, chips above the field, and a management
+page inside the Agents view. The feature is settled in
+[ADR-0010](../../../docs/adr/0010-copilot-skills.md) and described in the design
+doc's §11; what follows is only what is true of _this_ package.
+
+- **The selection lives on the session, not in the picker** — the same rule the
+  model choice already learned, and the same bug: held in `useState` it is lost
+  by collapsing a window or leaving the Agents view, and the next turn silently
+  runs without the instructions the person set up. Worse than the model case,
+  because nothing on screen would say so.
+- **It is also seeded into the next chat**, like the model choice, and a browser
+  is what settled it: leaving the Agents view **closes** an idle chat
+  (`release`), so without the seed a trip into the CMS to check an entry dropped
+  the selection entirely. Inheriting into a genuinely new chat is the cost, and
+  it is paid for by the chips being on screen the whole time.
+- **Sticky across turns, unlike attachments.** A file belongs to the message it
+  was attached to; a skill is the mode you are working in. `send` clears
+  `files` and deliberately does not clear skills.
+- **The composer sends `chosen`, and renders `inForce`.** Two lists, because
+  they answer different questions: `inForce` is always-on + staged and is what
+  the optimistic turn draws as chips, while `chosen` is only what the person
+  picked and is the only thing on the wire. Sending an always-on skill's name
+  would be the client asserting a decision the server makes — harmless while it
+  is always-on, and wrong the moment an admin switches it to manual.
+- **An always-on chip has a lock, not an `×`.** It cannot be taken off here, and
+  offering a control that silently does nothing on the next turn is worse than
+  offering none.
+- **"Skills for this chat" and "Skills used"** — two accessible names, for the
+  reason the two file lists have two: one list name across a staged set and a
+  sent one leaves a screen-reader user unable to tell them apart.
+- **The button carries the count in its accessible name**, and therefore has no
+  `aria-label` — one saying "Skills" would override the count with the one thing
+  it must not hide. (The e2e suite caught this; a colour-only signal for "this
+  run behaves differently" is no signal.)
+- **A staged name missing from the catalogue is dropped**, not sent. A skill
+  deleted while it sat in someone's composer would otherwise fail their next
+  turn with a true and useless sentence; the chip vanishing when the catalogue
+  refreshes says the same thing before they press Send.
+- **The picker renders nothing when the workspace has no skills** — the same
+  discipline as the attach control, rather than a button opening an empty list.
+- **The manage page is inside the Agents view** (`agents/skills`), because
+  everything the copilot owns is workspace-scoped and it contributes no
+  top-level route. Its route is declared **before** the `agents/*` wildcard and
+  `readAgentThreadId` excludes the segment explicitly — a belt-and-braces pair,
+  since the ranking alone is a fact about React Router rather than about us.
+- **The rail's link is permission-gated and fail-closed.** Skills are visible to
+  everyone in the picker; authoring is admin-only, so a contributor gets no link
+  rather than a page that greets them with "no access".
 
 ## Conventions
 
@@ -810,6 +868,16 @@ windows and the cap that minimizes rather than refuses, a pill toggling with
 to the dock, the `— finished` marker and the tab badge, drag persistence per
 **slot**, Expand as the way out of a bad drag, arrow-key moves, and the model
 choice surviving a collapse.
+
+**Skills have their own two suites** — `agents-skills.spec.ts` for the composer
+(staging, the count in the accessible name, always-on shown but not sent, the
+selection surviving a trip through the CMS, a reopened thread's chips, and an
+axe scan with skills staged) and `skills-manage.spec.ts` for the page (the
+read-only code row, create/edit/delete, the identifier not being rewritten under
+a title edit, and the absent link for a role without the permission). Two of
+them were written before the code was right and found real bugs: the always-on
+skill was being sent in the request body, and the picker button's `aria-label`
+was hiding its own count.
 
 **One known gap, and it is a defect rather than missing coverage.** The
 "reopening a thread focuses the window already on it" guard lives on the

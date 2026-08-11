@@ -80,6 +80,31 @@ export function registerCopilotTools(
     app.get(ToolRegistry).register(provider);
 }
 
+/**
+ * The code-defined skills the harness boots with, mirroring what a host
+ * declares in `plugins.ts`.
+ *
+ * Two, and they differ in the one dimension that changes behaviour: `always` is
+ * in force whether or not a run asks for it, `manual` only when someone
+ * attaches it. A suite that only had one could not tell those apart.
+ */
+export const testCodeSkills = [
+    {
+        name: 'house-style',
+        title: 'House style',
+        description: 'How this deployment writes product copy.',
+        mode: 'always' as const,
+        instructions: 'ALWAYS-ON-SKILL-BODY: write in sentence case.'
+    },
+    {
+        name: 'seo-checklist',
+        title: 'SEO checklist',
+        description: 'What to check before publishing.',
+        mode: 'manual' as const,
+        instructions: 'MANUAL-SKILL-BODY: check the meta description.'
+    }
+];
+
 /** One run's audit rows — the surface a security review reads. */
 export function copilotToolCallRows(app: INestApplication, runId: string) {
     return app.get(ConversationRepository).toolCalls(runId);

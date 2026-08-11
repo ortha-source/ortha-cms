@@ -27,7 +27,20 @@ export interface AgentThread {
     choice: CopilotModelChoice | null;
     /** Routes the next turn elsewhere. Remembered on the chat, not the page. */
     setChoice(choice: CopilotModelChoice | null): void;
+    /** The skills staged for this chat. On the chat, so leaving keeps them. */
+    skills: readonly string[];
+    /** Replaces the staged set. */
+    setSkills(names: readonly string[]): void;
 }
+
+/**
+ * The staged-skills fallback, hoisted to a constant.
+ *
+ * A fresh `[]` per render would be a new reference every time, and it is fed
+ * straight into `useComposerSkills`'s `useMemo` — which would then recompute,
+ * and hand the composer a new object, on every keystroke in the message box.
+ */
+const EMPTY_SKILLS: readonly string[] = [];
 
 /**
  * Binds the URL to one chat: `/…/agents` is an unsaved chat,
@@ -253,6 +266,13 @@ export function useAgentThread(workspaceId: string): AgentThread {
         }
     }, []);
 
+    const setSkills = useCallback((names: readonly string[]) => {
+        const id = sessionIdRef.current;
+        if (id) {
+            sessionsRef.current.setSkills(id, names);
+        }
+    }, []);
+
     return {
         chat,
         conversationId: urlId,
@@ -260,6 +280,10 @@ export function useAgentThread(workspaceId: string): AgentThread {
         // what it did not do while it lived in the component.
         choice: presented?.choice ?? null,
         setChoice,
+        // Likewise from the session: leaving the page and coming back must not
+        // silently drop the instructions the next turn was set up to run under.
+        skills: presented?.skills ?? EMPTY_SKILLS,
+        setSkills,
         // `isFetching`, not `isPending`: a disabled query stays "pending"
         // forever, and the page would never leave its skeleton.
         loading: detail.isFetching,

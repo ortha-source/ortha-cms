@@ -27,10 +27,16 @@ export const PERMISSIONS = {
     TOKENS_READ: 'tokens:read',
     TOKENS_CREATE: 'tokens:create',
     TOKENS_DELETE: 'tokens:delete',
-    COPILOT_USE: 'copilot:use'
+    COPILOT_USE: 'copilot:use',
+    COPILOT_SKILLS_MANAGE: 'copilot:skills:manage'
 } as const;
 
-/** A `resource:action` permission key drawn from {@link PERMISSIONS}. */
+/**
+ * A `resource:action` permission key drawn from {@link PERMISSIONS} — with an
+ * optional sub-resource segment (`copilot:skills:manage`). Every key must pass
+ * `Permission.create`'s shape check, or the guard 500s on the route requiring
+ * it.
+ */
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 /** Every permission key — the catalogue seeded into the `permissions` table. */
@@ -60,6 +66,12 @@ export interface SystemRole {
  * than by excluding the largest population from the feature.
  * `copilot:configure` stays admin-only: registering a model or a connector
  * decides where workspace content travels.
+ *
+ * `copilot:skills:manage` is **admin-only** for the same class of reason
+ * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
+ * instructions are prompt text that runs for every member of the workspace, so
+ * authoring one is a configuration decision rather than a content one. Using a
+ * skill needs nothing beyond `copilot:use`, which every role holds.
  */
 export const SYSTEM_ROLES: readonly SystemRole[] = [
     { key: 'admin', name: 'Administrator', permissions: [...PERMISSION_KEYS] },

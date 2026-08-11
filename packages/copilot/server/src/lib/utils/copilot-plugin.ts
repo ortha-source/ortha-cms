@@ -1,6 +1,10 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import type { ModelResolver } from '@ortha-cms/copilot-domain';
+import {
+    buildSkillRegistry,
+    type ModelResolver,
+    type SkillDefinition
+} from '@ortha-cms/copilot-domain';
 import { CopilotModule } from '../copilot.module';
 import type { ProviderRegistration } from '../infrastructure/model-registry';
 import type { CopilotPluginConfig } from '../types/copilot-config';
@@ -21,6 +25,17 @@ export interface CopilotPluginOptions {
     providers: readonly ProviderRegistration[];
     /** Optional custom handler picking a provider per run (plain code). */
     resolve?: ModelResolver;
+    /**
+     * Skills defined **in code** — reusable instruction packets available in
+     * every workspace of this deployment.
+     *
+     * Here rather than in `config` for the same reason the providers are: the
+     * bodies are usually read off disk next to `plugins.ts`, and config is the
+     * typed view of the environment. A workspace can author its own alongside
+     * these in the CMS; a code skill wins a name collision, and is read-only in
+     * the admin.
+     */
+    skills?: readonly SkillDefinition[];
     /** Host config (kill switch + default provider + output ceiling). */
     config: CopilotPluginConfig;
 }
@@ -67,6 +82,11 @@ function assertOptions(options: CopilotPluginOptions): void {
             `CopilotPlugin's maxOutputTokens must be a positive number (got ${options.config.maxOutputTokens}).`
         );
     }
+    // Built here and thrown away: the module builds its own from the same list.
+    // The point is *when* — a malformed or duplicated skill fails at
+    // construction, like a mistyped provider name, rather than on the first
+    // chat message in the workspace that happened to use it.
+    buildSkillRegistry(options.skills ?? []);
 }
 
 /**

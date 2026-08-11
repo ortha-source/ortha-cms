@@ -13,7 +13,7 @@ import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
-import { fakeProvider } from './copilot';
+import { fakeProvider, testCodeSkills } from './copilot';
 import { createInMemoryStorageProvider } from './media-storage';
 
 /**
@@ -76,6 +76,11 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
         // whole tool loop still exercised.
         CopilotPlugin({
             providers: [{ name: 'fake', provider: fakeProvider }],
+            // Code-defined skills, so the half of the feature that never
+            // touches the database is exercised by the same boot the host
+            // performs — including a code skill's name being unavailable to a
+            // CMS one.
+            skills: testCodeSkills,
             config: config.plugins.copilot
         }),
         // MCP last, as in the host. Enabled here regardless of the

@@ -8,10 +8,16 @@ import {
     IsOptional,
     IsString,
     IsUUID,
+    Matches,
     MaxLength,
     MinLength,
     ValidateNested
 } from 'class-validator';
+import {
+    MAX_RUN_SKILLS,
+    MAX_SKILL_NAME_LENGTH,
+    SKILL_NAME_PATTERN
+} from '@ortha-cms/copilot-domain';
 
 /** Longest message we accept. Bounds the prompt before the model bounds it. */
 export const MAX_MESSAGE_LENGTH = 8_000;
@@ -88,6 +94,32 @@ export class RunAttachmentDto {
     @ApiProperty({ type: String, format: 'uuid' })
     @IsUUID()
     assetId!: string;
+}
+
+/**
+ * One skill attached to a turn — a **name only**.
+ *
+ * The same discipline as {@link RunAttachmentDto}, and the reason is sharper
+ * here: a skill's `instructions` are prompt text, so a request that could carry
+ * a body would let anyone holding `copilot:use` write their own system prompt.
+ * The name is the only part the server can check, and everything the model is
+ * told comes from the catalogue row it resolves to.
+ *
+ * A class rather than a bare string array because the strict pipe traverses a
+ * nested array only with `@ValidateNested({ each: true })` + `@Type()`.
+ */
+export class RunSkillDto {
+    /** The skill's machine name, as served by `GET /api/copilot/skills`. */
+    @ApiProperty({
+        type: String,
+        maxLength: MAX_SKILL_NAME_LENGTH,
+        pattern: SKILL_NAME_PATTERN.source,
+        example: 'house-style'
+    })
+    @IsString()
+    @MaxLength(MAX_SKILL_NAME_LENGTH)
+    @Matches(SKILL_NAME_PATTERN)
+    name!: string;
 }
 
 /**
@@ -178,4 +210,22 @@ export class CreateRunDto {
     @ValidateNested({ each: true })
     @Type(() => RunAttachmentDto)
     attachments?: RunAttachmentDto[];
+
+    /**
+     * Skills the person attached to this turn, by name.
+     *
+     * Per turn rather than pinned to the thread, like the model choice: a
+     * conversation can rewrite one paragraph under the house style skill and
+     * the next under none. The workspace's always-on skills are **not** listed
+     * here — they are in force whatever the client sends, and a client that
+     * could omit them could turn workspace configuration off by not asking for
+     * it.
+     */
+    @ApiPropertyOptional({ type: [RunSkillDto], maxItems: MAX_RUN_SKILLS })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(MAX_RUN_SKILLS)
+    @ValidateNested({ each: true })
+    @Type(() => RunSkillDto)
+    skills?: RunSkillDto[];
 }

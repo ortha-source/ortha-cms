@@ -18,7 +18,64 @@ interface PersistedMessage {
     content: unknown[];
     /** Files attached to a user turn; null otherwise. Its own column server-side. */
     attachments?: unknown[] | null;
+    /** Skills in force for a user turn; null otherwise. Its own column too. */
+    skills?: { name: string; title: string; source: 'code' | 'cms' }[] | null;
     stopReason: string | null;
+}
+
+/** One skill as `GET /api/copilot/skills` returns it — never with its body. */
+export interface CopilotSkillView {
+    id: string | null;
+    name: string;
+    title: string;
+    description: string;
+    mode: 'manual' | 'always';
+    source: 'code' | 'cms';
+    enabled: boolean;
+    editable: boolean;
+}
+
+/**
+ * The catalogue the picker renders: one code skill, one workspace skill, and
+ * one that is **always on**.
+ *
+ * Three because the picker treats them differently — a code skill is badged and
+ * read-only, an always-on one is listed but not toggleable, and only the third
+ * is something a person can actually stage.
+ */
+function seedSkills(): CopilotSkillView[] {
+    return [
+        {
+            id: null,
+            name: 'house-style',
+            title: 'House style',
+            description: 'How we write product copy.',
+            mode: 'always',
+            source: 'code',
+            enabled: true,
+            editable: false
+        },
+        {
+            id: null,
+            name: 'seo-checklist',
+            title: 'SEO checklist',
+            description: 'What to check before publishing.',
+            mode: 'manual',
+            source: 'code',
+            enabled: true,
+            editable: false
+        },
+        {
+            id: 'sk_tone',
+            name: 'tone-of-voice',
+            title: 'Tone of voice',
+            description: 'Warm, direct, never breathless.',
+            mode: 'manual',
+            source: 'cms',
+            enabled: true,
+            editable: true
+        }
+    ];
 }
 
 /**
@@ -62,6 +119,14 @@ export interface CopilotSpy {
     readonly runs: Record<string, unknown>[];
     /** The mock's current threads — mutated by PATCH, like the real table. */
     readonly conversations: CopilotConversationView[];
+    /** The mock's current skills — mutated by the write routes. */
+    readonly skills: CopilotSkillView[];
+    /** Every skill write, in order: the method, the id, and the body sent. */
+    readonly skillWrites: {
+        method: string;
+        id: string | null;
+        body: Record<string, unknown>;
+    }[];
 }
 
 /**
@@ -128,6 +193,13 @@ const SUMMARY_TRANSCRIPT: PersistedMessage[] = [
         runId: 'r1',
         role: 'user',
         content: [{ type: 'text', text: 'Which articles have no summary?' }],
+        // On the row rather than inside `content`, which is what lets a
+        // reopened thread redraw the chips — the same property the attachment
+        // fixture above exists to prove.
+        skills: [
+            { name: 'house-style', title: 'House style', source: 'code' },
+            { name: 'tone-of-voice', title: 'Tone of voice', source: 'cms' }
+        ],
         stopReason: null
     },
     {
@@ -283,6 +355,15 @@ export interface CopilotMockOptions {
     detailStatus?: number;
     /** Models the picker offers. Two or more, or the picker hides itself. */
     models?: { provider: string; model: string }[];
+    /**
+     * Skills the workspace offers. Pass `[]` for the case where the composer
+     * shows no skills control at all.
+     */
+    skills?: CopilotSkillView[];
+    /** Fail every skill write, for the "the server refused" path. */
+    skillWriteStatus?: number;
+    /** The message a refused write comes back with. */
+    skillWriteMessage?: string;
     /** Hold the run open this long before answering. */
     runDelayMs?: number;
 }
@@ -306,7 +387,9 @@ export async function mockCopilotApi(
     const spy: CopilotSpy = {
         patches: [],
         runs: [],
-        conversations: options.empty ? [] : seedConversations()
+        conversations: options.empty ? [] : seedConversations(),
+        skills: options.skills ?? seedSkills(),
+        skillWrites: []
     };
 
     const models = options.models ?? [
@@ -324,6 +407,89 @@ export async function mockCopilotApi(
     await page.route('**/api/copilot/models', (route) =>
         route.fulfill(json({ items: models }))
     );
+
+    // The two skill patterns are deliberately disjoint, for the same reason the
+    // conversation ones are: a glob `*` does not cross a `/`, so `skills` below
+    // sees only the bare collection and never `skills/manage` or `skills/:id`.
+    await page.route('**/api/copilot/skills/*', async (route) => {
+        const id = new URL(route.request().url()).pathname.split('/').pop();
+        const method = route.request().method();
+
+        // The admin's own listing — code skills and disabled rows included.
+        if (id === 'manage' && method === 'GET') {
+            return route.fulfill(json(spy.skills));
+        }
+
+        const skill = spy.skills.find((row) => row.id === id);
+        if (method === 'GET') {
+            return skill
+                ? route.fulfill(
+                      json({
+                          ...skill,
+                          instructions: 'Warm, direct, never breathless.',
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString()
+                      })
+                  )
+                : route.fulfill(json({ message: 'Skill not found.' }, 404));
+        }
+
+        const body = (
+            method === 'DELETE'
+                ? {}
+                : JSON.parse(route.request().postData() ?? '{}')
+        ) as Record<string, unknown>;
+        spy.skillWrites.push({ method, id: id ?? null, body });
+
+        if (options.skillWriteStatus) {
+            return route.fulfill(
+                json(
+                    { message: options.skillWriteMessage ?? 'Refused.' },
+                    options.skillWriteStatus
+                )
+            );
+        }
+        if (!skill) {
+            return route.fulfill(json({ message: 'Skill not found.' }, 404));
+        }
+        if (method === 'DELETE') {
+            spy.skills.splice(spy.skills.indexOf(skill), 1);
+            return route.fulfill({ status: 204, body: '' });
+        }
+        Object.assign(skill, body);
+        return route.fulfill(json(skill));
+    });
+
+    await page.route('**/api/copilot/skills', async (route) => {
+        if (route.request().method() === 'POST') {
+            const body = JSON.parse(
+                route.request().postData() ?? '{}'
+            ) as Record<string, unknown>;
+            spy.skillWrites.push({ method: 'POST', id: null, body });
+            if (options.skillWriteStatus) {
+                return route.fulfill(
+                    json(
+                        { message: options.skillWriteMessage ?? 'Refused.' },
+                        options.skillWriteStatus
+                    )
+                );
+            }
+            const created: CopilotSkillView = {
+                id: `sk_${spy.skills.length + 1}`,
+                name: String(body['name'] ?? ''),
+                title: String(body['title'] ?? ''),
+                description: String(body['description'] ?? ''),
+                mode: body['mode'] === 'always' ? 'always' : 'manual',
+                source: 'cms',
+                enabled: body['enabled'] !== false,
+                editable: true
+            };
+            spy.skills.push(created);
+            return route.fulfill(json(created, 201));
+        }
+        // The picker's catalogue: enabled rows only, and never a body.
+        return route.fulfill(json(spy.skills.filter((skill) => skill.enabled)));
+    });
 
     await page.route('**/api/copilot/proposals*', (route) => {
         const id = new URL(route.request().url()).searchParams.get(

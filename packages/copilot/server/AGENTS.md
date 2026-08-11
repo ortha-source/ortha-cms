@@ -28,8 +28,18 @@ profile, and the transcript this plugin now owns and migrates
 | `PATCH /api/copilot/conversations/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | Rename and/or archive.                                      |
 | `GET /api/copilot/proposals`           | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
 | `GET /api/copilot/proposals/:id`       | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
+| `GET /api/copilot/skills`              | `PermissionsGuard`, `WorkspaceGuard`                | The picker's catalogue. **No instruction bodies.**          |
 
-All require `copilot:use`.
+All of the above require `copilot:use`. The skills **write** routes require
+`copilot:skills:manage` instead — admin-only, see [Skills](#skills):
+
+| Route                            | Guards                                              | Notes                                            |
+| -------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `GET /api/copilot/skills/manage` | `PermissionsGuard`, `WorkspaceGuard`                | Every skill, disabled and code-defined included. |
+| `GET /api/copilot/skills/:id`    | `PermissionsGuard`, `WorkspaceGuard`                | One skill, body included.                        |
+| `POST /api/copilot/skills`       | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | 409 on a name either source already holds.       |
+| `PATCH /api/copilot/skills/:id`  | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | 400 on an empty patch.                           |
+| `DELETE /api/copilot/skills/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | A real delete — see below.                       |
 
 **Archiving is the only removal, and there is deliberately no delete.** A
 thread's `copilot_proposals` rows are the receipts for changes that were actually
@@ -101,13 +111,14 @@ registry either. Both facts are settled by
   content or create a change it cannot apply. The cross-surface e2e cases in
   both suites are the guard.
 
-  It is not a default either. A tool with none of that tension — no draft
-  visibility, no write, no user-only attribution — **omits the field and is
-  offered to both**; `i18n_locales_list` and the three `media_*` reads already
-  are, which means a change to one of them changes what the MCP endpoint
-  exposes. Adding a tool here means working the checklist in
-  [`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately)
-  first, and recording the answer in a comment whichever way it goes.
+    It is not a default either. A tool with none of that tension — no draft
+    visibility, no write, no user-only attribution — **omits the field and is
+    offered to both**; `i18n_locales_list` and the three `media_*` reads already
+    are, which means a change to one of them changes what the MCP endpoint
+    exposes. Adding a tool here means working the checklist in
+    [`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately)
+    first, and recording the answer in a comment whichever way it goes.
+
 - **`ToolRegistry.call` is the authorization boundary**, checking `requires`
   before dispatch. The engine's offer is a usability filter on top.
 - What stays here is the copilot-specific narrowing: `CapabilityProfileService`
@@ -120,14 +131,14 @@ registry either. Both facts are settled by
 Every tool ships with the plugin that owns its data, as a thin wrapper over the
 same service the HTTP controllers call:
 
-| Plugin     | Tools                                                                                                              | Surface |
-| ---------- | ------------------------------------------------------------------------------------------------------------------ | ------- |
-| `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` | copilot |
-| `i18n`     | `i18n_translations_get`                                                                                            | copilot |
-| `i18n`     | `i18n_locales_list`                                                                                                | **both** |
-| `media`    | `media_assets_search`, `media_folders_list`, `media_asset_read`                                                    | **both** |
-| `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                  | copilot |
-| `users`    | `workspace_members_list` — scoped to the run's workspace                                                           | copilot |
+| Plugin     | Tools                                                                                                               | Surface  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- | -------- |
+| `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` | copilot  |
+| `i18n`     | `i18n_translations_get`                                                                                             | copilot  |
+| `i18n`     | `i18n_locales_list`                                                                                                 | **both** |
+| `media`    | `media_assets_search`, `media_folders_list`, `media_asset_read`                                                     | **both** |
+| `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                   | copilot  |
+| `users`    | `workspace_members_list` — scoped to the run's workspace                                                            | copilot  |
 
 The **both** rows are offered to the MCP endpoint as well and are not the
 copilot's to change unilaterally. `media_assets_search`'s `downloadPath` is the
@@ -170,7 +181,7 @@ how, and each one is the reason a piece of this looks the way it does.
 The resolver is **workspace-scoped and omits what it cannot see**, so an id
 belonging to another workspace is indistinguishable from a deleted one. The
 engine turns any shortfall into a single `AttachmentError` naming the count —
-never which id — because saying *which* would be an asset-id oracle in the one
+never which id — because saying _which_ would be an asset-id oracle in the one
 place the caller picks the ids. Resolution runs **before the conversation is
 touched**, so a bad attachment cannot leave a thread holding a turn that
 references a file the model was never told about.
@@ -260,6 +271,50 @@ inverted failure mode: the old risk was a model claiming success when nothing
 was saved, the new one is a model hedging about a write that already landed, or
 quietly repeating a failed one.
 
+## Skills
+
+Reusable instruction packets a run can be given
+([ADR-0010](../../../docs/adr/0010-copilot-skills.md), design §11). The whole
+feature is in `src/lib/skills/`; the shape checks and the merge rule are pure
+and live in `copilot-domain`.
+
+- **Two sources, one catalogue.** `CopilotPlugin({ skills })` is validated at
+  construction by `buildSkillRegistry` — a duplicate or malformed skill fails
+  boot, like a mistyped provider name. CMS skills are `copilot_skills` rows,
+  workspace-scoped. `SkillCatalogService` is the only thing that merges them,
+  and **code wins a name collision**; the write routes refuse a colliding name
+  up front, because the merge drops the shadowed row _silently_ and a saved
+  skill that never runs is the worst of the three outcomes.
+- **A skill reaches the model only through the system prompt**, and that is a
+  decision rather than an omission. The engine wraps every tool result in
+  `fenceUntrusted`, which tells the model the content is data and never
+  instructions; a skill is the exact opposite, so delivering one through a tool
+  would mean either carving an exception into the fence or lying about what the
+  model is reading. If auto-selection is ever wanted, it is a server-side
+  pre-pass before the first model call — not a tool.
+- **The request carries names.** `CreateRunDto.skills` is `[{ name }]`, capped
+  at `MAX_RUN_SKILLS`, and `SkillCatalogService.resolveRunSkills` looks each one
+  up in the run's workspace. Instruction text in a request body would let anyone
+  with `copilot:use` write their own system prompt. An unresolvable name ends
+  the run with a message naming a **count** — never which one — for the same
+  oracle reason the attachment resolver does.
+- **An always-on skill is applied server-side**, whatever the client sends. A
+  client that had to name it could switch workspace configuration off by
+  omission.
+- **`copilot_messages.skills` is a snapshot**, not a foreign key: a skill can be
+  renamed or deleted, and a thread read months later still has to say what
+  shaped it. `loadHistory` folds a past turn's skills back as a one-line **note**
+  rather than the bodies — re-injecting those per turn multiplies the prompt by
+  the length of the thread.
+- **Delete is real here**, unlike a conversation's: a skill is configuration
+  rather than the receipt for a change somebody's content already took, and
+  every turn that ran with it holds its own snapshot.
+- **`copilot:skills:manage` is admin-only**, and it reintroduces per-workspace
+  copilot configuration that ADR-0009 deleted. The distinction the ADR rests on
+  has to hold in the code: a skill changes _how_ the copilot works and must
+  never change _what it may do_. The day a skill can grant a tool, that argument
+  is undone — which is why there is no `allowedTools` field.
+
 ## The system prompt
 
 `system-prompt.ts` assembles it, `SYSTEM_PROMPT_VERSION` is stamped on the run,
@@ -345,7 +400,11 @@ stays in the controller, and the loop is testable by draining the generator.
 
 ## Schema
 
-Four tables, migrated under `__drizzle_migrations_copilot`:
+Five tables, migrated under `__drizzle_migrations_copilot`. `drizzle.config.ts`
+points at a **glob** (`src/lib/*/infrastructure/schema/index.ts`) rather than one
+file, because this plugin has more than one slice and each owns its own tables —
+a slice added without a line in that config would typecheck, boot, and fail on
+the first query against a table nobody generated a migration for.
 
 | Table                   | Holds                                                                                                                                                                                                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

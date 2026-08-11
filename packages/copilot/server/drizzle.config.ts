@@ -9,6 +9,10 @@ import { defineConfig } from 'drizzle-kit';
  */
 export default defineConfig({
     dialect: 'postgresql',
-    schema: './src/lib/chat/infrastructure/schema/index.ts',
+    // A glob rather than one path: this plugin has more than one slice, and
+    // each owns its own tables. A slice added without a line here would
+    // typecheck, boot, and then fail on the first query against a table nobody
+    // ever generated a migration for.
+    schema: './src/lib/*/infrastructure/schema/index.ts',
     out: './migrations'
 });

@@ -140,6 +140,9 @@ export function CopilotLauncher() {
                             onChoiceChange={(choice) =>
                                 sessions.setModel(session.id, choice)
                             }
+                            onSkillsChange={(names) =>
+                                sessions.setSkills(session.id, names)
+                            }
                         />
                     ))}
 

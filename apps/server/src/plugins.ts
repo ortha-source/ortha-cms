@@ -128,6 +128,30 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
                 // how a contributor runs the admin offline.
                 { name: 'fake', provider: createFakeProvider() }
             ],
+            // Skills defined in code — reusable instruction packets available
+            // in every workspace, reviewed in git and changed by a deploy
+            // (ADR-0010). Workspaces author their own in the admin; a code
+            // skill wins a name collision and is read-only there.
+            //
+            // The default install ships none, because a skill is editorial
+            // guidance and nobody else's is right for your content. Adding one
+            // is an entry here plus a Markdown file beside this one:
+            //
+            //   skills: [
+            //       {
+            //           name: 'house-style',
+            //           title: 'House style',
+            //           description:
+            //               'How we write product copy: sentence case, second person.',
+            //           // `always` puts it in force on every run; omit for
+            //           // "only when someone attaches it in the composer".
+            //           mode: 'always',
+            //           instructions: readFileSync(
+            //               join(__dirname, 'skills/house-style.md'),
+            //               'utf8'
+            //           )
+            //       }
+            //   ],
             config: config.plugins.copilot
         }),
         // MCP — the Model Context Protocol front door, registered LAST because

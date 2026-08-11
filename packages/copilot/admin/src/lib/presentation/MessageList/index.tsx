@@ -9,11 +9,16 @@ import { ToolStep } from '../ToolStep';
 import { ProposalCard } from '../ProposalCard';
 import { PermissionPrompt } from '../PermissionPrompt';
 import { AttachmentChip } from '../AttachmentChip';
+import { SkillChip } from '../SkillChip';
 
 const messages = defineMessages({
     attachments: {
         id: 'copilot.messages.attachments',
         defaultMessage: 'Attached files'
+    },
+    skills: {
+        id: 'copilot.messages.skills',
+        defaultMessage: 'Skills used'
     },
     empty: {
         id: 'copilot.chat.empty',
@@ -171,6 +176,22 @@ function Turn({
                                     // thread and 404s for anyone who cannot.
                                     href={`/api/media/assets/${attachment.assetId}/raw`}
                                 />
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
+                {/* The skills this turn ran under — including the workspace's
+                    always-on ones, which nobody in this chat chose. Reading a
+                    thread back, this is the only place anyone learns that an
+                    answer was written under instructions they never saw. */}
+                {turn.skills?.length ? (
+                    <ul
+                        className="flex max-w-[85%] flex-wrap justify-end gap-1.5"
+                        aria-label={intl.formatMessage(messages.skills)}
+                    >
+                        {turn.skills.map((skill) => (
+                            <li key={skill.name}>
+                                <SkillChip title={skill.title} />
                             </li>
                         ))}
                     </ul>

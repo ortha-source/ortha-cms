@@ -8,6 +8,7 @@ export type { CopilotModuleOptions } from './lib/copilot.module';
 export {
     COPILOT_CONFIG,
     COPILOT_RUN_LIMITS,
+    COPILOT_SKILL_REGISTRY,
     InjectCopilotConfig
 } from './lib/copilot.tokens';
 export type { CopilotPluginConfig } from './lib/types/copilot-config';
@@ -48,5 +49,15 @@ export type {
     SystemPromptInput
 } from './lib/chat/application/system-prompt';
 
+// --- skills ---
+export {
+    SkillCatalogService,
+    SkillResolutionError
+} from './lib/skills/application/skill-catalog.service';
+export type { SkillSummary } from './lib/skills/application/skill-catalog.service';
+export { SkillRepository } from './lib/skills/infrastructure/persistence/skill.repository';
+export type { SkillRecord } from './lib/skills/infrastructure/persistence/skill.repository';
+
 // The Drizzle tables this plugin owns and migrates.
 export * from './lib/chat/infrastructure/schema';
+export * from './lib/skills/infrastructure/schema';

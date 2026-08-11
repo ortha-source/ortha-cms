@@ -1,12 +1,14 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import {
+    buildSkillRegistry,
     MODEL_REGISTRY,
     MODEL_RESOLVER,
-    type ModelResolver
+    type ModelResolver,
+    type SkillDefinition
 } from '@ortha-cms/copilot-domain';
 import { DatabaseModule } from '@ortha-cms/database';
 import { ToolsModule } from '@ortha-cms/tools-server';
-import { COPILOT_CONFIG } from './copilot.tokens';
+import { COPILOT_CONFIG, COPILOT_SKILL_REGISTRY } from './copilot.tokens';
 import {
     buildModelRegistry,
     type ProviderRegistration
@@ -27,6 +29,10 @@ import { ListModelsController } from './chat/http/controllers/list-models.contro
 import { ProposalsController } from './chat/http/controllers/proposals.controller';
 import { ToolPermissionController } from './chat/http/controllers/tool-permission.controller';
 import { UpdateConversationController } from './chat/http/controllers/update-conversation.controller';
+import { SkillCatalogService } from './skills/application/skill-catalog.service';
+import { SkillRepository } from './skills/infrastructure/persistence/skill.repository';
+import { ListSkillsController } from './skills/http/controllers/list-skills.controller';
+import { ManageSkillsController } from './skills/http/controllers/manage-skills.controller';
 
 /** Options `CopilotModule.forRoot` binds into DI. */
 export interface CopilotModuleOptions {
@@ -34,6 +40,8 @@ export interface CopilotModuleOptions {
     providers: readonly ProviderRegistration[];
     /** Optional custom handler picking a provider per run. */
     resolve?: ModelResolver;
+    /** Skills defined in code, available in every workspace. */
+    skills?: readonly SkillDefinition[];
     /** Host config (kill switch + default provider + connection settings). */
     config: CopilotPluginConfig;
 }
@@ -84,6 +92,13 @@ export class CopilotModule {
                 // the others: its `conversations/:id` is the only wildcard, and
                 // Express matches in declaration order.
                 ToolPermissionController,
+                // Both skill controllers before the conversation wildcard, for
+                // the same declaration-order reason as the rest. `skills` and
+                // `skills/:id` live in different controllers and cannot
+                // collide (different segment counts); `skills/manage` is
+                // declared above `skills/:id` inside the manage controller.
+                ListSkillsController,
+                ManageSkillsController,
                 GetConversationController
             ],
             providers: [
@@ -91,6 +106,13 @@ export class CopilotModule {
                 {
                     provide: MODEL_REGISTRY,
                     useValue: buildModelRegistry(options.providers)
+                },
+                {
+                    // Always bound, empty when the host declared none: "this
+                    // deployment ships no skills" must not present as a missing
+                    // dependency.
+                    provide: COPILOT_SKILL_REGISTRY,
+                    useValue: buildSkillRegistry(options.skills ?? [])
                 },
                 { provide: MODEL_RESOLVER, useValue: resolver },
                 CapabilityProfileService,
@@ -100,12 +122,15 @@ export class CopilotModule {
                 ProposalApplierRegistry,
                 DecideProposalService,
                 ToolPermissionBroker,
+                SkillRepository,
+                SkillCatalogService,
                 RunEngine
             ],
             exports: [
                 COPILOT_CONFIG,
                 MODEL_REGISTRY,
                 MODEL_RESOLVER,
+                COPILOT_SKILL_REGISTRY,
                 // Exported so the plugins that own writes can register their
                 // proposal appliers. Tools go to the shared `ToolRegistry` in
                 // `@ortha-cms/tools-server`, which the MCP module provides.

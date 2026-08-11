@@ -59,7 +59,11 @@ const ALL_PERMISSIONS = [
     // dock, and the Agents view answers "No access". It was missing, so every
     // suite claiming "an admin holding every permission" was quietly blind to
     // that whole surface.
-    'copilot:use'
+    'copilot:use',
+    // Admin-only: authoring a skill writes prompt text that runs for everyone in
+    // the workspace (ADR-0010). Narrow this away to assert the rail's skills
+    // link is absent for a contributor.
+    'copilot:skills:manage'
 ];
 
 /**

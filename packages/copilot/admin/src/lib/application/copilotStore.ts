@@ -68,6 +68,23 @@ let counter = 0;
  */
 let lastChoice: CopilotModelChoice | null = null;
 
+/**
+ * The skills last staged, seeded into the next chat.
+ *
+ * Remembered for the same reason the model is, and it took a browser to settle
+ * it: leaving the Agents view **closes** an idle chat (see `release`), so
+ * without this, staging a skill, stepping into the CMS to check an entry and
+ * coming back silently ran the next turn without it. That is precisely the
+ * failure the model choice was moved out of `useState` to fix, and it is worse
+ * here — the model at least announces itself in the picker, while instructions
+ * that quietly stopped applying announce nothing.
+ *
+ * Inheriting into a genuinely new chat is the cost, and it is acceptable
+ * because the chips are on screen the whole time: this can never become a
+ * setting nobody remembers turning on, and it dies with the tab.
+ */
+let lastSkills: readonly string[] = [];
+
 /** Publishes `next` and wakes subscribers, unless nothing actually changed. */
 function commit(next: CopilotStoreState): void {
     if (next === state) {
@@ -180,6 +197,16 @@ export function rememberChoice(choice: CopilotModelChoice | null): void {
     lastChoice = choice;
 }
 
+/** The skills a newly opened chat should start with. */
+export function seedSkills(): readonly string[] {
+    return lastSkills;
+}
+
+/** Records the staged set, so the next chat inherits it. */
+export function rememberSkills(names: readonly string[]): void {
+    lastSkills = [...names];
+}
+
 /** The controller of this chat's in-flight run, or `null` when it is idle. */
 export function runController(sessionId: string): AbortController | null {
     return controllers.get(sessionId) ?? null;
@@ -221,6 +248,7 @@ export function resetCopilotStore(): void {
     controllers.clear();
     counter = 0;
     lastChoice = null;
+    lastSkills = [];
     listeners.clear();
     state = { sessions: [], chats: {} };
 }

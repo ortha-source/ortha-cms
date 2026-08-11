@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_830 test cases across 50 spec files._
+_851 test cases across 51 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1165,6 +1165,47 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | --- |
 | lists this workspace’s members with their roles |
 | does not list accounts that are not members of this workspace |
+
+<!-- source: apps/server-e2e/src/server/copilot/copilot-skills.spec.ts -->
+_<sub>apps/server-e2e/src/server/copilot/copilot-skills.spec.ts</sub>_
+
+## Copilot skills
+
+### the catalogue
+
+| Test case |
+| --- |
+| serves the deployment’s code skills to anyone who may chat |
+| withholds instruction bodies from the list |
+| includes a workspace’s own enabled skills |
+| leaves a disabled skill out of it |
+| does not leak another workspace’s skills |
+
+### authoring
+
+| Test case |
+| --- |
+| lets an admin create, edit and delete one |
+| 403s a contributor on every write |
+| 409s a name a code skill already holds |
+| 409s a name this workspace already uses |
+| rejects a malformed name |
+| 400s an empty patch |
+| lists disabled and code skills on the manage route |
+
+### a run
+
+| Test case |
+| --- |
+| puts an always-on skill in force without being asked |
+| puts an attached skill’s body in the prompt |
+| lists an unattached skill without its body |
+| records what a turn ran with on the transcript |
+| ends the run with a readable error when a skill does not resolve |
+| does not resolve a skill from another workspace |
+| refuses more skills than one turn may carry |
+| refuses instruction text in the request body |
+| orders the skills sections after AUTHORITY and before ANSWERING |
 
 <!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_399 test cases across 42 spec files._
+_418 test cases across 44 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -544,6 +544,23 @@ _<sub>apps/admin-e2e/src/copilot/agents-manage.spec.ts</sub>_
 | archiving the thread you are reading starts a new chat |
 | the row menu offers no way to destroy a thread |
 
+<!-- source: apps/admin-e2e/src/copilot/agents-skills.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/agents-skills.spec.ts</sub>_
+
+## Agents view — skills
+
+| Test case |
+| --- |
+| stages a skill and sends its name with the turn |
+| shows an always-on skill without sending it |
+| the count is in the button’s accessible name |
+| drops a staged skill from the next turn |
+| keeps a staged skill after sending, unlike a file |
+| the selection survives a trip through the CMS |
+| a reopened thread redraws the skills its turn ran under |
+| renders no skills control when the workspace has none |
+| has no accessibility violations with skills staged |
+
 <!-- source: apps/admin-e2e/src/copilot/agents-view.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/agents-view.spec.ts</sub>_
 
@@ -593,6 +610,24 @@ _<sub>apps/admin-e2e/src/copilot/dock.spec.ts</sub>_
 | an open window over the page it is about |
 | three tiled windows |
 | a transcript with a change card in it |
+
+<!-- source: apps/admin-e2e/src/copilot/skills-manage.spec.ts -->
+_<sub>apps/admin-e2e/src/copilot/skills-manage.spec.ts</sub>_
+
+## Copilot skills — management
+
+| Test case |
+| --- |
+| lists code skills as read-only and the workspace’s own as editable |
+| creates a skill, deriving its identifier from the name |
+| edits an existing skill |
+| does not rewrite an existing skill’s identifier when its name changes |
+| deletes a skill after confirming |
+| shows the server’s reason for refusing a save |
+| reports a missing field on submit rather than disabling Save |
+| a role without the permission gets no page and no rail link |
+| the rail links an admin to the page |
+| has no accessibility violations, listed or in the form |
 
 <!-- source: apps/admin-e2e/src/copilot/view-switcher.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/view-switcher.spec.ts</sub>_

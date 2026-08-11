@@ -16,7 +16,11 @@ import { conversationsScopeKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideToolPermission } from './useDecideToolPermission';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
-import type { ChatAttachment, ChatMessage } from '../domain/types/chat';
+import type {
+    ChatAttachment,
+    ChatMessage,
+    ChatSkill
+} from '../domain/types/chat';
 
 const messages = defineMessages({
     generic: {
@@ -51,6 +55,19 @@ export interface SendInput {
      * render its chips before the server has echoed anything back.
      */
     attachments?: ChatAttachment[];
+    /**
+     * Every skill this turn runs under — the workspace's always-on ones as well
+     * as the picked ones. **Display only**: it is what the optimistic user turn
+     * renders as chips.
+     */
+    skills?: ChatSkill[];
+    /**
+     * The names the person actually picked, and the only skills the request
+     * carries. An always-on skill is workspace configuration the server applies
+     * regardless, so naming it here would be the client asserting a decision
+     * that is not its own.
+     */
+    chosenSkills?: readonly string[];
 }
 
 /** How one turn should be routed, when the user has picked. */
@@ -139,7 +156,14 @@ export function useCopilotChat(
     // it alive in between. See `copilotStore`.
 
     const sendWith = useCallback(
-        ({ text, context, options, attachments }: SendInput) => {
+        ({
+            text,
+            context,
+            options,
+            attachments,
+            skills,
+            chosenSkills
+        }: SendInput) => {
             const trimmed = text.trim();
             if (!trimmed || runController(sessionId)) {
                 return;
@@ -152,7 +176,8 @@ export function useCopilotChat(
                 type: 'submit',
                 text: trimmed,
                 localId,
-                ...(attachments?.length ? { attachments } : {})
+                ...(attachments?.length ? { attachments } : {}),
+                ...(skills?.length ? { skills } : {})
             });
 
             void (async () => {
@@ -185,6 +210,18 @@ export function useCopilotChat(
                                               assetId: attachment.assetId
                                           })
                                       )
+                                  }
+                                : {}),
+                            // Names only, same rule as attachments: the
+                            // instructions come from the catalogue row the
+                            // server resolves, never from the request. And only
+                            // the *picked* ones — the workspace's always-on
+                            // skills apply whether or not anyone asks.
+                            ...(chosenSkills?.length
+                                ? {
+                                      skills: chosenSkills.map((name) => ({
+                                          name
+                                      }))
                                   }
                                 : {})
                         },

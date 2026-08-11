@@ -28,6 +28,7 @@ import {
 } from '../../application/run-engine.service';
 import { UnknownModelError } from '@ortha-cms/copilot-domain';
 import { ContentTypeSummaryService } from '../../application/content-type-summary.service';
+import { SkillResolutionError } from '../../../skills/application/skill-catalog.service';
 import { SseStream } from '../sse-stream';
 
 /**
@@ -103,6 +104,9 @@ export class CreateRunController {
                           )
                       }
                     : {}),
+                ...(body.skills?.length
+                    ? { skills: body.skills.map((skill) => skill.name) }
+                    : {}),
                 context: body.context ?? {},
                 uiLocale: body.uiLocale ?? 'en',
                 ...(body.provider || body.model
@@ -135,10 +139,12 @@ export class CreateRunController {
                 });
             } else if (
                 error instanceof AttachmentError ||
+                error instanceof SkillResolutionError ||
                 error instanceof UnknownModelChoiceError ||
                 error instanceof UnknownModelError
             ) {
-                // A bad attachment or a bad provider/model is the caller's
+                // A bad attachment, an unavailable skill or a bad
+                // provider/model is the caller's
                 // mistake, and its own
                 // message already names what was asked for and what exists —
                 // far more useful than a generic failure, and safe to show
