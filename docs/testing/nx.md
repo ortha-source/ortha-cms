@@ -2,7 +2,7 @@
 
 > **Unit:** `packages/nx` · **Package:** `@ortha-cms/nx` · **Kind:** library (Nx plugin — developer tooling, no UI)
 > **Source of truth:** `packages/nx/AGENTS.md`
-> **Findings verified:** 2026-08-11 — 7 confirmed · 0 deleted · 6 corrected · 3 unverified
+> **Findings verified:** 2026-08-11 — 7 confirmed · 0 deleted · 6 corrected · 4 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -510,6 +510,22 @@ that is the finding, not an omission.
 **Location:** `packages/nx/src/index.ts:37-49`
 **Category:** correctness / data-integrity (schema drift)
 
+> **Each link verified separately, and the table below is exhaustive rather than
+> sampled** — every `drizzle.config.ts` in the repository was opened and its
+> `schema` field read (`find . -name drizzle.config.ts -not -path '*/node_modules/*'`
+> returns exactly the eight rows listed). Confirmed from source: the input glob is a
+> single hardcoded literal applied to every drizzle project (`src/index.ts:46`); five
+> of the eight configs point their `schema` outside `src/lib/schema/`; and
+> `migrations/` is a declared **output** (`:47`).
+> **Unverified —** two links are documented Nx semantics rather than things this
+> checkout could execute (`node_modules` is absent): that a target's explicit
+> `inputs` *replace* rather than extend the `default` named input, and that a cache
+> hit *restores declared outputs over the working tree*. The first is what makes the
+> hash blind to the schema; the second is what turns a stale hit from "did nothing"
+> into "overwrote your migration". The severity would survive losing the second: a
+> silent no-op on the command `.cursor/BUGBOT.md` tells you to run after every schema
+> edit is already High.
+
 **What the code does:**
 ```typescript
 'db:generate': {
@@ -944,9 +960,13 @@ its first real exercise, on every e2e run.
 
 ---
 
-**Tally:** 7 🐞 — 0 Critical · 1 High · 3 Medium · 3 Low (one 🔒) · 0 deleted on
-verification · 3 carrying an `Unverified —` qualifier (BUG-nx-02's `pg` fallback,
-BUG-nx-05's Studio auth model, BUG-nx-06's Ctrl+C exit status).
+**Tally:** 7 🐞 — 0 Critical · 1 High · 3 Medium · 3 Low (one 🔒) · **0 deleted** on
+verification · 6 corrected in place · 4 carrying an `Unverified —` qualifier
+(BUG-nx-01's two Nx cache semantics, BUG-nx-02's `pg` empty-string fallback,
+BUG-nx-05's Drizzle Studio auth model, BUG-nx-06's Ctrl+C exit status). Two were
+downgraded: BUG-nx-02 High 🔒 → Medium (DDL pollution, not data loss, and not a 🔒
+category) and BUG-nx-03 Medium → Low (its "contradictory documentation" mechanism
+did not survive reading the comment).
 **♿ tally:** 4 ♿ — 1 Supports · 2 Partially Supports · 0 Does Not Support · 1 Not Applicable.
 
 **Checked and cleared:** no executor builds a shell command string — all four use

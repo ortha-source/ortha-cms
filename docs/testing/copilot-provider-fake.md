@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/copilot/provider-fake` · **Package:** `@ortha-cms/copilot-provider-fake` · **Kind:** adapter (model-provider)
 > **Source of truth:** `packages/copilot/provider-fake/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 4 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -27,8 +28,8 @@ a contributor runs the admin offline.
   non-deterministic multi-step loop and a flaky fake would make every assertion
   downstream flaky too.
 - **Any vendor SDK.** Its only dependency is `@ortha-cms/copilot-domain`
-  (`package.json:20-22`), verified by grep: the four source files import from
-  `@ortha-cms/copilot-domain` and from each other, nothing else.
+  (`package.json:17-19`), verified by grep: the five source files under `src/lib`
+  import from `@ortha-cms/copilot-domain` and from each other, nothing else.
 - **Model selection.** `resolveModel` is `copilot-domain`'s
   (`packages/copilot/domain/src/lib/model/resolve-model.ts:16-32`).
 - **Registration.** `buildModelRegistry` in `copilot/server` owns the name → provider map.
@@ -65,7 +66,7 @@ at the composition root and handed to `CopilotPlugin`.
 ### How to exercise it manually
 
 ```bash
-npx nx test @ortha-cms/copilot-provider-fake     # 🧪 11 cases
+npx nx test @ortha-cms/copilot-provider-fake     # 🧪 10 cases
 npx nx typecheck @ortha-cms/copilot-provider-fake
 npx nx lint @ortha-cms/copilot-provider-fake
 ```
@@ -120,7 +121,7 @@ for await (const e of p.stream({ model: 'fake', messages: [], maxOutputTokens: 1
 | F2 | **Dev mode** — no `script`, the same canned reply forever | `script.ts:24-27`, `config.ts:67-70` | 🧪 UNIT `fake-provider.spec.ts:26` |
 | F3 | **Test mode** — turns consumed in order | `script.ts:28-36` | 🧪 UNIT `fake-provider.spec.ts:52` |
 | F4 | Running past the end of a script **throws**, naming the count and the call index | `script.ts:29-34` | 🧪 UNIT `fake-provider.spec.ts:80` |
-| F5 | Text is streamed as `text-delta` events of `chunkSize` (default 8) | `fake-provider.ts:64-77`, `text.ts:6-13` | 🧪 UNIT `fake-provider.spec.ts:37` |
+| F5 | Text is streamed as `text-delta` events of `chunkSize` (default 8) | `fake-provider.ts:64-77`, `text.ts:6-11` | 🧪 UNIT `fake-provider.spec.ts:37` |
 | F6 | Tool calls are emitted **after** the text, whole and already parsed | `fake-provider.ts:79-87` | 🧪 UNIT `fake-provider.spec.ts:52` |
 | F7 | Tool-call ids default to `fake-tool-<callIndex>-<index>` | `fake-provider.ts:83` | 🧪 UNIT `fake-provider.spec.ts:68-73` |
 | F8 | A turn with `toolCalls` and no `stopReason` infers `tool_use`; otherwise `end` | `fake-provider.ts:90-92` | 🧪 UNIT `fake-provider.spec.ts:74,77` |
@@ -132,10 +133,10 @@ for await (const e of p.stream({ model: 'fake', messages: [], maxOutputTokens: 1
 | F14 | `models()` returns the declared list; defaults to `['fake']` | `fake-provider.ts:43,103` | 🧪 UNIT `fake-provider.spec.ts:150,154` |
 | F15 | `stream` rejects a model the provider was not given, exactly as production would | `fake-provider.ts:53` | 🧪 UNIT `fake-provider.spec.ts:161` |
 | F16 | `capabilities(model?)` merges `DEFAULT_CAPABILITIES` with the override and stamps the resolved model | `fake-provider.ts:104-110` | 🧪 UNIT `fake-provider.spec.ts:128,158` |
-| F17 | `calls` records every `ModelRequest` served, in order — the negative-path assertion target | `fake-provider.ts:45,54,98` | 🧪 UNIT `fake-provider.spec.ts:89` · ✅ E2E `apps/server-e2e/src/server/copilot/copilot-chat.spec.ts:579` (via `copilotToolNames`) |
+| F17 | `calls` records every `ModelRequest` served, in order — the negative-path assertion target | `fake-provider.ts:45,54,98` | 🧪 UNIT `fake-provider.spec.ts:89` · ✅ E2E `apps/server-e2e/src/server/copilot/copilot-chat.spec.ts:585` (via the harness's `copilotCalls()` facade — there is no `copilotToolNames` helper; the spec maps `copilotCalls()[0].tools` itself) |
 | F18 | `reset()` clears `calls` and rewinds the script | `fake-provider.ts:99-102`, `script.ts:39-41` | 🧪 UNIT `fake-provider.spec.ts:140` |
 | F19 | `chunkSize` is floored at 1 | `fake-provider.ts:42` | ❌ NONE |
-| F20 | It imports **no vendor SDK** and reaches no network (ADR-0004 §1) | `package.json:20-22` | ❌ NONE (no lint rule or dependency-boundary test enforces it) |
+| F20 | It imports **no vendor SDK** and reaches no network (ADR-0004 §1) | `package.json:17-19` | ❌ NONE (no lint rule or dependency-boundary test enforces it) |
 | F21 | It is registered unconditionally in the host and is the `COPILOT_PROVIDER` **default** | `apps/server/src/plugins.ts:126-129`, `apps/server/ortha.config.ts:198` | ❌ NONE → 🐞 BUG-copilot-provider-fake-01 |
 | F22 | A caller may select it per run with `{"provider":"fake"}` | `create-run.dto.ts:169-173` → `run-engine.service.ts:243-254` | ⚠️ PARTIAL — `copilot-chat.spec.ts:677` runs on a named provider; nothing asserts what naming `fake` implies in a real deployment |
 
@@ -270,7 +271,7 @@ const req = { model: 'fake', messages: [{ role: 'user', content: [{ type: 'text'
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | `cat packages/copilot/provider-fake/package.json` | Exactly one dependency: `@ortha-cms/copilot-domain` |
-| 2 | `grep -rn "^import\|require(" packages/copilot/provider-fake/src` | Five import statements, all resolving to `@ortha-cms/copilot-domain` or a sibling file |
+| 2 | `grep -rn "^import\|require(" packages/copilot/provider-fake/src` | Eight `import` statements across `src/lib` (five in `fake-provider.ts`, one each in `config.ts`, `script.ts`, `usage.ts`), every one resolving to `@ortha-cms/copilot-domain` or a sibling file; `src/index.ts` only re-exports |
 | 3 | `grep -rn "fetch\|http\|https\|axios\|Anthropic\|openai" packages/copilot/provider-fake/src` | No matches |
 | 4 | `grep -rn "Date\.\|Math.random\|setTimeout\|performance" packages/copilot/provider-fake/src` | No matches — no clock, no randomness |
 | 5 | Run `npx nx test @ortha-cms/copilot-provider-fake` with the network disabled | Passes |
@@ -281,7 +282,7 @@ const req = { model: 'fake', messages: [{ role: 'user', content: [{ type: 'text'
 | --- | --- | --- |
 | 1 | Deploy with `NODE_ENV=production`, `COPILOT_ENABLED=true`, `ANTHROPIC_API_KEY` set, and **`COPILOT_PROVIDER` unset** | Expected: the deployment refuses to start, or falls back to a real provider. **Observed:** it boots, and every run answers with the canned sentence (`ortha.config.ts:198` defaults to `'fake'`) → 🐞 BUG-copilot-provider-fake-01 |
 | 2 | `GET /api/copilot/models` on that deployment | The catalogue lists `{provider: 'fake', model: 'fake'}` alongside the real backends — to any user holding `copilot:use` |
-| 3 | In the admin's model picker | **Fake** is a selectable option for every user |
+| 3 | In the admin's model picker | A `fake` / `fake` entry is a selectable option for every user — the picker renders `choice.model` over `choice.provider` verbatim (`packages/copilot/admin/src/lib/presentation/ModelPicker/index.tsx:123,126`), so it sits in the list looking like any other backend |
 | 4 | Any user: `POST /api/copilot/runs` with `{"message":"…","provider":"fake"}` | 200, the canned reply, and a `copilot_messages` row recording `provider: 'fake'` — indistinguishable in the audit trail from any other choice except by that column |
 | 5 | Ask the fake to make a change (a write tool) | It never emits a `tool-call` in dev mode, so no write ever happens — the failure mode is "the assistant is useless", not "the assistant is dangerous" |
 | 6 | Check for any guard: grep for `NODE_ENV` in `packages/copilot/**` and `plugins.ts` | None. The registration at `plugins.ts:126-129` is unconditional |
@@ -390,12 +391,12 @@ from `provider-anthropic` and `provider-openai` is a class of bug CI cannot see.
 
 | Aspect | fake | anthropic | openai | Consequence for CI |
 | --- | --- | --- | --- | --- |
-| **Tool-call assembly** | emitted whole, already parsed, from the script (`fake-provider.ts:79-87`) | assembled from `finalMessage()`, so also whole and parsed (`anthropic-provider.ts:70-81`) | **accumulated from `input_json_delta` fragments** by `createToolCallAccumulator` and drained at the end (`openai-provider.ts:92,99`) | A fragment-assembly bug in the OpenAI adapter — a split JSON string, an out-of-order index, a `tool_calls` array with holes — is invisible to every copilot e2e test. Only `openai-provider.spec.ts` can catch it |
+| **Tool-call assembly** | emitted whole, already parsed, from the script (`fake-provider.ts:79-87`) | assembled from `finalMessage()`, so also whole and parsed (`anthropic-provider.ts:73-83`) | **accumulated from `input_json_delta` fragments** by `createToolCallAccumulator` and drained at the end (`openai-provider.ts:75,96,102`) | A fragment-assembly bug in the OpenAI adapter — a split JSON string, an out-of-order index, a `tool_calls` array with holes — is invisible to every copilot e2e test. Only `openai-provider.spec.ts` can catch it |
 | **Ordering** | all text, then all tool calls, then `done` | all text (streamed), then tool calls (post-hoc), then `done` | text **interleaved** with accumulation, tool calls drained after the loop, then `done` | Ordering happens to agree, so the engine's assumption ("`toolUses` is complete when `streamTurn` returns") is safe. **Checked and cleared** |
 | **Text after a tool call** | impossible — `text` is one string emitted first | possible in principle (a `content_block_delta` after a `tool_use` block) but the adapter streams all deltas before reading `finalMessage`, so it also lands first | possible and preserved in order | A model that explains *after* deciding to call a tool is never simulated. The admin's "a step ends the paragraph" rule (`chatReducer`) is exercised only in the shape the fake produces |
 | **Abort** | checked synchronously between chunks; **no check in the tool-call loop** (`fake-provider.ts:79-87`) | the SDK rejects; `isAbortError` → `abortedEvent()` (`anthropic-provider.ts:90-95`) | `fetch` rejects; same (`openai-provider.ts:104-108`) | The fake can emit tool calls **after** an abort; a real provider cannot. A consumer that assumed "nothing arrives after abort" would pass CI and fail in production — and the engine does assume it, guarding only at step boundaries |
-| **Timeout** | none | none (the SDK's own) | `AbortSignal.timeout(timeoutMs)`, default `DEFAULT_TIMEOUT_MS`, with a distinct error message (`openai-provider.ts:59,109-113`) | The timeout path — the most common real failure with a local Ollama — has no CI exercise through the engine at all |
-| **Transport error** | never; the only throw is script exhaustion | rethrows the SDK's error (a vendor `APIError` with status and message) | throws `Copilot model request to <endpoint> failed: <status> <statusText> — <body, 500 chars>` (`openai-provider.ts:118-125`) | The engine turns a provider throw into `userFacingMessage(error)` = `error.message` and sends it to the browser as an `error` frame (`run-engine.service.ts:305`). So a 401 from OpenAI puts **the endpoint URL and up to 500 characters of the provider's response body** in front of any user with `copilot:use`. Nothing in CI ever produces that string, so nothing tests what it contains |
+| **Timeout** | none | none (the SDK's own) | `AbortSignal.timeout(timeoutMs)`, default `DEFAULT_TIMEOUT_MS`, with a distinct error message (`openai-provider.ts:60-61,109-113`) | The timeout path — the most common real failure with a local Ollama — has no CI exercise through the engine at all |
+| **Transport error** | never; the only throw is script exhaustion | rethrows the SDK's error (a vendor `APIError` with status and message) | throws `Copilot model request to <endpoint> failed: <status> <statusText> — <body, 500 chars>` (`openai-provider.ts:119-127`) | The engine turns a provider throw into `userFacingMessage(error)` = `error.message` and sends it to the browser as an `error` frame (`run-engine.service.ts:305`). So a 401 from OpenAI puts **the endpoint URL and up to 500 characters of the provider's response body** in front of any user with `copilot:use`. Nothing in CI ever produces that string, so nothing tests what it contains |
 | **`maxOutputTokens`** | ignored | forwarded (`wire/request.ts`) | forwarded | `stopReason: 'max_tokens'` never occurs naturally; the run's `max-output-tokens` path is reachable only by scripting it explicitly, which no spec does |
 | **`system`, `tools`, `messages`** | recorded in `calls`, otherwise ignored | mapped to the wire format | mapped to the wire format | A malformed `ModelMessage` (an empty `content` array, a `tool_result` with no matching `tool_use`) is accepted silently by the fake and rejected with a 400 by both real providers. The engine builds these in `loop`, so a history-assembly bug is fake-invisible |
 | **Tool name validation** | none — a script may call a tool that was never offered | impossible (a real model only calls what it was told about) | impossible | Deliberate and useful: it is how `copilot-chat.spec.ts:634` proves execution-time re-authorization. But it means "the model called a withheld tool" is a *test-only* scenario, so the refusal path's real-world frequency is zero |
@@ -453,7 +454,7 @@ suites do not and cannot reach it.
 
 ## 5. E2E Coverage Map
 
-The package's own suite is `src/lib/fake-provider.spec.ts` (11 cases, 165 lines),
+The package's own suite is `src/lib/fake-provider.spec.ts` (10 cases, 165 lines),
 run by `npx nx test`. There is no dedicated e2e — the fake is exercised
 *implicitly* by every copilot server-e2e spec, through
 `apps/server-e2e/src/support/copilot.ts`.
@@ -484,11 +485,24 @@ run by `npx nx test`. There is no dedicated e2e — the fake is exercised
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-copilot-provider-fake-01 — the fake is the default provider in production, with nothing to prevent it · Severity: High · 🔒
+### 🐞 BUG-copilot-provider-fake-01 — the fake is the default provider in production, with nothing to prevent it · Severity: Medium
 
 **Location:** `apps/server/ortha.config.ts:198` and
 `apps/server/src/plugins.ts:126-129`
 **Category:** correctness / operational-safety
+
+> **Verified end to end.** Every link in the chain was read: the default
+> (`ortha.config.ts:198`), the unconditional registration (`plugins.ts:126-129`),
+> the catalogue exposure (`list-models.controller.ts:48-55`, guarded only by
+> `copilot:use`), per-run selectability (`create-run.dto.ts:169-173` →
+> `run-engine.service.ts:243-248`, where an explicit `provider` wins over the
+> host resolver), and the absence of any `NODE_ENV` guard — `grep -rn NODE_ENV
+> packages/copilot apps/server/src/plugins.ts` returns nothing.
+> **Downgraded from High 🔒** on verification: the finding's own blast-radius
+> paragraph concedes there is no escalation and no write path, so there is no
+> reachable exploit and no data-loss, and 🔒 (auth / authz / tenant-isolation /
+> data-leak) does not describe it. What remains — a deployment that boots green
+> and answers every question with a canned sentence — is a genuine Medium.
 
 **What the code does:**
 
@@ -525,8 +539,8 @@ and none of them is guarded:
    it is the one nobody wrote.
 2. **The catalogue.** `GET /api/copilot/models` serves
    `ModelRegistry.catalogue()` verbatim (`list-models.controller.ts:48-55`), so
-   every user holding `copilot:use` sees **Fake** in the model picker as an
-   ordinary choice, indistinguishable from a real backend.
+   every user holding `copilot:use` sees a `fake` entry in the model picker as an
+   ordinary choice, indistinguishable in form from a real backend.
 3. **Per-run selection.** `CreateRunDto.provider` lets any caller name it
    (`create-run.dto.ts:169-173`), and an explicitly requested provider
    deliberately **wins over the host's resolver**
@@ -550,7 +564,7 @@ missing half is a guard for the case where it is wrong.
 startup warning.
 4. On a *correctly* configured production deployment, as any user with
    `copilot:use`, open the model picker.
-→ Observed: **Fake** is offered.
+→ Observed: a `fake` / `fake` entry is offered.
 
 **Blast radius.** Not a security escalation — the fake calls no tools in dev mode,
 so it cannot write anything, and the audit trail records `provider: 'fake'` on
@@ -628,8 +642,22 @@ the wrong reason** — it is reading a later turn.
 **Blast radius.** Test integrity only; no production behaviour depends on it.
 But this is the package whose single job is to make downstream assertions
 trustworthy, and this is the one field where an assertion can silently mean
-something other than what it says. Note that no current spec asserts on
-`calls[n].messages`, which is why nobody has hit it.
+something other than what it says.
+
+**Corrected on verification.** The original filing claimed "no current spec asserts
+on `calls[n].messages`". Two do:
+
+- `copilot-chat.spec.ts:325` — `copilotCalls()[1].messages.map(m => m.role)`. Safe
+  by accident: the two calls come from two separate HTTP runs, so each got its own
+  `messages` array and neither was mutated after its call returned.
+- `copilot-chat.spec.ts:397-400` — `copilotCalls()[1].messages` flat-mapped for a
+  `tool_result`. This is the **within-one-run** case, so it is the aliasing bug in
+  the wild: `calls[0].messages` is the same object and carries the same
+  `tool_result`, so the assertion would pass identically against call 0 and proves
+  nothing about *which* call carried the result.
+
+That second spec is the "passes for the wrong reason" pattern described above,
+already present in the suite.
 
 **Suggested fix:** shallow-copy on record —
 `calls.push({ ...request, messages: [...request.messages] })` — or freeze it. A
@@ -705,9 +733,9 @@ tool calls is not observed, and every scripted call is still emitted.
 
 **Why it matters.** Neither real adapter can do this: Anthropic reads tool calls
 from `finalMessage()` inside the `try`, so an abort rejects before any are
-emitted (`anthropic-provider.ts:70-95`); OpenAI drains its accumulator after a
+emitted (`anthropic-provider.ts:73-95`); OpenAI drains its accumulator after a
 loop over a `fetch` body that the abort tears down
-(`openai-provider.ts:99,104-108`). So the fake produces a stream shape production
+(`openai-provider.ts:102,104-108`). So the fake produces a stream shape production
 cannot, and the engine's `loop` — which checks `signal.aborted` only at step
 boundaries (`run-engine.service.ts:360`) — will happily execute those tool calls,
 including a write, after the user pressed Stop.
@@ -728,9 +756,9 @@ and yield `abortedEvent()`.
 
 Specifically hunted, specifically not a defect:
 
-- **Does it import a vendor SDK?** No. `package.json:20-22` lists exactly one
-  dependency, `@ortha-cms/copilot-domain`; grepping every import in `src/` finds
-  five statements, all resolving to that package or a sibling file. No `fetch`,
+- **Does it import a vendor SDK?** No. `package.json:17-19` lists exactly one
+  dependency, `@ortha-cms/copilot-domain`; grepping every import in `src/lib` finds
+  eight statements, all resolving to that package or a sibling file. No `fetch`,
   no `http`, no `Date`, no `Math.random`, no timers. **ADR-0004 §1 holds.**
 - **Do the scripted responses cover the tool-call path?** Yes, and thoroughly at
   the *consumer* end: `apps/server-e2e/src/support/copilot-fixture-tools.ts`
@@ -746,7 +774,8 @@ Specifically hunted, specifically not a defect:
 - **Does an unlisted model corrupt state?** No — `resolveModel` runs before
   `calls.push` and before `script.next()` (`fake-provider.ts:53-57`), so a
   rejected model neither records a call nor consumes a turn. Anthropic
-  (`:47`) and OpenAI (`:57`) resolve at the same point, for the stated reason
+  (`anthropic-provider.ts:50`) and OpenAI (`openai-provider.ts:59`) resolve at the
+  same point, for the stated reason
   ("a run naming a model this provider doesn't offer is the caller's error, not
   an abort to be swallowed").
 - **Does the script advance on a pre-flight abort?** Yes, deliberately and with
@@ -764,6 +793,18 @@ Specifically hunted, specifically not a defect:
 - **Determinism.** No clock, no randomness, no I/O; `estimateUsage` is a pure
   function of the request and the reply. Two identical drains are deep-equal
   (`fake-provider.spec.ts:32`).
+
+---
+
+**Tally:** 4 🐞 — 0 Critical · 0 High · 2 Medium · 2 Low · 0 🔒 · 0 deleted on
+verification · 2 corrected in place (BUG-01 downgraded from High 🔒; BUG-02's
+"no spec asserts on `calls[n].messages`" claim was false and is corrected) ·
+0 carrying an `Unverified —` qualifier.
+**♿ tally:** 0 ♿ findings filed — this unit renders no UI and has no HTTP
+surface, so §4A assesses five provisions and files nothing: 0 Supports · 0
+Partially Supports · 0 Does Not Support · **5 Not Applicable** (WCAG 2.1 A+AA as a
+whole, 502.2/502.3, 503.2, 503.4, 504). The one authoring-tool consequence is
+cross-referenced to `♿ A11Y-copilot-server-01` rather than filed twice.
 
 ---
 

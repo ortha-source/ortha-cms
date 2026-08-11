@@ -2,6 +2,7 @@
 
 > **Unit:** `apps/server-e2e` · **Package:** `@ortha-cms/server-e2e` (private) · **Kind:** app (test harness)
 > **Source of truth:** `apps/server-e2e/AGENTS.md`, `.agents/skills/server-e2e/SKILL.md`
+> **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 8 corrected · 2 unverified
 > **Generated:** 2026-08-11
 
 > **This artifact tests the tests.** The unit under audit is the in-process testcontainer +
@@ -49,14 +50,14 @@
 - **Any browser, any rendering, any accessibility of a UI.** That is `apps/admin-e2e`.
 - **Real model providers or real object storage.** Only the scripted `fake` copilot provider
   (`plugins.ts:78`) and an in-memory `memory` storage provider (`:69`) are registered.
-- **Cross-suite parallelism.** `maxWorkers: 1` (`jest.config.cts:168`) is a deliberate,
+- **Cross-suite parallelism.** `maxWorkers: 1` (`jest.config.cts:46`) is a deliberate,
   documented constraint, not an oversight.
 
 ### Entry points
 
 | Kind | Entry point | Where |
 | --- | --- | --- |
-| Runner config | default export | `apps/server-e2e/jest.config.cts:133` |
+| Runner config | default export | `apps/server-e2e/jest.config.cts:11` |
 | Global setup / teardown | `module.exports` | `src/support/global-setup.ts:21`, `global-teardown.ts:5` |
 | App boot | `createTestApp(overrides?)`, `closeTestApp(harness)` | `src/support/test-app.ts:27`, `:62` |
 | Config | `buildTestConfig(url, overrides?)`, `TestConfigOverrides` | `src/support/test-config.ts:60`, `:30` |
@@ -73,11 +74,11 @@
 | --- | --- |
 | Node + npm workspaces | `npm ci` at the repo root. `node_modules` is absent in a fresh checkout. |
 | **Docker daemon** | Required by default — `PostgreSqlContainer('postgres:16-alpine')` (`global-setup.ts:41`). The image is pulled on first run. |
-| `E2E_DATABASE_URL` | **Optional escape hatch.** Points the run at an existing Postgres and skips the container (`global-setup.ts:31-43`). **The database it names is TRUNCATEd between every test.** No guard prevents you naming your working DB — see `🐞 BUG-server-e2e-04`. |
-| `.env` / `DATABASE_URL` | **Not read.** `buildTestConfig` supplies every value (`test-config.ts:64-151`); `DATABASE_URL` is *written* by `publishDatabaseUrl` (`db-url.ts:99`), never read from the developer's env. |
+| `E2E_DATABASE_URL` | **Optional escape hatch.** Points the run at an existing Postgres and skips the container (`global-setup.ts:31-43`). **The database it names is TRUNCATEd between every test.** No guard prevents you naming your working DB — verified, the variable is compared with nothing anywhere. See `🐞 BUG-server-e2e-04`. |
+| `.env` / `DATABASE_URL` | **Not read.** `buildTestConfig` supplies every value (`test-config.ts:64-151`); `DATABASE_URL` is *written* by `publishDatabaseUrl` (`db-url.ts:18`), never read from the developer's env. |
 | Migrations | Applied by `global-setup`, per plugin, in `buildTestPlugins` order (`global-setup.ts:52-59`). |
 | Seed data | None persists. `app.init()` runs the `SystemRolesSeeder` (`test-app.ts:22`); everything else is per-test. |
-| A logged-in role | Real. `seedActiveUser` + `POST /api/auth/login` through a `supertest.agent`. |
+| A logged-in role | Real. `seedActiveUser` + `POST /api/auth/login` — the auth suites pass the raw `Set-Cookie` back by hand, other suites use `request.agent(...)`. |
 | Feature flags | `mcp.enabled` defaults **true** here (host default is false, `test-config.ts:145-149`); `copilot.enabled` is **true** with the `fake` provider (`:107-118`); `docs.enabled` is **false**. |
 
 ### How to exercise it manually
@@ -112,7 +113,7 @@ failures. To see them, temporarily remove that option. To inspect the database m
 the container URI (it is logged by `global-setup.ts:66` only as "database ready"; add a
 `console.log(connectionString)` or run with `E2E_DATABASE_URL` so you already know it) and
 attach `psql` while a `--runInBand -t <name>` run is paused at a breakpoint. Jest's
-`testTimeout` is 30 s (`jest.config.cts:165`), so a debugger session needs `--testTimeout=0`.
+`testTimeout` is 30 s (`jest.config.cts:43`), so a debugger session needs `--testTimeout=0`.
 
 ### Dependencies that must be healthy for the tests to mean anything
 
@@ -133,17 +134,17 @@ Harness capabilities, not product features.
 
 | # | Feature | Where it lives | Coverage |
 | --- | --- | --- | --- |
-| F1 | Postgres testcontainer lifecycle | `src/support/global-setup.ts:33-43`, `global-teardown.ts:72-80` | 🐞 `BUG-server-e2e-02` |
-| F2 | Docker-less mode (`E2E_DATABASE_URL`) | `src/support/global-setup.ts:31-38` | 🐞 `BUG-server-e2e-04` 🔒 |
+| F1 | Postgres testcontainer lifecycle | `src/support/global-setup.ts:33-43`, `global-teardown.ts:5-13` | 🐞 `BUG-server-e2e-02` |
+| F2 | Docker-less mode (`E2E_DATABASE_URL`) | `src/support/global-setup.ts:31-38` | 🐞 `BUG-server-e2e-04` |
 | F3 | Per-plugin migration loop (real descriptors) | `src/support/global-setup.ts:48-62` | ⚠️ PARTIAL |
 | F4 | Cross-plugin migration ordering | `src/support/plugins.ts:48-90` | 🐞 `BUG-server-e2e-14` |
-| F5 | Connection-string handoff (env + temp-file fallback) | `src/support/db-url.ts:95-122` | 🐞 `BUG-server-e2e-05` |
+| F5 | Connection-string handoff (env + temp-file fallback) | `src/support/db-url.ts:14-41` | 🐞 `BUG-server-e2e-05` |
 | F6 | In-process app boot mirroring `createServer` | `src/support/test-app.ts:27-54` | 🐞 `BUG-server-e2e-09` |
-| F7 | Per-file module registry / app / pool / throttler | `jest.config.cts:168` + `test-app.ts:56-65` | 🐞 `BUG-server-e2e-08` |
-| F8 | Serial execution (`maxWorkers: 1`) | `jest.config.cts:166-168` | ✅ E2E (documented, correct) |
-| F9 | Raised test timeout for cold boot + bcrypt | `jest.config.cts:164-165` | ✅ E2E |
-| F10 | SWC transform + `@scalar` ESM exception | `jest.config.cts:139-151` | ✅ E2E |
-| F11 | Source-resolution module mapping | `jest.config.cts:152-161` | ✅ E2E |
+| F7 | Per-file module registry / app / pool / throttler | `jest.config.cts:46` + `test-app.ts:56-65` | 🐞 `BUG-server-e2e-08` |
+| F8 | Serial execution (`maxWorkers: 1`) | `jest.config.cts:44-46` | ✅ E2E (documented, correct) |
+| F9 | Raised test timeout for cold boot + bcrypt | `jest.config.cts:42-43` | ✅ E2E |
+| F10 | SWC transform + `@scalar` ESM exception | `jest.config.cts:21-29` | ✅ E2E |
+| F11 | Source-resolution module mapping | `jest.config.cts:32-39` | ✅ E2E |
 | F12 | Deterministic host config | `src/support/test-config.ts:60-151` | ⚠️ PARTIAL |
 | F13 | Per-suite rate-limit override | `test-config.ts:32` + `auth/login-throttle.spec.ts:22-24` | ✅ E2E (no leak — see EC-20) |
 | F14 | Per-suite origin / root-admin / GraphQL-limit / docs / MCP overrides | `test-config.ts:34-57` | ✅ E2E |
@@ -165,18 +166,19 @@ Harness capabilities, not product features.
 | F30 | Runtime tool registration through DI | `src/support/copilot.ts:76-80` | ✅ E2E |
 | F31 | Buffered SSE parsing (`parseSse`) | `src/support/sse.ts:29-34` | 🐞 `BUG-server-e2e-15` |
 | F32 | **Incremental** SSE streaming (`streamSse`) for the permission-park flow | `src/support/sse.ts:52-90` | ✅ E2E |
-| F33 | Cookie/session flows via `supertest.agent` | `auth/login.spec.ts:57`, `logout.spec.ts:55-65` | ✅ E2E |
+| F33 | Cookie/session flows — raw `Set-Cookie` handling in the auth suites, `request.agent(...)` elsewhere (e.g. `api-tokens/public-graphql-api.spec.ts:78`) | `auth/login.spec.ts:57`, `logout.spec.ts:55-65` | ✅ E2E |
 | F34 | Generated catalog + drift gate | `tools/generate-test-catalog.mjs` | 🐞 `BUG-server-e2e-01` |
 | F35 | CI execution of the suite | *(none)* | ❌ NONE — `BUG-server-e2e-01` |
 
 **Cleared on inspection** (checked, no defect found): no `it.skip` / `describe.skip` /
-`.only` / `xit` anywhere in `src/` (verified by grep across all 51 specs); all eight
-`seedUserWithEmptyRole` `roleKey` values are distinct across the whole run; the copilot
+`.only` / `xit` anywhere in `src/` (verified by grep across all 51 specs); all seven
+`seedUserWithEmptyRole` `roleKey` values are distinct across the whole run (seven
+call sites in six spec files); the copilot
 facade's `current` is module-scoped and Jest isolates module registries per file, so no script
 or call log crosses a file boundary (`copilot.ts:28-32`); `initDatabase` is idempotent
 (`packages/database/src/lib/utils/db.ts:13-20`) so a second `createTestApp` in a file reuses
 one pool rather than leaking a second; the two files that boot a second app already avoid
-`closeTestApp` on it by hand (`mcp.spec.ts:921`, `root-admin.spec.ts:123-129`); per-suite
+`closeTestApp` on it by hand (`mcp.spec.ts:923`, `root-admin.spec.ts:122-130`); per-suite
 rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `maxWorkers: 1`).
 
 ---
@@ -191,7 +193,7 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 | --- | --- | --- |
 | 1 | `docker ps -a --filter ancestor=postgres:16-alpine` | Note the current container count. |
 | 2 | `npx nx e2e server-e2e -- src/server/server.spec.ts` | Console prints `[e2e] starting Postgres testcontainer…`, then `[e2e] migrating "<plugin>"…` once per migrating plugin, then `[e2e] database ready (testcontainer).` |
-| 3 | After the run, repeat step 1 | Count is unchanged — `global-teardown.ts:77` stopped it, printing `[e2e] testcontainer stopped.` |
+| 3 | After the run, repeat step 1 | Count is unchanged — `global-teardown.ts:10` stopped it, printing `[e2e] testcontainer stopped.` |
 | 4 | **Failure path.** Introduce a syntax error into any plugin's newest `.sql` migration, re-run | `global-setup` throws; Jest aborts before any suite. |
 | 5 | Repeat step 1 | **Observed:** one extra running `postgres:16-alpine` container, orphaned. `global-teardown` never sees it because `__PG_CONTAINER__` is assigned *after* the migration loop (`global-setup.ts:65`). See `🐞 BUG-server-e2e-02`. Clean up with `docker rm -f`. |
 
@@ -223,8 +225,8 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `ls "$TMPDIR/ortha-server-e2e/database-url"` during a run | The file exists and holds the URI (`db-url.ts:95,101`). |
-| 2 | After the run | The directory is gone (`clearDatabaseUrl`, `db-url.ts:120-122`). |
+| 1 | `ls "$TMPDIR/ortha-server-e2e/database-url"` during a run | The file exists and holds the URI (`db-url.ts:14,20`). |
+| 2 | After the run | The directory is gone (`clearDatabaseUrl`, `db-url.ts:39-41`). |
 | 3 | Start two runs concurrently in two terminals | **Observed:** both write the same fixed path; whichever finishes first `rmSync`s the shared directory out from under the other. The env path usually saves it — the file is the *fallback*, used exactly when env inheritance failed. See `🐞 BUG-server-e2e-05`. |
 
 ### F6 — In-process app boot
@@ -240,15 +242,15 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx e2e server-e2e -- --maxWorkers=4` | Jest's CLI flag overrides the config; suites now race on `resetDb` and fail unpredictably (typically a foreign-key violation or a count assertion off by another suite's rows). This is why `jest.config.cts:168` pins `1`. |
+| 1 | `npx nx e2e server-e2e -- --maxWorkers=4` | Jest's CLI flag overrides the config; suites now race on `resetDb` and fail unpredictably (typically a foreign-key violation or a count assertion off by another suite's rows). This is why `jest.config.cts:46` pins `1`. |
 | 2 | Confirm the throttler cannot leak | `login-throttle.spec.ts` boots its own app (`:22`); `ThrottlerGuard` state is in-memory per module registry, and Jest gives each *file* its own registry. Run the whole suite and confirm `login.spec.ts` (13 login requests) never 429s. |
 
 ### F9-F11 — Jest transform/mapping
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx e2e server-e2e -- src/server/server.spec.ts` | Boots without an ESM `export {` SyntaxError, proving the `@scalar/` transform exception (`jest.config.cts:151`) still matches. |
-| 2 | Remove a `moduleNameMapper` entry and re-run | Module-resolution failure at import time — the workspace resolves from source and Jest needs the mapping (`jest.config.cts:152-161`). |
+| 1 | `npx nx e2e server-e2e -- src/server/server.spec.ts` | Boots without an ESM `export {` SyntaxError, proving the `@scalar/` transform exception (`jest.config.cts:29`) still matches. |
+| 2 | Remove a `moduleNameMapper` entry and re-run | Module-resolution failure at import time — the workspace resolves from source and Jest needs the mapping (`jest.config.cts:32-39`). |
 
 ### F12/F14 — Deterministic config and per-suite overrides
 
@@ -263,7 +265,7 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx e2e server-e2e -- src/server/auth/login-throttle.spec.ts` | Three 401s then a 429 (`login-throttle.spec.ts:43-46`), with `limit: 3`. |
+| 1 | `npx nx e2e server-e2e -- src/server/auth/login-throttle.spec.ts` | Three 401s then a 429 (`login-throttle.spec.ts:45-48`), with `limit: 3`. |
 | 2 | `npx nx e2e server-e2e -- src/server/auth` | The full auth folder passes; the relaxed limit (`ttl 60, limit 1000`, `test-config.ts:24-27`) keeps `login.spec.ts` from self-throttling. |
 
 ### F15 — Cookie configuration
@@ -278,7 +280,7 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | Read `src/support/seed.ts:392-401` | 13 tables are truncated `RESTART IDENTITY CASCADE`. |
-| 2 | Cross-check against the schema: `grep -rhiE "^CREATE TABLE" packages apps --include=*.sql` | 46 tables exist. Not truncated and **not reachable by cascade**: `outbox_events` (no FK at all). Not truncated but reachable by cascade from `users`/`workspaces`: `sessions`, `tokens`, `memberships`, `workspace_content`, `api_tokens`, `api_token_workspaces`, `user_preferences`, all six `copilot_*`, `content_test_article_{tags,contributors}`. Deliberately preserved: `roles`, `permissions`, `role_permissions`. |
+| 2 | Cross-check against the schema: `grep -rhiE "^CREATE TABLE" packages apps --include=*.sql` | 48 tables exist. Not truncated and **not reachable by cascade**: `outbox_events` (no FK at all). Not truncated but reachable by cascade from `users`/`workspaces`: `sessions`, `tokens`, `memberships`, `workspace_content`, `api_tokens`, `api_token_workspaces`, `user_preferences`, all six `copilot_*`, `content_test_article_{tags,contributors}`. Deliberately preserved: `roles`, `permissions`, `role_permissions`. |
 | 3 | Prove the outbox gap: after a full run, `psql <uri> -c 'SELECT count(*), count(dispatched_at) FROM outbox_events'` | A non-zero total accumulated across the entire run. See `🐞 BUG-server-e2e-03`. |
 
 ### F17/F23 — Seeding through DI
@@ -384,17 +386,19 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
   (`test-app.ts:51`).
 - **EC-05 — Two concurrent runs on one machine.** `❌ NONE`
   Containers are independent, but the handoff file path is fixed
-  (`db-url.ts:95`) and teardown `rmSync`s its parent directory recursively (`:121`)
+  (`db-url.ts:14`) and teardown `rmSync`s its parent directory recursively (`:40`)
   → `🐞 BUG-server-e2e-05`.
-- **EC-06 — `E2E_DATABASE_URL` points at a real database.** `❌ NONE` 🔒
-  No comparison against `DATABASE_URL`, no name-pattern check, no confirmation prompt.
-  `resetDb()` then TRUNCATEs it between every one of 851 tests → `🐞 BUG-server-e2e-04`.
+- **EC-06 — `E2E_DATABASE_URL` points at a real database.** `❌ NONE`
+  No comparison against `DATABASE_URL`, no name-pattern check, no host check, no confirmation
+  prompt — verified: the variable is read in exactly one place (`global-setup.ts:31`) and
+  compared with nothing. `resetDb()` then TRUNCATEs it in every suite's `beforeEach`
+  → `🐞 BUG-server-e2e-04`.
 - **EC-07 — `E2E_DATABASE_URL` names a database with a divergent schema.** `⚠️ PARTIAL`
   `migrate()` consults each plugin's journal table. A database migrated by an *older* branch
   resumes correctly; one migrated by a *newer* branch is silently left ahead, and specs fail
   on columns the code does not know about, with no message tying it to the reused database.
 - **EC-08 — Global setup succeeds, a worker cannot resolve the URL.** `⚠️ PARTIAL`
-  `resolveDatabaseUrl` throws a genuinely good message (`db-url.ts:113-115`). Good.
+  `resolveDatabaseUrl` throws a genuinely good message (`db-url.ts:32-34`). Good.
 
 #### Isolation
 
@@ -402,11 +406,11 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
   `outbox_events` is absent from the TRUNCATE list (`seed.ts:394-399`) and its migration
   declares **no foreign keys** (only an index on `dispatched_at`), so no cascade reaches it.
   The dispatcher's poll backstop fires every 5 s (`packages/database/src/lib/outbox/outbox-dispatcher.ts:22,119-125`)
-  and drains `WHERE dispatched_at IS NULL` (`:80`). A row whose subscriber threw stays
-  undispatched with `attempts + 1` (`:105-110`) and is retried inside a **later test** — after
+  and drains `WHERE dispatched_at IS NULL` (`:81`). A row whose subscriber threw stays
+  undispatched with `attempts + 1` (`:109-112`) and is retried inside a **later test** — after
   `resetDb` has removed the rows it references → `🐞 BUG-server-e2e-03`.
 - **EC-10 — The retry is invisible.** `❌ NONE`
-  The dispatcher reports failures via `this.logger.error(...)` (`outbox-dispatcher.ts:101-104`),
+  The dispatcher reports failures via `this.logger.error(...)` (`outbox-dispatcher.ts:105-108`),
   but `createTestApp` boots with `logger: false` (`test-app.ts:41`). The one diagnostic that
   would explain a mysterious extra `activity_events` row is suppressed.
 - **EC-11 — Audit rows appear in a test that created none.** `⚠️ PARTIAL`
@@ -418,7 +422,7 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 - **EC-12 — `roles` accumulates for the whole run.** `⚠️ PARTIAL`
   Deliberate (system roles must survive), but `seedUserWithEmptyRole` inserts a *non-system*
   role that also survives (`seed.ts:118-121`). All eight keys in use today are distinct;
-  the constraint is documented (`seed.ts:112`) and unenforced → `🐞 BUG-server-e2e-06`.
+  the constraint is documented (`seed.ts:109-111`) and unenforced → `🐞 BUG-server-e2e-06`.
 - **EC-13 — The in-memory blob store is never cleared.** `⚠️ PARTIAL`
   `createInMemoryStorageProvider()` closes over a `Map` created once per `buildTestPlugins`
   call (`media-storage.ts:26`), i.e. once per app. `resetDb` truncates `media_asset` and leaves
@@ -437,7 +441,7 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
   subsequent boot receives an **ended** pool and every query throws "Cannot use a pool after
   calling end". No file does this; nothing prevents it.
 - **EC-18 — Parallel workers.** Cleared and correctly documented. `maxWorkers: 1`
-  (`jest.config.cts:168`) with the rationale in place; `AGENTS.md` states "Parallelism later
+  (`jest.config.cts:46`) with the rationale in place; `AGENTS.md` states "Parallelism later
   would need a DB-per-worker scheme". The config **does** say so — which is what the question
   asks.
 - **EC-19 — Order dependence between spec files.** `⚠️ PARTIAL`
@@ -449,23 +453,23 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
   per module registry. Verified by reading `login-throttle.spec.ts:22-24` against
   `login.spec.ts:41` — the latter never 429s despite 13 login requests.
 - **EC-21 — `login-throttle.spec.ts` resets in `beforeAll`, not `beforeEach`.** `⚠️ PARTIAL`
-  `login-throttle.spec.ts:24-30`. Safe with one test; a second test added to the file inherits
+  `login-throttle.spec.ts:21-31`. Safe with one test; a second test added to the file inherits
   a consumed bucket and fails confusingly → `🐞 BUG-server-e2e-12`.
 
 #### Seeding fidelity — does the seed produce state the API could produce?
 
 - **EC-22 — A seeded workspace has no creator membership and no grants.** `⚠️ PARTIAL`
   `seedWorkspace` writes one row (`seed.ts:155-163`); `CreateWorkspaceUseCase` always adds the
-  creator and writes grants (`create-workspace.use-case.ts:55,63`). Suites compensate with
+  creator and writes grants (`create-workspace.use-case.ts:61,63`). Suites compensate with
   explicit `seedMembership`/`seedContentGrants`, but the *default* seeded state is unreachable
   through the API → `🐞 BUG-server-e2e-10`.
 - **EC-23 — Slug/colour validation bypassed.** `❌ NONE`
-  `Slug.create` and `WorkspaceColor.create` (`create-workspace.use-case.ts:48-49`) and
-  `SlugUniquenessService.assertAvailable` (`:52`) are all skipped by the seeder. A spec could
+  `Slug.create` and `WorkspaceColor.create` (`create-workspace.use-case.ts:47-48`) and
+  `SlugUniquenessService.assertAvailable` (`:51`) are all skipped by the seeder. A spec could
   seed an invalid slug and assert read behaviour over it. None currently does — but nothing
   stops it, and the DB's own unique index is the only remaining guard.
 - **EC-24 — Content-grant registry check bypassed.** `❌ NONE`
-  `resolveGrants(dto.content, this.catalog.knownSlugs())` (`create-workspace.use-case.ts:56`)
+  `resolveGrants(dto.content, this.catalog.knownSlugs())` (`create-workspace.use-case.ts:54`)
   validates a granted slug against the registry. `seedContentGrants` (`seed.ts:185-187`)
   inserts whatever it is given, defaulting `kind` to `'collection'` — so granting a *single*
   without passing `'single'` writes a row the API would never write. Exactly one call site
@@ -492,7 +496,7 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
 #### Empty / boundary / size / encoding
 
 - **EC-29 — Zero rows.** `✅ E2E` Every seeder early-returns on an empty array
-  (`seed.ts:493`, `:518`, `:540`, `:599`, `:619`) and list suites assert empty pages.
+  (`seed.ts:493`, `:520`, `:542`, `:599`, `:620`) and list suites assert empty pages.
 - **EC-30 — `limit`/`pageSize` boundaries.** `✅ E2E` at the DTO level — `ListMembersQueryDto`,
   `ListEntriesQueryDto` and `PublicListEntriesQueryDto` are exercised by
   `list-users.spec.ts`, `list-entries.spec.ts` and `public-content-api.spec.ts`.
@@ -508,13 +512,17 @@ rate-limit overrides genuinely cannot leak (per-file app, in-memory throttler, `
   the filename is interpolated unsanitised. In the in-memory `Map` that is harmless, but the
   harness therefore **cannot** catch a traversal that the real local/S3 providers would suffer,
   because those providers are never booted (`plugins.ts:69`).
-- **EC-35 — SQL-ish input.** `✅ E2E` implicitly — Drizzle parameterises everything, and the two
-  hand-written queries (`seed.ts:363`, `:583`) are parameterised (`$1::uuid[]`).
+- **EC-35 — SQL-ish input.** `✅ E2E` implicitly — Drizzle parameterises everything, and neither
+  hand-written query interpolates a value: `seed.ts:363` is a constant SQL string with no
+  parameters at all, and `seed.ts:583-586` is genuinely parameterised (`$1::uuid[]`, ids passed
+  as a bind array). `resetDb`'s `TRUNCATE` (`seed.ts:393-400`) is likewise a constant string.
+  (Corrected: the original filing described `:363` as parameterised; it takes no parameters,
+  which is equally safe but a different property.)
 
 #### Permission matrix, tenancy, enumeration
 
 - **EC-36 — Per-role coverage.** `✅ E2E` Strong. `seedUserWithEmptyRole` gives a genuine
-  no-permission principal, and eight suites use it. `admin`/`contributor`/`viewer` are
+  no-permission principal, and six spec files use it (seven call sites). `admin`/`contributor`/`viewer` are
   exercised across users, workspaces, content and copilot.
 - **EC-37 — Unauthenticated.** `✅ E2E` Every controller suite opens with a 401 case
   (e.g. `get-user.spec.ts`, `mcp.spec.ts` "authentication").
@@ -680,8 +688,8 @@ is a product decision for `content-domain`.
 **Location:** `apps/server-e2e/src/server/auth/login.spec.ts:184-231`
 
 The harness asserts that a `ValidationPipe` rejection returns `message` as an **array naming
-the offending field** — `expect.arrayContaining([expect.stringContaining('email')])` at `:186`,
-`password` at `:192`, and the unknown-property name at `:228`. That is precisely the payload a
+the offending field** — `expect.arrayContaining([expect.stringContaining('email')])` at `:187`,
+`password` at `:194`, and the unknown-property name (`role`) at `:229`. That is precisely the payload a
 client needs to associate an error with its input for 3.3.1, and the admin's own error reader
 handles the array form (`packages/copilot/admin/src/lib/application/runStream.ts:154-157`).
 Asserting the *shape*, not just the 400, is the right call and is worth preserving.
@@ -702,9 +710,9 @@ on `app-admin`, `design-system`, `apps/admin-e2e` and the individual admin plugi
 
 ---
 
-## 5. E2E Coverage Map — *inverted*
+## 5. E2E Coverage Map
 
-Which product areas does this harness cover, and how honestly. "Fidelity" asks whether the
+**Inverted, because this unit is a harness.** Which product areas does this harness cover, and how honestly. "Fidelity" asks whether the
 state the suite asserts against is state the running system could actually reach.
 
 | Product area / plugin | Specs | What is genuinely asserted | Fidelity | Verdict |
@@ -753,9 +761,16 @@ Ranked by severity. Every finding was read in the cited source.
 
 ### 🐞 BUG-server-e2e-01 — No CI workflow runs this suite, and the package contradicts itself about it · Severity: Critical
 
-**Location:** `.github/workflows/release.yml:1-57`; `apps/server-e2e/TESTS.md:4-5` vs
-`apps/server-e2e/AGENTS.md` ("Test catalog")
+**Location:** `.github/workflows/release.yml:1-60`; `apps/server-e2e/TESTS.md:4-5` vs
+`apps/server-e2e/AGENTS.md:99`
 **Category:** correctness (process)
+
+> **Verified as stated, and deliberately not widened.** `.github/workflows/` contains
+> exactly one file, `release.yml`; its trigger is `workflow_dispatch` only (`:9-19`)
+> and its `run:` steps are `npm ci` (`:43`), a git identity setup (`:45-48`),
+> `npx nx run-many -t typecheck` (`:53-54`) and `npx nx release` (`:56-57`). The
+> accurate claim is **that no workflow is wired up** — not that one was removed, not
+> that anything is broken. The suite passes when run; nothing runs it automatically.
 
 **What the code does:** the repository's only workflow is `Release`, manually dispatched, whose
 `run:` steps are `npm ci`, a git identity setup, `npx nx run-many -t typecheck`, and
@@ -763,10 +778,12 @@ Ranked by severity. Every finding was read in the cited source.
 trigger.
 
 **Why it is wrong:** `TESTS.md:4-5` asserts "CI runs `npx nx catalog:check server-e2e` and
-fails if this file has drifted". `AGENTS.md` in the same package says the opposite, and is
-correct: "wire this into CI **once a pipeline exists**". 851 API test cases — including every
-authorization, tenant-isolation and cookie assertion in this repository — execute only when a
-developer chooses to run them, on a machine with Docker.
+fails if this file has drifted". `AGENTS.md:99` in the same package says the opposite, and is
+correct: "wire this into CI **once a pipeline exists**". 851 API test cases across 51 spec
+files (`TESTS.md:7`) — including every authorization, tenant-isolation and cookie assertion in
+this repository — execute only when a developer chooses to run them, on a machine with Docker.
+The defect is the *absence* of automation plus the *false statement* in `TESTS.md`; the specs
+themselves are healthy (0 `it.skip` / `describe.skip` / `.only` / `xit` across all 51 files).
 
 **Repro:**
 1. `ls .github/workflows/` → `release.yml`
@@ -784,11 +801,21 @@ targets; correct `TESTS.md`'s claim until it is true.
 
 ---
 
-### 🐞 BUG-server-e2e-02 — A migration failure leaks the Postgres testcontainer permanently · Severity: High
+### 🐞 BUG-server-e2e-02 — A migration failure leaks the Postgres testcontainer permanently · Severity: Medium
 
 **Location:** `apps/server-e2e/src/support/global-setup.ts:45-66`;
-`apps/server-e2e/src/support/global-teardown.ts:72-80`
-**Category:** data-loss / resource leak
+`apps/server-e2e/src/support/global-teardown.ts:5-13`
+**Category:** resource leak
+
+> **Downgraded from High** on verification, and the category corrected from
+> "data-loss": nothing is lost. The mechanism is confirmed from source —
+> `container.start()` is at `global-setup.ts:41`, `__PG_CONTAINER__` is assigned at
+> `:65` after the migration loop, and `global-teardown.ts:6-9` reads that handle and
+> no-ops when it is `undefined` — but the consequence is an orphaned container a
+> `docker rm -f` clears. **Unverified —** sub-claim (a), that Jest skips
+> `globalTeardown` when `globalSetup` throws, could not be executed here
+> (`node_modules` is absent); the leak follows from sub-claim (b) alone, which is
+> confirmed from source, so the finding does not rest on it.
 
 **What the code does:**
 
@@ -840,13 +867,25 @@ migration loop), or wrap the loop in `try { … } catch (e) { await container?.s
 
 ---
 
-### 🐞 BUG-server-e2e-03 — `outbox_events` is never truncated and has no FK, so undispatched rows replay into later tests · Severity: High
+### 🐞 BUG-server-e2e-03 — `outbox_events` is never truncated and has no FK, so undispatched rows survive into later tests · Severity: Medium
 
 **Location:** `apps/server-e2e/src/support/seed.ts:392-401`;
 `packages/database/migrations/*.sql` (the `outbox_events` DDL — one `CREATE TABLE` and one
 index, **no `REFERENCES` clause**);
-`packages/database/src/lib/outbox/outbox-dispatcher.ts:22, 76-115, 119-125`
+`packages/database/src/lib/outbox/outbox-dispatcher.ts:22, 76-116, 119-125`
 **Category:** race / correctness (isolation)
+
+> **Verified in part; downgraded from High.** Confirmed from source: `outbox_events`
+> is absent from the TRUNCATE list (`seed.ts:393-400`), its migration declares one
+> `CREATE TABLE` and one `CREATE INDEX` and **no `REFERENCES` clause at all**
+> (`packages/database/migrations/0000_*.sql`, read in full), so no cascade from
+> `users` or `workspaces` reaches it; the 5 s poll and the retry-with-`attempts + 1`
+> path are as described; and no helper anywhere reads the table. **Unverified —**
+> consequence 1 (cross-test replay) requires a *subscriber to throw* during a run,
+> and nothing in this repository shows that it ever does. Treat the replay as a
+> latent hazard the design permits, not an observed flake. Consequences 2 and 3 —
+> the suppressed diagnostic and the untestable ADR-0003 invariant — are fully
+> confirmed and are what carry the Medium.
 
 **What the code does:**
 
@@ -874,21 +913,21 @@ onApplicationBootstrap(): void {
 }
 ```
 
-and drains `WHERE dispatched_at IS NULL` (`:80`), retrying failures with `attempts + 1` (`:107-110`).
+and drains `WHERE dispatched_at IS NULL` (`:81`), retrying failures with `attempts + 1` (`:109-112`).
 
 **Why it is wrong:** the doc comment on `resetDb` (`seed.ts:380-391`) is explicit about the
 principle it is applying — `activity_events` and `content_entry_revisions` are truncated
 *precisely because* they have no FK and "no cascade reaches" them. `outbox_events` is the third
 table in that category and was missed. Consequences, in order of severity:
 
-1. **Cross-test replay.** An event whose subscriber threw stays undispatched. `resetDb` removes
+1. **Cross-test replay** *(latent — see the Unverified note above)*. An event whose subscriber threw stays undispatched. `resetDb` removes
    the aggregate it references. Five seconds later — inside a *different* test — the poll
    re-delivers it, and `AuditEventSubscriber`
    (`packages/activity/server/src/lib/activity/infrastructure/audit-event.subscriber.ts:37`)
    writes an `activity_events` row that test did not create. `activity.spec.ts` asserts audit
    counts; the failure presents as an off-by-N with no explanation.
 2. **The diagnostic is suppressed.** The dispatcher's `logger.error('Delivery failed … will
-   retry')` (`outbox-dispatcher.ts:101-104`) is silenced by `logger: false`
+   retry')` (`outbox-dispatcher.ts:105-108`) is silenced by `logger: false`
    (`test-app.ts:41`), so the one message that would explain the phantom row never prints.
 3. **The outbox invariant is untestable.** No helper reads `outbox_events` — `grep -rn "outbox"
    apps/server-e2e/src` returns nothing. ADR-0003's central mechanism has no direct coverage,
@@ -898,23 +937,48 @@ table in that category and was missed. Consequences, in order of severity:
 **Repro:**
 1. `E2E_DATABASE_URL=…/scratch npx nx e2e server-e2e`
 2. `psql scratch -c 'SELECT count(*) total, count(dispatched_at) done, max(attempts) FROM outbox_events'`
-→ Observed: a non-zero `total` accumulated across the whole run, and any `attempts > 0` row is
-   a replay candidate. Expected: 0, because the table should be truncated between tests.
+→ Observed: a non-zero `total` accumulated across the whole run (certain — nothing ever removes
+   these rows). Any `attempts > 0` row would be a replay candidate; whether the run produces one
+   is the part this artifact could not confirm. Expected: 0, because the table should be
+   truncated between tests.
 
-**Blast radius:** an intermittent, unexplainable audit-count failure is the single most
-expensive category of flake — it looks like a product bug, it is not reproducible in isolation,
-and the log that would identify it is off.
+**Blast radius:** today, a permanent coverage hole over ADR-0003's central mechanism and a
+suppressed diagnostic. If a subscriber ever does throw, it becomes an intermittent,
+unexplainable audit-count failure — the single most expensive category of flake, because it
+looks like a product bug, is not reproducible in isolation, and the log that would identify it
+is off.
 
 **Suggested fix:** add `outbox_events` to the TRUNCATE list, and add a `countOutboxRows()` /
 `getUndispatchedOutboxRows()` helper so the ADR-0003 invariants become assertable.
 
 ---
 
-### 🐞 BUG-server-e2e-04 — `E2E_DATABASE_URL` has no guard, and the suite TRUNCATEs whatever it names · Severity: High · 🔒 SECURITY
+### 🐞 BUG-server-e2e-04 — `E2E_DATABASE_URL` has no guard, and the suite TRUNCATEs whatever it names · Severity: High
 
 **Location:** `apps/server-e2e/src/support/global-setup.ts:22-43`;
 `apps/server-e2e/src/support/seed.ts:392-401`
 **Category:** data-loss
+
+> **The mechanism is confirmed exactly, and it is the one finding here worth being
+> certain about.** `E2E_DATABASE_URL` appears in **three** places in the entire
+> repository, all inside `global-setup.ts` — the explanatory comment (`:22-30`), the
+> read (`:31`), and the log line (`:37`) — verified by
+> `grep -rn E2E_DATABASE_URL apps/server-e2e`. There is **no comparison against
+> `DATABASE_URL` anywhere**, no name-pattern check, no host check, no confirmation
+> prompt, and no log of the database about to be destroyed. `resetDb()` then runs
+> `TRUNCATE … RESTART IDENTITY CASCADE` over 13 tables (`seed.ts:393-400`). Severity
+> stays **High**: this is a concrete, reachable, irreversible data-loss path.
+> **🔒 stripped** — the marker is defined for auth / authz / tenant-isolation /
+> data-leak concerns, and destroying your own development database is none of those;
+> it is `data-loss`, which is already the category.
+>
+> **One claim corrected.** The original repro asserted this is "the exact keystroke a
+> developer makes when following `AGENTS.md`'s 'Running without Docker' section". It
+> is not. That section (`apps/server-e2e/AGENTS.md:45-57`) names a *distinct*
+> database in its example — `postgres://user@127.0.0.1:5432/ortha_e2e` — and warns in
+> bold: "**The database it names is truncated between every test.**" The
+> documentation warns against the mistake rather than instructing it. What is missing
+> is the mechanical backstop behind the prose, which is what this finding is about.
 
 **What the code does:**
 
@@ -943,20 +1007,24 @@ cannot be triggered by accident" — protects against *forgetting to unset a var
 against the far more likely mistake of copying one's own connection string into it while
 following the documented Docker-less instructions.
 
-`resetDb()` then runs `TRUNCATE … CASCADE` over 13 tables **before every one of 851 tests**.
+`resetDb()` then runs `TRUNCATE … CASCADE` over 13 tables from each suite's `beforeEach` —
+before effectively every one of the 851 tests (`login-throttle.spec.ts` is the lone `beforeAll`,
+EC-21).
 The `CASCADE` reaches sessions, tokens, memberships, workspace grants, API tokens, preferences
 and every copilot table. There is no recovery.
 
 **Repro:** (do **not** perform on data you value)
-1. `export E2E_DATABASE_URL="$DATABASE_URL"` — the exact keystroke a developer makes when
-   following `AGENTS.md`'s "Running without Docker" section against their local stack.
+1. `export E2E_DATABASE_URL="$DATABASE_URL"` — the shortcut a developer takes when they already
+   have a local Postgres up and reach for their existing connection string rather than
+   `createdb`-ing the separate `ortha_e2e` the docs show.
 2. `npx nx e2e server-e2e`
 → Observed: the run migrates and passes, and the developer's working database is emptied.
    Expected: the harness refuses to start.
 
 **Blast radius:** total, irreversible loss of a developer's local working data. Severity is
-High rather than Critical only because it requires user action — but the action is one the
-documentation actively instructs, which is precisely the case a guard exists for.
+High rather than Critical because it requires a deliberate user action that the package's own
+documentation and its `global-setup` comment both warn against — but a bolded warning is not a
+guard, and this is the one operation in the harness with no undo.
 
 **Suggested fix:** in `global-setup`, refuse when `external === process.env['DATABASE_URL']`,
 require the database name to end in `_e2e`/`_test` (or an explicit
@@ -967,7 +1035,7 @@ to truncate.
 
 ### 🐞 BUG-server-e2e-05 — The connection-string handoff uses a fixed temp path that concurrent runs clobber and delete · Severity: Medium
 
-**Location:** `apps/server-e2e/src/support/db-url.ts:95-122`
+**Location:** `apps/server-e2e/src/support/db-url.ts:14-41`
 **Category:** race
 
 **What the code does:**
@@ -992,8 +1060,8 @@ terminal — write the same file, and the first to finish `rmSync`s the *directo
 while the second is still running.
 
 The exposure is narrower than it looks, because `resolveDatabaseUrl` prefers `process.env`
-(`db-url.ts:106-108`) and the file is a fallback. But the fallback exists for exactly the
-runners where env inheritance does not hold (`:88-93`) — so on those runners, which are the
+(`db-url.ts:24-28`) and the file is a fallback. But the fallback exists for exactly the
+runners where env inheritance does not hold (`:8-12`) — so on those runners, which are the
 ones that need it, a concurrent run steers a worker at the *other* run's container. That worker
 then TRUNCATEs the other run's database mid-test.
 
@@ -1011,7 +1079,7 @@ filename, pass it to workers via a dedicated env var, and delete only that file.
 
 ---
 
-### 🐞 BUG-server-e2e-06 — `roles` survives `resetDb`, making eight suites retry-hostile · Severity: Medium
+### 🐞 BUG-server-e2e-06 — `roles` survives `resetDb`, making the permission-less-principal suites retry-hostile · Severity: Medium
 
 **Location:** `apps/server-e2e/src/support/seed.ts:106-135` and `:392-401`; call sites at
 `api-tokens/api-tokens-management.spec.ts:184`, `workspaces/workspace-access.spec.ts:142`,
@@ -1041,7 +1109,7 @@ process breaks it: `jest.retryTimes(...)`, `--repeat-each`, a watch-mode re-run 
 violation on `roles.key` and fails with a raw Postgres error, not an assertion — so the
 symptom points at the database rather than at the harness.
 
-All eight keys are currently distinct (verified: `wsa-empty-role`, `token-mgmt-norights`,
+All seven keys are currently distinct (verified: `wsa-empty-role`, `token-mgmt-norights`,
 `entries-spec-no-perms`, `copilot-threads-no-perms`, `copilot-no-perms`,
 `copilot-models-no-perms`, `content-spec-no-perms`), so today's runs are clean. The defect is
 that nothing keeps them distinct and nothing survives a retry.
@@ -1136,7 +1204,7 @@ export function initDatabase(config: DatabasePluginConfig): void {
    throws `Cannot use a pool after calling end on the pool` — from deep inside a provider,
    with no hint that the harness's own teardown caused it.
 
-The two files that boot a second app already work around this by hand — `mcp.spec.ts:921` calls
+The two files that boot a second app already work around this by hand — `mcp.spec.ts:923` calls
 `disabled.app.close()` (not `closeTestApp`), and `root-admin.spec.ts:122-124` carries an
 explicit comment: "Reuses this file's live DB pool; the failed app is never returned or closed,
 so the shared pool stays open for the suite." That the workaround needed a comment is the
@@ -1163,7 +1231,7 @@ prefix → `ValidationPipe` → **`setupApiDocs(app, plugins, docs, globalPrefix
 `createTestApp` runs the same sequence minus `setupApiDocs` and `listen`, and with
 `logger: false`.
 
-**Why it is wrong:** `test-app.ts:24-25` states "the only difference from production is 'init,
+**Why it is wrong:** `test-app.ts:20-21` states "the only difference from production is 'init,
 don't listen'", and `AGENTS.md` repeats it ("stops at `app.init()` instead of `listen()`").
 There are three differences, and one of them removes a whole production-reachable surface.
 `setupApiDocs` generates the OpenAPI document from every plugin's descriptors and mounts the
@@ -1378,7 +1446,7 @@ requests. Given `copilotCalls()` is the assertion target for the ADR-0005 mandat
 path ("a viewer is not offered write tools"), a stale log is exactly the wrong thing to assert
 on.
 
-56 `scriptCopilot` calls vs 29 `copilotCalls` uses across the suite suggests current discipline
+56 `scriptCopilot` calls vs 30 `copilotCalls` uses across the suite suggests current discipline
 is good; the hazard is that nothing enforces it.
 
 **Suggested fix:** add `resetCopilot()` (re-instantiating `current` with no script, so an
@@ -1453,6 +1521,20 @@ add one server-side assertion on the raw `res.text` that a frame carries both th
 
 ---
 
+**Tally:** 15 🐞 — 1 Critical · 1 High · 9 Medium · 4 Low · 0 🔒 (BUG-04's was stripped
+on verification: data-loss, not an auth/authz/tenant-isolation/data-leak concern) ·
+**0 deleted** on verification · 8 corrected in place · 2 carrying an `Unverified —`
+qualifier (BUG-02's Jest `globalTeardown` behaviour, BUG-03's cross-test replay).
+Two findings were downgraded (BUG-02 High→Medium, BUG-03 High→Medium) because their
+impact is a leaked container and a coverage hole rather than a reachable exploit or
+data loss.
+**♿ tally:** 5 ♿ — 2 Supports (A11Y-01, -05) · 1 Partially Supports (A11Y-04) ·
+2 Does Not Support (A11Y-02, -03, both schema-level) · 0 Not Applicable as findings,
+with ~25 success criteria and Chapter 5 provisions recorded Not Applicable in §4A
+because this unit renders nothing.
+
+---
+
 ## 7. Recommended E2E Tests
 
 Ordered by value. Prose only.
@@ -1460,12 +1542,12 @@ Ordered by value. Prose only.
 | Priority | Harness | Proposed spec | Asserts | Closes |
 | --- | --- | --- | --- | --- |
 | 1 | CI (not a spec) | `.github/workflows/ci.yml` | On push and PR: `lint`, `typecheck`, `test`, `e2e admin-e2e`, `e2e server-e2e`, `catalog:check` for both. Without this, every row below is optional. | `🐞 BUG-server-e2e-01` |
-| 2 | harness change | `src/support/global-setup.ts:22-43` | Refuse to start when `E2E_DATABASE_URL === DATABASE_URL` or the database name lacks an `_e2e`/`_test` suffix; log the host + database about to be truncated. | `🐞 BUG-server-e2e-04` 🔒, EC-06 |
+| 2 | harness change | `src/support/global-setup.ts:22-43` | Refuse to start when `E2E_DATABASE_URL === DATABASE_URL` or the database name lacks an `_e2e`/`_test` suffix; log the host + database about to be truncated. | `🐞 BUG-server-e2e-04`, EC-06 |
 | 3 | harness change | `src/support/global-setup.ts:41-65` | Publish `__PG_CONTAINER__` immediately after `start()`, or wrap the migration loop in `try/catch → container.stop()`. | `🐞 BUG-server-e2e-02`, EC-01 |
 | 4 | harness change + new spec | `src/support/seed.ts:392` + `src/server/database/outbox.spec.ts` (new) | Add `outbox_events` to the TRUNCATE list; add `countOutboxRows`/`getUndispatchedOutboxRows` helpers; assert (a) a committed mutation writes exactly one outbox row and it is dispatched, (b) a rolled-back mutation writes none, (c) a throwing subscriber increments `attempts` and leaves the row undispatched. | `🐞 BUG-server-e2e-03`, EC-09/10/11/42 |
 | 5 | server-e2e | `src/server/auth/login.spec.ts` (extend) or a new `session-cookie.spec.ts` | Boot with `{ session: { cookieSecure: true, cookieSameSite: 'strict' } }` (needs the override added first) and assert `Secure` and `SameSite=Strict` are emitted. | `🐞 BUG-server-e2e-11` |
 | 6 | server-e2e | `src/server/auth/accept-invite.spec.ts` (extend) | The invite-accept response's `Set-Cookie` carries the same attribute set login's does (`HttpOnly`, `SameSite`, `Path`, `Max-Age`) — currently asserted for login only. | EC (F33 step 3) |
-| 7 | harness change | `src/support/db-url.ts:95` | Scope `URL_FILE` by run id / PID; delete only that file in teardown. | `🐞 BUG-server-e2e-05`, EC-05 |
+| 7 | harness change | `src/support/db-url.ts:14` | Scope `URL_FILE` by run id / PID; delete only that file in teardown. | `🐞 BUG-server-e2e-05`, EC-05 |
 | 8 | harness change | `src/support/seed.ts:113-135` | Make `seedUserWithEmptyRole` idempotent (`ON CONFLICT (key) DO UPDATE` or a random suffix); add non-system roles to the reset. | `🐞 BUG-server-e2e-06`, EC-12 |
 | 9 | server-e2e | `src/server/bootstrap/api-docs.spec.ts` (new) | With `{ docsEnabled: true }` the OpenAPI document generates and `/reference/json` returns a valid document naming every plugin's routes; with `false`, `/reference` 404s. Requires `createTestApp` to call `setupApiDocs`. | `🐞 BUG-server-e2e-09` |
 | 10 | harness change + spec | `src/support/media-storage.ts` + `src/server/media/media-assets.spec.ts` | Expose the blob `Map`; clear it per test; assert `DELETE /api/media/assets/:id` removes the bytes, not just the row. | `🐞 BUG-server-e2e-07`, EC-13 |
