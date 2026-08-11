@@ -83,6 +83,39 @@ export interface ContentVelocityView {
     granularity: 'day' | 'week' | 'month';
 }
 
+/** Live-vs-unpublished-edits split for one content type. */
+export interface UnshippedTypeView {
+    /** The type's machine name. */
+    name: string;
+    /** Its human label. */
+    label: string;
+    /** Entries live with unpublished edits on top of what is live. */
+    modified: number;
+    /** Entries live and current — nothing pending. */
+    published: number;
+}
+
+/**
+ * Entries whose live version is behind what an editor has saved.
+ *
+ * The publish state is **two stored values that carry three meanings**, which is
+ * the whole reason this endpoint exists: `status` alone cannot separate "never
+ * published" from "published, then edited". `published_at` is stamped on the
+ * first publish and cleared only by an unpublish, so `draft` + a timestamp is
+ * live content with unpublished changes on top — the admin's **Modified** badge
+ * — while `draft` + no timestamp is a draft nobody has ever shipped.
+ */
+export interface ContentUnshippedView {
+    /** One row per publishable type holding at least one modified entry. */
+    types: UnshippedTypeView[];
+    /** Modified entries across the workspace — live, with edits pending. */
+    modified: number;
+    /** Entries with a live version at all (`modified` + fully published). */
+    live: number;
+    /** Drafts that have never gone live. */
+    neverPublished: number;
+}
+
 /** One weekday × hour cell of the editing punchcard. */
 export interface PunchcardCellView {
     /** ISO weekday, 1 = Monday … 7 = Sunday. */

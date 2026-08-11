@@ -57,6 +57,33 @@ export type ContentPipeline = {
     types: PipelineType[];
 };
 
+/** Live-vs-unpublished-edits split for one content type. */
+export type UnshippedType = {
+    name: string;
+    label: string;
+    /** Entries live with unpublished edits on top of what is live. */
+    modified: number;
+    /** Entries live and current. */
+    published: number;
+};
+
+/**
+ * Entries whose live version is behind what an editor has saved.
+ *
+ * `notLocalized`'s counterpart on the content side of the same idea: `status`
+ * alone cannot separate a never-shipped draft from live content carrying
+ * pending edits, which is why the server reads `publishedAt` too. `live` counts
+ * only **publishable** types — an always-live singleton has nothing to ship, so
+ * folding it into the denominator would make the share meaningless.
+ */
+export type ContentUnshipped = {
+    /** One row per type holding at least one modified entry, biggest first. */
+    types: UnshippedType[];
+    modified: number;
+    live: number;
+    neverPublished: number;
+};
+
 /** Entries published per time bucket. */
 export type ContentVelocity = {
     points: InsightsSeriesPoint[];
@@ -98,6 +125,8 @@ export type ContentInsightsGateway = {
     stale(): Promise<ContentStale>;
     /** `GET /insights/content/pipeline` — draft/published split per type. */
     pipeline(): Promise<ContentPipeline>;
+    /** `GET /insights/content/unshipped` — live entries with pending edits. */
+    unshipped(): Promise<ContentUnshipped>;
     /** `GET /insights/content/velocity` — entries published per bucket. */
     velocity(days: number): Promise<ContentVelocity>;
     /** `GET /insights/content/punchcard` — edits by weekday and hour. */

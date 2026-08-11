@@ -23,6 +23,11 @@ import {
     type EntryParamsItem
 } from '@ortha-cms/content-admin';
 import {
+    INSIGHTS_SECTION_IDS,
+    INSIGHTS_WIDGET_SLOT
+} from '@ortha-cms/insights-admin';
+import {
+    CONTENT_READ,
     LOCALE_GROUP_PARAM,
     LOCALE_PARAM,
     SLOT_ITEM_ID
@@ -36,6 +41,7 @@ import { LocalesColumnCell } from '../../components/LocalesColumnCell';
 import { LocaleWidget } from '../../components/LocaleWidget';
 import { LocaleTitleChip } from '../../components/LocaleTitleChip';
 import { LocaleSwitchOverlay } from '../../components/LocaleSwitchOverlay';
+import { LocalizationCoverageWidget } from '../../components/LocalizationCoverageWidget';
 
 const messages = defineMessages({
     localesColumn: {
@@ -153,6 +159,26 @@ export function I18nPlugin(): I18nAdminPlugin {
     return {
         name: 'i18n',
         slots: [
+            {
+                // The one contribution that is not to a content-admin slot:
+                // localization coverage is a question about the *configured*
+                // locale set, which only this plugin knows, so this plugin owns
+                // the card. `full` width — it shares the Localisation & media
+                // band with media's three `sm` cards, which fill their own row.
+                slot: INSIGHTS_WIDGET_SLOT,
+                items: [
+                    {
+                        id: SLOT_ITEM_ID.CoverageWidget,
+                        section: INSIGHTS_SECTION_IDS.Reach,
+                        order: 5,
+                        size: 'full',
+                        permission: CONTENT_READ,
+                        titleId: 'i18n.insights.coverage.title',
+                        defaultTitle: 'Translation coverage',
+                        Component: LocalizationCoverageWidget
+                    }
+                ]
+            },
             { slot: RECORDS_TOOLBAR_SLOT, items: [switcherItem] },
             { slot: RECORDS_COLUMN_SLOT, items: [columnItem] },
             { slot: ENTRY_SIDEBAR_WIDGET_SLOT, items: [widgetItem] },

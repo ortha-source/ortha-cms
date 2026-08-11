@@ -12,6 +12,7 @@ import type {
     ContentPunchcardView,
     ContentStaleView,
     ContentTotalsView,
+    ContentUnshippedView,
     ContentVelocityView,
     InsightsSeriesPoint
 } from '../../types/content-insights-view';
@@ -332,6 +333,69 @@ export class ContentInsightsQuery {
 
         types.sort((a, b) => b.published + b.drafts - (a.published + a.drafts));
         return { types };
+    }
+
+    /**
+     * Live content carrying unpublished edits, per type and in total.
+     *
+     * The three figures come out of **one** grouped query per type rather than
+     * three `countOf` calls, because they partition the same rows: a scan that
+     * has already found a row can decide which of the three it belongs to.
+     *
+     * A **non-publishable** type contributes nothing at all — not even to
+     * `live`. It has no draft stage, so every row is trivially current, and
+     * folding those rows into the denominator would make "3 of 900 live records
+     * have pending edits" a number about a workspace's always-live singletons
+     * rather than about anything an editor can ship.
+     */
+    async unshipped(workspaceId: string): Promise<ContentUnshippedView> {
+        const types: ContentUnshippedView['types'] = [];
+        let modified = 0;
+        let live = 0;
+        let neverPublished = 0;
+
+        for (const type of this.registry.all()) {
+            if (!type.publishable) continue;
+            const columns = columnsOf(type);
+            const status = columns['status'];
+            const publishedAt = columns['publishedAt'];
+
+            const [row] = await this.db
+                .select({
+                    modified: sql<number>`cast(count(*) filter (
+                        where ${status} = ${ENTRY_STATUS.Draft}
+                          and ${publishedAt} is not null
+                    ) as int)`,
+                    published: sql<number>`cast(count(*) filter (
+                        where ${status} = ${ENTRY_STATUS.Published}
+                    ) as int)`,
+                    neverPublished: sql<number>`cast(count(*) filter (
+                        where ${status} = ${ENTRY_STATUS.Draft}
+                          and ${publishedAt} is null
+                    ) as int)`
+                })
+                .from(type.table as PgTable)
+                .where(this.scope(type, workspaceId));
+
+            if (!row) continue;
+            modified += row.modified;
+            live += row.modified + row.published;
+            neverPublished += row.neverPublished;
+
+            // A type with nothing pending is not a row on a chart about what is
+            // pending — it would be a permanently empty bar diluting the ones
+            // that mean something.
+            if (row.modified === 0) continue;
+            types.push({
+                name: type.name,
+                label: type.label,
+                modified: row.modified,
+                published: row.published
+            });
+        }
+
+        types.sort((a, b) => b.modified - a.modified);
+        return { types, modified, live, neverPublished };
     }
 
     /** Entries published per time bucket across the window. */

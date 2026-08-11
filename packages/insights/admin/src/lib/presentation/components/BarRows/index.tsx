@@ -53,6 +53,12 @@ export type BarRowsProps = {
  *   class of contrast bugs rather than managing it.
  * - **Square at the baseline, rounded at the data end.** The rounding marks
  *   where the value *stops*; rounding the origin too would blur where it starts.
+ *
+ * A **zero segment is dropped, not drawn**. Segments carry a 3px floor so a
+ * small-but-real value stays visible, and that floor turned an absent category
+ * into a sliver of colour — a locale with nothing missing rendered a tick of the
+ * "missing" hue, which is the chart stating the opposite of its data. Filtering
+ * here rather than at each call site means no contributed widget has to know.
  */
 export function BarRows({ rows, max, className }: BarRowsProps) {
     // A zero or negative denominator would make every width NaN%, which renders
@@ -72,25 +78,28 @@ export function BarRows({ rows, max, className }: BarRowsProps) {
                     </span>
 
                     <div className="flex h-3.5 min-w-0 gap-0.5">
-                        {row.segments.map((segment) => (
-                            <span
-                                key={segment.id}
-                                title={segment.label}
-                                style={{
-                                    width: `${Math.max(
-                                        0,
-                                        Math.min(
-                                            100,
-                                            (segment.value / denominator) * 100
-                                        )
-                                    )}%`
-                                }}
-                                className={cn(
-                                    'min-w-[3px] rounded-none last:rounded-r',
-                                    toneBackground(segment.tone)
-                                )}
-                            />
-                        ))}
+                        {row.segments
+                            .filter((segment) => segment.value > 0)
+                            .map((segment) => (
+                                <span
+                                    key={segment.id}
+                                    title={segment.label}
+                                    style={{
+                                        width: `${Math.max(
+                                            0,
+                                            Math.min(
+                                                100,
+                                                (segment.value / denominator) *
+                                                    100
+                                            )
+                                        )}%`
+                                    }}
+                                    className={cn(
+                                        'min-w-[3px] rounded-none last:rounded-r',
+                                        toneBackground(segment.tone)
+                                    )}
+                                />
+                            ))}
                     </div>
 
                     <span className="flex items-baseline justify-end gap-2 text-xs tabular-nums">

@@ -5,6 +5,7 @@ import type {
     ContentPunchcard,
     ContentStale,
     ContentTotals,
+    ContentUnshipped,
     ContentVelocity
 } from '../contentInsightsGateway';
 
@@ -42,6 +43,17 @@ export const httpContentInsightsGateway: ContentInsightsGateway = {
         try {
             const { data } = await apiClient.get<ContentPipeline>(
                 '/insights/content/pipeline'
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async unshipped(): Promise<ContentUnshipped> {
+        try {
+            const { data } = await apiClient.get<ContentUnshipped>(
+                '/insights/content/unshipped'
             );
             return data;
         } catch (error) {

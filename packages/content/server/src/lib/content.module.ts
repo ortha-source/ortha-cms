@@ -61,6 +61,7 @@ import { ContentStaleController } from './insights/http/controllers/content-stal
 import { ContentPipelineController } from './insights/http/controllers/content-pipeline.controller';
 import { ContentVelocityController } from './insights/http/controllers/content-velocity.controller';
 import { ContentPunchcardController } from './insights/http/controllers/content-punchcard.controller';
+import { ContentUnshippedController } from './insights/http/controllers/content-unshipped.controller';
 
 /**
  * NestJS module for the content plugin. Registered globally so the
@@ -128,7 +129,8 @@ export class ContentModule {
                 ContentStaleController,
                 ContentPipelineController,
                 ContentVelocityController,
-                ContentPunchcardController
+                ContentPunchcardController,
+                ContentUnshippedController
             ],
             providers: [
                 { provide: CONTENT_REGISTRY, useValue: registry },

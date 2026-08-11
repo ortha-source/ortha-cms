@@ -44,6 +44,11 @@ test.describe('Insights', () => {
             insightsPage.card('Draft and published, by type')
         ).toBeVisible();
         await expect(insightsPage.card('Publishing velocity')).toBeVisible();
+        await expect(insightsPage.card('Waiting to go live')).toBeVisible();
+        // Contributed by `i18n-admin` — the third package on the page, and the
+        // only one whose card is not about a table it owns: coverage is a
+        // question about the *configured* locale set.
+        await expect(insightsPage.card('Translation coverage')).toBeVisible();
         await expect(
             insightsPage.card("What's using the storage")
         ).toBeVisible();
@@ -71,6 +76,12 @@ test.describe('Insights', () => {
         ).toBeVisible();
         await expect(
             insightsPage.widget('insights.content.punchcard')
+        ).toBeVisible();
+        await expect(
+            insightsPage.widget('insights.content.unshipped')
+        ).toBeVisible();
+        await expect(
+            insightsPage.widget('insights.i18n.coverage')
         ).toBeVisible();
     });
 
@@ -117,6 +128,115 @@ test.describe('Insights', () => {
         await expect(drafts).toContainText('19%');
     });
 
+    test('counts live records carrying unpublished edits', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+
+        const card = insightsPage.card('Waiting to go live');
+        await expect(card).toContainText('94');
+        // The denominator is live records, not every record: "94 of 1,046 live
+        // records" is a backlog someone can clear.
+        await expect(card).toContainText('of 1,046 live records');
+        // 94 / 1046 rounds to 9%.
+        await expect(card).toContainText('9% of live');
+
+        // Never-published drafts are a footnote, not part of the headline —
+        // finishing a draft and pressing publish are different jobs.
+        await expect(card).toContainText('144 never-published drafts');
+
+        // Only types with something pending are rows; `author` and `case_study`
+        // have none, so they are absent rather than permanently empty bars.
+        await expect(card).toContainText('Article');
+        await expect(card).not.toContainText('Case study');
+    });
+
+    test('separates translated, untranslated and part-way records', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+
+        const card = insightsPage.card('Translation coverage');
+
+        // The three figures overlap on purpose — "not localized" is a subset of
+        // "needs translation", not a second slice — so the seed's 18 + 44 does
+        // not add up to 140 and the hints are what keep them readable.
+        await expect(card).toContainText('in every language');
+        await expect(card).toContainText('no translations started');
+        await expect(card).toContainText('missing at least one');
+        await expect(card).toContainText('122 to translate');
+
+        // Every configured locale gets a row, including the one nobody has
+        // taken far — an untouched language must be visible, not absent.
+        await expect(card).toContainText('English (default)');
+        await expect(card).toContainText('Deutsch');
+        await expect(card).toContainText('Français');
+
+        // Counts are records, not rows: 140 records, of which 21 exist in
+        // French — 15%.
+        await expect(card).toContainText('15%');
+        await expect(card).toContainText('Across 140 localized records');
+    });
+
+    test('a workspace that has never published shows no pending backlog', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page, { empty: ['content/unshipped'] });
+        await insightsPage.goto(WORKSPACE_ID);
+
+        // Nothing has gone live, so "0 pending edits" would be a claim about a
+        // publishing habit the workspace does not have yet.
+        await expect(
+            insightsPage.cardEmpty('Waiting to go live')
+        ).toBeVisible();
+        await expect(insightsPage.cardError('Waiting to go live')).toHaveCount(
+            0
+        );
+    });
+
+    test('a failing coverage read does not empty the localisation band', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page, { failing: ['i18n/coverage'] });
+        await insightsPage.goto(WORKSPACE_ID);
+
+        await expect(
+            insightsPage.cardError('Translation coverage')
+        ).toBeVisible();
+        await expect(
+            insightsPage.cardEmpty('Translation coverage')
+        ).toHaveCount(0);
+        // The band's other three cards come from a different package and a
+        // different endpoint, so they are untouched.
+        await expect(
+            insightsPage.card("What's using the storage")
+        ).toBeVisible();
+        await expect(
+            insightsPage.card('Images missing alt text')
+        ).toBeVisible();
+    });
+
+    test('neither new widget takes a time range', async ({
+        page,
+        insightsPage
+    }) => {
+        const spy = await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+        await expect(insightsPage.card('Translation coverage')).toBeVisible();
+
+        // A pending edit is pending whether it was made this morning or last
+        // spring, and an untranslated record is untranslated regardless of when
+        // it was written — a window could only hide part of either backlog.
+        expect(spy.days['content/unshipped']).toBeNull();
+        expect(spy.days['i18n/coverage']).toBeNull();
+    });
+
     test('each widget calls its own endpoint', async ({
         page,
         insightsPage
@@ -136,6 +256,8 @@ test.describe('Insights', () => {
         expect(spy.requested).toContain('media/storage');
         expect(spy.requested).toContain('media/uploads');
         expect(spy.requested).toContain('media/alt');
+        expect(spy.requested).toContain('content/unshipped');
+        expect(spy.requested).toContain('i18n/coverage');
 
         expect(
             spy.requested.filter((route) => route === 'content/totals')
@@ -237,6 +359,11 @@ test.describe('Insights', () => {
             insightsPage.card("What's using the storage")
         ).toBeVisible();
         await expect(insightsPage.card('Gone quiet')).toHaveCount(0);
+        // Coverage counts content, so it carries `content:read` even though it
+        // is contributed by the i18n plugin and sits in the media band — a
+        // reader who may not see entries must not learn how many there are by
+        // counting the gaps.
+        await expect(insightsPage.card('Translation coverage')).toHaveCount(0);
 
         // A band whose every widget is gated out renders nothing at all — no
         // heading left sitting over an empty grid.

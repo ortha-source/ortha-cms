@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_806 test cases across 49 spec files._
+_827 test cases across 50 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1290,6 +1290,18 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | splits each type into published and draft |
 | omits a type the workspace has never used |
 
+### GET /unshipped
+
+| Test case |
+| --- |
+| counts a published-then-edited entry as modified |
+| does not count a draft that was never published |
+| does not count an entry that is live and current |
+| stops counting an entry once it is unpublished |
+| excludes soft-deleted entries |
+| ignores a non-publishable type entirely |
+| counts only the workspace named by the header |
+
 ### GET /velocity
 
 | Test case |
@@ -1314,6 +1326,32 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | 403s for a workspace the caller is not a member of |
 | 403s a viewer, who holds no content:read |
 | refuses every route without a session |
+
+<!-- source: apps/server-e2e/src/server/insights/localization-insights.spec.ts -->
+_<sub>apps/server-e2e/src/server/insights/localization-insights.spec.ts</sub>_
+
+## Localization insights (/api/insights/i18n)
+
+### GET /coverage
+
+| Test case |
+| --- |
+| lists every configured locale, translated or not |
+| counts records, not rows |
+| counts a single-locale record as untranslated AND needing work |
+| counts a part-way record as needing work but not untranslated |
+| adds up across records at different stages |
+| drops a soft-deleted translation from its record’s coverage |
+| is empty for a workspace with no content |
+| counts only the workspace named by the header |
+
+### authorization
+
+| Test case |
+| --- |
+| 401s without a session |
+| 400s without a workspace header |
+| 403s for a workspace the caller is not a member of |
 
 <!-- source: apps/server-e2e/src/server/insights/media-insights.spec.ts -->
 _<sub>apps/server-e2e/src/server/insights/media-insights.spec.ts</sub>_
@@ -1391,6 +1429,9 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | shows a full-scoped token the write tools too |
 | annotates read-only and destructive tools |
 | shows no copilot-only tool, whatever the scope |
+| shows the shared tools to a read-scoped token |
+| runs a shared tool for a read-scoped token |
+| gives an MCP caller the bearer-fetchable download path |
 | refuses a copilot-only tool invoked by name |
 | refuses copilot-only file creation, which a full token could otherwise afford |
 | gives every tool an object input schema |

@@ -183,7 +183,9 @@ describe('Content insights (/api/insights/content)', () => {
         it('rejects a window outside 1–365', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent.get('/api/insights/content/totals?days=0').expect(400);
-            await agent.get('/api/insights/content/totals?days=400').expect(400);
+            await agent
+                .get('/api/insights/content/totals?days=400')
+                .expect(400);
             await agent
                 .get('/api/insights/content/totals?days=abc')
                 .expect(400);
@@ -285,6 +287,152 @@ describe('Content insights (/api/insights/content)', () => {
             const names = res.body.types.map((t: { name: string }) => t.name);
             expect(names).toContain('test_article');
             expect(names).not.toContain('test_author');
+        });
+    });
+
+    describe('GET /unshipped', () => {
+        /**
+         * Publishes an entry then edits it, which is the only way to reach the
+         * **Modified** state: a save on a published entry moves it back to
+         * `draft` while `published_at` survives, so the two stored values say
+         * "live, with changes pending".
+         */
+        async function modify(agent: request.Agent, id: string): Promise<void> {
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { ...VALID, text: 'Edited after publish' } })
+                .expect(200);
+        }
+
+        it('counts a published-then-edited entry as modified', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const edited = await createEntry(agent);
+            await modify(agent, edited);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped')
+                .expect(200);
+
+            expect(res.body.modified).toBe(1);
+            expect(res.body.live).toBe(1);
+            expect(res.body.types).toEqual([
+                expect.objectContaining({
+                    name: 'test_article',
+                    modified: 1,
+                    published: 0
+                })
+            ]);
+        });
+
+        it('does not count a draft that was never published', async () => {
+            // The whole reason this endpoint exists: `status` alone cannot tell
+            // a never-shipped draft from live content with pending edits, and
+            // counting the former would turn a fresh workspace into a backlog.
+            const agent = await login(ADMIN_EMAIL);
+            await createEntry(agent);
+            await createEntry(agent);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped')
+                .expect(200);
+
+            expect(res.body).toMatchObject({
+                modified: 0,
+                live: 0,
+                neverPublished: 2,
+                types: []
+            });
+        });
+
+        it('does not count an entry that is live and current', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const live = await createEntry(agent);
+            await agent
+                .post(`/api/content/test_article/${live}/publish`)
+                .expect(201);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped')
+                .expect(200);
+            expect(res.body.modified).toBe(0);
+            expect(res.body.live).toBe(1);
+            // A type with nothing pending is not a row on a chart about what
+            // is pending.
+            expect(res.body.types).toEqual([]);
+        });
+
+        it('stops counting an entry once it is unpublished', async () => {
+            // Unpublish clears `published_at`, so the entry stops being live
+            // content with pending edits and goes back to being a plain draft.
+            const agent = await login(ADMIN_EMAIL);
+            const entry = await createEntry(agent);
+            await modify(agent, entry);
+            await agent
+                .post(`/api/content/test_article/${entry}/unpublish`)
+                .expect(201);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped')
+                .expect(200);
+            expect(res.body).toMatchObject({
+                modified: 0,
+                live: 0,
+                neverPublished: 1
+            });
+        });
+
+        it('excludes soft-deleted entries', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const doomed = await createEntry(agent);
+            await modify(agent, doomed);
+            await agent
+                .delete(`/api/content/test_article/${doomed}`)
+                .expect(204);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped')
+                .expect(200);
+            expect(res.body.modified).toBe(0);
+            expect(res.body.live).toBe(0);
+        });
+
+        it('ignores a non-publishable type entirely', async () => {
+            // An always-live type has no draft stage, so its rows are
+            // trivially current. Folding them into `live` would make "3 of 900
+            // live records have pending edits" a statement about singletons
+            // nobody can publish.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/content/test_page')
+                .send({ values: { title: 'A page' } })
+                .expect(201);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped')
+                .expect(200);
+            expect(res.body).toMatchObject({ modified: 0, live: 0 });
+        });
+
+        it('counts only the workspace named by the header', async () => {
+            const here = await login(ADMIN_EMAIL);
+            const mine = await createEntry(here);
+            await modify(here, mine);
+
+            const there = await login(ADMIN_EMAIL, otherWorkspaceId);
+            const a = await createEntry(there);
+            const b = await createEntry(there);
+            await modify(there, a);
+            await modify(there, b);
+
+            await expect(
+                here.get('/api/insights/content/unshipped').expect(200)
+            ).resolves.toMatchObject({ body: { modified: 1 } });
+            await expect(
+                there.get('/api/insights/content/unshipped').expect(200)
+            ).resolves.toMatchObject({ body: { modified: 2 } });
         });
     });
 
@@ -426,7 +574,8 @@ describe('Content insights (/api/insights/content)', () => {
                 'stale',
                 'pipeline',
                 'velocity',
-                'punchcard'
+                'punchcard',
+                'unshipped'
             ]) {
                 await request(harness.server)
                     .get(`/api/insights/content/${route}`)
