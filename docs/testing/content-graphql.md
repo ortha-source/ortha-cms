@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/content/graphql` · **Package:** `@ortha-cms/content-graphql` · **Kind:** server plugin (protocol adapter)
 > **Source of truth:** `packages/content/graphql/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 5 confirmed · 0 deleted · 2 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

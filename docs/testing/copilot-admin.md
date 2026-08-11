@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/copilot/admin` · **Package:** `@ortha-cms/copilot-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/copilot/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 22 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions

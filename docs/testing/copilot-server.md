@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/copilot/server` · **Package:** `@ortha-cms/copilot-server` · **Kind:** server plugin
 > **Source of truth:** `packages/copilot/server/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 0 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
