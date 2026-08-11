@@ -1026,9 +1026,14 @@ function endpointFor(request: Request): string {
 ```
 
 The key is the caller's **raw URL path**, and the map is unbounded and never
-evicted. Express's router defaults — which the host does not override
-(`packages/bootstrap/server/src/lib/create-server.ts` sets no `caseSensitive` or
-`strict` routing) — are case-**insensitive** and non-strict, so
+evicted — that much is plain in the cited lines and is the load-bearing half of
+this finding. The amplification then rests on Express's router defaults, which
+the host does not override (`packages/bootstrap/server/src/lib/create-server.ts`
+is 44 lines and passes no `caseSensitive` / `strict` option to
+`NestFactory.create`). *Unverified —* those defaults (`caseSensitive: false`,
+`strict: false`) are Express's documented behaviour, not something this repo
+pins, and `node_modules` is not installed here, so the casing variants below were
+not executed. On those defaults,
 `/api/v1/graphql/playground`, `/API/v1/graphql/playground`,
 `/api/V1/GraphQL/PlayGround` and `/api/v1/graphql/playground/` all match the same
 route while producing **different** `originalUrl` values.
@@ -1128,11 +1133,17 @@ request, since a failed build is never cached.
 `assertNoNameCollisions`'s caller at composition time, iterating
 `content.registry.all()`'s fields — the registry is already in hand there.
 
-### 🐞 BUG-content-graphql-07 — Unverified: an `HttpException` wrapping a driver error is relayed to the caller verbatim · Severity: Low · 🔒 SECURITY
+### 🐞 BUG-content-graphql-07 — The error mapper masks by exception *class*, not by status, so any future `HttpException` carrying an internal message would be relayed verbatim · Severity: Low · 🔒 SECURITY
 
-**Unverified —** I confirmed the mapper's behaviour but did not audit every throw
-site in `content-server` for an `HttpException` carrying an internal message, so
-I cannot say whether this is currently reachable.
+**Latent, not currently reachable.** The mechanism below is confirmed in the
+cited lines. The reachability audit has now been run: the only
+`InternalServerErrorException` / `ServiceUnavailableException` anywhere under
+`packages/content/server/src` is
+`public-api/http/decorators/current-api-token.decorator.ts:18`, and it carries a
+fixed developer message (`'@CurrentApiToken() used on a route without
+ApiTokenGuard.'`), not a caught error's text. **No live leak exists today** —
+this is a defence-in-depth gap that the next 5xx throw site would open, which is
+why it is Low rather than a security defect.
 
 **Location:** `packages/content/graphql/src/lib/execution/errors.ts:54-63`,
 `messageOf` at `:104-118`
@@ -1166,16 +1177,18 @@ it is a leaky one. On REST the same exception would be relayed too, so this is
 not a divergence — but the GraphQL surface is where the package chose to think
 about it, and the masking is one condition short of matching its own comment.
 
-**Repro (to run):**
-1. `grep -rn "InternalServerErrorException\|ServiceUnavailableException" packages/content/server/src`
-   and inspect whether any is constructed from a caught error's `message`.
-2. If one exists, trigger it (e.g. a constraint violation on a write) and read
-   `errors[0].message` over GraphQL.
-→ Expected: "Internal server error." / Suspected: the driver's text.
+**Repro (regression guard, not a live exploit):**
+1. Add anywhere on the read path
+   `throw new InternalServerErrorException(caughtDriverError.message)`.
+2. Trigger it and read `errors[0].message` over GraphQL.
+→ Observed: the driver's text, with `code: INTERNAL_SERVER_ERROR` and
+`status: 500`. Expected: "Internal server error.", the same masking a bare
+`Error` already gets.
 
-**Blast radius:** low and conditional — it needs a throw site that embeds
-internals. Worth checking because the public API is reachable by a low-privilege
-token from outside the network.
+**Blast radius:** none today (see above). Conditional on a future throw site that
+embeds internals, at which point it is reachable by a low-privilege token from
+outside the network — which is why the guard belongs in the mapper rather than in
+a code-review convention.
 
 **Suggested fix:** mask the message for any status ≥ 500 regardless of the
 exception class, keeping `extensions.status` and `code` intact.
