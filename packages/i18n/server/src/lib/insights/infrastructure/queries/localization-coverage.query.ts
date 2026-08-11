@@ -17,6 +17,7 @@ import type {
 } from '@ortha-cms/content-server';
 import { LocaleRegistryService } from '../../../locales/services/locale-registry.service';
 import type {
+    ContentTypeCoverageView,
     I18nCoverageView,
     LocaleCoverageView
 } from '../../types/i18n-insights-view';
@@ -56,17 +57,18 @@ export class LocalizationCoverageQuery {
     async coverage(workspaceId: string): Promise<I18nCoverageView> {
         const configured = this.locales.all();
         const slugs = configured.map((locale) => locale.slug);
-        const types = this.registry.all().filter((type) => type.i18n);
+        const localizedTypes = this.registry.all().filter((type) => type.i18n);
 
         /** Records holding a row in each locale, by slug. */
         const translated = new Map<string, number>(
             slugs.map((slug) => [slug, 0])
         );
+        const types: ContentTypeCoverageView[] = [];
         let records = 0;
         let localized = 0;
         let single = 0;
 
-        for (const type of types) {
+        for (const type of localizedTypes) {
             for (const row of await this.perLocale(type, workspaceId, slugs)) {
                 translated.set(
                     row.locale,
@@ -83,7 +85,22 @@ export class LocalizationCoverageQuery {
             records += spread.records;
             localized += spread.complete;
             single += spread.single;
+
+            // A type the workspace has never used is noise on a chart about
+            // where the outstanding work sits — and listing it would push the
+            // types that do hold work further down.
+            if (spread.records === 0) continue;
+            types.push({
+                name: type.name,
+                label: type.label,
+                records: spread.records,
+                localized: spread.complete,
+                notLocalized: configured.length > 1 ? spread.single : 0,
+                requiresLocalization: spread.records - spread.complete
+            });
         }
+
+        types.sort((a, b) => b.records - a.records);
 
         const locales: LocaleCoverageView[] = configured.map((locale) => {
             const covered = translated.get(locale.slug) ?? 0;
@@ -105,7 +122,7 @@ export class LocalizationCoverageQuery {
             // same records as "not localized" would state both at once.
             notLocalized: configured.length > 1 ? single : 0,
             requiresLocalization: records - localized,
-            types: types.length
+            types
         };
     }
 

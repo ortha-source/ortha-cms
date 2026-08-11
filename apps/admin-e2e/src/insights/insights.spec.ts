@@ -182,6 +182,46 @@ test.describe('Insights', () => {
         await expect(card).toContainText('Across 140 localized records');
     });
 
+    test('breaks translation coverage down by content type', async ({
+        page,
+        insightsPage
+    }) => {
+        const spy = await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+
+        const card = insightsPage.card('Translation coverage');
+        await expect(card).toContainText('Deutsch');
+
+        await insightsPage
+            .cardBreakdown('Translation coverage', 'By type')
+            .click();
+
+        // The bars now answer "which content type is the work in?" — the same
+        // question the locale view cannot answer at all.
+        await expect(card).toContainText('Article');
+        await expect(card).toContainText('Changelog');
+        await expect(card).toContainText('Landing page');
+        await expect(card).not.toContainText('Deutsch');
+
+        // The legend and the subtitle both move with the axis: the same blue
+        // now means "fully localized records", not "records translated into a
+        // language", and the old subtitle would describe a chart that is no
+        // longer on screen.
+        await expect(card).toContainText('Fully localized');
+        await expect(card).toContainText(
+            'Where the outstanding translation work sits'
+        );
+
+        // The headline figures are workspace-wide, so they stay put.
+        await expect(card).toContainText('122 to translate');
+
+        // A view swap over one payload, not a second request — which is the
+        // reason this is one card with a toggle rather than two cards.
+        expect(
+            spy.requested.filter((route) => route === 'i18n/coverage')
+        ).toHaveLength(1);
+    });
+
     test('a workspace that has never published shows no pending backlog', async ({
         page,
         insightsPage

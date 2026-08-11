@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_827 test cases across 50 spec files._
+_830 test cases across 50 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1341,6 +1341,9 @@ _<sub>apps/server-e2e/src/server/insights/localization-insights.spec.ts</sub>_
 | counts a single-locale record as untranslated AND needing work |
 | counts a part-way record as needing work but not untranslated |
 | adds up across records at different stages |
+| reports the same figures per content type |
+| omits a localized type the workspace has never used |
+| orders types by how much content they hold |
 | drops a soft-deleted translation from its record’s coverage |
 | is empty for a workspace with no content |
 | counts only the workspace named by the header |

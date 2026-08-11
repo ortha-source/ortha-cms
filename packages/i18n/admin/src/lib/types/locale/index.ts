@@ -77,6 +77,22 @@ export type LocaleCoverage = {
 };
 
 /**
+ * One localized content type's own coverage.
+ *
+ * The same four figures as the envelope, scoped to a type — what turns "122
+ * records need translating" into "and 88 of them are articles". A workspace
+ * total says work exists; only this says where it is.
+ */
+export type ContentTypeCoverage = {
+    name: string;
+    label: string;
+    records: number;
+    localized: number;
+    notLocalized: number;
+    requiresLocalization: number;
+};
+
+/**
  * The `GET /api/insights/i18n/coverage` envelope.
  *
  * Every figure counts **records** (translation groups), never rows: a localized
@@ -97,6 +113,6 @@ export type I18nCoverageResult = {
     notLocalized: number;
     /** Records missing at least one configured locale. */
     requiresLocalization: number;
-    /** Localized content types counted, so an empty answer can explain itself. */
-    types: number;
+    /** Per-type coverage, most records first. Unused types are omitted. */
+    types: ContentTypeCoverage[];
 };

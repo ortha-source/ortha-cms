@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_398 test cases across 42 spec files._
+_399 test cases across 42 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -642,6 +642,7 @@ _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
 | renders the headline figures from the API |
 | counts live records carrying unpublished edits |
 | separates translated, untranslated and part-way records |
+| breaks translation coverage down by content type |
 | a workspace that has never published shows no pending backlog |
 | a failing coverage read does not empty the localisation band |
 | neither new widget takes a time range |
