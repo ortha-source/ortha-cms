@@ -1412,7 +1412,7 @@ Three consequences:
 - **`streamTurn` itself is unbounded.** A provider that never closes its stream
   is stopped only by the client disconnecting.
 
-**Why it is wrong:** `run-limits.ts:6-8` states the contract — "A bounded loop
+**Why it is wrong:** `run-limits.ts:2-8` states the contract — "A bounded loop
 is what stops a model that keeps asking for tools from spending a workspace's
 budget" — and `RunLimits`' JSDoc says "All three are enforced, and exceeding any
 one ends the run with a reason the UI shows." Two of the three are enforced only
@@ -1800,6 +1800,12 @@ Things I specifically went looking for and did **not** find a defect in:
   matches in declaration order.
 
 ---
+
+**Defect tally:** `10 🐞 · 0 Critical · 1 High · 5 Medium · 4 Low · 4 🔒`
+
+**Accessibility tally:** `3 ♿ · 0 Supports · 2 Partially Supports · 1 Does Not
+Support · 0 Not Applicable`. The §4A provision table additionally records 1
+**Supports** (504.2.1) and 2 **Not Applicable** provisions with no finding.
 
 ## 7. Recommended E2E Tests
 

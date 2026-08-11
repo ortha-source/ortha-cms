@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/i18n/admin` · **Package:** `@ortha-cms/i18n-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/i18n/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 16 confirmed · 0 deleted · 2 corrected · 2 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -412,8 +413,13 @@ language"; the bars themselves are silent — see `♿ A11Y-i18n-admin-04`.
 - **EC-07 — `?locale=` naming a slug that is not configured** (typo, or a locale
   removed from `ortha.config.ts` — see `🐞 BUG-i18n-server-03`). `❌ NONE`
   `active = locales.find(…) ?? defaultLocale` (`LocaleSwitcher:100-101`), so the
-  **trigger claims "English" while the table is scoped to `xx`**, and re-picking
-  English is swallowed by the identity guard at `:105-106`. → `🐞 BUG-i18n-admin-04`.
+  **trigger claims "English"** while the list request carries `?locale=xx`. Verified
+  against the server: an unknown locale on a list is a **400**, not an empty result
+  (`apps/server-e2e/src/server/i18n/i18n-content.spec.ts:182-185`, "400s a list scoped to
+  an unknown locale"), so the table renders content-admin's **error** state under a
+  switcher confidently reporting English — and re-picking English is swallowed by the
+  identity guard at `:105-106`, so the one control that would clear the param does
+  nothing. → `🐞 BUG-i18n-admin-04`.
 - **EC-08 — `?locale=` with an empty value (`?locale=`).** `❌ NONE`
   `params[LOCALE_PARAM]` is `''`; `resolveActiveLocale` uses `??`, and `''` is not
   nullish, so `activeSlug = ''` → `active` falls back to the default. The empty
@@ -486,7 +492,7 @@ language"; the bars themselves are silent — see `♿ A11Y-i18n-admin-04`.
   invalidates **nothing** globally. `.cursor/BUGBOT.md`'s over-invalidation
   pattern does not apply. Checked and cleared.
 - **EC-21 — Stale page after a mutation.** `❌ NONE` This plugin owns no list and
-  no pager; the page clamp lives in `LoadedRecordsView:329-340` and a locale
+  no pager; the page clamp lives in `LoadedRecordsView:333-340` and a locale
   switch resets `page` outright. The BUGBOT "stale page" pattern does not apply.
   Cleared.
 - **EC-22 — Unpublish-all fails halfway.** `❌ NONE`
@@ -756,7 +762,7 @@ lifts. Keep the live region.
 `"Open the {locale} version ({status})"`. Putting the state in the name is exactly
 right for 1.4.1 (the comment at `:34-36` says so); the value put there is the
 wrong one. The sibling surface does it properly: `EntryStatusBadge` maps the same
-view through `defineMessages` (`content/admin/.../EntryStatusBadge/index.tsx:11-30`).
+view through `defineMessages` (`packages/content/admin/src/lib/presentation/components/EntryStatusBadge/index.tsx:11-30`).
 **Repro:** enable the Locales column, inspect a badge link.
 → Observed: `aria-label="Open the de version (modified)"` — lowercase English in
 every UI language. → Expected: the localized "Modified".
@@ -871,9 +877,16 @@ Every citation below is from a spec file I read; none is inferred from a filenam
 
 ## 6. 🐞 Potential Bugs
 
-### 🐞 BUG-i18n-admin-01 — A failed locale read renders as "no translations exist", so the panel invites the user to create a sibling that is already there · Severity: High
+### 🐞 BUG-i18n-admin-01 — A failed locale read renders as "no translations exist", so the panel invites the user to create a sibling that is already there · Severity: Medium
 
-**Location:** `packages/i18n/admin/src/lib/components/LocaleWidget/index.tsx:161-186, 246-277`; `packages/i18n/admin/src/lib/api/useLocaleSummaries/index.ts:65-68`; `packages/i18n/admin/src/lib/components/LocalesColumnCell/index.tsx:24-31`
+*(Downgraded from High during verification: there is no data-loss or exploit path. The
+dead-end the UI offers is **blocked by the server** — a duplicate `(localeGroupId, locale)`
+is rejected by the unique index and answered `409`, asserted at
+`apps/server-e2e/src/server/i18n/i18n-content.spec.ts:221-226` — so the worst outcome is a
+confusing failed save, not a corrupted or duplicated translation group. The misreported
+state is real and reachable, hence Medium rather than Low.)*
+
+**Location:** `packages/i18n/admin/src/lib/components/LocaleWidget/index.tsx:161-186, 246-277`; `packages/i18n/admin/src/lib/api/useLocaleSummaries/index.ts:65-68`; `packages/i18n/admin/src/lib/components/LocalesColumnCell/index.tsx:24-30`
 **Category:** ux-state / correctness
 
 **What the code does:**
@@ -1015,7 +1028,7 @@ page render plus the server-side per-group query.
 
 **Suggested fix:** extend `RecordsColumnItem` so `useRowsData` receives whether
 the column is currently visible (content-admin already computes `visible` at
-`LoadedRecordsView:210-225`), and pass it into `useLocaleSummaries`'s `enabled`.
+`LoadedRecordsView:209-226`), and pass it into `useLocaleSummaries`'s `enabled`.
 The fix has to land in the slot contract — this plugin cannot see visibility today.
 
 ---
@@ -1043,7 +1056,9 @@ then compares against that fallback.
 **Why it is wrong:** the two values are allowed to disagree and only one of them
 is shown. With `?locale=xx`:
 - the trigger reads **"Locale: English"**, and the English row carries the check —
-  while the table is scoped to `xx` server-side, so it is empty or wrong;
+  while the list request carries `locale=xx`, which the server rejects with **400**
+  (`apps/server-e2e/src/server/i18n/i18n-content.spec.ts:182-185`), so the table shows
+  its error state beside a switcher asserting a locale that is not being requested;
 - pressing **English** is swallowed by the identity guard, so the one action that
   would fix the URL does nothing, with no feedback;
 - the chip prints `XX` with no name (`LocaleTitleChip:47-48`), so the editor and
@@ -1061,8 +1076,8 @@ panel and every configured locale offers "Add".
 2. Read the toolbar → "Locale: English". Open it → English is checked.
 3. Press **English**.
 → Observed: the popover closes and nothing else happens; the URL still says
-`locale=xx` and the table is still scoped to it. (Picking *Deutsch* does work, so
-the state is escapable, just not toward the default.)
+`locale=xx`, the list request still 400s, and the table stays in its error state.
+(Picking *Deutsch* does work, so the state is escapable, just not toward the default.)
 → Expected: either the switcher reports the unknown locale honestly, or the URL is
 normalised to the default on load.
 
@@ -1078,7 +1093,7 @@ silently, and compare `select`'s no-op guard against `activeSlug`, not `active`.
 
 ### 🐞 BUG-i18n-admin-06 — The deferred locale swap is never cancelled on unmount, so navigating away within 220 ms yanks the user back · Severity: Medium
 
-**Location:** `packages/i18n/admin/src/lib/utils/localeTransition/index.ts:44-46, 65-78`
+**Location:** `packages/i18n/admin/src/lib/utils/localeTransition/index.ts:45-46, 65-78`
 **Category:** ux-state / correctness
 
 **What the code does:**
@@ -1235,7 +1250,7 @@ the slug — but the value interpolated is the internal union member, not a mess
 The repo's own rule is stated on the sibling component: `EntryStatusBadge`'s JSDoc
 says "The label is **localized**; the table used to print the raw wire value
 (`draft`/`published`, lowercase and untranslated), which stopped being an option
-once a third state existed" (`content/admin/.../EntryStatusBadge/index.tsx:38-41`).
+once a third state existed" (`packages/content/admin/src/lib/presentation/components/EntryStatusBadge/index.tsx:38-41`).
 That regression has been reintroduced here, in the one place only a screen-reader
 user reads. It is also an untranslated English fragment inside an otherwise
 translated name (3.1.2).
@@ -1253,8 +1268,11 @@ unpublished edits.
 
 ---
 
-**Tally:** 8 🐞 — 0 Critical, 1 High, 4 Medium, 3 Low.
-**♿ tally:** 9 — 0 Supports · 6 Partially Supports · 3 Does Not Support · 0 Not Applicable (1 of the 9 carries an Unverified contrast measurement).
+**Tally:** 8 🐞 — 0 Critical, **0 High**, **5 Medium**, 3 Low (0 carry 🔒; 1 opens
+`Unverified —` on a sub-claim: `BUG-06`).
+**♿ tally:** 9 — 0 Supports · 6 Partially Supports · 3 Does Not Support · 0 Not Applicable
+(1 of the 9, `A11Y-07`, carries an `Unverified —` contrast measurement).
+**Edge cases:** `44 EC entries · 0 deleted in verification`.
 
 **Checked and cleared:** no NaN or divide-by-zero is reachable in the coverage
 arithmetic (`share` guards `total > 0`; `BarRows` clamps its denominator) — the

@@ -2,6 +2,7 @@
 
 > **Unit:** `packages/activity/admin` · **Package:** `@ortha-cms/activity-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/activity/admin/AGENTS.md`
+> **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
 
 ## 1. Scope & Preconditions
@@ -20,7 +21,7 @@ owns `GET /api/activity`, the `AuditEventSubscriber`, and the kind→row mapping
 an append-only read-side projection, which is why (per
 [ADR-0003](../adr/0003-tactical-ddd-inside-plugins.md)) it has no `domain/`
 layer. It does not own the per-user Activity **tab** — that page lives in
-`packages/users/admin/.../UserActivityPage` and is covered by
+`packages/users/admin/src/lib/presentation/pages/UserActivityPage/` and is covered by
 `docs/testing/users-admin.md`; only the hook it calls is this unit's. And it
 performs no authorization: `useHasPermission` hides affordances, the server's
 `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)` is the boundary
@@ -116,7 +117,7 @@ performs no authorization: `useHasPermission` hides affordances, the server's
 | F20 | Error state — `role="alert"` Alert with a **Retry** | `.../pages/ActivityLogPage/index.tsx:271-284` | ❌ NONE |
 | F21 | Empty state — filtered ("No activity matches" + Clear) vs genuinely empty | `.../components/ActivityEmpty/index.tsx:42` | ⚠️ PARTIAL |
 | F22 | No-access state; the query never fires without `activity:read` | `.../components/ActivityNoAccess/index.tsx:29`, page `:83,136,156` | ✅ E2E |
-| F23 | `useActivityLog` exported and reused by `users-admin`'s per-user Activity tab | `src/index.ts:3`; consumer at `packages/users/admin/.../UserActivityPage/index.tsx:247` | ✅ E2E |
+| F23 | `useActivityLog` exported and reused by `users-admin`'s per-user Activity tab | `src/index.ts:3`; consumer at `packages/users/admin/src/lib/presentation/pages/UserActivityPage/index.tsx:247` | ✅ E2E |
 | F24 | Gateway/mapper seam: one `apiClient` call site, `ApiError` normalisation, wire→view mapping | `.../httpActivityGateway/index.ts:26-43`, `.../activityMapper/index.ts:28-40` | ⚠️ PARTIAL |
 | F25 | `activityKeys` query-key factory (`all` + `list(params)`) | `.../infrastructure/activityKeys/index.ts:23-28` | ❌ NONE |
 | F26 | Result count announced to AT after a filter change (`role="status"` sr-only) | `.../pages/ActivityLogPage/index.tsx:263-267` | ❌ NONE |
@@ -417,7 +418,7 @@ table reports **two** rows per event.
   `useHasPermission('activity:read')` (`ActivityLogPage:83`) which also drives
   `enabled` (`:136`), the home panel's early `return null`
   (`RecentActivityPanel:52,58`), and the user-detail tab's `canReadActivity`
-  (`packages/users/admin/.../UserDetailTabs/index.tsx:83,113`) — all read the
+  (`packages/users/admin/src/lib/presentation/components/UserDetailLayout/UserDetailTabs/index.tsx:83,113`) — all read the
   **same** permission the server's `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`
   enforces, and `activity:read` is granted only to `admin`. `⚠️ PARTIAL` client-side
   (`audit-log.spec.ts:117` covers the page + nav; the home panel and the user tab
@@ -489,8 +490,10 @@ table reports **two** rows per event.
   mutations** and calls `invalidateQueries` nowhere
   (`grep -rn "invalidate" packages/activity/admin/src` → no matches).
   `activityKeys.all` is exported for other plugins to invalidate after their own
-  writes, and **nothing in the repo uses it**
-  (`grep -rn "activityKeys" packages apps` → only its own module and the barrel).
+  writes, and **nothing in the repo calls it**: `grep -rn "activityKeys.all" packages apps`
+  matches only its own JSDoc (`activityKeys:19`) and its declaration (`:25`). (The wider
+  `activityKeys` symbol *is* imported — by `useActivityLog:22`, the gateway pair and the
+  page's type import — so it is `.all` specifically that is dead, not the module.)
   So a member-role change made in another tab does not refresh an open log; the
   default `staleTime: 0` means only a remount does.
 - **EC-37 — The log grows while the user reads page 1.** `❌ NONE`
@@ -543,7 +546,7 @@ transition.
 content, offers no editor, and has no template. One genuine 504.2.1 observation
 rather than padding: the log is the deployment's record of *what changed*, and its
 `entry.published`/`entry.unpublished` rows carry only `{ contentType }`
-(`packages/activity/server/.../audit-event-mapping.ts:89-96`). So there is no audit
+(`packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:85-97`). So there is no audit
 trail that could show whether accessibility information (alt text, headings,
 language markers) was preserved across a publish — the evidence a 508 audit of the
 authoring path would ask for. That is a gap in the **server's** meta granularity;
@@ -781,8 +784,8 @@ export function formatActivityAction(intl: IntlShape, kind: string): string {
 ```
 
 **Why it is wrong:** the server's `FACET_MAPPERS`
-(`packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:143-204`,
-with the authoritative table in its JSDoc at `:196-218`) writes **twenty** distinct
+(`packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:143-206`,
+with the authoritative event-kind → audit-kind table in its JSDoc at `:113-142`) writes **twenty** distinct
 audit kinds. `workspaceSubject` sets `kind: event.kind` verbatim (`:69-83`), so the
 log can contain — and this admin has no label for:
 
@@ -858,7 +861,7 @@ token were the intended design. This is the same class as
 `🐞 BUG-i18n-admin-08` and the regression `EntryStatusBadge`'s JSDoc says was
 already fixed once elsewhere ("the table used to print the raw wire value …
 lowercase and untranslated, which stopped being an option",
-`packages/content/admin/.../EntryStatusBadge/index.tsx:38-41`).
+`packages/content/admin/src/lib/presentation/components/EntryStatusBadge/index.tsx:38-41`).
 
 **Repro:**
 1. Sign in as an admin and land on `/`.
@@ -936,7 +939,7 @@ the error state a "Reset filters and view" action that clears every owned param.
 
 ### 🐞 BUG-activity-admin-04 — The anti-corruption mapper does not validate `at`, and an invalid date crashes the entire home route · Severity: Low
 
-**Location:** `packages/activity/admin/src/lib/infrastructure/activityMapper/index.ts:28-40`; `packages/activity/admin/src/lib/presentation/components/RecentActivityPanel/index.tsx:121-124`; host at `packages/shell/admin/src/lib/pages/HomePage/index.tsx:70-76`
+**Location:** `packages/activity/admin/src/lib/infrastructure/activityMapper/index.ts:28-40`; `packages/activity/admin/src/lib/presentation/components/RecentActivityPanel/index.tsx:121-124`; host at `packages/shell/admin/src/lib/pages/HomePage/index.tsx:71-77`
 **Category:** correctness / robustness
 
 **What the code does:**
@@ -959,7 +962,7 @@ inside `HomePage`'s slot loop:
 ))}
 ```
 There is **no error boundary** anywhere on that path — the only `componentDidCatch`
-in the repo is `packages/insights/admin/.../WidgetBoundary/index.tsx`, which the
+in the repo is `packages/insights/admin/src/lib/presentation/components/WidgetBoundary/index.tsx`, which the
 home page does not use — so React unmounts the whole tree and `/` renders blank.
 
 **Why it is wrong:** this module is, by the package's own AGENTS.md, "the wire→view
@@ -1068,7 +1071,7 @@ subtitle: {
 and the empty state: "Actions across the workspace will appear here."
 
 **Why it is wrong:** the audit table has **no `workspace_id` column** at all
-(`packages/activity/server/.../schema/activity-events.ts`, and
+(`packages/activity/server/src/lib/schema/activity-events.ts`, and
 `docs/testing/activity-server.md` EC-26: "No, and deliberately so … the read is
 admin-only and admins are global, so there is no tenant boundary to breach"). The
 page sends no workspace context and reads none — this plugin does not even import
@@ -1096,8 +1099,10 @@ a one-line note under the header stating the log spans all workspaces.
 
 ---
 
-**Tally:** 6 🐞 — 0 Critical, 0 High, 3 Medium, 3 Low (one 🔒).
-**♿ tally:** 9 — 0 Supports · 7 Partially Supports · 0 Does Not Support · 1 Not Applicable · 1 Unverified.
+**Tally:** 6 🐞 — 0 Critical, 0 High, 3 Medium, 3 Low (one 🔒; none opens `Unverified —`).
+**♿ tally:** 9 — 0 Supports · 7 Partially Supports · 0 Does Not Support · 1 Not Applicable ·
+1 Unverified (`A11Y-09`, the dark-theme contrast measurement).
+**Edge cases:** `39 EC entries · 0 deleted in verification`.
 
 **Checked and cleared:** the UI's permission gating **matches the server's**
 exactly — four independent client gates all read `activity:read`, all disable the

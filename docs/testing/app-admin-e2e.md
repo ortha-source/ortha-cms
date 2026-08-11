@@ -2,6 +2,7 @@
 
 > **Unit:** `apps/admin-e2e` · **Package:** `admin-e2e` (private) · **Kind:** app (test harness)
 > **Source of truth:** `apps/admin-e2e/AGENTS.md`, `.agents/skills/admin-e2e/SKILL.md`
+> **Findings verified:** 2026-08-11 — 27 confirmed · 1 deleted · 14 corrected · 3 unverified
 > **Generated:** 2026-08-11
 
 > **This artifact tests the tests.** The unit under audit is not a product feature — it is
@@ -22,7 +23,7 @@
   lifecycle and the browser matrix;
 - the fixture layer (`src/support/fixtures.ts`) — 18 page-object fixtures plus the axe
   scanner factory;
-- 20 Page Objects (`src/support/pages/*.ts`) that own every selector;
+- 19 Page Objects (`src/support/pages/*.ts`, including the shared `BasePage`) that own every selector;
 - **the mock layer, "the seed"** (`src/support/api/*.ts`, 5 287 lines across 13 modules) —
   hand-written `page.route` interceptors that fabricate every `/api/**` response;
 - the accessibility assertion helper (`src/support/a11y.ts`);
@@ -46,20 +47,20 @@
 
 | Kind | Entry point | Where |
 | --- | --- | --- |
-| Runner config | default export | `apps/admin-e2e/playwright.config.ts:16` |
+| Runner config | default export | `apps/admin-e2e/playwright.config.ts:17` |
 | Test factory | `test` (extended), `expect` | `src/support/fixtures.ts:53`, `:120` |
 | Fixtures | 18 page objects + `makeAxe` | `src/support/fixtures.ts:22-47` |
 | A11y assertion | `expectNoA11yViolations(axe)` | `src/support/a11y.ts:12` |
 | Mock layer | 13 modules, ~40 exported `mock*`/`spy*` fns | `src/support/api/*.ts` |
-| Nx targets | `e2e`, `lint`, `typecheck`, `catalog`, `catalog:check` | `apps/admin-e2e/package.json:6-30` |
+| Nx targets | `catalog`, `catalog:check` declared (`apps/admin-e2e/package.json:9-30`); `e2e`, `lint`, `typecheck` are inferred by Nx plugins, not declared here | `apps/admin-e2e/package.json:9-30` |
 
 ### Runtime prerequisites
 
 | Requirement | Detail |
 | --- | --- |
 | Node + npm workspaces | `npm ci` at the repo root. **`node_modules` is absent in a fresh checkout** — every command below fails until you install. |
-| Playwright browsers | `npx playwright install chromium` (the config declares only chromium — `playwright.config.ts:35-38`). |
-| Admin dev server | Started automatically by `webServer` (`playwright.config.ts:28-33`) via `npx nx run admin:serve` on `http://localhost:4200`. |
+| Playwright browsers | `npx playwright install chromium` (the config declares only chromium — `playwright.config.ts:33-37`). |
+| Admin dev server | Started automatically by `webServer` (`playwright.config.ts:27-32`) via `npx nx run admin:serve` on `http://localhost:4200`. |
 | Postgres / Docker | **Not required.** This is the harness's headline property. |
 | `.env` | **Not required.** No env var is read except `BASE_URL` (`playwright.config.ts:6`). |
 | A logged-in role | Faked. `mockSignedIn(page)` (`src/support/api/auth.ts:98`) returns a full-permission admin; narrow with `mockSignedIn(page, { permissions: [...] })`. |
@@ -104,42 +105,42 @@ Harness capabilities, not product features.
 
 | # | Feature | Where it lives | Coverage |
 | --- | --- | --- | --- |
-| F1 | Playwright config + Nx preset composition | `playwright.config.ts:16` | ⚠️ PARTIAL |
-| F2 | Auto-started admin dev server (`webServer`) | `playwright.config.ts:28-33` | 🐞 `BUG-admin-e2e-06` |
-| F3 | Browser/project matrix | `playwright.config.ts:35-38` | 🐞 `BUG-admin-e2e-16` |
-| F4 | Trace capture on retry | `playwright.config.ts:21` | 🐞 `BUG-admin-e2e-07` |
+| F1 | Playwright config + Nx preset composition | `playwright.config.ts:17` | ⚠️ PARTIAL |
+| F2 | Auto-started admin dev server (`webServer`) | `playwright.config.ts:27-32` | `🐞 BUG-admin-e2e-06` |
+| F3 | Browser/project matrix | `playwright.config.ts:33-37` | `🐞 BUG-admin-e2e-16` |
+| F4 | Trace capture on retry | `playwright.config.ts:23` | `🐞 BUG-admin-e2e-07` |
 | F5 | `test`/`expect` fixture extension | `src/support/fixtures.ts:53`, `:120` | ✅ E2E (used by all 44 specs) |
 | F6 | 18 page-object fixtures | `src/support/fixtures.ts:54-107` | ✅ E2E |
 | F7 | `BasePage` shell chrome helpers (account menu, command palette) | `src/support/pages/BasePage.ts:13-53` | ✅ E2E |
 | F8 | `BasePage` shared query-builder / filter-drawer helpers | `src/support/pages/BasePage.ts:55-180` | ✅ E2E |
-| F9 | `makeAxe()` scanner factory (WCAG tag selection) | `src/support/fixtures.ts:108-117` | ♿ `A11Y-admin-e2e-01` |
-| F10 | `expectNoA11yViolations` assertion + summary | `src/support/a11y.ts:12-23` | ♿ `A11Y-admin-e2e-02` |
+| F9 | `makeAxe()` scanner factory (WCAG tag selection) | `src/support/fixtures.ts:108-117` | `♿ A11Y-admin-e2e-01` |
+| F10 | `expectNoA11yViolations` assertion + summary | `src/support/a11y.ts:12-23` | `♿ A11Y-admin-e2e-02` |
 | F11 | Auth seed: `mockLogin` / `mockSignedIn` / `mockSignedOut` | `src/support/api/auth.ts:18`, `:98`, `:121` | ✅ E2E |
 | F12 | Session-loss injection: `mockUnauthorized` | `src/support/api/auth.ts:138` | ✅ E2E |
 | F13 | Permission narrowing via `mockSignedIn({ permissions })` | `src/support/api/auth.ts:39-84` | ✅ E2E |
 | F14 | Call spies (`spyLogin`, `spyLogout`, `spyInvite`, `spyEntrySave`, …) | `src/support/api/auth.ts:183`, `api/content.ts:1580` | ✅ E2E |
-| F15 | Pending-state injection (`delayMs`) | `src/support/api/auth.ts:20`, `api/members.ts:194` | 🐞 `BUG-admin-e2e-15` |
+| F15 | Pending-state injection (`delayMs`) | `src/support/api/auth.ts:20`, `api/members.ts:194` | `🐞 BUG-admin-e2e-15` |
 | F16 | Error-status injection (`status`, `listStatus`, `failing`) | `api/content.ts:1140`, `api/insights.ts:321` | ✅ E2E |
 | F17 | Invites seed (`mockInvite`, `spyAcceptInvite`) | `src/support/api/invites.ts:28`, `:73` | ✅ E2E |
 | F18 | Members seed + in-mock query-builder evaluator | `src/support/api/members.ts:145-179`, `:191` | ⚠️ PARTIAL (fail-open, `:164`) |
-| F19 | Workspaces seed (list / create / settings) | `src/support/api/workspaces.ts:159`, `:184`, `:307` | 🐞 `BUG-admin-e2e-10` |
-| F20 | Content-schema seed (catalogue + detail) | `src/support/api/content.ts:791`, `:938` | 🐞 `BUG-admin-e2e-03` |
-| F21 | Content-entries fabrication engine (search/sort/paginate) | `src/support/api/content.ts:1047-1141` | 🐞 `BUG-admin-e2e-12` |
+| F19 | Workspaces seed (list / create / settings) | `src/support/api/workspaces.ts:159`, `:184`, `:307` | `🐞 BUG-admin-e2e-10` |
+| F20 | Content-schema seed (catalogue + detail) | `src/support/api/content.ts:791`, `:938` | `🐞 BUG-admin-e2e-03` |
+| F21 | Content-entries fabrication engine (search/sort/paginate) | `src/support/api/content.ts:1048-1065`, `:1141-1230` | `🐞 BUG-admin-e2e-12` |
 | F22 | Relation preview / per-field paging / relation writes | `api/content.ts:1252`, `:1407`, `:1458` | ✅ E2E |
 | F23 | Entry media seed | `src/support/api/content.ts:1361` | ✅ E2E |
 | F24 | Entry-revisions stateful flow mock | `src/support/api/revisions.ts:56` | ✅ E2E |
-| F25 | i18n stateful locale/publish engine | `src/support/api/i18n.ts:185` | 🐞 `BUG-admin-e2e-14` |
+| F25 | i18n stateful locale/publish engine | `src/support/api/i18n.ts:185` | `🐞 BUG-admin-e2e-14` |
 | F26 | Media library seed (assets/folders/upload spy/failure) | `src/support/api/media.ts:168`, `:151` | ✅ E2E |
 | F27 | Copilot seed: conversations, transcripts, skills, spy | `src/support/api/copilot.ts:383` | ✅ E2E |
-| F28 | Copilot **SSE run** stub (`text/event-stream`) | `src/support/api/copilot.ts:293`, `:529` | 🐞 `BUG-admin-e2e-04` |
+| F28 | Copilot **SSE run** stub (`text/event-stream`) | `src/support/api/copilot.ts:293`, `:529` | `🐞 BUG-admin-e2e-04` |
 | F29 | Insights seed (10 widget endpoints, delay, per-widget failure) | `src/support/api/insights.ts:338` | ✅ E2E |
 | F30 | Activity-log seed | `src/support/api/activity.ts:167` | ✅ E2E |
-| F31 | User-detail seed (member, sessions, activity, update spy) | `src/support/api/userDetail.ts:45`-`:158` | 🐞 `BUG-admin-e2e-05` |
+| F31 | User-detail seed (member, sessions, activity, update spy) | `src/support/api/userDetail.ts:45`-`:158` | `🐞 BUG-admin-e2e-05` |
 | F32 | Preferences seed | `src/support/api/preferences.ts:19` | ✅ E2E |
 | F33 | Per-`page` route reset (test isolation) | `src/support/api/auth.ts:15-17` (contract) | ✅ E2E |
-| F34 | Generated test catalog + drift gate | `tools/generate-test-catalog.mjs`, `package.json:12-30` | 🐞 `BUG-admin-e2e-01` |
+| F34 | Generated test catalog + drift gate | `tools/generate-test-catalog.mjs`, `package.json:10-29` | `🐞 BUG-admin-e2e-01` |
 | F35 | axe suite coverage across product areas | 20 spec files, 63 scans | ⚠️ PARTIAL (§4A) |
-| F36 | Keyboard-operability suite coverage | `auth/`, `users/`, `workspaces/keyboard.spec.ts` | 🐞 `BUG-admin-e2e-09` |
+| F36 | Keyboard-operability suite coverage | `auth/`, `users/`, `workspaces/keyboard.spec.ts` | `🐞 BUG-admin-e2e-09` |
 | F37 | CI execution of the suite | *(none)* | ❌ NONE — `BUG-admin-e2e-01` |
 
 **Cleared on inspection** (checked, no defect found): no `test.skip` / `test.fixme` /
@@ -166,7 +167,7 @@ Every block assumes the prerequisites in §1 are satisfied and that you are at t
 | --- | --- | --- |
 | 1 | `npx playwright test --config apps/admin-e2e/playwright.config.ts --list` | Prints 418 cases across 44 files, all under project `chromium`. |
 | 2 | Inspect the printed project list | Exactly one project name appears. If more than one, the config changed — update §2 F3. |
-| 3 | `BASE_URL=http://localhost:9999 npx nx e2e admin-e2e -- src/auth/login.spec.ts` | Playwright still starts the dev server on 4200 (the `webServer.url` is hard-coded, `playwright.config.ts:30`) but navigates to 9999 → every test fails with `net::ERR_CONNECTION_REFUSED`. Confirms `BASE_URL` and `webServer.url` are not linked. |
+| 3 | `BASE_URL=http://localhost:9999 npx nx e2e admin-e2e -- src/auth/login.spec.ts` | Playwright still starts the dev server on 4200 (the `webServer.url` is hard-coded, `playwright.config.ts:29`) but navigates to 9999 → every test fails with `net::ERR_CONNECTION_REFUSED`. Confirms `BASE_URL` and `webServer.url` are not linked. |
 
 ### F2 — Auto-started admin dev server
 
@@ -184,14 +185,14 @@ Every block assumes the prerequisites in §1 are satisfied and that you are at t
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | `npx nx e2e admin-e2e -- --project=firefox` | `Error: Project(s) "firefox" not found.` Only `chromium` is declared. |
-| 2 | Open `apps/admin-e2e/playwright.config.ts` and read lines 40-56 | Mobile Chrome / Mobile Safari / Edge / Chrome are present but commented out. No small-viewport project exists. |
+| 2 | Open `apps/admin-e2e/playwright.config.ts` and read lines 38-57 | Mobile Chrome / Mobile Safari / Edge / Chrome are present but commented out. No small-viewport project exists. |
 
 ### F4 — Trace capture on retry
 
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | Temporarily break a locator in a scratch copy and run that spec | Test fails. |
-| 2 | `ls apps/admin-e2e/test-output/**/trace.zip` (or the Nx-configured output dir) | **Observed:** no trace, because `trace: 'on-first-retry'` (`playwright.config.ts:21`) only fires on retry and no `retries` value is set in the repo. See `🐞 BUG-admin-e2e-07`. |
+| 2 | `ls apps/admin-e2e/test-output/**/trace.zip` (or the Nx-configured output dir) | **Observed:** no trace, because `trace: 'on-first-retry'` (`playwright.config.ts:23`) only fires on retry and no `retries` value is set in the repo. See `🐞 BUG-admin-e2e-07`. |
 | 3 | Re-run with `--retries=1` | A `trace.zip` now appears; `npx playwright show-trace <path>` opens it. |
 
 ### F5/F6 — Fixture extension and page-object fixtures
@@ -338,7 +339,7 @@ Grouped by the harness mechanism they stress.
   (`packages/content/server/src/lib/registry/content-type-registry.ts:66`).
   Suspected: `ContentTypeSummary` in the seed omits it entirely
   (`api/content.ts:5-13`), so `schema.paranoid ?? false`
-  (`packages/content/admin/.../LoadedRecordsView/index.tsx:146`) is always `false`, the
+  (`packages/content/admin/src/lib/presentation/components/CollectionRecordsView/LoadedRecordsView/index.tsx:146`) is always `false`, the
   "View Trash" button at `:422` never renders, and the whole soft-delete surface is
   unreachable → `🐞 BUG-admin-e2e-03`.
 - **EC-02 — A content type's `i18n` flag never arrives from the main seed.** `⚠️ PARTIAL`
@@ -351,14 +352,14 @@ Grouped by the harness mechanism they stress.
   all four types, so the catalogue list and the detail read disagree with each other inside
   the same harness.
 - **EC-04 — `WorkspaceView.content` absent on 5 of 6 seeded workspaces.** `⚠️ PARTIAL`
-  Server type: `content: string[]`, required (`packages/workspaces/server/.../workspace.view.ts:32`).
+  Server type: `content: string[]`, required (`packages/workspaces/server/src/lib/workspace/application/queries/workspace.view.ts:32`).
   Seed type: `content?: string[]` (`api/workspaces.ts:20`), present only on `ws_marketing`.
   → `🐞 BUG-admin-e2e-10`.
 - **EC-05 — `MemberWorkspaceView.description` missing from the members seed.** `❌ NONE`
-  Server declares `description: string | null` (`packages/users/server/.../member.view.ts:18`);
+  Server declares `description: string | null` (`packages/users/server/src/lib/member/application/queries/member.view.ts:18`);
   `WorkspaceSeed` (`api/members.ts:11-15`) has only `id`/`name`/`color` → `🐞 BUG-admin-e2e-11`.
 - **EC-06 — Envelope `publishedAt` never emitted by the entries engine.** `❌ NONE`
-  `entriesFor()` (`api/content.ts:1047-1063`) emits `status` but never `publishedAt`, so the
+  `entriesFor()` (`api/content.ts:1048-1065`) emits `status` but never `publishedAt`, so the
   **Modified** badge (`status:'draft'` + non-null `publishedAt`,
   `packages/content/admin/src/lib/domain/entryStatusView/index.ts:61`) cannot appear in the
   records table → `🐞 BUG-admin-e2e-12`.
@@ -384,7 +385,7 @@ Grouped by the harness mechanism they stress.
   `runStream`'s chunk-boundary buffering (`runStream.ts:103,111-122`) — a frame split across
   two TCP reads — is never exercised. That is the single most fragile line in the client.
 - **EC-12 — Nest's error envelope is never reproduced.** `⚠️ PARTIAL`
-  Mocks return `{ message: '…' }` (`api/auth.ts:33`, `api/content.ts:1155`). A real Nest
+  Mocks return `{ message: '…' }` (`api/auth.ts:32`, `api/content.ts:1155`). A real Nest
   `HttpException` body is `{ statusCode, message, error }` and for a `ValidationPipe` failure
   `message` is a **string[]**. `errorMessage()` handles the array
   (`runStream.ts:154-157`) but no admin-e2e spec ever feeds it one.
@@ -409,15 +410,19 @@ Grouped by the harness mechanism they stress.
   `const items = seeded.filter(...)` (`api/i18n.ts:~265`) while creates go into a separate
   `created` array that only `allRows()` reads. "Create a translation, then see it in the
   list" cannot be modelled → `🐞 BUG-admin-e2e-14`.
-- **EC-17 — `mockContentSchemaDetail`'s route is unanchored.** `⚠️ PARTIAL`
-  `/\/api\/content-schema\/([^/?]+)/` (`api/content.ts:972`) has no `$`, so it also claims
-  `/api/content-schema/blog_post/anything`. Harmless today; a future sub-route would be
-  swallowed rather than 404'd.
+- **EC-17 — Route-pattern anchoring in the content-schema seed.** Cleared.
+  Checked and found correct: `mockContentSchemaDetail` registers
+  `/\/api\/content-schema\/([^/?]+)(\?.*)?$/` (`api/content.ts:973`) — **end-anchored** —
+  after the `/filter-fields` pattern (`:948`), and its own docstring records why
+  (`:934`, "The detail pattern is end-anchored so it no longer also swallows the
+  `/filter-fields` request"). The one genuinely unanchored pattern in the module is
+  `mockContentEntryWrites`'s `/\/api\/content\/[^/?]+\/.+/` (`:1465`), which is
+  deliberate — it has to match every write sub-route.
 
 #### Assertion quality
 
 - **EC-18 — `focus()` immediately followed by `toBeFocused()`.** `⚠️ PARTIAL`
-  `workspaces/keyboard.spec.ts:23-24`, `:34-35`, `:51-53`, `:76-77`, `:92-94`. Calling
+  `workspaces/keyboard.spec.ts:23-24`, `:34-35`, `:52-53`, `:76-77`, `:93-94`. Calling
   `.focus()` succeeds on any focusable element, including `tabindex="-1"`; asserting it took
   is a tautology. The test names claim "reachable", which is not what is proven
   → `🐞 BUG-admin-e2e-09`.
@@ -427,9 +432,10 @@ Grouped by the harness mechanism they stress.
   menu — true even if the trigger were unreachable by `Tab`.
 - **EC-20 — Permissive matchers on absent elements.** `⚠️ PARTIAL`
   `toBeHidden()` and `toHaveCount(0)` both pass when the locator matches nothing, so a typo
-  in a Page Object selector turns a real regression green. 21 `toBeHidden()` calls across 10
-  files (`workspaces/settings.spec.ts` alone has 7). The safe shape is to assert the element
-  exists in the positive case *in the same spec*, which most but not all of these do.
+  in a Page Object selector turns a real regression green. **47** `toBeHidden()` calls across
+  **17** spec files (recounted; `workspaces/settings.spec.ts` alone has 7, `content-library`
+  and `agents-view` 6 each). The safe shape is to assert the element exists in the positive
+  case *in the same spec*, which most but not all of these do.
 - **EC-21 — Hard-coded sleeps instead of web-first assertions.** `⚠️ PARTIAL`
   `content/content-library.spec.ts:396,398,400` — three `page.waitForTimeout(200)` calls
   around a dnd-kit keyboard drag → `🐞 BUG-admin-e2e-08`.
@@ -438,15 +444,19 @@ Grouped by the harness mechanism they stress.
   handler holds a live `setTimeout` for the whole window; the case must finish first
   → `🐞 BUG-admin-e2e-15`.
 - **EC-23 — Un-awaited `expect(...)`.** Cleared.
-  All 30 bare `expect(` occurrences are synchronous matchers on plain values
-  (`expect(spy.count).toBe(1)` etc.), not locator assertions. No missing `await` found.
+  All **135** bare (un-`await`ed) `expect(` occurrences are synchronous matchers on plain
+  values (`expect(spy.count).toBe(1)`, `expect(body).toContain('<th')` etc.), not locator
+  assertions. Verified by grepping every bare `expect(` together with the two following
+  lines for locator matchers (`toBeVisible`/`toBeHidden`/`toBeFocused`/`toHaveText`/
+  `toHaveURL`/`toHaveCount`/`toHaveAttribute`/`toBeEnabled`/`toBeDisabled`/`toBeChecked`):
+  the only two hits are themselves `await`ed. No missing `await` found.
 - **EC-24 — Disabled/skipped tests.** Cleared.
   No `test.skip`, `test.fixme`, `test.fail`, `.only`, or `describe.skip` in any spec.
 
 #### Isolation & ordering
 
 - **EC-25 — Shared mutable module-level seeds.** Cleared for i18n and copilot.
-  `api/i18n.ts:195` copies `ROWS` per registration; `api/copilot.ts:~397` builds `spy` fresh
+  `api/i18n.ts:196` copies `ROWS` per registration; `api/copilot.ts:387` builds `spy` fresh
   per call. `WORKSPACES_SEED` / `DEFAULT_MEMBERS` / `CONTENT_DETAIL_SEED` are only ever read
   and spread, never mutated in place — verified by reading every `mock*` in `support/api/`.
 - **EC-26 — Route-precedence ordering is load-bearing and undocumented in the config.** `⚠️ PARTIAL`
@@ -459,7 +469,7 @@ Grouped by the harness mechanism they stress.
 
 #### Boundary / size / encoding (of the harness's own fabrication engine)
 
-- **EC-28 — `pageSize=0`.** `❌ NONE` `api/content.ts:1183` computes `start = (page-1)*0 = 0`
+- **EC-28 — `pageSize=0`.** `❌ NONE` `api/content.ts:1187-1188` computes `start = (page-1)*0 = 0`
   and `slice(0,0)` → empty page with a non-zero `total`. The real server rejects
   `pageSize=0` at the DTO. A pager regression that sends 0 would render "no results" here and
   a 400 in production.
@@ -497,8 +507,14 @@ Grouped by the harness mechanism they stress.
 
 #### Failure & partiality
 
-- **EC-39 — API 500 on a list.** `✅ E2E` `mockContentEntries(page, { status: 500 })`
-  (`api/content.ts:1150-1158`).
+- **EC-39 — API 500 on a list.** `⚠️ PARTIAL` *(corrected — was `✅ E2E`)*
+  The **capability** exists — `mockContentEntries` honours `status >= 400`
+  (`api/content.ts:1151-1158`) — but **no spec ever passes it**:
+  `grep -rn "mockContentEntries(page, { status" apps/admin-e2e/src` returns nothing. The
+  only two 500 injections in the whole suite are `mockContentSchema(page, { status: 500 })`
+  (`content/content-library.spec.ts:167`, the *catalogue* read) and
+  `mockCopilotApi(page, { listStatus: 500 })` (`copilot/agents-view.spec.ts:83`). The
+  records **list**'s 500 path is unexercised — see EC-44.
 - **EC-40 — Network drop mid-request.** `❌ NONE` No mock uses `route.abort()`. `net::ERR_FAILED`
   behaviour (a different axios error shape than an HTTP error) is never exercised.
 - **EC-41 — SSE stream aborted mid-run.** `❌ NONE` Structurally impossible — the mock fulfils
@@ -512,9 +528,13 @@ Grouped by the harness mechanism they stress.
 #### UI-state distinctions
 
 - **EC-44 — loading vs error vs empty as three distinct states.** `✅ E2E` for members,
-  workspaces, insights, media, activity (each has a skeleton, an error and an empty case).
-  `❌ NONE` for the content records table's *error* state — `content/a11y.spec.ts` scans only
-  loaded states and `content-library.spec.ts` has no 500 case.
+  workspaces, insights, media, activity (each has a skeleton, an error and an empty case),
+  **and for the content library's catalogue** — `content-library.spec.ts:162-180` ("shows the
+  error state and recovers on retry") drives `mockContentSchema(page, { status: 500 })`,
+  asserts `errorTitle` with `{ timeout: 15_000 }`, then re-mocks and asserts Retry restores
+  the sidebar. That is a model case. `❌ NONE` for the **records table's** error state: no
+  spec ever fails `mockContentEntries` (EC-39), and `content/a11y.spec.ts` scans only loaded
+  states.
 - **EC-45 — Focus after dialog close.** `⚠️ PARTIAL` Exactly one assertion exists
   (`copilot/agents-manage.spec.ts:96`, and its comment records a real Radix bug found this
   way). Nothing asserts focus after `Escape` — 14 `press('Escape')` calls, zero followed by
@@ -544,13 +564,14 @@ are called out below.
 
 #### Where axe actually runs
 
-63 `expectNoA11yViolations` calls across 20 of 44 spec files. Real distribution, by area:
+63 `expectNoA11yViolations` calls across 20 of 44 spec files (both counts re-verified by
+grep). Real distribution, by area — the rows below sum to exactly 63:
 
 | Area | Scans | States scanned | Verdict |
 | --- | --- | --- | --- |
 | auth (login, accept-invite, root loader, home) | 9 | initial, field errors, error banner, dead link, pending boot | **Supports** (for what axe covers) |
-| workspaces | 6 | table, skeleton, archived rows, empty, create wizard + validation error | **Supports** |
-| users / members | 7 | table, skeleton, invite wizard ×2 steps, **row menu open**, empty, no-access | **Supports** |
+| workspaces | 7 | table, skeleton, archived rows, empty, create wizard + validation error (`a11y.spec.ts` ×6, `settings.spec.ts` ×1) | **Supports** |
+| users / members | 8 | table, skeleton, invite wizard ×2 steps, **row menu open**, empty, no-access (`a11y.spec.ts` ×7, `members-filter.spec.ts` ×1) | **Supports** |
 | copilot / agents | 7 | empty thread, transcript, expanded tool step, archived list, **rename dialog**, **row menu open**, **model picker open** | **Supports** |
 | copilot dock + skills | 7 | dock states, skills manage | **Supports** |
 | content library | 4 | sidebar+welcome, records table, **column picker open**, **search palette open** | **Supports** |
@@ -664,7 +685,7 @@ is the one whose "unknown" is almost always a real risk.
 **WCAG:** 1.4.3 Contrast (Minimum) (AA), 1.4.11 Non-text Contrast (AA)
 **508:** E205.4
 **Verdict:** **Does Not Support**
-**Location:** `apps/admin-e2e/playwright.config.ts:18-22` (no `colorScheme` in `use`)
+**Location:** `apps/admin-e2e/playwright.config.ts:20-24` (no `colorScheme` in `use`)
 
 Playwright's `use` block sets only `baseURL` and `trace`. `colorScheme` is unset, so every
 scan runs in the browser default (light). `grep -rn "colorScheme" apps/admin-e2e` returns
@@ -685,8 +706,8 @@ describe wrapper) that re-runs the a11y specs in dark, so both palettes are guar
 **WCAG:** 1.4.10 Reflow (AA), 1.4.4 Resize Text (AA), 1.4.12 Text Spacing (AA)
 **508:** E205.4
 **Verdict:** **Does Not Support**
-**Location:** `apps/admin-e2e/playwright.config.ts:35-38` (chromium/Desktop Chrome only);
-mobile projects commented out at `:40-49`
+**Location:** `apps/admin-e2e/playwright.config.ts:33-37` (chromium/Desktop Chrome only);
+mobile projects commented out at `:39-47`
 
 `grep -rn "setViewportSize" apps/admin-e2e/src` returns nothing. Every one of the 418 cases
 runs at Desktop Chrome's 1280×720. SC 1.4.10 requires content to reflow at 320 CSS px without
@@ -703,7 +724,7 @@ add a `test.use({ viewport: { width: 320, height: 800 } })` variant of the axe s
 **WCAG:** 2.3.3 (AAA, advisory), 1.4.1 Use of Color (A) — under forced colors
 **508:** **503.2 (User Preferences)** — this is a Chapter 5 provision, not a WCAG one
 **Verdict:** **Does Not Support**
-**Location:** `apps/admin-e2e/playwright.config.ts:18-22`
+**Location:** `apps/admin-e2e/playwright.config.ts:20-24`
 
 Playwright exposes `reducedMotion` and `forcedColors` as context options; neither is set
 anywhere. 503.2 requires an application to respect platform accessibility settings. Windows
@@ -751,7 +772,7 @@ opt-in. The relevant ones:
 **WCAG:** 2.1.1 Keyboard (A), 2.4.3 Focus Order (A)
 **508:** E205.4; **502.2.1 (No Disruption)**
 **Verdict:** **Partially Supports**
-**Location:** `apps/admin-e2e/src/workspaces/keyboard.spec.ts:23-24, 34-35, 51-53, 76-77, 92-94`;
+**Location:** `apps/admin-e2e/src/workspaces/keyboard.spec.ts:23-24, 34-35, 52-53, 76-77, 93-94`;
 `apps/admin-e2e/src/users/keyboard.spec.ts:18, 32, 44`
 
 ```ts
@@ -875,15 +896,29 @@ assertion of each area's main spec — near-zero cost, closes a Level A criterio
 
 **WCAG:** 4.1.3 Status Messages (AA)
 **508:** E205.4; **502.3.4 (Values) / 502.3.14 (Event Notification)**
-**Verdict:** **Does Not Support**
-**Location:** `grep -rn "aria-live\|getByRole('status'" apps/admin-e2e/src` → 0 matches.
+**Verdict:** **Partially Supports** *(corrected — the original "0 matches" grep was wrong)*
+**Location:** `grep -rn "aria-live" apps/admin-e2e/src` → **0 matches**;
+`getByRole('status')` → **6 matches, all in Page Objects and none of them a toast**:
+`ActivityLogPage.ts:80`, `WorkspacesPage.ts:62`, `MembersPage.ts:53` (loading skeletons),
+`AcceptInvitePage.ts:93` (the invite-lookup busy region), `HomePage.ts:61`
+(`filter({ hasText: /Loading/ })`), `AgentsPage.ts:290` (the composer hint).
 
-The admin announces mutation outcomes with toasts and the `accessibility` skill mandates
-live-region announcements for them. No spec asserts that a toast is in a live region, that it
-is announced without stealing focus, or that a save/delete/publish produces any announcement
-at all. The only `role="alert"` usage is in Page Objects for *form errors*
-(`BasePage.ts:159`, `LoginPage`), asserted as visible text — which proves rendering, not
-announcement.
+So live regions **are** touched — for *pending* states — and toasts are asserted heavily
+(29+ `toast(...)` assertions across `workspaces/settings`, `content-library`, `i18n`,
+`agents-manage`). What is missing is the announcement contract: every toast Page Object
+resolves to a plain text lookup —
+
+```ts
+/** A toast message (sonner, portaled to the body). */
+toast(text: string | RegExp): Locator {
+    return this.page.getByText(text);   // ContentLibraryPage.ts:394, AgentsPage.ts:552
+}
+```
+
+— so no spec asserts that a toast sits in a live region, that it is announced without
+stealing focus, or that a save/delete/publish produces any announcement at all. The
+`role="alert"` usages are Page Objects for *form errors* (`BasePage.ts:159`, `LoginPage`),
+asserted as visible text — which proves rendering, not announcement.
 
 **Screen-reader experience:** a user saves an entry, hears nothing, and cannot tell whether it
 worked.
@@ -910,7 +945,8 @@ This is where a real 508 audit of a CMS bites, and it is the least-covered area 
 - **504.2 (can an author produce conformant content).** `wysiwyg-fields.spec.ts:285-287`
   asserts the saved HTML contains `<table` and `<th`, which is a genuine (and good) 504.2
   signal — real header cells. But nothing checks a `<caption>`, a `scope` attribute, heading
-  *order* inside the body (see A11Y-01: `heading-order` is disabled), or list semantics.
+  *order* inside the body (see `♿ A11Y-admin-e2e-01`: `heading-order` is never *enabled*),
+  or list semantics.
 - **504.2.1 (preservation).** No spec asserts that alt text, table headers or a language marker
   survive a save → reload → revision-restore → locale-copy cycle. `entry-revisions.spec.ts`
   and `i18n.spec.ts` exercise those flows and assert none of it.
@@ -955,9 +991,9 @@ media playback UI).
 
 ---
 
-## 5. E2E Coverage Map — *inverted*
+## 5. E2E Coverage Map
 
-For a harness, the question is not "is this feature covered" but **which product areas does
+*Inverted for this unit.* For a harness, the question is not "is this feature covered" but **which product areas does
 this harness cover, and how honestly**. Honesty is graded on three axes: does a spec exist,
 does it assert the interesting part, and — uniquely for this unit — **could the mock it runs
 against ever be produced by the real server**.
@@ -998,11 +1034,15 @@ against ever be produced by the real server**.
 | **Per-route document title** | *(none)* | — | — | ❌ NONE — `♿ A11Y-admin-e2e-11` |
 | **Toast / live-region announcements** | *(none)* | — | — | ❌ NONE — `♿ A11Y-admin-e2e-12` |
 
-**Coverage tally (harness features, §2):** `37 features · 18 ✅ · 12 ⚠️ · 7 ❌`
-**Coverage tally (product areas, this table):** `33 areas · 12 ✅ · 14 ⚠️ · 7 ❌`
-**Accessibility tally:** `14 ♿ findings · 0 Supports · 5 Partially Supports · 9 Does Not Support`
-(area-level axe verdicts are tabulated separately at the head of §4A: 8 Supports,
-4 Partially Supports, 6 Does Not Support)
+**Coverage tally (harness features, §2):** `37 features · 19 ✅ · 3 ⚠️ · 1 ❌ · 12 🐞 · 2 ♿`
+**Coverage tally (product areas, this table):** `33 areas · 12 ✅ · 13 ⚠️ · 8 ❌`
+**Accessibility tally:** `14 ♿ findings · 0 Supports · 7 Partially Supports · 7 Does Not Support ·
+0 Not Applicable` (1 of the 14, `A11Y-06`, additionally carries an `Unverified —` opening)
+(area-level axe verdicts are tabulated separately at the head of §4A: 17 areas —
+8 Supports, 3 Partially Supports, 6 Does Not Support)
+**🐞 tally:** `16 findings · 0 Critical · 1 High · 11 Medium · 4 Low` (3 carry 🔒; 3 open
+`Unverified —` on a sub-claim: `BUG-07`, `BUG-15`, `A11Y-06`)
+**Edge cases:** `46 EC entries · 1 deleted in verification (EC-17, claim false)`
 
 ---
 
@@ -1010,10 +1050,14 @@ against ever be produced by the real server**.
 
 Ranked by severity. Every finding was read in the cited source.
 
-### 🐞 BUG-admin-e2e-01 — No CI workflow runs this suite, or the drift gate the docs claim it runs · Severity: Critical
+### 🐞 BUG-admin-e2e-01 — No CI workflow runs this suite, or the drift gate the docs claim it runs · Severity: High
 
-**Location:** `.github/workflows/release.yml:1-57` (the repository's only workflow);
-`apps/admin-e2e/AGENTS.md` ("Test catalog" section); `apps/server-e2e/AGENTS.md` (same claim)
+*(Downgraded from Critical: this is a verification/process gap, not a reachable exploit or a
+data-loss path — nothing here corrupts or exposes data. Kept at High because its blast radius
+is the whole document: it is the multiplier on every other finding.)*
+
+**Location:** `.github/workflows/release.yml:1-63` (the repository's only workflow);
+`apps/admin-e2e/TESTS.md:4`; `.agents/skills/admin-e2e/SKILL.md:144,151`
 **Category:** correctness (process)
 
 **What the code does:** `.github/workflows/` contains exactly one file, `release.yml`. Its
@@ -1031,12 +1075,15 @@ only `run:` steps are:
 There is no `e2e`, no `lint`, no `test`, and no `catalog:check` step, and the workflow is
 manually dispatched for releases rather than run on push or pull request.
 
-**Why it is wrong:** `apps/admin-e2e/AGENTS.md` states "CI runs `npx nx catalog:check
-admin-e2e` and fails if it has drifted" — `TESTS.md:4` repeats it. `apps/server-e2e/AGENTS.md`
-is more honest ("wire this into CI once a pipeline exists"), which confirms the admin-side
-claim is aspirational. The `admin-e2e` skill instructs authors that "CI runs all 3" browsers.
-None of this is true. Every quality claim in this repository rests on a developer choosing to
-run the suite locally.
+**Why it is wrong:** the false claims live in **two** files, and the attribution matters
+because a fix has to edit the right ones. `apps/admin-e2e/TESTS.md:4` states "CI runs `npx nx
+catalog:check admin-e2e` and fails if this file has drifted"; `.agents/skills/admin-e2e/SKILL.md:144`
+tells authors "`--project=chromium # faster locally; CI runs all 3". Neither is true.
+`apps/admin-e2e/AGENTS.md:48,95` is **not** at fault — re-read during verification, it says only
+"`npx nx catalog:check admin-e2e` fails if it has drifted", with no CI claim, which is
+accurate. `apps/server-e2e/AGENTS.md:99` is explicit about the gap ("wire this into CI once a
+pipeline exists"), which corroborates that the admin-side CI claims are aspirational. Every
+quality claim in this repository rests on a developer choosing to run the suite locally.
 
 **Repro:**
 1. `ls .github/workflows/` → `release.yml`
@@ -1056,7 +1103,12 @@ exists.
 
 ---
 
-### 🐞 BUG-admin-e2e-02 — No mock or spec ever inspects `X-Workspace-Id`, so tenant scoping is untestable · Severity: High · 🔒 SECURITY
+### 🐞 BUG-admin-e2e-02 — No mock or spec ever inspects `X-Workspace-Id`, so tenant scoping is untestable · Severity: Medium · 🔒 SECURITY
+
+*(Downgraded from High: this is a **detection** gap, not a bypass. The server's `WorkspaceGuard`
+still enforces scoping on every workspace-scoped route, so no exploit or cross-tenant read is
+reachable through the harness — what is lost is the ability to catch a client-side regression
+before it ships.)*
 
 **Location:** all 13 modules in `apps/admin-e2e/src/support/api/`; contrast
 `packages/utils/admin/src/lib/apiClient/index.ts:42-47`
@@ -1080,7 +1132,8 @@ apps/admin-e2e/src` returns exactly one hit and it is a **comment**
 (`copilot/dock.spec.ts:64`); `grep -rn "route.request().headers"` returns nothing.
 
 **Why it is wrong:** the header is the sole client-side input to the server's `WorkspaceGuard`
-(same file, `:38-41`). Root `AGENTS.md` and the `admin-plugin` skill both treat
+(the interceptor's own JSDoc records this at `apiClient/index.ts:38-41`; the guard itself lives
+server-side). Root `AGENTS.md` and the `admin-plugin` skill both treat
 workspace scoping as an invariant. The harness's own doctrine — "the network is the seed" —
 means the network layer is precisely where this should be asserted, and it is the only layer
 that can see it.
@@ -1102,7 +1155,11 @@ workspace-scoped area asserting it equals the workspace in the URL.
 
 ---
 
-### 🐞 BUG-admin-e2e-03 — The content-schema seed omits `paranoid` and `i18n`, making the whole soft-delete surface unreachable · Severity: High
+### 🐞 BUG-admin-e2e-03 — The content-schema seed omits `paranoid` and `i18n`, making the whole soft-delete surface unreachable · Severity: Medium
+
+*(Downgraded from High: the product feature is intact — only the harness cannot see it. No
+exploit and no data-loss path; the risk is a future soft-delete regression shipping unnoticed,
+which is a coverage gap.)*
 
 **Location:** `apps/admin-e2e/src/support/api/content.ts:4-13` (type) and `:46-51` (seed);
 contrast `packages/content/server/src/lib/registry/content-type-registry.ts:58-70`
@@ -1169,7 +1226,12 @@ them on every seed, and add a `paranoid: true` collection so a trash suite can e
 
 ---
 
-### 🐞 BUG-admin-e2e-04 — The copilot SSE mock diverges from `SseStream` on five points · Severity: High
+### 🐞 BUG-admin-e2e-04 — The copilot SSE mock diverges from `SseStream` on five points · Severity: Medium
+
+*(Downgraded from High: all five divergences are latent. Today's client parses `data:` lines
+only (`runStream.ts:138`) and ignores comment frames, and no shipped UI reads `messageId`,
+`name` or `usage` off those frames — so nothing is currently broken. The cost is that a future
+wire-format change is undetectable.)*
 
 **Location:** `apps/admin-e2e/src/support/api/copilot.ts:293-294` (frame writer) and
 `:299-344` (the scripted run); contrast
@@ -1227,9 +1289,16 @@ two `text-delta`s.
 
 ---
 
-### 🐞 BUG-admin-e2e-05 — The user-detail activity mock ignores `subjectId`, so a cross-user audit leak would pass · Severity: High · 🔒 SECURITY
+### 🐞 BUG-admin-e2e-05 — The user-detail activity mock ignores `subjectId`, so a cross-user audit leak would pass · Severity: Medium · 🔒 SECURITY
 
-**Location:** `apps/admin-e2e/src/support/api/userDetail.ts:134-155`
+*(Downgraded from High: a **detection** gap, not a leak. Verified against the server —
+`GET /api/activity` is guarded by `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`
+(`packages/activity/server/src/lib/activity/controllers/list-activity.controller.ts:16-18`)
+and `activity:read` is admin-only, so the only caller who could see a foreign audit trail may
+already read every trail. The finding is that the one suite opening that page could not tell
+the difference.)*
+
+**Location:** `apps/admin-e2e/src/support/api/userDetail.ts:133-155`
 **Category:** tenant-leak (detection gap)
 
 **What the code does:**
@@ -1273,7 +1342,7 @@ or return a spy and assert the sent id.
 
 ### 🐞 BUG-admin-e2e-06 — `reuseExistingServer: true` unconditionally, so any process on :4200 is trusted · Severity: Medium
 
-**Location:** `apps/admin-e2e/playwright.config.ts:28-33`
+**Location:** `apps/admin-e2e/playwright.config.ts:27-32`
 **Category:** correctness (harness)
 
 **What the code does:**
@@ -1309,7 +1378,7 @@ machine".
 
 ### 🐞 BUG-admin-e2e-07 — `trace: 'on-first-retry'` with no `retries` configured, so a trace is likely never produced · Severity: Medium
 
-**Location:** `apps/admin-e2e/playwright.config.ts:18-22`
+**Location:** `apps/admin-e2e/playwright.config.ts:20-24`
 **Category:** correctness (harness) · *Unverified —* the effective `retries` value comes from
 `nxE2EPreset` (`playwright.config.ts:17`), whose source is in `node_modules`, absent in this
 checkout. Playwright's own default is `retries: 0`, and the repo config overrides nothing.
@@ -1414,9 +1483,19 @@ fields must remain reachable. That is the pattern; it exists in exactly one file
 2. `npx nx e2e admin-e2e -- src/workspaces/keyboard.spec.ts`
 → Observed: passes. Expected: "search is reachable" should fail.
 
-**Blast radius:** the harness's stated purpose for these files is "keyboard operability — the
-part axe can't check" (`workspaces/keyboard.spec.ts:5-11`). For two of the three files, it does
-not check it either, while reporting green.
+**In fairness (verified):** `workspaces/keyboard.spec.ts:5-11` is *explicit* about the
+trade — "Avoids asserting the exact global tab order (it runs through the shell nav and
+varies); instead it pins the properties that matter: each control is focusable and activates
+by keyboard, and the filter chips move with the arrow keys." That is a defensible choice, and
+one case in the file (`:42-60`, the roving-tabindex chips) does prove real movement: it
+`.focus()`es only the entry point and then asserts `ArrowRight` lands on `Archived`
+(`:55-57`). The defect is narrower than "the file is worthless": the **test titles** promise
+reachability ("search is **reachable** and filters by keyboard") that the assertions do not
+establish, and `users/keyboard.spec.ts` drops the focus assertion entirely.
+
+**Blast radius:** the harness's stated purpose for these files is keyboard operability — "the
+part axe can't check". For the reachability half, two of the three files do not check it,
+while reporting green under a title that says they do.
 
 **Suggested fix:** Tab from a known anchor and assert the landing element; keep `.focus()` only
 where the test is about activation semantics (Enter/Space), and rename those tests accordingly.
@@ -1430,11 +1509,11 @@ where the test is about activation semantics (Enter/Space), and rename those tes
 **Category:** correctness (mock-vs-reality drift)
 
 **What the code does:** the seed declares `content?: string[]` and supplies it on exactly one
-of six workspaces (`ws_marketing`, `:51`); `ws_docs`, `ws_support`, `ws_internal`,
+of six workspaces (`ws_marketing`, `:52`); `ws_docs`, `ws_support`, `ws_internal`,
 `ws_research` and `ws_events` omit it. The server's `WorkspaceView.content` is
 non-optional: "Slugs of the code-defined content types this workspace was granted at
 creation". `CreateWorkspaceUseCase` always writes grants
-(`packages/workspaces/server/src/lib/workspace/application/use-cases/create-workspace.use-case.ts:55,63`),
+(`packages/workspaces/server/src/lib/workspace/application/use-cases/create-workspace.use-case.ts:54,63`),
 so an absent `content` is a state the API cannot produce.
 
 **Why it is wrong:** the admin's mapper compensates with
@@ -1498,7 +1577,7 @@ view types (they are `export interface`s in packages the e2e app could depend on
 
 ### 🐞 BUG-admin-e2e-12 — The entry fabricator never emits envelope `publishedAt`, and a seeded *field* shadows the name · Severity: Medium
 
-**Location:** `apps/admin-e2e/src/support/api/content.ts:1047-1063` (fabricator) and `:102-108`
+**Location:** `apps/admin-e2e/src/support/api/content.ts:1048-1065` (fabricator) and `:102-108`
 (the colliding field); contrast
 `packages/content/server/src/lib/entries/types/entry-list-view.ts:17-26`
 **Category:** correctness (mock-vs-reality drift)
@@ -1523,7 +1602,7 @@ saving a published entry moves it back to `draft` while its published version st
 `status: 'draft'` with a `publishedAt` means 'published content plus unpublished changes' (the
 admin's **Modified** state)" (`entry-list-view.ts:19-25`). The admin implements exactly that
 (`packages/content/admin/src/lib/domain/entryStatusView/index.ts:56-61`,
-`EntryStatusBadge/index.tsx:46`). Because the fabricator never emits the envelope field, the
+`packages/content/admin/src/lib/presentation/components/EntryStatusBadge/index.tsx:24-30`). Because the fabricator never emits the envelope field, the
 Modified badge cannot appear in any records-table test. The `i18n` seed models it correctly
 (`api/i18n.ts:117-123`), which proves the omission is an oversight rather than a design choice.
 
@@ -1533,7 +1612,7 @@ The name collision makes the seed actively misleading: `content-library.spec.ts:
 
 **Repro:**
 1. `npx nx e2e admin-e2e -- src/content/content-library.spec.ts --headed`
-2. Inspect the Status column across all 25 rows.
+2. Inspect the Status column across all 23 rows (`ENTRY_COUNT = 23`, `api/content.ts:1008`).
 → Observed: only Draft and Published. Expected (given a Modified state exists): at least one
    Modified row.
 
@@ -1549,7 +1628,7 @@ for the drafts that should read Modified), and rename the colliding seed field t
 ### 🐞 BUG-admin-e2e-13 — Two mock modules export the same `ActivitySeed` / `mockActivity` symbols with divergent behaviour · Severity: Low
 
 **Location:** `apps/admin-e2e/src/support/api/activity.ts:4-13`, `:167` and
-`apps/admin-e2e/src/support/api/userDetail.ts:121-133`, `:139`
+`apps/admin-e2e/src/support/api/userDetail.ts:121-131`, `:139`
 **Category:** correctness (maintainability)
 
 **What the code does:** both modules export an interface named `ActivitySeed` with an identical
@@ -1642,11 +1721,15 @@ explicitly, so the pending window ends deterministically.
 
 ### 🐞 BUG-admin-e2e-16 — The skill and AGENTS.md describe a browser matrix and a CI gate that do not exist · Severity: Low
 
-**Location:** `.agents/skills/admin-e2e/SKILL.md` ("After writing":
+**Location:** `.agents/skills/admin-e2e/SKILL.md:144` ("After writing":
 `npx nx e2e admin-e2e -- --project=chromium   # faster locally; CI runs all 3`);
-`apps/admin-e2e/AGENTS.md` ("Test catalog": "CI runs `npx nx catalog:check admin-e2e`");
-contrast `apps/admin-e2e/playwright.config.ts:35-38`
+`apps/admin-e2e/TESTS.md:4` ("CI runs `npx nx catalog:check admin-e2e`");
+contrast `apps/admin-e2e/playwright.config.ts:33-37`
 **Category:** correctness (documentation)
+
+*(Attribution corrected during verification: `apps/admin-e2e/AGENTS.md` does **not** make
+either claim — `:48` and `:95` say only that `catalog:check` "fails if it has drifted", with
+no mention of CI. The two files to fix are `TESTS.md` and the skill.)*
 
 **What the code does:** `playwright.config.ts` declares exactly one project:
 
@@ -1662,8 +1745,9 @@ exists and writes chromium-only selectors and assertions accordingly. It does no
 the absence of a mobile project is also the root of `♿ A11Y-admin-e2e-04` (no reflow coverage).
 Combined with `🐞 BUG-admin-e2e-01`, both CI claims in the docs are false.
 
-**Suggested fix:** correct both documents to state "chromium only, no CI", or add the projects
-and the workflow. The documentation should not describe an aspiration in the present tense.
+**Suggested fix:** correct `TESTS.md` and the skill to state "chromium only, no CI", or add the
+projects and the workflow. The documentation should not describe an aspiration in the present
+tense.
 
 ---
 

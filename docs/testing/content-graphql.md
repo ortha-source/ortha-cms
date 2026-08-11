@@ -1251,6 +1251,15 @@ Behaviours I specifically read and found **correct**:
   content and reads nothing; `public-graphql-api.spec.ts:877` asserts the API
   keeps working with it off.
 
+**Defect tally:** `7 🐞 · 1 Critical · 2 High · 3 Medium · 1 Low · 5 🔒`
+(BUG-01 Critical and BUG-02 High both re-confirmed against the source on
+verification; BUG-07 re-framed as latent-not-reachable, staying Low.)
+
+**Accessibility tally:** `1 ♿ · 0 Supports · 0 Partially Supports · 1 Does Not
+Support · 0 Not Applicable` (schema-level). The §4A provision table additionally
+records 2 **Partially Supports** and 4 **Not Applicable** provisions that produced
+no finding — this unit renders no UI.
+
 ## 7. Recommended E2E Tests
 
 | Priority | Harness | Proposed spec | Asserts | Closes |

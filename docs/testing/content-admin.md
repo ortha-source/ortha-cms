@@ -92,7 +92,7 @@ view types.
   (`:11-20`).
 - **The workspace must have content grants.** The schema list is global and
   filtered to `workspace.content`
-  (`ContentLibraryPage/index.tsx:112-113`, `ContentNavSection/index.tsx:258-259`);
+  (`ContentLibraryPage/index.tsx:112-113`, `ContentNavSection/index.tsx:59-60`);
   a workspace granted nothing renders `ContentLibraryEmpty` and **no sidebar
   section at all**.
 - For the entry editor's Media tab you additionally need `@ortha-cms/media-admin`
@@ -139,8 +139,8 @@ workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
 | F1 | Content sidebar section (nav landmark "Content types", heading, search trigger) | `presentation/components/ContentSidebar/index.tsx:102-126` | ✅ E2E |
 | F2 | Collapsible Collections / Pages groups; the open type's group starts expanded | `ContentSidebar/index.tsx:79-85,145-163` | ✅ E2E |
 | F3 | Favorites group (pin/unpin, per-workspace `localStorage`) | `presentation/hooks/useContentFavorites/index.ts:42-79` | ✅ E2E |
-| F4 | Sidebar hides itself when the workspace has no granted types | `ContentNavSection/index.tsx:253-262` | ⚠️ PARTIAL |
-| F5 | ⌘K / Ctrl+K opens the palette from anywhere in the workspace | `ContentNavSection/index.tsx:235-247` | ✅ E2E |
+| F4 | Sidebar hides itself when the workspace has no granted types | `ContentNavSection/index.tsx:54-63` | ⚠️ PARTIAL |
+| F5 | ⌘K / Ctrl+K opens the palette from anywhere in the workspace | `ContentNavSection/index.tsx:36-48` | ✅ E2E |
 | F6 | Non-⌘K route into the palette (sidebar "Search…" button) | `ContentSidebar/index.tsx:113-125` | ✅ E2E |
 | F7 | Palette lists Collections + Pages, filters, navigates on select | `ContentSearchDialog/index.tsx:90-140` | ✅ E2E |
 | F8 | Palette footer keyboard legend (↑↓ / ↵ / esc) | `ContentSearchDialog/index.tsx:141-155` | ❌ NONE |
@@ -184,7 +184,7 @@ workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
 | F46 | Strict vs draft validation (`submit` vs `submitDraft`), reveal on submit | `hooks/useEntryForm/index.ts:152-170` | ⚠️ PARTIAL |
 | F47 | Server 422 → inline per-field errors, cleared on edit | `useEntryForm/index.ts:108-129`, `infrastructure/entryIssues` | ❌ NONE |
 | F48 | Blocked submit announces itself (toast naming the first field) + switches tab | `EntryEditor/index.tsx:479-500` | ✅ E2E |
-| F49 | Publish gate panel in the Properties rail (live pass/fail per field) | `EntrySidebar/PublishGate/index.tsx:287-367`, `EntryEditor/index.tsx:378-443` | ❌ NONE |
+| F49 | Publish gate panel in the Properties rail (live pass/fail per field) | `EntrySidebar/PublishGate/index.tsx:70-150`, `EntryEditor/index.tsx:378-443` | ❌ NONE |
 | F50 | Required **link-managed** relation gated by effective link count | `EntryEditor/index.tsx:396-436` | ❌ NONE |
 | F51 | Editor tabs are routes (General/Relations/[slot tabs]/History) | `domain/entryTab/index.ts:16-21`, `ContentEntryView/index.tsx:242-257` | ✅ E2E |
 | F52 | Write actions portalled into the top bar (primary + ⋯ menu, grouped) | `EntryActions/index.tsx:110-143`, `EntryMenu/index.tsx:113-166` | ✅ E2E |
@@ -253,7 +253,7 @@ no `aria-label`, so it is read literally as "command K" — see
 | 3 | Press ↓ then ↵ | Navigates to `/workspaces/W/content/blog_post`; the palette closes |
 | 4 | Press ⌘K again, then Esc | The palette closes |
 | 5 | Type `zzzz` | "No content types found." |
-| 6 | Press ⌘K **twice** quickly | It opens then closes — the handler *toggles* (`ContentNavSection/index.tsx:242`) |
+| 6 | Press ⌘K **twice** quickly | It opens then closes — the handler *toggles* (`ContentNavSection/index.tsx:43`) |
 | 7 | Focus the rich-text editor on an entry, press ⌘K | The content palette opens and the keystroke never reaches the editor — see `🐞 BUG-content-admin-06` |
 
 **Keyboard-only path:** the whole feature is keyboard-first (cmdk owns
@@ -665,7 +665,7 @@ cards. **Screen-reader expectation:** chart primitives belong to
 
 - **EC-01 — Workspace with zero content grants.** `✅ E2E`
   `apps/admin-e2e/src/content/content-library.spec.ts:151` — the pane shows the
-  empty state. The sidebar's own `return null` (`ContentNavSection/index.tsx:260-262`)
+  empty state. The sidebar's own `return null` (`ContentNavSection/index.tsx:61-63`)
   is not asserted.
 - **EC-02 — A collection with zero rows and no filters.** `✅ E2E` (implicit in
   `content-library.spec.ts:217` for the filtered variant). Subtitle reads
@@ -745,7 +745,7 @@ cards. **Screen-reader expectation:** chart primitives belong to
   reachable when a many-relation somehow renders through `EntryFieldInput`
   rather than `RelationFieldLive` — in practice the Relations tab owns it.
 - **EC-24 — A field label that duplicates another's.** `❌ NONE` `PublishGate`
-  keys its rows by `item.label` (`PublishGate/index.tsx:328`), so two fields
+  keys its rows by `item.label` (`PublishGate/index.tsx:112`), so two fields
   sharing an `admin.label` collide on the React key.
 - **EC-25 — A `select` field whose stored value is no longer in `options`.**
   `❌ NONE` `Select` renders an empty trigger; the kernel reports "Choose one of
@@ -1055,8 +1055,9 @@ where the real exposure is.
   **Screen reader:** ten identical "Actions for this record" buttons with nothing
   distinguishing them. A user who navigates by control list cannot tell which
   record they are about to delete. The **sibling checkbox in the same file gets
-  this right** — `rowLabel()` (`:63-73`) builds "Select {title}" — so the fix is
-  already written three functions away.
+  this right** — `rowLabel()` (`CollectionRecordsTable/index.tsx:63-73`, the parent table
+  component — **not** this file, as an earlier draft of this artifact said)
+  builds "Select {title}", so the fix is already written one component up.
 - **Remediation:** interpolate the same `rowLabel(record, columns)` into the
   trigger's label, e.g. "Actions for {title}". (The component would need the
   columns, or the parent can pass the label it already computes.)
@@ -1085,15 +1086,16 @@ where the real exposure is.
 
 - **WCAG:** `1.3.1 Info and Relationships (A)`, `3.3.2 Labels or Instructions (A)` · **508:** `E205.4 / 502.2` · **Verdict:** **Partially Supports**
 - **Location:** `packages/content/admin/src/lib/presentation/components/EntryFieldInput/index.tsx:180-184`
-  — `const describedBy = error ? errorId : undefined;` The `<FieldDescription>`
-  rendered at `:227,269,315,356,394,495` is given **no id** and is never referenced.
+  — `const describedBy = error ? errorId : undefined;` (`:183`). The
+  `<FieldDescription>` rendered at `:227,269,315,357,395,495` is given **no id**
+  and is never referenced.
 - **Repro:** 1) Open an entry whose schema sets `admin.description` on a field
   (or any `json` field, which gets the built-in "Raw JSON." hint). 2) Tab into
   the control with a screen reader running.
 - **Keyboard-only:** the hint is on screen, so a sighted keyboard user is fine.
   **Screen reader:** the control announces its label, its required state, and
   nothing else — the author-supplied instruction is skipped entirely. Worse, the
-  code **suppresses** the description whenever an error is showing (`:180`), so
+  code **suppresses** the description whenever an error is showing (`:183`), so
   the two can never both be announced. The slot contract advertises `describedBy`
   to contributed controls (`slots/contentSlots/index.ts:477-483`) as "the id of
   the rendered `<FieldError>`" — so contributions inherit the same gap.
@@ -1161,7 +1163,7 @@ where the real exposure is.
 #### ♿ A11Y-content-admin-07 — The publish gate encodes pass/fail in colour and an aria-hidden icon
 
 - **WCAG:** `1.4.1 Use of Color (A)`, `1.3.1 Info and Relationships (A)` · **508:** `E205.4 / 502.2` · **Verdict:** **Does Not Support**
-- **Location:** `packages/content/admin/src/lib/presentation/components/ContentEntryView/EntryEditor/EntrySidebar/PublishGate/index.tsx:326-355`
+- **Location:** `packages/content/admin/src/lib/presentation/components/ContentEntryView/EntryEditor/EntrySidebar/PublishGate/index.tsx:110-139`
   — a passing row renders `<Check aria-hidden>` + the label and **nothing else**;
   a failing row renders `<X aria-hidden>` + the label + the message. The
   section's header badge is the words "blocking"/"ready", but per-row state has
@@ -1206,7 +1208,7 @@ where the real exposure is.
 - **Location:** `packages/content/admin/src/lib/presentation/components/ContentSidebar/index.tsx:122-124`
   — a literal `⌘K` inside a `<kbd>` with no `aria-label` and no platform check,
   while the handler accepts `metaKey || ctrlKey`
-  (`ContentNavSection/index.tsx:237-241`).
+  (`ContentNavSection/index.tsx:38-42`).
 - **Repro:** 1) On Windows/Linux, read the sidebar's search button.
 - **Keyboard-only:** Ctrl+K works, but the UI never says so — a keyboard-first
   user on the majority platform is told the wrong key.
@@ -1221,9 +1223,9 @@ where the real exposure is.
 
 - **WCAG:** `1.4.13 Content on Hover or Focus (AA)`, `4.1.2 Name, Role, Value (A)` · **508:** `E205.4 / 502.2` · **Verdict:** **Does Not Support**
 - **Location:** three sites —
-  `RelationPickerDialog/index.tsx:393-399` (a bare `<span title="Selected the
+  `RelationPickerDialog/index.tsx:404-413` (a bare `<span title="Selected the
   first N of M…">⚠</span>`, not focusable, no role, no accessible name beyond the
-  emoji), `EntryStatusBadge/index.tsx:132-136` (the "Modified" explanation), and
+  emoji), `EntryStatusBadge/index.tsx:57-63` (the "Modified" explanation), and
   `EntryFieldInput/RequiredMark/index.tsx:22-28` (the `*` legend, which is
   additionally `aria-hidden` so the title is unreachable by any route).
 - **Repro:** 1) In a many-relation picker, tick "Select all" on a target with
@@ -1373,7 +1375,10 @@ anywhere. The record can never be created from the admin.
 Expected: hidden fields are excluded from client validation, exactly like
 ungranted relations.
 
-**Repro (media field, no media plugin):**
+**Repro (media field, no media plugin)** — note the shipped host **does** register
+`MediaPlugin()` (`apps/admin/src/main.tsx:36`), so this half needs a host change and
+is not reachable in the default configuration; the hidden-field half above needs no
+such change and is what carries the High severity:
 1. Run the admin **without** `MediaPlugin()` in `apps/admin/src/main.tsx`.
 2. Open a type with a required `media` field and press Save.
 → Observed: `announceBlocked` calls `onTabChange(ENTRY_TAB.Media)` (`:488-489`).
@@ -1443,7 +1448,7 @@ default tab when the resolved tab has no rendered panel.
 
 ### 🐞 BUG-content-admin-03 — A failed content-type fetch makes the whole Content sidebar disappear silently · Severity: Medium 🔒
 
-**Location:** `packages/content/admin/src/lib/presentation/components/ContentNavSection/index.tsx:228,249-262`
+**Location:** `packages/content/admin/src/lib/presentation/components/ContentNavSection/index.tsx:29,50-63`
 **Category:** ux-state (BUGBOT: "Error masquerading as empty")
 
 **What the code does:**
@@ -1476,7 +1481,7 @@ two components disagree about the same failure.
 → Observed: the work area shows "Couldn't load content types" with a Try again
 button; the **sidebar's Content section is gone entirely**, with no error and no
 retry. The ⌘K shortcut also stops working, because its listener lives in the
-unmounted component (`:235-247`).
+unmounted component (`:36-48`).
 Expected: the section shows a small error affordance, or at minimum keeps the
 search trigger alive.
 
@@ -1488,7 +1493,7 @@ the missing section reads as "this workspace has no content".
 retry (reusing `ContentLibraryError`'s copy), and hoist the ⌘K listener above the
 early returns.
 
-### 🐞 BUG-content-admin-04 — Pressing Enter in any text field publishes the record live, with no confirmation · Severity: Medium
+### 🐞 BUG-content-admin-04 — The editor's implicit form submit publishes live, with no confirmation · Severity: Low
 
 **Location:** `packages/content/admin/src/lib/presentation/components/ContentEntryView/EntryEditor/index.tsx:615-639`
 **Category:** ux-state / error-prevention
@@ -1509,6 +1514,35 @@ early returns.
 `flow.submit({ publish: true })`, which saves **and** calls the publish endpoint
 (`usePublishEntryFlow/index.ts:161-177`).
 
+**Corrected on verification — when this actually fires is narrower than "any text
+field".** The editor's write actions are **not** inside this `<form>`: `EntryActions`
+renders through `PageActionsPortal` → `createPortal` into the top bar
+(`EntryEditor/index.tsx:648-661`; `shell-admin`'s
+`lib/utils/pageChrome/index.tsx:194-197`), and its primary button is explicitly
+`type="button"` (`EntryActions/index.tsx:113-114`). Every other `<Button>`/`<button>`
+rendered inside the form carries an explicit `type="button"` too — a scan of the
+`ContentEntryView` and `EntryFieldInput` trees found no exception, and the
+design-system `Button` sets no default type of its own
+(`packages/design-system/src/lib/components/ui/button.tsx:43-55`), so the omission
+would matter. **The form therefore has no submit button at all.** Under HTML's
+implicit-submission rule a form with no submit button submits on Enter only when it
+contains **at most one** field that blocks implicit submission (`input` of type
+text/number/date/…); with two or more, Enter does nothing. Of the editor's controls
+only `text`/`number`/`money` render a native `<input>`
+(`EntryFieldInput/index.tsx:500-532`); `richtext`/`json` are `<textarea>`,
+`select`/`multiselect`/`boolean`/`date` are buttons or popovers, and inactive Radix
+`TabsContent` panels are unmounted. So the hazard is real but reaches only records
+whose **active tab renders exactly one** text/number/money input — a one-field
+`single` page, or a type whose General tab is one text field plus richtext/select/
+date fields. Severity downgraded Medium → Low for that reason.
+
+*Unverified —* the implicit-submission behaviour above is the HTML Standard's rule
+and was not exercised in a browser here (no `node_modules`, no dev server). Note the
+package's own `AGENTS.md` twice states as fact that "the editor's `<form>` submits on
+Enter in a text field", and `EntryEditor/index.tsx:502-504` repeats it — so either
+the docs overstate it or a submit button exists that this scan missed. A single
+Playwright assertion settles it; see §7.
+
 **Why it is wrong:** every other consequential action in this package is behind
 an explicit confirmation — delete (`CollectionRecordsRowActions/index.tsx:324`),
 purge (`:343`), restore/publish a version (`RevisionList`), and even a
@@ -1520,19 +1554,24 @@ user's expectation. The comment's stated rationale ("it matches the visually
 primary button") is a reason for the *button*, not for Enter.
 
 **Repro:**
-1. `ADMIN` on a publishable type; open an existing draft record.
-2. Click into the title field, correct a typo, and press Enter (a near-universal
-   "commit this field" habit, and the standard way to close a `Calendar` popover
-   or accept an autocomplete).
+1. `ADMIN` on a **publishable** type whose General tab renders exactly one
+   text/number/money field (e.g. a `single` page with one `title` plus a
+   `richtext` body).
+2. Open an existing draft record, click into that field, correct a typo, and press
+   Enter (a near-universal "commit this field" habit).
 → Observed: the busy cover reads "Publishing…", and the toast reads
 "Blog post published." The record is live.
+→ On a type with **two or more** text/number inputs on the open tab, Enter is
+swallowed by the browser and nothing happens — which is itself worth pinning, since
+the two behaviours differ per content type.
 Expected: Enter saves a draft, or does nothing, or the publish path confirms.
 
-**Blast radius:** any author on any publishable type. Recoverable (Unpublish
-exists) but the content was public in the interim, and on a type with an
-`ENTRY_MENU_SLOT` "publish all locales" contribution the reach is every sibling
-locale. Nothing in the e2e suite asserts what Enter does, so a change either way
-is unguarded.
+**Blast radius:** authors on publishable types that meet the one-input condition.
+Recoverable (Unpublish exists) but the content was public in the interim, and on a
+type with an `ENTRY_MENU_SLOT` "publish all locales" contribution the reach is every
+sibling locale. Nothing in the e2e suite asserts what Enter does, so a change either
+way — including a future `type="submit"` slipping into the form and widening this to
+every type — is unguarded.
 
 **Suggested fix:** make the implicit submit the **draft** path
 (`save(false)`), or gate the publish-on-Enter behind the same confirm the
@@ -1577,7 +1616,7 @@ picker reconciles ids against the live schema.
 
 ### 🐞 BUG-content-admin-06 — The ⌘K handler is global and unconditional, so it steals the shortcut from every editor and input · Severity: Low
 
-**Location:** `packages/content/admin/src/lib/presentation/components/ContentNavSection/index.tsx:235-247`
+**Location:** `packages/content/admin/src/lib/presentation/components/ContentNavSection/index.tsx:36-48`
 **Category:** correctness / ux-state
 
 **What the code does:**
@@ -1596,25 +1635,33 @@ No check of `event.target`, no `event.altKey`/`shiftKey` exclusion, and it
 `preventDefault()`s unconditionally. It is registered for the whole time the user
 is inside a workspace (the section renders in the app sidebar).
 
-**Why it is wrong:** ⌘K/Ctrl+K is the near-universal "insert link" shortcut in
-rich-text editors, and this repo ships one — `@ortha-cms/wysiwyg-admin`'s TipTap
-editor with a link popover (`AGENTS.md`: "the WYSIWYG editor's alt-text and link
-popovers"). It is also the standard "clear line" binding in terminal-style inputs
-and is bound by several browsers. Because the handler both `preventDefault`s and
-**toggles**, pressing it a second time to dismiss the palette leaves the user's
-caret wherever it was with no link inserted.
+**Corrected on verification — the WYSIWYG conflict this finding originally claimed
+does not exist.** `wysiwyg-admin` registers **no** `Mod-k` binding: there is no
+`addKeyboardShortcuts` anywhere in `packages/wysiwyg/admin/src`, and its link
+affordance is toolbar-driven (`WysiwygToolbar/LinkPopover/index.tsx:64,83`), built on
+StarterKit's configured `link` mark
+(`infrastructure/editorExtensions/index.ts:33-44`). The repro "press ⌘K to insert a
+link" has been **deleted** as unsupported.
+
+**Why it is still wrong:** ⌘K/Ctrl+K is a browser-level binding (Chrome/Edge: search
+from the address bar; Firefox: focus the search bar) and the standard "clear line"
+binding in terminal-style inputs, and this handler `preventDefault`s it for the whole
+time the user is anywhere inside a workspace, from any target — a `<textarea>`, an
+`<input>`, a `contenteditable` body. Because it also **toggles**, a second press
+meant to dismiss the palette is likewise swallowed. The repo's own convention is that
+a global key listener checks its target; nothing here does.
 
 **Repro:**
-1. Open a record with a rich-text field, expand the editor, select some text.
-2. Press ⌘K to add a link.
-→ Observed: the content-type search palette opens over the editor; the selection
-is untouched and no link dialog appears.
-Expected: an editor-focused ⌘K reaches the editor.
+1. Open any record, click into the rich-text body (or any `<textarea>`).
+2. Press ⌘K / Ctrl+K.
+→ Observed: the content-type search palette opens over the editor, the browser's own
+⌘K is suppressed, and the caret is left where it was.
+Expected: a shortcut owned by the focused editable is not intercepted by a sidebar
+section.
 
-**Unverified —** I did not read `wysiwyg-admin`'s keymap to confirm it binds
-`Mod-k`; the conflict claim rests on TipTap/ProseMirror convention and the
-existence of a link popover in that package. The unconditional global capture
-and the missing `event.target` check are confirmed from the code above.
+*Unverified —* whether `@tiptap/extension-link` itself ships a default `Mod-k`
+keymap is a vendor contract and `node_modules` is not installed here; the statement
+above is only that **this repo** binds none.
 
 **Blast radius:** authors using the rich-text editor; low data risk, high
 annoyance. Also note the shortcut is advertised as `⌘K` only
@@ -1667,7 +1714,7 @@ shared module, as `EntryStatusBadge` does for status.
 
 ### 🐞 BUG-content-admin-08 — Every `money` cell is rendered as USD regardless of the field's currency · Severity: Low
 
-**Location:** `packages/content/admin/src/lib/presentation/components/CollectionRecordsView/CollectionRecordsTable/renderCell.tsx:71-75`
+**Location:** `packages/content/admin/src/lib/presentation/components/CollectionRecordsView/CollectionRecordsTable/renderCell.tsx:70-74`
 **Category:** correctness
 
 **What the code does:**
@@ -1689,7 +1736,7 @@ deciding what to publish. The `/100` assumption also breaks for zero-decimal
 currencies (JPY, KRW), where `1999` would be ¥1,999 and renders as ¥19.99 —
 off by two orders of magnitude. The editor's control has the mirror-image
 problem: `money` renders as a bare `type="number"` input
-(`EntryFieldInput/index.tsx:508-533`) with no currency affordance and **no
+(`EntryFieldInput/index.tsx:500-532`) with no currency affordance and **no
 divisor**, so the author types `19.99` while the table divides by 100 — the two
 surfaces disagree about the unit.
 
@@ -1748,6 +1795,13 @@ Behaviours I specifically read and found **correct**, so they are not filed:
   filtering applied to the *result*. The boot-frozen guarantee holds.
 - **Read-only enforcement** — gated at the single funnel (`runSave`, `:507`) as
   well as on the controls, so the Enter-to-submit path is covered.
+
+**Defect tally:** `8 🐞 · 0 Critical · 1 High · 2 Medium · 5 Low · 1 🔒`
+(BUG-04 downgraded Medium → Low on verification; see its own note.)
+
+**Accessibility tally:** `11 ♿ · 0 Supports · 5 Partially Supports · 6 Does Not
+Support · 0 Not Applicable` — all 11 confirmed against the code on verification;
+none withdrawn.
 
 ## 7. Recommended E2E Tests
 
